@@ -76,8 +76,12 @@ If running in interactive mode (e.g. Gemini CLI) then stop after each parent tas
 - Intended stack (per the PRD/prompt): a local-first TypeScript static web app
   (GitHub Pages "Web Shell") using Blockly + CodeMirror, `ehrtslib` for openEHR
   TypeScript, and `fontoxpath` for source queries; a VS Code extension follows
-  later. Once implementation begins and a JS manifest appears, the startup update
-  script already installs dependencies (npm/pnpm auto-detected from the lockfile).
-- Node.js and `pnpm` are available in this environment; `deno` is not installed
-  (AGENTS.md prefers Deno for the *local Windows* dev environment — install it in
-  the VM only if a future toolchain requires it).
+  later. Per repo preference, this is a **Deno-based** project (not Node/npm).
+- `deno` (latest stable, 2.9.0 at setup time) is installed in the VM and on
+  `PATH` via `~/.deno/env` (sourced from `~/.bashrc`). Node.js and `pnpm` also
+  happen to be present but are not the intended toolchain. Use `deno` for
+  install/lint/test/run/build once code exists (e.g. `deno install`,
+  `deno lint`, `deno test`, `deno task <name>`).
+- Once implementation begins and a `deno.json`/`deno.jsonc` (or `package.json`)
+  appears, the startup update script already runs `deno install` to fetch
+  dependencies. Until then it is a no-op.

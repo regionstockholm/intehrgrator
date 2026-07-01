@@ -64,3 +64,20 @@ If running in interactive mode (e.g. Gemini CLI) then stop after each parent tas
 - The local environment is a Windows machine without admin privileges,
   Powershell is available. It uses [Scoop](https://scoop.sh/) for package
   installation, so base any advice on that.
+
+## Cursor Cloud specific instructions
+
+- This repository is currently **specification/planning only** — it contains
+  Markdown docs (`README.md`, `CONTEXT.md`, `INITIAL_PROMPT.md`, `docs/`), a PRD
+  (`tasks/PRD-intehrgrator-v1.md`), a Pencil wireframe (`mapping-interface.pen`),
+  and a UI mockup PNG. There is **no application code, `package.json`, lockfile,
+  build, lint, or test target yet**, so there is nothing to install/build/run.
+  Do not fabricate an app or dependency setup based on this note alone.
+- Intended stack (per the PRD/prompt): a local-first TypeScript static web app
+  (GitHub Pages "Web Shell") using Blockly + CodeMirror, `ehrtslib` for openEHR
+  TypeScript, and `fontoxpath` for source queries; a VS Code extension follows
+  later. Once implementation begins and a JS manifest appears, the startup update
+  script already installs dependencies (npm/pnpm auto-detected from the lockfile).
+- Node.js and `pnpm` are available in this environment; `deno` is not installed
+  (AGENTS.md prefers Deno for the *local Windows* dev environment — install it in
+  the VM only if a future toolchain requires it).

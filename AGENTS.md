@@ -64,3 +64,24 @@ If running in interactive mode (e.g. Gemini CLI) then stop after each parent tas
 - The local environment is a Windows machine without admin privileges,
   Powershell is available. It uses [Scoop](https://scoop.sh/) for package
   installation, so base any advice on that.
+
+## Cursor Cloud specific instructions
+
+- This repository is currently **specification/planning only** — it contains
+  Markdown docs (`README.md`, `CONTEXT.md`, `INITIAL_PROMPT.md`, `docs/`), a PRD
+  (`tasks/PRD-intehrgrator-v1.md`), a Pencil wireframe (`mapping-interface.pen`),
+  and a UI mockup PNG. There is **no application code, `package.json`, lockfile,
+  build, lint, or test target yet**, so there is nothing to install/build/run.
+  Do not fabricate an app or dependency setup based on this note alone.
+- Intended stack (per the PRD/prompt): a local-first TypeScript static web app
+  (GitHub Pages "Web Shell") using Blockly + CodeMirror, `ehrtslib` for openEHR
+  TypeScript, and `fontoxpath` for source queries; a VS Code extension follows
+  later. Per repo preference, this is a **Deno-based** project (not Node/npm).
+- `deno` (latest stable, 2.9.0 at setup time) is installed in the VM and on
+  `PATH` via `~/.deno/env` (sourced from `~/.bashrc`). Node.js and `pnpm` also
+  happen to be present but are not the intended toolchain. Use `deno` for
+  install/lint/test/run/build once code exists (e.g. `deno install`,
+  `deno lint`, `deno test`, `deno task <name>`).
+- Once implementation begins and a `deno.json`/`deno.jsonc` (or `package.json`)
+  appears, the startup update script already runs `deno install` to fetch
+  dependencies. Until then it is a no-op.

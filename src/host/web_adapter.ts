@@ -17,9 +17,31 @@ export class WebHostAdapter implements HostAdapter {
     return await new Promise((resolve) => {
       const input = document.createElement("input");
       input.type = "file";
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
       if (accept) input.accept = accept;
-      input.onchange = () => resolve(input.files?.[0] ?? null);
+
+      let settled = false;
+      const finish = (file: File | null) => {
+        if (settled) return;
+        settled = true;
+        input.remove();
+        resolve(file);
+      };
+
+      input.addEventListener("change", () => finish(input.files?.[0] ?? null));
+      input.addEventListener("cancel", () => finish(null));
+
+      document.body.appendChild(input);
       input.click();
+
+      // Browsers without `cancel` on <input type="file"> — resolve when dialog closes with no selection.
+      globalThis.addEventListener("focus", function onWindowFocus() {
+        setTimeout(() => {
+          globalThis.removeEventListener("focus", onWindowFocus);
+          if (!settled && !input.files?.length) finish(null);
+        }, 400);
+      }, { once: true });
     });
   }
 

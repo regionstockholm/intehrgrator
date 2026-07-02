@@ -18,6 +18,7 @@ const controller = new WorkbenchController(host);
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
+const exampleTreeEl = document.getElementById("example-tree")!;
 const skeletonSlotsEl = document.getElementById("skeleton-slots")!;
 const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
@@ -130,15 +131,22 @@ function render(): void {
   statusBuild.textContent = `${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
   if (s.schemaTree) {
-    renderSchemaTree(schemaTreeEl, s.schemaTree, (path) => {
-      const fmt = s.activeExample?.format ?? "json";
-      controller.bindFromNode(path, fmt);
-    });
+    renderSchemaTree(schemaTreeEl, s.schemaTree, (path) => controller.bindFromNode(path, "json"));
   } else {
-    schemaTreeEl.textContent = "Load schema or add an example instance.";
+    schemaTreeEl.textContent = "Load a JSON schema file.";
   }
 
   renderExampleTabs(s);
+
+  if (s.exampleTree && s.activeExample) {
+    renderSchemaTree(exampleTreeEl, s.exampleTree, (path) => {
+      controller.bindFromNode(path, s.activeExample!.format);
+    });
+  } else {
+    exampleTreeEl.textContent = s.examples.length
+      ? "Select an example tab."
+      : "Add an example instance to enable Test Run.";
+  }
   syncBlocklyWorkspace(s);
   renderSkeletonList(
     skeletonSlotsEl,

@@ -1,6 +1,12 @@
 import { assertEquals } from "@std/assert";
-import { inferSchemaFromInstance, pathToFontoxpath } from "@intehrgrator/core/source/schema_loader.ts";
+import { inferSchemaFromInstance, loadJsonSchema, pathToFontoxpath } from "@intehrgrator/core/source/schema_loader.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
+
+Deno.test("loadJsonSchema from json document", () => {
+  const tree = loadJsonSchema(JSON.stringify({ patient: { id: "x" } }), "patient");
+  assertEquals(tree.name, "patient");
+  assertEquals(tree.children[0].name, "patient");
+});
 
 Deno.test("schema inference from json instance", () => {
   const tree = inferSchemaFromInstance(JSON.stringify({ patient: { id: "x" } }));

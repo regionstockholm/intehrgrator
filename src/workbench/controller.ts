@@ -79,6 +79,7 @@ export class WorkbenchController {
       skeleton: this.skeleton,
       schemaTree: this.schemaTree,
       schemaFilename: this.schemaFilename,
+      exampleTree: this.buildExampleTree(),
       model: this.model,
       settings: this.settings,
       examples: this.examples.list(),
@@ -108,13 +109,18 @@ export class WorkbenchController {
   }
 
   async loadSchema(): Promise<void> {
-    const file = await this.host.pickFile(".json");
-    if (!file) return;
-    const content = await this.host.readTextFile(file);
-    this.schemaFilename = file.name;
-    this.schemaTree = loadJsonSchema(content, file.name.replace(/\.[^.]+$/, ""));
-    this.statusMessage = `Loaded schema ${file.name}`;
-    this.notifyChange();
+    try {
+      const file = await this.host.pickFile(".json,application/json");
+      if (!file) return;
+      const content = await this.host.readTextFile(file);
+      this.schemaFilename = file.name;
+      this.schemaTree = loadJsonSchema(content, file.name.replace(/\.[^.]+$/, ""));
+      this.statusMessage = `Loaded schema ${file.name}`;
+      this.notifyChange();
+    } catch (err) {
+      this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+    }
   }
 
   async addExample(): Promise<void> {
@@ -124,12 +130,6 @@ export class WorkbenchController {
     const format = file.name.endsWith(".xml") ? "xml" : "json";
     const id = crypto.randomUUID();
     this.examples.addExample({ id, filename: file.name, format, content });
-    if (!this.schemaTree) {
-      this.schemaTree = format === "json"
-        ? inferSchemaFromInstance(content, "root")
-        : loadXmlSchemaFromInstance(content, "root");
-      this.schemaFilename = file.name;
-    }
     this.statusMessage = `Added example ${file.name}`;
     this.notifyChange();
     if (this.settings.autoplay) this.scheduleTestRun();
@@ -296,6 +296,15 @@ export class WorkbenchController {
     };
     this.refreshDerived();
     this.notifyChange();
+  }
+
+  private buildExampleTree(): SchemaTreeNode | null {
+    const active = this.examples.getActive();
+    if (!active) return null;
+    const rootName = active.filename.replace(/\.[^.]+$/, "");
+    return active.format === "json"
+      ? inferSchemaFromInstance(active.content, rootName)
+      : loadXmlSchemaFromInstance(active.content, rootName);
   }
 
   private refreshDerived(): void {

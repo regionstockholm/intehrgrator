@@ -45,9 +45,10 @@ function defineGenericStructureBlock(type: string, colour: string): void {
   if (Blockly.Blocks[type]) return;
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput("RM · label"), "NAME");
-      this.appendStatementInput("BODY").appendField("contains");
+      this.appendDummyInput("HEADER")
+        .appendField(new Blockly.FieldLabel("label"), "NAME")
+        .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
+      this.appendStatementInput("BODY");
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -57,6 +58,9 @@ function defineGenericStructureBlock(type: string, colour: string): void {
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
       this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
+      this.getField("ARCHETYPE_CTX")!.setVisible(false);
       this.setColour(colour);
       this.setTooltip("openEHR RM structure");
     },
@@ -106,19 +110,22 @@ function defineContainerBlock(
 function defineValueElementBlock(): void {
   Blockly.Blocks["element"] = {
     init: function (this: Blockly.Block) {
+      this.appendDummyInput("HEADER")
+        .appendField(new Blockly.FieldLabel("name"), "NAME")
+        .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
+      this.appendValueInput("VALUE").setCheck(null);
       this.appendDummyInput()
-        .appendField("element")
-        .appendField(new Blockly.FieldTextInput("name"), "NAME")
         .appendField(new Blockly.FieldLabelSerializable(""), "RM_TYPE");
-      this.appendValueInput("VALUE")
-        .setCheck(null)
-        .appendField("value");
+      this.getField("RM_TYPE")!.setVisible(false);
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
       this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
+      this.getField("ARCHETYPE_CTX")!.setVisible(false);
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(160);

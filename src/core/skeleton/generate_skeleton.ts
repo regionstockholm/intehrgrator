@@ -8,6 +8,15 @@ import {
   mandatoryAttributesFor,
   returnTypeForDv,
 } from "../rm_mandatory.ts";
+import {
+  archetypeShortName,
+  buildArchetypeTermsIndex,
+  compositionArchetypeRef,
+  lookupTermText,
+  mergedOntologyTerms,
+  resolveOptLanguage,
+  type TermBag,
+} from "./template_terms.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AmObject = any;
@@ -26,17 +35,19 @@ export function generateSkeleton(optSource: string): GenerateSkeletonResult {
   }
 
   const templateId = opt.template_id?.value ?? opt.archetype_id?.value ?? "unknown";
-  const lang = opt.original_language?.code_string ?? "en";
-  const terms = (opt.ontology?.term_definitions?.[lang] ?? opt.ontology?.term_definition ?? {}) as Record<
-    string,
-    { text?: unknown }
-  >;
+  const lang = resolveOptLanguage(opt);
+  const fallbackTerms = mergedOntologyTerms(opt, lang);
+  const archetypeTerms = buildArchetypeTermsIndex(optSource);
+  const rootArchetypeRef = compositionArchetypeRef(optSource) ??
+    Object.keys(archetypeTerms)[0];
 
   const root = walkComplex(
     opt.definition,
     templateId,
+    rootArchetypeRef,
     "",
-    terms,
+    fallbackTerms,
+    archetypeTerms,
   );
 
   return {
@@ -48,24 +59,32 @@ export function generateSkeleton(optSource: string): GenerateSkeletonResult {
 
 function walkComplex(
   cObj: AmObject,
-  archetypeId: string,
+  templateId: string,
+  archetypeRef: string | undefined,
   path: string,
-  terms: Record<string, { text?: unknown }>,
+  fallbackTerms: TermBag,
+  archetypeTerms: Map<string, TermBag>,
 ): SkeletonNode | null {
   const rmType = cObj.rm_type_name ?? "ITEM_TREE";
   const nodeId = cObj.node_id as string | undefined;
   const slotPath = path || "/";
-  const label = termLabel(terms, nodeId) ?? nodeId ?? rmType;
+  const nodeArchetypeRef = (cObj.archetype_ref as string | undefined) ?? archetypeRef;
+  const terms = termsForArchetype(nodeArchetypeRef, fallbackTerms, archetypeTerms);
+  const label = lookupTermText(terms, nodeId) ?? nodeId ?? rmType;
   const blockType = blockTypeForRm(rmType);
+  const archetypeCtx = nodeArchetypeRef
+    ? { archetypeRef: nodeArchetypeRef, archetypeShortName: archetypeShortName(nodeArchetypeRef) }
+    : {};
 
   if (isDataValueType(rmType)) {
     return {
-      slotId: `${archetypeId}${slotPath}/value`,
+      slotId: `${templateId}${slotPath}/value`,
       blockType: blockTypeForRm(rmType),
       rmType,
       label,
       archetypeNodeId: nodeId,
-      archetypeId,
+      archetypeId: templateId,
+      ...archetypeCtx,
       kind: "value",
       mandatory: isMandatory(cObj),
       children: [],
@@ -80,7 +99,14 @@ function walkComplex(
     const attrName = attr.rm_attribute_name as string | undefined;
     if (!attrName) continue;
     presentAttrs.add(attrName);
-    const childNodes = walkAttribute(attr, archetypeId, `${slotPath}/${attrName}`, terms);
+    const childNodes = walkAttribute(
+      attr,
+      templateId,
+      nodeArchetypeRef,
+      `${slotPath}/${attrName}`,
+      fallbackTerms,
+      archetypeTerms,
+    );
     children.push(...childNodes);
   }
 
@@ -89,21 +115,22 @@ function walkComplex(
     const silent = buildSilentMandatoryNode(
       rmType,
       attrName,
-      archetypeId,
+      templateId,
+      nodeArchetypeRef,
       `${slotPath}/${attrName}`,
       terms,
-      nodeId,
     );
     if (silent) children.push(silent);
   }
 
   return {
-    slotId: `${archetypeId}${slotPath}`,
+    slotId: `${templateId}${slotPath}`,
     blockType,
     rmType,
     label,
     archetypeNodeId: nodeId,
-    archetypeId,
+    archetypeId: templateId,
+    ...archetypeCtx,
     kind: "container",
     mandatory: isMandatory(cObj),
     children,
@@ -113,34 +140,47 @@ function walkComplex(
 
 function walkAttribute(
   attr: AmObject,
-  archetypeId: string,
+  templateId: string,
+  archetypeRef: string | undefined,
   path: string,
-  terms: Record<string, { text?: unknown }>,
+  fallbackTerms: TermBag,
+  archetypeTerms: Map<string, TermBag>,
 ): SkeletonNode[] {
   const children = (attr.children ?? []) as AmObject[];
   const nodes: SkeletonNode[] = [];
 
   for (const child of children) {
+    const childArchetypeRef = (child.archetype_ref as string | undefined) ?? archetypeRef;
+    const terms = termsForArchetype(childArchetypeRef, fallbackTerms, archetypeTerms);
     const isComplex = child.attributes != null || child.rm_type_name === "ELEMENT" ||
       !String(child.rm_type_name ?? "").startsWith("DV_");
     if (isComplex && child.attributes) {
       const node = walkComplex(
         child,
-        archetypeId,
+        templateId,
+        childArchetypeRef,
         `${path}/${child.node_id ?? child.rm_type_name}`,
-        terms,
+        fallbackTerms,
+        archetypeTerms,
       );
       if (node) nodes.push(node);
     } else {
       const rmType = child.rm_type_name ?? "DV_TEXT";
       const nodeId = child.node_id as string | undefined;
+      const archetypeCtx = childArchetypeRef
+        ? {
+          archetypeRef: childArchetypeRef,
+          archetypeShortName: archetypeShortName(childArchetypeRef),
+        }
+        : {};
       nodes.push({
-        slotId: `${archetypeId}${path}/${nodeId ?? "value"}/value`,
+        slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
-        label: termLabel(terms, nodeId) ?? nodeId ?? rmType,
+        label: lookupTermText(terms, nodeId) ?? nodeId ?? rmType,
         archetypeNodeId: nodeId,
-        archetypeId,
+        archetypeId: templateId,
+        ...archetypeCtx,
         kind: "value",
         mandatory: isMandatory(child),
         children: [],
@@ -155,21 +195,27 @@ function walkAttribute(
 function buildSilentMandatoryNode(
   parentRmType: string,
   attrName: string,
-  archetypeId: string,
+  templateId: string,
+  archetypeRef: string | undefined,
   path: string,
-  terms: Record<string, { text?: unknown }>,
-  parentNodeId?: string,
+  terms: TermBag,
 ): SkeletonNode | null {
   const attrRmType = silentMandatoryRmType(parentRmType, attrName);
   if (!attrRmType) return null;
 
+  const archetypeCtx = archetypeRef
+    ? { archetypeRef, archetypeShortName: archetypeShortName(archetypeRef) }
+    : {};
+  const label = lookupTermText(terms, attrName) ?? attrName;
+
   if (isDataValueType(attrRmType) || attrRmType.startsWith("DV_")) {
     return {
-      slotId: `${archetypeId}${path}/value`,
+      slotId: `${templateId}${path}/value`,
       blockType: blockTypeForRm(attrRmType),
       rmType: attrRmType,
-      label: attrName,
-      archetypeId,
+      label,
+      archetypeId: templateId,
+      ...archetypeCtx,
       kind: "value",
       mandatory: true,
       silentMandatory: true,
@@ -182,7 +228,8 @@ function buildSilentMandatoryNode(
     const nestedNode = buildSilentMandatoryNode(
       attrRmType,
       nested,
-      archetypeId,
+      templateId,
+      archetypeRef,
       `${path}/${nested}`,
       terms,
     );
@@ -190,18 +237,29 @@ function buildSilentMandatoryNode(
   }
 
   return {
-    slotId: `${archetypeId}${path}`,
+    slotId: `${templateId}${path}`,
     blockType: blockTypeForRm(attrRmType),
     rmType: attrRmType,
-    label: attrName,
-    archetypeNodeId: parentNodeId,
-    archetypeId,
+    label,
+    archetypeId: templateId,
+    ...archetypeCtx,
     kind: "container",
     mandatory: true,
     silentMandatory: true,
     children: childSlots,
     attachmentPoint: path,
   };
+}
+
+function termsForArchetype(
+  archetypeRef: string | undefined,
+  fallbackTerms: TermBag,
+  archetypeTerms: Map<string, TermBag>,
+): TermBag {
+  if (archetypeRef && archetypeTerms.has(archetypeRef)) {
+    return archetypeTerms.get(archetypeRef)!;
+  }
+  return fallbackTerms;
 }
 
 function silentMandatoryRmType(parentType: string, attrName: string): string | null {
@@ -254,16 +312,6 @@ function isMandatory(cObj: AmObject): boolean {
   if (!occ) return false;
   const lower = Number(occ.lower ?? 0);
   return lower > 0;
-}
-
-function termLabel(terms: Record<string, { text?: unknown }>, nodeId?: string): string | undefined {
-  if (!nodeId) return undefined;
-  const raw = terms[nodeId]?.text ?? terms[nodeId.replace(/^at/, "at")]?.text;
-  if (typeof raw === "string") return raw;
-  if (raw && typeof raw === "object" && "value" in (raw as Record<string, unknown>)) {
-    return String((raw as Record<string, unknown>).value);
-  }
-  return undefined;
 }
 
 function extractFixedFields(cObj: AmObject): Record<string, string> | undefined {

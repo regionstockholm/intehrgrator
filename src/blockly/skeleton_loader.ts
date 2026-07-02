@@ -4,6 +4,7 @@ import type { MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS, isDataValueType } from "../core/rm_mandatory.ts";
 import { parseExpression, type ExprAst } from "../core/expression/mod.ts";
 import { ensureRmBlockType } from "./blocks/rm_blocks.ts";
+import { applySkeletonBlockLabels } from "./block_labels.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -87,10 +88,10 @@ function buildContainerBlock(
 ): BlockSvg {
   ensureRmBlockType("rm_structure", node.rmType);
   const block = workspace.newBlock("rm_structure") as BlockSvg;
-  block.setFieldValue(`${node.rmType} · ${node.label}`, "NAME");
   block.setFieldValue(node.rmType, "RM_TYPE");
   setFieldIfPresent(block, "SLOT_ID", node.slotId);
   setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId ?? "");
+  applySkeletonBlockLabels(block, node);
 
   const visibleChildren = node.children.filter(
     (child) => !(child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)),
@@ -120,12 +121,12 @@ function buildElementBlock(
   ensureRmBlockType("element", "ELEMENT");
   const primary = primaryValueChild(node);
   const block = workspace.newBlock("element") as BlockSvg;
-  block.setFieldValue(`${primary?.rmType ?? "ELEMENT"} · ${node.label}`, "NAME");
   block.setFieldValue(primary?.rmType ?? "ELEMENT", "RM_TYPE");
   block.setFieldValue(primary?.slotId ?? node.slotId, "SLOT_ID");
   if (node.archetypeNodeId) {
     setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
   }
+  applySkeletonBlockLabels(block, node);
 
   if (!isRoot) {
     block.setPreviousStatement(true);
@@ -145,12 +146,12 @@ function buildElementBlockFromValue(
 ): BlockSvg {
   ensureRmBlockType("element", "ELEMENT");
   const block = workspace.newBlock("element") as BlockSvg;
-  block.setFieldValue(`${node.rmType} · ${node.label}`, "NAME");
   block.setFieldValue(node.rmType, "RM_TYPE");
   block.setFieldValue(node.slotId, "SLOT_ID");
   if (node.archetypeNodeId) {
     setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
   }
+  applySkeletonBlockLabels(block, node);
   if (!isRoot) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);

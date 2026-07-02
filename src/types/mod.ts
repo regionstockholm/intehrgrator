@@ -33,7 +33,12 @@ export interface SkeletonNode {
   rmType: string;
   label: string;
   archetypeNodeId?: string;
+  /** Template id prefix used in slot paths. */
   archetypeId?: string;
+  /** openEHR archetype id owning this node's at-code terminology. */
+  archetypeRef?: string;
+  /** Short archetype name for at-code disambiguation in the UI. */
+  archetypeShortName?: string;
   kind: SkeletonNodeKind;
   mandatory: boolean;
   silentMandatory?: boolean;

@@ -2,7 +2,8 @@ import * as Blockly from "blockly/core";
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
 import type { MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS, isDataValueType } from "../core/rm_mandatory.ts";
-import { parseExpression, type ExprAst } from "../core/expression/mod.ts";
+import { parseExpression } from "../core/expression/mod.ts";
+import { astToExpressionBlock } from "./expression_serialize.ts";
 import { ensureRmBlockType } from "./blocks/rm_blocks.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 
@@ -218,54 +219,10 @@ function expressionToBlock(
   returnType: string,
 ): BlockSvg {
   try {
-    return astToBlock(workspace, parseExpression(expression), returnType);
+    return astToExpressionBlock(workspace, parseExpression(expression), returnType, finalizeBlock);
   } catch {
     return createSourceQueryBlock(workspace, expression, returnType);
   }
-}
-
-function astToBlock(
-  workspace: Blockly.Workspace,
-  ast: ExprAst,
-  returnType: string,
-): BlockSvg {
-  if (ast.kind === "call") {
-    if (ast.name.startsWith("xpath")) {
-      const xpathArg = ast.args[0];
-      const xpath = xpathArg?.kind === "literal" && typeof xpathArg.value === "string"
-        ? xpathArg.value
-        : "";
-      const ret = ast.name === "xpathNumber"
-        ? "number"
-        : ast.name === "xpathBoolean"
-        ? "boolean"
-        : "string";
-      return createSourceQueryBlock(workspace, xpath, ret);
-    }
-    if (ast.name === "trim" && ast.args[0]) {
-      const block = workspace.newBlock("trim") as BlockSvg;
-      const inner = astToBlock(workspace, ast.args[0], "string");
-      block.getInput("TEXT")!.connection!.connect(inner.outputConnection!);
-      return finalizeBlock(block);
-    }
-    if (ast.name === "if" && ast.args.length >= 3) {
-      const block = workspace.newBlock("if_then_else") as BlockSvg;
-      block.getInput("COND")!.connection!.connect(
-        astToBlock(workspace, ast.args[0], "boolean").outputConnection!,
-      );
-      block.getInput("THEN")!.connection!.connect(
-        astToBlock(workspace, ast.args[1], returnType).outputConnection!,
-      );
-      block.getInput("ELSE")!.connection!.connect(
-        astToBlock(workspace, ast.args[2], returnType).outputConnection!,
-      );
-      return finalizeBlock(block);
-    }
-  }
-  if (ast.kind === "literal") {
-    return createSourceQueryBlock(workspace, String(ast.value), returnType);
-  }
-  return createSourceQueryBlock(workspace, "", returnType);
 }
 
 function createSourceQueryBlock(

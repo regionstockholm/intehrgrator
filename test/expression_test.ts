@@ -16,3 +16,11 @@ Deno.test("if expression", () => {
   const ast = parseExpression('if(xpathBoolean("/active"), xpathNumber("/a"), xpathNumber("/b"))');
   assertEquals(ast.kind, "call");
 });
+
+Deno.test("switch and literal expressions", () => {
+  const src = 'switch(xpathString("/type"), "a", 1, "b", 2, 0)';
+  const ast = parseExpression(src);
+  assertEquals(serialize(ast), src);
+  const lit = parseExpression('"hello"');
+  assertEquals(serialize(lit), '"hello"');
+});

@@ -11,6 +11,7 @@ import {
 } from "../src/workbench/codemirror_setup.ts";
 import { initBlocklyGenerators, loadSkeletonIntoWorkspace, applyModelExpressions, highlightListeningSlot, slotIdFromBlock } from "../src/blockly/mod.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
+import { initSplitPanes } from "../src/ui/split_pane.ts";
 import * as En from "blockly/msg/en";
 
 Blockly.setLocale(En);
@@ -47,11 +48,23 @@ const workspace = Blockly.inject(blocklyMount, {
   toolbox: {
     kind: "categoryToolbox",
     contents: [
-      { kind: "category", name: "Source", colour: "#E87722", contents: [{ kind: "block", type: "source_query" }] },
+      { kind: "category", name: "Source", colour: "#E87722", contents: [
+        { kind: "block", type: "source_query" },
+      ]},
+      { kind: "category", name: "Literals", colour: "#160", contents: [
+        { kind: "block", type: "text_literal" },
+        { kind: "block", type: "number_literal" },
+      ]},
       { kind: "category", name: "Logic", colour: "#20", contents: [
         { kind: "block", type: "trim" },
+        { kind: "block", type: "concat" },
         { kind: "block", type: "if_then_else" },
+        { kind: "block", type: "switch_case" },
         { kind: "block", type: "math_arithmetic" },
+      ]},
+      { kind: "category", name: "Variables", colour: "#330", contents: [
+        { kind: "block", type: "mapping_var_get" },
+        { kind: "block", type: "mapping_var_set" },
       ]},
     ],
   },
@@ -60,6 +73,8 @@ const workspace = Blockly.inject(blocklyMount, {
   move: { scrollbars: true, drag: true, wheel: true },
   renderer: "zelos",
 });
+
+initSplitPanes(document, () => Blockly.svgResize(workspace));
 
 workspace.addChangeListener((event) => {
   if (event.type === Blockly.Events.CLICK && "blockId" in event && event.blockId) {

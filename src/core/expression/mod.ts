@@ -9,7 +9,9 @@ export type ExprAst =
       | "xpathBoolean"
       | "trim"
       | "concat"
-      | "if";
+      | "if"
+      | "switch"
+      | "var";
     args: ExprAst[];
   }
   | { kind: "binary"; op: "+" | "-" | "*" | "/"; left: ExprAst; right: ExprAst };
@@ -22,6 +24,8 @@ const BUILTIN_NAMES = new Set([
   "trim",
   "concat",
   "if",
+  "switch",
+  "var",
 ]);
 
 export function parseExpression(source: string): ExprAst {
@@ -144,7 +148,16 @@ class Parser {
         }
         if (this.peek()?.type !== ")") throw new Error("Expected )");
         this.consume();
-        const builtin = name as "xpath" | "xpathString" | "xpathNumber" | "xpathBoolean" | "trim" | "concat" | "if";
+        const builtin = name as
+          | "xpath"
+          | "xpathString"
+          | "xpathNumber"
+          | "xpathBoolean"
+          | "trim"
+          | "concat"
+          | "if"
+          | "switch"
+          | "var";
         return { kind: "call", name: builtin, args };
       }
       throw new Error(`Unknown identifier: ${name}`);

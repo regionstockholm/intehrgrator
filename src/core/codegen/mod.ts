@@ -73,6 +73,10 @@ function emitTsEval(ast: import("@intehrgrator/core/expression/mod.ts").ExprAst,
           return `[${args.join(", ")}].join('')`;
         case "if":
           return `(${args[0]} ? ${args[1]} : ${args[2]})`;
+        case "switch":
+          return emitSwitchTs(args);
+        case "var":
+          return `__vars[${args[0]}]`;
         case "xpathString":
           return `evaluateXPathToString(${args[0]}, ${node})`;
         case "xpathNumber":
@@ -84,6 +88,18 @@ function emitTsEval(ast: import("@intehrgrator/core/expression/mod.ts").ExprAst,
       }
     }
   }
+}
+
+function emitSwitchTs(args: string[]): string {
+  if (args.length < 2) return "null";
+  const discriminant = args[0];
+  const defaultV = args[args.length - 1];
+  const pairs = args.slice(1, -1);
+  let expr = defaultV;
+  for (let i = pairs.length - 2; i >= 0; i -= 2) {
+    expr = `(${discriminant} === ${pairs[i]} ? ${pairs[i + 1]} : ${expr})`;
+  }
+  return expr;
 }
 
 export function generateJava(model: MappingModel): string {

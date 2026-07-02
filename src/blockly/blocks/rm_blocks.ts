@@ -48,7 +48,7 @@ function defineGenericStructureBlock(type: string, colour: string): void {
       this.appendDummyInput("HEADER")
         .appendField(new Blockly.FieldLabel("label"), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
-      this.appendStatementInput("BODY");
+      this.appendStatementInput("BODY").appendField("children");
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -113,7 +113,9 @@ function defineValueElementBlock(): void {
       this.appendDummyInput("HEADER")
         .appendField(new Blockly.FieldLabel("name"), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
-      this.appendValueInput("VALUE").setCheck(null);
+      this.appendValueInput("VALUE")
+        .setCheck(null)
+        .appendField("map");
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);

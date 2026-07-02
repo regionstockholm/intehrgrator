@@ -1,7 +1,9 @@
-import * as Blockly from "blockly/core";
-import { Extensions } from "blockly/core";
+import { Blockly } from "../blockly_core.ts";
+import { mandatoryAttributesFor } from "../../core/rm_mandatory.ts";
+import { blocklyCheckForDv } from "../block_checks.ts";
 
 const OPTIONAL_INPUT_PREFIX = "OPT_";
+export const RM_ATTR_INPUT_PREFIX = "ATTR_";
 
 export function registerRmBlocks(): void {
   defineGenericStructureBlock("rm_structure", "#003B49");
@@ -9,24 +11,20 @@ export function registerRmBlocks(): void {
   defineContainerBlock("composition", "Composition", [
     { name: "CONTENT", type: "statement" },
     { name: "CONTEXT", type: "statement" },
-    { name: "BODY", type: "statement" },
   ], "#005C53");
 
   defineContainerBlock("section", "Section", [
     { name: "ITEMS", type: "statement" },
-    { name: "BODY", type: "statement" },
   ], "#005C53");
 
   defineContainerBlock("observation", "Observation", [
     { name: "DATA", type: "statement" },
     { name: "STATE", type: "statement" },
     { name: "PROTOCOL", type: "statement" },
-    { name: "BODY", type: "statement" },
   ], "#003B49", true);
 
   defineContainerBlock("cluster", "Cluster", [
     { name: "ITEMS", type: "statement" },
-    { name: "BODY", type: "statement" },
   ], "#003B49");
 
   defineValueElementBlock();
@@ -39,6 +37,53 @@ export function ensureRmBlockType(blockType: string, rmType: string): void {
   defineGenericStructureBlock(blockType, rmType.startsWith("DV_") ? "#5C6BC0" : "#003B49");
 }
 
+/** Ordered RM attribute names for statement inputs on a container block. */
+export function orderedRmAttributes(rmType: string, present: string[]): string[] {
+  const seen = new Set<string>();
+  const ordered: string[] = [];
+  for (const attr of mandatoryAttributesFor(rmType)) {
+    if (present.includes(attr) && !seen.has(attr)) {
+      ordered.push(attr);
+      seen.add(attr);
+    }
+  }
+  for (const attr of present) {
+    if (!seen.has(attr)) {
+      ordered.push(attr);
+      seen.add(attr);
+    }
+  }
+  return ordered;
+}
+
+/** Replace dynamic RM-attribute statement inputs (labels = lowercase RM names). */
+export function syncRmAttributeInputs(
+  block: Blockly.Block,
+  rmType: string,
+  attributes: string[],
+): void {
+  for (const input of [...block.inputList]) {
+    if (input.name.startsWith(RM_ATTR_INPUT_PREFIX)) {
+      block.removeInput(input.name);
+    }
+  }
+  for (const attr of orderedRmAttributes(rmType, attributes)) {
+    block.appendStatementInput(`${RM_ATTR_INPUT_PREFIX}${attr}`)
+      .appendField(attr);
+  }
+}
+
+export function rmAttributeInputName(attr: string): string {
+  return `${RM_ATTR_INPUT_PREFIX}${attr}`;
+}
+
+/** Apply a typed value-slot check on an ELEMENT block from its target DV rm type. */
+export function configureElementValueSlot(block: Blockly.Block, rmType: string): void {
+  const input = block.getInput("VALUE");
+  if (!input) return;
+  input.setCheck(blocklyCheckForDv(rmType));
+}
+
 type InputDef = { name: string; type: "statement" | "value" };
 
 function defineGenericStructureBlock(type: string, colour: string): void {
@@ -48,7 +93,6 @@ function defineGenericStructureBlock(type: string, colour: string): void {
       this.appendDummyInput("HEADER")
         .appendField(new Blockly.FieldLabel("label"), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
-      this.appendStatementInput("BODY").appendField("children");
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -89,7 +133,8 @@ function defineContainerBlock(
       }
       for (const input of inputs) {
         if (input.type === "statement") {
-          this.appendStatementInput(input.name).appendField(input.name.toLowerCase());
+          this.appendStatementInput(rmAttributeInputName(input.name.toLowerCase()))
+            .appendField(input.name.toLowerCase());
         }
       }
       this.appendDummyInput()
@@ -115,7 +160,7 @@ function defineValueElementBlock(): void {
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
       this.appendValueInput("VALUE")
         .setCheck(null)
-        .appendField("map");
+        .appendField("value");
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -131,6 +176,7 @@ function defineValueElementBlock(): void {
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(160);
+      this.setInputsInline(false);
     },
   };
 }
@@ -149,8 +195,9 @@ function defineDvBlocks(): void {
         new Blockly.FieldTextInput("mm[Hg]"),
         "UNITS",
       );
-      this.setOutput(true, null);
+      this.setOutput(true, "Number");
       this.setColour(230);
+      this.setInputsInline(false);
     },
   };
 
@@ -163,12 +210,17 @@ function defineDvBlocks(): void {
       this.appendValueInput("VALUE").setCheck("String").appendField("value");
       this.setOutput(true, "String");
       this.setColour(230);
+      this.setInputsInline(false);
     },
   };
 }
 
+let optionalRmMutatorRegistered = false;
+
 function registerOptionalRmMutator(): void {
-  Extensions.registerMutator("optional_rm_mutator", {
+  if (optionalRmMutatorRegistered) return;
+  optionalRmMutatorRegistered = true;
+  Blockly.Extensions.registerMutator("optional_rm_mutator", {
     mutationToDom: function (this: Blockly.Block) {
       const container = document.createElement("mutation");
       const extras = this.extraInputs_ ?? [];

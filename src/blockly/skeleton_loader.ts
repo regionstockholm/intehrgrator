@@ -1,11 +1,12 @@
-import * as Blockly from "blockly/core";
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
 import type { MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS, isDataValueType } from "../core/rm_mandatory.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
-import { ensureRmBlockType } from "./blocks/rm_blocks.ts";
+import { Blockly } from "./blockly_core.ts";
+import { ensureRmBlockType, configureElementValueSlot, rmAttributeInputName, syncRmAttributeInputs } from "./blocks/rm_blocks.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
+import { blocklyCheckForReturnType } from "./block_checks.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -21,7 +22,10 @@ export function loadSkeletonIntoWorkspace(
       const block = buildBlockFromNode(workspace, root, true);
       if (!block) continue;
       block.moveBy(20, y);
-      y += block.getHeightWidth().height + 24;
+      const height = typeof block.getHeightWidth === "function"
+        ? block.getHeightWidth().height
+        : 80;
+      y += height + 24;
     }
     applyModelExpressions(workspace, model);
     highlightListeningSlot(workspace, listeningSlotId);
@@ -98,11 +102,22 @@ function buildContainerBlock(
     (child) => !(child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)),
   );
 
-  const childBlocks = visibleChildren
-    .map((child) => buildBlockFromNode(workspace, child, false))
-    .filter((child): child is BlockSvg => child !== null);
+  const attributes = [
+    ...new Set(
+      visibleChildren
+        .map((child) => child.rmAttribute)
+        .filter((attr): attr is string => Boolean(attr)),
+    ),
+  ];
+  syncRmAttributeInputs(block, node.rmType, attributes);
 
-  connectStatementChain(block, "BODY", childBlocks);
+  for (const attr of attributes) {
+    const attrChildren = visibleChildren.filter((child) => child.rmAttribute === attr);
+    const childBlocks = attrChildren
+      .map((child) => buildBlockFromNode(workspace, child, false))
+      .filter((child): child is BlockSvg => child !== null);
+    connectStatementChain(block, rmAttributeInputName(attr), childBlocks);
+  }
   if (!isRoot) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
@@ -128,6 +143,7 @@ function buildElementBlock(
     setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
   }
   applySkeletonBlockLabels(block, node);
+  configureElementValueSlot(block, primary?.rmType ?? node.rmType);
 
   if (!isRoot) {
     block.setPreviousStatement(true);
@@ -153,6 +169,8 @@ function buildElementBlockFromValue(
     setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
   }
   applySkeletonBlockLabels(block, node);
+  configureElementValueSlot(block, node.rmType);
+
   if (!isRoot) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
@@ -233,12 +251,15 @@ function createSourceQueryBlock(
   const block = workspace.newBlock("source_query") as BlockSvg;
   block.setFieldValue(xpath, "EXPRESSION");
   block.setFieldValue(returnType, "RETURN_TYPE");
+  block.setOutput(true, blocklyCheckForReturnType(returnType) ?? null);
   return finalizeBlock(block);
 }
 
 function finalizeBlock(block: BlockSvg): BlockSvg {
-  block.initSvg();
-  block.render();
+  if (typeof document !== "undefined") {
+    block.initSvg();
+    block.render();
+  }
   return block;
 }
 

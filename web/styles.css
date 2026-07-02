@@ -107,6 +107,18 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .toolbox-category-variables.blocklyTreeSelected,
 .blockly-mount .toolbox-category-variables.blocklyToolboxSelected { background-color: #a65b80 !important; }
 
+/* Flyout: vertical stack without overlapping preview blocks */
+.blockly-mount .blocklyFlyout .blocklyBlockCanvas {
+  transform: none !important;
+}
+.blockly-mount .blocklyFlyoutLabelText {
+  fill: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 /* Secondary at-code on skeleton blocks */
 .blockly-mount .blocklyText.blockly-at-code {
   fill: var(--text-secondary);
@@ -209,7 +221,89 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-top: 1px solid var(--border); background: #fff;
 }
 .status-bar #status-main { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.status-save {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.status-save.unsaved { color: var(--error); font-weight: 600; }
+.status-save.saved { color: var(--success); }
 .status-build { flex-shrink: 0; font-size: 11px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
+
+.app-dialog {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  max-width: 420px;
+  width: calc(100% - 32px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+.app-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+.dialog-form h2 { margin: 0; font-size: 16px; }
+.dialog-form p { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.dialog-label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.dialog-label input {
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 4px;
+}
+.dialog-actions button {
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.dialog-actions button[type="submit"],
+.dialog-actions button.load-project-item {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+.load-project-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.load-project-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 13px;
+}
+.load-project-item:hover { border-color: var(--primary); background: #f8fcfb; }
+.load-project-item-kind { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
+.load-project-empty { font-size: 13px; color: var(--text-secondary); padding: 8px 0; }
 
 @media (max-width: 1100px) {
   .panes { height: auto; flex-direction: column !important; }

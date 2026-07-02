@@ -12,6 +12,7 @@ import {
 import { initBlocklyGenerators, loadSkeletonIntoWorkspace, applyModelExpressions, highlightListeningSlot, slotIdFromBlock } from "../src/blockly/mod.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
+import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import * as En from "blockly/msg/en";
 
 Blockly.setLocale(En as unknown as Record<string, string>);
@@ -25,7 +26,13 @@ const exampleTreeEl = document.getElementById("example-tree")!;
 const skeletonSlotsEl = document.getElementById("skeleton-slots")!;
 const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
+const statusSave = document.getElementById("status-save")!;
 const statusBuild = document.getElementById("status-build")!;
+
+const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElement;
+const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
+const dialogLoadProject = document.getElementById("dialog-load-project") as HTMLDialogElement;
+const loadProjectList = document.getElementById("load-project-list")!;
 
 const specEditor = createSpecEditor(
   document.getElementById("spec-editor")!,
@@ -66,13 +73,20 @@ const workspace = Blockly.inject(blocklyMount, {
       { kind: "category", name: "Literals", colour: TOOLBOX_COLOURS.literals, cssconfig: toolboxCategoryRow("toolbox-category-literals"), contents: [
         { kind: "block", type: "text_literal" },
         { kind: "block", type: "number_literal" },
+        { kind: "block", type: "boolean_literal" },
       ]},
       { kind: "category", name: "Logic", colour: TOOLBOX_COLOURS.logic, cssconfig: toolboxCategoryRow("toolbox-category-logic"), contents: [
+        { kind: "label", text: "Text" },
         { kind: "block", type: "trim" },
         { kind: "block", type: "concat" },
-        { kind: "block", type: "if_then_else" },
-        { kind: "block", type: "switch_case" },
+        { kind: "sep" },
+        { kind: "label", text: "Numbers" },
         { kind: "block", type: "math_arithmetic" },
+        { kind: "sep" },
+        { kind: "label", text: "Conditions" },
+        { kind: "block", type: "if_then_else" },
+        { kind: "gap", gap: 16 },
+        { kind: "block", type: "switch_case" },
       ]},
       { kind: "category", name: "Variables", colour: TOOLBOX_COLOURS.variables, cssconfig: toolboxCategoryRow("toolbox-category-variables"), contents: [
         { kind: "block", type: "mapping_var_get" },
@@ -88,14 +102,17 @@ const workspace = Blockly.inject(blocklyMount, {
 
 initSplitPanes(document, () => Blockly.svgResize(workspace));
 
+controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
+
 workspace.addChangeListener((event) => {
   if (event.type === Blockly.Events.CLICK && "blockId" in event) {
     const blockId = typeof event.blockId === "string" ? event.blockId : null;
     const slotId = blockId ? slotIdFromBlock(workspace.getBlockById(blockId)) : null;
     if (slotId) controller.armSlot(slotId);
+    return;
   }
   if (event.type !== Blockly.Events.FINISHED_LOADING) {
-    controller.notifyChange();
+    controller.markDirty();
   }
 });
 
@@ -174,11 +191,98 @@ bind("btn-add-example", () => controller.addExample());
 bind("btn-run-test", () => controller.runTestNow());
 bind("btn-autoplay", () => controller.toggleAutoplay());
 bind("btn-export-ts", () => controller.exportTypeScript());
-bind("btn-save-project", () => controller.saveProject());
+bind("btn-new-project", () => void handleNewProject());
+bind("btn-load-project", () => void openLoadProjectDialog());
+bind("btn-save-project", () => openSaveAsDialog());
 bind("btn-export-project", () => controller.exportProject());
 bind("btn-import-project", () => controller.importProject());
 bind("btn-copy-ai", () => controller.copyAiPrompt());
 bind("btn-import-ai", () => controller.importAiSuggestionsFromClipboard());
+
+document.getElementById("save-as-cancel")?.addEventListener("click", () => dialogSaveAs.close());
+dialogSaveAs.addEventListener("close", () => {
+  if (dialogSaveAs.returnValue !== "confirm") return;
+  void (async () => {
+    try {
+      await controller.saveProjectAs(saveAsNameInput.value);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
+
+document.getElementById("load-project-cancel")?.addEventListener("click", () => dialogLoadProject.close());
+
+function resetBlocklyView(): void {
+  blocklySkeletonKey = "";
+  blocklySlotSignature = "";
+  Blockly.Events.disable();
+  try {
+    workspace.clear();
+  } finally {
+    Blockly.Events.enable();
+  }
+}
+
+function handleNewProject(): void {
+  const message = controller.hasWorkspaceContent()
+    ? "Start a new project? The current workspace will be cleared. Unsaved changes may be lost."
+    : "Start a new empty project?";
+  if (!confirm(message)) return;
+  controller.newProject();
+  resetBlocklyView();
+  ephemeralTreeHighlight = null;
+  lastActiveExampleId = null;
+}
+
+function openSaveAsDialog(): void {
+  saveAsNameInput.value = controller.getState().templateId || "";
+  dialogSaveAs.returnValue = "cancel";
+  dialogSaveAs.showModal();
+  saveAsNameInput.focus();
+  saveAsNameInput.select();
+}
+
+async function openLoadProjectDialog(): Promise<void> {
+  const entries = await controller.listLoadableProjects();
+  loadProjectList.innerHTML = "";
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "load-project-empty";
+    empty.textContent = "No saved projects yet. Use Save as or wait for autosave.";
+    loadProjectList.appendChild(empty);
+  } else {
+    for (const entry of entries) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "load-project-item";
+      const kind = document.createElement("span");
+      kind.className = "load-project-item-kind";
+      kind.textContent = entry.kind === "autosave" ? "Last autosave" : "Saved project";
+      const name = document.createElement("strong");
+      name.textContent = entry.displayName;
+      const when = document.createElement("span");
+      when.textContent = formatSaveTime(entry.savedAt);
+      button.append(kind, name, when);
+      button.addEventListener("click", () => {
+        dialogLoadProject.close();
+        void (async () => {
+          if (
+            controller.hasWorkspaceContent() &&
+            !confirm("Load this project? The current workspace will be replaced.")
+          ) {
+            return;
+          }
+          await controller.loadStoredProject(entry.storageKey);
+          resetBlocklyView();
+          ephemeralTreeHighlight = null;
+        })();
+      });
+      loadProjectList.appendChild(button);
+    }
+  }
+  dialogLoadProject.showModal();
+}
 
 controller.subscribe(render);
 
@@ -197,6 +301,12 @@ function render(): void {
     `${s.unmappedMandatory} unmapped mandatory`,
     s.statusMessage,
   ].join(" · ");
+
+  const saveStatus = s.saveStatus;
+  statusSave.textContent = saveStatus.label;
+  statusSave.className = "status-save" + (
+    saveStatus.dirty ? " unsaved" : saveStatus.label ? " saved" : ""
+  );
 
   statusBuild.textContent = `${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 

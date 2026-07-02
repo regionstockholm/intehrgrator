@@ -12,7 +12,9 @@
     <span class="toolbar-spacer"></span>
     <button id="btn-copy-ai" type="button">Copy AI Prompt</button>
     <button id="btn-import-ai" type="button">Import Suggestions</button>
-    <button id="btn-save-project" type="button">Save Project</button>
+    <button id="btn-new-project" type="button">New Project</button>
+    <button id="btn-load-project" type="button">Load Project</button>
+    <button id="btn-save-project" type="button">Save as</button>
     <button id="btn-export-project" type="button">Export Project</button>
     <button id="btn-import-project" type="button">Import Project</button>
   </header>
@@ -110,8 +112,35 @@
 
   <footer id="status-bar" class="status-bar">
     <span id="status-main">Ready</span>
+    <span id="status-save" class="status-save"></span>
     <span id="status-build" class="status-build"></span>
   </footer>
+
+  <dialog id="dialog-save-as" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Save as</h2>
+      <p>Save the current workspace under a name you can load later.</p>
+      <label class="dialog-label">
+        Project name
+        <input id="save-as-name" type="text" required placeholder="My integration project" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="save-as-cancel" value="cancel">Cancel</button>
+        <button type="submit" id="save-as-confirm" value="confirm">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="dialog-load-project" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Load project</h2>
+      <p>Select a saved workspace. Loading replaces the current project.</p>
+      <div id="load-project-list" class="load-project-list"></div>
+      <div class="dialog-actions">
+        <button type="button" id="load-project-cancel" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
   <script type="module" src="./bundle.js"></script>
 </body>
 </html>

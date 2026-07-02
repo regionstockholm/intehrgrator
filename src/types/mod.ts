@@ -40,6 +40,8 @@ export interface SkeletonNode {
   /** Short archetype name for at-code disambiguation in the UI. */
   archetypeShortName?: string;
   kind: SkeletonNodeKind;
+  /** RM attribute on the parent object this node occupies (e.g. data, items, value). */
+  rmAttribute?: string;
   mandatory: boolean;
   silentMandatory?: boolean;
   fixedValue?: string;

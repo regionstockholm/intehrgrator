@@ -5,6 +5,9 @@ import {
   exportBundle,
   importBundle,
   BUNDLE_VERSION,
+  AUTOSAVE_STORAGE_KEY,
+  MANUAL_SAVE_KEY_PREFIX,
+  formatSaveTime,
 } from "@intehrgrator/core/persistence/mod.ts";
 import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
 import { DEFAULT_SETTINGS } from "@intehrgrator/types/mod.ts";
@@ -49,4 +52,15 @@ Deno.test("project bundle round-trip", () => {
   };
   const restored = importBundle(exportBundle(bundle));
   assertEquals(restored.projectId, "p1");
+});
+
+Deno.test("autosave and manual save use distinct storage keys", () => {
+  assertEquals(AUTOSAVE_STORAGE_KEY, "__autosave__");
+  assertEquals(MANUAL_SAVE_KEY_PREFIX, "manual:");
+  assertEquals(AUTOSAVE_STORAGE_KEY.startsWith(MANUAL_SAVE_KEY_PREFIX), false);
+});
+
+Deno.test("formatSaveTime renders hh:mm", () => {
+  const formatted = formatSaveTime("2026-07-02T14:05:00.000Z");
+  assertEquals(/^\d{2}:\d{2}$/.test(formatted), true);
 });

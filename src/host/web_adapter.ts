@@ -1,4 +1,5 @@
 import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
+import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 
 export interface HostAdapter {
   pickFile(accept?: string): Promise<File | null>;
@@ -10,6 +11,11 @@ export interface HostAdapter {
   saveProject(bundle: ProjectBundle): Promise<void>;
   loadProject(projectId: string): Promise<ProjectBundle | null>;
   listProjects(): Promise<ProjectBundle[]>;
+  saveAutosave(bundle: ProjectBundle): Promise<void>;
+  saveManualSave(bundle: ProjectBundle, displayName: string): Promise<void>;
+  loadStoredProject(storageKey: string): Promise<ProjectBundle | null>;
+  loadStoredProjectRecord(storageKey: string): Promise<StoredProjectRecord | null>;
+  listLoadableProjects(): Promise<LoadableProjectEntry[]>;
 }
 
 export class WebHostAdapter implements HostAdapter {
@@ -90,5 +96,30 @@ export class WebHostAdapter implements HostAdapter {
   async listProjects(): Promise<ProjectBundle[]> {
     const { listProjects } = await import("@intehrgrator/core/persistence/mod.ts");
     return await listProjects();
+  }
+
+  async saveAutosave(bundle: ProjectBundle): Promise<void> {
+    const { saveAutosaveToIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
+    await saveAutosaveToIndexedDb(bundle);
+  }
+
+  async saveManualSave(bundle: ProjectBundle, displayName: string): Promise<void> {
+    const { saveManualSaveToIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
+    await saveManualSaveToIndexedDb(bundle, displayName);
+  }
+
+  async loadStoredProject(storageKey: string): Promise<ProjectBundle | null> {
+    const record = await this.loadStoredProjectRecord(storageKey);
+    return record?.bundle ?? null;
+  }
+
+  async loadStoredProjectRecord(storageKey: string): Promise<StoredProjectRecord | null> {
+    const { loadStoredProjectFromIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
+    return await loadStoredProjectFromIndexedDb(storageKey);
+  }
+
+  async listLoadableProjects(): Promise<LoadableProjectEntry[]> {
+    const { listLoadableProjects } = await import("@intehrgrator/core/persistence/mod.ts");
+    return await listLoadableProjects();
   }
 }

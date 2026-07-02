@@ -9,9 +9,11 @@ import type {
 } from "../types/mod.ts";
 import {
   APP_VERSION,
+  AUTOSAVE_STORAGE_KEY,
   BUNDLE_VERSION,
   bundleFilename,
   exportBundle,
+  formatSaveTime,
   importBundle,
 } from "../core/persistence/mod.ts";
 import { DEFAULT_SETTINGS } from "../types/mod.ts";
@@ -40,6 +42,8 @@ import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
 
 export type WorkbenchListener = () => void;
 
+const AUTOSAVE_DEBOUNCE_MS = 10_000;
+
 export class WorkbenchController {
   private listeners = new Set<WorkbenchListener>();
   private projectId = crypto.randomUUID();
@@ -61,10 +65,24 @@ export class WorkbenchController {
     origin: null,
   };
   private blocklyState: unknown = null;
+  private getBlocklyState: (() => unknown) | null = null;
   private debounceTimer: number | null = null;
+  private autosaveTimer: number | null = null;
+  private dirty = false;
+  private lastAutosaveAt: string | null = null;
   private statusMessage = "Ready";
 
   constructor(private host: HostAdapter) {}
+
+  setBlocklyStateGetter(fn: () => unknown): void {
+    this.getBlocklyState = fn;
+  }
+
+  markDirty(): void {
+    this.dirty = true;
+    this.scheduleAutosave();
+    this.notifyChange();
+  }
 
   subscribe(fn: WorkbenchListener): () => void {
     this.listeners.add(fn);
@@ -94,6 +112,7 @@ export class WorkbenchController {
       listeningSlotId: this.listeningSlotId,
       treeHighlight: this.treeHighlight,
       statusMessage: this.statusMessage,
+      saveStatus: this.getSaveStatus(),
       validationIssues: validateModel(this.model, this.skeleton),
       unmappedMandatory: countUnmappedMandatory(this.model, this.skeleton),
     };
@@ -110,7 +129,7 @@ export class WorkbenchController {
     this.model = createEmptyModel(this.templateId);
     this.refreshDerived();
     this.statusMessage = `Loaded template ${this.templateId}`;
-    this.notifyChange();
+    this.markDirty();
   }
 
   async loadSchema(): Promise<void> {
@@ -121,7 +140,7 @@ export class WorkbenchController {
       this.schemaFilename = file.name;
       this.schemaTree = loadJsonSchema(content, file.name.replace(/\.[^.]+$/, ""));
       this.statusMessage = `Loaded schema ${file.name}`;
-      this.notifyChange();
+      this.markDirty();
     } catch (err) {
       this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -136,7 +155,7 @@ export class WorkbenchController {
     const id = crypto.randomUUID();
     this.examples.addExample({ id, filename: file.name, format, content });
     this.statusMessage = `Added example ${file.name}`;
-    this.notifyChange();
+    this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 
@@ -147,7 +166,7 @@ export class WorkbenchController {
     this.testResult = cached
       ? { ok: true, composition: cached, warnings: [] }
       : null;
-    this.notifyChange();
+    this.markDirty();
   }
 
   removeExample(id: string): void {
@@ -156,7 +175,7 @@ export class WorkbenchController {
       this.settings.autoplay = false;
       this.testResult = null;
     }
-    this.notifyChange();
+    this.markDirty();
   }
 
   armSlot(slotId: string): void {
@@ -191,7 +210,7 @@ export class WorkbenchController {
     this.listeningSlotId = null;
     this.refreshDerived();
     this.statusMessage = `Mapped ${slot.label}`;
-    this.notifyChange();
+    this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 
@@ -206,7 +225,7 @@ export class WorkbenchController {
       }
       : undefined);
     this.refreshDerived();
-    this.notifyChange();
+    this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 
@@ -214,7 +233,7 @@ export class WorkbenchController {
     if (!this.examples.hasExamples()) return;
     this.settings.autoplay = !this.settings.autoplay;
     if (this.settings.autoplay) this.scheduleTestRun();
-    this.notifyChange();
+    this.markDirty();
   }
 
   runTestNow(): void {
@@ -236,10 +255,48 @@ export class WorkbenchController {
     this.host.downloadText(`conversion-${this.templateId}.ts`, code, "text/typescript");
   }
 
-  async saveProject(): Promise<void> {
+  async saveProjectAs(displayName: string): Promise<void> {
+    const name = displayName.trim();
+    if (!name) throw new Error("Project name is required");
     const bundle = this.toBundle();
-    await this.host.saveProject(bundle);
-    this.statusMessage = "Project saved";
+    await this.host.saveManualSave(bundle, name);
+    this.dirty = false;
+    this.statusMessage = `Saved as "${name}"`;
+    this.notifyChange();
+  }
+
+  newProject(): void {
+    this.resetWorkspaceState();
+    this.statusMessage = "New project";
+    this.notifyChange();
+  }
+
+  hasWorkspaceContent(): boolean {
+    return Boolean(
+      this.templateId ||
+        this.schemaTree ||
+        this.examples.hasExamples() ||
+        this.model.slots.some((slot) => slot.expression) ||
+        this.model.optionalRm.length,
+    );
+  }
+
+  async listLoadableProjects() {
+    return await this.host.listLoadableProjects();
+  }
+
+  async loadStoredProject(storageKey: string): Promise<void> {
+    const record = await this.host.loadStoredProjectRecord(storageKey);
+    if (!record) {
+      this.statusMessage = "Project not found";
+      this.notifyChange();
+      return;
+    }
+    this.resetWorkspaceState();
+    this.loadBundle(record.bundle);
+    this.dirty = false;
+    this.lastAutosaveAt = record.storageKey === AUTOSAVE_STORAGE_KEY ? record.savedAt : null;
+    this.statusMessage = "Project loaded";
     this.notifyChange();
   }
 
@@ -254,7 +311,9 @@ export class WorkbenchController {
     if (!file) return;
     const buf = new Uint8Array(await file.arrayBuffer());
     const bundle = importBundle(buf);
+    this.resetWorkspaceState();
     this.loadBundle(bundle);
+    this.markDirty();
     this.statusMessage = "Project imported";
     this.notifyChange();
   }
@@ -284,13 +343,13 @@ export class WorkbenchController {
     this.refreshDerived();
     this.statusMessage =
       `Import: ${report.applied} applied, ${report.skipped} skipped, ${report.errors.length} errors`;
-    this.notifyChange();
+    this.markDirty();
   }
 
   setExportTarget(target: "typescript" | "java"): void {
     this.settings.exportTarget = target;
     this.refreshDerived();
-    this.notifyChange();
+    this.markDirty();
   }
 
   getOptionalAttachments(parentSlotId: string) {
@@ -312,7 +371,15 @@ export class WorkbenchController {
       ],
     };
     this.refreshDerived();
-    this.notifyChange();
+    this.markDirty();
+  }
+
+  getSaveStatus(): { dirty: boolean; label: string } {
+    if (this.dirty) return { dirty: true, label: "unsaved changes" };
+    if (this.lastAutosaveAt) {
+      return { dirty: false, label: `autosaved at ${formatSaveTime(this.lastAutosaveAt)}` };
+    }
+    return { dirty: false, label: "" };
   }
 
   private buildExampleTree(): SchemaTreeNode | null {
@@ -329,6 +396,57 @@ export class WorkbenchController {
     this.generatedCode = this.model.templateId
       ? generate(this.model, this.settings.exportTarget)
       : "";
+  }
+
+  private scheduleAutosave(): void {
+    if (this.autosaveTimer !== null) clearTimeout(this.autosaveTimer);
+    this.autosaveTimer = setTimeout(() => {
+      this.autosaveTimer = null;
+      void this.performAutosave();
+    }, AUTOSAVE_DEBOUNCE_MS) as unknown as number;
+  }
+
+  private async performAutosave(): Promise<void> {
+    if (!this.dirty) return;
+    try {
+      const bundle = this.toBundle();
+      await this.host.saveAutosave(bundle);
+      this.clearDirtyAfterSave();
+      this.notifyChange();
+    } catch (err) {
+      this.statusMessage = `Autosave failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+    }
+  }
+
+  private clearDirtyAfterSave(): void {
+    this.dirty = false;
+    this.lastAutosaveAt = new Date().toISOString();
+  }
+
+  private resetWorkspaceState(): void {
+    this.projectId = crypto.randomUUID();
+    this.templateFilename = "";
+    this.templateContent = "";
+    this.templateId = "";
+    this.skeleton = [];
+    this.schemaTree = null;
+    this.schemaFilename = "";
+    this.model = createEmptyModel("");
+    this.settings = { ...DEFAULT_SETTINGS };
+    this.examples = new ExampleInstanceManager();
+    this.specText = "";
+    this.generatedCode = "";
+    this.testResult = null;
+    this.listeningSlotId = null;
+    this.treeHighlight = { syncPath: null, origin: null };
+    this.blocklyState = null;
+    this.dirty = false;
+    this.lastAutosaveAt = null;
+    if (this.autosaveTimer !== null) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
   }
 
   private scheduleTestRun(): void {
@@ -364,7 +482,10 @@ export class WorkbenchController {
         : null,
       examples: this.examples.list(),
       activeExampleId: this.examples.getActive()?.id ?? null,
-      mapping: { blocklyState: this.blocklyState, model: this.model },
+      mapping: {
+        blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+        model: this.model,
+      },
       settings: this.settings,
     };
   }
@@ -374,6 +495,12 @@ export class WorkbenchController {
     this.settings = bundle.settings;
     this.model = bundle.mapping.model;
     this.blocklyState = bundle.mapping.blocklyState;
+    this.templateFilename = "";
+    this.templateContent = "";
+    this.templateId = "";
+    this.skeleton = [];
+    this.schemaTree = null;
+    this.schemaFilename = "";
     if (bundle.template) {
       this.templateFilename = bundle.template.filename;
       this.templateContent = bundle.template.content;

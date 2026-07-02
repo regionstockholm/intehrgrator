@@ -72,3 +72,13 @@ Deno.test("skeleton generator returns warnings array", () => {
   const { warnings } = generateSkeleton(fixture);
   assert(Array.isArray(warnings));
 });
+
+Deno.test("OBSERVATION descendants include rmAttribute on data path", () => {
+  const { skeleton } = generateSkeleton(fixture);
+  const history = skeleton.flatMap(function walk(n): SkeletonNode[] {
+    const self = n.rmType === "HISTORY" ? [n] : [];
+    return [...self, ...n.children.flatMap((c) => walk(c))];
+  })[0];
+  assert(history, "expected HISTORY under observation data");
+  assertEquals(history.rmAttribute, "data");
+});

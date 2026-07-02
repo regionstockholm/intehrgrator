@@ -1,6 +1,6 @@
-import * as Blockly from "blockly/core";
+import { Blockly } from "../blockly_core.ts";
 import type { BlockSvg } from "blockly/core";
-import { Extensions } from "blockly/core";
+import { blocklyCheckForReturnType } from "../block_checks.ts";
 
 const SWITCH_CASE_MUTATOR = "switch_case_mutator";
 
@@ -15,7 +15,7 @@ export function registerExpressionBlocks(): void {
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput("string"), "RETURN_TYPE")
         .setVisible(false);
-      this.setOutput(true, null);
+      this.setOutput(true, "String");
       this.setColour(20);
       this.setTooltip("fontoxpath source query");
     },
@@ -43,6 +43,20 @@ export function registerExpressionBlocks(): void {
     },
   };
 
+  Blockly.Blocks["boolean_literal"] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput()
+        .appendField("boolean")
+        .appendField(
+          new Blockly.FieldDropdown([["true", "TRUE"], ["false", "FALSE"]]),
+          "BOOL",
+        );
+      this.setOutput(true, "Boolean");
+      this.setColour(160);
+      this.setTooltip("Boolean literal");
+    },
+  };
+
   Blockly.Blocks["trim"] = {
     init: function (this: Blockly.Block) {
       this.appendValueInput("TEXT")
@@ -50,7 +64,7 @@ export function registerExpressionBlocks(): void {
         .appendField("trim");
       this.setOutput(true, "String");
       this.setColour(20);
-      this.setInputsInline(true);
+      this.setInputsInline(false);
     },
   };
 
@@ -64,7 +78,7 @@ export function registerExpressionBlocks(): void {
         .appendField("+");
       this.setOutput(true, "String");
       this.setColour(20);
-      this.setInputsInline(true);
+      this.setInputsInline(false);
     },
   };
 
@@ -99,10 +113,11 @@ export function registerExpressionBlocks(): void {
           "OP",
         );
       this.appendValueInput("B")
-        .setCheck("Number");
+        .setCheck("Number")
+        .appendField("with");
       this.setOutput(true, "Number");
       this.setColour(20);
-      this.setInputsInline(true);
+      this.setInputsInline(false);
     },
   };
 
@@ -118,7 +133,7 @@ export function registerExpressionBlocks(): void {
       this.setColour(20);
       this.setInputsInline(false);
       this.setTooltip("Match discriminant against case values");
-      Extensions.apply(SWITCH_CASE_MUTATOR, this, false);
+      Blockly.Extensions.apply(SWITCH_CASE_MUTATOR, this, false);
       this.rebuildCaseInputs_?.();
     },
   };
@@ -155,14 +170,18 @@ export function registerExpressionBlocks(): void {
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(330);
-      this.setInputsInline(true);
+      this.setInputsInline(false);
       this.setTooltip("Assign a mapping variable (for multi-step mappings)");
     },
   };
 }
 
+let switchCaseMutatorRegistered = false;
+
 function registerSwitchCaseMutator(): void {
-  Extensions.registerMutator(SWITCH_CASE_MUTATOR, {
+  if (switchCaseMutatorRegistered) return;
+  switchCaseMutatorRegistered = true;
+  Blockly.Extensions.registerMutator(SWITCH_CASE_MUTATOR, {
     mutationToDom: function (this: Blockly.Block) {
       const container = document.createElement("mutation");
       container.setAttribute("cases", String(this.caseCount_ ?? 1));

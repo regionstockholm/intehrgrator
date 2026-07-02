@@ -39,6 +39,11 @@ function registerGenerators(): void {
     return [String(block.getFieldValue("NUM") ?? 0), Order.ATOMIC];
   };
 
+  javascriptGenerator.forBlock["boolean_literal"] = (block) => {
+    const value = block.getFieldValue("BOOL") === "TRUE";
+    return [value ? "true" : "false", Order.ATOMIC];
+  };
+
   javascriptGenerator.forBlock["dv_quantity_value"] = (block) => {
     const child = javascriptGenerator.valueToCode(block, "MAGNITUDE", Order.NONE) || "0";
     const units = block.getFieldValue("UNITS") || "1";

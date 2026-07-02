@@ -107,7 +107,10 @@ function walkComplex(
       fallbackTerms,
       archetypeTerms,
     );
-    children.push(...childNodes);
+    for (const child of childNodes) {
+      child.rmAttribute = attrName;
+      children.push(child);
+    }
   }
 
   for (const attrName of mandatoryAttributesFor(rmType)) {
@@ -120,7 +123,10 @@ function walkComplex(
       `${slotPath}/${attrName}`,
       terms,
     );
-    if (silent) children.push(silent);
+    if (silent) {
+      silent.rmAttribute = attrName;
+      children.push(silent);
+    }
   }
 
   return {
@@ -180,6 +186,7 @@ function walkAttribute(
         label: lookupTermText(terms, nodeId) ?? nodeId ?? rmType,
         archetypeNodeId: nodeId,
         archetypeId: templateId,
+        rmAttribute: attr.rm_attribute_name as string | undefined,
         ...archetypeCtx,
         kind: "value",
         mandatory: isMandatory(child),

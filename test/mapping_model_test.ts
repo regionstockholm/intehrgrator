@@ -15,6 +15,7 @@ const skeleton: SkeletonNode[] = [{
     blockType: "dv_quantity_value",
     rmType: "DV_QUANTITY",
     label: "systolic",
+    rmAttribute: "content",
     kind: "value",
     mandatory: true,
     children: [],

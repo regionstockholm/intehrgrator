@@ -20,6 +20,8 @@ export function blockToExpression(block: Block | null): string | null {
       return JSON.stringify(block.getFieldValue("TEXT") ?? "");
     case "number_literal":
       return String(block.getFieldValue("NUM") ?? 0);
+    case "boolean_literal":
+      return block.getFieldValue("BOOL") === "TRUE" ? "true" : "false";
     case "trim": {
       const inner = blockToExpression(block.getInputTargetBlock("TEXT"));
       return inner ? `trim(${inner})` : "trim(\"\")";
@@ -79,6 +81,11 @@ export function astToExpressionBlock(
     if (typeof ast.value === "number") {
       const block = workspace.newBlock("number_literal") as import("blockly/core").BlockSvg;
       block.setFieldValue(ast.value, "NUM");
+      return finalize(block);
+    }
+    if (typeof ast.value === "boolean") {
+      const block = workspace.newBlock("boolean_literal") as import("blockly/core").BlockSvg;
+      block.setFieldValue(ast.value ? "TRUE" : "FALSE", "BOOL");
       return finalize(block);
     }
     if (typeof ast.value === "string") {

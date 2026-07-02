@@ -2,13 +2,35 @@
 
 Visual integration workbench for mapping source data (JSON/XML) to openEHR Compositions via Blockly + CodeMirror.
 
+## Quick start
+
+```bash
+deno task vendor   # clone ehrtslib into vendor/ (first time)
+deno task test
+deno task build    # outputs static site to dist/
+deno task dev      # serve dist/ on http://localhost:5173
+```
+
+Open `dist/index.html` (or use `deno task dev`) to use the Web Shell.
+
+## Implementation layout
+
+| Path | Role |
+|------|------|
+| `src/core/` | OPT skeleton, Mapping Model, spec, source query, codegen, persistence, AI |
+| `src/blockly/` | openEHR Blockly blocks + generators |
+| `src/workbench/` | UI controller, tree views, CodeMirror setup |
+| `src/host/` | `HostAdapter` + browser implementation |
+| `web/` | HTML/CSS entry; bundled to `dist/bundle.js` |
+| `test/` | Deno unit tests + OPT fixtures |
+
 ## Documentation
 
 | | |
 |---|---|
 | **Glossary** | [CONTEXT.md](CONTEXT.md) |
 | **Project prompt** | [INITIAL_PROMPT.md](INITIAL_PROMPT.md) |
-| **PRD (v1)** | [tasks/PRD-intehrgrator-v1.md](tasks/PRD-intehrgrator-v1.md) |
+| **PRD (v1)** | [tasks/PRD-intehrgrator-v1.md](tasks/PRD-intehrgrator-v1.md) · [tasks/TASKS-intehrgrator-v1.md](tasks/TASKS-intehrgrator-v1.md) |
 | **UI design** | [docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md) · [mockup](docs/assets/prototype-ui-v1-consolidated.png) |
 | **Blockly** | [docs/BLOCKLY_INTEGRATION.md](docs/BLOCKLY_INTEGRATION.md) |
 | **Mapping spec** | [docs/MAPPING_SPECIFICATION.md](docs/MAPPING_SPECIFICATION.md) |

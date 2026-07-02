@@ -1,0 +1,47 @@
+{
+  "name": "@regionstockholm/intehrgrator",
+  "version": "0.1.0",
+  "nodeModulesDir": "auto",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns", "deno.unstable"],
+    "strict": true
+  },
+  "imports": {
+    "@intehrgrator/": "./src/",
+    "@std/assert": "jsr:@std/assert@1",
+    "@std/fs": "jsr:@std/fs@1",
+    "@std/path": "jsr:@std/path@1",
+    "@std/testing": "jsr:@std/testing@1",
+    "@codemirror/commands": "npm:@codemirror/commands@^6.8.1",
+    "@codemirror/lang-javascript": "npm:@codemirror/lang-javascript@^6.2.4",
+    "@codemirror/language": "npm:@codemirror/language@^6.11.3",
+    "@codemirror/state": "npm:@codemirror/state@^6.5.2",
+    "@codemirror/view": "npm:@codemirror/view@^6.38.0",
+    "@lezer/highlight": "npm:@lezer/highlight@^1.2.1",
+    "blockly": "npm:blockly@^11.2.2",
+    "blockly/core": "npm:blockly@^11.2.2/core",
+    "blockly/blocks": "npm:blockly@^11.2.2/blocks",
+    "blockly/javascript": "npm:blockly@^11.2.2/javascript",
+    "blockly/msg/en": "npm:blockly@^11.2.2/msg/en",
+    "fflate": "npm:fflate@^0.8.2",
+    "fast-xml-parser": "npm:fast-xml-parser@^4.5.6",
+    "yaml": "npm:yaml@^2.9.0",
+    "fontoxpath": "npm:fontoxpath@^3.33.2/dist/fontoxpath.esm.js",
+    "ehrtslib/": "./vendor/ehrtslib/"
+  },
+  "tasks": {
+    "vendor": "deno run -A scripts/vendor-ehrtslib.ts",
+    "test": "deno test -A --no-check --parallel",
+    "lint": "deno lint src test scripts",
+    "check": "deno check src/**/*.ts web/main.ts scripts/*.ts",
+    "build": "deno run -A scripts/build.ts",
+    "dev": "deno run -A scripts/dev-server.ts"
+  },
+  "lint": {
+    "include": ["src", "test", "scripts", "web"],
+    "rules": {
+      "exclude": ["no-sloppy-imports"]
+    }
+  },
+  "exclude": ["vendor", "dist", "docs/demo"]
+}

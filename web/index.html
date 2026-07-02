@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>intEHRgrator — Integration Workbench</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="toolbar">
+    <strong class="brand">intEHRgrator</strong>
+    <button id="btn-open-template" type="button">Open Template</button>
+    <button id="btn-load-schema" type="button">Load Schema</button>
+    <button id="btn-add-example" type="button">+ Add Example</button>
+    <button id="btn-run-test" type="button">Run Test</button>
+    <button id="btn-autoplay" type="button" disabled>▶ Autoplay</button>
+    <span class="toolbar-spacer"></span>
+    <button id="btn-export-ts" type="button">Export TS</button>
+    <button id="btn-copy-ai" type="button">Copy AI Prompt</button>
+    <button id="btn-import-ai" type="button">Import Suggestions</button>
+    <button id="btn-save-project" type="button">Save Project</button>
+    <button id="btn-export-project" type="button">Export Project</button>
+    <button id="btn-import-project" type="button">Import Project</button>
+  </header>
+
+  <main class="panes">
+    <section class="pane source-pane">
+      <h2>Source</h2>
+      <div class="pane-section">
+        <h3>Schema</h3>
+        <div id="schema-tree" class="tree-pane"></div>
+      </div>
+      <div class="pane-section">
+        <h3>Examples</h3>
+        <div id="example-tabs" class="example-tabs"></div>
+      </div>
+    </section>
+
+    <section class="pane mapping-pane">
+      <h2>Mapping Editor</h2>
+      <div class="mapping-top">
+        <div id="blockly-mount" class="blockly-mount"></div>
+        <aside class="slot-rail">
+          <h3>Value slots</h3>
+          <div id="skeleton-slots"></div>
+        </aside>
+      </div>
+      <div class="mapping-bottom">
+        <h3>Mapping Specification</h3>
+        <div id="spec-editor" class="editor-host"></div>
+      </div>
+    </section>
+
+    <section class="pane output-pane">
+      <h2>Output Preview</h2>
+      <div class="pane-section">
+        <h3>Generated Export</h3>
+        <div id="export-editor" class="editor-host"></div>
+      </div>
+      <div class="pane-section">
+        <h3>Test Run</h3>
+        <div id="test-output" class="editor-host"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer id="status-bar" class="status-bar">Ready</footer>
+  <script type="module" src="./bundle.js"></script>
+</body>
+</html>

@@ -1,0 +1,72 @@
+import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
+
+export interface HostAdapter {
+  pickFile(accept?: string): Promise<File | null>;
+  readTextFile(file: File): Promise<string>;
+  downloadText(filename: string, content: string, mime?: string): void;
+  downloadBytes(filename: string, bytes: Uint8Array, mime?: string): void;
+  copyToClipboard(text: string): Promise<void>;
+  readClipboard(): Promise<string>;
+  saveProject(bundle: ProjectBundle): Promise<void>;
+  loadProject(projectId: string): Promise<ProjectBundle | null>;
+  listProjects(): Promise<ProjectBundle[]>;
+}
+
+export class WebHostAdapter implements HostAdapter {
+  async pickFile(accept?: string): Promise<File | null> {
+    return await new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      if (accept) input.accept = accept;
+      input.onchange = () => resolve(input.files?.[0] ?? null);
+      input.click();
+    });
+  }
+
+  async readTextFile(file: File): Promise<string> {
+    return await file.text();
+  }
+
+  downloadText(filename: string, content: string, mime = "text/plain"): void {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  downloadBytes(filename: string, bytes: Uint8Array, mime = "application/octet-stream"): void {
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async copyToClipboard(text: string): Promise<void> {
+    await navigator.clipboard.writeText(text);
+  }
+
+  async readClipboard(): Promise<string> {
+    return await navigator.clipboard.readText();
+  }
+
+  async saveProject(bundle: ProjectBundle): Promise<void> {
+    const { saveToIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
+    await saveToIndexedDb(bundle);
+  }
+
+  async loadProject(projectId: string): Promise<ProjectBundle | null> {
+    const { loadFromIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
+    return await loadFromIndexedDb(projectId);
+  }
+
+  async listProjects(): Promise<ProjectBundle[]> {
+    const { listProjects } = await import("@intehrgrator/core/persistence/mod.ts");
+    return await listProjects();
+  }
+}

@@ -4,6 +4,13 @@ import type { SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks } from "./blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 
+export {
+  applyModelExpressions,
+  highlightListeningSlot,
+  loadSkeletonIntoWorkspace,
+  slotIdFromBlock,
+} from "./skeleton_loader.ts";
+
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
   registerExpressionBlocks();

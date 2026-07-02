@@ -36,7 +36,7 @@ Update the file after completing each sub-task, not just after completing an ent
 
 ## Follow-ups (post-v1)
 
-- [ ] Full Blockly skeleton injection from OPT (currently slot rail + spec)
+- [x] Full Blockly skeleton injection from OPT (currently slot rail + spec)
 - [ ] Java Export UI + deeper TS codegen wiring to ehrtslib RM constructors
 - [ ] VS Code extension host adapter
 - [ ] E2E browser tests for click-to-map and Autoplay

@@ -7,7 +7,7 @@ import {
   createSpecEditor,
   setEditorDoc,
 } from "../src/workbench/codemirror_setup.ts";
-import { initBlocklyGenerators } from "../src/blockly/mod.ts";
+import { initBlocklyGenerators, loadSkeletonIntoWorkspace, applyModelExpressions, highlightListeningSlot, slotIdFromBlock } from "../src/blockly/mod.ts";
 import * as En from "blockly/msg/en";
 
 Blockly.setLocale(En);
@@ -56,7 +56,45 @@ const workspace = Blockly.inject(blocklyMount, {
   renderer: "zelos",
 });
 
-workspace.addChangeListener(() => controller.notifyChange());
+workspace.addChangeListener((event) => {
+  if (event.type === Blockly.Events.CLICK && "blockId" in event && event.blockId) {
+    const slotId = slotIdFromBlock(workspace.getBlockById(event.blockId));
+    if (slotId) controller.armSlot(slotId);
+  }
+  if (event.type !== Blockly.Events.FINISHED_LOADING) {
+    controller.notifyChange();
+  }
+});
+
+let blocklySkeletonKey = "";
+let blocklySlotSignature = "";
+
+function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): void {
+  if (!s.templateId || !s.skeleton.length) {
+    blocklySkeletonKey = "";
+    blocklySlotSignature = "";
+    return;
+  }
+
+  const skeletonKey = `${s.projectId}|${s.templateId}|${s.skeleton.length}`;
+  const slotSignature = s.model.slots
+    .map((slot) => `${slot.slotId}=${slot.expression}`)
+    .join("|");
+
+  if (skeletonKey !== blocklySkeletonKey) {
+    loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
+    blocklySkeletonKey = skeletonKey;
+    blocklySlotSignature = slotSignature;
+    return;
+  }
+
+  if (slotSignature !== blocklySlotSignature) {
+    applyModelExpressions(workspace, s.model);
+    blocklySlotSignature = slotSignature;
+  }
+
+  highlightListeningSlot(workspace, s.listeningSlotId);
+}
 
 function bind(id: string, handler: () => void | Promise<void>): void {
   document.getElementById(id)?.addEventListener("click", () => void handler());
@@ -97,6 +135,7 @@ function render(): void {
   }
 
   renderExampleTabs(s);
+  syncBlocklyWorkspace(s);
   renderSkeletonList(
     skeletonSlotsEl,
     s.skeleton,

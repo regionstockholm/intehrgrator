@@ -1,5 +1,7 @@
 import type { SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
 
+const SKELETON_INDENT_PX = 10;
+
 export function renderSchemaTree(
   container: HTMLElement,
   node: SchemaTreeNode,
@@ -51,27 +53,86 @@ export function renderSkeletonList(
   mappedSlots: Set<string>,
 ): void {
   container.innerHTML = "";
-  const ul = document.createElement("ul");
-  ul.className = "skeleton-list";
-  for (const node of flattenSlots(skeleton)) {
-    if (node.kind !== "value") continue;
-    const li = document.createElement("li");
-    li.className = "slot-item";
-    if (node.mandatory && !mappedSlots.has(node.slotId)) li.classList.add("unmapped-mandatory");
-    if (listeningSlotId === node.slotId) li.classList.add("listening");
-    li.textContent = `${node.label} :: ${node.rmType}`;
-    li.title = node.slotId;
-    li.addEventListener("click", () => onArm(node.slotId));
-    ul.appendChild(li);
+  const tree = document.createElement("ul");
+  tree.className = "skeleton-tree";
+  for (const node of skeleton) {
+    const branch = buildSkeletonBranch(node, onArm, listeningSlotId, mappedSlots, 0);
+    if (branch) tree.appendChild(branch);
   }
-  container.appendChild(ul);
+  if (!tree.childElementCount) {
+    container.textContent = "No value slots.";
+    return;
+  }
+  container.appendChild(tree);
 }
 
-function flattenSlots(nodes: SkeletonNode[]): SkeletonNode[] {
-  const out: SkeletonNode[] = [];
-  for (const n of nodes) {
-    out.push(n);
-    out.push(...flattenSlots(n.children));
+function buildSkeletonBranch(
+  node: SkeletonNode,
+  onArm: (slotId: string) => void,
+  listeningSlotId: string | null,
+  mappedSlots: Set<string>,
+  depth: number,
+): HTMLElement | null {
+  if (node.kind === "value") {
+    return buildValueSlotItem(node, onArm, listeningSlotId, mappedSlots, depth);
   }
-  return out;
+
+  const childBranches = node.children
+    .map((child) => buildSkeletonBranch(child, onArm, listeningSlotId, mappedSlots, depth + 1))
+    .filter((el): el is HTMLElement => el !== null);
+  if (childBranches.length === 0) return null;
+
+  const li = document.createElement("li");
+  li.className = "skeleton-tree-node skeleton-branch";
+
+  const row = document.createElement("div");
+  row.className = "skeleton-tree-row";
+  row.style.paddingRight = `${depth * SKELETON_INDENT_PX}px`;
+
+  const label = document.createElement("span");
+  label.className = "skeleton-branch-label truncate-suffix";
+  label.textContent = node.label;
+  label.title = node.slotId;
+  row.appendChild(label);
+  li.appendChild(row);
+
+  const childList = document.createElement("ul");
+  childList.className = "skeleton-tree-children";
+  for (const child of childBranches) childList.appendChild(child);
+  li.appendChild(childList);
+  return li;
+}
+
+function buildValueSlotItem(
+  node: SkeletonNode,
+  onArm: (slotId: string) => void,
+  listeningSlotId: string | null,
+  mappedSlots: Set<string>,
+  depth: number,
+): HTMLElement {
+  const li = document.createElement("li");
+  li.className = "skeleton-tree-node slot-item";
+  const mapped = mappedSlots.has(node.slotId);
+  if (node.mandatory && !mapped) li.classList.add("unmapped-mandatory");
+  if (mapped) li.classList.add("mapped");
+  if (listeningSlotId === node.slotId) li.classList.add("listening");
+
+  const row = document.createElement("div");
+  row.className = "skeleton-tree-row";
+  row.style.paddingRight = `${depth * SKELETON_INDENT_PX}px`;
+
+  const label = document.createElement("span");
+  label.className = "slot-label truncate-suffix";
+  label.textContent = node.label;
+  label.title = node.slotId;
+
+  const rmType = document.createElement("span");
+  rmType.className = "slot-rm-type";
+  rmType.textContent = node.rmType;
+  rmType.title = node.slotId;
+
+  row.append(label, rmType);
+  li.appendChild(row);
+  li.addEventListener("click", () => onArm(node.slotId));
+  return li;
 }

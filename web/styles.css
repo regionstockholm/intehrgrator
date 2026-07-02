@@ -37,7 +37,30 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   overflow: hidden;
 }
 .pane h2 { margin: 0; padding: 8px 12px; font-size: 14px; background: var(--primary); color: #fff; }
-.pane h3 { margin: 0 0 6px; font-size: 12px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+.pane-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 8px 12px; background: var(--primary); color: #fff; flex-shrink: 0;
+}
+.pane-header h2 { margin: 0; padding: 0; background: none; font-size: 14px; min-width: 0; }
+.section-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin: 0 0 6px; flex-shrink: 0; flex-wrap: wrap;
+}
+.pane h3, .section-header h3 {
+  margin: 0; font-size: 12px; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.pane-btn {
+  background: var(--primary); color: #fff; border: 1px solid transparent;
+  border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; flex-shrink: 0;
+}
+.pane-btn:hover { background: #00786b; }
+.pane-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.pane-btn-on-dark {
+  background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.35);
+}
+.pane-btn-on-dark:hover { background: rgba(255, 255, 255, 0.25); }
+.pane-btn-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .pane-section { padding: 8px; flex: 1; min-height: 0; display: flex; flex-direction: column; }
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
 
@@ -50,11 +73,74 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .mapping-top { display: grid; grid-template-columns: 1fr 220px; flex: 1.2; min-height: 0; }
 .mapping-bottom { flex: 1; min-height: 160px; display: flex; flex-direction: column; padding: 8px; }
 .blockly-mount { min-height: 240px; height: 100%; }
-.slot-rail { border-left: 1px solid var(--border); padding: 8px; overflow: auto; background: var(--surface-alt); }
-.skeleton-list { list-style: none; margin: 0; padding: 0; }
-.slot-item { padding: 6px 8px; margin-bottom: 4px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); font-size: 12px; }
-.slot-item.listening { outline: 2px solid var(--accent); }
-.slot-item.unmapped-mandatory { border-color: var(--error); color: var(--error); }
+.slot-rail { border-left: 1px solid var(--border); padding: 8px; overflow: auto; background: var(--surface-alt); min-width: 0; }
+.slot-rail h3 { margin-bottom: 6px; }
+
+/* RTL skeleton tree: root right, leaves left */
+.skeleton-tree,
+.skeleton-tree-children {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  direction: rtl;
+}
+.skeleton-tree-node { margin: 0; }
+.skeleton-tree-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 4px;
+  min-width: 0;
+  padding-top: 1px;
+  padding-bottom: 1px;
+  direction: ltr;
+}
+.skeleton-branch-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-secondary);
+  max-width: 100%;
+}
+.slot-item {
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.slot-item .skeleton-tree-row {
+  padding: 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: #fff;
+}
+.slot-item:hover .skeleton-tree-row { border-color: var(--primary); }
+.slot-item.listening .skeleton-tree-row { outline: 2px solid var(--accent); outline-offset: -1px; }
+.slot-item.unmapped-mandatory .skeleton-tree-row { border-color: var(--error); }
+.slot-item.unmapped-mandatory .slot-label { color: var(--error); }
+.slot-item.mapped .skeleton-tree-row { border-color: var(--success); }
+.slot-item.mapped .slot-label { color: var(--success); }
+.slot-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-weight: 500;
+}
+.slot-rm-type {
+  flex: 0 0 auto;
+  font-size: 9px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.truncate-suffix {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: rtl;
+  text-align: left;
+  unicode-bidi: plaintext;
+}
 
 .tree-row { padding: 2px 0; }
 .tree-label { cursor: pointer; }

@@ -9,13 +9,7 @@
 <body>
   <header class="toolbar">
     <strong class="brand">intEHRgrator</strong>
-    <button id="btn-open-template" type="button">Open Template</button>
-    <button id="btn-load-schema" type="button">Load Schema</button>
-    <button id="btn-add-example" type="button">+ Add Example</button>
-    <button id="btn-run-test" type="button">Run Test</button>
-    <button id="btn-autoplay" type="button" disabled>▶ Autoplay</button>
     <span class="toolbar-spacer"></span>
-    <button id="btn-export-ts" type="button">Export TS</button>
     <button id="btn-copy-ai" type="button">Copy AI Prompt</button>
     <button id="btn-import-ai" type="button">Import Suggestions</button>
     <button id="btn-save-project" type="button">Save Project</button>
@@ -27,17 +21,26 @@
     <section class="pane source-pane">
       <h2>Source</h2>
       <div class="pane-section">
-        <h3>Schema</h3>
+        <div class="section-header">
+          <h3>Schema</h3>
+          <button id="btn-load-schema" class="pane-btn" type="button">Load Schema</button>
+        </div>
         <div id="schema-tree" class="tree-pane"></div>
       </div>
       <div class="pane-section">
-        <h3>Examples</h3>
+        <div class="section-header">
+          <h3>Examples</h3>
+          <button id="btn-add-example" class="pane-btn" type="button">+ Add Example</button>
+        </div>
         <div id="example-tabs" class="example-tabs"></div>
       </div>
     </section>
 
     <section class="pane mapping-pane">
-      <h2>Mapping Editor</h2>
+      <div class="pane-header">
+        <h2>Mapping Editor</h2>
+        <button id="btn-open-template" class="pane-btn pane-btn-on-dark" type="button">Open Template</button>
+      </div>
       <div class="mapping-top">
         <div id="blockly-mount" class="blockly-mount"></div>
         <aside class="slot-rail">
@@ -52,13 +55,22 @@
     </section>
 
     <section class="pane output-pane">
-      <h2>Output Preview</h2>
+      <div class="pane-header">
+        <h2>Output Preview</h2>
+        <button id="btn-export-ts" class="pane-btn pane-btn-on-dark" type="button">Export TS</button>
+      </div>
       <div class="pane-section">
         <h3>Generated Export</h3>
         <div id="export-editor" class="editor-host"></div>
       </div>
       <div class="pane-section">
-        <h3>Test Run</h3>
+        <div class="section-header">
+          <h3>Test Run</h3>
+          <div class="pane-btn-group">
+            <button id="btn-run-test" class="pane-btn" type="button">Run Test</button>
+            <button id="btn-autoplay" class="pane-btn" type="button" disabled>▶ Autoplay</button>
+          </div>
+        </div>
         <div id="test-output" class="editor-host"></div>
       </div>
     </section>

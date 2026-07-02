@@ -11,7 +11,11 @@ deno task build    # outputs static site to dist/
 deno task dev      # serve dist/ on http://localhost:5173
 ```
 
-Open `dist/index.html` (or use `deno task dev`) to use the Web Shell.
+### GitHub Pages
+
+The Web Shell is published on every push to `main` via the **Deploy GitHub Pages** workflow (also runnable manually from Actions). Ensure **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
+
+Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 
 ## Implementation layout
 

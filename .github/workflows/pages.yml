@@ -1,8 +1,12 @@
+# Deploy the static Web Shell to GitHub Pages.
+# Requires: Settings → Pages → Build and deployment → Source: GitHub Actions
+
 name: Deploy GitHub Pages
 
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -25,9 +29,10 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno task vendor
+      - run: deno task test
       - run: deno task build
       - uses: actions/configure-pages@v5
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: dist
       - id: deployment

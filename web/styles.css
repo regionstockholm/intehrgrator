@@ -35,9 +35,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .split-group {
   display: flex; min-width: 0; min-height: 0;
 }
-.split-group--row { flex-direction: row; }
-.split-group--column { flex-direction: column; }
 .split-pane { min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+.split-group.split-group--row { flex-direction: row; }
+.split-group.split-group--column { flex-direction: column; }
 .split-handle {
   flex: 0 0 6px; background: var(--border); touch-action: none; z-index: 2;
   transition: background 0.12s;
@@ -93,6 +93,19 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .mapping-top { min-height: 0; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
 .blockly-mount { min-height: 120px; height: 100%; flex: 1; }
+.blockly-mount .blocklyToolboxCategory { border-left: 8px solid transparent; }
+.blockly-mount .toolbox-category-source { border-left-color: #e87722; }
+.blockly-mount .toolbox-category-literals { border-left-color: #5ba68d; }
+.blockly-mount .toolbox-category-logic { border-left-color: #a6745b; }
+.blockly-mount .toolbox-category-variables { border-left-color: #a65b80; }
+.blockly-mount .toolbox-category-source.blocklyTreeSelected,
+.blockly-mount .toolbox-category-source.blocklyToolboxSelected { background-color: #e87722 !important; }
+.blockly-mount .toolbox-category-literals.blocklyTreeSelected,
+.blockly-mount .toolbox-category-literals.blocklyToolboxSelected { background-color: #5ba68d !important; }
+.blockly-mount .toolbox-category-logic.blocklyTreeSelected,
+.blockly-mount .toolbox-category-logic.blocklyToolboxSelected { background-color: #a6745b !important; }
+.blockly-mount .toolbox-category-variables.blocklyTreeSelected,
+.blockly-mount .toolbox-category-variables.blocklyToolboxSelected { background-color: #a65b80 !important; }
 
 /* Secondary at-code on skeleton blocks */
 .blockly-mount .blocklyText.blockly-at-code {

@@ -221,7 +221,7 @@ Possibly modify this to make maxinal use if XPATH 3.1 built in functions support
 - Workbench shell layout, toolbar, Autoplay toggle UI — manual / E2E later.
 - Blockly minimap — visual; smoke test only.
 
-## Out of Scope (v1)
+## Out of Scope (v1) - possible future enhancements
 
 - VS Code extension (Host Abstraction stub only)
 - In-app AI / LLM API integration
@@ -231,6 +231,8 @@ Possibly modify this to make maxinal use if XPATH 3.1 built in functions support
 - Deployment, runtime hosting, CDR upload, openEHR REST integration
 - FHIR source formats
 - Full bidirectional CodeMirror editing of RM structure
+- Exporting XQuery programs that perform the full conversion to valid openEHR — see [docs/future/xquery-export-investigation.md](../docs/future/xquery-export-investigation.md)
+- Sectra forms as an input format in addition to generic json/XML - output code that runs in sectra formas and or pipelines 
 - `mapping-interface.pen` wireframe maintenance (superseded by consolidated mockup + docs)
 
 ## Further Notes
@@ -238,4 +240,4 @@ Possibly modify this to make maxinal use if XPATH 3.1 built in functions support
 - **Issue tracker:** Publish this PRD to `regionstockholm/intehrgrator` with label `ready-for-agent` when `gh` or Jira is available.
 - **Related docs:** All design decisions in `docs/` and `CONTEXT.md` supersede `INITIAL_PROMPT.md` body details and `old-clippings.md`.
 - **Mockup:** `docs/assets/prototype-ui-v1-consolidated.png`
-- **Deferred features:** `docs/future/` (wildcard mapping, integrated AI, text-first editor)
+- **Deferred features:** `docs/future/` (wildcard mapping, integrated AI, text-first editor, XQuery export investigation)

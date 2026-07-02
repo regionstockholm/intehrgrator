@@ -14,7 +14,7 @@ import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import * as En from "blockly/msg/en";
 
-Blockly.setLocale(En);
+Blockly.setLocale(En as unknown as Record<string, string>);
 
 const host = new WebHostAdapter();
 const controller = new WorkbenchController(host);
@@ -44,25 +44,37 @@ const exportEditor = createReadonlyEditor(document.getElementById("export-editor
 const testOutputEditor = createReadonlyEditor(document.getElementById("test-output")!);
 
 initBlocklyGenerators();
+
+const TOOLBOX_COLOURS = {
+  source: "#E87722",
+  literals: "#5BA68D",
+  logic: "#A6745B",
+  variables: "#A65B80",
+} as const;
+
+function toolboxCategoryRow(className: string): { row: string } {
+  return { row: `blocklyToolboxCategory ${className}` };
+}
+
 const workspace = Blockly.inject(blocklyMount, {
   toolbox: {
     kind: "categoryToolbox",
     contents: [
-      { kind: "category", name: "Source", colour: "#E87722", contents: [
+      { kind: "category", name: "Source", colour: TOOLBOX_COLOURS.source, cssconfig: toolboxCategoryRow("toolbox-category-source"), contents: [
         { kind: "block", type: "source_query" },
       ]},
-      { kind: "category", name: "Literals", colour: "#160", contents: [
+      { kind: "category", name: "Literals", colour: TOOLBOX_COLOURS.literals, cssconfig: toolboxCategoryRow("toolbox-category-literals"), contents: [
         { kind: "block", type: "text_literal" },
         { kind: "block", type: "number_literal" },
       ]},
-      { kind: "category", name: "Logic", colour: "#20", contents: [
+      { kind: "category", name: "Logic", colour: TOOLBOX_COLOURS.logic, cssconfig: toolboxCategoryRow("toolbox-category-logic"), contents: [
         { kind: "block", type: "trim" },
         { kind: "block", type: "concat" },
         { kind: "block", type: "if_then_else" },
         { kind: "block", type: "switch_case" },
         { kind: "block", type: "math_arithmetic" },
       ]},
-      { kind: "category", name: "Variables", colour: "#330", contents: [
+      { kind: "category", name: "Variables", colour: TOOLBOX_COLOURS.variables, cssconfig: toolboxCategoryRow("toolbox-category-variables"), contents: [
         { kind: "block", type: "mapping_var_get" },
         { kind: "block", type: "mapping_var_set" },
       ]},
@@ -77,8 +89,9 @@ const workspace = Blockly.inject(blocklyMount, {
 initSplitPanes(document, () => Blockly.svgResize(workspace));
 
 workspace.addChangeListener((event) => {
-  if (event.type === Blockly.Events.CLICK && "blockId" in event && event.blockId) {
-    const slotId = slotIdFromBlock(workspace.getBlockById(event.blockId));
+  if (event.type === Blockly.Events.CLICK && "blockId" in event) {
+    const blockId = typeof event.blockId === "string" ? event.blockId : null;
+    const slotId = blockId ? slotIdFromBlock(workspace.getBlockById(blockId)) : null;
     if (slotId) controller.armSlot(slotId);
   }
   if (event.type !== Blockly.Events.FINISHED_LOADING) {

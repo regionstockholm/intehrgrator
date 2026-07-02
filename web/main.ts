@@ -8,6 +8,7 @@ import {
   setEditorDoc,
 } from "../src/workbench/codemirror_setup.ts";
 import { initBlocklyGenerators, loadSkeletonIntoWorkspace, applyModelExpressions, highlightListeningSlot, slotIdFromBlock } from "../src/blockly/mod.ts";
+import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import * as En from "blockly/msg/en";
 
 Blockly.setLocale(En);
@@ -19,7 +20,8 @@ const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
 const skeletonSlotsEl = document.getElementById("skeleton-slots")!;
 const blocklyMount = document.getElementById("blockly-mount")!;
-const statusBar = document.getElementById("status-bar")!;
+const statusMain = document.getElementById("status-main")!;
+const statusBuild = document.getElementById("status-build")!;
 
 const specEditor = createSpecEditor(
   document.getElementById("spec-editor")!,
@@ -117,13 +119,15 @@ controller.subscribe(render);
 function render(): void {
   const s = controller.getState();
 
-  statusBar.textContent = [
+  statusMain.textContent = [
     s.templateId ? `Template: ${s.templateId}` : "No template",
     `Target: ${s.settings.exportTarget.toUpperCase()}`,
     s.activeExample ? `Example: ${s.activeExample.filename}` : "No example",
     `${s.unmappedMandatory} unmapped mandatory`,
     s.statusMessage,
   ].join(" · ");
+
+  statusBuild.textContent = `${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
   if (s.schemaTree) {
     renderSchemaTree(schemaTreeEl, s.schemaTree, (path) => {

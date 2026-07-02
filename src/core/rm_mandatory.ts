@@ -20,6 +20,17 @@ export const MANDATORY_RM_ATTRIBUTES: Record<string, string[]> = {
   CLUSTER: ["items"],
 };
 
+/** RM-mandatory LOCATABLE attrs filled from template/at-code at export — not source-mapped. */
+export const AUTO_FIXED_LOCATABLE_ATTRS = new Set(["archetype_node_id", "name"]);
+
+export function isAutoFixedValueSlot(node: {
+  label: string;
+  silentMandatory?: boolean;
+}): boolean {
+  return node.silentMandatory === true &&
+    AUTO_FIXED_LOCATABLE_ATTRS.has(node.label);
+}
+
 export const LOCATABLE_TYPES = new Set([
   "COMPOSITION",
   "SECTION",

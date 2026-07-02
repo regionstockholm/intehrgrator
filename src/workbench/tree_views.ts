@@ -1,4 +1,5 @@
 import type { SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
+import { isAutoFixedValueSlot } from "../core/rm_mandatory.ts";
 import { canonicalSyncPath } from "../core/source/schema_loader.ts";
 
 const SKELETON_INDENT_PX = 10;
@@ -178,6 +179,7 @@ function buildSkeletonBranch(
   depth: number,
 ): HTMLElement | null {
   if (node.kind === "value") {
+    if (isAutoFixedValueSlot(node)) return null;
     return buildValueSlotItem(node, onArm, listeningSlotId, mappedSlots, depth);
   }
 

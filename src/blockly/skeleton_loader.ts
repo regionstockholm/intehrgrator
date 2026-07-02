@@ -1,11 +1,9 @@
 import * as Blockly from "blockly/core";
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
 import type { MappingModel, SkeletonNode } from "../types/mod.ts";
-import { isDataValueType } from "../core/rm_mandatory.ts";
+import { AUTO_FIXED_LOCATABLE_ATTRS, isDataValueType } from "../core/rm_mandatory.ts";
 import { parseExpression, type ExprAst } from "../core/expression/mod.ts";
 import { ensureRmBlockType } from "./blocks/rm_blocks.ts";
-
-const FIXED_VALUE_LABELS = new Set(["archetype_node_id", "name"]);
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -95,7 +93,7 @@ function buildContainerBlock(
   setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId ?? "");
 
   const visibleChildren = node.children.filter(
-    (child) => !(child.kind === "value" && FIXED_VALUE_LABELS.has(child.label)),
+    (child) => !(child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)),
   );
 
   const childBlocks = visibleChildren
@@ -168,7 +166,7 @@ function primaryValueChild(node: SkeletonNode): SkeletonNode | undefined {
     (child) =>
       child.kind === "value" &&
       isDataValueType(child.rmType) &&
-      !FIXED_VALUE_LABELS.has(child.label),
+      !AUTO_FIXED_LOCATABLE_ATTRS.has(child.label),
   );
 }
 

@@ -1,5 +1,6 @@
 import type { MappingModel, MappingSlot, OptionalRmInsertion, SkeletonNode } from "../../types/mod.ts";
 import { MODEL_VERSION } from "../../types/mod.ts";
+import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
 import { slotReturnType } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
 
@@ -121,7 +122,7 @@ export function applyExpressionEdit(
 function flattenValueSlots(nodes: SkeletonNode[]): SkeletonNode[] {
   const out: SkeletonNode[] = [];
   for (const n of nodes) {
-    if (n.kind === "value") out.push(n);
+    if (n.kind === "value" && !isAutoFixedValueSlot(n)) out.push(n);
     out.push(...flattenValueSlots(n.children));
   }
   return out;

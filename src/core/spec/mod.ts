@@ -1,4 +1,5 @@
 import type { MappingModel, SkeletonNode } from "../../types/mod.ts";
+import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
 import { applyExpressionEdit } from "../mapping_model/mod.ts";
 
 function indent(level: number): string {
@@ -53,6 +54,7 @@ function renderNode(
   }
 
   for (const child of node.children) {
+    if (isAutoFixedValueSlot(child)) continue;
     renderNode(child, level + 1, lines, slotMap, model);
   }
   lines.push(`${pad}}`);

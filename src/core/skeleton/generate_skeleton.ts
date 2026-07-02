@@ -2,6 +2,7 @@ import { parseTemplateInput } from "ehrtslib/enhanced/parser/mod.ts";
 import type { SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,
+  isAutoFixedValueSlot,
   isDataValueType,
   LOCATABLE_TYPES,
   mandatoryAttributesFor,
@@ -277,7 +278,7 @@ function extractFixedFields(cObj: AmObject): Record<string, string> | undefined 
 export function collectValueSlots(nodes: SkeletonNode[]): SkeletonNode[] {
   const out: SkeletonNode[] = [];
   for (const node of nodes) {
-    if (node.kind === "value") out.push(node);
+    if (node.kind === "value" && !isAutoFixedValueSlot(node)) out.push(node);
     out.push(...collectValueSlots(node.children));
   }
   return out;

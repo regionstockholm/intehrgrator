@@ -55,6 +55,8 @@ export interface SchemaTreeNode {
   name: string;
   type: string;
   value?: unknown;
+  /** Compact cardinality, e.g. `1`, `0..1`, `0..*`, `1..*`. */
+  multiplicity?: string;
   children: SchemaTreeNode[];
 }
 

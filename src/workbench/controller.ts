@@ -56,6 +56,10 @@ export class WorkbenchController {
   private generatedCode = "";
   private testResult: TestResult | null = null;
   private listeningSlotId: string | null = null;
+  private treeHighlight: { syncPath: string | null; origin: "schema" | "instance" | null } = {
+    syncPath: null,
+    origin: null,
+  };
   private blocklyState: unknown = null;
   private debounceTimer: number | null = null;
   private statusMessage = "Ready";
@@ -88,6 +92,7 @@ export class WorkbenchController {
       generatedCode: this.generatedCode,
       testResult: this.testResult,
       listeningSlotId: this.listeningSlotId,
+      treeHighlight: this.treeHighlight,
       statusMessage: this.statusMessage,
       validationIssues: validateModel(this.model, this.skeleton),
       unmappedMandatory: countUnmappedMandatory(this.model, this.skeleton),
@@ -137,6 +142,7 @@ export class WorkbenchController {
 
   setActiveExample(id: string): void {
     this.examples.setActive(id);
+    this.clearTreeHighlight();
     const cached = this.examples.getCachedResult(id);
     this.testResult = cached
       ? { ok: true, composition: cached, warnings: [] }
@@ -157,6 +163,17 @@ export class WorkbenchController {
     this.listeningSlotId = slotId;
     this.statusMessage = `Listening for source path → ${slotId}`;
     this.notifyChange();
+  }
+
+  setTreeHighlight(
+    syncPath: string,
+    origin: "schema" | "instance",
+  ): void {
+    this.treeHighlight = { syncPath, origin };
+  }
+
+  clearTreeHighlight(): void {
+    this.treeHighlight = { syncPath: null, origin: null };
   }
 
   bindFromNode(path: string, format: "json" | "xml"): void {

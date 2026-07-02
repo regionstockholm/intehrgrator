@@ -1,7 +1,9 @@
 import * as Blockly from "blockly/core";
 import { WebHostAdapter } from "../src/host/web_adapter.ts";
 import { WorkbenchController } from "../src/workbench/controller.ts";
-import { renderSchemaTree, renderSkeletonList } from "../src/workbench/tree_views.ts";
+import { renderSchemaTree, renderInstanceTree, renderSkeletonList, applyTreeHighlights } from "../src/workbench/tree_views.ts";
+import type { TreeHighlightState } from "../src/workbench/tree_views.ts";
+import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
 import {
   createReadonlyEditor,
   createSpecEditor,
@@ -71,6 +73,41 @@ workspace.addChangeListener((event) => {
 
 let blocklySkeletonKey = "";
 let blocklySlotSignature = "";
+let ephemeralTreeHighlight: TreeHighlightState | null = null;
+let lastActiveExampleId: string | null = null;
+
+function activeTreeHighlight(s: ReturnType<WorkbenchController["getState"]>): TreeHighlightState {
+  return ephemeralTreeHighlight ?? s.treeHighlight;
+}
+
+function handleTreeHighlight(
+  syncPath: string | null,
+  origin: "schema" | "instance",
+  persist = false,
+): void {
+  if (syncPath === null) {
+    if (ephemeralTreeHighlight?.origin !== origin) return;
+    ephemeralTreeHighlight = null;
+  } else if (persist) {
+    ephemeralTreeHighlight = null;
+    controller.setTreeHighlight(syncPath, origin);
+  } else {
+    ephemeralTreeHighlight = { syncPath, origin };
+  }
+  applyTreeHighlights(
+    schemaTreeEl,
+    exampleTreeEl,
+    activeTreeHighlight(controller.getState()),
+  );
+}
+
+function treeHighlightOptions() {
+  return {
+    onHighlight: (syncPath: string | null, origin: "schema" | "instance") => {
+      handleTreeHighlight(syncPath, origin, false);
+    },
+  };
+}
 
 function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): void {
   if (!s.templateId || !s.skeleton.length) {
@@ -119,6 +156,11 @@ controller.subscribe(render);
 
 function render(): void {
   const s = controller.getState();
+  const activeExampleId = s.activeExample?.id ?? null;
+  if (activeExampleId !== lastActiveExampleId) {
+    ephemeralTreeHighlight = null;
+    lastActiveExampleId = activeExampleId;
+  }
 
   statusMain.textContent = [
     s.templateId ? `Template: ${s.templateId}` : "No template",
@@ -131,7 +173,15 @@ function render(): void {
   statusBuild.textContent = `${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
   if (s.schemaTree) {
-    renderSchemaTree(schemaTreeEl, s.schemaTree, (path) => controller.bindFromNode(path, "json"));
+    renderSchemaTree(
+      schemaTreeEl,
+      s.schemaTree,
+      (path) => {
+        handleTreeHighlight(canonicalSyncPath(path), "schema", true);
+        controller.bindFromNode(path, "json");
+      },
+      treeHighlightOptions(),
+    );
   } else {
     schemaTreeEl.textContent = "Load a JSON schema file.";
   }
@@ -139,9 +189,17 @@ function render(): void {
   renderExampleTabs(s);
 
   if (s.exampleTree && s.activeExample) {
-    renderSchemaTree(exampleTreeEl, s.exampleTree, (path) => {
-      controller.bindFromNode(path, s.activeExample!.format);
-    });
+    const format = s.activeExample.format;
+    renderInstanceTree(
+      exampleTreeEl,
+      s.exampleTree,
+      (path) => {
+        handleTreeHighlight(canonicalSyncPath(path), "instance", true);
+        controller.bindFromNode(path, format);
+      },
+      treeHighlightOptions(),
+    );
+    applyTreeHighlights(schemaTreeEl, exampleTreeEl, activeTreeHighlight(s));
   } else {
     exampleTreeEl.textContent = s.examples.length
       ? "Select an example tab."

@@ -145,6 +145,24 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .tree-row { padding: 2px 0; }
 .tree-label { cursor: pointer; }
 .tree-label:hover { color: var(--primary); }
+.tree-label-schema .tree-meta {
+  color: var(--text-secondary);
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+}
+.tree-label-instance { font-family: ui-monospace, monospace; }
+.tree-pane.schema-tree { border-left: 3px solid var(--primary); }
+.tree-pane.instance-tree { border-left: 3px solid var(--accent); }
+.tree-row.highlighted {
+  background: #e8f5f3;
+  border-radius: 3px;
+}
+.tree-row.highlighted .tree-label { color: var(--primary-dark); font-weight: 600; }
+.tree-row.synced {
+  background: #fff4ea;
+  border-radius: 3px;
+}
+.tree-row.synced .tree-label { color: #b35c00; }
 
 .status-bar {
   display: flex; align-items: center; gap: 12px;

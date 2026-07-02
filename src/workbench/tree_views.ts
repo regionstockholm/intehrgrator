@@ -1,43 +1,147 @@
 import type { SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
+import { canonicalSyncPath } from "../core/source/schema_loader.ts";
 
 const SKELETON_INDENT_PX = 10;
+
+export interface TreeHighlightState {
+  /** Canonical sync path shared across schema and instance trees. */
+  syncPath: string | null;
+  /** Which tree initiated the highlight (`schema` | `instance`). */
+  origin: "schema" | "instance" | null;
+}
+
+export interface SchemaTreeRenderOptions {
+  onHighlight?: (syncPath: string | null, origin: "schema" | "instance") => void;
+}
+
+export function applyTreeHighlights(
+  schemaPane: HTMLElement,
+  instancePane: HTMLElement,
+  state: TreeHighlightState,
+): void {
+  for (const [pane, paneOrigin] of [
+    [schemaPane, "schema"],
+    [instancePane, "instance"],
+  ] as const) {
+    for (const row of pane.querySelectorAll<HTMLElement>(".tree-row")) {
+      row.classList.remove("highlighted", "synced");
+      if (!state.syncPath) continue;
+      if (row.dataset.syncPath === state.syncPath) {
+        row.classList.add(state.origin === paneOrigin ? "highlighted" : "synced");
+      }
+    }
+  }
+}
 
 export function renderSchemaTree(
   container: HTMLElement,
   node: SchemaTreeNode,
   onSelect: (path: string) => void,
+  options: SchemaTreeRenderOptions = {},
 ): void {
+  container.classList.add("schema-tree");
+  container.classList.remove("instance-tree");
   container.innerHTML = "";
-  container.appendChild(buildTreeNode(node, onSelect, 0));
+  container.appendChild(buildSchemaNode(node, onSelect, options, 0));
 }
 
-function buildTreeNode(
+export function renderInstanceTree(
+  container: HTMLElement,
   node: SchemaTreeNode,
   onSelect: (path: string) => void,
+  options: SchemaTreeRenderOptions = {},
+): void {
+  container.classList.add("instance-tree");
+  container.classList.remove("schema-tree");
+  container.innerHTML = "";
+  container.appendChild(buildInstanceNode(node, onSelect, options, 0));
+}
+
+function buildSchemaNode(
+  node: SchemaTreeNode,
+  onSelect: (path: string) => void,
+  options: SchemaTreeRenderOptions,
   depth: number,
 ): HTMLElement {
-  const row = document.createElement("div");
-  row.className = "tree-row";
-  row.style.paddingLeft = `${depth * 12}px`;
+  const syncPath = canonicalSyncPath(node.path);
+  const row = createTreeRow(node.path, syncPath, depth);
+
   const label = document.createElement("span");
-  label.className = "tree-label";
-  label.textContent = node.value !== undefined
-    ? `${node.name}  ${formatValue(node.value)}`
-    : `${node.name}  ${node.type}`;
-  label.draggable = true;
-  label.addEventListener("click", () => onSelect(node.path));
-  label.addEventListener("dragstart", (e) => {
-    e.dataTransfer?.setData("text/plain", node.path);
-    if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
-  });
+  label.className = "tree-label tree-label-schema";
+  const meta = document.createElement("span");
+  meta.className = "tree-meta";
+  meta.textContent = formatSchemaMeta(node);
+  label.append(document.createTextNode(node.name), meta);
+  attachTreeInteractions(label, node.path, syncPath, "schema", onSelect, options);
   row.appendChild(label);
 
   const wrap = document.createElement("div");
   wrap.appendChild(row);
   for (const child of node.children) {
-    wrap.appendChild(buildTreeNode(child, onSelect, depth + 1));
+    wrap.appendChild(buildSchemaNode(child, onSelect, options, depth + 1));
   }
   return wrap;
+}
+
+function buildInstanceNode(
+  node: SchemaTreeNode,
+  onSelect: (path: string) => void,
+  options: SchemaTreeRenderOptions,
+  depth: number,
+): HTMLElement {
+  const syncPath = canonicalSyncPath(node.path);
+  const row = createTreeRow(node.path, syncPath, depth);
+
+  const label = document.createElement("span");
+  label.className = "tree-label tree-label-instance";
+  label.textContent = node.value !== undefined
+    ? `${node.name}  ${formatValue(node.value)}`
+    : node.name;
+  attachTreeInteractions(label, node.path, syncPath, "instance", onSelect, options);
+  row.appendChild(label);
+
+  const wrap = document.createElement("div");
+  wrap.appendChild(row);
+  for (const child of node.children) {
+    wrap.appendChild(buildInstanceNode(child, onSelect, options, depth + 1));
+  }
+  return wrap;
+}
+
+function createTreeRow(path: string, syncPath: string, depth: number): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "tree-row";
+  row.style.paddingLeft = `${depth * 12}px`;
+  row.dataset.path = path;
+  row.dataset.syncPath = syncPath;
+  return row;
+}
+
+function attachTreeInteractions(
+  label: HTMLSpanElement,
+  path: string,
+  syncPath: string,
+  origin: "schema" | "instance",
+  onSelect: (path: string) => void,
+  options: SchemaTreeRenderOptions,
+): void {
+  label.draggable = true;
+  label.addEventListener("click", () => {
+    options.onHighlight?.(syncPath, origin);
+    onSelect(path);
+  });
+  label.addEventListener("mouseenter", () => options.onHighlight?.(syncPath, origin));
+  label.addEventListener("mouseleave", () => options.onHighlight?.(null, origin));
+  label.addEventListener("dragstart", (e) => {
+    e.dataTransfer?.setData("text/plain", path);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+  });
+}
+
+function formatSchemaMeta(node: SchemaTreeNode): string {
+  const parts = [node.type];
+  if (node.multiplicity) parts.push(`[${node.multiplicity}]`);
+  return `  ${parts.join(" ")}`;
 }
 
 function formatValue(value: unknown): string {

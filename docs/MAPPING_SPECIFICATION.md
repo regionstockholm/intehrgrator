@@ -5,7 +5,7 @@ The **Mapping Specification** is the human-readable text shown in the **center p
 | Pane | Content |
 |------|---------|
 | Center / bottom | **Mapping Specification** — declarative, block-aligned DSL + editable expressions |
-| Right / upper | **Generated Export** — executable TypeScript or Java from codegen |
+| Right / upper | **Generated conversion script(s)** (glossary: Generated Export) — executable TypeScript or Java from codegen |
 
 See [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md). Canonical machine form: [Mapping Model](PROJECT_PERSISTENCE.md#mapping-serialization-dual).
 

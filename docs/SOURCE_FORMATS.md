@@ -15,7 +15,7 @@ The left pane separates **schema** from **example instances**:
 
 | Section | Purpose | Required? |
 |---------|---------|-----------|
-| **Schema tree** (upper) | Structural view for authoring mappings | Optional but typical — JSON schema or structure inferred from first example |
+| **Schema tree** (upper) | Structural view for authoring mappings | Optional but typical — schema file (JSON, XML, or other format) or structure inferred from first example |
 | **Example tabs** (lower) | One or more JSON/XML instance files as tabs | Optional for authoring; **required for Test Run** |
 
 See [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) — Source Pane.
@@ -38,7 +38,7 @@ Click-to-map works from **either** the schema tree or the **active example tab**
 
 ## Test Run output
 
-Composition results are displayed as **JSON** (ehrtslib native object form). The lower Output Preview pane always reflects the **active example tab**.
+Converted instance results are displayed. The lower **Conversion Test Run(s)** section always reflects the **active example tab** from the source pane's examples section.
 
 ## Related
 

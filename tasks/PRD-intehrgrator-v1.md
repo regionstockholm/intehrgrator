@@ -22,7 +22,7 @@ Healthcare informaticians must map heterogeneous source data (JSON/XML from hosp
 
 1. **Source Pane** — Source Schema tree (upper part of pane) plus tabbed **Example Instances** (lower part of pane) for click-to-map and Test Run
 2. **Mapping Editor** — nested Blockly (structure) (upper part of pane) + **Mapping Specification** DSL (editable expressions only); not export code (lower part of pane) 
-3. **Output Preview** — **Generated Export** (TypeScript in v1) (upper part of pane) and **Test Run** results per active example tab (lower part of pane) 
+3. **Output Previews** — **Generated conversion script(s)** (TypeScript in v1) (upper part of pane) and **Conversion Test Run(s)** results per active example tab (lower part of pane) 
 
 Mappings are authored visually, reviewed in a declarative spec, validated by in-browser Test Run via `ehrtslib`, and exported as executable Conversion Scripts. Copy-paste AI assist helps bulk suggestions without in-app API calls.
 
@@ -51,7 +51,7 @@ Later versions may evolve this to also become a VS code plugin.
 
 ### Source data
 
-10. As an informatician, I want to load a JSON or XML **Source Schema** into the upper Source Pane, so that I can author mappings from structural knowledge alone.
+10. As an informatician, I want to load a **Source Schema** file (JSON, XML, or other structural definition) into the upper Source Pane, so that I can author mappings from structural knowledge alone.
 11. As an informatician, I want to be able to open multiple **Example Instances** in separate tabs, so that I can test mappings against varied real-world payloads.
 12. As an informatician, I want to add a new example instance via **+ Add Example**, so that I can grow my test set during a session.
 13. As an informatician, I want to switch active example tabs and see each tab's **Test Run** result immediately, so that I can compare outcomes without waiting.
@@ -96,7 +96,7 @@ Later versions may evolve this to also become a VS code plugin.
 
 ### Settings and status
 41. As an informatician, I want unmapped mandatory slots marked in red in the blockly view.
-42. As an informatician, I want validation warnings (number of unmapped mandatory slots, Test Run errors) surfaced in the status bar or Output Preview, so that I can fix issues before export.
+42. As an informatician, I want validation warnings (number of unmapped mandatory slots, Test Run errors) surfaced in the status bar or Output Previews, so that I can fix issues before export.
 
 ### Platform (v1 constraints)
 
@@ -120,7 +120,7 @@ Later versions may evolve this to also become a VS code plugin.
 | **Mapping Model** | Canonical JSON IR: `templateId`, `slots[]`, `optionalRm[]`| `MappingModel` type; `fromBlockly` / `toBlockly` / `validate` |
 | **Mapping Specification engine** | Project Blockly + Model → DSL text; parse expression edits → Model + blocks | `toSpec(model)`, `applyExpressionEdit(slotId, expr)` |
 | **Expression language** | Parse/validate JS-shaped subset; builtin registry (`xpathNumber`, `trim`, `if`, …) | `parseExpression(source) → ExprAst`, `serialize(ast)` | DO check what expressions the chosen xpath 3.1 library already supplies before inventing something extra. If suitable create corresponding blockly UI-support for these. 
-| **Source schema loader** | JSON schema / inferred structure → navigable tree | `loadSchema(file) → SchemaTree` |
+| **Source schema loader** | Schema file (JSON, XML, or inferred structure) → navigable tree | `loadSchema(file) → SchemaTree` |
 | **Example instance manager** | Tabbed instances; active tab; per-tab Test Run cache | `addExample`, `setActive`, `getActive`, `getCachedResult` |
 | **Source query runtime** | fontoxpath wrappers; JSON context vs XML DOM; typed evaluators per `DV_*` | `evaluate(exprAst, sourceCtx, returnType) → value` |
 | **Click-to-map controller** | Listening mode; insert `source_query` / spec expression from tree click or drag | `armSlot(slotId)`, `bindFromNode(nodePath)` |
@@ -141,7 +141,7 @@ For **optional RM attachment** validation (`+` picker), introspect ehrtslib RM t
 
 ### Architectural decisions (from design sessions)
 
-- **Three panes:** Source Pane | Mapping Editor | Output Preview.
+- **Three panes:** Source Pane | Mapping Editor | Output Previews.
 - **Mapping Editor split:** Blockly (top, structure authority) + Mapping Specification (bottom, expressions only).
 - **Mapping Specification** is a block-aligned DSL with JS-shaped expression subset — not Generated Export and not full JavaScript.
 - **Codegen** walks Blockly / Mapping Model, not Mapping Specification text. **Export Target** is passed into codegen at preview/export time — not stored in the Mapping Model.
@@ -214,7 +214,7 @@ Possibly modify this to make maxinal use if XPATH 3.1 built in functions support
 | Source query runtime | fontoxpath evaluators on JSON + XML fixtures |
 | AI suggestion import | Valid/invalid `intehrgrator-suggestions` payloads |
 | Project persistence | Bundle export/import round-trip |
-| Test runner | Generated script + example → Composition JSON (integration, may be browser env) |
+| Test runner | Generated script + example → instance in target format (integration, may be browser env) |
 
 ### Lower priority for unit tests (UI shell)
 

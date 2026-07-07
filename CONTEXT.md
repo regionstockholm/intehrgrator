@@ -9,7 +9,7 @@ The left pane with two sections: **Source Schema** (upper, structural tree for m
 _Avoid_: Left panel, input pane
 
 **Source Schema**:
-Upper section of the Source Pane — JSON schema or inferred structure (field names, types, cardinality). Used for authoring mappings without requiring an example file.
+Upper section of the Source Pane — schema file (JSON, XML, or other structural definition) or inferred structure (field names, types, cardinality). Used for authoring mappings without requiring an example file. Empty state prompt: *Load a schema file.*
 _Avoid_: Schema tree, structure view
 
 **Example Instance**:
@@ -17,7 +17,7 @@ A loaded JSON or XML data file representing one real source record. Shown in its
 _Avoid_: Sample file, test data
 
 **Active Example**:
-The currently selected example instance tab. Its tree appears below the tab bar; Test Run and the lower Output Preview pane always execute against and display results for this tab only.
+The currently selected example instance tab. Its tree appears below the tab bar; Test Run and the lower **Conversion Test Run(s)** section in **Output Previews** always execute against and display results for this tab only.
 _Avoid_: Current instance, selected tab
 
 **Source Path**:
@@ -25,15 +25,17 @@ XPath or XQuery expression (fontoxpath) identifying a value in the loaded JSON o
 _Avoid_: JSON path, get_source dot notation
 
 **Mapping Editor**:
-The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top, [CodeMirror](https://codemirror.net/) on the bottom, kept in bidirectional sync. A minimap appears when the block canvas exceeds the visible area at the current zoom level.
+The center pane where the user authors mapping logic. Header action **Open target Schema/Template** loads the OPT (or other target structure). Default layout is a vertical split: nested Blockly blocks on top (with **Target value slots** rail), [CodeMirror](https://codemirror.net/) on the bottom, kept in bidirectional sync. A minimap appears when the blockly block canvas exceeds the visible area at the current zoom level.
 _Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library)
 
-**Output Preview**:
-The right pane showing generated conversion-script code (upper) and live test-run results (lower). Collapsible. v1 runs TypeScript mappings in-browser against example source data.
+**Output Previews**:
+The right pane showing generated conversion-script code (upper) and live conversion test-run results (lower). Collapsible. v1 runs TypeScript mappings in-browser against example source data.
+_UI labels:_ pane title **Output Previews**; sections **Generated conversion script(s)** and **Conversion Test Run(s)**.
 _Avoid_: Right pane (ambiguous — could mean mapping), test pane alone
 
 **Test Run**:
 Executing the generated TypeScript mapping against loaded example source data in-browser, displaying the resulting openEHR Composition (JSON). Required in v1.
+_UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run
 
 **Autoplay**:
@@ -82,6 +84,7 @@ _Avoid_: Mapping schema, IR
 
 **Generated Export**:
 Executable TypeScript or Java produced by Blockly code generators from blocks / Mapping Model. Shown in the **right pane upper** CodeMirror only — not in the center pane.
+_UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
 **Sync Scope**:
@@ -105,7 +108,7 @@ Shared interface for environment-specific bindings (file access, storage, AI) so
 _Avoid_: Environment abstraction layer, platform bindings
 
 **Export Target**:
-Workspace setting choosing which code generator runs for Output Preview and Export (`typescript` | `java`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic.
+Workspace setting choosing which code generator runs for Output Previews and Export (`typescript` | `java`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic.
 _Avoid_: Target language, output format
 
 **Project Bundle**:
@@ -120,7 +123,7 @@ _Avoid_: Mapping file, saved state
 >
 > **Informatician:** Can I test it without exporting?
 >
-> **Developer:** Yes — click **Run Test**. The lower half of Output Preview runs your mapping against the loaded example source and shows the resulting Composition as JSON. Export is only needed when you want the script in your own pipeline.
+> **Developer:** Yes — click **Run Test**. The lower **Conversion Test Run(s)** section in **Output Previews** runs your mapping against the loaded example source and shows the resulting Composition as JSON. Export is only needed when you want the script in your own pipeline.
 >
 > **Informatician:** The template doesn't include feeder audit but I need provenance. How do I add it?
 >

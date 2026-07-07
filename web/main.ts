@@ -321,7 +321,7 @@ function render(): void {
       treeHighlightOptions(),
     );
   } else {
-    schemaTreeEl.textContent = "Load a JSON schema file.";
+    schemaTreeEl.textContent = "Load a schema file.";
   }
 
   renderExampleTabs(s);

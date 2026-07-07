@@ -11,13 +11,14 @@ This document details the split-screen mapping interface and its architectural c
 │ Toolbar: … [Load Schema] [+ Add Example] [Run Test] [▶ Autoplay] … │
 ├────────────────┬─────────────────────────┬───────────────────────────┤
 │ LEFT PANE      │ CENTER PANE             │ RIGHT PANE                │
-│ Source         │ Mapping Editor          │ Output Preview            │
-│                │                         │                           │
-│ ┌─ SCHEMA ───┐ │ ┌─ Blockly (top) ─────┐ │ ┌─ Generated Code ─────┐ │
-│ │ patient    │ │ │ nested RM blocks    │ │ │ TS/Java export       │ │
-│ │ ├─ id      │ │ │ + minimap           │ │ └──────────────────────┘ │
-│ │ └─ vitals[]│ │ ├─ Mapping Spec (bot)─┤ │ ┌─ Test Run ───────────┐ │
-│ └────────────┘ │ │ DSL + expressions   │ │ │ Result for active    │ │
+│ Source         │ Mapping Editor          │ Output Previews           │
+│                │ [Open target Schema/    │                           │
+│ ┌─ SCHEMA ───┐ │  Template]              │ ┌─ Generated conversion ┐ │
+│ │ patient    │ │ ┌─ Blockly (top) ─────┐ │ │ script(s)            │ │
+│ │ ├─ id      │ │ │ nested RM blocks    │ │ │ TS/Java export       │ │
+│ │ └─ vitals[]│ │ │ + minimap           │ │ └──────────────────────┘ │
+│ └────────────┘ │ ├─ Mapping Spec (bot)─┤ │ ┌─ Conversion Test ────┐ │
+│                │ │ DSL + expressions   │ │ │ Run(s)               │ │
 │ [ex-a][ex-b][+]│ │                     │ │ │ example tab          │ │
 │ ┌─ instance ─┐ │ └─────────────────────┘ │ └──────────────────────┘ │
 │ │ vitals[0]  │ │                         │                           │
@@ -37,7 +38,7 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 #### Upper — Source Schema
 
 - **Purpose:** Structural view for authoring mappings (field names, types, cardinality)
-- **Inputs:** JSON schema, or structure inferred when only instances are loaded
+- **Inputs:** Schema file (JSON, XML, or other structural definition), or structure inferred when only instances are loaded
 - **Interactions:** Click or drag tree nodes → insert fontoxpath expression into focused mapping slot; search/filter
 - **Note:** Mapping can proceed from schema alone; Test Run still needs an example tab
 
@@ -45,22 +46,22 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 
 - **Purpose:** One or more JSON/XML **instance** files for click-to-map with concrete values and for Test Run
 - **UI:** Horizontal **example tabs** — one tab per loaded instance file, plus **+** to add another
-- **Active tab:** Drives (1) the instance tree shown below the tabs, (2) **Test Run** input, (3) lower Output Preview label (`Running: patient-a.json`)
+- **Active tab:** Drives (1) the instance tree shown below the tabs, (2) **Test Run** input, (3) lower **Conversion Test Run(s)** label (`Running: patient-a.json`)
 - **Switching tabs:** Instantly switches instance tree; re-runs Test Run if Autoplay is on, otherwise waits for **Run Test**
 - **Close tab:** `×` on tab; if last tab closed, Autoplay disables and Test Run is unavailable
 
 ```
-┌─ SCHEMA ─────────────────────┐
-│ ▼ patient                    │
-│   ├─ id          string      │
-│   └─ vitals[]    array       │
-├─ EXAMPLES ───────────────────┤
-│ [patient-a.json*] [patient-b] [edge.xml] [+] │
-├─ instance tree (active tab) ─┤
-│ ▼ patient                    │
-│   └─ vitals[0]               │
-│       └─ systolic  120  ◄──  │  (click-to-map)
-└──────────────────────────────┘
+┌─ SCHEMA ────────────────────────────────┐
+│ ▼ patient                               │
+│   ├─ id          string                 │
+│   └─ vitals[]    array                  │
+├─ EXAMPLES ──────────────────────────────┤
+│ [patient-a] [patient-b] [edge-case] [+] │
+├─ instance tree (active tab) ────────────┤
+│ ▼ patient                               │
+│   └─ vitals[0]                          │
+│       └─ systolic  120  ◄──             │  (click-to-map)
+└─────────────────────────────────────────┘
 ```
 
 - **Source querying:** [fontoxpath](https://github.com/FontoXML/fontoxpath) — see [SOURCE_QUERY.md](SOURCE_QUERY.md)
@@ -70,8 +71,9 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 
 ### Center Pane: Mapping Editor
 - **Purpose:** The main workspace where the mapping logic is defined
+- **Header action:** **Open target Schema/Template** — load an OPT (or other target structure file) to generate the Template Skeleton
 - **Default layout:** Vertical split (not tabs):
-  - **Top — Blockly canvas:** Nested puzzle-piece blocks representing the openEHR RM structure from the loaded OPT
+  - **Top — Blockly canvas:** Nested puzzle-piece blocks representing the openEHR RM structure from the loaded OPT, with a **Target value slots** rail alongside for quick slot navigation
   - **Bottom — Mapping Specification:** Block-aligned declarative DSL (not TypeScript). Structure read-only; expressions editable. Synced with Blockly via Mapping Model. See [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md).
 - **Minimap:** Shown when the Blockly workspace content exceeds the visible canvas at the current zoom level, allowing quick navigation in deep templates
 - **Sync pattern reference:** The Blockly ↔ text sync follows patterns demonstrated by [BlockMirror](https://blockpy-edu.github.io/BlockMirror/docs/); the text editor implementation uses [CodeMirror 6](https://codemirror.net/) directly
@@ -79,18 +81,18 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 - **Optional RM insertion:** `+` button on container blocks opens a **filtered picker** (only RM-valid types for that attachment point). Right-click → "Add RM structure…" opens the same picker. On selection, the parent block undergoes **block expansion** — it is modified to expose the new statement input before the child block is inserted. Pre-rendered empty slots are not shown by default.
 - **Technology:** [Blockly](https://developers.google.com/blockly) + [CodeMirror 6](https://codemirror.net/)
 
-### Right Pane: Output Preview (collapsible)
+### Right Pane: Output Previews (collapsible)
 - **Purpose:** Live preview of generated code **and** test execution results — both required in v1
-- **Upper section:** **Generated Export** — executable TypeScript/Java from Blockly generators (read-only CodeMirror). v1 shows TypeScript only. **Not** the same as the center Mapping Specification.
-- **Lower section:** **Test runner** — runs mapping against the **active example tab**; displays resulting Composition as JSON. Tab name shown in pane header (e.g. `Running: patient-a.json`).
+- **Upper section:** **Generated conversion script(s)** (glossary: [Generated Export](../CONTEXT.md#generated-export)) — executable TypeScript/Java from Blockly generators (read-only CodeMirror). v1 shows TypeScript only. **Not** the same as the center Mapping Specification.
+- **Lower section:** **Conversion Test Run(s)** (glossary: [Test Run](../CONTEXT.md#test-run)) — runs mapping against the **active example tab**; displays resulting Composition as JSON. Tab name shown in pane header (e.g. `Running: patient-a.json`).
 - **Toggle:** TypeScript / Java target selector (Java disabled in v1 until export ships)
 
 ## Toolbar Actions
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| Open Template | Load an OPT file (.opt, .opt2, .json) to generate the target skeleton | ✓ |
-| Load Schema | Load JSON schema (or structural definition) into upper Source Pane | ✓ |
+| Open target Schema/Template | Load an OPT file (.opt, .opt2, .json) to generate the target skeleton (Mapping Editor header) | ✓ |
+| Load Schema | Load a schema file (JSON, XML, or other structural definition) into upper Source Pane | ✓ |
 | + Add Example | Open a JSON/XML instance as a new example tab | ✓ |
 | Export TS | Download the generated TypeScript mapping script | ✓ |
 | Export Java | Download the generated Java mapping script | Deferred (generator built in Step 1) |
@@ -115,9 +117,9 @@ The test runner is a core informatician workflow, not a nice-to-have.
    - **Autoplay / Pause toggle** — ehrtslib demo pattern
    - **Autoplay on:** debounced Test Run (~500ms) after **mapping edits only**
    - **Paused:** user clicks **Run Test** for a single execution against active tab
-4. Lower Output Preview shows Composition JSON for that example; **tab switch** shows the **cached last result** for that tab (no automatic re-run on switch)
+4. Lower **Conversion Test Run(s)** section shows converted output for active source example; **tab switch** shows the **cached last result** for that tab (no automatic re-run on switch)
 
-**Per-tab result cache:** Each example tab remembers its last Test Run output. Switching tabs is instant. **Run Test** refreshes the active tab; Autoplay refreshes on mapping edits.
+**Per-tab result cache:** Each example tab remembers its last Test Run output. Switching tabs is instant. **Run Test** refreshes the active tab; Autoplay refreshes all tabs on mapping edits.
 
 ### Autoplay toggle rules
 

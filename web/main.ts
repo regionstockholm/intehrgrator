@@ -341,7 +341,7 @@ function render(): void {
   } else {
     exampleTreeEl.textContent = s.examples.length
       ? "Select an example tab."
-      : "Add an example instance to enable Test Run.";
+      : 'Add example instance(s) to enable "Conversion Test Run(s)" in output previews pane';
   }
   syncBlocklyWorkspace(s);
   renderSkeletonList(
@@ -352,7 +352,7 @@ function render(): void {
     new Set(s.model.slots.filter((x) => x.expression).map((x) => x.slotId)),
   );
 
-  setEditorDoc(specEditor, s.specText || "# Mapping Specification appears after loading a template");
+  setEditorDoc(specEditor, s.specText || "# Mapping Specification appears after loading a target schema/template");
   setEditorDoc(exportEditor, s.generatedCode || "// Generated Export");
   setEditorDoc(
     testOutputEditor,

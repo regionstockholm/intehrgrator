@@ -23,7 +23,7 @@
     class="panes"
     data-split="row"
     data-split-storage="layout-main-panes"
-    data-split-sizes="1,1.4,1"
+    data-split-sizes="1,1.4,0.4,1"
   >
     <section class="pane source-pane">
       <h2>Source</h2>
@@ -54,7 +54,6 @@
     <section class="pane mapping-pane">
       <div class="pane-header">
         <h2>Mapping Editor</h2>
-        <button id="btn-open-template" class="pane-btn pane-btn-on-dark" type="button">Open target Schema/Template</button>
       </div>
       <div
         class="pane-body"
@@ -62,23 +61,21 @@
         data-split-storage="layout-mapping-sections"
         data-split-sizes="1.2,1"
       >
-        <div
-          class="mapping-top"
-          data-split="row"
-          data-split-storage="layout-mapping-top"
-          data-split-sizes="1,0.22"
-          data-split-min="160"
-        >
-          <div id="blockly-mount" class="blockly-mount"></div>
-          <aside class="slot-rail">
-            <h3>Target value slots</h3>
-            <div id="skeleton-slots"></div>
-          </aside>
-        </div>
+        <div id="blockly-mount" class="blockly-mount"></div>
         <div class="mapping-bottom">
           <h3>Mapping Specification</h3>
           <div id="spec-editor" class="editor-host"></div>
         </div>
+      </div>
+    </section>
+
+    <section class="pane slots-pane">
+      <div class="pane-header">
+        <h2>Target value slots</h2>
+        <button id="btn-open-template" class="pane-btn pane-btn-on-dark" type="button">Open target Schema/Template</button>
+      </div>
+      <div class="pane-body slot-rail">
+        <div id="skeleton-slots"></div>
       </div>
     </section>
 

@@ -90,9 +90,14 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .example-tab.active { border-color: var(--accent); background: #fff4ea; }
 
 .mapping-pane { display: flex; flex-direction: column; }
-.mapping-top { min-height: 0; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
 .blockly-mount { min-height: 120px; height: 100%; flex: 1; }
+.slots-pane { display: flex; flex-direction: column; min-width: 160px; }
+.slots-pane .pane-header {
+  flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px;
+}
+.slots-pane .pane-header h2 { font-size: 13px; text-align: center; }
+.slots-pane .pane-header .pane-btn { font-size: 11px; width: 100%; line-height: 1.25; }
 .blockly-mount .blocklyToolboxCategory { border-left: 8px solid transparent; }
 .blockly-mount .toolbox-category-source { border-left-color: #e87722; }
 .blockly-mount .toolbox-category-literals { border-left-color: #5ba68d; }
@@ -124,8 +129,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   fill: var(--text-secondary);
   font-size: 10px;
 }
-.slot-rail { padding: 8px; overflow: auto; background: var(--surface-alt); min-width: 0; height: 100%; }
-.slot-rail h3 { margin-bottom: 6px; }
+.slot-rail { padding: 8px; overflow: auto; background: var(--surface-alt); min-width: 0; min-height: 0; flex: 1; }
 
 /* RTL skeleton tree: root right, leaves left */
 .skeleton-tree,

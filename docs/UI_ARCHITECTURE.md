@@ -7,27 +7,26 @@ This document details the split-screen mapping interface and its architectural c
 **Wireframe reference:** [docs/assets/prototype-ui-v1-consolidated.png](assets/prototype-ui-v1-consolidated.png) (consolidated v1 mockup; supersedes early `mapping-interface.pen` explorations).
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│ Toolbar: … [Load Schema] [+ Add Example] [Run Test] [▶ Autoplay] … │
-├────────────────┬─────────────────────────┬───────────────────────────┤
-│ LEFT PANE      │ CENTER PANE             │ RIGHT PANE                │
-│ Source         │ Mapping Editor          │ Output Previews           │
-│                │ [Open target Schema/    │                           │
-│ ┌─ SCHEMA ───┐ │  Template]              │ ┌─ Generated conversion ┐ │
-│ │ patient    │ │ ┌─ Blockly (top) ─────┐ │ │ script(s)            │ │
-│ │ ├─ id      │ │ │ nested RM blocks    │ │ │ TS/Java export       │ │
-│ │ └─ vitals[]│ │ │ + minimap           │ │ └──────────────────────┘ │
-│ └────────────┘ │ ├─ Mapping Spec (bot)─┤ │ ┌─ Conversion Test ────┐ │
-│                │ │ DSL + expressions   │ │ │ Run(s)               │ │
-│ [ex-a][ex-b][+]│ │                     │ │ │ example tab          │ │
-│ ┌─ instance ─┐ │ └─────────────────────┘ │ └──────────────────────┘ │
-│ │ vitals[0]  │ │                         │                           │
-│ │ └ systolic │ │                         │                           │
-│ └────────────┘ │                         │                           │
-├────────────────┴─────────────────────────┴───────────────────────────┤
-│ Status: [Template] [Target: TS] [Example: patient-a.json] [Mapping …]  │
-└──────────────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│ intEHRgrator  … [Copy AI Prompt] [Import Suggestions] [New Project] [Load Project]     │
+│               [Save as] [Export Project] [Import Project]                              │
+├───────────────┬──────────────────────────────┬──────────────────┬──────────────────────┤
+│ LEFT PANE     │ CENTER PANE                  │ SLOTS PANE       │ RIGHT PANE           │
+│ Source        │ Mapping Editor               │ Target value     │ Output Previews      │
+│               │                              │ slots            │                      │
+│ Schema        │ ┌─ Blockly (top) ──────────┐ │ [Open target     │ Generated conversion │
+│ [Load Schema] │ │ nested RM blocks         │ │  Schema/Template]│ script(s) [Export TS]│
+│               │ │ toolbox: Source/Literals/│ │ RTL slot tree    │                      │
+│ Examples      │ │ Logic/Variables          │ │ click → arm slot │ Conversion Test      │
+│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──┤ │                  │ Run(s) [Run][Autoplay│
+│ [ex-a][ex-b]  │ │ DSL + expressions        │ │                  │                      │
+│ instance tree │ └──────────────────────────┘ │                  │                      │
+├───────────────┴──────────────────────────────┴──────────────────┴──────────────────────┤
+│ #status-main: Template · Target · Example · unmapped · message │ #status-save │ build │
+└────────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+Resizable split dividers between all four panes (and within Source / Mapping / Output sections) persist layout sizes in `localStorage`.
 
 ## Pane Details
 
@@ -38,13 +37,15 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 #### Upper — Source Schema
 
 - **Purpose:** Structural view for authoring mappings (field names, types, cardinality)
+- **Pane action:** **Load Schema** button in the Schema section header
 - **Inputs:** Schema file (JSON, XML, or other structural definition), or structure inferred when only instances are loaded
-- **Interactions:** Click or drag tree nodes → insert fontoxpath expression into focused mapping slot; search/filter
+- **Interactions:** Click or drag tree nodes → insert fontoxpath expression into focused mapping slot
 - **Note:** Mapping can proceed from schema alone; Test Run still needs an example tab
 
 #### Lower — Example Instances (tabbed)
 
 - **Purpose:** One or more JSON/XML **instance** files for click-to-map with concrete values and for Test Run
+- **Pane action:** **+ Add Example** button in the Examples section header
 - **UI:** Horizontal **example tabs** — one tab per loaded instance file, plus **+** to add another
 - **Active tab:** Drives (1) the instance tree shown below the tabs, (2) **Test Run** input, (3) lower **Conversion Test Run(s)** label (`Running: patient-a.json`)
 - **Switching tabs:** Instantly switches instance tree; re-runs Test Run if Autoplay is on, otherwise waits for **Run Test**
@@ -71,41 +72,63 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 
 ### Center Pane: Mapping Editor
 - **Purpose:** The main workspace where the mapping logic is defined
-- **Header action:** **Open target Schema/Template** — load an OPT (or other target structure file) to generate the Template Skeleton
 - **Default layout:** Vertical split (not tabs):
-  - **Top — Blockly canvas:** Nested puzzle-piece blocks representing the openEHR RM structure from the loaded OPT, with a **Target value slots** rail alongside for quick slot navigation
+  - **Top — Blockly canvas:** Nested puzzle-piece blocks representing the openEHR RM structure from the loaded OPT
   - **Bottom — Mapping Specification:** Block-aligned declarative DSL (not TypeScript). Structure read-only; expressions editable. Synced with Blockly via Mapping Model. See [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md).
+- **Blockly toolbox categories:** Source (orange), Literals (green), Logic (brown), Variables (magenta) — colour-coded in the flyout and category rail
 - **Minimap:** Shown when the Blockly workspace content exceeds the visible canvas at the current zoom level, allowing quick navigation in deep templates
 - **Sync pattern reference:** The Blockly ↔ text sync follows patterns demonstrated by [BlockMirror](https://blockpy-edu.github.io/BlockMirror/docs/); the text editor implementation uses [CodeMirror 6](https://codemirror.net/) directly
 - **Template skeleton:** Auto-generated from loaded OPT. Includes template-constrained nodes **and** silent-mandatory RM fields (required by RM but absent from OPT) — all visible. Unmapped mandatory slots surface at Test Run validation.
 - **Optional RM insertion:** `+` button on container blocks opens a **filtered picker** (only RM-valid types for that attachment point). Right-click → "Add RM structure…" opens the same picker. On selection, the parent block undergoes **block expansion** — it is modified to expose the new statement input before the child block is inserted. Pre-rendered empty slots are not shown by default.
 - **Technology:** [Blockly](https://developers.google.com/blockly) + [CodeMirror 6](https://codemirror.net/)
 
-### Right Pane: Output Previews (collapsible)
-- **Purpose:** Live preview of generated code **and** test execution results — both required in v1
-- **Upper section:** **Generated conversion script(s)** (glossary: [Generated Export](../CONTEXT.md#generated-export)) — executable TypeScript/Java from Blockly generators (read-only CodeMirror). v1 shows TypeScript only. **Not** the same as the center Mapping Specification.
-- **Lower section:** **Conversion Test Run(s)** (glossary: [Test Run](../CONTEXT.md#test-run)) — runs mapping against the **active example tab**; displays resulting Composition as JSON. Tab name shown in pane header (e.g. `Running: patient-a.json`).
-- **Toggle:** TypeScript / Java target selector (Java disabled in v1 until export ships)
+### Slots Pane: Target Value Slots
+- **Purpose:** Compact navigation rail for the template skeleton — arm a slot for click-to-map without scrolling the Blockly canvas
+- **Header action:** **Open target Schema/Template** — load an OPT (or other target structure file) to generate the Template Skeleton
+- **Layout:** Right-to-left tree (root on the right, leaves on the left) listing skeleton nodes and value slots
+- **Visual states:** Unmapped mandatory (red border), mapped (green border), listening/armed (orange outline)
+- **Interaction:** Click a slot row → arms that slot in Blockly (same as clicking the slot block)
 
-## Toolbar Actions
+### Right Pane: Output Previews
+- **Purpose:** Live preview of generated code **and** test execution results — both required in v1
+- **Header action:** **Export TS** — download the generated TypeScript mapping script
+- **Upper section:** **Generated conversion script(s)** (glossary: [Generated Export](../CONTEXT.md#generated-export)) — executable TypeScript from Blockly generators (read-only CodeMirror). **Not** the same as the center Mapping Specification.
+- **Lower section:** **Conversion Test Run(s)** (glossary: [Test Run](../CONTEXT.md#test-run)) — runs mapping against the **active example tab**; displays resulting Composition as JSON. Section header includes **Run Test** and **Autoplay / Pause**.
+- **Deferred v1:** Export Java button and TypeScript / Java target toggle (Java generator exists; UI not wired yet)
+
+## Toolbar & Pane Actions
+
+Actions are split between the **header toolbar** (project-wide) and **pane headers/sections** (contextual).
+
+### Header toolbar
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| Open target Schema/Template | Load an OPT file (.opt, .opt2, .json) to generate the target skeleton (Mapping Editor header) | ✓ |
-| Load Schema | Load a schema file (JSON, XML, or other structural definition) into upper Source Pane | ✓ |
-| + Add Example | Open a JSON/XML instance as a new example tab | ✓ |
-| Export TS | Download the generated TypeScript mapping script | ✓ |
-| Export Java | Download the generated Java mapping script | Deferred (generator built in Step 1) |
 | Copy AI Prompt | Generate markdown prompt to clipboard for external AI chat | ✓ |
 | Import Suggestions | Parse pasted `intehrgrator-suggestions` JSON and apply mappings | ✓ |
-| Save Project | Save self-contained Project Bundle to IndexedDB | ✓ |
+| New Project | Reset workspace to empty project (confirm if content present) | ✓ |
+| Load Project | Open modal listing autosave + recent manual saves | ✓ |
+| Save as | Open modal to name and persist a manual save to IndexedDB | ✓ |
 | Export Project | Download self-contained `.intehrgrator` bundle | ✓ |
 | Import Project | Load `.intehrgrator` bundle | ✓ |
-| Settings | Configure target language, theme, validation strictness | ✓ |
-| Run Test | Execute mapping once against example instance (when Autoplay is paused) | ✓ |
-| Autoplay / Pause | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |
 
-† Export Java visible but disabled in v1 (tooltip: "Coming soon"). Both TS and Java Blockly generators are implemented in Step 1 so blocks stay language-agnostic.
+### Pane actions
+
+| Button | Location | Action | v1 |
+|--------|----------|--------|-----|
+| Load Schema | Source → Schema section | Load a schema file (JSON, XML, or other structural definition) | ✓ |
+| + Add Example | Source → Examples section | Open a JSON/XML instance as a new example tab | ✓ |
+| Open target Schema/Template | Target value slots pane header | Load an OPT file (.opt, .opt2, .json) to generate the target skeleton | ✓ |
+| Export TS | Output Previews pane header | Download the generated TypeScript mapping script | ✓ |
+| Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
+| Autoplay / Pause | Output → Conversion Test Run(s) | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |
+
+### Deferred (not in current Web Shell UI)
+
+| Button | Notes |
+|--------|-------|
+| Export Java | Generator built; download button not wired in v1 Web Shell |
+| Settings | Target language, theme, validation strictness — planned; export target defaults to TypeScript |
 
 ## Test Runner (v1)
 
@@ -228,13 +251,58 @@ The app runs in two environments with shared core code. **v1 ships Web Shell onl
 | **v1** | Web Shell (GitHub Pages) | IndexedDB | Copy-paste AI assist (no API) |
 | **Later** | VS Code extension | Workspace storage | Integrated AI (Language Model API) |
 
+## Autosave & Status Bar
+
+The footer status bar has three regions:
+
+| Element | ID | Content |
+|---------|-----|---------|
+| Main status | `#status-main` | `Template · Target · Example · N unmapped mandatory · {transient message}` |
+| Save status | `#status-save` | `unsaved changes` (red) or `autosaved at hh:mm` (green) after debounced autosave |
+| Build stamp | `#status-build` | `{BUILD_ID} · {BUILD_TIMESTAMP}` |
+
+**Autosave:** After any workspace edit, a **10 s debounced** timer writes the current Project Bundle to IndexedDB under storage key `__autosave__`. Successful autosave clears the dirty flag and updates `#status-save`. Autosave does not replace named manual saves.
+
+**Manual save (Save as):** User names the project; bundle is stored under `manual:{uuid}`. Only the **last 5** manual saves are retained (older entries pruned). Clears dirty state and shows a transient confirmation in `#status-main`.
+
+## Project Dialogs
+
+### Save as
+
+1. User clicks **Save as** in the header toolbar
+2. Modal prompts for **Project name** (prefilled from current template id when available)
+3. On confirm, bundle is written as a manual save; modal closes
+
+### Load project
+
+1. User clicks **Load Project**
+2. Modal lists loadable entries in order:
+   - **Last autosave** (`__autosave__`), if present
+   - Up to **5 most recent manual saves** (`manual:{uuid}`), newest first
+3. Each row shows kind label, display name, and save time (`hh:mm`)
+4. Selecting an entry replaces the current workspace (confirm if content present)
+
+### New project
+
+1. User clicks **New Project**
+2. Browser `confirm()` — stronger warning if workspace has content (template, schema, examples, or mappings)
+3. On confirm, workspace resets to empty state (new `projectId`, cleared panes)
+
 ## Project Persistence (v1)
 
 Projects are self-contained; see [PROJECT_PERSISTENCE.md](PROJECT_PERSISTENCE.md).
 
-- **Save Project** writes the Project Bundle to IndexedDB.
+IndexedDB uses two stores: `projects` (legacy/by project id) and `saves` (autosave + manual snapshots).
+
+| Storage key | Kind | UI label | Retention |
+|-------------|------|----------|-----------|
+| `__autosave__` | autosave | Last autosave | Single slot (overwritten) |
+| `manual:{uuid}` | manual | Saved project | Last 5, pruned on new save |
+
+- **Save as** writes a manual save to the `saves` store.
+- **Load Project** reads from `saves` (autosave + recent manual list).
 - **Export Project** downloads a `.intehrgrator` file containing the OPT, source/example content, Blockly workspace, settings, and metadata.
-- **Import Project** restores the bundle after validating app/project version and template id.
+- **Import Project** restores the bundle after validating app/project version and template id (marks workspace dirty).
 - Browser file paths are not used as durable references in v1.
 
 ## Color Scheme (Karolinska-inspired)
@@ -254,6 +322,10 @@ Based on [Karolinska Universitetssjukhuset](https://www.karolinska.se/) and Regi
 | Success | `#2E7D32` | Validation passed |
 | Warning | `#F9A825` | Validation warnings |
 | Error | `#C62828` | Validation errors |
+
+For a scale going from source to target we sometimes want to use 
+https://colorbrewer2.org/?type=diverging&scheme=PRGn&n=9
+['#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7','#d9f0d3','#a6dba0','#5aae61','#1b7837']
 
 ## References
 

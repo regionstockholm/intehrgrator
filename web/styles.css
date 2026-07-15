@@ -86,8 +86,24 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
 
 .example-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
-.example-tab { border: 1px solid var(--border); background: #fff; border-radius: 4px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.example-tab {
+  border: 1px solid var(--border); background: #fff; border-radius: 4px;
+  padding: 4px 8px; font-size: 12px; cursor: pointer;
+}
 .example-tab.active { border-color: var(--accent); background: #fff4ea; }
+.example-tab--with-close {
+  display: inline-flex; align-items: center; gap: 2px; padding: 0; cursor: default;
+}
+.example-tab-label {
+  border: none; background: transparent; padding: 4px 0 4px 8px;
+  font-size: inherit; cursor: pointer; color: inherit;
+}
+.example-tab-close {
+  border: none; background: transparent; padding: 4px 6px; font-size: 14px; line-height: 1;
+  cursor: pointer; color: var(--text-secondary); border-radius: 2px;
+}
+.example-tab-close:hover { color: var(--error); background: rgba(0, 0, 0, 0.05); }
+.test-output-tabs:empty { display: none; margin-bottom: 0; }
 
 .mapping-pane { display: flex; flex-direction: column; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }

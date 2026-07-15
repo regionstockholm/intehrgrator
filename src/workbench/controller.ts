@@ -174,6 +174,12 @@ export class WorkbenchController {
     if (!this.examples.hasExamples()) {
       this.settings.autoplay = false;
       this.testResult = null;
+    } else {
+      const active = this.examples.getActive();
+      const cached = active ? this.examples.getCachedResult(active.id) : undefined;
+      this.testResult = cached
+        ? { ok: true, composition: cached, warnings: [] }
+        : null;
     }
     this.markDirty();
   }

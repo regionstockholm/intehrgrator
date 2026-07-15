@@ -22,6 +22,7 @@ const controller = new WorkbenchController(host);
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
+const testOutputTabsEl = document.getElementById("test-output-tabs")!;
 const exampleTreeEl = document.getElementById("example-tree")!;
 const skeletonSlotsEl = document.getElementById("skeleton-slots")!;
 const blocklyMount = document.getElementById("blockly-mount")!;
@@ -325,6 +326,7 @@ function render(): void {
   }
 
   renderExampleTabs(s);
+  renderTestOutputTabs(s);
 
   if (s.exampleTree && s.activeExample) {
     const format = s.activeExample.format;
@@ -369,11 +371,41 @@ function render(): void {
 function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void {
   exampleTabsEl.innerHTML = "";
   for (const ex of s.examples) {
+    const tab = document.createElement("div");
+    tab.className = "example-tab example-tab--with-close" +
+      (s.activeExample?.id === ex.id ? " active" : "");
+    tab.setAttribute("role", "tab");
+
+    const label = document.createElement("button");
+    label.type = "button";
+    label.className = "example-tab-label";
+    label.textContent = ex.filename;
+    label.addEventListener("click", () => controller.setActiveExample(ex.id));
+
+    const close = document.createElement("button");
+    close.type = "button";
+    close.className = "example-tab-close";
+    close.setAttribute("aria-label", `Close ${ex.filename}`);
+    close.textContent = "×";
+    close.addEventListener("click", (event) => {
+      event.stopPropagation();
+      controller.removeExample(ex.id);
+    });
+
+    tab.append(label, close);
+    exampleTabsEl.appendChild(tab);
+  }
+}
+
+function renderTestOutputTabs(s: ReturnType<WorkbenchController["getState"]>): void {
+  testOutputTabsEl.innerHTML = "";
+  for (const ex of s.examples) {
     const tab = document.createElement("button");
+    tab.type = "button";
     tab.className = "example-tab" + (s.activeExample?.id === ex.id ? " active" : "");
     tab.textContent = ex.filename;
     tab.addEventListener("click", () => controller.setActiveExample(ex.id));
-    exampleTabsEl.appendChild(tab);
+    testOutputTabsEl.appendChild(tab);
   }
 }
 

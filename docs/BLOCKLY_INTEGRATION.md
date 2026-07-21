@@ -60,7 +60,7 @@ Optional RM Insertion uses ehrtslib attribute meta filtered by OPT/present conte
 
 ### 4. Control Flow & Utility Blocks
 Standard Blockly blocks for transformation logic:
-- **Loops:** `for_each`, `repeat_n`, `while`
+- **Loops:** `controls_while` (condition first), `controls_do_while` (condition last), `controls_repeat_n`, `for_each_source` (iterate nodes from a multi-valued source path into a named mapping variable)
 - **Conditionals:** `if_then_else`, `switch_case`
 - **String ops:** `concat`, `substring`, `regex_match`, `split`, `trim`
 - **Math:** `arithmetic`, `round`, `min_max`

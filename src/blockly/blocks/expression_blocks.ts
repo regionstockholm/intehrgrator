@@ -3,6 +3,7 @@ import type { BlockSvg } from "blockly/core";
 import { blocklyCheckForReturnType } from "../block_checks.ts";
 
 const SWITCH_CASE_MUTATOR = "switch_case_mutator";
+const LOGIC_COLOUR = "#A6745B";
 
 export function registerExpressionBlocks(): void {
   registerSwitchCaseMutator();
@@ -174,6 +175,82 @@ export function registerExpressionBlocks(): void {
       this.setTooltip("Assign a mapping variable (for multi-step mappings)");
     },
   };
+
+  // --- Loops (statement blocks) ---
+
+  Blockly.Blocks["controls_while"] = {
+    init: function (this: Blockly.Block) {
+      this.appendValueInput("COND")
+        .setCheck("Boolean")
+        .appendField("while");
+      this.appendStatementInput("DO")
+        .appendField("do");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(LOGIC_COLOUR);
+      this.setTooltip("Repeat while condition is true (tested before each iteration)");
+      this.setInputsInline(false);
+    },
+  };
+
+  Blockly.Blocks["controls_do_while"] = {
+    init: function (this: Blockly.Block) {
+      this.appendStatementInput("DO")
+        .appendField("do");
+      this.appendValueInput("COND")
+        .setCheck("Boolean")
+        .appendField("while");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(LOGIC_COLOUR);
+      this.setTooltip("Run body once, then repeat while condition is true (tested after each iteration)");
+      this.setInputsInline(false);
+    },
+  };
+
+  Blockly.Blocks["controls_repeat_n"] = {
+    init: function (this: Blockly.Block) {
+      this.appendValueInput("TIMES")
+        .setCheck("Number")
+        .appendField("repeat");
+      this.appendDummyInput()
+        .appendField("times");
+      this.appendStatementInput("DO")
+        .appendField("do");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(LOGIC_COLOUR);
+      this.setTooltip("Repeat body a fixed number of times");
+      this.setInputsInline(true);
+    },
+  };
+
+  /**
+   * Loop over nodes from a source path (repeatable structure).
+   * Path is an XPath/XQuery that may return multiple nodes; each iteration
+   * binds the current node to the named mapping variable.
+   */
+  Blockly.Blocks["for_each_source"] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput()
+        .appendField("for each")
+        .appendField(new Blockly.FieldTextInput("item"), "VAR")
+        .appendField("in");
+      this.appendDummyInput()
+        .appendField("source nodes")
+        .appendField(new Blockly.FieldTextInput("/path/to/items"), "PATH");
+      this.appendStatementInput("DO")
+        .appendField("do");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(LOGIC_COLOUR);
+      this.setTooltip(
+        "Loop over every node matched by a source path (e.g. multi-valued vitals). " +
+          "Current node is stored in the named variable for use in the body.",
+      );
+      this.setInputsInline(false);
+    },
+  };
 }
 
 let switchCaseMutatorRegistered = false;
@@ -183,7 +260,7 @@ function registerSwitchCaseMutator(): void {
   switchCaseMutatorRegistered = true;
   Blockly.Extensions.registerMutator(SWITCH_CASE_MUTATOR, {
     mutationToDom: function (this: Blockly.Block) {
-      const container = document.createElement("mutation");
+      const container = Blockly.utils.xml.createElement("mutation");
       container.setAttribute("cases", String(this.caseCount_ ?? 1));
       return container;
     },

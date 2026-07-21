@@ -151,10 +151,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyEditableText > text { font-size: 11px; }
 .blockly-mount .blocklyFlyoutButton text { font-size: 11px; }
 
-/* Flyout: vertical stack without overlapping preview blocks */
-.blockly-mount .blocklyFlyout .blocklyBlockCanvas {
-  transform: none !important;
-}
 .blockly-mount .blocklyFlyoutLabelText {
   fill: var(--text-secondary);
   font-size: 11px;

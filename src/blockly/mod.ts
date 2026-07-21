@@ -110,6 +110,35 @@ function registerGenerators(): void {
     const value = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || "null";
     return `__vars[${JSON.stringify(name)}] = ${value};\n`;
   };
+
+  javascriptGenerator.forBlock["controls_while"] = (block) => {
+    const cond = javascriptGenerator.valueToCode(block, "COND", Order.NONE) || "false";
+    const body = javascriptGenerator.statementToCode(block, "DO");
+    return `while (${cond}) {\n${body}}\n`;
+  };
+
+  javascriptGenerator.forBlock["controls_do_while"] = (block) => {
+    const cond = javascriptGenerator.valueToCode(block, "COND", Order.NONE) || "false";
+    const body = javascriptGenerator.statementToCode(block, "DO");
+    return `do {\n${body}} while (${cond});\n`;
+  };
+
+  javascriptGenerator.forBlock["controls_repeat_n"] = (block) => {
+    const times = javascriptGenerator.valueToCode(block, "TIMES", Order.NONE) || "0";
+    const body = javascriptGenerator.statementToCode(block, "DO");
+    return `for (let __i = 0; __i < (${times}); __i++) {\n${body}}\n`;
+  };
+
+  javascriptGenerator.forBlock["for_each_source"] = (block) => {
+    const name = block.getFieldValue("VAR") || "item";
+    const path = block.getFieldValue("PATH") || "/";
+    const body = javascriptGenerator.statementToCode(block, "DO");
+    return (
+      `for (const __node of evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data)) {\n` +
+      `  __vars[${JSON.stringify(name)}] = __node;\n` +
+      `${body}}\n`
+    );
+  };
 }
 
 export function skeletonToBlocklyXml(skeleton: SkeletonNode[]): string {

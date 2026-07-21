@@ -90,18 +90,13 @@ const workspace = Blockly.inject(blocklyMount, {
         { kind: "block", type: "boolean_literal" },
       ]},
       { kind: "category", name: "Logic", colour: TOOLBOX_COLOURS.logic, cssconfig: toolboxCategoryRow("toolbox-category-logic"), contents: [
-        { kind: "label", text: "Text" },
+        // No label/sep entries here: they break VerticalFlyout Y layout with zelos
+        // (blocks stack on top of each other). Keep a flat block list like Literals.
         { kind: "block", type: "trim" },
         { kind: "block", type: "concat" },
-        { kind: "sep" },
-        { kind: "label", text: "Numbers" },
         { kind: "block", type: "math_arithmetic" },
-        { kind: "sep" },
-        { kind: "label", text: "Conditions" },
         { kind: "block", type: "if_then_else" },
         { kind: "block", type: "switch_case" },
-        { kind: "sep" },
-        { kind: "label", text: "Loops" },
         { kind: "block", type: "for_each_source" },
         { kind: "block", type: "controls_while" },
         { kind: "block", type: "controls_do_while" },

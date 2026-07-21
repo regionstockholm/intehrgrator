@@ -22,6 +22,7 @@ const controller = new WorkbenchController(host);
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
+const exampleValidationEl = document.getElementById("example-validation")!;
 const testOutputTabsEl = document.getElementById("test-output-tabs")!;
 const exampleTreeEl = document.getElementById("example-tree")!;
 const skeletonSlotsEl = document.getElementById("skeleton-slots")!;
@@ -200,6 +201,51 @@ bind("btn-import-project", () => controller.importProject());
 bind("btn-copy-ai", () => controller.copyAiPrompt());
 bind("btn-import-ai", () => controller.importAiSuggestionsFromClipboard());
 
+initFileDropTargets();
+
+function initFileDropTargets(): void {
+  initFileDrop(schemaTreeEl, {
+    accept: (file) => /\.json$/i.test(file.name),
+    multiple: false,
+    onDrop: (files) => void controller.loadSchemaFromDrop(files[0]),
+  });
+  initFileDrop(exampleTreeEl, {
+    accept: (file) => /\.(json|xml)$/i.test(file.name),
+    multiple: true,
+    onDrop: (files) => void controller.addExamplesFromDrop(files),
+  });
+}
+
+function initFileDrop(
+  el: HTMLElement,
+  options: {
+    accept: (file: File) => boolean;
+    multiple: boolean;
+    onDrop: (files: File[]) => void;
+  },
+): void {
+  el.classList.add("tree-pane--drop-target");
+  el.addEventListener("dragenter", (event) => {
+    event.preventDefault();
+  });
+  el.addEventListener("dragover", (event) => {
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    el.classList.add("tree-pane--dragover");
+  });
+  el.addEventListener("dragleave", (event) => {
+    if (event.relatedTarget instanceof Node && el.contains(event.relatedTarget)) return;
+    el.classList.remove("tree-pane--dragover");
+  });
+  el.addEventListener("drop", (event) => {
+    event.preventDefault();
+    el.classList.remove("tree-pane--dragover");
+    const files = [...event.dataTransfer?.files ?? []].filter(options.accept);
+    if (!files.length) return;
+    options.onDrop(options.multiple ? files : files.slice(0, 1));
+  });
+}
+
 document.getElementById("save-as-cancel")?.addEventListener("click", () => dialogSaveAs.close());
 dialogSaveAs.addEventListener("close", () => {
   if (dialogSaveAs.returnValue !== "confirm") return;
@@ -327,6 +373,7 @@ function render(): void {
 
   renderExampleTabs(s);
   renderTestOutputTabs(s);
+  renderExampleValidation(s);
 
   if (s.exampleTree && s.activeExample) {
     const format = s.activeExample.format;
@@ -371,6 +418,7 @@ function render(): void {
 function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void {
   exampleTabsEl.innerHTML = "";
   for (const ex of s.examples) {
+    const hasIssues = (s.exampleValidations[ex.id]?.length ?? 0) > 0;
     const tab = document.createElement("div");
     tab.className = "example-tab example-tab--with-close" +
       (s.activeExample?.id === ex.id ? " active" : "");
@@ -382,6 +430,15 @@ function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void
     label.textContent = ex.filename;
     label.addEventListener("click", () => controller.setActiveExample(ex.id));
 
+    tab.append(label);
+    if (hasIssues) {
+      const warn = document.createElement("span");
+      warn.className = "example-tab-warn";
+      warn.textContent = "⚠";
+      warn.title = "Instance does not match schema";
+      tab.append(warn);
+    }
+
     const close = document.createElement("button");
     close.type = "button";
     close.className = "example-tab-close";
@@ -392,7 +449,7 @@ function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void
       controller.removeExample(ex.id);
     });
 
-    tab.append(label, close);
+    tab.append(close);
     exampleTabsEl.appendChild(tab);
   }
 }
@@ -400,13 +457,41 @@ function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void
 function renderTestOutputTabs(s: ReturnType<WorkbenchController["getState"]>): void {
   testOutputTabsEl.innerHTML = "";
   for (const ex of s.examples) {
+    const hasIssues = (s.exampleValidations[ex.id]?.length ?? 0) > 0;
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "example-tab" + (s.activeExample?.id === ex.id ? " active" : "");
-    tab.textContent = ex.filename;
+    tab.append(ex.filename);
+    if (hasIssues) {
+      const warn = document.createElement("span");
+      warn.className = "example-tab-warn";
+      warn.textContent = " ⚠";
+      warn.title = "Instance does not match schema";
+      tab.append(warn);
+    }
     tab.addEventListener("click", () => controller.setActiveExample(ex.id));
     testOutputTabsEl.appendChild(tab);
   }
+}
+
+function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>): void {
+  const issues = s.activeExampleValidation;
+  if (!issues.length) {
+    exampleValidationEl.hidden = true;
+    exampleValidationEl.replaceChildren();
+    return;
+  }
+  exampleValidationEl.hidden = false;
+  exampleValidationEl.replaceChildren();
+  const title = document.createElement("strong");
+  title.textContent = "Schema mismatch:";
+  const list = document.createElement("ul");
+  for (const issue of issues) {
+    const item = document.createElement("li");
+    item.textContent = `${issue.path}: ${issue.message}`;
+    list.appendChild(item);
+  }
+  exampleValidationEl.append(title, list);
 }
 
 render();

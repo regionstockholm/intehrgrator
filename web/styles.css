@@ -84,6 +84,21 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .pane-btn-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 .pane-section { padding: 8px; min-height: 0; display: flex; flex-direction: column; flex: 1; }
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
+.tree-pane--drop-target { border-style: dashed; }
+.tree-pane--dragover {
+  border-color: var(--accent); background: #fff4ea;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.example-validation {
+  margin: 0 0 6px; padding: 6px 8px; font-size: 11px; line-height: 1.4;
+  color: #8a6d00; background: #fff8e1; border: 1px solid var(--warning); border-radius: 4px;
+}
+.example-validation ul { margin: 4px 0 0; padding-left: 16px; }
+.example-validation li { margin: 2px 0; }
+.example-tab-warn {
+  color: var(--warning); font-size: 13px; line-height: 1; flex-shrink: 0;
+}
 
 .example-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .example-tab {

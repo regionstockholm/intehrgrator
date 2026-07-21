@@ -34,6 +34,10 @@ import {
   loadXmlSchemaFromInstance,
   pathToFontoxpath,
 } from "../core/source/schema_loader.ts";
+import {
+  type InstanceValidationIssue,
+  validateInstanceAgainstSchema,
+} from "../core/source/instance_validation.ts";
 import { buildSourceQueryExpression } from "../core/expression/mod.ts";
 import { returnTypeForDv } from "../core/rm_mandatory.ts";
 import { buildPrompt, importSuggestions, parseSuggestionsPayload } from "../core/ai/mod.ts";
@@ -106,6 +110,8 @@ export class WorkbenchController {
       settings: this.settings,
       examples: this.examples.list(),
       activeExample: this.examples.getActive(),
+      exampleValidations: this.buildExampleValidations(),
+      activeExampleValidation: this.buildActiveExampleValidation(),
       specText: this.specText,
       generatedCode: this.generatedCode,
       testResult: this.testResult,
@@ -137,10 +143,22 @@ export class WorkbenchController {
       const file = await this.host.pickFile(".json,application/json");
       if (!file) return;
       const content = await this.host.readTextFile(file);
-      this.schemaFilename = file.name;
-      this.schemaTree = loadJsonSchema(content, file.name.replace(/\.[^.]+$/, ""));
-      this.statusMessage = `Loaded schema ${file.name}`;
-      this.markDirty();
+      this.applySchemaFile(file.name, content);
+    } catch (err) {
+      this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+    }
+  }
+
+  async loadSchemaFromDrop(file: File): Promise<void> {
+    if (!/\.json$/i.test(file.name)) {
+      this.statusMessage = "Schema drop: JSON files only";
+      this.notifyChange();
+      return;
+    }
+    try {
+      const content = await file.text();
+      this.applySchemaFile(file.name, content);
     } catch (err) {
       this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -151,10 +169,26 @@ export class WorkbenchController {
     const file = await this.host.pickFile(".json,.xml");
     if (!file) return;
     const content = await this.host.readTextFile(file);
-    const format = file.name.endsWith(".xml") ? "xml" : "json";
-    const id = crypto.randomUUID();
-    this.examples.addExample({ id, filename: file.name, format, content });
+    this.applyExampleFile(file.name, content);
     this.statusMessage = `Added example ${file.name}`;
+    this.markDirty();
+    if (this.settings.autoplay) this.scheduleTestRun();
+  }
+
+  async addExamplesFromDrop(files: File[]): Promise<void> {
+    const supported = files.filter((file) => /\.(json|xml)$/i.test(file.name));
+    if (!supported.length) {
+      this.statusMessage = "Example drop: JSON or XML files only";
+      this.notifyChange();
+      return;
+    }
+    for (const file of supported) {
+      const content = await file.text();
+      this.applyExampleFile(file.name, content);
+    }
+    this.statusMessage = supported.length === 1
+      ? `Added example ${supported[0].name}`
+      : `Added ${supported.length} examples`;
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
@@ -395,6 +429,42 @@ export class WorkbenchController {
     return active.format === "json"
       ? inferSchemaFromInstance(active.content, rootName)
       : loadXmlSchemaFromInstance(active.content, rootName);
+  }
+
+  private buildExampleValidations(): Record<string, InstanceValidationIssue[]> {
+    if (!this.schemaTree) return {};
+    const out: Record<string, InstanceValidationIssue[]> = {};
+    for (const example of this.examples.list()) {
+      out[example.id] = validateInstanceAgainstSchema(
+        example.content,
+        example.format,
+        this.schemaTree,
+      );
+    }
+    return out;
+  }
+
+  private buildActiveExampleValidation(): InstanceValidationIssue[] {
+    const active = this.examples.getActive();
+    if (!active || !this.schemaTree) return [];
+    return validateInstanceAgainstSchema(
+      active.content,
+      active.format,
+      this.schemaTree,
+    );
+  }
+
+  private applySchemaFile(filename: string, content: string): void {
+    this.schemaFilename = filename;
+    this.schemaTree = loadJsonSchema(content, filename.replace(/\.[^.]+$/, ""));
+    this.statusMessage = `Loaded schema ${filename}`;
+    this.markDirty();
+  }
+
+  private applyExampleFile(filename: string, content: string): void {
+    const format = filename.endsWith(".xml") ? "xml" : "json";
+    const id = crypto.randomUUID();
+    this.examples.addExample({ id, filename, format, content });
   }
 
   private refreshDerived(): void {

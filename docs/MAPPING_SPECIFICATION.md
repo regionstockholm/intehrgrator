@@ -9,22 +9,11 @@ The **Mapping Specification** is the human-readable text shown in the **center p
 
 See [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md). Canonical machine form: [Mapping Model](PROJECT_PERSISTENCE.md#mapping-serialization-dual).
 
-## Design fork: how close to Blockly?
+## Form
 
-### Structure → block-aligned DSL (1:1 with Blockly, not Blockly XML)
+A custom **block-aligned DSL**: one construct per Blockly container or leaf metadata row, with stable `slotId`s shared with [AI_SUGGESTION_FORMAT.md](AI_SUGGESTION_FORMAT.md). Nesting in the DSL matches statement-input nesting in blocks.
 
-The spec **structure** mirrors the Blockly workspace **logically**, not syntactically:
-
-| Approach | Verdict |
-|----------|---------|
-| Raw Blockly XML/JSON in CodeMirror | **No** — unreadable, not for humans |
-| Free-form JSON/YAML mapping file | **No** — poor sync with blocks, weak highlighting |
-| Custom DSL with one construct per block/`slotId` | **Yes** — readable, deterministic round-trip |
-| Full JavaScript object as the spec | **No** for structure — blurs into export code, hard to lock structure |
-
-Each structural line maps to exactly one Blockly container or leaf metadata row. Container nesting in the DSL equals statement-input nesting in blocks. Each value slot has a stable `slotId` (shared with `AI_SUGGESTION_FORMAT.md`).
-
-**Blockly codegen stays easy** because generators do not parse the DSL text — they walk **blocks** (or the parallel **Mapping Model**). The DSL is a **projection** for editing and review:
+This keeps the text readable and round-trippable with Blockly, without dumping Blockly XML/JSON into CodeMirror.
 
 ```
 Blockly blocks  ⇄  Mapping Model (JSON)  ⇄  Mapping Specification (text)
@@ -34,23 +23,15 @@ Blockly blocks  ⇄  Mapping Model (JSON)  ⇄  Mapping Specification (text)
            Code generators → TS / Java export
 ```
 
-Generators consume the **block tree** (or Mapping Model derived from it). The text spec never replaces that tree for codegen.
+The DSL is a **projection** for editing and review. Generators walk the **block tree** (or the Mapping Model derived from it); they do not parse the spec text.
 
-### Expressions → JavaScript-*shaped* subset (not full JS/TS)
+## Expressions
 
-**Expressions** inside value slots use a **restricted expression language** that looks like JavaScript but is **not** executable export code:
+Value slots use a **restricted, JS-shaped expression language** — familiar syntax that pretty-prints expression block subtrees (`source_query`, `concat`, `if_then_else`, …). Parsing an expression edit updates only those blocks, same as editing them in Blockly.
 
-| Approach | Verdict |
-|----------|---------|
-| XPath only | Too weak — no `if`, `concat`, loops Blockly already supports |
-| Full JavaScript / TypeScript | **No** — same syntax as export, unsafe to eval, breaks structure/expression boundary |
-| JS-shaped expression subset with fixed builtins | **Yes** — familiar syntax, parseable, maps to expression blocks |
+Expressions are not full JavaScript/TypeScript and are not executed directly. Test Run runs **generated TypeScript**; arbitrary JS in the spec would blur into export code and invite unsafe side effects.
 
-**Why JS-shaped works with Blockly:** expression slots in Blockly are already subtrees (`source_query`, `concat`, `if_then_else`, …). The text form is a **pretty-print of those subtrees**. Parsing an expression edit yields an AST that updates only the expression blocks — same as editing the blocks directly.
-
-**Why not full JavaScript:** Test Run executes **generated TypeScript**, not the spec. Letting users write arbitrary JS in the spec would invite `fetch()`, `require()`, side effects, and confusion with the right-pane export.
-
-## Example specification (illustrative)
+## Example
 
 ```spec
 @template vitals_encounter_v1

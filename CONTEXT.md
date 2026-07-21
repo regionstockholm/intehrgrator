@@ -74,6 +74,18 @@ _Avoid_: Dynamic slot, mutating block
 Editable fragment inside a value slot in the Mapping Specification — XPath via fontoxpath builtins (`xpathNumber`, `xpathString`, …) plus JS-shaped helpers (`trim`, `concat`, `if`). Not TypeScript/Java export code.
 _Avoid_: Value mapping, get_source
 
+**DATA_VALUE Block**:
+A typed Blockly shell for an openEHR `DV_*` (e.g. `DV_QUANTITY`) that wraps Mapping Expressions / literals into target RM fields. Structure still comes from the Template Skeleton or Optional RM Insertion — not free-form composition building from the toolbox. v1 covers the full RM leaf set (including `DV_INTERVAL`, `DV_MULTIMEDIA`, `DV_PARSABLE`, etc.). Field layouts are driven at runtime from ehrtslib’s type registry plus attribute metadata (not a hand-maintained DV field table); gaps in ehrtslib introspection are treated as library improvements. Mandatory value slots (RM- or template/archetype-mandatory) auto-attach the matching shell in the Template Skeleton; optional slots stay empty until Click-to-Map / Listening Mode, which then inserts the typed shell around the Mapping Expression. On each shell, only mandatory attributes are shown by default; optional attributes appear via progressive disclosure (“+ fields”) on that block. Authoritative sources for RM types and attributes are the openEHR specs and ehrtslib — not `docs/OPENEHR_PRIMER.md` (illustrative only). Implementation of registry-driven shells waits on the ehrtslib RM attribute introspection API (`docs/proposals/ehrtslib-rm-attribute-introspection.md`); no interim hand-maintained meta table in intEHRgrator.
+_Avoid_: Value constructor block, DV builder, free-form RM block
+
+**Compact Blockly Theme**:
+Karolinska-aligned dense zelos theme (tighter padding, smaller type, muted structure colours; Source/expression accents stronger) plus hybrid density: structure containers start collapsed where possible; leaf `DATA_VALUE` / expression rows stay expanded with inline fields.
+_Avoid_: Default Blockly look, thrasos-only density
+
+**Cross-Cutting RM Structure**:
+Optional RM types attachable via Optional RM Insertion (`+` / context menu), not free toolbox construction — e.g. feeder audit, links, party proxies, participations — wherever the RM permits on the parent. Nested mandatory children auto-attach; optional children stay lazy. RM attribute facts come from ehrtslib introspection (proposed BMM-generated meta API); which optional attributes are offered in the picker (OPT context, already-present, product policy) stays in intEHRgrator — not an ehrtslib `validAttachments` helper.
+_Avoid_: Primer-only RM list, toolbox free-build of LOCATABLE extras, library-level attachment picker API
+
 **Mapping Specification**:
 Human-readable, block-aligned DSL in the center CodeMirror panel. Structure mirrors Blockly (read-only in text); expressions are editable. Canonical JSON form: Mapping Model. See `docs/MAPPING_SPECIFICATION.md`.
 _Avoid_: Mapping script, bottom CodeMirror TypeScript

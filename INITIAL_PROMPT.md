@@ -16,7 +16,7 @@ B. As a **tool/plugin inside VS Code**, providing a native developer experience.
 This means that shared code in the editor will be in TypeScript and that test-running of generated Java versions of conversion scripts might not be implemented to begin with, but rather be added later.
 
 ## Two-Step Implementation Process
-The implementation will be deterministic to start with, based on either openEHR's formal machine-readable definitions (RM/AM/BMM) originating from the ehrtslib library (`https://github.com/ErikSundvall/ehrtslib`) or from the generated files found in the `ehrtslib` repository.
+The implementation will be deterministic to start with, based on either openEHR's formal machine-readable definitions (RM/AM/BMM) originating from the ehrtslib library (`https://github.com/ErikSundvall/ehrtslib`).
 
 We will tackle this project in two distinct phases:
 
@@ -26,7 +26,7 @@ We will create the general openEHR [Blockly](https://developers.google.com/block
 * **Target Formats:** The output must support generating executable conversion scripts in both:
   1. **TypeScript** (using `ehrtslib`)
   2. **Java** (using the `openEHR/archie` library)
-* **Blockly Structure:** The visual Blockly structure must be uniform across both TypeScript and Java targets so users can seamlessly switch between exporting to either language without rebuilding the visual mapping. The visual structure must also be preserved (saved/loaded) to allow later editing.
+* **Blockly Structure:** The visual Blockly structure is must be uniform and language independend target languages (so same for both TypeScript and Java targets) so users can seamlessly switch between exporting to either language without rebuilding the visual mapping. The visual structure must also be preserved (saved/loaded) to allow later editing.
 * The library of blocks must include standard control flow (loops, conditionals), string manipulation, and math calculations for complex transformations.
 
 ### Step 2: Workbench UI & Application Logic

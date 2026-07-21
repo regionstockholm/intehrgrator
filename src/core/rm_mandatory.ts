@@ -95,50 +95,10 @@ function inheritsFrom(child: string, ancestor: string): boolean {
   return false;
 }
 
-export function isDataValueType(rmType: string): boolean {
-  return rmType.startsWith("DV_") || rmType === "CODE_PHRASE";
-}
-
-export function blockTypeForRm(rmType: string): string {
-  const map: Record<string, string> = {
-    COMPOSITION: "composition",
-    SECTION: "section",
-    OBSERVATION: "observation",
-    EVALUATION: "evaluation",
-    INSTRUCTION: "instruction",
-    ACTION: "action",
-    ADMIN_ENTRY: "admin_entry",
-    CLUSTER: "cluster",
-    ELEMENT: "element",
-    ITEM_TREE: "item_tree",
-    ITEM_LIST: "item_list",
-    ITEM_TABLE: "item_table",
-    ITEM_SINGLE: "item_single",
-    HISTORY: "history",
-    POINT_EVENT: "point_event",
-    INTERVAL_EVENT: "interval_event",
-    EVENT: "event",
-    EVENT_CONTEXT: "event_context",
-    ACTIVITY: "activity",
-    FEEDER_AUDIT: "feeder_audit",
-    PARTICIPATION: "participation",
-    PARTY_IDENTIFIED: "party_identified",
-    LINK: "link",
-    DV_TEXT: "dv_text",
-    DV_CODED_TEXT: "dv_coded_text",
-    DV_QUANTITY: "dv_quantity",
-    DV_DATE_TIME: "dv_date_time",
-    DV_BOOLEAN: "dv_boolean",
-    DV_COUNT: "dv_count",
-    DV_ORDINAL: "dv_ordinal",
-    DV_PROPORTION: "dv_proportion",
-    DV_DURATION: "dv_duration",
-    DV_URI: "dv_uri",
-    DV_IDENTIFIER: "dv_identifier",
-    CODE_PHRASE: "code_phrase",
-  };
-  return map[rmType] ?? rmType.toLowerCase();
-}
+export {
+  blockTypeForRm,
+  isDataValueType,
+} from "./rm_meta.ts";
 
 export function returnTypeForDv(rmType: string): string {
   switch (rmType) {

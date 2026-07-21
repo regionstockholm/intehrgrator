@@ -12,7 +12,7 @@ const skeleton: SkeletonNode[] = [{
   mandatory: true,
   children: [{
     slotId: "t1//value",
-    blockType: "dv_quantity_value",
+    blockType: "dv_quantity",
     rmType: "DV_QUANTITY",
     label: "systolic",
     rmAttribute: "content",

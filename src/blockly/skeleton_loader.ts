@@ -1,10 +1,20 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
 import type { MappingModel, SkeletonNode } from "../types/mod.ts";
-import { AUTO_FIXED_LOCATABLE_ATTRS, isDataValueType } from "../core/rm_mandatory.ts";
+import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
+import { isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
-import { ensureRmBlockType, configureElementValueSlot, rmAttributeInputName, syncRmAttributeInputs } from "./blocks/rm_blocks.ts";
+import {
+  configureElementValueSlot,
+  connectExpressionToDataValueShell,
+  ensureElementDataValueShell,
+  ensureRmBlockType,
+  expressionBlockFromDataValueShell,
+  isDataValueBlock,
+  rmAttributeInputName,
+  syncRmAttributeInputs,
+} from "./blocks/rm_blocks.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { blocklyCheckForReturnType } from "./block_checks.ts";
 
@@ -19,7 +29,7 @@ export function loadSkeletonIntoWorkspace(
     workspace.clear();
     let y = 20;
     for (const root of skeleton) {
-      const block = buildBlockFromNode(workspace, root, true);
+      const block = buildBlockFromNode(workspace, root, true, 0);
       if (!block) continue;
       block.moveBy(20, y);
       const height = typeof block.getHeightWidth === "function"
@@ -42,11 +52,12 @@ export function applyModelExpressions(
   try {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
+      if (block.type !== "element") continue;
       const slotId = block.getFieldValue("SLOT_ID");
       if (!slotId) continue;
       const slot = slotMap.get(slotId);
       if (!slot) continue;
-      attachExpressionToBlock(workspace, block, slot.expression, slot.returnType);
+      attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
     }
   } finally {
     Blockly.Events.enable();
@@ -76,6 +87,7 @@ function buildBlockFromNode(
   workspace: WorkspaceSvg,
   node: SkeletonNode,
   isRoot: boolean,
+  depth: number,
 ): BlockSvg | null {
   if (node.blockType === "element" || node.rmType === "ELEMENT") {
     return buildElementBlock(workspace, node, isRoot);
@@ -83,13 +95,14 @@ function buildBlockFromNode(
   if (node.kind === "value") {
     return buildElementBlockFromValue(workspace, node, isRoot);
   }
-  return buildContainerBlock(workspace, node, isRoot);
+  return buildContainerBlock(workspace, node, isRoot, depth);
 }
 
 function buildContainerBlock(
   workspace: WorkspaceSvg,
   node: SkeletonNode,
   isRoot: boolean,
+  depth: number,
 ): BlockSvg {
   ensureRmBlockType("rm_structure", node.rmType);
   const block = workspace.newBlock("rm_structure") as BlockSvg;
@@ -114,7 +127,7 @@ function buildContainerBlock(
   for (const attr of attributes) {
     const attrChildren = visibleChildren.filter((child) => child.rmAttribute === attr);
     const childBlocks = attrChildren
-      .map((child) => buildBlockFromNode(workspace, child, false))
+      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
       .filter((child): child is BlockSvg => child !== null);
     connectStatementChain(block, rmAttributeInputName(attr), childBlocks);
   }
@@ -126,6 +139,12 @@ function buildContainerBlock(
   if (node.mandatory) {
     block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
   }
+
+  // Hybrid density: collapse nested structure by default
+  if (!isRoot && depth > 0 && typeof block.setCollapsed === "function") {
+    block.setCollapsed(true);
+  }
+
   return finalizeBlock(block);
 }
 
@@ -137,13 +156,21 @@ function buildElementBlock(
   ensureRmBlockType("element", "ELEMENT");
   const primary = primaryValueChild(node);
   const block = workspace.newBlock("element") as BlockSvg;
-  block.setFieldValue(primary?.rmType ?? "ELEMENT", "RM_TYPE");
+  const dvType = primary?.rmType ?? "DATA_VALUE";
+  block.setFieldValue(dvType, "RM_TYPE");
   block.setFieldValue(primary?.slotId ?? node.slotId, "SLOT_ID");
   if (node.archetypeNodeId) {
     setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
   }
   applySkeletonBlockLabels(block, node);
-  configureElementValueSlot(block, primary?.rmType ?? node.rmType);
+  configureElementValueSlot(block, dvType);
+
+  const valueMandatory = Boolean(
+    (primary?.mandatory ?? false) || (node.mandatory && primary),
+  );
+  if (valueMandatory && primary && isDataValueType(dvType)) {
+    ensureElementDataValueShell(workspace, block, dvType);
+  }
 
   if (!isRoot) {
     block.setPreviousStatement(true);
@@ -170,6 +197,10 @@ function buildElementBlockFromValue(
   }
   applySkeletonBlockLabels(block, node);
   configureElementValueSlot(block, node.rmType);
+
+  if (node.mandatory && isDataValueType(node.rmType)) {
+    ensureElementDataValueShell(workspace, block, node.rmType);
+  }
 
   if (!isRoot) {
     block.setPreviousStatement(true);
@@ -212,23 +243,29 @@ function connectStatementChain(
   }
 }
 
-function attachExpressionToBlock(
+function attachExpressionToElement(
   workspace: Blockly.Workspace,
-  block: Blockly.Block,
+  elementBlock: Blockly.Block,
   expression: string,
   returnType: string,
+  rmTypeHint?: string,
 ): void {
-  const valueInput = block.getInput("VALUE");
-  if (!valueInput?.connection) return;
-
-  const existing = valueInput.connection.targetBlock();
-  if (existing) existing.dispose(false);
+  const rmType = rmTypeHint || elementBlock.getFieldValue("RM_TYPE") || "DV_TEXT";
+  const shell = ensureElementDataValueShell(workspace, elementBlock, rmType);
+  if (!shell) return;
 
   const exprBlock = expressionToBlock(workspace, expression, returnType);
-  if (exprBlock.outputConnection) {
-    valueInput.connection.connect(exprBlock.outputConnection);
+  connectExpressionToDataValueShell(shell, exprBlock);
+  elementBlock.setWarningText(null);
+
+  // Expand collapsed ancestors so the mapped leaf is visible
+  let parent = elementBlock.getParent();
+  while (parent) {
+    if (typeof parent.setCollapsed === "function" && parent.isCollapsed?.()) {
+      parent.setCollapsed(false);
+    }
+    parent = parent.getParent();
   }
-  block.setWarningText(null);
 }
 
 function expressionToBlock(
@@ -269,5 +306,10 @@ function setFieldIfPresent(block: Blockly.Block, name: string, value: string): v
 }
 
 function hasMappedExpression(block: Blockly.Block): boolean {
-  return Boolean(block.getInput("VALUE")?.connection?.targetBlock());
+  const valueBlock = block.getInput("VALUE")?.connection?.targetBlock();
+  if (!valueBlock) return false;
+  if (isDataValueBlock(valueBlock)) {
+    return Boolean(expressionBlockFromDataValueShell(valueBlock));
+  }
+  return true;
 }

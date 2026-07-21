@@ -30,30 +30,33 @@ These represent the RM containment hierarchy:
 | `cluster` | `items` (statement) | Group of items, recursive |
 | `element` | `value` (value input) | Leaf data node |
 
-### 2. DATA_VALUE Blocks (Value blocks)
-These snap into `element.value`:
+### 2. DATA_VALUE Blocks (Value shells)
 
-| Block | Fields | Output Type |
-|-------|--------|-------------|
-| `dv_text` | `value` (text) | DV_TEXT |
-| `dv_coded_text` | `value`, `code`, `terminology` | DV_CODED_TEXT |
-| `dv_quantity` | `magnitude` (number), `units` (dropdown) | DV_QUANTITY |
-| `dv_date_time` | `value` (date picker) | DV_DATE_TIME |
-| `dv_boolean` | `value` (checkbox) | DV_BOOLEAN |
-| `dv_count` | `magnitude` (integer) | DV_COUNT |
-| `dv_ordinal` | `value` (number), `symbol` | DV_ORDINAL |
-| `dv_proportion` | `numerator`, `denominator`, `type` | DV_PROPORTION |
-| `dv_duration` | `value` (ISO 8601) | DV_DURATION |
-| `dv_uri` | `value` (text) | DV_URI |
-| `dv_identifier` | `id`, `type`, `issuer`, `assigner` | DV_IDENTIFIER |
+Typed shells for every concrete `DATA_VALUE` leaf from ehrtslib
+`subtypesOf("DATA_VALUE")` (`enhanced/meta`). Field layouts come from
+`attributesFor(rmType)`: mandatory attributes shown inline; optional attributes
+via progressive disclosure (`+ fields` on the shell).
+
+| Role | Behavior |
+|------|----------|
+| Template Skeleton | Mandatory value slots auto-attach the matching shell |
+| Optional / unmapped | Empty until Click-to-Map, then lazy-insert shell around the expression |
+| Toolbox | **Data values** category for type replacement |
+| ELEMENT.value check | Accepts the concrete `DV_*` shell (not raw String/Number) |
+
+Authoritative RM facts: ehrtslib `docs/RM_ATTRIBUTES.md`. Attachment picker policy
+(`getValidAttachments`) stays in intEHRgrator over `attributesFor`.
 
 ### 3. Cross-Reference / Optional RM Blocks
 | Block | Inputs | Description |
 |-------|--------|-------------|
-| `feeder_audit` | `originating_system_audit`, `feeder_system_audit` | Provenance trail |
-| `participation` | `performer`, `function`, `mode` | Additional participant |
-| `party_identified` | `name`, `identifiers` | Actor identity |
-| `link` | `meaning`, `type`, `target` | Cross-reference |
+| `feeder_audit` | via `+` picker / statement expansion | Provenance trail |
+| `participation` | via `+` picker | Additional participant |
+| `party_identified` | via `+` picker | Actor identity |
+| `link` | via `+` picker | Cross-reference |
+
+Optional RM Insertion uses ehrtslib attribute meta filtered by OPT/present context
+(`src/core/rm_meta.ts` → `getValidAttachments`).
 
 ### 4. Control Flow & Utility Blocks
 Standard Blockly blocks for transformation logic:

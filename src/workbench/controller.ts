@@ -395,7 +395,16 @@ export class WorkbenchController {
   getOptionalAttachments(parentSlotId: string) {
     const node = findSkeletonNode(this.skeleton, parentSlotId);
     if (!node) return [];
-    const present = new Set(node.children.map((c) => c.label));
+    const present = new Set(
+      node.children
+        .map((c) => c.rmAttribute)
+        .filter((a): a is string => Boolean(a)),
+    );
+    for (const extra of this.model.optionalRm) {
+      if (extra.attachmentSlotId === parentSlotId) {
+        present.add(extra.attributeName);
+      }
+    }
     return getValidAttachments(node.rmType, {
       presentAttributes: present,
       templateConstrained: present,

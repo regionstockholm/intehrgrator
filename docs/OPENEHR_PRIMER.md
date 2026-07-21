@@ -46,7 +46,7 @@ Each ENTRY type contains structured data via:
 | `DV_MULTIMEDIA` | Binary/media content | JPEG image |
 
 ### Cross-Cutting RM Structures
-These optional RM classes can appear at many levels and are **not always mentioned in templates**:
+Optional RM classes can appear at many levels and are **not always mentioned in templates**:
 - **`FEEDER_AUDIT`** — provenance/audit trail for imported data (attached to `LOCATABLE`)
 - **`PARTICIPATION`** — additional participants in clinical acts
 - **`PARTY_IDENTIFIED` / `PARTY_RELATED`** — actor identification

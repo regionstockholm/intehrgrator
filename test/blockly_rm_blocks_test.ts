@@ -7,6 +7,9 @@ import {
 } from "@intehrgrator/blockly/block_checks.ts";
 import {
   configureElementValueSlot,
+  dvFieldInputName,
+  ensureElementDataValueShell,
+  isDataValueBlock,
   orderedRmAttributes,
   registerRmBlocks,
   rmAttributeInputName,
@@ -16,6 +19,13 @@ import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expressio
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { loadSkeletonIntoWorkspace } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
+import {
+  attributesFor,
+  dataValueLeafTypes,
+  getValidAttachments,
+  isDataValueType,
+  primaryMappingAttribute,
+} from "@intehrgrator/core/rm_meta.ts";
 import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
 
 const fixture = await Deno.readTextFile(
@@ -30,6 +40,24 @@ function ensureBlocks(): void {
   blocksReady = true;
 }
 
+Deno.test("ehrtslib meta exposes DATA_VALUE leaves and DV_QUANTITY fields", () => {
+  assert(dataValueLeafTypes().includes("DV_QUANTITY"));
+  assert(isDataValueType("DV_CODED_TEXT"));
+  const qty = attributesFor("DV_QUANTITY");
+  assert(qty.some((a) => a.name === "magnitude" && a.mandatory));
+  assert(qty.some((a) => a.name === "units" && a.mandatory));
+  assertEquals(primaryMappingAttribute("DV_QUANTITY")?.name, "magnitude");
+});
+
+Deno.test("composition optional attachments exclude present attrs", () => {
+  const opts = getValidAttachments("COMPOSITION", {
+    presentAttributes: new Set(["context"]),
+    templateConstrained: new Set(),
+  });
+  assertEquals(opts.some((o) => o.attributeName === "context"), false);
+  assertEquals(opts.some((o) => o.attributeName === "feeder_audit"), true);
+});
+
 Deno.test("skeleton children carry rmAttribute from OPT walk", () => {
   const { skeleton } = generateSkeleton(fixture);
   const observation = skeleton.flatMap(function walk(n): SkeletonNode[] {
@@ -41,10 +69,10 @@ Deno.test("skeleton children carry rmAttribute from OPT walk", () => {
   assert(attrs.has("data"), `expected data attribute, got ${[...attrs].join(", ")}`);
 });
 
-Deno.test("blocklyCheckForDv maps DV types to String/Number/Boolean", () => {
-  assertEquals(blocklyCheckForDv("DV_TEXT"), "String");
-  assertEquals(blocklyCheckForDv("DV_QUANTITY"), "Number");
-  assertEquals(blocklyCheckForDv("DV_BOOLEAN"), "Boolean");
+Deno.test("blocklyCheckForDv maps DV types to typed shell checks", () => {
+  assertEquals(blocklyCheckForDv("DV_TEXT"), ["DV_TEXT", "DV_CODED_TEXT"]);
+  assertEquals(blocklyCheckForDv("DV_QUANTITY"), ["DV_QUANTITY"]);
+  assertEquals(blocklyCheckForDv("DV_BOOLEAN"), ["DV_BOOLEAN"]);
   assertEquals(blocklyCheckForReturnType("string"), "String");
 });
 
@@ -68,18 +96,28 @@ Deno.test("syncRmAttributeInputs labels statement mouths with RM attribute names
   workspace.dispose();
 });
 
-Deno.test("configureElementValueSlot applies typed value checks", () => {
+Deno.test("configureElementValueSlot applies typed DATA_VALUE checks", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
   const block = workspace.newBlock("element");
   configureElementValueSlot(block, "DV_QUANTITY");
-  assertEquals(block.getInput("VALUE")?.connection?.getCheck(), ["Number"]);
+  assertEquals(block.getInput("VALUE")?.connection?.getCheck(), ["DV_QUANTITY"]);
   configureElementValueSlot(block, "DV_CODED_TEXT");
-  assertEquals(block.getInput("VALUE")?.connection?.getCheck(), ["String"]);
+  assertEquals(block.getInput("VALUE")?.connection?.getCheck(), ["DV_CODED_TEXT"]);
   workspace.dispose();
 });
 
-Deno.test("loadSkeletonIntoWorkspace wires children into RM attribute inputs", () => {
+Deno.test("DATA_VALUE shell exposes mandatory fields from meta", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const shell = workspace.newBlock("dv_quantity");
+  assert(shell.getInput(dvFieldInputName("magnitude")));
+  assert(shell.getInput(dvFieldInputName("units")));
+  assertEquals(shell.outputConnection?.getCheck(), ["DV_QUANTITY"]);
+  workspace.dispose();
+});
+
+Deno.test("loadSkeletonIntoWorkspace auto-attaches mandatory DV shells", () => {
   ensureBlocks();
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
@@ -96,7 +134,25 @@ Deno.test("loadSkeletonIntoWorkspace wires children into RM attribute inputs", (
     (b) => b.getFieldValue("SLOT_ID")?.includes("at0004") && b.type === "element",
   );
   assert(systolic, "expected systolic element block");
-  assertEquals(systolic.getInput("VALUE")?.connection?.getCheck(), ["Number"]);
+  assertEquals(systolic.getInput("VALUE")?.connection?.getCheck(), ["DV_QUANTITY"]);
 
+  const shell = systolic.getInputTargetBlock("VALUE");
+  assert(shell && isDataValueBlock(shell), "expected auto-attached DV shell");
+  assertEquals(shell.getFieldValue("RM_TYPE"), "DV_QUANTITY");
+  assert(shell.getInput(dvFieldInputName("magnitude")));
+
+  workspace.dispose();
+});
+
+Deno.test("ensureElementDataValueShell is idempotent", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const element = workspace.newBlock("element");
+  element.setFieldValue("DV_TEXT", "RM_TYPE");
+  configureElementValueSlot(element, "DV_TEXT");
+  const a = ensureElementDataValueShell(workspace, element, "DV_TEXT");
+  const b = ensureElementDataValueShell(workspace, element, "DV_TEXT");
+  assert(a && b);
+  assertEquals(a.id, b.id);
   workspace.dispose();
 });

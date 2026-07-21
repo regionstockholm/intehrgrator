@@ -1,9 +1,10 @@
 import * as Blockly from "blockly/core";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import type { SkeletonNode } from "../types/mod.ts";
-import { registerRmBlocks } from "./blocks/rm_blocks.ts";
+import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell } from "./blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
+import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 
 export {
   applyModelExpressions,
@@ -12,6 +13,9 @@ export {
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
 export { blockToExpression } from "./expression_serialize.ts";
+export { createCompactTheme } from "./theme.ts";
+export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
+export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -44,11 +48,13 @@ function registerGenerators(): void {
     return [value ? "true" : "false", Order.ATOMIC];
   };
 
-  javascriptGenerator.forBlock["dv_quantity_value"] = (block) => {
-    const child = javascriptGenerator.valueToCode(block, "MAGNITUDE", Order.NONE) || "0";
-    const units = block.getFieldValue("UNITS") || "1";
-    return [`new openehr_rm.DV_QUANTITY({ magnitude: ${child}, units: ${JSON.stringify(units)} })`, Order.NEW];
-  };
+  for (const rmType of dataValueLeafTypes()) {
+    const type = blockTypeForRm(rmType);
+    javascriptGenerator.forBlock[type] = (block) => generateDvConstructor(block, rmType);
+  }
+  // Legacy stub name (fixtures / older workspaces)
+  javascriptGenerator.forBlock["dv_quantity_value"] = (block) =>
+    generateDvConstructor(block, "DV_QUANTITY");
 
   javascriptGenerator.forBlock["trim"] = (block) => {
     const v = javascriptGenerator.valueToCode(block, "TEXT", Order.NONE) || '""';
@@ -163,11 +169,51 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
     if (block.type !== "element") continue;
     const slotId = block.getFieldValue("SLOT_ID");
     const rmType = block.getFieldValue("RM_TYPE");
-    const exprBlock = block.getInputTargetBlock("VALUE");
+    const valueBlock = block.getInputTargetBlock("VALUE");
+    const exprBlock = valueBlock && isDataValueBlock(valueBlock)
+      ? expressionBlockFromDataValueShell(valueBlock)
+      : valueBlock;
     const expression = blockToExpression(exprBlock);
     if (slotId && expression) {
       slots.push({ slotId, rmType, expression });
     }
   }
   return { slots };
+}
+
+function generateDvConstructor(block: Blockly.Block, rmType: string): [string, number] {
+  const parts: string[] = [];
+  for (const attr of attributesFor(rmType)) {
+    if (!isPrimitiveRmType(attr.typeName) && attr.typeName !== "CODE_PHRASE") {
+      continue;
+    }
+    const inputName = block.getInput(`FLD_${attr.name}`)
+      ? `FLD_${attr.name}`
+      : block.getInput(`OPTFLD_${attr.name}`)
+      ? `OPTFLD_${attr.name}`
+      : null;
+    if (!inputName) continue;
+    const code = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
+    if (!code) continue;
+    parts.push(`${attr.name}: ${code}`);
+  }
+  // Legacy magnitude/units field names on dv_quantity_value
+  if (rmType === "DV_QUANTITY" && !parts.some((p) => p.startsWith("magnitude"))) {
+    const mag = javascriptGenerator.valueToCode(block, "MAGNITUDE", Order.NONE);
+    if (mag) parts.push(`magnitude: ${mag}`);
+    const unitsField = block.getFieldValue("UNITS");
+    if (unitsField) parts.push(`units: ${JSON.stringify(unitsField)}`);
+  }
+  return [
+    `new openehr_rm.${rmType}({ ${parts.join(", ")} })`,
+    Order.NEW,
+  ];
+}
+
+/** Toolbox entries for concrete DATA_VALUE leaves. */
+export function dataValueToolboxContents(): Array<{ kind: string; type: string }> {
+  return dataValueLeafTypes().map((rmType) => ({
+    kind: "block",
+    type: blockTypeForRm(rmType),
+  }));
 }

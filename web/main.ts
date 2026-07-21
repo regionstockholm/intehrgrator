@@ -9,7 +9,16 @@ import {
   createSpecEditor,
   setEditorDoc,
 } from "../src/workbench/codemirror_setup.ts";
-import { initBlocklyGenerators, loadSkeletonIntoWorkspace, applyModelExpressions, highlightListeningSlot, slotIdFromBlock } from "../src/blockly/mod.ts";
+import {
+  initBlocklyGenerators,
+  loadSkeletonIntoWorkspace,
+  applyModelExpressions,
+  highlightListeningSlot,
+  slotIdFromBlock,
+  createCompactTheme,
+  dataValueToolboxContents,
+  setOptionalRmPickHandler,
+} from "../src/blockly/mod.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
@@ -59,6 +68,7 @@ const TOOLBOX_COLOURS = {
   literals: "#5BA68D",
   logic: "#A6745B",
   variables: "#A65B80",
+  datavalues: "#4A6FA5",
 } as const;
 
 function toolboxCategoryRow(className: string): { row: string } {
@@ -66,12 +76,14 @@ function toolboxCategoryRow(className: string): { row: string } {
 }
 
 const workspace = Blockly.inject(blocklyMount, {
+  theme: createCompactTheme(),
   toolbox: {
     kind: "categoryToolbox",
     contents: [
       { kind: "category", name: "Source", colour: TOOLBOX_COLOURS.source, cssconfig: toolboxCategoryRow("toolbox-category-source"), contents: [
         { kind: "block", type: "source_query" },
       ]},
+      { kind: "category", name: "Data values", colour: TOOLBOX_COLOURS.datavalues, cssconfig: toolboxCategoryRow("toolbox-category-datavalues"), contents: dataValueToolboxContents() },
       { kind: "category", name: "Literals", colour: TOOLBOX_COLOURS.literals, cssconfig: toolboxCategoryRow("toolbox-category-literals"), contents: [
         { kind: "block", type: "text_literal" },
         { kind: "block", type: "number_literal" },
@@ -96,10 +108,36 @@ const workspace = Blockly.inject(blocklyMount, {
       ]},
     ],
   },
-  grid: { spacing: 20, length: 3, colour: "#D9D9D9" },
-  zoom: { controls: true, wheel: true, startScale: 0.9, maxScale: 1.5, minScale: 0.5 },
+  grid: { spacing: 16, length: 2, colour: "#D9D9D9" },
+  zoom: { controls: true, wheel: true, startScale: 0.85, maxScale: 1.5, minScale: 0.4 },
   move: { scrollbars: true, drag: true, wheel: true },
   renderer: "zelos",
+});
+
+setOptionalRmPickHandler((block) => {
+  const slotId = block.getFieldValue("SLOT_ID");
+  if (!slotId) {
+    statusMain.textContent = "Select a skeleton node with a slot before inserting optional RM.";
+    return;
+  }
+  const options = controller.getOptionalAttachments(slotId);
+  if (!options.length) {
+    statusMain.textContent = "No optional RM structures available here.";
+    return;
+  }
+  const labels = options.map((o, i) => `${i + 1}. ${o.label} (${o.attributeName}: ${o.rmType})`);
+  const choice = globalThis.prompt(
+    `Add optional RM structure:\n${labels.join("\n")}\n\nEnter number:`,
+    "1",
+  );
+  const idx = Number(choice) - 1;
+  if (!Number.isFinite(idx) || idx < 0 || idx >= options.length) return;
+  const picked = options[idx]!;
+  controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
+  if (typeof block.addInput_ === "function") {
+    block.addInput_(picked.attributeName);
+  }
+  statusMain.textContent = `Added ${picked.label}`;
 });
 
 initSplitPanes(document, () => Blockly.svgResize(workspace));

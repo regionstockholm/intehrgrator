@@ -131,17 +131,25 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .slots-pane .pane-header .pane-btn { font-size: 11px; width: 100%; line-height: 1.25; }
 .blockly-mount .blocklyToolboxCategory { border-left: 8px solid transparent; }
 .blockly-mount .toolbox-category-source { border-left-color: #e87722; }
+.blockly-mount .toolbox-category-datavalues { border-left-color: #4a6fa5; }
 .blockly-mount .toolbox-category-literals { border-left-color: #5ba68d; }
 .blockly-mount .toolbox-category-logic { border-left-color: #a6745b; }
 .blockly-mount .toolbox-category-variables { border-left-color: #a65b80; }
 .blockly-mount .toolbox-category-source.blocklyTreeSelected,
 .blockly-mount .toolbox-category-source.blocklyToolboxSelected { background-color: #e87722 !important; }
+.blockly-mount .toolbox-category-datavalues.blocklyTreeSelected,
+.blockly-mount .toolbox-category-datavalues.blocklyToolboxSelected { background-color: #4a6fa5 !important; }
 .blockly-mount .toolbox-category-literals.blocklyTreeSelected,
 .blockly-mount .toolbox-category-literals.blocklyToolboxSelected { background-color: #5ba68d !important; }
 .blockly-mount .toolbox-category-logic.blocklyTreeSelected,
 .blockly-mount .toolbox-category-logic.blocklyToolboxSelected { background-color: #a6745b !important; }
 .blockly-mount .toolbox-category-variables.blocklyTreeSelected,
 .blockly-mount .toolbox-category-variables.blocklyToolboxSelected { background-color: #a65b80 !important; }
+
+/* Compact Blockly density */
+.blockly-mount .blocklyText { font-size: 11px; }
+.blockly-mount .blocklyEditableText > text { font-size: 11px; }
+.blockly-mount .blocklyFlyoutButton text { font-size: 11px; }
 
 /* Flyout: vertical stack without overlapping preview blocks */
 .blockly-mount .blocklyFlyout .blocklyBlockCanvas {

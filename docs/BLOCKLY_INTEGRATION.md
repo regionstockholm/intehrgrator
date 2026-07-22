@@ -59,12 +59,34 @@ Optional RM Insertion uses ehrtslib attribute meta filtered by OPT/present conte
 (`src/core/rm_meta.ts` → `getValidAttachments`).
 
 ### 4. Control Flow & Utility Blocks
-Standard Blockly blocks for transformation logic:
-- **Loops:** `controls_while` (condition first), `controls_do_while` (condition last), `controls_repeat_n`, `for_each_source` (iterate nodes from a multi-valued source path into a named mapping variable)
-- **Conditionals:** `if_then_else`, `switch_case`
-- **String ops:** `concat`, `substring`, `regex_match`, `split`, `trim`
-- **Math:** `arithmetic`, `round`, `min_max`
-- **Source access:** `source_query` — XPath/XQuery expression evaluated via [fontoxpath](https://github.com/FontoXML/fontoxpath); typed `evaluateXPathTo*` chosen from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
+
+Toolbox layout and stock categories follow the Blockly DevSite landing demo
+(Logic, Loops, Math, Text, Lists, Variables, Functions) plus intEHRgrator
+categories **Source** and **Data values**. See [Attribution](#attribution).
+
+- **Stock Blockly:** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
+  `math_arithmetic`, `text_join`, `text_trim`, `logic_ternary`, variables, procedures, …
+- **Source:** `source_query` — XPath/XQuery via [fontoxpath](https://github.com/FontoXML/fontoxpath);
+  typed `evaluateXPathTo*` from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
+- **Loops (custom):** `for_each_source` — iterate nodes from a multi-valued source path
+  into a named mapping variable (alongside stock `controls_forEach`)
+
+## Attribution
+
+Toolbox category set, modest theme colours, thrasos renderer styling, and
+category left-border CSS are adapted from the Blockly samples
+[devsite-landing-demo](https://github.com/RaspberryPiFoundation/blockly-samples/tree/main/examples/devsite-landing-demo)
+(Apache License 2.0; Copyright Google LLC / Raspberry Pi Foundation). Live
+reference: [blockly.com](https://www.blockly.com/) and the
+[hosted demo](https://raspberrypifoundation.github.io/blockly-samples/examples/devsite-landing-demo/index.html).
+
+Relevant intEHRgrator files:
+- `src/blockly/toolbox_demo.ts`
+- `src/blockly/theme.ts` (`createModestTheme`)
+- `web/styles.css` (category border rules)
+- `src/blockly/i18n/` (locales: en, sv, de, es, ca, fr — stock strings from
+  `blockly/msg/*`, custom Source / Data values / `for_each_source` strings in
+  `custom_msg.ts`)
 
 ## Code generation pipeline
 

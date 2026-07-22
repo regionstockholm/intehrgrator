@@ -1,87 +1,92 @@
+/**
+ * @license
+ * Copyright 2022 Google LLC
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * "modest" theme adapted from Blockly DevSite landing demo:
+ * https://github.com/RaspberryPiFoundation/blockly-samples/blob/main/examples/devsite-landing-demo/script.js
+ */
 import { Blockly } from "./blockly_core.ts";
 
-/** Karolinska-aligned dense zelos theme for long OPT trees. */
-export function createCompactTheme(): Blockly.Theme {
+export function createModestTheme(): Blockly.Theme {
   const Theme = Blockly.Theme;
-  const base = Blockly.Themes?.Zelos ?? Blockly.Themes?.Classic;
-  return Theme.defineTheme("intehrgrator_compact", {
-    name: "intehrgrator_compact",
-    base,
+  return Theme.defineTheme("modest", {
+    name: "modest",
     fontStyle: {
-      family: '"Segoe UI", "Helvetica Neue", sans-serif',
-      weight: "500",
-      size: 11,
-    },
-    componentStyles: {
-      workspaceBackgroundColour: "#F7F5F2",
-      toolboxBackgroundColour: "#EFEBE6",
-      toolboxForegroundColour: "#003B49",
-      flyoutBackgroundColour: "#F7F5F2",
-      flyoutForegroundColour: "#003B49",
-      flyoutOpacity: 0.95,
-      scrollbarColour: "#C4BDB4",
-      insertionMarkerColour: "#E87722",
-      insertionMarkerOpacity: 0.4,
-      scrollbarOpacity: 0.5,
-      cursorColour: "#E87722",
+      family: '"Google Sans", "Segoe UI", sans-serif',
+      weight: "bold",
+      size: 16,
     },
     blockStyles: {
-      colour_blocks: {
-        colourPrimary: "#4A6FA5",
-        colourSecondary: "#6B8BB8",
-        colourTertiary: "#3A5A85",
-      },
-      list_blocks: {
-        colourPrimary: "#005C53",
-        colourSecondary: "#2A7A70",
-        colourTertiary: "#004840",
-      },
       logic_blocks: {
-        colourPrimary: "#A6745B",
-        colourSecondary: "#C09078",
-        colourTertiary: "#8A5A42",
+        colourPrimary: "#D1C4E9",
+        colourSecondary: "#EDE7F6",
+        colourTertiary: "#B39DDB",
       },
       loop_blocks: {
-        colourPrimary: "#A6745B",
-        colourSecondary: "#C09078",
-        colourTertiary: "#8A5A42",
+        colourPrimary: "#A5D6A7",
+        colourSecondary: "#E8F5E9",
+        colourTertiary: "#66BB6A",
       },
       math_blocks: {
-        colourPrimary: "#A6745B",
-        colourSecondary: "#C09078",
-        colourTertiary: "#8A5A42",
-      },
-      procedure_blocks: {
-        colourPrimary: "#A65B80",
-        colourSecondary: "#C0789A",
-        colourTertiary: "#8A4568",
+        colourPrimary: "#2196F3",
+        colourSecondary: "#1E88E5",
+        colourTertiary: "#0D47A1",
       },
       text_blocks: {
-        colourPrimary: "#5BA68D",
-        colourSecondary: "#7CBCA5",
-        colourTertiary: "#458870",
+        colourPrimary: "#FFCA28",
+        colourSecondary: "#FFF8E1",
+        colourTertiary: "#FF8F00",
+      },
+      list_blocks: {
+        colourPrimary: "#4DB6AC",
+        colourSecondary: "#B2DFDB",
+        colourTertiary: "#009688",
       },
       variable_blocks: {
-        colourPrimary: "#A65B80",
-        colourSecondary: "#C0789A",
-        colourTertiary: "#8A4568",
+        colourPrimary: "#EF9A9A",
+        colourSecondary: "#FFEBEE",
+        colourTertiary: "#EF5350",
       },
       variable_dynamic_blocks: {
-        colourPrimary: "#A65B80",
-        colourSecondary: "#C0789A",
-        colourTertiary: "#8A4568",
+        colourPrimary: "#EF9A9A",
+        colourSecondary: "#FFEBEE",
+        colourTertiary: "#EF5350",
+      },
+      procedure_blocks: {
+        colourPrimary: "#D7CCC8",
+        colourSecondary: "#EFEBE9",
+        colourTertiary: "#BCAAA4",
+      },
+      // intEHRgrator Source accent (source_query uses colour_blocks style)
+      colour_blocks: {
+        colourPrimary: "#E87722",
+        colourSecondary: "#FFCC80",
+        colourTertiary: "#EF6C00",
       },
     },
     categoryStyles: {
-      colour_category: { colour: "#4A6FA5" },
-      list_category: { colour: "#005C53" },
-      logic_category: { colour: "#A6745B" },
-      loop_category: { colour: "#A6745B" },
-      math_category: { colour: "#A6745B" },
-      procedure_category: { colour: "#A65B80" },
-      text_category: { colour: "#5BA68D" },
-      variable_category: { colour: "#A65B80" },
-      variable_dynamic_category: { colour: "#A65B80" },
+      logic_category: { colour: "#D1C4E9" },
+      loop_category: { colour: "#A5D6A7" },
+      math_category: { colour: "#2196F3" },
+      text_category: { colour: "#FFCA28" },
+      list_category: { colour: "#4DB6AC" },
+      variable_category: { colour: "#EF9A9A" },
+      variable_dynamic_category: { colour: "#EF9A9A" },
+      procedure_category: { colour: "#D7CCC8" },
+    },
+    componentStyles: {
+      workspaceBackgroundColour: "#ffffff",
+      toolboxBackgroundColour: "#ffffff",
+      toolboxForegroundColour: "#202124",
+      flyoutBackgroundColour: "#ffffff",
+      flyoutForegroundColour: "#202124",
+      flyoutOpacity: 1,
+      scrollbarColour: "#dadce0",
+      insertionMarkerColour: "#1a73e8",
+      insertionMarkerOpacity: 0.4,
+      scrollbarOpacity: 0.5,
+      cursorColour: "#1a73e8",
     },
   });
 }

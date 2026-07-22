@@ -27,7 +27,7 @@ The DSL is a **projection** for editing and review. Generators walk the **block 
 
 ## Expressions
 
-Value slots use a **restricted, JS-shaped expression language** — familiar syntax that pretty-prints expression block subtrees (`source_query`, `concat`, `if_then_else`, …). Parsing an expression edit updates only those blocks, same as editing them in Blockly.
+Value slots use a **restricted, JS-shaped expression language** — familiar syntax that pretty-prints expression block subtrees (`source_query`, stock `text` / `math_number` / `text_join` / `logic_ternary`, …). Parsing an expression edit updates only those blocks, same as editing them in Blockly.
 
 Expressions are not full JavaScript/TypeScript and are not executed directly. Test Run runs **generated TypeScript**; arbitrary JS in the spec would blur into export code and invite unsafe side effects.
 
@@ -68,9 +68,9 @@ composition vitals_encounter {                    # block: composition
 | `xpathString(expr)` | `evaluateXPathToString` | `source_query` |
 | `xpathNumber(expr)` | `evaluateXPathToNumber` | `source_query` |
 | `xpathBoolean(expr)` | `evaluateXPathToBoolean` | `source_query` |
-| `trim(s)`, `concat(a,b,…)` | string ops | `trim`, `concat` |
-| `if(cond, then, else)` | conditional | `if_then_else` |
-| `+`, `-`, `*`, `/` | arithmetic | `arithmetic` |
+| `trim(s)`, `concat(a,b,…)` | string ops | `text_trim`, `text_join` |
+| `if(cond, then, else)` | conditional | `logic_ternary` |
+| `+`, `-`, `*`, `/` | arithmetic | `math_arithmetic` |
 
 Literals: strings, numbers, booleans. No statements, no `function`, no `import`, no property access on arbitrary objects.
 

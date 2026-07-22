@@ -2,6 +2,9 @@ import type { Block } from "blockly/core";
 import type { ExprAst } from "../core/expression/mod.ts";
 import { serialize } from "../core/expression/mod.ts";
 
+type BlockSvg = import("blockly/core").BlockSvg;
+type Workspace = import("blockly/core").Workspace;
+
 export function blockToExpression(block: Block | null): string | null {
   if (!block) return null;
 
@@ -16,23 +19,28 @@ export function blockToExpression(block: Block | null): string | null {
         : "xpathString";
       return `${fn}(${JSON.stringify(expr)})`;
     }
-    case "text_literal":
+    // Stock Blockly literals / ops
+    case "text":
       return JSON.stringify(block.getFieldValue("TEXT") ?? "");
-    case "number_literal":
+    case "math_number":
       return String(block.getFieldValue("NUM") ?? 0);
-    case "boolean_literal":
+    case "logic_boolean":
       return block.getFieldValue("BOOL") === "TRUE" ? "true" : "false";
-    case "trim": {
+    case "text_trim": {
       const inner = blockToExpression(block.getInputTargetBlock("TEXT"));
-      return inner ? `trim(${inner})` : "trim(\"\")";
+      return inner ? `trim(${inner})` : 'trim("")';
     }
-    case "concat": {
-      const a = blockToExpression(block.getInputTargetBlock("A"));
-      const b = blockToExpression(block.getInputTargetBlock("B"));
-      return `concat(${a ?? "\"\""}, ${b ?? "\"\""})`;
+    case "text_join": {
+      const parts: string[] = [];
+      for (let i = 0; i < (block.itemCount_ ?? 2); i++) {
+        parts.push(blockToExpression(block.getInputTargetBlock(`ADD${i}`)) ?? '""');
+      }
+      if (parts.length === 0) return '""';
+      if (parts.length === 1) return parts[0]!;
+      return `concat(${parts.join(", ")})`;
     }
-    case "if_then_else": {
-      const cond = blockToExpression(block.getInputTargetBlock("COND"));
+    case "logic_ternary": {
+      const cond = blockToExpression(block.getInputTargetBlock("IF"));
       const thenV = blockToExpression(block.getInputTargetBlock("THEN"));
       const elseV = blockToExpression(block.getInputTargetBlock("ELSE"));
       return `if(${cond ?? "false"}, ${thenV ?? "null"}, ${elseV ?? "null"})`;
@@ -49,20 +57,31 @@ export function blockToExpression(block: Block | null): string | null {
       const op = opMap[block.getFieldValue("OP")] ?? "+";
       return `(${a ?? "0"} ${op} ${b ?? "0"})`;
     }
-    case "switch_case": {
-      const parts: string[] = [];
-      const discriminant = blockToExpression(block.getInputTargetBlock("DISCRIMINANT"));
-      parts.push(discriminant ?? "\"\"");
-      const count = block.caseCount_ ?? 1;
-      for (let i = 0; i < count; i++) {
-        const match = blockToExpression(block.getInputTargetBlock(`CASE_${i}_MATCH`));
-        const out = blockToExpression(block.getInputTargetBlock(`CASE_${i}_OUT`));
-        parts.push(match ?? "\"\"");
-        parts.push(out ?? "null");
-      }
-      const defaultV = blockToExpression(block.getInputTargetBlock("DEFAULT"));
-      parts.push(defaultV ?? "null");
-      return `switch(${parts.join(", ")})`;
+    case "variables_get": {
+      const name = block.getField("VAR")?.getText() ?? "v";
+      return `var(${JSON.stringify(name)})`;
+    }
+    // Legacy custom block types (read-only for older workspaces)
+    case "text_literal":
+      return JSON.stringify(block.getFieldValue("TEXT") ?? "");
+    case "number_literal":
+      return String(block.getFieldValue("NUM") ?? 0);
+    case "boolean_literal":
+      return block.getFieldValue("BOOL") === "TRUE" ? "true" : "false";
+    case "trim": {
+      const inner = blockToExpression(block.getInputTargetBlock("TEXT"));
+      return inner ? `trim(${inner})` : 'trim("")';
+    }
+    case "concat": {
+      const a = blockToExpression(block.getInputTargetBlock("A"));
+      const b = blockToExpression(block.getInputTargetBlock("B"));
+      return `concat(${a ?? '""'}, ${b ?? '""'})`;
+    }
+    case "if_then_else": {
+      const cond = blockToExpression(block.getInputTargetBlock("COND"));
+      const thenV = blockToExpression(block.getInputTargetBlock("THEN"));
+      const elseV = blockToExpression(block.getInputTargetBlock("ELSE"));
+      return `if(${cond ?? "false"}, ${thenV ?? "null"}, ${elseV ?? "null"})`;
     }
     case "mapping_var_get":
       return `var(${JSON.stringify(block.getFieldValue("VAR") ?? "v")})`;
@@ -72,34 +91,34 @@ export function blockToExpression(block: Block | null): string | null {
 }
 
 export function astToExpressionBlock(
-  workspace: import("blockly/core").Workspace,
+  workspace: Workspace,
   ast: ExprAst,
   returnType: string,
-  finalize: (block: import("blockly/core").BlockSvg) => import("blockly/core").BlockSvg,
-): import("blockly/core").BlockSvg {
+  finalize: (block: BlockSvg) => BlockSvg,
+): BlockSvg {
   if (ast.kind === "literal") {
     if (typeof ast.value === "number") {
-      const block = workspace.newBlock("number_literal") as import("blockly/core").BlockSvg;
+      const block = workspace.newBlock("math_number") as BlockSvg;
       block.setFieldValue(ast.value, "NUM");
       return finalize(block);
     }
     if (typeof ast.value === "boolean") {
-      const block = workspace.newBlock("boolean_literal") as import("blockly/core").BlockSvg;
+      const block = workspace.newBlock("logic_boolean") as BlockSvg;
       block.setFieldValue(ast.value ? "TRUE" : "FALSE", "BOOL");
       return finalize(block);
     }
     if (typeof ast.value === "string") {
-      const block = workspace.newBlock("text_literal") as import("blockly/core").BlockSvg;
+      const block = workspace.newBlock("text") as BlockSvg;
       block.setFieldValue(ast.value, "TEXT");
       return finalize(block);
     }
-    const block = workspace.newBlock("text_literal") as import("blockly/core").BlockSvg;
+    const block = workspace.newBlock("text") as BlockSvg;
     block.setFieldValue(String(ast.value), "TEXT");
     return finalize(block);
   }
 
   if (ast.kind === "binary") {
-    const block = workspace.newBlock("math_arithmetic") as import("blockly/core").BlockSvg;
+    const block = workspace.newBlock("math_arithmetic") as BlockSvg;
     const opMap: Record<string, string> = {
       "+": "ADD",
       "-": "MINUS",
@@ -125,77 +144,60 @@ export function astToExpressionBlock(
         : ast.name === "xpathBoolean"
         ? "boolean"
         : "string";
-      const block = workspace.newBlock("source_query") as import("blockly/core").BlockSvg;
+      const block = workspace.newBlock("source_query") as BlockSvg;
       block.setFieldValue(xpath, "EXPRESSION");
       block.setFieldValue(ret, "RETURN_TYPE");
       return finalize(block);
     }
     if (ast.name === "trim" && ast.args[0]) {
-      const block = workspace.newBlock("trim") as import("blockly/core").BlockSvg;
+      const block = workspace.newBlock("text_trim") as BlockSvg;
+      block.setFieldValue("BOTH", "MODE");
       const inner = astToExpressionBlock(workspace, ast.args[0], "string", finalize);
       block.getInput("TEXT")!.connection!.connect(inner.outputConnection!);
       return finalize(block);
     }
     if (ast.name === "concat" && ast.args.length >= 2) {
-      const block = workspace.newBlock("concat") as import("blockly/core").BlockSvg;
-      block.getInput("A")!.connection!.connect(
-        astToExpressionBlock(workspace, ast.args[0], "string", finalize).outputConnection!,
-      );
-      block.getInput("B")!.connection!.connect(
-        astToExpressionBlock(workspace, ast.args[1], "string", finalize).outputConnection!,
-      );
+      const block = workspace.newBlock("text_join") as BlockSvg;
+      // deno-lint-ignore no-explicit-any
+      const join = block as any;
+      join.itemCount_ = ast.args.length;
+      join.updateShape_?.();
+      for (let i = 0; i < ast.args.length; i++) {
+        const child = astToExpressionBlock(workspace, ast.args[i]!, "string", finalize);
+        block.getInput(`ADD${i}`)?.connection?.connect(child.outputConnection!);
+      }
       return finalize(block);
     }
     if (ast.name === "if" && ast.args.length >= 3) {
-      const block = workspace.newBlock("if_then_else") as import("blockly/core").BlockSvg;
-      block.getInput("COND")!.connection!.connect(
-        astToExpressionBlock(workspace, ast.args[0], "boolean", finalize).outputConnection!,
+      const block = workspace.newBlock("logic_ternary") as BlockSvg;
+      block.getInput("IF")!.connection!.connect(
+        astToExpressionBlock(workspace, ast.args[0]!, "boolean", finalize).outputConnection!,
       );
       block.getInput("THEN")!.connection!.connect(
-        astToExpressionBlock(workspace, ast.args[1], returnType, finalize).outputConnection!,
+        astToExpressionBlock(workspace, ast.args[1]!, returnType, finalize).outputConnection!,
       );
       block.getInput("ELSE")!.connection!.connect(
-        astToExpressionBlock(workspace, ast.args[2], returnType, finalize).outputConnection!,
-      );
-      return finalize(block);
-    }
-    if (ast.name === "switch" && ast.args.length >= 2) {
-      const block = workspace.newBlock("switch_case") as import("blockly/core").BlockSvg;
-      const defaultArg = ast.args[ast.args.length - 1];
-      const pairArgs = ast.args.slice(0, -1);
-      const caseCount = Math.max(1, Math.floor((pairArgs.length - 1) / 2));
-      block.caseCount_ = caseCount;
-      block.rebuildCaseInputs_?.();
-      block.getInput("DISCRIMINANT")!.connection!.connect(
-        astToExpressionBlock(workspace, pairArgs[0], returnType, finalize).outputConnection!,
-      );
-      for (let i = 0; i < caseCount; i++) {
-        const match = pairArgs[1 + i * 2];
-        const out = pairArgs[2 + i * 2];
-        if (match) {
-          block.getInput(`CASE_${i}_MATCH`)!.connection!.connect(
-            astToExpressionBlock(workspace, match, returnType, finalize).outputConnection!,
-          );
-        }
-        if (out) {
-          block.getInput(`CASE_${i}_OUT`)!.connection!.connect(
-            astToExpressionBlock(workspace, out, returnType, finalize).outputConnection!,
-          );
-        }
-      }
-      block.getInput("DEFAULT")!.connection!.connect(
-        astToExpressionBlock(workspace, defaultArg, returnType, finalize).outputConnection!,
+        astToExpressionBlock(workspace, ast.args[2]!, returnType, finalize).outputConnection!,
       );
       return finalize(block);
     }
     if (ast.name === "var" && ast.args[0]?.kind === "literal") {
-      const block = workspace.newBlock("mapping_var_get") as import("blockly/core").BlockSvg;
-      block.setFieldValue(String(ast.args[0].value), "VAR");
+      const name = String(ast.args[0].value);
+      // deno-lint-ignore no-explicit-any
+      const ws = workspace as any;
+      let variable = ws.getVariable?.(name);
+      if (!variable && typeof ws.createVariable === "function") {
+        variable = ws.createVariable(name);
+      }
+      const block = workspace.newBlock("variables_get") as BlockSvg;
+      if (variable) {
+        block.setFieldValue(variable.getId(), "VAR");
+      }
       return finalize(block);
     }
   }
 
-  const block = workspace.newBlock("source_query") as import("blockly/core").BlockSvg;
+  const block = workspace.newBlock("source_query") as BlockSvg;
   block.setFieldValue(serialize(ast), "EXPRESSION");
   block.setFieldValue(returnType, "RETURN_TYPE");
   return finalize(block);

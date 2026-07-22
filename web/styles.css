@@ -25,6 +25,15 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .toolbar button:hover { background: #00786b; }
 .toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
 .brand { margin-right: 8px; }
+.pane-lang {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; color: rgba(255, 255, 255, 0.9); flex-shrink: 0;
+}
+.pane-lang select {
+  font-family: "Google Sans", "Segoe UI", sans-serif;
+  font-size: 12px; padding: 4px 6px; border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.35); background: #fff; color: #202124;
+}
 .toolbar-spacer { flex: 1; }
 
 .panes {
@@ -122,47 +131,69 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 
 .mapping-pane { display: flex; flex-direction: column; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
-.blockly-mount { min-height: 120px; height: 100%; flex: 1; }
+.blockly-mount { min-height: 120px; height: 100%; flex: 1; background: #fff; }
 .slots-pane { display: flex; flex-direction: column; min-width: 160px; }
 .slots-pane .pane-header {
   flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px;
 }
 .slots-pane .pane-header h2 { font-size: 13px; text-align: center; }
 .slots-pane .pane-header .pane-btn { font-size: 11px; width: 100%; line-height: 1.25; }
-.blockly-mount .blocklyToolboxCategory { border-left: 8px solid transparent; }
-.blockly-mount .toolbox-category-source { border-left-color: #e87722; }
-.blockly-mount .toolbox-category-datavalues { border-left-color: #4a6fa5; }
-.blockly-mount .toolbox-category-literals { border-left-color: #5ba68d; }
-.blockly-mount .toolbox-category-logic { border-left-color: #a6745b; }
-.blockly-mount .toolbox-category-variables { border-left-color: #a65b80; }
-.blockly-mount .toolbox-category-source.blocklyTreeSelected,
-.blockly-mount .toolbox-category-source.blocklyToolboxSelected { background-color: #e87722 !important; }
-.blockly-mount .toolbox-category-datavalues.blocklyTreeSelected,
-.blockly-mount .toolbox-category-datavalues.blocklyToolboxSelected { background-color: #4a6fa5 !important; }
-.blockly-mount .toolbox-category-literals.blocklyTreeSelected,
-.blockly-mount .toolbox-category-literals.blocklyToolboxSelected { background-color: #5ba68d !important; }
-.blockly-mount .toolbox-category-logic.blocklyTreeSelected,
-.blockly-mount .toolbox-category-logic.blocklyToolboxSelected { background-color: #a6745b !important; }
-.blockly-mount .toolbox-category-variables.blocklyTreeSelected,
-.blockly-mount .toolbox-category-variables.blocklyToolboxSelected { background-color: #a65b80 !important; }
 
-/* Compact Blockly density */
-.blockly-mount .blocklyText { font-size: 11px; }
-.blockly-mount .blocklyEditableText > text { font-size: 11px; }
-.blockly-mount .blocklyFlyoutButton text { font-size: 11px; }
-
-.blockly-mount .blocklyFlyoutLabelText {
-  fill: var(--text-secondary);
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+/*
+ * Blockly DevSite landing demo toolbox category accents
+ * (Apache-2.0; see docs/BLOCKLY_INTEGRATION.md § Attribution).
+ */
+.blockly-mount .blocklyToolbox { background-color: #fff; }
+.blockly-mount .blocklyToolboxCategory {
+  height: 15px;
+  line-height: 15px;
+}
+.blockly-mount .blocklyToolboxCategoryLabel {
+  font-family: "Google Sans", "Segoe UI", sans-serif !important;
+}
+.blockly-mount .blocklyToolboxCategorySource {
+  border-left: 15px solid #e87722 !important;
+}
+.blockly-mount .blocklyToolboxCategoryDataValues {
+  border-left: 15px solid #4a6fa5 !important;
+}
+.blockly-mount .blocklyToolboxCategoryLogic {
+  border-left: 15px solid #d1c4e9 !important;
+}
+.blockly-mount .blocklyToolboxCategoryLoops {
+  border-left: 15px solid #a5d6a7 !important;
+}
+.blockly-mount .blocklyToolboxCategoryMath {
+  border-left: 15px solid #4285f4 !important;
+}
+.blockly-mount .blocklyToolboxCategoryText {
+  border-left: 15px solid #ffca28 !important;
+}
+.blockly-mount .blocklyToolboxCategoryLists {
+  border-left: 15px solid #4db6ac !important;
+}
+.blockly-mount .blocklyToolboxCategoryVariables {
+  border-left: 15px solid #ef9a9a !important;
+}
+.blockly-mount .blocklyToolboxCategoryProcedures {
+  border-left: 15px solid #d7ccc8 !important;
+}
+.blockly-mount .blocklyToolboxSeparator {
+  border-bottom: unset;
+}
+.blockly-mount .blocklyMainBackground,
+.blockly-mount .blocklyPath {
+  stroke: #fff;
+}
+.blockly-mount .blocklyText {
+  fill: black !important;
+  font: 400 16px "Google Sans", "Segoe UI", sans-serif !important;
 }
 
 /* Secondary at-code on skeleton blocks */
 .blockly-mount .blocklyText.blockly-at-code {
   fill: var(--text-secondary);
-  font-size: 10px;
+  font-size: 12px !important;
 }
 .slot-rail { padding: 8px; overflow: auto; background: var(--surface-alt); min-width: 0; min-height: 0; flex: 1; }
 

@@ -15,16 +15,22 @@ import {
   applyModelExpressions,
   highlightListeningSlot,
   slotIdFromBlock,
-  createCompactTheme,
-  dataValueToolboxContents,
+  createModestTheme,
+  buildDemoToolbox,
   setOptionalRmPickHandler,
 } from "../src/blockly/mod.ts";
+import {
+  changeLocaleAndReload,
+  detectLocale,
+  loadBlocklyLocale,
+  msg,
+  SUPPORTED_LOCALES,
+  takeLoadOnceBlocks,
+  type IntehrLocale,
+} from "../src/blockly/i18n/locale.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
-import * as En from "blockly/msg/en";
-
-Blockly.setLocale(En as unknown as Record<string, string>);
 
 const host = new WebHostAdapter();
 const controller = new WorkbenchController(host);
@@ -61,105 +67,103 @@ const specEditor = createSpecEditor(
 const exportEditor = createReadonlyEditor(document.getElementById("export-editor")!);
 const testOutputEditor = createReadonlyEditor(document.getElementById("test-output")!);
 
-initBlocklyGenerators();
-
-const TOOLBOX_COLOURS = {
-  source: "#E87722",
-  literals: "#5BA68D",
-  logic: "#A6745B",
-  variables: "#A65B80",
-  datavalues: "#4A6FA5",
-} as const;
-
-function toolboxCategoryRow(className: string): { row: string } {
-  return { row: `blocklyToolboxCategory ${className}` };
-}
-
-const workspace = Blockly.inject(blocklyMount, {
-  theme: createCompactTheme(),
-  toolbox: {
-    kind: "categoryToolbox",
-    contents: [
-      { kind: "category", name: "Source", colour: TOOLBOX_COLOURS.source, cssconfig: toolboxCategoryRow("toolbox-category-source"), contents: [
-        { kind: "block", type: "source_query" },
-      ]},
-      { kind: "category", name: "Data values", colour: TOOLBOX_COLOURS.datavalues, cssconfig: toolboxCategoryRow("toolbox-category-datavalues"), contents: dataValueToolboxContents() },
-      { kind: "category", name: "Literals", colour: TOOLBOX_COLOURS.literals, cssconfig: toolboxCategoryRow("toolbox-category-literals"), contents: [
-        { kind: "block", type: "text_literal" },
-        { kind: "block", type: "number_literal" },
-        { kind: "block", type: "boolean_literal" },
-      ]},
-      { kind: "category", name: "Logic", colour: TOOLBOX_COLOURS.logic, cssconfig: toolboxCategoryRow("toolbox-category-logic"), contents: [
-        // No label/sep entries here: they break VerticalFlyout Y layout with zelos
-        // (blocks stack on top of each other). Keep a flat block list like Literals.
-        { kind: "block", type: "trim" },
-        { kind: "block", type: "concat" },
-        { kind: "block", type: "math_arithmetic" },
-        { kind: "block", type: "if_then_else" },
-        { kind: "block", type: "switch_case" },
-        { kind: "block", type: "for_each_source" },
-        { kind: "block", type: "controls_while" },
-        { kind: "block", type: "controls_do_while" },
-        { kind: "block", type: "controls_repeat_n" },
-      ]},
-      { kind: "category", name: "Variables", colour: TOOLBOX_COLOURS.variables, cssconfig: toolboxCategoryRow("toolbox-category-variables"), contents: [
-        { kind: "block", type: "mapping_var_get" },
-        { kind: "block", type: "mapping_var_set" },
-      ]},
-    ],
-  },
-  grid: { spacing: 16, length: 2, colour: "#D9D9D9" },
-  zoom: { controls: true, wheel: true, startScale: 0.85, maxScale: 1.5, minScale: 0.4 },
-  move: { scrollbars: true, drag: true, wheel: true },
-  renderer: "zelos",
-});
-
-setOptionalRmPickHandler((block) => {
-  const slotId = block.getFieldValue("SLOT_ID");
-  if (!slotId) {
-    statusMain.textContent = "Select a skeleton node with a slot before inserting optional RM.";
-    return;
-  }
-  const options = controller.getOptionalAttachments(slotId);
-  if (!options.length) {
-    statusMain.textContent = "No optional RM structures available here.";
-    return;
-  }
-  const labels = options.map((o, i) => `${i + 1}. ${o.label} (${o.attributeName}: ${o.rmType})`);
-  const choice = globalThis.prompt(
-    `Add optional RM structure:\n${labels.join("\n")}\n\nEnter number:`,
-    "1",
-  );
-  const idx = Number(choice) - 1;
-  if (!Number.isFinite(idx) || idx < 0 || idx >= options.length) return;
-  const picked = options[idx]!;
-  controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
-  if (typeof block.addInput_ === "function") {
-    block.addInput_(picked.attributeName);
-  }
-  statusMain.textContent = `Added ${picked.label}`;
-});
-
-initSplitPanes(document, () => Blockly.svgResize(workspace));
-
-controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
-
-workspace.addChangeListener((event) => {
-  if (event.type === Blockly.Events.CLICK && "blockId" in event) {
-    const blockId = typeof event.blockId === "string" ? event.blockId : null;
-    const slotId = blockId ? slotIdFromBlock(workspace.getBlockById(blockId)) : null;
-    if (slotId) controller.armSlot(slotId);
-    return;
-  }
-  if (event.type !== Blockly.Events.FINISHED_LOADING) {
-    controller.markDirty();
-  }
-});
+/** Set in boot() after locale + inject. */
+let workspace!: Blockly.WorkspaceSvg;
 
 let blocklySkeletonKey = "";
 let blocklySlotSignature = "";
 let ephemeralTreeHighlight: TreeHighlightState | null = null;
 let lastActiveExampleId: string | null = null;
+
+function setupLanguageMenu(locale: IntehrLocale): void {
+  const labelEl = document.getElementById("language-label");
+  const select = document.getElementById("language-dropdown") as HTMLSelectElement | null;
+  if (!select) return;
+  if (labelEl) labelEl.textContent = msg(locale).LANGUAGE_LABEL;
+  select.replaceChildren();
+  for (const { code, name } of SUPPORTED_LOCALES) {
+    const opt = document.createElement("option");
+    opt.value = code;
+    opt.textContent = name;
+    if (code === locale) opt.selected = true;
+    select.appendChild(opt);
+  }
+  select.addEventListener("change", () => {
+    const next = select.value as IntehrLocale;
+    changeLocaleAndReload(next, Blockly.serialization.workspaces.save(workspace));
+  });
+}
+
+async function bootBlockly(): Promise<void> {
+  const locale = detectLocale();
+  await loadBlocklyLocale(locale);
+  initBlocklyGenerators();
+  setupLanguageMenu(locale);
+
+  workspace = Blockly.inject(blocklyMount, {
+    theme: createModestTheme(),
+    toolbox: buildDemoToolbox(locale),
+    grid: { spacing: 20, length: 2, colour: "#E8EAED" },
+    zoom: {
+      controls: true,
+      wheel: true,
+      startScale: 1,
+      maxScale: 1.8,
+      minScale: 0.6,
+      scaleSpeed: 1.2,
+      pinch: true,
+    },
+    move: { scrollbars: true, drag: true, wheel: true },
+    trashcan: false,
+    renderer: "thrasos",
+  });
+
+  const loadOnce = takeLoadOnceBlocks();
+  if (loadOnce) {
+    Blockly.serialization.workspaces.load(loadOnce, workspace);
+  }
+
+  setOptionalRmPickHandler((block) => {
+    const slotId = block.getFieldValue("SLOT_ID");
+    if (!slotId) {
+      statusMain.textContent = "Select a skeleton node with a slot before inserting optional RM.";
+      return;
+    }
+    const options = controller.getOptionalAttachments(slotId);
+    if (!options.length) {
+      statusMain.textContent = "No optional RM structures available here.";
+      return;
+    }
+    const labels = options.map((o, i) => `${i + 1}. ${o.label} (${o.attributeName}: ${o.rmType})`);
+    const choice = globalThis.prompt(
+      `Add optional RM structure:\n${labels.join("\n")}\n\nEnter number:`,
+      "1",
+    );
+    const idx = Number(choice) - 1;
+    if (!Number.isFinite(idx) || idx < 0 || idx >= options.length) return;
+    const picked = options[idx]!;
+    controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
+    if (typeof block.addInput_ === "function") {
+      block.addInput_(picked.attributeName);
+    }
+    statusMain.textContent = `Added ${picked.label}`;
+  });
+
+  initSplitPanes(document, () => Blockly.svgResize(workspace));
+  controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
+
+  workspace.addChangeListener((event) => {
+    if (event.type === Blockly.Events.CLICK && "blockId" in event) {
+      const blockId = typeof event.blockId === "string" ? event.blockId : null;
+      const slotId = blockId ? slotIdFromBlock(workspace.getBlockById(blockId)) : null;
+      if (slotId) controller.armSlot(slotId);
+      return;
+    }
+    if (event.type !== Blockly.Events.FINISHED_LOADING) {
+      controller.markDirty();
+    }
+  });
+}
 
 function activeTreeHighlight(s: ReturnType<WorkbenchController["getState"]>): TreeHighlightState {
   return ephemeralTreeHighlight ?? s.treeHighlight;
@@ -369,8 +373,6 @@ async function openLoadProjectDialog(): Promise<void> {
   dialogLoadProject.showModal();
 }
 
-controller.subscribe(render);
-
 function render(): void {
   const s = controller.getState();
   const activeExampleId = s.activeExample?.id ?? null;
@@ -532,4 +534,10 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.append(title, list);
 }
 
-render();
+async function main(): Promise<void> {
+  await bootBlockly();
+  controller.subscribe(render);
+  render();
+}
+
+void main();

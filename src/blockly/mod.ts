@@ -1,4 +1,5 @@
 import * as Blockly from "blockly/core";
+import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import type { SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell } from "./blocks/rm_blocks.ts";
@@ -13,9 +14,12 @@ export {
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
 export { blockToExpression } from "./expression_serialize.ts";
-export { createCompactTheme } from "./theme.ts";
+export { createModestTheme } from "./theme.ts";
+/** @deprecated use createModestTheme */
+export { createModestTheme as createCompactTheme } from "./theme.ts";
 export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
+export { buildDemoToolbox } from "./toolbox_demo.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -35,99 +39,12 @@ function registerGenerators(): void {
     return [`${fn}(${JSON.stringify(expr)}, sourceCtx.data)`, Order.FUNCTION_CALL];
   };
 
-  javascriptGenerator.forBlock["text_literal"] = (block) => {
-    return [JSON.stringify(block.getFieldValue("TEXT") ?? ""), Order.ATOMIC];
-  };
-
-  javascriptGenerator.forBlock["number_literal"] = (block) => {
-    return [String(block.getFieldValue("NUM") ?? 0), Order.ATOMIC];
-  };
-
-  javascriptGenerator.forBlock["boolean_literal"] = (block) => {
-    const value = block.getFieldValue("BOOL") === "TRUE";
-    return [value ? "true" : "false", Order.ATOMIC];
-  };
-
   for (const rmType of dataValueLeafTypes()) {
     const type = blockTypeForRm(rmType);
     javascriptGenerator.forBlock[type] = (block) => generateDvConstructor(block, rmType);
   }
-  // Legacy stub name (fixtures / older workspaces)
   javascriptGenerator.forBlock["dv_quantity_value"] = (block) =>
     generateDvConstructor(block, "DV_QUANTITY");
-
-  javascriptGenerator.forBlock["trim"] = (block) => {
-    const v = javascriptGenerator.valueToCode(block, "TEXT", Order.NONE) || '""';
-    return [`String(${v}).trim()`, Order.FUNCTION_CALL];
-  };
-
-  javascriptGenerator.forBlock["concat"] = (block) => {
-    const a = javascriptGenerator.valueToCode(block, "A", Order.NONE) || '""';
-    const b = javascriptGenerator.valueToCode(block, "B", Order.NONE) || '""';
-    return [`[${a}, ${b}].join('')`, Order.FUNCTION_CALL];
-  };
-
-  javascriptGenerator.forBlock["if_then_else"] = (block) => {
-    const cond = javascriptGenerator.valueToCode(block, "COND", Order.NONE) || "false";
-    const thenV = javascriptGenerator.valueToCode(block, "THEN", Order.NONE) || "null";
-    const elseV = javascriptGenerator.valueToCode(block, "ELSE", Order.NONE) || "null";
-    return [`(${cond} ? ${thenV} : ${elseV})`, Order.CONDITIONAL];
-  };
-
-  javascriptGenerator.forBlock["math_arithmetic"] = (block) => {
-    const a = javascriptGenerator.valueToCode(block, "A", Order.ADDITION) || "0";
-    const b = javascriptGenerator.valueToCode(block, "B", Order.ADDITION) || "0";
-    const opMap: Record<string, string> = {
-      ADD: "+",
-      MINUS: "-",
-      MULTIPLY: "*",
-      DIVIDE: "/",
-    };
-    const op = opMap[block.getFieldValue("OP")] ?? "+";
-    return [`(${a} ${op} ${b})`, Order.ADDITION];
-  };
-
-  javascriptGenerator.forBlock["switch_case"] = (block) => {
-    const discriminant = javascriptGenerator.valueToCode(block, "DISCRIMINANT", Order.NONE) || '""';
-    const defaultV = javascriptGenerator.valueToCode(block, "DEFAULT", Order.NONE) || "null";
-    const count = block.caseCount_ ?? 1;
-    const cases: string[] = [];
-    for (let i = count - 1; i >= 0; i--) {
-      const match = javascriptGenerator.valueToCode(block, `CASE_${i}_MATCH`, Order.NONE) || '""';
-      const out = javascriptGenerator.valueToCode(block, `CASE_${i}_OUT`, Order.NONE) || "null";
-      cases.push(`(${discriminant} === ${match} ? ${out} : `);
-    }
-    return [cases.join("") + defaultV + ")".repeat(count), Order.CONDITIONAL];
-  };
-
-  javascriptGenerator.forBlock["mapping_var_get"] = (block) => {
-    const name = block.getFieldValue("VAR") || "v";
-    return [`__vars[${JSON.stringify(name)}]`, Order.MEMBER];
-  };
-
-  javascriptGenerator.forBlock["mapping_var_set"] = (block) => {
-    const name = block.getFieldValue("VAR") || "v";
-    const value = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || "null";
-    return `__vars[${JSON.stringify(name)}] = ${value};\n`;
-  };
-
-  javascriptGenerator.forBlock["controls_while"] = (block) => {
-    const cond = javascriptGenerator.valueToCode(block, "COND", Order.NONE) || "false";
-    const body = javascriptGenerator.statementToCode(block, "DO");
-    return `while (${cond}) {\n${body}}\n`;
-  };
-
-  javascriptGenerator.forBlock["controls_do_while"] = (block) => {
-    const cond = javascriptGenerator.valueToCode(block, "COND", Order.NONE) || "false";
-    const body = javascriptGenerator.statementToCode(block, "DO");
-    return `do {\n${body}} while (${cond});\n`;
-  };
-
-  javascriptGenerator.forBlock["controls_repeat_n"] = (block) => {
-    const times = javascriptGenerator.valueToCode(block, "TIMES", Order.NONE) || "0";
-    const body = javascriptGenerator.statementToCode(block, "DO");
-    return `for (let __i = 0; __i < (${times}); __i++) {\n${body}}\n`;
-  };
 
   javascriptGenerator.forBlock["for_each_source"] = (block) => {
     const name = block.getFieldValue("VAR") || "item";
@@ -226,7 +143,6 @@ function generateDvConstructor(block: Blockly.Block, rmType: string): [string, n
     if (!code) continue;
     parts.push(`${attr.name}: ${code}`);
   }
-  // Legacy magnitude/units field names on dv_quantity_value
   if (rmType === "DV_QUANTITY" && !parts.some((p) => p.startsWith("magnitude"))) {
     const mag = javascriptGenerator.valueToCode(block, "MAGNITUDE", Order.NONE);
     if (mag) parts.push(`magnitude: ${mag}`);

@@ -39,4 +39,5 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] Full Blockly skeleton injection from OPT (currently slot rail + spec)
 - [ ] Java Export UI + deeper TS codegen wiring to ehrtslib RM constructors
 - [ ] VS Code extension host adapter
-- [ ] E2E browser tests for click-to-map and Autoplay
+- [x] E2E browser tests for click-to-map (Workbench Test API + Playwright; see `docs/UI_TESTING.md`)
+- [ ] E2E coverage for Autoplay debounce / tab-switch cache

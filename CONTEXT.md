@@ -119,6 +119,10 @@ _Avoid_: AI paste, bulk map
 Shared interface for environment-specific bindings (file access, storage, AI) so the core mapping logic is host-agnostic. v1 implements the web adapter only.
 _Avoid_: Environment abstraction layer, platform bindings
 
+**Workbench Test API**:
+Programmatic seam exposed as `window.intehrgratorTestApi` when the Web Shell is opened with `?testMode=1`. Loads Template Skeleton / Source Schema / Example Instance fixtures without file pickers; reports Mapping Model, Blockly block summary, and Test Run results. UI tests still click Target value slots, Example Instance tree rows, and **Run Test** so Click-to-Map is exercised through the real DOM. See `docs/UI_TESTING.md`.
+_Avoid_: formTestApi (kintegrate name), Cypress-only harness
+
 **Export Target**:
 Workspace setting choosing which code generator runs for Output Previews and Export (`typescript` | `java`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic.
 _Avoid_: Target language, output format

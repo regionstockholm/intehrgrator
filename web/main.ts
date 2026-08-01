@@ -1,8 +1,15 @@
 import * as Blockly from "blockly/core";
 import { WebHostAdapter } from "../src/host/web_adapter.ts";
 import { WorkbenchController } from "../src/workbench/controller.ts";
-import { renderSchemaTree, renderInstanceTree, renderSkeletonList, applyTreeHighlights } from "../src/workbench/tree_views.ts";
+import {
+  renderSchemaTree,
+  renderInstanceTree,
+  renderSkeletonList,
+  applyTreeHighlights,
+  parseSourceDragPayload,
+} from "../src/workbench/tree_views.ts";
 import type { TreeHighlightState } from "../src/workbench/tree_views.ts";
+import type { BlockSvg } from "blockly/core";
 import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
 import {
   createReadonlyEditor,
@@ -31,9 +38,20 @@ import {
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
+import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
+import {
+  isTestMode,
+  type IntehrgratorTestApi,
+  type WorkbenchTestSnapshot,
+} from "../src/ui_test/test_api.ts";
 
 const host = new WebHostAdapter();
 const controller = new WorkbenchController(host);
+const testMode = isTestMode();
+let workbenchReadyResolve!: () => void;
+const workbenchReady = new Promise<void>((resolve) => {
+  workbenchReadyResolve = resolve;
+});
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
@@ -151,6 +169,7 @@ async function bootBlockly(): Promise<void> {
 
   initSplitPanes(document, () => Blockly.svgResize(workspace));
   controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
+  initBlocklySourceDrop();
 
   workspace.addChangeListener((event) => {
     if (event.type === Blockly.Events.CLICK && "blockId" in event) {
@@ -244,6 +263,50 @@ bind("btn-copy-ai", () => controller.copyAiPrompt());
 bind("btn-import-ai", () => controller.importAiSuggestionsFromClipboard());
 
 initFileDropTargets();
+
+/** Drop Source Pane paths onto Blockly value-slot blocks (skips Listening Mode). */
+function initBlocklySourceDrop(): void {
+  const onDragOver = (event: DragEvent) => {
+    if (!event.dataTransfer?.types?.length) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+  };
+  blocklyMount.addEventListener("dragenter", onDragOver);
+  blocklyMount.addEventListener("dragover", onDragOver);
+  blocklyMount.addEventListener("drop", (event) => {
+    event.preventDefault();
+    const payload = parseSourceDragPayload(event.dataTransfer);
+    if (!payload) return;
+    const slotId = findSlotIdAtPoint(event.clientX, event.clientY);
+    if (!slotId) {
+      statusMain.textContent = "Drop onto a value slot block to map.";
+      return;
+    }
+    controller.mapNodeToSlot(slotId, payload.path, payload.format);
+  });
+}
+
+function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
+  let best: { slotId: string; area: number } | null = null;
+  for (const block of workspace.getAllBlocks(false)) {
+    const slotId = slotIdFromBlock(block);
+    if (!slotId) continue;
+    const svg = block as BlockSvg;
+    const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
+    if (!root) continue;
+    const rect = root.getBoundingClientRect();
+    if (
+      clientX < rect.left || clientX > rect.right ||
+      clientY < rect.top || clientY > rect.bottom
+    ) {
+      continue;
+    }
+    const area = rect.width * rect.height;
+    // Prefer the smallest containing block (leaf value slot over containers).
+    if (!best || area < best.area) best = { slotId, area };
+  }
+  return best?.slotId ?? null;
+}
 
 function initFileDropTargets(): void {
   initFileDrop(schemaTreeEl, {
@@ -425,6 +488,7 @@ function render(): void {
         controller.bindFromNode(path, format);
       },
       treeHighlightOptions(),
+      format,
     );
     applyTreeHighlights(schemaTreeEl, exampleTreeEl, activeTreeHighlight(s));
   } else {
@@ -439,6 +503,9 @@ function render(): void {
     (slotId) => controller.armSlot(slotId),
     s.listeningSlotId,
     new Set(s.model.slots.filter((x) => x.expression).map((x) => x.slotId)),
+    (slotId, payload) => {
+      controller.mapNodeToSlot(slotId, payload.path, payload.format);
+    },
   );
 
   setEditorDoc(specEditor, s.specText || "# Mapping Specification appears after loading a target schema/template");
@@ -534,10 +601,68 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.append(title, list);
 }
 
+function installWorkbenchTestApi(): void {
+  const api: IntehrgratorTestApi = {
+    ready: () => workbenchReady,
+    loadTemplate(filename, content) {
+      controller.loadTemplateContent(filename, content);
+    },
+    loadSchema(filename, content) {
+      controller.loadSchemaContent(filename, content);
+    },
+    addExample(filename, content) {
+      controller.addExampleContent(filename, content);
+    },
+    armSlot(slotId) {
+      controller.armSlot(slotId);
+    },
+    bindFromNode(path, format) {
+      controller.bindFromNode(path, format);
+    },
+    mapNodeToSlot(slotId, path, format) {
+      controller.mapNodeToSlot(slotId, path, format);
+    },
+    runTest() {
+      controller.runTestNow();
+    },
+    setAutoplay(on) {
+      const s = controller.getState();
+      if (s.settings.autoplay !== on) controller.toggleAutoplay();
+    },
+    getSnapshot(): WorkbenchTestSnapshot {
+      const s = controller.getState();
+      const blocklyBlocks = workspace.getAllBlocks(false).map((block) => ({
+        id: block.id,
+        type: block.type,
+        slotId: slotIdFromBlock(block),
+      }));
+      return {
+        templateId: s.templateId,
+        listeningSlotId: s.listeningSlotId,
+        exampleCount: s.examples.length,
+        activeExampleFilename: s.activeExample?.filename ?? null,
+        model: s.model,
+        testResult: s.testResult,
+        statusMessage: s.statusMessage,
+        autoplay: s.settings.autoplay,
+        unmappedMandatory: s.unmappedMandatory,
+        blocklyBlocks,
+      };
+    },
+    findSlotIdBySuffix(suffix) {
+      const slots = collectValueSlots(controller.getState().skeleton);
+      return slots.find((slot) => slot.slotId.endsWith(suffix))?.slotId ?? null;
+    },
+  };
+  globalThis.window.intehrgratorTestApi = api;
+}
+
 async function main(): Promise<void> {
+  if (testMode) installWorkbenchTestApi();
   await bootBlockly();
   controller.subscribe(render);
   render();
+  workbenchReadyResolve();
 }
 
 void main();

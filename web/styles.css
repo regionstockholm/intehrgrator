@@ -238,6 +238,11 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .slot-item:hover .skeleton-tree-row { border-color: var(--primary); }
 .slot-item.listening .skeleton-tree-row { outline: 2px solid var(--accent); outline-offset: -1px; }
+.slot-item.drop-target .skeleton-tree-row {
+  outline: 2px dashed var(--accent);
+  outline-offset: -1px;
+  background: #fff4ea;
+}
 .slot-item.unmapped-mandatory .skeleton-tree-row { border-color: var(--error); }
 .slot-item.unmapped-mandatory .slot-label { color: var(--error); }
 .slot-item.mapped .skeleton-tree-row { border-color: var(--success); }

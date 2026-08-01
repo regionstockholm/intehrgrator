@@ -67,10 +67,16 @@ export interface SchemaTreeNode {
   children: SchemaTreeNode[];
 }
 
+/**
+ * Source payload format id. Built-ins are `json` | `xml`; adapters may register
+ * more via `registerSourceFormatHandler` (see `core/source/format_handler.ts`).
+ */
+export type SourceFormatId = "json" | "xml";
+
 export interface ExampleInstance {
   id: string;
   filename: string;
-  format: "json" | "xml";
+  format: SourceFormatId;
   content: string;
 }
 

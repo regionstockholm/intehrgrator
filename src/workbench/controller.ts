@@ -1,10 +1,10 @@
 import type {
-  ExampleInstance,
   MappingModel,
   ProjectBundle,
   ProjectSettings,
   SchemaTreeNode,
   SkeletonNode,
+  SourceFormatId,
   TestResult,
 } from "../types/mod.ts";
 import {
@@ -27,17 +27,13 @@ import {
 import { toSpec } from "../core/spec/mod.ts";
 import { generate } from "../core/codegen/mod.ts";
 import { runTest } from "../core/test_runner/mod.ts";
-import { ExampleInstanceManager } from "../core/source/example_manager.ts";
 import {
-  inferSchemaFromInstance,
-  loadJsonSchema,
-  loadXmlSchemaFromInstance,
-  pathToFontoxpath,
-} from "../core/source/schema_loader.ts";
-import {
+  detectSourceFormat,
+  ExampleInstanceManager,
+  getSourceFormatHandler,
   type InstanceValidationIssue,
   validateInstanceAgainstSchema,
-} from "../core/source/instance_validation.ts";
+} from "../core/source/mod.ts";
 import { buildSourceQueryExpression } from "../core/expression/mod.ts";
 import { returnTypeForDv } from "../core/rm_mandatory.ts";
 import { buildPrompt, importSuggestions, parseSuggestionsPayload } from "../core/ai/mod.ts";
@@ -251,7 +247,7 @@ export class WorkbenchController {
     this.treeHighlight = { syncPath: null, origin: null };
   }
 
-  bindFromNode(path: string, format: "json" | "xml"): void {
+  bindFromNode(path: string, format: SourceFormatId): void {
     if (!this.listeningSlotId) return;
     this.mapNodeToSlot(this.listeningSlotId, path, format);
   }
@@ -260,10 +256,10 @@ export class WorkbenchController {
    * Bind a source tree path to a Target value slot (Click-to-Map after Listening Mode,
    * or drag-and-drop which skips Listening Mode).
    */
-  mapNodeToSlot(slotId: string, path: string, format: "json" | "xml"): void {
+  mapNodeToSlot(slotId: string, path: string, format: SourceFormatId): void {
     const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === slotId);
     if (!slot) return;
-    const xpath = pathToFontoxpath(path, format);
+    const xpath = getSourceFormatHandler(format).pathToExpression(path);
     const expr = buildSourceQueryExpression(xpath, returnTypeForDv(slot.rmType));
     this.model = applyExpressionEdit(this.model, slot.slotId, expr, {
       rmType: slot.rmType,
@@ -459,9 +455,7 @@ export class WorkbenchController {
     const active = this.examples.getActive();
     if (!active) return null;
     const rootName = active.filename.replace(/\.[^.]+$/, "");
-    return active.format === "json"
-      ? inferSchemaFromInstance(active.content, rootName)
-      : loadXmlSchemaFromInstance(active.content, rootName);
+    return getSourceFormatHandler(active.format).loadInstance(active.content, rootName);
   }
 
   private buildExampleValidations(): Record<string, InstanceValidationIssue[]> {
@@ -489,13 +483,17 @@ export class WorkbenchController {
 
   private applySchemaFile(filename: string, content: string): void {
     this.schemaFilename = filename;
-    this.schemaTree = loadJsonSchema(content, filename.replace(/\.[^.]+$/, ""));
+    const format = detectSourceFormat(filename);
+    this.schemaTree = getSourceFormatHandler(format).loadSchema(
+      content,
+      filename.replace(/\.[^.]+$/, ""),
+    );
     this.statusMessage = `Loaded schema ${filename}`;
     this.markDirty();
   }
 
   private applyExampleFile(filename: string, content: string): void {
-    const format = filename.endsWith(".xml") ? "xml" : "json";
+    const format = detectSourceFormat(filename);
     const id = crypto.randomUUID();
     this.examples.addExample({ id, filename, format, content });
   }

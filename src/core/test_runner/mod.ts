@@ -1,22 +1,22 @@
-import type { MappingModel } from "../../types/mod.ts";
-import type { TestResult } from "../../types/mod.ts";
-import { evaluate, createSourceContext } from "../source/query_runtime.ts";
+import type { MappingModel, SourceFormatId, TestResult } from "../../types/mod.ts";
+import { getSourceFormatHandler } from "../source/format_handler.ts";
 import { generateTypeScript } from "../codegen/mod.ts";
 
 export function runTest(
   model: MappingModel,
   exampleContent: string,
-  format: "json" | "xml",
+  format: SourceFormatId,
   _generatedTs?: string,
 ): TestResult {
   const warnings: string[] = [];
   try {
-    const ctx = createSourceContext(exampleContent, format);
+    const handler = getSourceFormatHandler(format);
+    const ctx = handler.createContext(exampleContent);
     const slotValues: Record<string, unknown> = {};
 
     for (const slot of model.slots) {
       try {
-        slotValues[slot.slotId] = evaluate(slot.expression, ctx, slot.returnType);
+        slotValues[slot.slotId] = handler.evaluate(slot.expression, ctx, slot.returnType);
       } catch (e) {
         warnings.push(
           `${slot.slotId}: ${e instanceof Error ? e.message : String(e)}`,

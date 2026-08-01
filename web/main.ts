@@ -31,9 +31,20 @@ import {
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
+import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
+import {
+  isTestMode,
+  type IntehrgratorTestApi,
+  type WorkbenchTestSnapshot,
+} from "../src/ui_test/test_api.ts";
 
 const host = new WebHostAdapter();
 const controller = new WorkbenchController(host);
+const testMode = isTestMode();
+let workbenchReadyResolve!: () => void;
+const workbenchReady = new Promise<void>((resolve) => {
+  workbenchReadyResolve = resolve;
+});
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
@@ -534,10 +545,65 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.append(title, list);
 }
 
+function installWorkbenchTestApi(): void {
+  const api: IntehrgratorTestApi = {
+    ready: () => workbenchReady,
+    loadTemplate(filename, content) {
+      controller.loadTemplateContent(filename, content);
+    },
+    loadSchema(filename, content) {
+      controller.loadSchemaContent(filename, content);
+    },
+    addExample(filename, content) {
+      controller.addExampleContent(filename, content);
+    },
+    armSlot(slotId) {
+      controller.armSlot(slotId);
+    },
+    bindFromNode(path, format) {
+      controller.bindFromNode(path, format);
+    },
+    runTest() {
+      controller.runTestNow();
+    },
+    setAutoplay(on) {
+      const s = controller.getState();
+      if (s.settings.autoplay !== on) controller.toggleAutoplay();
+    },
+    getSnapshot(): WorkbenchTestSnapshot {
+      const s = controller.getState();
+      const blocklyBlocks = workspace.getAllBlocks(false).map((block) => ({
+        id: block.id,
+        type: block.type,
+        slotId: slotIdFromBlock(block),
+      }));
+      return {
+        templateId: s.templateId,
+        listeningSlotId: s.listeningSlotId,
+        exampleCount: s.examples.length,
+        activeExampleFilename: s.activeExample?.filename ?? null,
+        model: s.model,
+        testResult: s.testResult,
+        statusMessage: s.statusMessage,
+        autoplay: s.settings.autoplay,
+        unmappedMandatory: s.unmappedMandatory,
+        blocklyBlocks,
+      };
+    },
+    findSlotIdBySuffix(suffix) {
+      const slots = collectValueSlots(controller.getState().skeleton);
+      return slots.find((slot) => slot.slotId.endsWith(suffix))?.slotId ?? null;
+    },
+  };
+  globalThis.window.intehrgratorTestApi = api;
+}
+
 async function main(): Promise<void> {
+  if (testMode) installWorkbenchTestApi();
   await bootBlockly();
   controller.subscribe(render);
   render();
+  workbenchReadyResolve();
 }
 
 void main();

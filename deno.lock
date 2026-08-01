@@ -41,6 +41,7 @@
     "npm:fast-xml-parser@^4.5.6": "4.5.6",
     "npm:fflate@~0.8.2": "0.8.3",
     "npm:fontoxpath@^3.33.2": "3.34.0",
+    "npm:playwright@1.51.0": "1.51.0",
     "npm:temporal-polyfill@0.2.5": "0.2.5",
     "npm:yaml@^2.3.4": "2.9.0",
     "npm:yaml@^2.9.0": "2.9.0"
@@ -797,6 +798,11 @@
         "mime-types"
       ]
     },
+    "fsevents@2.3.2": {
+      "integrity": "sha512-xiqMQR4xAeHTuB9uWm+fFRcIOgKBMiOBP+eXiyT7jsgVCq1bkVygt00oASowB7EdtpOHaaPgKt812P9ab+DDKA==",
+      "os": ["darwin"],
+      "scripts": true
+    },
     "function-bind@1.1.2": {
       "integrity": "sha512-7XHNxH7qX9xG5mIwxkhumTox/MIRNcOgDrxWsMt2pAr23WHp6MrRlN7FBSFpCpr+oVO0F744iUgR82nJMfG2SA=="
     },
@@ -924,6 +930,20 @@
       "dependencies": [
         "entities"
       ]
+    },
+    "playwright-core@1.51.0": {
+      "integrity": "sha512-x47yPE3Zwhlil7wlNU/iktF7t2r/URR3VLbH6EknJd/04Qc/PSJ0EY3CMXipmglLG+zyRxW6HNo2EGbKLHPWMg==",
+      "bin": true
+    },
+    "playwright@1.51.0": {
+      "integrity": "sha512-442pTfGM0xxfCYxuBa/Pu6B2OqxqqaYq39JS8QDMGThUvIOCd6s0ANDog3uwA0cHavVlnTQzGCN7Id2YekDSXA==",
+      "dependencies": [
+        "playwright-core"
+      ],
+      "optionalDependencies": [
+        "fsevents"
+      ],
+      "bin": true
     },
     "prsc@4.0.0": {
       "integrity": "sha512-OmXQ2v76RlXNx/gqv7+oB6jyKnudJ/rsMfAIVexhbDFxXAJPoWKMxJkZU2ohlu4miCiSQCG+horf2DV4/kNc1Q=="

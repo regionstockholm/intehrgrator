@@ -6,7 +6,8 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 
 ```bash
 deno task vendor   # clone ehrtslib into vendor/ (first time)
-deno task test
+deno task test     # unit tests (no browser)
+deno task test:ui  # Playwright: Click-to-Map + Test Run (see docs/UI_TESTING.md)
 deno task build    # outputs static site to dist/
 deno task dev      # serve dist/ on http://localhost:5173
 ```
@@ -27,6 +28,8 @@ Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 | `src/host/` | `HostAdapter` + browser implementation |
 | `web/` | HTML/CSS entry; bundled to `dist/bundle.js` |
 | `test/` | Deno unit tests + OPT fixtures |
+| `test/ui/` | Playwright UI tests (Workbench Test API) |
+| `src/ui_test/` | Workbench Test API types / helpers |
 
 ## Documentation
 
@@ -36,6 +39,7 @@ Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 | **Project prompt** | [INITIAL_PROMPT.md](INITIAL_PROMPT.md) |
 | **PRD (v1)** | [tasks/PRD-intehrgrator-v1.md](tasks/PRD-intehrgrator-v1.md) · [tasks/TASKS-intehrgrator-v1.md](tasks/TASKS-intehrgrator-v1.md) |
 | **UI design** | [docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md) · [mockup](docs/assets/prototype-ui-v1-consolidated.png) |
+| **UI testing** | [docs/UI_TESTING.md](docs/UI_TESTING.md) |
 | **Blockly** | [docs/BLOCKLY_INTEGRATION.md](docs/BLOCKLY_INTEGRATION.md) |
 | **Mapping spec** | [docs/MAPPING_SPECIFICATION.md](docs/MAPPING_SPECIFICATION.md) |
 | **Source data** | [docs/SOURCE_FORMATS.md](docs/SOURCE_FORMATS.md) · [docs/SOURCE_QUERY.md](docs/SOURCE_QUERY.md) |

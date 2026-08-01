@@ -37,7 +37,8 @@
   },
   "tasks": {
     "vendor": "deno run -A scripts/vendor-ehrtslib.ts",
-    "test": "deno test -A --no-check --parallel",
+    "test": "deno test -A --no-check --parallel --ignore=test/ui test/",
+    "test:ui": "deno run -A scripts/ui-test.ts",
     "lint": "deno lint src test scripts",
     "check": "deno check src/**/*.ts web/main.ts scripts/*.ts",
     "build": "deno run -A scripts/build.ts",

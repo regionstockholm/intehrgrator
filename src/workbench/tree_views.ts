@@ -218,6 +218,7 @@ function buildValueSlotItem(
 ): HTMLElement {
   const li = document.createElement("li");
   li.className = "skeleton-tree-node slot-item";
+  li.dataset.slotId = node.slotId;
   const mapped = mappedSlots.has(node.slotId);
   if (node.mandatory && !mapped) li.classList.add("unmapped-mandatory");
   if (mapped) li.classList.add("mapped");

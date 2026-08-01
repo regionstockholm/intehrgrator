@@ -127,8 +127,14 @@ export class WorkbenchController {
   async openTemplate(): Promise<void> {
     const file = await this.host.pickFile(".opt,.opt2,.json,.adl,.adls,.xml");
     if (!file) return;
-    this.templateContent = await this.host.readTextFile(file);
-    this.templateFilename = file.name;
+    const content = await this.host.readTextFile(file);
+    this.loadTemplateContent(file.name, content);
+  }
+
+  /** Load OPT (or other target structure) from in-memory content — used by Workbench Test API and hosts. */
+  loadTemplateContent(filename: string, content: string): void {
+    this.templateContent = content;
+    this.templateFilename = filename;
     const result = generateSkeleton(this.templateContent);
     this.templateId = result.templateId;
     this.skeleton = result.skeleton;
@@ -143,11 +149,16 @@ export class WorkbenchController {
       const file = await this.host.pickFile(".json,application/json");
       if (!file) return;
       const content = await this.host.readTextFile(file);
-      this.applySchemaFile(file.name, content);
+      this.loadSchemaContent(file.name, content);
     } catch (err) {
       this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
     }
+  }
+
+  /** Load Source Schema from in-memory content — used by Workbench Test API and hosts. */
+  loadSchemaContent(filename: string, content: string): void {
+    this.applySchemaFile(filename, content);
   }
 
   async loadSchemaFromDrop(file: File): Promise<void> {
@@ -169,8 +180,13 @@ export class WorkbenchController {
     const file = await this.host.pickFile(".json,.xml");
     if (!file) return;
     const content = await this.host.readTextFile(file);
-    this.applyExampleFile(file.name, content);
-    this.statusMessage = `Added example ${file.name}`;
+    this.addExampleContent(file.name, content);
+  }
+
+  /** Add an Example Instance from in-memory content — used by Workbench Test API and hosts. */
+  addExampleContent(filename: string, content: string): void {
+    this.applyExampleFile(filename, content);
+    this.statusMessage = `Added example ${filename}`;
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }

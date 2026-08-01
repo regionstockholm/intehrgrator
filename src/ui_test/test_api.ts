@@ -36,6 +36,8 @@ export interface IntehrgratorTestApi {
   armSlot(slotId: string): void;
   /** Programmatic bind (same path as Click-to-Map after Listening Mode). */
   bindFromNode(path: string, format: "json" | "xml"): void;
+  /** Programmatic bind to a slot (same path as drag-and-drop; skips Listening Mode). */
+  mapNodeToSlot(slotId: string, path: string, format: "json" | "xml"): void;
   runTest(): void;
   setAutoplay(on: boolean): void;
   getSnapshot(): WorkbenchTestSnapshot;

@@ -62,3 +62,34 @@ Deno.test("controller loads template/schema/example from content", async () => {
   };
   assertEquals(composition?.slots?.[slotId], 120);
 });
+
+Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const example = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+  );
+
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.addExampleContent("bp_example.json", example);
+
+  const slotId = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.slotId.endsWith("items/at0004/value/value/value")
+  )?.slotId;
+  assert(slotId);
+  assertEquals(controller.getState().listeningSlotId, null);
+
+  controller.mapNodeToSlot(slotId, "$.systolic", "json");
+  assertEquals(controller.getState().listeningSlotId, null);
+
+  const mapped = controller.getState().model.slots.find((s) => s.slotId === slotId);
+  assert(mapped?.expression.includes("systolic"));
+
+  controller.runTestNow();
+  const composition = controller.getState().testResult?.composition as {
+    slots?: Record<string, unknown>;
+  };
+  assertEquals(composition?.slots?.[slotId], 120);
+});

@@ -4,6 +4,39 @@ import { canonicalSyncPath } from "../core/source/schema_loader.ts";
 
 const SKELETON_INDENT_PX = 10;
 
+/** Custom MIME for Source Pane → value-slot drag-and-drop mapping. */
+export const SOURCE_DRAG_MIME = "application/x-intehrgrator-source";
+
+export interface SourceDragPayload {
+  path: string;
+  format: "json" | "xml";
+  origin: "schema" | "instance";
+}
+
+export function parseSourceDragPayload(dt: DataTransfer | null): SourceDragPayload | null {
+  if (!dt) return null;
+  const raw = dt.getData(SOURCE_DRAG_MIME) || dt.getData("text/plain");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<SourceDragPayload>;
+    if (parsed.path && (parsed.format === "json" || parsed.format === "xml")) {
+      return {
+        path: parsed.path,
+        format: parsed.format,
+        origin: parsed.origin === "schema" || parsed.origin === "instance"
+          ? parsed.origin
+          : "instance",
+      };
+    }
+  } catch {
+    // plain path fallback (legacy / Playwright text-only drops)
+  }
+  if (raw.startsWith("$") || raw.startsWith("/")) {
+    return { path: raw, format: "json", origin: "instance" };
+  }
+  return null;
+}
+
 export interface TreeHighlightState {
   /** Canonical sync path shared across schema and instance trees. */
   syncPath: string | null;
@@ -51,11 +84,12 @@ export function renderInstanceTree(
   node: SchemaTreeNode,
   onSelect: (path: string) => void,
   options: SchemaTreeRenderOptions = {},
+  format: "json" | "xml" = "json",
 ): void {
   container.classList.add("instance-tree");
   container.classList.remove("schema-tree");
   container.innerHTML = "";
-  container.appendChild(buildInstanceNode(node, onSelect, options, 0));
+  container.appendChild(buildInstanceNode(node, onSelect, options, 0, format));
 }
 
 function buildSchemaNode(
@@ -73,7 +107,7 @@ function buildSchemaNode(
   meta.className = "tree-meta";
   meta.textContent = formatSchemaMeta(node);
   label.append(document.createTextNode(node.name), meta);
-  attachTreeInteractions(label, node.path, syncPath, "schema", onSelect, options);
+  attachTreeInteractions(label, node.path, syncPath, "schema", "json", onSelect, options);
   row.appendChild(label);
 
   const wrap = document.createElement("div");
@@ -89,6 +123,7 @@ function buildInstanceNode(
   onSelect: (path: string) => void,
   options: SchemaTreeRenderOptions,
   depth: number,
+  format: "json" | "xml",
 ): HTMLElement {
   const syncPath = canonicalSyncPath(node.path);
   const row = createTreeRow(node.path, syncPath, depth);
@@ -98,13 +133,13 @@ function buildInstanceNode(
   label.textContent = node.value !== undefined
     ? `${node.name}  ${formatValue(node.value)}`
     : node.name;
-  attachTreeInteractions(label, node.path, syncPath, "instance", onSelect, options);
+  attachTreeInteractions(label, node.path, syncPath, "instance", format, onSelect, options);
   row.appendChild(label);
 
   const wrap = document.createElement("div");
   wrap.appendChild(row);
   for (const child of node.children) {
-    wrap.appendChild(buildInstanceNode(child, onSelect, options, depth + 1));
+    wrap.appendChild(buildInstanceNode(child, onSelect, options, depth + 1, format));
   }
   return wrap;
 }
@@ -123,6 +158,7 @@ function attachTreeInteractions(
   path: string,
   syncPath: string,
   origin: "schema" | "instance",
+  format: "json" | "xml",
   onSelect: (path: string) => void,
   options: SchemaTreeRenderOptions,
 ): void {
@@ -134,7 +170,10 @@ function attachTreeInteractions(
   label.addEventListener("mouseenter", () => options.onHighlight?.(syncPath, origin));
   label.addEventListener("mouseleave", () => options.onHighlight?.(null, origin));
   label.addEventListener("dragstart", (e) => {
-    e.dataTransfer?.setData("text/plain", path);
+    const payload: SourceDragPayload = { path, format, origin };
+    const json = JSON.stringify(payload);
+    e.dataTransfer?.setData(SOURCE_DRAG_MIME, json);
+    e.dataTransfer?.setData("text/plain", json);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
   });
 }
@@ -156,12 +195,20 @@ export function renderSkeletonList(
   onArm: (slotId: string) => void,
   listeningSlotId: string | null,
   mappedSlots: Set<string>,
+  onDropSource?: (slotId: string, payload: SourceDragPayload) => void,
 ): void {
   container.innerHTML = "";
   const tree = document.createElement("ul");
   tree.className = "skeleton-tree";
   for (const node of skeleton) {
-    const branch = buildSkeletonBranch(node, onArm, listeningSlotId, mappedSlots, 0);
+    const branch = buildSkeletonBranch(
+      node,
+      onArm,
+      listeningSlotId,
+      mappedSlots,
+      0,
+      onDropSource,
+    );
     if (branch) tree.appendChild(branch);
   }
   if (!tree.childElementCount) {
@@ -177,14 +224,17 @@ function buildSkeletonBranch(
   listeningSlotId: string | null,
   mappedSlots: Set<string>,
   depth: number,
+  onDropSource?: (slotId: string, payload: SourceDragPayload) => void,
 ): HTMLElement | null {
   if (node.kind === "value") {
     if (isAutoFixedValueSlot(node)) return null;
-    return buildValueSlotItem(node, onArm, listeningSlotId, mappedSlots, depth);
+    return buildValueSlotItem(node, onArm, listeningSlotId, mappedSlots, depth, onDropSource);
   }
 
   const childBranches = node.children
-    .map((child) => buildSkeletonBranch(child, onArm, listeningSlotId, mappedSlots, depth + 1))
+    .map((child) =>
+      buildSkeletonBranch(child, onArm, listeningSlotId, mappedSlots, depth + 1, onDropSource)
+    )
     .filter((el): el is HTMLElement => el !== null);
   if (childBranches.length === 0) return null;
 
@@ -215,6 +265,7 @@ function buildValueSlotItem(
   listeningSlotId: string | null,
   mappedSlots: Set<string>,
   depth: number,
+  onDropSource?: (slotId: string, payload: SourceDragPayload) => void,
 ): HTMLElement {
   const li = document.createElement("li");
   li.className = "skeleton-tree-node slot-item";
@@ -241,5 +292,28 @@ function buildValueSlotItem(
   row.append(label, rmType);
   li.appendChild(row);
   li.addEventListener("click", () => onArm(node.slotId));
+
+  if (onDropSource) {
+    li.addEventListener("dragenter", (e) => {
+      e.preventDefault();
+      li.classList.add("drop-target");
+    });
+    li.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      li.classList.add("drop-target");
+    });
+    li.addEventListener("dragleave", (e) => {
+      if (e.relatedTarget instanceof Node && li.contains(e.relatedTarget)) return;
+      li.classList.remove("drop-target");
+    });
+    li.addEventListener("drop", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      li.classList.remove("drop-target");
+      const payload = parseSourceDragPayload(e.dataTransfer);
+      if (payload) onDropSource(node.slotId, payload);
+    });
+  }
   return li;
 }

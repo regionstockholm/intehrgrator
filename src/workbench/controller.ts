@@ -253,7 +253,15 @@ export class WorkbenchController {
 
   bindFromNode(path: string, format: "json" | "xml"): void {
     if (!this.listeningSlotId) return;
-    const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === this.listeningSlotId);
+    this.mapNodeToSlot(this.listeningSlotId, path, format);
+  }
+
+  /**
+   * Bind a source tree path to a Target value slot (Click-to-Map after Listening Mode,
+   * or drag-and-drop which skips Listening Mode).
+   */
+  mapNodeToSlot(slotId: string, path: string, format: "json" | "xml"): void {
+    const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === slotId);
     if (!slot) return;
     const xpath = pathToFontoxpath(path, format);
     const expr = buildSourceQueryExpression(xpath, returnTypeForDv(slot.rmType));

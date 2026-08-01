@@ -1,6 +1,6 @@
 # UI Testing (v1)
 
-First-cut browser tests for the Web Shell Mapping Editor: prove that **Click-to-Map** (Listening Mode → Example Instance node → Blockly `source_query`) and **Test Run** produce sensible Output Previews.
+First-cut browser tests for the Web Shell Mapping Editor: prove that **Click-to-Map** and **drag-and-drop mapping** produce Blockly `source_query` blocks and sensible **Test Run** Output Previews.
 
 Inspired by kintegrate’s `formTestApi` + browser harness pattern ([CyEmulator / formTestApi](https://deepwiki.com/ErikSundvall/kintegrate)), adapted to Deno + Playwright.
 
@@ -9,7 +9,7 @@ Inspired by kintegrate’s `formTestApi` + browser harness pattern ([CyEmulator 
 | Goal | v1 approach |
 |------|-------------|
 | Avoid fragile file-picker automation | **Workbench Test API** loads OPT / Source Schema / Example Instance from fixture strings |
-| Still exercise real UI | Arm slots via Target value slots rail; bind via Example Instance tree click; **Run Test** button |
+| Still exercise real UI | Arm + click Example Instance (Click-to-Map); HTML5 drag from Example Instance onto Target value slot; **Run Test** |
 | Assert sensible output | Mapping Model expression, Blockly `source_query` block, Test Run slot value, `#test-output` text |
 | Stay Deno-native | `deno task test:ui` builds, serves `dist/`, runs Playwright under Deno |
 
@@ -22,6 +22,7 @@ Enabled only when the shell is opened with `?testMode=1`.
 | `ready()` | Resolves after Blockly inject + first render |
 | `loadTemplate` / `loadSchema` / `addExample` | Fixture setup (no Host file picker) |
 | `armSlot` / `bindFromNode` | Programmatic equivalents of Click-to-Map (available; UI test prefers DOM clicks) |
+| `mapNodeToSlot` | Programmatic equivalent of drag-and-drop (skips Listening Mode) |
 | `runTest` / `setAutoplay` | Drive Conversion Test Run(s) |
 | `getSnapshot()` | Mapping Model, Test Run result, Blockly block summary |
 | `findSlotIdBySuffix` | Stable slot lookup for long OPT slotIds |
@@ -51,12 +52,19 @@ Unit tests remain `deno task test` (no browser).
 | `test/fixtures/ui/bp_source_schema.json` | Source Schema |
 | `test/fixtures/ui/bp_example.json` | Active Example (`systolic: 120`) |
 
-Primary scenario maps systolic (`…/items/at0004/value/value/value`) → `$.systolic` and expects Test Run slot value `120`.
+Primary scenarios map systolic (`…/items/at0004/value/value/value`) → `$.systolic` and expect Test Run slot value `120`:
+
+| Test | Interaction |
+|------|-------------|
+| `test/ui/click_to_map_test.ts` | Listening Mode → click Example Instance node |
+| `test/ui/drag_drop_map_test.ts` | Drag Example Instance node onto Target value slot (no Listening Mode) |
+
+Shared helpers live in `test/ui/helpers.ts` (including `html5DragDrop` for reliable DataTransfer MIME payloads under Playwright).
 
 ## What this does *not* cover yet
 
 - Full Generated Export execution through ehrtslib Composition builders (Test Run is still slot-evaluation preview — see architecture deepening candidates)
-- Drag-and-drop Click-to-Map
+- Drag-and-drop onto the Blockly canvas (slots-rail drop is covered; canvas drop is wired in the shell)
 - Autoplay debounce behaviour
 - VS Code webview host (same Test API should mount there later behind Host Abstraction)
 - openEHR-as-source (future Source Format Handler)

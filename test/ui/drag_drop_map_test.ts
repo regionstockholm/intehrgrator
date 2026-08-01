@@ -1,8 +1,6 @@
 /**
- * Browser UI test: Click-to-Map in the Mapping Editor produces a sensible Test Run.
- *
- * Requires a built Web Shell on UI_TEST_BASE_URL (default http://127.0.0.1:5173)
- * with `?testMode=1`. Prefer `deno task test:ui` which builds, serves, and runs this.
+ * Browser UI test: drag-and-drop mapping (source tree → Target value slot)
+ * skips Listening Mode and produces a sensible Test Run.
  */
 
 import { assert, assertEquals } from "@std/assert";
@@ -11,13 +9,14 @@ import {
   baseUrl,
   findSystolicSlotId,
   getSnapshot,
+  html5DragDrop,
   loadBpFixtures,
   waitForMappedSlot,
   waitForTestApi,
 } from "./helpers.ts";
 
 Deno.test({
-  name: "UI: click-to-map systolic → Test Run returns 120",
+  name: "UI: drag-and-drop systolic onto Target value slot → Test Run returns 120",
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
@@ -29,28 +28,33 @@ Deno.test({
       await loadBpFixtures(page);
 
       const slotId = await findSystolicSlotId(page);
+      const slotSelector = `.slot-item[data-slot-id="${slotId}"]`;
+      await page.waitForSelector(slotSelector, { timeout: 10_000 });
 
-      // Real UI: arm Target value slot via slots rail (Listening Mode).
-      const slotItem = page.locator(`.slot-item[data-slot-id="${slotId}"]`);
-      await slotItem.waitFor({ timeout: 10_000 });
-      await slotItem.click();
+      // Must not require Listening Mode for drag-and-drop.
+      assertEquals((await getSnapshot(page)).listeningSlotId, null);
 
-      const listening = (await getSnapshot(page)).listeningSlotId;
-      assertEquals(listening, slotId);
-
-      // Real UI: click Example Instance tree node for systolic.
-      await page.click('#example-tree .tree-row[data-path="$.systolic"] .tree-label');
+      await html5DragDrop(
+        page,
+        '#example-tree .tree-row[data-path="$.systolic"] .tree-label',
+        slotSelector,
+      );
       await waitForMappedSlot(page, slotId);
 
       const afterMap = await getSnapshot(page);
+      assertEquals(afterMap.listeningSlotId, null, "drag-and-drop should not leave Listening Mode armed");
       const mapped = afterMap.model.slots.find((s) => s.slotId === slotId);
       assert(mapped?.expression.includes("xpathNumber"), mapped?.expression);
       assert(mapped?.expression.includes("systolic"), mapped?.expression);
       assert(
         afterMap.blocklyBlocks.some((b) => b.type === "source_query"),
-        `expected source_query block after Click-to-Map, got: ${
+        `expected source_query block after drag-and-drop, got: ${
           afterMap.blocklyBlocks.map((b) => b.type).join(", ")
         }`,
+      );
+      assert(
+        afterMap.statusMessage.toLowerCase().includes("mapped"),
+        afterMap.statusMessage,
       );
 
       await page.click("#btn-run-test");

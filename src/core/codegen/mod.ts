@@ -13,7 +13,7 @@ export function generateTypeScript(model: MappingModel): string {
     "  evaluateXPathToBoolean,",
     "} from 'fontoxpath';",
     "",
-    "export type SourceContext = { format: 'json' | 'xml'; data: unknown };",
+    "export type SourceContext = { format: string; data: unknown };",
     "",
     "function evalExpr(expr: string, sourceCtx: SourceContext): unknown {",
     "  // Expression dispatch generated per slot at export time",

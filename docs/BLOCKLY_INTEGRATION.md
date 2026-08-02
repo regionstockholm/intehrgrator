@@ -69,7 +69,9 @@ categories **Source** and **Data values**. See [Attribution](#attribution).
 - **Source:** `source_query` — XPath/XQuery via [fontoxpath](https://github.com/FontoXML/fontoxpath);
   typed `evaluateXPathTo*` from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
 - **Loops (custom):** `for_each_source` — iterate nodes from a multi-valued source path
-  into a named mapping variable (alongside stock `controls_forEach`)
+  into a named mapping variable (alongside stock `controls_forEach`). This is the
+  supported way to scope mapping over a substructure; a kintegrate-style Source Pane
+  “context root” is not required — see [future/source-context-root.md](future/source-context-root.md).
 
 ## Attribution
 

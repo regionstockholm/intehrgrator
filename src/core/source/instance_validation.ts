@@ -1,10 +1,9 @@
-import type { SchemaTreeNode } from "../../types/mod.ts";
+import type { SchemaTreeNode, SourceFormatId } from "../../types/mod.ts";
 import {
   canonicalSyncPath,
   findNodeBySyncPath,
-  inferSchemaFromInstance,
-  loadXmlSchemaFromInstance,
 } from "./schema_loader.ts";
+import { getSourceFormatHandler } from "./format_handler.ts";
 
 export interface InstanceValidationIssue {
   path: string;
@@ -13,14 +12,12 @@ export interface InstanceValidationIssue {
 
 export function validateInstanceAgainstSchema(
   content: string,
-  format: "json" | "xml",
+  format: SourceFormatId,
   schema: SchemaTreeNode,
 ): InstanceValidationIssue[] {
   let instanceTree: SchemaTreeNode;
   try {
-    instanceTree = format === "json"
-      ? inferSchemaFromInstance(content, schema.name)
-      : loadXmlSchemaFromInstance(content, schema.name);
+    instanceTree = getSourceFormatHandler(format).loadInstance(content, schema.name);
   } catch (err) {
     return [{
       path: "$",

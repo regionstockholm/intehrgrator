@@ -102,7 +102,7 @@
           <h2 class="display text-2xl font-semibold">1. Source Format Handler seam</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>src/core/source/*</code>, <code>src/types/mod.ts</code>, <code>src/core/expression/mod.ts</code>, <code>src/core/codegen/mod.ts</code>, <code>src/workbench/controller.ts</code></p>
         </div>
-        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Strong</span>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">In progress</span>
       </div>
       <div class="px-6 py-5 space-y-4">
         <div>
@@ -211,7 +211,80 @@ flowchart TB
     <article class="bg-white/80 backdrop-blur border border-[color:var(--line)] rounded-2xl shadow-sm overflow-hidden">
       <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="display text-2xl font-semibold">3. Mapping pipeline depth (Sync Scope → Test Run)</h2>
+          <h2 class="display text-2xl font-semibold">3. Prefer Blockly JSON over a custom Mapping Spec DSL</h2>
+          <p class="text-sm text-slate-600 mt-1">Files: <code>docs/MAPPING_SPECIFICATION.md</code>, <code>src/core/spec/mod.ts</code>, <code>src/core/mapping_model</code>, <code>ProjectBundle.mapping.blocklyState</code>, AI suggestion format</p>
+        </div>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Strong</span>
+      </div>
+      <div class="px-6 py-5 space-y-4">
+        <div>
+          <h3 class="font-semibold text-[color:var(--teal-deep)]">Problem</h3>
+          <p class="text-slate-700 mt-1">
+            Sync Scope today invents a third language: Blockly blocks ⇄ Mapping Model ⇄ custom block-aligned DSL (<code>toSpec</code> / <code>@template composition { … }</code>).
+            That DSL is not known to LLMs, not used by other tools, and duplicates structure already in
+            <code>Blockly.serialization.workspaces.save</code> (persisted as <code>blocklyState</code>).
+            Deletion test: removing <code>core/spec</code> mostly removes projection chrome — Mapping Model + Blockly JSON already carry the mapping.
+            Growing the DSL toward text-first editing doubles maintenance without industry familiarity.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-[color:var(--teal-deep)]">Solution</h3>
+          <p class="text-slate-700 mt-1">
+            Treat <strong>Blockly native JSON</strong> as the canonical Mapping Specification / interchange surface
+            (DeepWiki: <code>RaspberryPiFoundation/blockly</code> serialization — documented <code>blocks</code> / <code>fields</code> / <code>inputs</code> / <code>extraState</code> contract; intended for restore <em>and</em> interchange).
+            Keep the slim <strong>Mapping Model</strong> (<code>slotId</code> → expression) as a <em>derived index</em> for AI patch import
+            (<code>intehrgrator-suggestions</code>), validation, and Test Run — not a parallel structural language.
+            Center CodeMirror should show pretty-printed Blockly JSON (optionally stripped of <code>x</code>/<code>y</code> for readability) or the Mapping Model slot list — not a hand-rolled DSL.
+            Informatician expression edits either patch Blockly field JSON paths or the derived <code>slots[]</code>; structural edits stay in Blockly / Optional RM Insertion.
+          </p>
+        </div>
+        <div>
+          <h3 class="font-semibold text-[color:var(--teal-deep)]">Benefits</h3>
+          <ul class="list-disc pl-5 text-slate-700 space-y-1 mt-1">
+            <li><strong>Leverage:</strong> LLMs and tooling already see Blockly serialization in the wild; no need to teach a private DSL.</li>
+            <li><strong>Locality:</strong> one structural truth (<code>blocklyState</code>); Mapping Model regenerates from it; <code>toSpec</code> can shrink or die.</li>
+            <li><strong>AI path:</strong> bulk structure via Blockly JSON; slot fills via existing small suggestion envelope — best of both.</li>
+          </ul>
+        </div>
+        <div class="callout-warn">
+          Caveat: raw workspace JSON includes UI chrome (coordinates, shadows, ids). Persist the full form; for human/LLM <em>review</em> prefer a filtered projection
+          (drop <code>x</code>/<code>y</code>, maybe collapse fixed RM shells) or the Mapping Model slot table — still JSON, still not a new grammar.
+          Blockly major bumps can change serialization; pin Blockly and keep Mapping Model as the migration-friendly index.
+        </div>
+        <div class="mass">
+          <div class="mass-col shallow">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">Before — three languages</div>
+            <div class="iface">custom DSL ⇄ Mapping Model ⇄ Blockly JSON</div>
+            <div class="impl">toSpec projection · expression line parser · AI learns private @template syntax · dual persistence confusion</div>
+          </div>
+          <div class="mass-col deep">
+            <div class="text-xs uppercase tracking-wide text-slate-500 mb-2">After — Blockly JSON + derived index</div>
+            <div class="iface">blocklyState (canonical) → Mapping Model slots[] (derived)</div>
+            <div class="impl">CodeMirror: Blockly JSON or slots JSON · AI: suggestions envelope and/or Blockly JSON patches · codegen/Test Run from Model</div>
+          </div>
+        </div>
+        <pre class="mermaid">
+flowchart LR
+  BW[Blockly workspace]
+  BJ[Blockly serialization JSON]
+  MM[Mapping Model slot index]
+  AI[AI suggestions / LLM edits]
+  CG[Codegen / Test Run]
+  BW --> BJ
+  BJ --> MM
+  AI --> BJ
+  AI --> MM
+  MM --> CG
+  BJ --> BW
+        </pre>
+      </div>
+    </article>
+
+    <!-- Candidate 4 -->
+    <article class="bg-white/80 backdrop-blur border border-[color:var(--line)] rounded-2xl shadow-sm overflow-hidden">
+      <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 class="display text-2xl font-semibold">4. Mapping pipeline depth (Sync Scope → Test Run)</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>src/blockly/*</code>, <code>src/core/mapping_model</code>, <code>src/core/codegen</code>, <code>src/core/test_runner</code>, <code>web/main.ts</code></p>
         </div>
         <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Strong</span>
@@ -219,11 +292,11 @@ flowchart TB
       <div class="px-6 py-5 space-y-4">
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Problem</h3>
-          <p class="text-slate-700 mt-1">Intended Sync Scope is Blockly ⇄ Mapping Model ⇄ Mapping Specification → Generated Export → Test Run. Actual path: Click-to-Map updates Mapping Model; Blockly canvas edits only <code>markDirty()</code>; Test Run evaluates slot expressions into a stub Composition and ignores Generated Export. Dual codegen (Blockly JS generators vs <code>core/codegen</code>) splits locality. UI tests can assert slot preview today, but not “sensible openEHR Composition” until this deepens.</p>
+          <p class="text-slate-700 mt-1">Intended Sync Scope is Blockly ⇄ Mapping Model (⇄ text projection) → Generated Export → Test Run. Actual path: Click-to-Map updates Mapping Model; Blockly canvas edits only <code>markDirty()</code>; Test Run evaluates slot expressions into a stub Composition and ignores Generated Export. Dual codegen (Blockly JS generators vs <code>core/codegen</code>) splits locality. UI tests can assert slot preview today, but not “sensible openEHR Composition” until this deepens. Pair with candidate 3: do not deepen a custom DSL while fixing the pipeline.</p>
         </div>
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Solution</h3>
-          <p class="text-slate-700 mt-1">Make Mapping Model the single deep IR: Blockly → Model on change; codegen only from Model; Test Run executes Generated Export (or a Model interpreter that is the same semantic surface). Collapse or demote unused Blockly-only generator path until it is an adapter behind the same interface.</p>
+          <p class="text-slate-700 mt-1">Make Blockly JSON → Mapping Model the sync authority: Blockly → Model on change; codegen only from Model; Test Run executes Generated Export (or a Model interpreter that is the same semantic surface). Collapse or demote unused Blockly-only generator path until it is an adapter behind the same interface. Demote or delete <code>toSpec</code> DSL as the center-pane “language.”</p>
         </div>
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Benefits</h3>
@@ -248,11 +321,11 @@ flowchart TB
       </div>
     </article>
 
-    <!-- Candidate 4 -->
+    <!-- Candidate 5 -->
     <article class="bg-white/80 backdrop-blur border border-[color:var(--line)] rounded-2xl shadow-sm overflow-hidden">
       <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="display text-2xl font-semibold">4. Collapse pass-through RM attachment catalog</h2>
+          <h2 class="display text-2xl font-semibold">5. Collapse pass-through RM attachment catalog</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>src/core/rm_attachment_catalog.ts</code>, <code>src/core/rm_meta.ts</code></p>
         </div>
         <span class="badge-explore text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Worth exploring</span>
@@ -285,11 +358,11 @@ flowchart TB
       </div>
     </article>
 
-    <!-- Candidate 5 -->
+    <!-- Candidate 6 -->
     <article class="bg-white/80 backdrop-blur border border-[color:var(--line)] rounded-2xl shadow-sm overflow-hidden">
       <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="display text-2xl font-semibold">5. Workbench view seam (shell vs controller)</h2>
+          <h2 class="display text-2xl font-semibold">6. Workbench view seam (shell vs controller)</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>web/main.ts</code>, <code>src/workbench/controller.ts</code>, <code>tree_views.ts</code>, <code>codemirror_setup.ts</code></p>
         </div>
         <span class="badge-explore text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Worth exploring</span>
@@ -313,11 +386,11 @@ flowchart TB
       </div>
     </article>
 
-    <!-- Candidate 6 -->
+    <!-- Candidate 7 -->
     <article class="bg-white/80 backdrop-blur border border-[color:var(--line)] rounded-2xl shadow-sm overflow-hidden">
       <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="display text-2xl font-semibold">6. Speculative: Handlebars / kintegrate conversion dialect</h2>
+          <h2 class="display text-2xl font-semibold">7. Speculative: Handlebars / kintegrate conversion dialect</h2>
           <p class="text-sm text-slate-600 mt-1">Roadmap note + kintegrate Integration Builder (DeepWiki)</p>
         </div>
         <span class="badge-spec text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Speculative</span>
@@ -342,18 +415,21 @@ flowchart TB
     <section class="rounded-2xl border-2 border-[color:var(--teal)] bg-gradient-to-br from-[#e8f5f2] to-white px-6 py-6">
       <h2 class="display text-2xl font-semibold text-[color:var(--teal-deep)]">Top recommendation</h2>
       <p class="mt-3 text-slate-800 text-lg">
-        Tackle <strong>candidate 1 (Source Format Handler)</strong> and <strong>candidate 2 (Host Abstraction + dual builds)</strong> as a paired foundation:
-        openEHR-as-source (kintegrate merge) needs a real format seam; VS Code / Cursor needs a real host seam with a second adapter.
-        Candidate 3 (pipeline / Test Run depth) should follow immediately so UI tests and informatician Test Run assert real Compositions — otherwise format/host work still lands on a shallow runner.
+        Candidate <strong>1 (Source Format Handler)</strong> is in progress. Next paired foundation:
+        <strong>2 (Host Abstraction + dual builds)</strong> plus <strong>3 (Blockly JSON as Mapping Spec)</strong> and
+        <strong>4 (pipeline / Test Run depth)</strong>.
+        Prefer Blockly serialization JSON over inventing a private DSL; keep Mapping Model as a derived slot index for AI patches and codegen.
+        Then deepen Test Run so UI tests assert real Compositions — otherwise format/host work still lands on a shallow runner.
       </p>
       <p class="mt-4 text-slate-600 text-sm">
-        No ADRs exist today; decisions live in CONTEXT / PRD. None of these candidates contradict a recorded ADR.
-        Grounding: DeepWiki <code>ErikSundvall/kintegrate</code> (Integration Builder input JSON / openEHR compositions; formTestApi testing pattern; webview-oriented VS Code direction).
+        No ADRs exist today; decisions live in CONTEXT / PRD. Candidate 3 would supersede the PRD’s custom Mapping Specification DSL once accepted.
+        Grounding: DeepWiki <code>ErikSundvall/kintegrate</code> (source / formTestApi); DeepWiki <code>RaspberryPiFoundation/blockly</code>
+        (<code>serialization.workspaces.save/load</code> as restore + interchange).
       </p>
     </section>
 
     <section class="text-sm text-slate-600 border-t border-[color:var(--line)] pt-6">
-      <p>Generated for interactive grilling. Next step: pick a candidate to explore — interfaces are intentionally not proposed yet.</p>
+      <p>Updated after Source Format Handler work and Blockly-JSON-as-spec discussion. Candidate 3 interfaces sketched at solution level; implement when Sync Scope is revisited.</p>
     </section>
   </main>
 </body>

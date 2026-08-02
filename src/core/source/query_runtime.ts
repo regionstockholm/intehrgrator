@@ -1,14 +1,15 @@
 import fontoxpath from "fontoxpath";
+import type { SourceFormatId } from "../../types/mod.ts";
 import type { ExprAst } from "../expression/mod.ts";
 import { parseExpression } from "../expression/mod.ts";
 
 export interface SourceContext {
-  format: "json" | "xml";
+  format: SourceFormatId;
   json?: unknown;
   xmlDocument?: Document;
 }
 
-export function createSourceContext(content: string, format: "json" | "xml"): SourceContext {
+export function createSourceContext(content: string, format: SourceFormatId): SourceContext {
   if (format === "json") {
     return { format, json: JSON.parse(content) };
   }

@@ -99,9 +99,19 @@ element.setValue(new DvQuantity({
 
 The spec holds `xpathNumber("/patient/vitals[1]/systolic")`; the generator wraps it in RM construction code.
 
+## Direction note
+
+Architecture review candidate 3 proposes preferring **Blockly native JSON**
+(`Blockly.serialization.workspaces.save`) as the Mapping Specification /
+interchange surface, with Mapping Model kept as a derived `slotId` → expression
+index — instead of growing this custom DSL. See
+[reviews/architecture-review-openehr-source-dual-builds.html](reviews/architecture-review-openehr-source-dual-builds.html).
+Until that lands, this document describes the current `toSpec` projection.
+
 ## Related
 
 - [BLOCKLY_INTEGRATION.md](BLOCKLY_INTEGRATION.md) — blocks and generators
 - [PROJECT_PERSISTENCE.md](PROJECT_PERSISTENCE.md) — Mapping Model JSON
 - [SOURCE_QUERY.md](SOURCE_QUERY.md) — fontoxpath evaluators
 - [docs/future/text-first-mapping-editor.md](future/text-first-mapping-editor.md)
+- [reviews/architecture-review-openehr-source-dual-builds.html](reviews/architecture-review-openehr-source-dual-builds.html) — candidate 3

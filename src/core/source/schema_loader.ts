@@ -1,4 +1,4 @@
-import type { SchemaTreeNode } from "../../types/mod.ts";
+import type { SchemaTreeNode, SourceFormatId } from "../../types/mod.ts";
 
 type JsonSchemaObject = Record<string, unknown>;
 
@@ -195,7 +195,7 @@ function xmlNodeToSchema(el: Element, name: string, path: string): SchemaTreeNod
   };
 }
 
-export function pathToFontoxpath(schemaPath: string, format: "json" | "xml"): string {
+export function pathToFontoxpath(schemaPath: string, format: SourceFormatId): string {
   if (format === "xml") {
     return schemaPath.startsWith("/") ? schemaPath : `/${schemaPath}`;
   }

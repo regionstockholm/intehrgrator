@@ -24,6 +24,14 @@ _Avoid_: Current instance, selected tab
 XPath or XQuery expression (fontoxpath) identifying a value in the loaded JSON or XML source. Click-to-map inserts the expression; the app picks the typed fontoxpath evaluator (`evaluateXPathToString`, `evaluateXPathToNumber`, etc.) from the target slot's `DV_*` type.
 _Avoid_: JSON path, get_source dot notation
 
+**Source Format Handler**:
+Small adapter interface (`loadSchema`, `loadInstance`, `pathToExpression`, `createContext`, `evaluate`) that isolates JSON / XML (and later openEHR-as-source) quirks from Click-to-Map, Test Run, and codegen. See `docs/SOURCE_FORMATS.md`.
+_Avoid_: Format switch, source parser union
+
+**Source iteration (`for_each_source`)**:
+Blockly loop that binds each node from a multi-valued Source Path to a named variable. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`.
+_Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
+
 **Mapping Editor**:
 The center pane where the user authors mapping logic. Header action **Open target Schema/Template** loads the OPT (or other target structure). Default layout is a vertical split: nested Blockly blocks on top (with **Target value slots** rail), [CodeMirror](https://codemirror.net/) on the bottom, kept in bidirectional sync. A minimap appears when the blockly block canvas exceeds the visible area at the current zoom level.
 _Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library)

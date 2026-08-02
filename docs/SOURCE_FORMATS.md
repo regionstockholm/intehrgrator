@@ -8,6 +8,29 @@
 | JSON instance | ✓ | `JSON.parse` | fontoxpath (example tabs + Test Run) |
 | XML instance | ✓ | `DOMParser` | fontoxpath (example tabs + Test Run) |
 | XML schema (XSD) | Deferred | — | [future/xml-schema-support.md](future/xml-schema-support.md) |
+| openEHR Composition / FLAT / STRUCTURED as source | Planned | Adapter behind Source Format Handler | Same seam; quirks stay in the adapter |
+
+## Source Format Handler
+
+Callers (Click-to-Map, Test Run, instance validation, schema load) go through a small **Source Format Handler** interface instead of branching on `"json" | "xml"` in every module:
+
+| Method | Role |
+|--------|------|
+| `loadSchema(content, rootName?)` | Schema tree for the Source Pane |
+| `loadInstance(content, rootName?)` | Example-instance tree |
+| `pathToExpression(schemaPath)` | Tree path → fontoxpath string for Mapping Expressions |
+| `createContext(content)` | Runtime context for evaluation |
+| `evaluate(expression, ctx, returnType)` | Run a Mapping Expression against that context |
+
+Built-in adapters: **JSON**, **XML**. Register more with `registerSourceFormatHandler` (e.g. future `openehr-composition`).
+
+| Module | Path |
+|--------|------|
+| Interface + registry | `src/core/source/format_handler.ts` |
+| Public re-exports | `src/core/source/mod.ts` |
+| Format id on bundles | `SourceFormatId` in `src/types/mod.ts` |
+
+Low-level helpers (`schema_loader`, `query_runtime`) remain implementation details of the adapters; new formats should not require forking the workbench controller.
 
 ## Source Pane layout
 
@@ -24,7 +47,11 @@ See [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) — Source Pane.
 
 All source path expressions use **fontoxpath** (XPath 3.1 / XQuery 3.1) for both JSON and XML. See [SOURCE_QUERY.md](SOURCE_QUERY.md).
 
-Click-to-map works from **either** the schema tree or the **active example tab** tree; both insert fontoxpath expressions into `source_query` blocks.
+Click-to-map works from **either** the schema tree or the **active example tab** tree; both insert fontoxpath expressions into `source_query` blocks via `handler.pathToExpression`.
+
+## Iteration / “context root”
+
+kintegrate’s “Frame this node as context root” is **not** planned as a Source Pane feature. Blockly `for_each_source` (and stock loops) already bind iteration scope. See [future/source-context-root.md](future/source-context-root.md).
 
 ## openEHR XML (ehrtslib alignment)
 
@@ -45,4 +72,5 @@ Converted instance results are displayed. The lower **Conversion Test Run(s)** s
 - [SOURCE_QUERY.md](SOURCE_QUERY.md) — fontoxpath, typed evaluators
 - [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) — Source Pane, example tabs
 - [PROJECT_PERSISTENCE.md](PROJECT_PERSISTENCE.md) — multiple examples in bundle
+- [future/source-context-root.md](future/source-context-root.md) — context root vs `for_each_source`
 - [CONTEXT.md](../CONTEXT.md) — Source Schema, Example Instance, Active Example

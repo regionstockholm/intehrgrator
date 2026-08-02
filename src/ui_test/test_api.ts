@@ -6,7 +6,7 @@
  * real DOM / Blockly so the harness proves the Mapping Editor UI path.
  */
 
-import type { MappingModel, TestResult } from "../types/mod.ts";
+import type { MappingModel, SourceFormatId, TestResult } from "../types/mod.ts";
 
 export interface BlocklyBlockSummary {
   id: string;
@@ -35,9 +35,9 @@ export interface IntehrgratorTestApi {
   addExample(filename: string, content: string): void;
   armSlot(slotId: string): void;
   /** Programmatic bind (same path as Click-to-Map after Listening Mode). */
-  bindFromNode(path: string, format: "json" | "xml"): void;
+  bindFromNode(path: string, format: SourceFormatId): void;
   /** Programmatic bind to a slot (same path as drag-and-drop; skips Listening Mode). */
-  mapNodeToSlot(slotId: string, path: string, format: "json" | "xml"): void;
+  mapNodeToSlot(slotId: string, path: string, format: SourceFormatId): void;
   runTest(): void;
   setAutoplay(on: boolean): void;
   getSnapshot(): WorkbenchTestSnapshot;

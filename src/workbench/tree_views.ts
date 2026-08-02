@@ -1,6 +1,6 @@
-import type { SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
+import type { SchemaTreeNode, SkeletonNode, SourceFormatId } from "../types/mod.ts";
 import { isAutoFixedValueSlot } from "../core/rm_mandatory.ts";
-import { canonicalSyncPath } from "../core/source/schema_loader.ts";
+import { canonicalSyncPath, isSourceFormatId } from "../core/source/mod.ts";
 
 const SKELETON_INDENT_PX = 10;
 
@@ -9,7 +9,7 @@ export const SOURCE_DRAG_MIME = "application/x-intehrgrator-source";
 
 export interface SourceDragPayload {
   path: string;
-  format: "json" | "xml";
+  format: SourceFormatId;
   origin: "schema" | "instance";
 }
 
@@ -19,7 +19,7 @@ export function parseSourceDragPayload(dt: DataTransfer | null): SourceDragPaylo
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<SourceDragPayload>;
-    if (parsed.path && (parsed.format === "json" || parsed.format === "xml")) {
+    if (parsed.path && typeof parsed.format === "string" && isSourceFormatId(parsed.format)) {
       return {
         path: parsed.path,
         format: parsed.format,
@@ -84,7 +84,7 @@ export function renderInstanceTree(
   node: SchemaTreeNode,
   onSelect: (path: string) => void,
   options: SchemaTreeRenderOptions = {},
-  format: "json" | "xml" = "json",
+  format: SourceFormatId = "json",
 ): void {
   container.classList.add("instance-tree");
   container.classList.remove("schema-tree");
@@ -123,7 +123,7 @@ function buildInstanceNode(
   onSelect: (path: string) => void,
   options: SchemaTreeRenderOptions,
   depth: number,
-  format: "json" | "xml",
+  format: SourceFormatId,
 ): HTMLElement {
   const syncPath = canonicalSyncPath(node.path);
   const row = createTreeRow(node.path, syncPath, depth);
@@ -158,7 +158,7 @@ function attachTreeInteractions(
   path: string,
   syncPath: string,
   origin: "schema" | "instance",
-  format: "json" | "xml",
+  format: SourceFormatId,
   onSelect: (path: string) => void,
   options: SchemaTreeRenderOptions,
 ): void {

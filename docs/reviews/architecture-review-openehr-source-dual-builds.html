@@ -102,7 +102,7 @@
           <h2 class="display text-2xl font-semibold">1. Source Format Handler seam</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>src/core/source/*</code>, <code>src/types/mod.ts</code>, <code>src/core/expression/mod.ts</code>, <code>src/core/codegen/mod.ts</code>, <code>src/workbench/controller.ts</code></p>
         </div>
-        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">In progress</span>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Done</span>
       </div>
       <div class="px-6 py-5 space-y-4">
         <div>
@@ -165,7 +165,7 @@ flowchart LR
           <h2 class="display text-2xl font-semibold">2. Host Abstraction + dual build entries</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>src/host/web_adapter.ts</code>, <code>src/core/persistence/mod.ts</code>, <code>web/main.ts</code>, <code>scripts/build.ts</code>, <code>ui/split_pane.ts</code></p>
         </div>
-        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Strong</span>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Done</span>
       </div>
       <div class="px-6 py-5 space-y-4">
         <div>
@@ -212,9 +212,9 @@ flowchart TB
       <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 class="display text-2xl font-semibold">3. Prefer Blockly JSON over a custom Mapping Spec DSL</h2>
-          <p class="text-sm text-slate-600 mt-1">Files: <code>docs/MAPPING_SPECIFICATION.md</code>, <code>src/core/spec/mod.ts</code>, <code>src/core/mapping_model</code>, <code>ProjectBundle.mapping.blocklyState</code>, AI suggestion format</p>
+          <p class="text-sm text-slate-600 mt-1">Files: <code>docs/MAPPING_SPECIFICATION.md</code>, <code>src/core/mapping_model</code>, <code>ProjectBundle.mapping.blocklyState</code>, AI suggestion format · ADR 0001</p>
         </div>
-        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Strong</span>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Done</span>
       </div>
       <div class="px-6 py-5 space-y-4">
         <div>
@@ -287,7 +287,7 @@ flowchart LR
           <h2 class="display text-2xl font-semibold">4. Mapping pipeline depth (Sync Scope → Test Run)</h2>
           <p class="text-sm text-slate-600 mt-1">Files: <code>src/blockly/*</code>, <code>src/core/mapping_model</code>, <code>src/core/codegen</code>, <code>src/core/test_runner</code>, <code>web/main.ts</code></p>
         </div>
-        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Strong</span>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Done</span>
       </div>
       <div class="px-6 py-5 space-y-4">
         <div>
@@ -390,19 +390,19 @@ flowchart LR
     <article class="bg-white/80 backdrop-blur border border-[color:var(--line)] rounded-2xl shadow-sm overflow-hidden">
       <div class="px-6 py-5 border-b border-[color:var(--line)] flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 class="display text-2xl font-semibold">7. Speculative: Handlebars / kintegrate conversion dialect</h2>
-          <p class="text-sm text-slate-600 mt-1">Roadmap note + kintegrate Integration Builder (DeepWiki)</p>
+          <h2 class="display text-2xl font-semibold">7. Handlebars / kintegrate conversion dialect</h2>
+          <p class="text-sm text-slate-600 mt-1">See <code>docs/KINTEGRATE_MIGRATION.md</code>, Target instance format handlers, Better Form Bridge</p>
         </div>
-        <span class="badge-spec text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">Speculative</span>
+        <span class="badge-strong text-xs font-semibold px-3 py-1 rounded-full uppercase tracking-wide">In progress</span>
       </div>
       <div class="px-6 py-5 space-y-4">
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Problem</h3>
-          <p class="text-slate-700 mt-1">kintegrate’s middle column is Handlebars conversion scripts over JSON trees (often openEHR compositions). intEHRgrator’s Export Target is TypeScript/Java from Blockly. Merging product surfaces may tempt a third codegen dialect without a deep Export Target module.</p>
+          <p class="text-slate-700 mt-1">kintegrate’s middle column is Handlebars conversion scripts over JSON trees (often openEHR compositions). intEHRgrator’s Conversion script language is TypeScript/Java from Blockly. Merging product surfaces may tempt a third script language without a deep Conversion script language module.</p>
         </div>
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Solution</h3>
-          <p class="text-slate-700 mt-1">Only if product requires it: deepen Export Target as adapters behind Mapping Model (<code>typescript</code> | <code>java</code> | <code>handlebars</code>), never a parallel IR. Prefer absorbing kintegrate’s <em>source</em> strengths first (candidate 1).</p>
+          <p class="text-slate-700 mt-1">Only if product requires it: deepen Conversion script language as adapters behind Mapping Model (<code>typescript</code> | <code>java</code> | <code>handlebars</code>), never a parallel IR. Prefer absorbing kintegrate’s <em>source</em> strengths first (candidate 1).</p>
         </div>
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Benefits</h3>
@@ -415,21 +415,21 @@ flowchart LR
     <section class="rounded-2xl border-2 border-[color:var(--teal)] bg-gradient-to-br from-[#e8f5f2] to-white px-6 py-6">
       <h2 class="display text-2xl font-semibold text-[color:var(--teal-deep)]">Top recommendation</h2>
       <p class="mt-3 text-slate-800 text-lg">
-        Candidate <strong>1 (Source Format Handler)</strong> is in progress. Next paired foundation:
-        <strong>2 (Host Abstraction + dual builds)</strong> plus <strong>3 (Blockly JSON as Mapping Spec)</strong> and
-        <strong>4 (pipeline / Test Run depth)</strong>.
-        Prefer Blockly serialization JSON over inventing a private DSL; keep Mapping Model as a derived slot index for AI patches and codegen.
-        Then deepen Test Run so UI tests assert real Compositions — otherwise format/host work still lands on a shallow runner.
+        Candidates <strong>1–4</strong> are implemented (Source Format Handler with openEHR-as-source,
+        Host + dual Web/VS Code builds, Blockly JSON as Mapping Spec, pipeline Sync Scope → Target instance format / Handlebars Test Run).
+        Recorded in <code>docs/adr/0001-mapping-and-target-seams.md</code>.
+        Candidate <strong>7</strong> is in progress: Handlebars conversion script language + multi-target instance formats are live;
+        Better Form Renderer ScriptApi parity remains optional follow-up.
       </p>
       <p class="mt-4 text-slate-600 text-sm">
-        No ADRs exist today; decisions live in CONTEXT / PRD. Candidate 3 would supersede the PRD’s custom Mapping Specification DSL once accepted.
         Grounding: DeepWiki <code>ErikSundvall/kintegrate</code> (source / formTestApi); DeepWiki <code>RaspberryPiFoundation/blockly</code>
         (<code>serialization.workspaces.save/load</code> as restore + interchange).
+        Migration notes: <code>docs/KINTEGRATE_MIGRATION.md</code>.
       </p>
     </section>
 
     <section class="text-sm text-slate-600 border-t border-[color:var(--line)] pt-6">
-      <p>Updated after Source Format Handler work and Blockly-JSON-as-spec discussion. Candidate 3 interfaces sketched at solution level; implement when Sync Scope is revisited.</p>
+      <p>Updated 2026-08-02: candidates 1–4 done; candidate 7 (Handlebars / multi-target / Better Form Bridge) in progress. See ADR 0001 and KINTEGRATE_MIGRATION.md.</p>
     </section>
   </main>
 </body>

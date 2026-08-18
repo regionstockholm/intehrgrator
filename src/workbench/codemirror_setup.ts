@@ -31,9 +31,9 @@ export function createReadonlyEditor(parent: HTMLElement, placeholder = ""): Edi
   });
 }
 
-export function createSpecEditor(
+export function createTextEditor(
   parent: HTMLElement,
-  onExpressionEdit: (line: number, text: string) => void,
+  onChange: (text: string) => void,
 ): EditorView {
   return new EditorView({
     parent,
@@ -43,14 +43,7 @@ export function createSpecEditor(
         ...baseExtensions,
         javascript(),
         EditorView.updateListener.of((update) => {
-          if (!update.docChanged) return;
-          for (const tr of update.transactions) {
-            if (!tr.docChanged) continue;
-            tr.changes.iterChangedRanges((_fromA, _toA, fromB, _toB, inserted) => {
-              const line = update.state.doc.lineAt(fromB).number - 1;
-              onExpressionEdit(line, inserted.toString());
-            });
-          }
+          if (update.docChanged) onChange(update.state.doc.toString());
         }),
       ],
     }),

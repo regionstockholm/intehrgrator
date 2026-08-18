@@ -31,12 +31,15 @@
     "blockly/msg/fr": "npm:blockly@^11.2.2/msg/fr",
     "fflate": "npm:fflate@^0.8.2",
     "fast-xml-parser": "npm:fast-xml-parser@^4.5.6",
+    "handlebars": "npm:handlebars@^4.7.9",
     "yaml": "npm:yaml@^2.9.0",
     "fontoxpath": "npm:fontoxpath@^3.33.2/dist/fontoxpath.esm.js",
     "ehrtslib/": "./vendor/ehrtslib/"
   },
   "tasks": {
     "vendor": "deno run -A scripts/vendor-ehrtslib.ts",
+    "setup:better-forms": "deno run -A scripts/setup-better-forms.ts",
+    "convert:kintegrate-hbs": "deno run -A scripts/convert-kintegrate-hbs-to-blockly.ts",
     "test": "deno test -A --no-check --parallel --ignore=test/ui test/",
     "test:ui": "deno run -A scripts/ui-test.ts",
     "lint": "deno lint src test scripts",

@@ -5,17 +5,25 @@ import { parseExpression } from "../expression/mod.ts";
 
 export interface SourceContext {
   format: SourceFormatId;
+  /** Runtime representation used by evaluators; adapter ids need not equal it. */
+  kind: "json" | "xml";
+  data: unknown;
   json?: unknown;
   xmlDocument?: Document;
 }
 
-export function createSourceContext(content: string, format: SourceFormatId): SourceContext {
-  if (format === "json") {
-    return { format, json: JSON.parse(content) };
+export function createSourceContext(
+  content: string,
+  format: SourceFormatId,
+  kind: "json" | "xml" = format === "xml" ? "xml" : "json",
+): SourceContext {
+  if (kind === "json") {
+    const json = JSON.parse(content);
+    return { format, kind, data: json, json };
   }
   const doc = new DOMParser().parseFromString(content, "application/xml");
   if (doc.querySelector("parsererror")) throw new Error("Invalid XML source");
-  return { format, xmlDocument: doc };
+  return { format, kind, data: doc, xmlDocument: doc };
 }
 
 export function evaluate(
@@ -66,7 +74,7 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
 }
 
 function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
-  if (ctx.format === "json") {
+  if (ctx.kind === "json") {
     const query = toJsonXPath(expr);
     const variables = { source: ctx.json };
     switch (type) {
@@ -95,11 +103,52 @@ function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
 /** Convert authoring paths like `$.vitals[1].systolic` to XPath 3.1 map syntax. */
 function toJsonXPath(expr: string): string {
   if (expr.startsWith("$source")) return expr;
-  let q = expr.trim();
-  if (q.startsWith("$.")) q = q.slice(2);
-  else if (q.startsWith("/")) q = q.slice(1);
-  q = q.replace(/\//g, "?").replace(/\./g, "?").replace(/\[(\d+)\]/g, "?$1");
-  return `$source?${q}`;
+  const segments = parseJsonAuthoringPath(expr);
+  return segments.reduce<string>((query, segment) => {
+    if (typeof segment === "number") return `${query}?${segment}`;
+    if (/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(segment) && !segment.includes(".")) {
+      return `${query}?${segment}`;
+    }
+    return `${query}?(${JSON.stringify(segment)})`;
+  }, "$source");
+}
+
+function parseJsonAuthoringPath(expr: string): Array<string | number> {
+  const source = expr.trim().replace(/^\$/, "");
+  const segments: Array<string | number> = [];
+  let i = 0;
+  while (i < source.length) {
+    const ch = source[i];
+    if (ch === "." || ch === "/") {
+      i++;
+      continue;
+    }
+    if (ch === "[") {
+      const close = source.indexOf("]", i + 1);
+      if (close < 0) throw new Error(`Invalid JSON source path: ${expr}`);
+      const token = source.slice(i + 1, close).trim();
+      if (/^\d+$/.test(token)) {
+        segments.push(Number(token));
+      } else if (
+        (token.startsWith('"') && token.endsWith('"')) ||
+        (token.startsWith("'") && token.endsWith("'"))
+      ) {
+        const normalized = token.startsWith("'")
+          ? `"${token.slice(1, -1).replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`
+          : token;
+        segments.push(JSON.parse(normalized));
+      } else {
+        segments.push(token);
+      }
+      i = close + 1;
+      continue;
+    }
+    let end = i;
+    while (end < source.length && !".[/".includes(source[end]!)) end++;
+    if (end > i) segments.push(source.slice(i, end));
+    i = end;
+  }
+  return segments;
 }
 
 function coerceReturn(value: unknown, returnType: string): unknown {

@@ -67,22 +67,25 @@ export function applyTreeHighlights(
   }
 }
 
+export type SourceTreeSelectHandler = (path: string, event?: MouseEvent) => void;
+
 export function renderSchemaTree(
   container: HTMLElement,
   node: SchemaTreeNode,
-  onSelect: (path: string) => void,
+  onSelect: SourceTreeSelectHandler,
   options: SchemaTreeRenderOptions = {},
+  format: SourceFormatId = "json",
 ): void {
   container.classList.add("schema-tree");
   container.classList.remove("instance-tree");
   container.innerHTML = "";
-  container.appendChild(buildSchemaNode(node, onSelect, options, 0));
+  container.appendChild(buildSchemaNode(node, onSelect, options, 0, format));
 }
 
 export function renderInstanceTree(
   container: HTMLElement,
   node: SchemaTreeNode,
-  onSelect: (path: string) => void,
+  onSelect: SourceTreeSelectHandler,
   options: SchemaTreeRenderOptions = {},
   format: SourceFormatId = "json",
 ): void {
@@ -94,9 +97,10 @@ export function renderInstanceTree(
 
 function buildSchemaNode(
   node: SchemaTreeNode,
-  onSelect: (path: string) => void,
+  onSelect: SourceTreeSelectHandler,
   options: SchemaTreeRenderOptions,
   depth: number,
+  format: SourceFormatId,
 ): HTMLElement {
   const syncPath = canonicalSyncPath(node.path);
   const row = createTreeRow(node.path, syncPath, depth);
@@ -107,20 +111,20 @@ function buildSchemaNode(
   meta.className = "tree-meta";
   meta.textContent = formatSchemaMeta(node);
   label.append(document.createTextNode(node.name), meta);
-  attachTreeInteractions(label, node.path, syncPath, "schema", "json", onSelect, options);
+  attachTreeInteractions(label, node.path, syncPath, "schema", format, onSelect, options);
   row.appendChild(label);
 
   const wrap = document.createElement("div");
   wrap.appendChild(row);
   for (const child of node.children) {
-    wrap.appendChild(buildSchemaNode(child, onSelect, options, depth + 1));
+    wrap.appendChild(buildSchemaNode(child, onSelect, options, depth + 1, format));
   }
   return wrap;
 }
 
 function buildInstanceNode(
   node: SchemaTreeNode,
-  onSelect: (path: string) => void,
+  onSelect: SourceTreeSelectHandler,
   options: SchemaTreeRenderOptions,
   depth: number,
   format: SourceFormatId,
@@ -159,13 +163,13 @@ function attachTreeInteractions(
   syncPath: string,
   origin: "schema" | "instance",
   format: SourceFormatId,
-  onSelect: (path: string) => void,
+  onSelect: SourceTreeSelectHandler,
   options: SchemaTreeRenderOptions,
 ): void {
   label.draggable = true;
-  label.addEventListener("click", () => {
+  label.addEventListener("click", (event) => {
     options.onHighlight?.(syncPath, origin);
-    onSelect(path);
+    onSelect(path, event);
   });
   label.addEventListener("mouseenter", () => options.onHighlight?.(syncPath, origin));
   label.addEventListener("mouseleave", () => options.onHighlight?.(null, origin));

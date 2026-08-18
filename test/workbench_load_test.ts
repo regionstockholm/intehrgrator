@@ -1,27 +1,23 @@
-import { assertEquals, assert } from "@std/assert";
+import { assertEquals, assert, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
 import { collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
-import type { HostAdapter } from "@intehrgrator/host/web_adapter.ts";
-import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
+import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 
 function stubHost(): HostAdapter {
   return {
-    pickFile: async () => null,
-    readTextFile: async () => "",
+    pickTextFile: async () => null,
+    pickBinaryFile: async () => null,
     downloadText: () => {},
     downloadBytes: () => {},
     copyToClipboard: async () => {},
     readClipboard: async () => "",
-    saveProject: async () => {},
-    loadProject: async () => null,
-    listProjects: async () => [] as ProjectBundle[],
     saveAutosave: async () => {},
     saveManualSave: async () => {},
-    loadStoredProject: async () => null,
     loadStoredProjectRecord: async () => null as StoredProjectRecord | null,
     listLoadableProjects: async () => [] as LoadableProjectEntry[],
+    resolveAppUrl: (path) => path,
   };
 }
 
@@ -57,10 +53,9 @@ Deno.test("controller loads template/schema/example from content", async () => {
   controller.runTestNow();
 
   const after = controller.getState();
-  const composition = after.testResult?.composition as {
-    slots?: Record<string, unknown>;
-  };
-  assertEquals(composition?.slots?.[slotId], 120);
+  const composition = after.testResult?.output as { _type?: string };
+  assertEquals(composition?._type, "COMPOSITION");
+  assertStringIncludes(JSON.stringify(composition), "120");
 });
 
 Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", async () => {
@@ -88,8 +83,43 @@ Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", asy
   assert(mapped?.expression.includes("systolic"));
 
   controller.runTestNow();
-  const composition = controller.getState().testResult?.composition as {
-    slots?: Record<string, unknown>;
-  };
-  assertEquals(composition?.slots?.[slotId], 120);
+  const composition = controller.getState().testResult?.output as { _type?: string };
+  assertEquals(composition?._type, "COMPOSITION");
+  assertStringIncludes(JSON.stringify(composition), "120");
+});
+
+Deno.test("controller loads JSON Schema target and renders mapped object", () => {
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTargetContent(
+    "summary.json",
+    JSON.stringify({
+      $id: "patient-summary",
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    }),
+  );
+  controller.addExampleContent("p.json", JSON.stringify({ patient: { name: "Ada" } }));
+  const nameSlot = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.label === "name"
+  );
+  assert(nameSlot);
+  controller.mapNodeToSlot(nameSlot.slotId, "$.patient.name", "json");
+  controller.runTestNow();
+  assertEquals(controller.getState().testResult?.output, { name: "Ada" });
+});
+
+Deno.test("free-form Handlebars target walks source like Kintegrate", () => {
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTargetContent(
+    "note.hbs",
+    "{{toUpperCase patient.name}}: {{patient.score}}",
+  );
+  assertEquals(controller.getState().settings.exportTarget, "handlebars");
+  controller.addExampleContent(
+    "p.json",
+    JSON.stringify({ patient: { name: "Ada", score: 9 } }),
+  );
+  controller.runTestNow();
+  assertEquals(controller.getState().testResult?.output, "ADA: 9");
 });

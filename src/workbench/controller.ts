@@ -1,10 +1,12 @@
 import type {
+  ExportTarget,
   MappingModel,
   ProjectBundle,
   ProjectSettings,
   SchemaTreeNode,
   SkeletonNode,
   SourceFormatId,
+  TargetFormatId,
   TestResult,
 } from "../types/mod.ts";
 import {
@@ -17,15 +19,14 @@ import {
   importBundle,
 } from "../core/persistence/mod.ts";
 import { DEFAULT_SETTINGS } from "../types/mod.ts";
-import { generateSkeleton, collectValueSlots } from "../core/skeleton/generate_skeleton.ts";
+import { collectValueSlots } from "../core/skeleton/generate_skeleton.ts";
 import {
   applyExpressionEdit,
   countUnmappedMandatory,
   createEmptyModel,
   validateModel,
 } from "../core/mapping_model/mod.ts";
-import { toSpec } from "../core/spec/mod.ts";
-import { generate } from "../core/codegen/mod.ts";
+import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runTest } from "../core/test_runner/mod.ts";
 import {
   detectSourceFormat,
@@ -37,8 +38,13 @@ import {
 import { buildSourceQueryExpression } from "../core/expression/mod.ts";
 import { returnTypeForDv } from "../core/rm_mandatory.ts";
 import { buildPrompt, importSuggestions, parseSuggestionsPayload } from "../core/ai/mod.ts";
-import type { HostAdapter } from "../host/web_adapter.ts";
+import type { HostAdapter, PickedTextFile } from "../host/mod.ts";
 import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
+import {
+  detectTargetFormat,
+  getTargetFormatHandler,
+  type TargetDefinition,
+} from "../core/target/mod.ts";
 
 export type WorkbenchListener = () => void;
 
@@ -46,17 +52,21 @@ const AUTOSAVE_DEBOUNCE_MS = 10_000;
 
 export class WorkbenchController {
   private listeners = new Set<WorkbenchListener>();
-  private projectId = crypto.randomUUID();
+  private projectId: string = crypto.randomUUID();
   private templateFilename = "";
   private templateContent = "";
   private templateId = "";
   private skeleton: SkeletonNode[] = [];
   private schemaTree: SchemaTreeNode | null = null;
   private schemaFilename = "";
+  private schemaContent = "";
+  private schemaFormat: SourceFormatId = "json";
+  private target: TargetDefinition | null = null;
   private model: MappingModel = createEmptyModel("");
   private settings: ProjectSettings = { ...DEFAULT_SETTINGS };
   private examples = new ExampleInstanceManager();
   private specText = "";
+  private handlebarsTemplate = "";
   private generatedCode = "";
   private testResult: TestResult | null = null;
   private listeningSlotId: string | null = null;
@@ -99,8 +109,10 @@ export class WorkbenchController {
       templateFilename: this.templateFilename,
       templateId: this.templateId,
       skeleton: this.skeleton,
+      target: this.target,
       schemaTree: this.schemaTree,
       schemaFilename: this.schemaFilename,
+      schemaFormat: this.schemaFormat,
       exampleTree: this.buildExampleTree(),
       model: this.model,
       settings: this.settings,
@@ -108,7 +120,9 @@ export class WorkbenchController {
       activeExample: this.examples.getActive(),
       exampleValidations: this.buildExampleValidations(),
       activeExampleValidation: this.buildActiveExampleValidation(),
-      specText: this.specText,
+      specText: formatBlocklyState(this.getBlocklyState?.() ?? this.blocklyState),
+      blocklyState: this.blocklyState,
+      handlebarsTemplate: this.handlebarsTemplate,
       generatedCode: this.generatedCode,
       testResult: this.testResult,
       listeningSlotId: this.listeningSlotId,
@@ -121,31 +135,47 @@ export class WorkbenchController {
   }
 
   async openTemplate(): Promise<void> {
-    const file = await this.host.pickFile(".opt,.opt2,.json,.adl,.adls,.xml");
+    const file = await this.host.pickTextFile(
+      ".opt,.opt2,.json,.xsd,.xml,.adl,.adls,.hbs,.handlebars,.txt,.md,.html,.csv",
+    );
     if (!file) return;
-    const content = await this.host.readTextFile(file);
-    this.loadTemplateContent(file.name, content);
+    this.loadTargetContent(file.name, file.text);
   }
 
-  /** Load OPT (or other target structure) from in-memory content — used by Workbench Test API and hosts. */
+  /** Backwards-compatible alias used by the Workbench Test API. */
   loadTemplateContent(filename: string, content: string): void {
-    this.templateContent = content;
-    this.templateFilename = filename;
-    const result = generateSkeleton(this.templateContent);
-    this.templateId = result.templateId;
-    this.skeleton = result.skeleton;
+    this.loadTargetContent(filename, content);
+  }
+
+  /** Load an openEHR Template, JSON Schema, XML Schema, or free-form target. */
+  loadTargetContent(
+    filename: string,
+    content: string,
+    format: TargetFormatId = detectTargetFormat(filename, content),
+  ): void {
+    const target = getTargetFormatHandler(format).load(filename, content);
+    this.target = target;
+    this.templateContent = target.content;
+    this.templateFilename = target.filename;
+    this.templateId = target.targetId;
+    this.skeleton = target.skeleton;
     this.model = createEmptyModel(this.templateId);
+    this.model.targetFormat = target.format;
+    if (format === "free-form") {
+      this.settings.exportTarget = "handlebars";
+      this.handlebarsTemplate = content;
+    }
+    this.blocklyState = null;
     this.refreshDerived();
-    this.statusMessage = `Loaded template ${this.templateId}`;
+    this.statusMessage = `Loaded ${format} target ${this.templateId}`;
     this.markDirty();
   }
 
   async loadSchema(): Promise<void> {
     try {
-      const file = await this.host.pickFile(".json,application/json");
+      const file = await this.host.pickTextFile(".json,.xml,.xsd,application/json,application/xml");
       if (!file) return;
-      const content = await this.host.readTextFile(file);
-      this.loadSchemaContent(file.name, content);
+      this.loadSchemaContent(file.name, file.text);
     } catch (err) {
       this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -157,15 +187,14 @@ export class WorkbenchController {
     this.applySchemaFile(filename, content);
   }
 
-  async loadSchemaFromDrop(file: File): Promise<void> {
-    if (!/\.json$/i.test(file.name)) {
-      this.statusMessage = "Schema drop: JSON files only";
+  async loadSchemaFromDrop(file: PickedTextFile): Promise<void> {
+    if (!/\.(json|xml|xsd)$/i.test(file.name)) {
+      this.statusMessage = "Schema drop: JSON, XML, or XSD files only";
       this.notifyChange();
       return;
     }
     try {
-      const content = await file.text();
-      this.applySchemaFile(file.name, content);
+      this.applySchemaFile(file.name, file.text);
     } catch (err) {
       this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -173,10 +202,9 @@ export class WorkbenchController {
   }
 
   async addExample(): Promise<void> {
-    const file = await this.host.pickFile(".json,.xml");
+    const file = await this.host.pickTextFile(".json,.xml");
     if (!file) return;
-    const content = await this.host.readTextFile(file);
-    this.addExampleContent(file.name, content);
+    this.addExampleContent(file.name, file.text);
   }
 
   /** Add an Example Instance from in-memory content — used by Workbench Test API and hosts. */
@@ -187,7 +215,7 @@ export class WorkbenchController {
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 
-  async addExamplesFromDrop(files: File[]): Promise<void> {
+  async addExamplesFromDrop(files: PickedTextFile[]): Promise<void> {
     const supported = files.filter((file) => /\.(json|xml)$/i.test(file.name));
     if (!supported.length) {
       this.statusMessage = "Example drop: JSON or XML files only";
@@ -195,8 +223,7 @@ export class WorkbenchController {
       return;
     }
     for (const file of supported) {
-      const content = await file.text();
-      this.applyExampleFile(file.name, content);
+      this.applyExampleFile(file.name, file.text);
     }
     this.statusMessage = supported.length === 1
       ? `Added example ${supported[0].name}`
@@ -260,10 +287,10 @@ export class WorkbenchController {
     const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === slotId);
     if (!slot) return;
     const xpath = getSourceFormatHandler(format).pathToExpression(path);
-    const expr = buildSourceQueryExpression(xpath, returnTypeForDv(slot.rmType));
+    const expr = buildSourceQueryExpression(xpath, returnTypeForTarget(slot.rmType));
     this.model = applyExpressionEdit(this.model, slot.slotId, expr, {
       rmType: slot.rmType,
-      returnType: returnTypeForDv(slot.rmType),
+      returnType: returnTypeForTarget(slot.rmType),
       label: slot.label,
       mandatory: slot.mandatory,
     });
@@ -274,16 +301,48 @@ export class WorkbenchController {
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 
-  applySpecExpression(slotId: string, expression: string): void {
+  /** Patch a Mapping Model slot expression (AI import / derived-index edits). */
+  applySlotExpression(slotId: string, expression: string): void {
     const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === slotId);
     this.model = applyExpressionEdit(this.model, slotId, expression, slot
       ? {
         rmType: slot.rmType,
-        returnType: returnTypeForDv(slot.rmType),
+        returnType: returnTypeForTarget(slot.rmType),
         label: slot.label,
         mandatory: slot.mandatory,
       }
       : undefined);
+    this.refreshDerived();
+    this.markDirty();
+    if (this.settings.autoplay) this.scheduleTestRun();
+  }
+
+  /** @deprecated Use applySlotExpression — kept for Workbench Test API callers. */
+  applySpecExpression(slotId: string, expression: string): void {
+    this.applySlotExpression(slotId, expression);
+  }
+
+  /** Replace the derived Mapping Model from the canonical Blockly workspace JSON. */
+  syncFromBlockly(
+    blocklyState: unknown,
+    slots: Array<{ slotId: string; rmType: string; expression: string }>,
+  ): void {
+    if (!this.templateId) return;
+    let next = createEmptyModel(this.templateId);
+    next.targetFormat = this.target?.format;
+    next.optionalRm = [...this.model.optionalRm];
+    const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
+    for (const item of slots) {
+      const targetSlot = targetSlots.get(item.slotId);
+      next = applyExpressionEdit(next, item.slotId, item.expression, {
+        rmType: targetSlot?.rmType ?? item.rmType,
+        returnType: targetSlot ? returnTypeForTarget(targetSlot.rmType) : "string",
+        label: targetSlot?.label,
+        mandatory: targetSlot?.mandatory,
+      });
+    }
+    this.blocklyState = blocklyState;
+    this.model = next;
     this.refreshDerived();
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
@@ -303,7 +362,11 @@ export class WorkbenchController {
       this.notifyChange();
       return;
     }
-    this.testResult = runTest(this.model, active.content, active.format);
+    this.testResult = runTest(this.model, active.content, active.format, {
+      target: this.target,
+      exportTarget: this.settings.exportTarget,
+      handlebarsTemplate: this.handlebarsTemplate,
+    });
     if (this.testResult.composition) {
       this.examples.setCachedResult(active.id, this.testResult.composition);
     }
@@ -311,8 +374,15 @@ export class WorkbenchController {
   }
 
   exportTypeScript(): void {
-    const code = generate(this.model, "typescript");
-    this.host.downloadText(`conversion-${this.templateId}.ts`, code, "text/typescript");
+    const adapter = getExportTargetAdapter(this.settings.exportTarget);
+    const code = generate(this.model, this.settings.exportTarget, {
+      handlebarsTemplate: this.handlebarsTemplate,
+    });
+    void this.host.downloadText(
+      `conversion-${safeFilename(this.templateId)}.${adapter.extension}`,
+      code,
+      adapter.mime,
+    );
   }
 
   async saveProjectAs(displayName: string): Promise<void> {
@@ -367,10 +437,9 @@ export class WorkbenchController {
   }
 
   async importProject(): Promise<void> {
-    const file = await this.host.pickFile(".intehrgrator,.zip");
+    const file = await this.host.pickBinaryFile(".intehrgrator,.zip");
     if (!file) return;
-    const buf = new Uint8Array(await file.arrayBuffer());
-    const bundle = importBundle(buf);
+    const bundle = importBundle(file.bytes);
     this.resetWorkspaceState();
     this.loadBundle(bundle);
     this.markDirty();
@@ -387,7 +456,7 @@ export class WorkbenchController {
       sourceFilename: this.schemaFilename,
       skeleton: this.skeleton,
       model: this.model,
-      formatDocUrl: new URL("/docs/AI_SUGGESTION_FORMAT.md", location.href).href,
+      formatDocUrl: this.host.resolveAppUrl("docs/AI_SUGGESTION_FORMAT.md"),
     });
     await this.host.copyToClipboard(prompt);
     this.statusMessage = "AI prompt copied";
@@ -406,10 +475,17 @@ export class WorkbenchController {
     this.markDirty();
   }
 
-  setExportTarget(target: "typescript" | "java"): void {
+  setExportTarget(target: ExportTarget): void {
     this.settings.exportTarget = target;
     this.refreshDerived();
     this.markDirty();
+  }
+
+  setHandlebarsTemplate(template: string): void {
+    this.handlebarsTemplate = template;
+    this.refreshDerived();
+    this.markDirty();
+    if (this.settings.autoplay) this.scheduleTestRun();
   }
 
   getOptionalAttachments(parentSlotId: string) {
@@ -483,7 +559,9 @@ export class WorkbenchController {
 
   private applySchemaFile(filename: string, content: string): void {
     this.schemaFilename = filename;
-    const format = detectSourceFormat(filename);
+    this.schemaContent = content;
+    const format = detectSourceFormat(filename, content);
+    this.schemaFormat = format;
     this.schemaTree = getSourceFormatHandler(format).loadSchema(
       content,
       filename.replace(/\.[^.]+$/, ""),
@@ -493,15 +571,18 @@ export class WorkbenchController {
   }
 
   private applyExampleFile(filename: string, content: string): void {
-    const format = detectSourceFormat(filename);
+    const format = detectSourceFormat(filename, content);
     const id = crypto.randomUUID();
     this.examples.addExample({ id, filename, format, content });
   }
 
   private refreshDerived(): void {
-    this.specText = this.skeleton.length ? toSpec(this.model, this.skeleton) : "";
+    // Spec view is a projected Mapping Spec (widgets); keep pretty JSON for diagnostics/AI copy.
+    this.specText = formatBlocklyState(this.getBlocklyState?.() ?? this.blocklyState);
     this.generatedCode = this.model.templateId
-      ? generate(this.model, this.settings.exportTarget)
+      ? generate(this.model, this.settings.exportTarget, {
+        handlebarsTemplate: this.handlebarsTemplate,
+      })
       : "";
   }
 
@@ -539,10 +620,14 @@ export class WorkbenchController {
     this.skeleton = [];
     this.schemaTree = null;
     this.schemaFilename = "";
+    this.schemaContent = "";
+    this.schemaFormat = "json";
+    this.target = null;
     this.model = createEmptyModel("");
     this.settings = { ...DEFAULT_SETTINGS };
     this.examples = new ExampleInstanceManager();
     this.specText = "";
+    this.handlebarsTemplate = "";
     this.generatedCode = "";
     this.testResult = null;
     this.listeningSlotId = null;
@@ -572,7 +657,7 @@ export class WorkbenchController {
       appVersion: APP_VERSION,
       createdAt: now,
       updatedAt: now,
-      template: this.templateId
+      template: this.target?.format === "openehr-template"
         ? {
           filename: this.templateFilename,
           templateId: this.templateId,
@@ -580,10 +665,20 @@ export class WorkbenchController {
           skeleton: this.skeleton,
         }
         : null,
+      target: this.target
+        ? {
+          format: this.target.format,
+          filename: this.target.filename,
+          targetId: this.target.targetId,
+          content: this.target.content,
+          skeleton: this.target.skeleton,
+        }
+        : null,
       sourceSchema: this.schemaTree
         ? {
           filename: this.schemaFilename,
-          content: JSON.stringify(this.schemaTree),
+          format: this.schemaFormat,
+          content: this.schemaContent,
           tree: [this.schemaTree],
         }
         : null,
@@ -592,6 +687,7 @@ export class WorkbenchController {
       mapping: {
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
         model: this.model,
+        handlebarsTemplate: this.handlebarsTemplate,
       },
       settings: this.settings,
     };
@@ -599,24 +695,45 @@ export class WorkbenchController {
 
   private loadBundle(bundle: ProjectBundle): void {
     this.projectId = bundle.projectId;
-    this.settings = bundle.settings;
-    this.model = bundle.mapping.model;
+    this.settings = { ...DEFAULT_SETTINGS, ...bundle.settings };
+    this.model = {
+      ...bundle.mapping.model,
+      modelVersion: bundle.mapping.model.modelVersion ?? 1,
+    };
     this.blocklyState = bundle.mapping.blocklyState;
+    this.handlebarsTemplate = bundle.mapping.handlebarsTemplate ?? "";
     this.templateFilename = "";
     this.templateContent = "";
     this.templateId = "";
     this.skeleton = [];
+    this.target = null;
     this.schemaTree = null;
     this.schemaFilename = "";
-    if (bundle.template) {
-      this.templateFilename = bundle.template.filename;
-      this.templateContent = bundle.template.content;
-      this.templateId = bundle.template.templateId;
-      this.skeleton = bundle.template.skeleton;
+    this.schemaContent = "";
+    this.schemaFormat = "json";
+    const storedTarget = bundle.target ?? (bundle.template
+      ? {
+        format: "openehr-template" as const,
+        filename: bundle.template.filename,
+        targetId: bundle.template.templateId,
+        content: bundle.template.content,
+        skeleton: bundle.template.skeleton,
+      }
+      : null);
+    if (storedTarget) {
+      this.target = storedTarget;
+      this.templateFilename = storedTarget.filename;
+      this.templateContent = storedTarget.content;
+      this.templateId = storedTarget.targetId;
+      this.skeleton = storedTarget.skeleton;
+      this.model.targetFormat = storedTarget.format;
     }
     if (bundle.sourceSchema?.tree?.[0]) {
       this.schemaTree = bundle.sourceSchema.tree[0];
       this.schemaFilename = bundle.sourceSchema.filename;
+      this.schemaContent = bundle.sourceSchema.content;
+      this.schemaFormat = bundle.sourceSchema.format ??
+        detectSourceFormat(bundle.sourceSchema.filename, bundle.sourceSchema.content);
     }
     for (const ex of bundle.examples) this.examples.addExample(ex);
     if (bundle.activeExampleId) this.examples.setActive(bundle.activeExampleId);
@@ -631,4 +748,21 @@ function findSkeletonNode(nodes: SkeletonNode[], slotId: string): SkeletonNode |
     if (child) return child;
   }
   return null;
+}
+
+function returnTypeForTarget(type: string): string {
+  if (type.startsWith("DV_") || type === "CODE_PHRASE") return returnTypeForDv(type);
+  if (["number", "integer", "decimal", "float", "double"].includes(type.toLowerCase())) {
+    return "number";
+  }
+  if (type.toLowerCase() === "boolean") return "boolean";
+  return "string";
+}
+
+function formatBlocklyState(state: unknown): string {
+  return state == null ? "" : JSON.stringify(state, null, 2);
+}
+
+function safeFilename(value: string): string {
+  return (value || "mapping").replace(/[^A-Za-z0-9._-]+/g, "-");
 }

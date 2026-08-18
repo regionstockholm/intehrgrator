@@ -17,6 +17,10 @@ import {
 } from "./blocks/rm_blocks.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { blocklyCheckForReturnType } from "./block_checks.ts";
+import {
+  syncTargetChildInputs,
+  targetChildInputName,
+} from "./blocks/target_blocks.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -52,12 +56,16 @@ export function applyModelExpressions(
   try {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
-      if (block.type !== "element") continue;
+      if (block.type !== "element" && block.type !== "target_value") continue;
       const slotId = block.getFieldValue("SLOT_ID");
       if (!slotId) continue;
       const slot = slotMap.get(slotId);
       if (!slot) continue;
-      attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
+      if (block.type === "target_value") {
+        attachExpressionToTarget(workspace, block, slot.expression, slot.returnType);
+      } else {
+        attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
+      }
     }
   } finally {
     Blockly.Events.enable();
@@ -89,6 +97,12 @@ function buildBlockFromNode(
   isRoot: boolean,
   depth: number,
 ): BlockSvg | null {
+  if (node.blockType === "target_structure") {
+    return buildTargetStructureBlock(workspace, node, isRoot, depth);
+  }
+  if (node.blockType === "target_value") {
+    return buildTargetValueBlock(workspace, node, isRoot);
+  }
   if (node.blockType === "element" || node.rmType === "ELEMENT") {
     return buildElementBlock(workspace, node, isRoot);
   }
@@ -96,6 +110,50 @@ function buildBlockFromNode(
     return buildElementBlockFromValue(workspace, node, isRoot);
   }
   return buildContainerBlock(workspace, node, isRoot, depth);
+}
+
+function buildTargetStructureBlock(
+  workspace: WorkspaceSvg,
+  node: SkeletonNode,
+  isRoot: boolean,
+  depth: number,
+): BlockSvg {
+  const block = workspace.newBlock("target_structure") as BlockSvg;
+  block.setFieldValue(node.label, "NAME");
+  block.setFieldValue(node.rmType, "TARGET_TYPE");
+  block.setFieldValue(node.slotId, "SLOT_ID");
+  const groups = [...new Set(node.children.map((child) => child.rmAttribute ?? child.label))];
+  syncTargetChildInputs(block, groups);
+  for (const group of groups) {
+    const children = node.children
+      .filter((child) => (child.rmAttribute ?? child.label) === group)
+      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
+      .filter((child): child is BlockSvg => child !== null);
+    connectStatementChain(block, targetChildInputName(group), children);
+  }
+  if (!isRoot) {
+    block.setPreviousStatement(true);
+    block.setNextStatement(true);
+  }
+  if (!isRoot && depth > 0) block.setCollapsed(true);
+  return finalizeBlock(block);
+}
+
+function buildTargetValueBlock(
+  workspace: WorkspaceSvg,
+  node: SkeletonNode,
+  isRoot: boolean,
+): BlockSvg {
+  const block = workspace.newBlock("target_value") as BlockSvg;
+  block.setFieldValue(node.label, "NAME");
+  block.setFieldValue(node.rmType, "TARGET_TYPE");
+  block.setFieldValue(node.slotId, "SLOT_ID");
+  if (!isRoot) {
+    block.setPreviousStatement(true);
+    block.setNextStatement(true);
+  }
+  if (node.mandatory) block.setWarningText("Unmapped mandatory value");
+  return finalizeBlock(block);
 }
 
 function buildContainerBlock(
@@ -266,6 +324,21 @@ function attachExpressionToElement(
     }
     parent = parent.getParent();
   }
+}
+
+function attachExpressionToTarget(
+  workspace: Blockly.Workspace,
+  targetBlock: Blockly.Block,
+  expression: string,
+  returnType: string,
+): void {
+  const input = targetBlock.getInput("VALUE");
+  if (!input?.connection) return;
+  const existing = input.connection.targetBlock();
+  if (existing) existing.dispose(false);
+  const exprBlock = expressionToBlock(workspace, expression, returnType);
+  if (exprBlock.outputConnection) input.connection.connect(exprBlock.outputConnection);
+  targetBlock.setWarningText(null);
 }
 
 function expressionToBlock(

@@ -1,6 +1,14 @@
-export const MODEL_VERSION = 1;
+export const MODEL_VERSION = 2;
 
-export type ExportTarget = "typescript" | "java";
+/** Conversion script language. Deliberately separate from Target instance format. */
+export type ExportTarget = "typescript" | "java" | "handlebars" | "xquery";
+
+/** Structure produced by a conversion. */
+export type TargetFormatId =
+  | "openehr-template"
+  | "json-schema"
+  | "xml-schema"
+  | "free-form";
 
 export interface MappingSlot {
   slotId: string;
@@ -19,10 +27,11 @@ export interface OptionalRmInsertion {
 
 export interface MappingModel {
   modelVersion: number;
+  /** Target definition id. Kept as `templateId` for bundle compatibility. */
   templateId: string;
+  targetFormat?: TargetFormatId;
   slots: MappingSlot[];
   optionalRm: OptionalRmInsertion[];
-  specText?: string;
 }
 
 export type SkeletonNodeKind = "container" | "value";
@@ -46,6 +55,10 @@ export interface SkeletonNode {
   silentMandatory?: boolean;
   fixedValue?: string;
   fixedFields?: Record<string, string>;
+  /** Format-native target path (JSON Pointer, XML path, or openEHR slot path). */
+  targetPath?: string;
+  /** Compact target cardinality, e.g. `1`, `0..1`, `0..*`, `1..*`. */
+  multiplicity?: string;
   children: SkeletonNode[];
   attachmentPoint?: string;
 }
@@ -68,10 +81,10 @@ export interface SchemaTreeNode {
 }
 
 /**
- * Source payload format id. Built-ins are `json` | `xml`; adapters may register
- * more via `registerSourceFormatHandler` (see `core/source/format_handler.ts`).
+ * Source payload format id. It is intentionally open so registered adapters
+ * do not require widening a union in every caller.
  */
-export type SourceFormatId = "json" | "xml";
+export type SourceFormatId = string;
 
 export interface ExampleInstance {
   id: string;
@@ -94,14 +107,23 @@ export interface ProjectBundle {
   appVersion: string;
   createdAt: string;
   updatedAt: string;
+  /** Legacy v1 openEHR target field; read during migration. */
   template: {
     filename: string;
     templateId: string;
     content: string;
     skeleton: SkeletonNode[];
   } | null;
+  target?: {
+    format: TargetFormatId;
+    filename: string;
+    targetId: string;
+    content: string;
+    skeleton: SkeletonNode[];
+  } | null;
   sourceSchema: {
     filename: string;
+    format?: SourceFormatId;
     content: string;
     tree: SchemaTreeNode[];
   } | null;
@@ -110,6 +132,8 @@ export interface ProjectBundle {
   mapping: {
     blocklyState: unknown;
     model: MappingModel;
+    /** User-authored Kintegrate-compatible conversion template. */
+    handlebarsTemplate?: string;
   };
   settings: ProjectSettings;
   aiAssist?: {
@@ -120,6 +144,9 @@ export interface ProjectBundle {
 
 export interface TestResult {
   ok: boolean;
+  /** Format-neutral conversion result. */
+  output?: unknown;
+  /** @deprecated compatibility alias for openEHR-era callers. */
   composition?: unknown;
   error?: string;
   warnings: string[];

@@ -14,7 +14,7 @@ The Web Shell persists projects in IndexedDB and can export/import the same data
 | Source | Source Schema content + metadata |
 | Examples | Array of example instances `{ id, filename, format, content }`, plus `activeExampleId` |
 | Mapping | Dual serialization — native Blockly workspace data **and** the normalized Mapping Model (see below) |
-| Editor / settings | Workspace preferences: **Export Target**, theme, validation; Mapping Specification cache — separate from Mapping Model |
+| Editor / settings | Workspace preferences: **Conversion script language** (`exportTarget`), theme, validation; Mapping Specification cache — separate from Mapping Model |
 | AI assist | Last generated slot manifest and imported suggestion report, if useful for review |
 | Metadata | Project id, app version, created/updated timestamps |
 
@@ -33,7 +33,7 @@ The bundle stores the mapping **twice**, by design:
    | `optionalRm[]` | Inserted optional RM structures and their attachment points |
    | `specText` | Optional cached text projection of the Mapping Specification |
 
-   **Not in Mapping Model:** `exportTarget` — lives in workspace `settings` (downstream preview/export choice).
+   **Not in Mapping Model:** Conversion script language (`exportTarget`) — lives in workspace `settings` (downstream preview/export choice).
 
 **Why both:** Blockly serialization is best for UI restore but brittle across Blockly versions and hard to validate. The Mapping Model enables safe migrations, AI **Import Suggestions** validation (shared `slotId` vocabulary with `AI_SUGGESTION_FORMAT.md`), and a future text-first editor that does not depend on Blockly.
 

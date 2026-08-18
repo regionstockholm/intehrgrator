@@ -1,117 +1,76 @@
-# Mapping Specification (center CodeMirror)
+# Mapping Specification
 
-The **Mapping Specification** is the human-readable text shown in the **center pane, lower half** (CodeMirror). It is **not** TypeScript or Java export code.
+The canonical Mapping Specification is Blockly workspace JSON from
+`Blockly.serialization.workspaces.save`. It is persisted in
+`ProjectBundle.mapping.blocklyState`.
 
-| Pane | Content |
-|------|---------|
-| Center / bottom | **Mapping Specification** — declarative, block-aligned DSL + editable expressions |
-| Right / upper | **Generated conversion script(s)** (glossary: Generated Export) — executable TypeScript or Java from codegen |
+The Mapping Editor **Mapping Spec** tab shows a dense, line-numbered
+**projection** of that JSON: recurring constructs become CodeMirror widgets
+(containers, value slots, `DV_*` shells, `source_query`). Layout chrome such as
+`x`/`y` is omitted from the view; an ⓘ control reveals those details. Only safe
+fields are editable in the Spec (v1: `source_query` expression and return type);
+structure changes stay in Blockly.
 
-See [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md). Canonical machine form: [Mapping Model](PROJECT_PERSISTENCE.md#mapping-serialization-dual).
+The former private `@template ...` DSL has been removed. It duplicated Blockly
+structure and was not an interchange format used by other tools.
 
-## Form
+## Two representations, one structural truth
 
-A custom **block-aligned DSL**: one construct per Blockly container or leaf metadata row, with stable `slotId`s shared with [AI_SUGGESTION_FORMAT.md](AI_SUGGESTION_FORMAT.md). Nesting in the DSL matches statement-input nesting in blocks.
-
-This keeps the text readable and round-trippable with Blockly, without dumping Blockly XML/JSON into CodeMirror.
-
-```
-Blockly blocks  ⇄  Mapping Model (JSON)  ⇄  Mapping Specification (text)
-        │                      │
-        └──────────┬───────────┘
-                   ▼
-           Code generators → TS / Java export
-```
-
-The DSL is a **projection** for editing and review. Generators walk the **block tree** (or the Mapping Model derived from it); they do not parse the spec text.
-
-## Expressions
-
-Value slots use a **restricted, JS-shaped expression language** — familiar syntax that pretty-prints expression block subtrees (`source_query`, stock `text` / `math_number` / `text_join` / `logic_ternary`, …). Parsing an expression edit updates only those blocks, same as editing them in Blockly.
-
-Expressions are not full JavaScript/TypeScript and are not executed directly. Test Run runs **generated TypeScript**; arbitrary JS in the spec would blur into export code and invite unsafe side effects.
-
-## Example
-
-```spec
-@template vitals_encounter_v1
-
-composition vitals_encounter {                    # block: composition
-  category = "433"                              # fixed / read-only
-  language   = "en"                             # read-only
-
-  section vital_signs {                           # block: section
-    observation openEHR-EHR-OBSERVATION.blood_pressure.v2 {
-      data {
-        element systolic :: DV_QUANTITY {         # slotId on element line
-          = xpathNumber("/patient/vitals[1]/systolic")
-        }
-        element diastolic :: DV_QUANTITY {
-          = trim(xpathString("/patient/vitals[1]/diastolic"))
-        }
-      }
-    }
-  }
-}
+```text
+Blockly workspace JSON (canonical structure)
+                 │
+                 ▼
+Mapping Model slots[] (derived semantic index)
+                 │
+        ┌────────┴────────┐
+        ▼                 ▼
+ Test Run interpreter   Conversion script language adapter
 ```
 
-- Lines with `# block:` comments are editor hints (optional, may be hidden).
-- `:: DV_QUANTITY` binds RM type → fontoxpath `returnType`.
-- `=` introduces an **editable expression** (JS-shaped subset).
-- Structural braces and keywords are **read-only** in CodeMirror (decorations).
+- Blockly JSON owns block structure, fields, inputs, mutation state, ids, and
+  workspace coordinates.
+- Mapping Model is rebuilt from value-slot blocks after workspace changes. It
+  remains the small migration-friendly index used by validation, AI
+  suggestions, code generation, and Test Run.
+- Project Bundles persist both. On load, Blockly JSON restores the workspace;
+  subsequent changes regenerate the Mapping Model.
+- Click-to-Map updates the Mapping Model and the corresponding Blockly
+  expression block. The next workspace change reasserts Blockly JSON as the
+  authority.
 
-## Expression language (v1 builtins)
+## Target instance format versus conversion script language
 
-| Builtin | Meaning | Blockly block |
-|---------|---------|---------------|
-| `xpath(expr)` | fontoxpath, return type from slot | `source_query` |
-| `xpathString(expr)` | `evaluateXPathToString` | `source_query` |
-| `xpathNumber(expr)` | `evaluateXPathToNumber` | `source_query` |
-| `xpathBoolean(expr)` | `evaluateXPathToBoolean` | `source_query` |
-| `trim(s)`, `concat(a,b,…)` | string ops | `text_trim`, `text_join` |
-| `if(cond, then, else)` | conditional | `logic_ternary` |
-| `+`, `-`, `*`, `/` | arithmetic | `math_arithmetic` |
+These are separate settings:
 
-Literals: strings, numbers, booleans. No statements, no `function`, no `import`, no property access on arbitrary objects.
+- **Target instance format** describes the shape of produced instances
+  (adhering to `openehr-template`, `json-schema`, `xml-schema`, or
+  `free-form`).
+- **Conversion script language** describes the executable representation
+  authored or generated (`typescript`, `java`, `handlebars`, or `xquery`).
 
-**Codegen:** each builtin maps to a Blockly generator fragment; TS and Java generators emit `ehrtslib` / Archie calls respectively.
+This separation allows a Handlebars conversion script to produce clinical
+prose, CSV, HTML, JSON, XML, or another non-openEHR format.
 
-## Sync rules
+## Handlebars Template tab
 
-| Edit location | Allowed | Effect |
-|---------------|---------|--------|
-| Blockly structure | ✓ | Regenerates spec scaffolding; preserves expressions |
-| Blockly expression blocks | ✓ | Updates `=` line in spec |
-| Spec: expression after `=` | ✓ | Parse → update expression blocks + Mapping Model `slots[]` |
-| Spec: structural lines | ✗ | Rejected or read-only; use Blockly or `+` RM picker |
+The adjacent editable **Handlebars Template** tab is an explicit conversion
+script language surface, not a replacement Mapping Model. It supports
+existing Kintegrate templates and helpers (`eq`, `ne`, `lt`, `gt`, `lte`,
+`gte`, `and`, `or`, `toLowerCase`, `toUpperCase`) plus:
 
-## Relation to Generated Export
+- `{{slot "target-slot-id"}}` to access values evaluated by the Mapping Model.
+- `{{{json value}}}` to serialize a value without HTML escaping.
+- Direct source traversal with standard Handlebars `#with`, `#each`, `@index`,
+  bracketed openEHR FLAT/STRUCTURED keys, and whitespace controls.
 
-Example for one slot — **not** what appears in the center pane:
+Source Pane clicks insert a Kintegrate-compatible Handlebars path when the
+Handlebars tab is active and no Target value slot is in Listening Mode.
 
-```typescript
-// Generated Export (right pane) — ehrtslib TypeScript
-element.setValue(new DvQuantity({
-  magnitude: evaluateXPathToNumber("/patient/vitals[1]/systolic", sourceCtx),
-  units: "mm[Hg]"
-}));
-```
+## Versioning
 
-The spec holds `xpathNumber("/patient/vitals[1]/systolic")`; the generator wraps it in RM construction code.
+`MappingModel.modelVersion` is currently `2`. Blockly JSON is persisted in its
+full native form; UI-only coordinates may be filtered in future review
+projections, but are retained in Project Bundles for exact restoration.
 
-## Direction note
-
-Architecture review candidate 3 proposes preferring **Blockly native JSON**
-(`Blockly.serialization.workspaces.save`) as the Mapping Specification /
-interchange surface, with Mapping Model kept as a derived `slotId` → expression
-index — instead of growing this custom DSL. See
-[reviews/architecture-review-openehr-source-dual-builds.html](reviews/architecture-review-openehr-source-dual-builds.html).
-Until that lands, this document describes the current `toSpec` projection.
-
-## Related
-
-- [BLOCKLY_INTEGRATION.md](BLOCKLY_INTEGRATION.md) — blocks and generators
-- [PROJECT_PERSISTENCE.md](PROJECT_PERSISTENCE.md) — Mapping Model JSON
-- [SOURCE_QUERY.md](SOURCE_QUERY.md) — fontoxpath evaluators
-- [docs/future/text-first-mapping-editor.md](future/text-first-mapping-editor.md)
-- [reviews/architecture-review-openehr-source-dual-builds.html](reviews/architecture-review-openehr-source-dual-builds.html) — candidate 3
+Blockly is pinned through `deno.json`. Major Blockly upgrades must include a
+Project Bundle migration test.

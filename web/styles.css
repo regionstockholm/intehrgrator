@@ -72,6 +72,15 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   padding: 8px 12px; background: var(--primary); color: #fff; flex-shrink: 0;
 }
 .pane-header h2 { margin: 0; padding: 0; background: none; font-size: 14px; min-width: 0; }
+.pane-header-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pane-select-label {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+}
+.pane-select-label select {
+  max-width: 110px; padding: 3px 5px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.35);
+  background: #fff; color: var(--text); font-size: 11px;
+}
 .section-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin: 0 0 6px; flex-shrink: 0; flex-wrap: wrap;
@@ -131,6 +140,30 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 
 .mapping-pane { display: flex; flex-direction: column; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
+.mapping-editor-tabs { display: flex; gap: 4px; margin-bottom: 6px; }
+.mapping-editor-tab {
+  border: 1px solid var(--border); border-radius: 4px; background: #fff;
+  color: var(--text-secondary); padding: 3px 7px; font-size: 11px; cursor: pointer;
+}
+.mapping-editor-tab.active { border-color: var(--primary); color: var(--primary); background: #e8f5f2; }
+.handlebars-insert-toolbar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
+  margin: 0 0 6px; padding: 4px 6px; font-size: 11px; color: var(--text-secondary);
+  background: #f8faf9; border: 1px solid var(--border); border-radius: 4px;
+}
+.handlebars-insert-label { font-weight: 600; color: var(--text); }
+.handlebars-insert-option {
+  display: inline-flex; align-items: center; gap: 4px; cursor: pointer; user-select: none;
+}
+.handlebars-insert-option code {
+  font-size: 10px; background: #fff; border: 1px solid var(--border);
+  border-radius: 3px; padding: 0 3px;
+}
+.handlebars-insert-hint { margin-left: auto; font-size: 10px; opacity: 0.85; }
+.target-format-badge {
+  padding: 4px 8px; border-bottom: 1px solid var(--border); background: #eef4f2;
+  color: var(--text-secondary); font-size: 10px; text-align: center;
+}
 .blockly-mount { min-height: 120px; height: 100%; flex: 1; background: #fff; }
 .slots-pane { display: flex; flex-direction: column; min-width: 160px; }
 .slots-pane .pane-header {

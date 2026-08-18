@@ -79,7 +79,7 @@ function jsonSchemaToTree(
       Array.isArray(resolved.required) ? resolved.required.map(String) : [],
     );
     const children = Object.entries(props).map(([key, prop]) =>
-      jsonSchemaToTree(prop, key, `${path}.${key}`, required)
+      jsonSchemaToTree(prop, key, appendJsonPath(path, key), required)
     );
     return { path, name, type: "object", multiplicity, children };
   }
@@ -144,7 +144,7 @@ function inferSchemaTree(value: unknown, name: string, path: string): SchemaTree
   }
   if (value !== null && typeof value === "object") {
     const children = Object.entries(value as Record<string, unknown>).map(([k, v]) =>
-      inferSchemaTree(v, k, `${path}.${k}`)
+      inferSchemaTree(v, k, appendJsonPath(path, k))
     );
     return { path, name, type: "object", multiplicity: "1", children };
   }
@@ -170,7 +170,7 @@ function instanceToSchemaTree(value: unknown, name: string, path: string): Schem
   }
   if (value !== null && typeof value === "object") {
     const children = Object.entries(value as Record<string, unknown>).map(([k, v]) =>
-      instanceToSchemaTree(v, k, `${path}.${k}`)
+      instanceToSchemaTree(v, k, appendJsonPath(path, k))
     );
     return { path, name, type: "object", children };
   }
@@ -208,4 +208,11 @@ export function pathToFontoxpath(schemaPath: string, format: SourceFormatId): st
     }, "$");
   }
   return `$.${schemaPath.replace(/^\./, "")}`;
+}
+
+/** Append a property to a JSON authoring path without losing punctuation in the key. */
+export function appendJsonPath(path: string, key: string): string {
+  return /^[\p{L}_$][\p{L}\p{N}_$]*$/u.test(key)
+    ? `${path}.${key}`
+    : `${path}[${JSON.stringify(key)}]`;
 }

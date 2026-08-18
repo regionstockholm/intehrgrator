@@ -1,25 +1,27 @@
 import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
+import type { HostAdapter, PickedBinaryFile, PickedTextFile } from "./mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
-
-export interface HostAdapter {
-  pickFile(accept?: string): Promise<File | null>;
-  readTextFile(file: File): Promise<string>;
-  downloadText(filename: string, content: string, mime?: string): void;
-  downloadBytes(filename: string, bytes: Uint8Array, mime?: string): void;
-  copyToClipboard(text: string): Promise<void>;
-  readClipboard(): Promise<string>;
-  saveProject(bundle: ProjectBundle): Promise<void>;
-  loadProject(projectId: string): Promise<ProjectBundle | null>;
-  listProjects(): Promise<ProjectBundle[]>;
-  saveAutosave(bundle: ProjectBundle): Promise<void>;
-  saveManualSave(bundle: ProjectBundle, displayName: string): Promise<void>;
-  loadStoredProject(storageKey: string): Promise<ProjectBundle | null>;
-  loadStoredProjectRecord(storageKey: string): Promise<StoredProjectRecord | null>;
-  listLoadableProjects(): Promise<LoadableProjectEntry[]>;
-}
+import {
+  listLoadableProjects,
+  loadStoredProjectRecord,
+  saveAutosave,
+  saveManualSave,
+} from "./web_storage.ts";
 
 export class WebHostAdapter implements HostAdapter {
-  async pickFile(accept?: string): Promise<File | null> {
+  async pickTextFile(accept?: string): Promise<PickedTextFile | null> {
+    const file = await this.pickDomFile(accept);
+    return file ? { name: file.name, text: await file.text() } : null;
+  }
+
+  async pickBinaryFile(accept?: string): Promise<PickedBinaryFile | null> {
+    const file = await this.pickDomFile(accept);
+    return file
+      ? { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }
+      : null;
+  }
+
+  private async pickDomFile(accept?: string): Promise<File | null> {
     return await new Promise((resolve) => {
       const input = document.createElement("input");
       input.type = "file";
@@ -51,10 +53,6 @@ export class WebHostAdapter implements HostAdapter {
     });
   }
 
-  async readTextFile(file: File): Promise<string> {
-    return await file.text();
-  }
-
   downloadText(filename: string, content: string, mime = "text/plain"): void {
     const blob = new Blob([content], { type: mime });
     const url = URL.createObjectURL(blob);
@@ -66,7 +64,9 @@ export class WebHostAdapter implements HostAdapter {
   }
 
   downloadBytes(filename: string, bytes: Uint8Array, mime = "application/octet-stream"): void {
-    const blob = new Blob([bytes], { type: mime });
+    const copy = new Uint8Array(bytes.byteLength);
+    copy.set(bytes);
+    const blob = new Blob([copy.buffer], { type: mime });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -83,43 +83,23 @@ export class WebHostAdapter implements HostAdapter {
     return await navigator.clipboard.readText();
   }
 
-  async saveProject(bundle: ProjectBundle): Promise<void> {
-    const { saveToIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
-    await saveToIndexedDb(bundle);
-  }
-
-  async loadProject(projectId: string): Promise<ProjectBundle | null> {
-    const { loadFromIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
-    return await loadFromIndexedDb(projectId);
-  }
-
-  async listProjects(): Promise<ProjectBundle[]> {
-    const { listProjects } = await import("@intehrgrator/core/persistence/mod.ts");
-    return await listProjects();
-  }
-
   async saveAutosave(bundle: ProjectBundle): Promise<void> {
-    const { saveAutosaveToIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
-    await saveAutosaveToIndexedDb(bundle);
+    await saveAutosave(bundle);
   }
 
   async saveManualSave(bundle: ProjectBundle, displayName: string): Promise<void> {
-    const { saveManualSaveToIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
-    await saveManualSaveToIndexedDb(bundle, displayName);
-  }
-
-  async loadStoredProject(storageKey: string): Promise<ProjectBundle | null> {
-    const record = await this.loadStoredProjectRecord(storageKey);
-    return record?.bundle ?? null;
+    await saveManualSave(bundle, displayName);
   }
 
   async loadStoredProjectRecord(storageKey: string): Promise<StoredProjectRecord | null> {
-    const { loadStoredProjectFromIndexedDb } = await import("@intehrgrator/core/persistence/mod.ts");
-    return await loadStoredProjectFromIndexedDb(storageKey);
+    return await loadStoredProjectRecord(storageKey);
   }
 
   async listLoadableProjects(): Promise<LoadableProjectEntry[]> {
-    const { listLoadableProjects } = await import("@intehrgrator/core/persistence/mod.ts");
     return await listLoadableProjects();
+  }
+
+  resolveAppUrl(path: string): string {
+    return new URL(path, location.href).href;
   }
 }

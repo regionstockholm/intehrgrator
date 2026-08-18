@@ -1,5 +1,5 @@
 import * as Blockly from "blockly/core";
-import { WebHostAdapter } from "../src/host/web_adapter.ts";
+import { createHostAdapter } from "../src/host/create_host.ts";
 import { WorkbenchController } from "../src/workbench/controller.ts";
 import {
   renderSchemaTree,
@@ -13,9 +13,13 @@ import type { BlockSvg } from "blockly/core";
 import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
 import {
   createReadonlyEditor,
-  createSpecEditor,
+  createTextEditor,
   setEditorDoc,
 } from "../src/workbench/codemirror_setup.ts";
+import {
+  createMappingSpecEditor,
+  setMappingSpecFromBlockly,
+} from "../src/workbench/mapping_spec/mod.ts";
 import {
   initBlocklyGenerators,
   loadSkeletonIntoWorkspace,
@@ -25,6 +29,7 @@ import {
   createModestTheme,
   buildDemoToolbox,
   setOptionalRmPickHandler,
+  workspaceToModelJson,
 } from "../src/blockly/mod.ts";
 import {
   changeLocaleAndReload,
@@ -40,12 +45,21 @@ import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
 import {
+  buildHandlebarsPath,
+  buildHandlebarsTree,
+} from "../src/core/output/handlebars_dialect.ts";
+import {
+  createBetterFormBridge,
+  probeBetterRenderer,
+  type BetterFormBridge,
+} from "../src/core/output/better_form_bridge.ts";
+import {
   isTestMode,
   type IntehrgratorTestApi,
   type WorkbenchTestSnapshot,
 } from "../src/ui_test/test_api.ts";
 
-const host = new WebHostAdapter();
+const host = createHostAdapter();
 const controller = new WorkbenchController(host);
 const testMode = isTestMode();
 let workbenchReadyResolve!: () => void;
@@ -63,24 +77,40 @@ const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
 const statusSave = document.getElementById("status-save")!;
 const statusBuild = document.getElementById("status-build")!;
+const targetFormatBadge = document.getElementById("target-format-badge")!;
+const exportTargetSelect = document.getElementById("export-target") as HTMLSelectElement;
+const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
+const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
+const mappingJsonHost = document.getElementById("spec-editor")!;
+const handlebarsHost = document.getElementById("handlebars-editor")!;
 
 const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElement;
 const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
 const dialogLoadProject = document.getElementById("dialog-load-project") as HTMLDialogElement;
 const loadProjectList = document.getElementById("load-project-list")!;
 
-const specEditor = createSpecEditor(
-  document.getElementById("spec-editor")!,
-  (line, text) => {
-    const state = controller.getState();
-    const specLine = state.specText.split("\n")[line];
-    if (!specLine?.includes("= ")) return;
-    const slotMatch = state.specText.split("\n").slice(0, line + 1).reverse()
-      .find((l) => l.includes("# slotId:"));
-    const slotId = slotMatch?.match(/slotId:\s*(\S+)/)?.[1];
-    if (slotId) controller.applySpecExpression(slotId, text.replace(/^=\s*/, ""));
+const specEditor = createMappingSpecEditor(mappingJsonHost, {
+  onFieldEdit: (blockId, field, value) => {
+    const block = workspace?.getBlockById(blockId);
+    if (!block) return;
+    block.setFieldValue(value, field);
+    // Workspace change listener runs syncFromBlockly → Spec refresh.
   },
-);
+});
+let updatingHandlebarsEditor = false;
+const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
+  if (!updatingHandlebarsEditor) controller.setHandlebarsTemplate(text);
+});
+let activeTextView: "mapping-json" | "handlebars" = "mapping-json";
+type HandlebarsInsertMode = "flat" | "tree";
+const handlebarsInsertToolbar = document.getElementById("handlebars-insert-toolbar");
+
+function currentHandlebarsInsertMode(): HandlebarsInsertMode {
+  const selected = document.querySelector(
+    'input[name="hbs-insert-mode"]:checked',
+  ) as HTMLInputElement | null;
+  return selected?.value === "tree" ? "tree" : "flat";
+}
 
 const exportEditor = createReadonlyEditor(document.getElementById("export-editor")!);
 const testOutputEditor = createReadonlyEditor(document.getElementById("test-output")!);
@@ -92,6 +122,28 @@ let blocklySkeletonKey = "";
 let blocklySlotSignature = "";
 let ephemeralTreeHighlight: TreeHighlightState | null = null;
 let lastActiveExampleId: string | null = null;
+
+function showTextView(view: "mapping-json" | "handlebars"): void {
+  activeTextView = view;
+  const showHandlebars = view === "handlebars";
+  mappingJsonHost.hidden = showHandlebars;
+  handlebarsHost.hidden = !showHandlebars;
+  mappingJsonTab.classList.toggle("active", !showHandlebars);
+  handlebarsTab.classList.toggle("active", showHandlebars);
+  if (handlebarsInsertToolbar) handlebarsInsertToolbar.hidden = !showHandlebars;
+}
+
+mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
+handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
+exportTargetSelect.addEventListener("change", () => {
+  const target = exportTargetSelect.value as
+    | "typescript"
+    | "java"
+    | "handlebars"
+    | "xquery";
+  controller.setExportTarget(target);
+  if (target === "handlebars") showTextView("handlebars");
+});
 
 function setupLanguageMenu(locale: IntehrLocale): void {
   const labelEl = document.getElementById("language-label");
@@ -178,9 +230,11 @@ async function bootBlockly(): Promise<void> {
       if (slotId) controller.armSlot(slotId);
       return;
     }
-    if (event.type !== Blockly.Events.FINISHED_LOADING) {
-      controller.markDirty();
-    }
+    if (event.type === Blockly.Events.FINISHED_LOADING || event.isUiEvent) return;
+    controller.syncFromBlockly(
+      Blockly.serialization.workspaces.save(workspace),
+      workspaceToModelJson(workspace).slots,
+    );
   });
 }
 
@@ -217,6 +271,37 @@ function treeHighlightOptions() {
   };
 }
 
+function handleSourceSelection(
+  path: string,
+  format: string,
+  event?: { shiftKey?: boolean },
+): void {
+  const state = controller.getState();
+  if (
+    state.settings.exportTarget === "handlebars" &&
+    activeTextView === "handlebars" &&
+    !state.listeningSlotId
+  ) {
+    let mode = currentHandlebarsInsertMode();
+    if (event?.shiftKey) mode = mode === "flat" ? "tree" : "flat";
+    const snippet = mode === "tree"
+      ? buildHandlebarsTree(path)
+      : `{{${buildHandlebarsPath(path)}}}`;
+    const selection = handlebarsEditor.state.selection.main;
+    handlebarsEditor.dispatch({
+      changes: {
+        from: selection.from,
+        to: selection.to,
+        insert: snippet,
+      },
+      selection: { anchor: selection.from + snippet.length },
+    });
+    handlebarsEditor.focus();
+    return;
+  }
+  controller.bindFromNode(path, format);
+}
+
 function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): void {
   if (!s.templateId || !s.skeleton.length) {
     blocklySkeletonKey = "";
@@ -230,7 +315,17 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     .join("|");
 
   if (skeletonKey !== blocklySkeletonKey) {
-    loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
+    if (s.blocklyState && typeof s.blocklyState === "object") {
+      Blockly.Events.disable();
+      try {
+        workspace.clear();
+        Blockly.serialization.workspaces.load(s.blocklyState, workspace);
+      } finally {
+        Blockly.Events.enable();
+      }
+    } else {
+      loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
+    }
     blocklySkeletonKey = skeletonKey;
     blocklySlotSignature = slotSignature;
     return;
@@ -251,9 +346,25 @@ function bind(id: string, handler: () => void | Promise<void>): void {
 bind("btn-open-template", () => controller.openTemplate());
 bind("btn-load-schema", () => controller.loadSchema());
 bind("btn-add-example", () => controller.addExample());
-bind("btn-run-test", () => controller.runTestNow());
+bind("btn-run-test", () => {
+  controller.runTestNow();
+  const result = controller.getState().testResult;
+  if (result?.ok && result.output !== undefined) {
+    betterFormBridge?.pushComposition(result.output);
+  }
+});
 bind("btn-autoplay", () => controller.toggleAutoplay());
 bind("btn-export-ts", () => controller.exportTypeScript());
+bind("btn-better-form", () => {
+  if (!betterFormBridge?.available) {
+    statusMain.textContent =
+      "Better Form Renderer not installed. Run: deno task setup:better-forms";
+    return;
+  }
+  betterFormBridge.openViewer();
+  const result = controller.getState().testResult;
+  if (result?.output !== undefined) betterFormBridge.pushComposition(result.output);
+});
 bind("btn-new-project", () => void handleNewProject());
 bind("btn-load-project", () => void openLoadProjectDialog());
 bind("btn-save-project", () => openSaveAsDialog());
@@ -261,6 +372,16 @@ bind("btn-export-project", () => controller.exportProject());
 bind("btn-import-project", () => controller.importProject());
 bind("btn-copy-ai", () => controller.copyAiPrompt());
 bind("btn-import-ai", () => controller.importAiSuggestionsFromClipboard());
+
+let betterFormBridge: BetterFormBridge | null = null;
+void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) => {
+  betterFormBridge = createBetterFormBridge(
+    { resolveAppUrl: (path) => host.resolveAppUrl(path) },
+    available,
+  );
+  const btn = document.getElementById("btn-better-form") as HTMLButtonElement | null;
+  if (btn) btn.hidden = !available;
+});
 
 initFileDropTargets();
 
@@ -310,15 +431,27 @@ function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
 
 function initFileDropTargets(): void {
   initFileDrop(schemaTreeEl, {
-    accept: (file) => /\.json$/i.test(file.name),
+    accept: (file) => /\.(json|xml|xsd)$/i.test(file.name),
     multiple: false,
-    onDrop: (files) => void controller.loadSchemaFromDrop(files[0]),
+    onDrop: (files) => void (async () => {
+      const loaded = await readDroppedTextFiles(files);
+      if (loaded[0]) await controller.loadSchemaFromDrop(loaded[0]);
+    })(),
   });
   initFileDrop(exampleTreeEl, {
     accept: (file) => /\.(json|xml)$/i.test(file.name),
     multiple: true,
-    onDrop: (files) => void controller.addExamplesFromDrop(files),
+    onDrop: (files) => void (async () => {
+      await controller.addExamplesFromDrop(await readDroppedTextFiles(files));
+    })(),
   });
+}
+
+async function readDroppedTextFiles(files: File[]) {
+  return await Promise.all(files.map(async (file) => ({
+    name: file.name,
+    text: await file.text(),
+  })));
 }
 
 function initFileDrop(
@@ -445,8 +578,8 @@ function render(): void {
   }
 
   statusMain.textContent = [
-    s.templateId ? `Template: ${s.templateId}` : "No template",
-    `Target: ${s.settings.exportTarget.toUpperCase()}`,
+    s.target ? `Target: ${s.target.targetId}` : "No target",
+    `Script: ${s.settings.exportTarget.toUpperCase()}`,
     s.activeExample ? `Example: ${s.activeExample.filename}` : "No example",
     `${s.unmappedMandatory} unmapped mandatory`,
     s.statusMessage,
@@ -464,11 +597,12 @@ function render(): void {
     renderSchemaTree(
       schemaTreeEl,
       s.schemaTree,
-      (path) => {
+      (path, event) => {
         handleTreeHighlight(canonicalSyncPath(path), "schema", true);
-        controller.bindFromNode(path, "json");
+        handleSourceSelection(path, s.schemaFormat, event);
       },
       treeHighlightOptions(),
+      s.schemaFormat,
     );
   } else {
     schemaTreeEl.textContent = "Load a schema file.";
@@ -483,9 +617,9 @@ function render(): void {
     renderInstanceTree(
       exampleTreeEl,
       s.exampleTree,
-      (path) => {
+      (path, event) => {
         handleTreeHighlight(canonicalSyncPath(path), "instance", true);
-        controller.bindFromNode(path, format);
+        handleSourceSelection(path, format, event);
       },
       treeHighlightOptions(),
       format,
@@ -508,18 +642,44 @@ function render(): void {
     },
   );
 
-  setEditorDoc(specEditor, s.specText || "# Mapping Specification appears after loading a target schema/template");
+  setMappingSpecFromBlockly(
+    specEditor,
+    s.blocklyState ?? (workspace ? Blockly.serialization.workspaces.save(workspace) : null),
+  );
+  if (handlebarsEditor.state.doc.toString() !== s.handlebarsTemplate) {
+    updatingHandlebarsEditor = true;
+    setEditorDoc(handlebarsEditor, s.handlebarsTemplate);
+    updatingHandlebarsEditor = false;
+  }
   setEditorDoc(exportEditor, s.generatedCode || "// Generated Export");
   setEditorDoc(
     testOutputEditor,
     s.testResult
-      ? JSON.stringify(s.testResult.composition ?? { error: s.testResult.error }, null, 2)
+      ? formatTestOutput(s.testResult.output ?? s.testResult.composition ?? { error: s.testResult.error })
       : "// Test Run output",
   );
 
+  targetFormatBadge.textContent = s.target
+    ? `${s.target.format} · ${s.target.targetId}`
+    : "No target";
+  exportTargetSelect.value = s.settings.exportTarget;
+  const exportButton = document.getElementById("btn-export-ts") as HTMLButtonElement;
+  exportButton.textContent = `Export ${
+    s.settings.exportTarget === "handlebars"
+      ? "HBS"
+      : s.settings.exportTarget === "java"
+      ? "Java"
+      : s.settings.exportTarget === "xquery"
+      ? "XQ"
+      : "TS"
+  }`;
   const autoplayBtn = document.getElementById("btn-autoplay") as HTMLButtonElement;
   autoplayBtn.disabled = !s.examples.length;
   autoplayBtn.textContent = s.settings.autoplay ? "⏸ Pause" : "▶ Autoplay";
+}
+
+function formatTestOutput(output: unknown): string {
+  return typeof output === "string" ? output : JSON.stringify(output, null, 2);
 }
 
 function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void {

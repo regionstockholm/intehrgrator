@@ -1,0 +1,30 @@
+{
+  "name": "intehrgrator",
+  "displayName": "intEHRgrator",
+  "description": "Visual healthcare integration mapping workbench",
+  "version": "0.1.0",
+  "publisher": "regionstockholm",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:intehrgrator.openWorkbench"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "intehrgrator.openWorkbench",
+        "title": "intEHRgrator: Open Integration Workbench"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "deno task build",
+    "test": "deno task test"
+  }
+}

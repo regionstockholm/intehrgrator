@@ -8,7 +8,10 @@
 | JSON instance | ✓ | `JSON.parse` | fontoxpath (example tabs + Test Run) |
 | XML instance | ✓ | `DOMParser` | fontoxpath (example tabs + Test Run) |
 | XML schema (XSD) | Deferred | — | [future/xml-schema-support.md](future/xml-schema-support.md) |
-| openEHR Composition / FLAT / STRUCTURED as source | Planned | Adapter behind Source Format Handler | Same seam; quirks stay in the adapter |
+| openEHR Composition (canonical JSON) as source | ✓ | `openehr-composition` / `openehr-canonical-json` | fontoxpath over JSON tree |
+| openEHR FLAT JSON as source | ✓ | `openehr-flat-json` | Bracketed path keys (`ctx/…`, `\|magnitude`) |
+| openEHR STRUCTURED JSON as source | ✓ | `openehr-structured-json` | Same JSON evaluator; simplified-format leaf detection |
+| openEHR Web Template as Source Schema | ✓ | `openehr-web-template` | Tree from `templateId` + `tree` |
 
 ## Source Format Handler
 
@@ -22,7 +25,7 @@ Callers (Click-to-Map, Test Run, instance validation, schema load) go through a 
 | `createContext(content)` | Runtime context for evaluation |
 | `evaluate(expression, ctx, returnType)` | Run a Mapping Expression against that context |
 
-Built-in adapters: **JSON**, **XML**. Register more with `registerSourceFormatHandler` (e.g. future `openehr-composition`).
+Built-in adapters: **JSON**, **XML**, and openEHR-as-source ids above. Register more with `registerSourceFormatHandler`.
 
 | Module | Path |
 |--------|------|

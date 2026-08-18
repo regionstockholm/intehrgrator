@@ -144,7 +144,7 @@ For **optional RM attachment** validation (`+` picker), introspect ehrtslib RM t
 - **Three panes:** Source Pane | Mapping Editor | Output Previews.
 - **Mapping Editor split:** Blockly (top, structure authority) + Mapping Specification (bottom, expressions only).
 - **Mapping Specification** is a block-aligned DSL with JS-shaped expression subset — not Generated Export and not full JavaScript.
-- **Codegen** walks Blockly / Mapping Model, not Mapping Specification text. **Export Target** is passed into codegen at preview/export time — not stored in the Mapping Model.
+- **Codegen** walks Blockly / Mapping Model, not Mapping Specification text. **Conversion script language** (`exportTarget`) is passed into codegen at preview/export time — not stored in the Mapping Model.
 - **Dual persistence:** native Blockly serialization + Mapping Model JSON; on conflict Model wins.
 - **Source querying:** fontoxpath for JSON and XML; `fast-xml-parser` only for ehrtslib-aligned openEHR RM XML I/O.
 - **Example tabs:** multiple instances; Test Run uses Active Example; tab switch shows cached result; Autoplay on mapping edits only.
@@ -155,7 +155,7 @@ For **optional RM attachment** validation (`+` picker), introspect ehrtslib RM t
 
 ### Mapping Model shape (prototype decision)
 
-The Mapping Model is **language-neutral** — it describes *what* is mapped, not *how* it is translated to mapping code. **Export Target** is a workspace/editor setting (Project Bundle `settings`), chosen when previewing or exporting.
+The Mapping Model is **language-neutral** — it describes *what* is mapped, not *how* it is translated to mapping code. **Conversion script language** is a workspace/editor setting (Project Bundle `settings.exportTarget`), chosen when previewing or exporting.
 
 ```typescript
 // Illustrative — canonical IR shared by persistence, AI import, and codegen input

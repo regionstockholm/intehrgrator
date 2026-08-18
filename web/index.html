@@ -69,8 +69,24 @@
       >
         <div id="blockly-mount" class="blockly-mount"></div>
         <div class="mapping-bottom">
-          <h3>Mapping Specification</h3>
+          <div class="mapping-editor-tabs" role="tablist" aria-label="Mapping editor text views">
+            <button id="tab-mapping-json" class="mapping-editor-tab active" type="button">Mapping Spec</button>
+            <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
+          </div>
+          <div id="handlebars-insert-toolbar" class="handlebars-insert-toolbar" hidden>
+            <span class="handlebars-insert-label">Tree insert</span>
+            <label class="handlebars-insert-option">
+              <input type="radio" name="hbs-insert-mode" value="flat" checked />
+              Flat <code>{{path}}</code>
+            </label>
+            <label class="handlebars-insert-option">
+              <input type="radio" name="hbs-insert-mode" value="tree" />
+              Nested <code>#with</code>/<code>#each</code>
+            </label>
+            <span class="handlebars-insert-hint">Shift+click toggles for one insert</span>
+          </div>
           <div id="spec-editor" class="editor-host"></div>
+          <div id="handlebars-editor" class="editor-host" hidden></div>
         </div>
       </div>
     </section>
@@ -80,6 +96,7 @@
         <h2>Target</h2>
         <button id="btn-open-template" class="pane-btn pane-btn-on-dark" type="button">Open target Schema/Template</button>
       </div>
+      <div id="target-format-badge" class="target-format-badge">No target</div>
       <div class="pane-body slot-rail">
         <div id="skeleton-slots"></div>
       </div>
@@ -88,7 +105,18 @@
     <section class="pane output-pane">
       <div class="pane-header">
         <h2>Output Previews</h2>
-        <button id="btn-export-ts" class="pane-btn pane-btn-on-dark" type="button">Export TS</button>
+        <div class="pane-header-actions">
+          <label class="pane-select-label" for="export-target">Conversion script
+            <select id="export-target">
+              <option value="typescript">TypeScript</option>
+              <option value="java">Java</option>
+              <option value="handlebars">Handlebars</option>
+              <option value="xquery">XQuery</option>
+            </select>
+          </label>
+          <button id="btn-export-ts" class="pane-btn pane-btn-on-dark" type="button">Export</button>
+          <button id="btn-better-form" class="pane-btn pane-btn-on-dark" type="button" hidden title="Requires licensed Better renderer (deno task setup:better-forms)">Better Form</button>
+        </div>
       </div>
       <div
         class="pane-body"

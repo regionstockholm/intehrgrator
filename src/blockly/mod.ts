@@ -3,6 +3,7 @@ import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import type { SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell } from "./blocks/rm_blocks.ts";
+import { registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
@@ -23,6 +24,7 @@ export { buildDemoToolbox } from "./toolbox_demo.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
+  registerTargetBlocks();
   registerExpressionBlocks();
   registerGenerators();
 }
@@ -112,9 +114,9 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
 } {
   const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
   for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "element") continue;
+    if (block.type !== "element" && block.type !== "target_value") continue;
     const slotId = block.getFieldValue("SLOT_ID");
-    const rmType = block.getFieldValue("RM_TYPE");
+    const rmType = block.getFieldValue("RM_TYPE") || block.getFieldValue("TARGET_TYPE");
     const valueBlock = block.getInputTargetBlock("VALUE");
     const exprBlock = valueBlock && isDataValueBlock(valueBlock)
       ? expressionBlockFromDataValueShell(valueBlock)

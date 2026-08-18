@@ -14,14 +14,24 @@ Deno.test("built-in format handlers are registered", () => {
   const ids = listSourceFormatIds();
   assertEquals(ids.includes("json"), true);
   assertEquals(ids.includes("xml"), true);
+  assertEquals(ids.includes("openehr-flat-json"), true);
+  assertEquals(ids.includes("openehr-composition"), true);
   assertEquals(isSourceFormatId("json"), true);
-  assertEquals(isSourceFormatId("openehr-composition"), false);
+  assertEquals(isSourceFormatId("openehr-canonical-json"), true);
 });
 
 Deno.test("detectSourceFormat from filename", () => {
   assertEquals(detectSourceFormat("vitals.json"), "json");
   assertEquals(detectSourceFormat("vitals.XML"), "xml");
   assertEquals(detectSourceFormat("schema.xsd"), "xml");
+  assertEquals(
+    detectSourceFormat("composition.json", '{"_type":"COMPOSITION"}'),
+    "openehr-composition",
+  );
+  assertEquals(
+    detectSourceFormat("flat.json", '{"ctx/language":"en","vitals/value|magnitude":120}'),
+    "openehr-flat-json",
+  );
   assertEquals(detectSourceFormat("unknown.bin"), "json");
 });
 
@@ -36,6 +46,23 @@ Deno.test("json handler loadSchema / pathToExpression / evaluate", () => {
   const ctx = handler.createContext(JSON.stringify({ vitals: { systolic: 120 } }));
   const value = handler.evaluate('xpathNumber("$.vitals.systolic")', ctx, "number");
   assertEquals(value, 120);
+});
+
+Deno.test("openEHR FLAT source keys evaluate through the format handler", () => {
+  const handler = getSourceFormatHandler("openehr-flat-json");
+  const content = JSON.stringify({
+    "ctx/language": "en",
+    "vitals/systolic|magnitude": 118,
+  });
+  const tree = handler.loadInstance(content, "flat");
+  const systolic = tree.children.find((node) => node.name.includes("systolic"))!;
+  assertEquals(systolic.path, '$["vitals/systolic|magnitude"]');
+  const value = handler.evaluate(
+    `xpathNumber(${JSON.stringify(handler.pathToExpression(systolic.path))})`,
+    handler.createContext(content),
+    "number",
+  );
+  assertEquals(value, 118);
 });
 
 Deno.test("xml handler pathToExpression", () => {
@@ -61,10 +88,24 @@ Deno.test({
 
 Deno.test("unknown format throws at the handler seam", () => {
   assertThrows(
-    () => getSourceFormatHandler("openehr-composition"),
+    () => getSourceFormatHandler("not-a-real-format"),
     Error,
     "Unsupported source format",
   );
+});
+
+Deno.test("openehr-composition alias evaluates canonical Composition JSON", () => {
+  const handler = getSourceFormatHandler("openehr-composition");
+  const content = JSON.stringify({
+    _type: "COMPOSITION",
+    content: [{ _type: "OBSERVATION", data: { value: 42 } }],
+  });
+  const value = handler.evaluate(
+    'xpathNumber("$.content[1].data.value")',
+    handler.createContext(content),
+    "number",
+  );
+  assertEquals(value, 42);
 });
 
 Deno.test("registerSourceFormatHandler plugs a new adapter", () => {
@@ -74,7 +115,10 @@ Deno.test("registerSourceFormatHandler plugs a new adapter", () => {
     loadSchema: () => ({ path: "$", name: "stub", type: "object", children: [] }),
     loadInstance: () => ({ path: "$", name: "stub", type: "object", children: [] }),
     pathToExpression: (p) => `STUB:${p}`,
-    createContext: (content) => ({ format: "json", json: JSON.parse(content) }),
+    createContext: (content) => {
+      const json = JSON.parse(content);
+      return { format: extId, kind: "json", data: json, json };
+    },
     evaluate: () => "stubbed",
   };
   registerSourceFormatHandler(custom);

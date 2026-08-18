@@ -1,12 +1,28 @@
-import type { MappingModel, SourceFormatId, TestResult } from "../../types/mod.ts";
+import type {
+  ExportTarget,
+  MappingModel,
+  SourceFormatId,
+  TestResult,
+} from "../../types/mod.ts";
 import { getSourceFormatHandler } from "../source/format_handler.ts";
 import { generateTypeScript } from "../codegen/mod.ts";
+import {
+  getTargetFormatHandler,
+  type TargetDefinition,
+} from "../target/mod.ts";
+import { renderHandlebars } from "../output/handlebars_dialect.ts";
+
+export interface RunTestOptions {
+  target?: TargetDefinition | null;
+  exportTarget?: ExportTarget;
+  handlebarsTemplate?: string;
+}
 
 export function runTest(
   model: MappingModel,
   exampleContent: string,
   format: SourceFormatId,
-  _generatedTs?: string,
+  options: RunTestOptions = {},
 ): TestResult {
   const warnings: string[] = [];
   try {
@@ -24,14 +40,30 @@ export function runTest(
       }
     }
 
-    const composition = {
-      _type: "COMPOSITION",
-      templateId: model.templateId,
-      slots: slotValues,
-      note: "Test Run preview — slot values evaluated against active example",
-    };
+    let output: unknown;
+    if (options.exportTarget === "handlebars") {
+      const template = options.handlebarsTemplate ?? options.target?.content ?? "";
+      output = renderHandlebars(template, ctx.data, { slots: slotValues });
+    } else if (options.target) {
+      output = getTargetFormatHandler(options.target.format).render({
+        definition: options.target,
+        slotValues,
+      });
+    } else {
+      output = {
+        _type: "COMPOSITION",
+        templateId: model.templateId,
+        slots: slotValues,
+        note: "Legacy Test Run preview — no Target Definition supplied",
+      };
+    }
 
-    return { ok: warnings.length === 0, composition, warnings };
+    return {
+      ok: warnings.length === 0,
+      output,
+      composition: output,
+      warnings,
+    };
   } catch (e) {
     return {
       ok: false,

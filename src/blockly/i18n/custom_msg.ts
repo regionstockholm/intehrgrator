@@ -16,7 +16,7 @@ export const SUPPORTED_LOCALES: Array<{ code: IntehrLocale; name: string }> = [
 
 export interface IntehrMessages {
   CAT_SOURCE: string;
-  CAT_DATA_VALUES: string;
+  CAT_OPENEHR_TYPES: string;
   CAT_LOGIC: string;
   CAT_LOOPS: string;
   CAT_MATH: string;
@@ -37,7 +37,7 @@ export interface IntehrMessages {
 const TABLE: Record<IntehrLocale, IntehrMessages> = {
   en: {
     CAT_SOURCE: "Source",
-    CAT_DATA_VALUES: "Data values",
+    CAT_OPENEHR_TYPES: "openEHR types",
     CAT_LOGIC: "Logic",
     CAT_LOOPS: "Loops",
     CAT_MATH: "Math",
@@ -57,7 +57,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   },
   sv: {
     CAT_SOURCE: "Källa",
-    CAT_DATA_VALUES: "Datavärden",
+    CAT_OPENEHR_TYPES: "openEHR types",
     CAT_LOGIC: "Logik",
     CAT_LOOPS: "Loopar",
     CAT_MATH: "Matematik",
@@ -77,7 +77,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   },
   de: {
     CAT_SOURCE: "Quelle",
-    CAT_DATA_VALUES: "Datenwerte",
+    CAT_OPENEHR_TYPES: "openEHR types",
     CAT_LOGIC: "Logik",
     CAT_LOOPS: "Schleifen",
     CAT_MATH: "Mathematik",
@@ -97,7 +97,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   },
   es: {
     CAT_SOURCE: "Origen",
-    CAT_DATA_VALUES: "Valores de datos",
+    CAT_OPENEHR_TYPES: "openEHR types",
     CAT_LOGIC: "Lógica",
     CAT_LOOPS: "Bucles",
     CAT_MATH: "Matemáticas",
@@ -117,7 +117,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   },
   ca: {
     CAT_SOURCE: "Origen",
-    CAT_DATA_VALUES: "Valors de dades",
+    CAT_OPENEHR_TYPES: "openEHR types",
     CAT_LOGIC: "Lògica",
     CAT_LOOPS: "Bucles",
     CAT_MATH: "Matemàtiques",
@@ -137,7 +137,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   },
   fr: {
     CAT_SOURCE: "Source",
-    CAT_DATA_VALUES: "Valeurs de données",
+    CAT_OPENEHR_TYPES: "openEHR types",
     CAT_LOGIC: "Logique",
     CAT_LOOPS: "Boucles",
     CAT_MATH: "Math",

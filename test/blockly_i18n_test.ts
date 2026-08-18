@@ -15,7 +15,7 @@ Deno.test("custom messages localize Source and for_each_source", () => {
   assertEquals(msg("en").CAT_SOURCE, "Source");
   assertEquals(msg("sv").CAT_SOURCE, "Källa");
   assertEquals(msg("de").FOR_EACH_SOURCE_PREFIX, "für jedes");
-  assertEquals(msg("es").CAT_DATA_VALUES, "Valores de datos");
+  assertEquals(msg("es").CAT_OPENEHR_TYPES, "openEHR types");
   assertEquals(msg("ca").LANGUAGE_LABEL, "Idioma");
   assertEquals(msg("fr").SOURCE_QUERY, "source");
 });

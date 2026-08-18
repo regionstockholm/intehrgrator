@@ -122,18 +122,19 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .pane-header .info-tip-btn:hover,
 .pane-header .info-tip-btn:focus-visible { background: rgba(255, 255, 255, 0.18); }
 .info-tip-balloon {
-  display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  display: none;
   width: max-content; max-width: min(280px, calc(100vw - 16px));
   padding: 8px 10px; border-radius: 6px;
   background: #003b49; color: #f5f5f0;
   font: 11px/1.4 system-ui, sans-serif; white-space: normal;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); pointer-events: none;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
-.info-tip--end .info-tip-balloon { left: auto; right: 0; }
-.info-tip:hover .info-tip-balloon,
-.info-tip:focus-within .info-tip-balloon,
-.info-tip.is-open .info-tip-balloon { display: block; }
-.info-tip.is-open .info-tip-balloon { pointer-events: auto; }
+#info-tip-layer {
+  position: fixed; inset: 0; z-index: 10000; pointer-events: none;
+}
+#info-tip-layer .info-tip-balloon {
+  display: block; position: fixed; pointer-events: auto;
+}
 .split-btn {
   position: relative;
   display: inline-flex;
@@ -286,7 +287,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyToolboxCategorySource {
   border-left: 15px solid #e87722 !important;
 }
-.blockly-mount .blocklyToolboxCategoryDataValues {
+.blockly-mount .blocklyToolboxCategoryOpenEhrTypes {
   border-left: 15px solid #4a6fa5 !important;
 }
 .blockly-mount .blocklyToolboxCategoryLogic {

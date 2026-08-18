@@ -6,7 +6,7 @@
  * Adapted from Blockly DevSite landing demo toolbox:
  * https://github.com/RaspberryPiFoundation/blockly-samples/blob/main/examples/devsite-landing-demo/toolbox.js
  *
- * intEHRgrator additions: Source + Data values categories, for_each_source in Loops.
+ * intEHRgrator additions: Source + openEHR types (COMPOSITION / DATA_VALUE) categories, for_each_source in Loops.
  */
 
 import type { BlocklyOptions } from "blockly/core";
@@ -22,7 +22,18 @@ function dataValueToolboxContents(): Array<{ kind: string; type: string }> {
   }));
 }
 
-/** Build the workspace toolbox (Blockly demo + Source / Data values). */
+function openEhrTypeToolboxContents(): Array<{ kind: string; type: string; gap?: number }> {
+  return [
+    { kind: "block", type: "composition", gap: 8 },
+    { kind: "block", type: "section", gap: 8 },
+    { kind: "block", type: "observation", gap: 8 },
+    { kind: "block", type: "cluster", gap: 8 },
+    { kind: "block", type: "element", gap: 16 },
+    ...dataValueToolboxContents(),
+  ];
+}
+
+/** Build the workspace toolbox (Blockly demo + Source / openEHR types). */
 export function buildDemoToolbox(locale: string): ToolboxJson {
   const m = msg(locale);
   return {
@@ -41,10 +52,10 @@ export function buildDemoToolbox(locale: string): ToolboxJson {
       },
       {
         kind: "category",
-        name: m.CAT_DATA_VALUES,
+        name: m.CAT_OPENEHR_TYPES,
         colour: 230,
-        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryDataValues" },
-        contents: dataValueToolboxContents(),
+        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryOpenEhrTypes" },
+        contents: openEhrTypeToolboxContents(),
       },
       {
         kind: "category",

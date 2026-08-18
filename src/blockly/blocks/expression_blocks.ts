@@ -58,10 +58,9 @@ function defineSourceQueryBlock(
         .appendField(sourceQueryFieldLabel(returnType, label))
         .appendField(new Blockly.FieldTextInput("/path"), "EXPRESSION");
       if (type === "source_query") {
-        // Hidden field on the same row so older workspaces that stored RETURN_TYPE still load.
-        const hidden = new Blockly.FieldTextInput(returnType);
-        hidden.setVisible(false);
-        row.appendField(hidden, "RETURN_TYPE");
+        // Serializable zero-size label: older workspaces stored RETURN_TYPE here.
+        // A FieldTextInput would draw a second "string" box beside the path.
+        row.appendField(hiddenSerializableField(returnType), "RETURN_TYPE");
       }
       this.setOutput(true, blocklyCheckForReturnType(returnType));
       this.setColour(SOURCE_COLOUR);
@@ -70,4 +69,18 @@ function defineSourceQueryBlock(
       this.setInputsInline(true);
     },
   };
+}
+
+/** Label that serializes but never occupies Blockly layout or draws a field rect. */
+function hiddenSerializableField(value: string) {
+  const field = new Blockly.FieldLabelSerializable(value);
+  field.EDITABLE = false;
+  field.SERIALIZABLE = true;
+  field.initView = () => {};
+  const sized = field as unknown as { size_?: { width: number; height: number } };
+  if (sized.size_) {
+    sized.size_.width = 0;
+    sized.size_.height = 0;
+  }
+  return field;
 }

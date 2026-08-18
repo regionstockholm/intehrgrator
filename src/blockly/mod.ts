@@ -2,7 +2,7 @@ import * as Blockly from "blockly/core";
 import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import type { SkeletonNode } from "../types/mod.ts";
-import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell } from "./blocks/rm_blocks.ts";
+import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName } from "./blocks/rm_blocks.ts";
 import { registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
@@ -72,6 +72,22 @@ function registerGenerators(): void {
       `${body}}\n`
     );
   };
+
+  javascriptGenerator.forBlock["composition"] = (block) => {
+    const parts = [`_type: "COMPOSITION"`];
+    const content = javascriptGenerator.statementToCode(block, rmAttributeInputName("content"));
+    const context = javascriptGenerator.statementToCode(block, rmAttributeInputName("context"));
+    if (content.trim()) parts.push(`content: [\n${content}]`);
+    if (context.trim()) parts.push(`context: ${stripTrailingComma(context)}`);
+    return `const composition = new openehr_rm.COMPOSITION({ ${parts.join(", ")} });\n`;
+  };
+  javascriptGenerator.forBlock["section"] = rmObjectStatement("SECTION", ["items"]);
+  javascriptGenerator.forBlock["observation"] = rmObjectStatement("OBSERVATION", [
+    "data",
+    "state",
+    "protocol",
+  ]);
+  javascriptGenerator.forBlock["cluster"] = rmObjectStatement("CLUSTER", ["items"]);
 }
 
 export function skeletonToBlocklyXml(skeleton: SkeletonNode[]): string {
@@ -141,6 +157,21 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
     }
   }
   return { slots };
+}
+
+function rmObjectStatement(rmType: string, attrs: string[]) {
+  return (block: Blockly.Block) => {
+    const parts = [`_type: ${JSON.stringify(rmType)}`];
+    for (const attr of attrs) {
+      const code = javascriptGenerator.statementToCode(block, rmAttributeInputName(attr));
+      if (code.trim()) parts.push(`${attr}: [\n${code}]`);
+    }
+    return `{ ${parts.join(", ")} },\n`;
+  };
+}
+
+function stripTrailingComma(code: string): string {
+  return code.trim().replace(/,\s*$/, "");
 }
 
 function generateDvConstructor(block: Blockly.Block, rmType: string): [string, number] {

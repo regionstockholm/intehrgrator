@@ -26,24 +26,36 @@ const ELEMENT_COLOUR = "#3D7A6A";
 export function registerRmBlocks(): void {
   defineGenericStructureBlock("rm_structure", STRUCTURE_COLOUR);
 
-  defineContainerBlock("composition", "Composition", [
-    { name: "CONTENT", type: "statement" },
-    { name: "CONTEXT", type: "statement" },
-  ], CONTAINER_COLOUR, true);
+  defineContainerBlock("composition", "COMPOSITION", [
+    { name: "content", check: "CONTENT_ITEM" },
+    { name: "context", check: "EVENT_CONTEXT" },
+  ], CONTAINER_COLOUR, { expandable: true, rmType: "COMPOSITION" });
 
-  defineContainerBlock("section", "Section", [
-    { name: "ITEMS", type: "statement" },
-  ], CONTAINER_COLOUR, true);
+  defineContainerBlock("section", "SECTION", [
+    { name: "items", check: "CONTENT_ITEM" },
+  ], CONTAINER_COLOUR, {
+    expandable: true,
+    rmType: "SECTION",
+    nestCheck: "CONTENT_ITEM",
+  });
 
-  defineContainerBlock("observation", "Observation", [
-    { name: "DATA", type: "statement" },
-    { name: "STATE", type: "statement" },
-    { name: "PROTOCOL", type: "statement" },
-  ], STRUCTURE_COLOUR, true);
+  defineContainerBlock("observation", "OBSERVATION", [
+    { name: "data" },
+    { name: "state" },
+    { name: "protocol" },
+  ], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "OBSERVATION",
+    nestCheck: "CONTENT_ITEM",
+  });
 
-  defineContainerBlock("cluster", "Cluster", [
-    { name: "ITEMS", type: "statement" },
-  ], STRUCTURE_COLOUR, true);
+  defineContainerBlock("cluster", "CLUSTER", [
+    { name: "items" },
+  ], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "CLUSTER",
+    nestCheck: ["ITEM", "CLUSTER", "ELEMENT"],
+  });
 
   defineValueElementBlock();
   defineDataValueBlocksFromMeta();
@@ -197,7 +209,52 @@ export function expressionBlockFromDataValueShell(
   return shell.getInputTargetBlock(dvFieldInputName(primary.name));
 }
 
-type InputDef = { name: string; type: "statement" | "value" };
+type StatementInputDef = {
+  name: string;
+  check?: string | string[] | null;
+};
+
+function defineContainerBlock(
+  type: string,
+  label: string,
+  inputs: StatementInputDef[],
+  colour: string,
+  options: {
+    expandable?: boolean;
+    rmType: string;
+    nestCheck?: string | string[] | null;
+  },
+): void {
+  Blockly.Blocks[type] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField(label);
+      if (options.expandable) {
+        appendPlusField(this);
+      }
+      for (const input of inputs) {
+        const stmt = this.appendStatementInput(rmAttributeInputName(input.name))
+          .appendField(input.name);
+        if (input.check) stmt.setCheck(input.check);
+      }
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
+      this.getField("SLOT_ID")!.setVisible(false);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
+      this.getField("RM_TYPE")!.setVisible(false);
+      this.setColour(colour);
+      this.setTooltip(`openEHR RM ${options.rmType}`);
+      this.setInputsInline(true);
+      if (options.nestCheck) {
+        this.setPreviousStatement(true, options.nestCheck);
+        this.setNextStatement(true, options.nestCheck);
+      }
+      if (options.expandable) {
+        Blockly.Extensions.apply("optional_rm_mutator", this, true);
+      }
+    },
+  };
+}
 
 function defineGenericStructureBlock(type: string, colour: string): void {
   if (Blockly.Blocks[type]) return;
@@ -221,41 +278,6 @@ function defineGenericStructureBlock(type: string, colour: string): void {
       this.setColour(colour);
       this.setTooltip("openEHR RM structure");
       this.setInputsInline(true);
-    },
-  };
-}
-
-function defineContainerBlock(
-  type: string,
-  label: string,
-  inputs: InputDef[],
-  colour: string,
-  expandable = false,
-): void {
-  Blockly.Blocks[type] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField(label);
-      if (expandable) {
-        appendPlusField(this);
-      }
-      for (const input of inputs) {
-        if (input.type === "statement") {
-          this.appendStatementInput(rmAttributeInputName(input.name.toLowerCase()))
-            .appendField(input.name.toLowerCase());
-        }
-      }
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
-      this.setColour(colour);
-      this.setTooltip(label);
-      this.setInputsInline(true);
-      if (expandable) {
-        Blockly.Extensions.apply("optional_rm_mutator", this, true);
-      }
     },
   };
 }

@@ -156,3 +156,33 @@ Deno.test("ensureElementDataValueShell is idempotent", () => {
   assertEquals(a.id, b.id);
   workspace.dispose();
 });
+
+Deno.test("COMPOSITION toolbox block has RM content/context mouths", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const block = workspace.newBlock("composition");
+  assertEquals(block.getFieldValue("RM_TYPE"), "COMPOSITION");
+  assert(block.getInput(rmAttributeInputName("content")), "expected content statement");
+  assert(block.getInput(rmAttributeInputName("context")), "expected context statement");
+  assertEquals(block.getInput(rmAttributeInputName("content"))?.connection?.getCheck(), [
+    "CONTENT_ITEM",
+  ]);
+  assertEquals(block.previousConnection, null);
+  workspace.dispose();
+});
+
+Deno.test("SECTION and OBSERVATION nest into COMPOSITION content", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  const section = workspace.newBlock("section");
+  const observation = workspace.newBlock("observation");
+  const content = composition.getInput(rmAttributeInputName("content"))?.connection;
+  assert(content && section.previousConnection);
+  content.connect(section.previousConnection);
+  assertEquals(section.getParent()?.id, composition.id);
+  assert(observation.previousConnection);
+  section.nextConnection?.connect(observation.previousConnection);
+  assertEquals(observation.getRootBlock().id, composition.id);
+  workspace.dispose();
+});

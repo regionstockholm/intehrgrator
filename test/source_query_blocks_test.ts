@@ -10,6 +10,7 @@ import {
   sourceQueryFieldLabel,
   sourceReturnTypeFromSchemaType,
 } from "@intehrgrator/blockly/mod.ts";
+import { rmAttributeInputName } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { msg } from "@intehrgrator/blockly/i18n/custom_msg.ts";
 import { parseSourceDragPayload } from "@intehrgrator/workbench/tree_views.ts";
 
@@ -53,6 +54,22 @@ Deno.test("source query labels use type emoji in front of the localized source w
   workspace.dispose();
 });
 
+Deno.test("source_query keeps RETURN_TYPE for old workspaces without a visible string box", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const str = workspace.newBlock("source_query");
+  assertEquals(str.getFieldValue("EXPRESSION"), "/path");
+  assertEquals(str.getFieldValue("RETURN_TYPE"), "string");
+  const returnField = str.getField("RETURN_TYPE");
+  assert(returnField);
+  assertEquals(returnField instanceof Blockly.FieldTextInput, false);
+  const saved = Blockly.serialization.blocks.save(str) as {
+    fields?: Record<string, string>;
+  };
+  assertEquals(saved.fields?.RETURN_TYPE, "string");
+  workspace.dispose();
+});
+
 Deno.test("Source toolbox drawer lists string, number, and boolean source blocks", () => {
   ensure();
   const toolbox = buildDemoToolbox("en") as {
@@ -61,6 +78,20 @@ Deno.test("Source toolbox drawer lists string, number, and boolean source blocks
   const source = toolbox.contents.find((cat) => cat.name === msg("en").CAT_SOURCE);
   const types = (source?.contents ?? []).map((block) => block.type);
   assertEquals(types, ["source_query", "source_query_number", "source_query_boolean"]);
+});
+
+Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE leaves", () => {
+  ensure();
+  const toolbox = buildDemoToolbox("sv") as {
+    contents: Array<{ name?: string; contents?: Array<{ type?: string }> }>;
+  };
+  const cat = toolbox.contents.find((c) => c.name === msg("sv").CAT_OPENEHR_TYPES);
+  assertEquals(cat?.name, "openEHR types");
+  const types = (cat?.contents ?? []).map((block) => block.type);
+  assertEquals(types[0], "composition");
+  assertEquals(types.includes("section"), true);
+  assertEquals(types.includes("observation"), true);
+  assertEquals(types.includes("dv_quantity"), true);
 });
 
 Deno.test("schema types map to Blockly source return types", () => {
@@ -115,4 +146,20 @@ Deno.test("source drag payload keeps schemaType", () => {
   assertEquals(payload?.path, "$.systolic");
   assertEquals(payload?.schemaType, "integer");
   assertEquals(payload?.origin, "schema");
+});
+
+Deno.test("COMPOSITION generator emits ehrtslib constructor with nested CONTENT_ITEM", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  const observation = workspace.newBlock("observation");
+  const content = composition.getInput(rmAttributeInputName("content"))?.connection;
+  assert(content && observation.previousConnection);
+  content.connect(observation.previousConnection);
+  javascriptGenerator.init(workspace);
+  const code = javascriptGenerator.blockToCode(composition) as string;
+  assert(code.includes("new openehr_rm.COMPOSITION"), code);
+  assert(code.includes('_type: "OBSERVATION"'), code);
+  assert(code.includes("content:"), code);
+  workspace.dispose();
 });

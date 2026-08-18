@@ -4,6 +4,7 @@ import { msg, detectLocale } from "../i18n/locale.ts";
 import {
   type SourceReturnType,
   sourceBlockTypeForReturnType,
+  sourceQueryFieldLabel,
 } from "../source_query.ts";
 
 const LOOP_COLOUR = "#A5D6A7";
@@ -53,19 +54,18 @@ function defineSourceQueryBlock(
   const type = sourceBlockTypeForReturnType(returnType);
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput()
-        .appendField(label)
-        .appendField(returnType)
+      const row = this.appendDummyInput()
+        .appendField(sourceQueryFieldLabel(returnType, label))
         .appendField(new Blockly.FieldTextInput("/path"), "EXPRESSION");
       if (type === "source_query") {
-        // Hidden field kept so older workspaces that stored RETURN_TYPE still load.
-        this.appendDummyInput()
-          .appendField(new Blockly.FieldTextInput(returnType), "RETURN_TYPE")
-          .setVisible(false);
+        // Hidden field on the same row so older workspaces that stored RETURN_TYPE still load.
+        const hidden = new Blockly.FieldTextInput(returnType);
+        hidden.setVisible(false);
+        row.appendField(hidden, "RETURN_TYPE");
       }
       this.setOutput(true, blocklyCheckForReturnType(returnType));
       this.setColour(SOURCE_COLOUR);
-      this.setTooltip(tooltip);
+      this.setTooltip(`${returnType}: ${tooltip}`);
       this.setStyle?.("colour_blocks");
       this.setInputsInline(true);
     },

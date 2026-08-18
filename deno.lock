@@ -25,6 +25,7 @@
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.1.1": "1.1.1",
     "jsr:@std/testing@1": "1.0.19",
+    "npm:@cfworker/json-schema@^4.1.1": "4.1.1",
     "npm:@codemirror/commands@^6.8.1": "6.10.4",
     "npm:@codemirror/lang-javascript@^6.2.4": "6.2.5",
     "npm:@codemirror/lang-json@^6.0.2": "6.0.2",
@@ -145,6 +146,9 @@
         "@csstools/css-tokenizer",
         "lru-cache"
       ]
+    },
+    "@cfworker/json-schema@4.1.1": {
+      "integrity": "sha512-gAmrUZSGtKc3AiBL71iNWxDsyUC5uMaKKGdvzYsBoTW/xi42JQHl7eKV2OYzCUqvc+D2RCcf7EXY2iCyFIk6og=="
     },
     "@codemirror/autocomplete@6.20.3": {
       "integrity": "sha512-tlosUqb+3BbxCxZdu4tKeRghPFC+QM7q4X5YhKV2eCmPG+1r2F3f4AaSz5sCrFqUtX4Jh20VFTKecl16MgiV9g==",
@@ -1111,6 +1115,7 @@
       "jsr:@std/http@1",
       "jsr:@std/path@1",
       "jsr:@std/testing@1",
+      "npm:@cfworker/json-schema@^4.1.1",
       "npm:@codemirror/commands@^6.8.1",
       "npm:@codemirror/lang-javascript@^6.2.4",
       "npm:@codemirror/language@^6.11.3",

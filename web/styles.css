@@ -70,12 +70,16 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .pane-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 8px 12px; background: var(--primary); color: #fff; flex-shrink: 0;
+  flex-wrap: nowrap;
 }
-.pane-header h2 { margin: 0; padding: 0; background: none; font-size: 14px; min-width: 0; }
-.pane-header-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.pane-header h2 {
+  margin: 0; padding: 0; background: none; font-size: 14px; min-width: 0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pane-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 .pane-select-label {
   display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.9); white-space: nowrap;
 }
 .pane-select-label select {
   max-width: 110px; padding: 3px 5px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.35);
@@ -85,6 +89,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   margin: 0 0 6px; flex-shrink: 0; flex-wrap: wrap;
 }
+.section-header-actions { display: flex; align-items: center; gap: 6px; min-width: 0; }
 .pane h3, .section-header h3 {
   margin: 0; font-size: 12px; color: var(--text-secondary);
   text-transform: uppercase; letter-spacing: 0.04em;
@@ -99,7 +104,36 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   background: rgba(255, 255, 255, 0.15); border-color: rgba(255, 255, 255, 0.35);
 }
 .pane-btn-on-dark:hover { background: rgba(255, 255, 255, 0.25); }
+.pane-btn-icon {
+  display: inline-flex; align-items: center; gap: 4px; white-space: nowrap;
+}
+.pane-btn-icon svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
 .pane-btn-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.info-tip { position: relative; display: inline-flex; flex-shrink: 0; }
+.info-tip-btn {
+  width: 16px; height: 16px; padding: 0; border-radius: 50%;
+  border: 1px solid var(--primary); background: #fff; color: var(--primary);
+  font: italic bold 10px/14px Georgia, serif; cursor: pointer;
+}
+.info-tip-btn:hover, .info-tip-btn:focus-visible { background: #e8f5f2; }
+.pane-header .info-tip-btn {
+  border-color: rgba(255, 255, 255, 0.7); background: transparent; color: #fff;
+}
+.pane-header .info-tip-btn:hover,
+.pane-header .info-tip-btn:focus-visible { background: rgba(255, 255, 255, 0.18); }
+.info-tip-balloon {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0; z-index: 50;
+  width: max-content; max-width: min(280px, calc(100vw - 16px));
+  padding: 8px 10px; border-radius: 6px;
+  background: #003b49; color: #f5f5f0;
+  font: 11px/1.4 system-ui, sans-serif; white-space: normal;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); pointer-events: none;
+}
+.info-tip--end .info-tip-balloon { left: auto; right: 0; }
+.info-tip:hover .info-tip-balloon,
+.info-tip:focus-within .info-tip-balloon,
+.info-tip.is-open .info-tip-balloon { display: block; }
+.info-tip.is-open .info-tip-balloon { pointer-events: auto; }
 .split-btn {
   position: relative;
   display: inline-flex;
@@ -229,17 +263,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .blockly-mount { min-height: 120px; height: 100%; flex: 1; background: #fff; }
 .slots-pane { display: flex; flex-direction: column; min-width: 160px; }
-.slots-pane .pane-header {
-  flex-direction: column; align-items: stretch; gap: 6px; padding: 8px 10px;
-}
-.slots-pane .pane-header h2 { font-size: 13px; text-align: center; }
-.slots-pane .pane-header .split-btn { width: 100%; }
-.slots-pane .pane-header .split-btn-main {
-  flex: 1; width: auto; font-size: 11px; line-height: 1.25;
-}
-.slots-pane .pane-header .split-btn-chevron {
-  width: auto; font-size: 11px; line-height: 1.25;
-}
 
 /*
  * Blockly DevSite landing demo toolbox category accents
@@ -296,14 +319,32 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .blockly-mount .blocklyText {
   fill: black !important;
-  font: 400 16px "Google Sans", "Segoe UI", sans-serif !important;
+  font: 400 12px "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif !important;
 }
 
 /* Secondary at-code on skeleton blocks */
 .blockly-mount .blocklyText.blockly-at-code {
   fill: var(--text-secondary);
-  font-size: 12px !important;
+  font-size: 10px !important;
 }
+
+/* Mapping Spec: inline widgets must not inflate CodeMirror's line box. */
+#spec-editor .cm-content,
+#spec-editor .cm-line,
+#spec-editor .cm-gutters,
+#spec-editor .cm-lineNumbers .cm-gutterElement {
+  line-height: 18px;
+}
+#spec-editor .cm-line {
+  min-height: 18px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+#spec-editor .cm-widgetBuffer {
+  height: 0 !important;
+  line-height: 0 !important;
+}
+
 .slot-rail { padding: 8px; overflow: auto; background: var(--surface-alt); min-width: 0; min-height: 0; flex: 1; }
 
 /* RTL skeleton tree: root right, leaves left */

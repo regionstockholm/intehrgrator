@@ -13,9 +13,9 @@ export function createModestTheme(): Blockly.Theme {
   return Theme.defineTheme("modest", {
     name: "modest",
     fontStyle: {
-      family: '"Google Sans", "Segoe UI", sans-serif',
-      weight: "bold",
-      size: 16,
+      family: '"Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif',
+      weight: "normal",
+      size: 12,
     },
     blockStyles: {
       logic_blocks: {

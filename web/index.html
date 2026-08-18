@@ -38,7 +38,15 @@
         <div class="pane-section">
           <div class="section-header">
             <h3>Schema</h3>
-            <div class="split-btn">
+            <div class="section-header-actions">
+              <span class="info-tip">
+                <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-load-schema" aria-label="Supported schema formats">i</button>
+                <span id="tip-load-schema" class="info-tip-balloon" role="tooltip">
+                  Supported: JSON Schema, JSON or XML documents, XSD samples, and openEHR Web Template or Composition JSON.<br>
+                  Load from a local file or from a URL, use ▾ to switch.
+                </span>
+              </span>
+              <div class="split-btn">
               <button id="btn-load-schema" class="pane-btn split-btn-main" type="button">Load Schema</button>
               <button
                 id="btn-load-schema-menu"
@@ -50,6 +58,7 @@
                 aria-label="More schema load options"
               >▾</button>
               <div id="menu-load-schema" class="split-btn-menu" hidden role="menu"></div>
+              </div>
             </div>
           </div>
           <div id="schema-tree" class="tree-pane"></div>
@@ -57,7 +66,15 @@
         <div class="pane-section">
           <div class="section-header">
             <h3>Examples</h3>
-            <div class="split-btn">
+            <div class="section-header-actions">
+              <span class="info-tip">
+                <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-add-example" aria-label="Supported example formats">i</button>
+                <span id="tip-add-example" class="info-tip-balloon" role="tooltip">
+                  Supported: JSON or XML instance files.<br>
+                  Load from a local file or from a URL, use ▾ to switch.
+                </span>
+              </span>
+              <div class="split-btn">
               <button id="btn-add-example" class="pane-btn split-btn-main" type="button">+ Add Example</button>
               <button
                 id="btn-add-example-menu"
@@ -69,6 +86,7 @@
                 aria-label="More example load options"
               >▾</button>
               <div id="menu-add-example" class="split-btn-menu" hidden role="menu"></div>
+              </div>
             </div>
           </div>
           <div id="example-validation" class="example-validation" hidden></div>
@@ -119,18 +137,27 @@
     <section class="pane slots-pane">
       <div class="pane-header">
         <h2>Target</h2>
-        <div class="split-btn">
-          <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button">Open target Schema/Template</button>
-          <button
-            id="btn-open-template-menu"
-            class="pane-btn pane-btn-on-dark split-btn-chevron"
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded="false"
-            aria-controls="menu-open-template"
-            aria-label="More target load options"
-          >▾</button>
-          <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
+        <div class="pane-header-actions">
+          <span class="info-tip info-tip--end">
+            <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats">i</button>
+            <span id="tip-open-target" class="info-tip-balloon" role="tooltip">
+              Supported: openEHR OPT/OPT2, Web Template, JSON Schema, XML Schema (XSD), ADL, and free-form templates.<br>
+              Load from a local file or from a URL, use ▾ to switch.
+            </span>
+          </span>
+          <div class="split-btn">
+            <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Open target schema or template">Open</button>
+            <button
+              id="btn-open-template-menu"
+              class="pane-btn pane-btn-on-dark split-btn-chevron"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="menu-open-template"
+              aria-label="More target load options"
+            >▾</button>
+            <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
+          </div>
         </div>
       </div>
       <div id="target-format-badge" class="target-format-badge">No target</div>
@@ -143,6 +170,13 @@
       <div class="pane-header">
         <h2>Output Previews</h2>
         <div class="pane-header-actions">
+          <span class="info-tip info-tip--end">
+            <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
+            <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
+              Supported conversion scripts (so far): TypeScript, Java, Handlebars, and XQuery.<br>
+              Download saves the generated script as a local file.
+            </span>
+          </span>
           <label class="pane-select-label" for="export-target">Conversion script
             <select id="export-target">
               <option value="typescript">TypeScript</option>
@@ -151,7 +185,12 @@
               <option value="xquery">XQuery</option>
             </select>
           </label>
-          <button id="btn-export-ts" class="pane-btn pane-btn-on-dark" type="button">Export</button>
+          <button id="btn-export-ts" class="pane-btn pane-btn-on-dark pane-btn-icon" type="button" title="Download conversion script">
+            <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
+            </svg>
+            Download
+          </button>
         </div>
       </div>
       <div

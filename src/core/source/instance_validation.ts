@@ -38,7 +38,7 @@ function validateAgainstJsonSchemaDocument(
   format: SourceFormatId,
   schemaDocument?: string,
 ): InstanceValidationIssue[] | null {
-  if (!schemaDocument || format === "xml") return null;
+  if (!schemaDocument || format === "xml" || format.startsWith("openehr-")) return null;
   let schema: unknown;
   try {
     schema = JSON.parse(schemaDocument);

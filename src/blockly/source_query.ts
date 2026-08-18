@@ -15,6 +15,20 @@ export const SOURCE_QUERY_BLOCK_TYPES = [
 export type SourceQueryBlockType = typeof SOURCE_QUERY_BLOCK_TYPES[number];
 export type SourceReturnType = "string" | "number" | "boolean";
 
+/** Compact type marks used on source blocks and the Mapping Spec projection. */
+export const SOURCE_TYPE_EMOJI: Record<SourceReturnType, string> = {
+  string: "🔤",
+  number: "🔢",
+  boolean: "☑️",
+};
+
+export function sourceQueryFieldLabel(
+  returnType: SourceReturnType,
+  sourceWord: string,
+): string {
+  return `${SOURCE_TYPE_EMOJI[returnType]} ${sourceWord}`;
+}
+
 export function isSourceQueryBlockType(type: string): type is SourceQueryBlockType {
   return (SOURCE_QUERY_BLOCK_TYPES as readonly string[]).includes(type);
 }

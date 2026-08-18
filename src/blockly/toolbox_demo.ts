@@ -34,9 +34,9 @@ export function buildDemoToolbox(locale: string): ToolboxJson {
         colour: 28,
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategorySource" },
         contents: [
-          { kind: "block", type: "source_query" },
-          { kind: "block", type: "source_query_number" },
-          { kind: "block", type: "source_query_boolean" },
+          { kind: "block", type: "source_query", gap: 8 },
+          { kind: "block", type: "source_query_number", gap: 8 },
+          { kind: "block", type: "source_query_boolean", gap: 8 },
         ],
       },
       {

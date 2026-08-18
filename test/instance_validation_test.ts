@@ -2,6 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import { loadJsonSchema } from "@intehrgrator/core/source/schema_loader.ts";
 import { validateInstanceAgainstSchema } from "@intehrgrator/core/source/instance_validation.ts";
+import { jsonPointerToPath } from "@intehrgrator/core/source/json_schema_validate.ts";
 
 const schemaJson = JSON.stringify({
   type: "object",
@@ -63,12 +64,12 @@ Deno.test("validateInstanceAgainstSchema reports JSON Schema minimum and enum vi
   const schema = loadJsonSchema(schemaText, "BloodPressureMeasurement");
   const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
   assert(
-    issues.some((i) => i.path.includes("diastolic") && /minimum|>=|below/i.test(i.message)),
+    issues.some((i) => i.path.includes("diastolic") && /minimum|>=|below|less than/i.test(i.message)),
     `expected diastolic minimum issue, got: ${JSON.stringify(issues)}`,
   );
   assert(
     issues.some((i) =>
-      i.path.includes("bodyPosition") && /enum|allowed|one of/i.test(i.message)
+      i.path.includes("bodyPosition") && /enum|allowed|one of|any of/i.test(i.message)
     ),
     `expected bodyPosition enum issue, got: ${JSON.stringify(issues)}`,
   );
@@ -84,4 +85,11 @@ Deno.test("validateInstanceAgainstSchema accepts valid BP instance against JSON 
   const schema = loadJsonSchema(schemaText, "BloodPressureMeasurement");
   const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
   assertEquals(issues, []);
+});
+
+Deno.test("jsonPointerToPath matches Source Pane instance paths", () => {
+  assertEquals(jsonPointerToPath("#"), "$");
+  assertEquals(jsonPointerToPath("#/diastolic"), "$.diastolic");
+  assertEquals(jsonPointerToPath("#/bodyPosition"), "$.bodyPosition");
+  assertEquals(jsonPointerToPath("#/items/0"), "$.items[1]");
 });

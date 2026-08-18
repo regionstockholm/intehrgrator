@@ -1,5 +1,12 @@
 import { WidgetType } from "@codemirror/view";
+import {
+  SOURCE_TYPE_EMOJI,
+  type SourceReturnType,
+} from "../../blockly/source_query.ts";
 import type { SpecLine } from "./project.ts";
+
+/** Matching CodeMirror line box — keep Spec rows as dense as a code listing. */
+export const SPEC_LINE_HEIGHT = 18;
 
 export type SpecFieldEditHandler = (
   blockId: string,
@@ -16,10 +23,14 @@ export class MappingSpecWidget extends WidgetType {
     super();
   }
 
-  eq(other: MappingSpecWidget): boolean {
+  override get estimatedHeight(): number {
+    return SPEC_LINE_HEIGHT;
+  }
+
+  override eq(other: MappingSpecWidget): boolean {
     return (
       this.line.blockId === other.line.blockId &&
-      this.line.kind === other.kind &&
+      this.line.kind === other.line.kind &&
       this.line.type === other.line.type &&
       this.line.summary === other.line.summary &&
       JSON.stringify(this.line.editable) === JSON.stringify(other.line.editable) &&
@@ -27,10 +38,10 @@ export class MappingSpecWidget extends WidgetType {
     );
   }
 
-  toDOM(): HTMLElement {
-    const row = document.createElement("div");
+  override toDOM(): HTMLElement {
+    const row = document.createElement("span");
     row.className = `spec-widget spec-widget--${this.line.kind}`;
-    row.style.paddingLeft = `${8 + this.line.indent * 14}px`;
+    row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
     if (this.line.blockId) row.dataset.blockId = this.line.blockId;
 
     const badge = document.createElement("span");
@@ -44,12 +55,12 @@ export class MappingSpecWidget extends WidgetType {
 
       if (returnField) {
         const select = document.createElement("select");
-        select.className = "spec-widget-select";
+        select.className = "spec-widget-select spec-widget-type-select";
         select.setAttribute("aria-label", "Return type");
-        for (const opt of ["string", "number", "boolean"]) {
+        for (const opt of ["string", "number", "boolean"] as SourceReturnType[]) {
           const option = document.createElement("option");
           option.value = opt;
-          option.textContent = opt;
+          option.textContent = `${SOURCE_TYPE_EMOJI[opt]} ${opt}`;
           if (opt === (returnField.value ?? "string")) option.selected = true;
           select.appendChild(option);
         }
@@ -62,8 +73,10 @@ export class MappingSpecWidget extends WidgetType {
       } else {
         const typeHint = document.createElement("span");
         typeHint.className = "spec-widget-type";
-        const summaryType = this.line.summary.split(" · ")[0] ?? "";
-        typeHint.textContent = summaryType;
+        const summaryType = sourceReturnTypeFromSummary(this.line.summary);
+        typeHint.textContent = SOURCE_TYPE_EMOJI[summaryType];
+        typeHint.title = summaryType;
+        typeHint.setAttribute("aria-label", summaryType);
         row.appendChild(typeHint);
       }
 
@@ -118,13 +131,19 @@ export class MappingSpecWidget extends WidgetType {
     return row;
   }
 
-  ignoreEvent(event: Event): boolean {
+  override ignoreEvent(event: Event): boolean {
     const target = event.target;
     if (!(target instanceof Element)) return false;
     return Boolean(
       target.closest("input, select, button, .spec-widget-balloon"),
     );
   }
+}
+
+function sourceReturnTypeFromSummary(summary: string): SourceReturnType {
+  const raw = summary.split(" · ")[0] ?? "string";
+  if (raw === "number" || raw === "boolean") return raw;
+  return "string";
 }
 
 function badgeLabel(line: SpecLine): string {

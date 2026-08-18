@@ -25,12 +25,15 @@ export {
   isSourceQueryBlockType,
   placeSourceQueryBlock,
   sourceBlockTypeForReturnType,
+  sourceQueryFieldLabel,
   sourceReturnTypeFromSchemaType,
+  SOURCE_TYPE_EMOJI,
   workspacePositionFromClient,
 } from "./source_query.ts";
 export { createModestTheme } from "./theme.ts";
 /** @deprecated use createModestTheme */
 export { createModestTheme as createCompactTheme } from "./theme.ts";
+export { registerCompactThrasosRenderer, COMPACT_RENDERER_NAME } from "./compact_renderer.ts";
 export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { buildDemoToolbox } from "./toolbox_demo.ts";

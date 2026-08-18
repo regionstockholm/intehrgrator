@@ -7,6 +7,7 @@ import {
   buildDemoToolbox,
   createSourceQueryBlock,
   sourceBlockTypeForReturnType,
+  sourceQueryFieldLabel,
   sourceReturnTypeFromSchemaType,
 } from "@intehrgrator/blockly/mod.ts";
 import { msg } from "@intehrgrator/blockly/i18n/custom_msg.ts";
@@ -32,6 +33,23 @@ Deno.test("typed source_query blocks are registered with String/Number/Boolean o
   assertEquals(str.outputConnection?.getCheck()?.includes("String"), true);
   assertEquals(num.outputConnection?.getCheck()?.includes("Number"), true);
   assertEquals(bool.outputConnection?.getCheck()?.includes("Boolean"), true);
+  workspace.dispose();
+});
+
+Deno.test("source query labels use type emoji in front of the localized source word", () => {
+  assertEquals(sourceQueryFieldLabel("string", "källa"), "🔤 källa");
+  assertEquals(sourceQueryFieldLabel("number", "source"), "🔢 source");
+  assertEquals(sourceQueryFieldLabel("boolean", "source"), "☑️ source");
+
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const word = msg("en").SOURCE_QUERY;
+  const str = workspace.newBlock("source_query");
+  const num = workspace.newBlock("source_query_number");
+  const bool = workspace.newBlock("source_query_boolean");
+  assertEquals(str.inputList[0]?.fieldRow[0]?.getText(), sourceQueryFieldLabel("string", word));
+  assertEquals(num.inputList[0]?.fieldRow[0]?.getText(), sourceQueryFieldLabel("number", word));
+  assertEquals(bool.inputList[0]?.fieldRow[0]?.getText(), sourceQueryFieldLabel("boolean", word));
   workspace.dispose();
 });
 

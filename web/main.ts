@@ -35,6 +35,7 @@ import {
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
   workspacePositionFromClient,
+  registerCompactThrasosRenderer,
 } from "../src/blockly/mod.ts";
 import {
   changeLocaleAndReload,
@@ -47,6 +48,7 @@ import {
 } from "../src/blockly/i18n/locale.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
+import { installInfoTips } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
@@ -191,7 +193,7 @@ async function bootBlockly(): Promise<void> {
     },
     move: { scrollbars: true, drag: true, wheel: true },
     trashcan: false,
-    renderer: "thrasos",
+    renderer: registerCompactThrasosRenderer(),
   });
 
   const loadOnce = takeLoadOnceBlocks();
@@ -355,6 +357,7 @@ function requireEl<T extends HTMLElement>(id: string): T {
   return el as T;
 }
 
+installInfoTips();
 installUrlLoadUi({
   dialog: requireEl<HTMLDialogElement>("dialog-load-url"),
   title: requireEl("load-url-title"),
@@ -788,16 +791,6 @@ function render(): void {
     ? `${s.target.format} · ${s.target.targetId}`
     : "No target";
   exportTargetSelect.value = s.settings.exportTarget;
-  const exportButton = document.getElementById("btn-export-ts") as HTMLButtonElement;
-  exportButton.textContent = `Export ${
-    s.settings.exportTarget === "handlebars"
-      ? "HBS"
-      : s.settings.exportTarget === "java"
-      ? "Java"
-      : s.settings.exportTarget === "xquery"
-      ? "XQ"
-      : "TS"
-  }`;
   const autoplayBtn = document.getElementById("btn-autoplay") as HTMLButtonElement;
   autoplayBtn.disabled = !s.examples.length;
   autoplayBtn.textContent = s.settings.autoplay ? "⏸ Pause" : "▶ Autoplay";

@@ -1,4 +1,4 @@
-import { parseTemplateInput } from "ehrtslib/enhanced/parser/mod.ts";
+import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
 import type { SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,

@@ -5,7 +5,7 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 ## Quick start
 
 ```bash
-deno task vendor   # clone ehrtslib + openEHR-model-examples into vendor/
+deno task vendor   # clone/update ehrtslib + examples from origin/main into vendor/
 deno task test     # unit tests (no browser)
 deno task test:ui  # Playwright: Click-to-Map + Test Run (see docs/UI_TESTING.md)
 deno task build    # outputs static site to dist/
@@ -15,6 +15,8 @@ deno task dev      # serve dist/ on http://localhost:5173
 ### GitHub Pages
 
 The Web Shell is published on every push to `main` via the **Deploy GitHub Pages** workflow (also runnable manually from Actions). Ensure **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
+
+CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, so upstream module moves fail tests instead of shipping against a stale pin. A daily scheduled CI run catches breaks even when this repo is idle.
 
 Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 

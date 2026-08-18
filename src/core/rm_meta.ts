@@ -10,7 +10,7 @@ import {
   isSubtypeOf,
   subtypesOf,
   type RmAttributeMeta,
-} from "ehrtslib/enhanced/meta/mod.ts";
+} from "ehrtslib/meta/mod.ts";
 import type { AttachmentOption } from "../types/mod.ts";
 
 export {

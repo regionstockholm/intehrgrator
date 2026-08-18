@@ -4,16 +4,12 @@ import { join } from "@std/path";
 type VendorSpec = {
   dir: string;
   url: string;
-  /** Pin a commit so CI does not float on breaking upstream layout changes. */
-  ref?: string;
 };
 
 const repos: VendorSpec[] = [
   {
     dir: "ehrtslib",
     url: "https://github.com/ErikSundvall/ehrtslib.git",
-    // Last layout with enhanced/parser + enhanced/meta (later main moved those).
-    ref: "acf6824b347d451a573303bd01441e33aa27318d",
   },
   {
     dir: "openEHR-model-examples",
@@ -35,7 +31,7 @@ for (const spec of repos) {
 if (failed) Deno.exit(1);
 
 async function vendorRepo(spec: VendorSpec): Promise<void> {
-  const { dir, url, ref } = spec;
+  const { dir, url } = spec;
   const vendorDir = join(Deno.cwd(), "vendor", dir);
   const hasGit = await exists(join(vendorDir, ".git"));
 
@@ -46,33 +42,28 @@ async function vendorRepo(spec: VendorSpec): Promise<void> {
       // nothing to replace
     }
     console.log(`Cloning ${dir} into ${vendorDir}…`);
-    if (ref) {
-      await checkoutPinned(vendorDir, url, ref);
-    } else {
-      await runGit(["clone", "--depth", "1", url, vendorDir]);
-    }
-    console.log(`Cloned ${dir} to ${vendorDir}`);
-    return;
+    await runGit(["clone", "--depth", "1", url, vendorDir]);
+  } else {
+    // Always reset to origin/main so a previous pin or local drift cannot hide
+    // upstream breaks from CI.
+    console.log(`Updating ${dir} to origin/main…`);
+    await runGit(["-C", vendorDir, "fetch", "--depth", "1", "origin", "main"]);
+    await runGit(["-C", vendorDir, "checkout", "-B", "main", "origin/main"]);
+    await runGit(["-C", vendorDir, "reset", "--hard", "origin/main"]);
   }
 
-  if (ref) {
-    console.log(`Checking out ${dir} at ${ref.slice(0, 7)}…`);
-    await runGit(["-C", vendorDir, "fetch", "--depth", "1", "origin", ref]);
-    await runGit(["-C", vendorDir, "checkout", "--detach", "FETCH_HEAD"]);
-    console.log(`${dir} at ${ref.slice(0, 7)}`);
-    return;
-  }
-
-  console.log(`Updating ${dir} in ${vendorDir}…`);
-  await runGit(["-C", vendorDir, "pull", "--ff-only", "origin", "main"]);
-  console.log(`${dir} updated`);
+  const sha = await revParse(vendorDir);
+  console.log(`${dir} at ${sha} (origin/main)`);
 }
 
-async function checkoutPinned(vendorDir: string, url: string, ref: string): Promise<void> {
-  await runGit(["init", vendorDir]);
-  await runGit(["-C", vendorDir, "remote", "add", "origin", url]);
-  await runGit(["-C", vendorDir, "fetch", "--depth", "1", "origin", ref]);
-  await runGit(["-C", vendorDir, "checkout", "--detach", "FETCH_HEAD"]);
+async function revParse(cwd: string): Promise<string> {
+  const { success, stdout } = await new Deno.Command("git", {
+    args: ["-C", cwd, "rev-parse", "--short=7", "HEAD"],
+    stdout: "piped",
+    stderr: "null",
+  }).output();
+  if (!success) return "unknown";
+  return new TextDecoder().decode(stdout).trim() || "unknown";
 }
 
 async function exists(path: string): Promise<boolean> {

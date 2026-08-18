@@ -1,5 +1,5 @@
 /**
- * Mirrors ehrtslib enhanced/generation/rm_instance_generator.ts MANDATORY_RM_ATTRIBUTES.
+ * Mirrors ehrtslib generation/rm_instance_generator.ts MANDATORY_RM_ATTRIBUTES.
  * intEHRgrator consumes this list for Template Skeleton silent-mandatory fields.
  */
 export const MANDATORY_RM_ATTRIBUTES: Record<string, string[]> = {

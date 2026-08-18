@@ -4,7 +4,7 @@
 **Consumer context:** [intEHRgrator](https://github.com/RegionStockholm/intehrgrator) (and any tool that builds UIs or codegen from RM structure)  
 **Authoritative sources:** openEHR BMM / RM specs (not hand-maintained UI tables)
 
-> **Landed in ehrtslib:** public API at `enhanced/meta/mod.ts` — see vendored `docs/RM_ATTRIBUTES.md`. intEHRgrator consumes this via `src/core/rm_meta.ts`.
+> **Landed in ehrtslib:** public API at `meta/mod.ts` — see vendored `docs/RM_ATTRIBUTES.md`. intEHRgrator consumes this via `src/core/rm_meta.ts`.
 
 
 ## Problem

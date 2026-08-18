@@ -44,6 +44,7 @@
     "npm:handlebars@^4.7.9": "4.7.9",
     "npm:playwright@1.51.0": "1.51.0",
     "npm:temporal-polyfill@0.2.5": "0.2.5",
+    "npm:temporal-polyfill@0.3.0": "0.3.0",
     "npm:yaml@^2.3.4": "2.9.0",
     "npm:yaml@^2.9.0": "2.9.0"
   },
@@ -1007,11 +1008,20 @@
     "temporal-polyfill@0.2.5": {
       "integrity": "sha512-ye47xp8Cb0nDguAhrrDS1JT1SzwEV9e26sSsrWzVu+yPZ7LzceEcH0i2gci9jWfOfSCCgM3Qv5nOYShVUUFUXA==",
       "dependencies": [
-        "temporal-spec"
+        "temporal-spec@0.2.4"
+      ]
+    },
+    "temporal-polyfill@0.3.0": {
+      "integrity": "sha512-qNsTkX9K8hi+FHDfHmf22e/OGuXmfBm9RqNismxBrnSmZVJKegQ+HYYXT+R7Ha8F/YSm2Y34vmzD4cxMu2u95g==",
+      "dependencies": [
+        "temporal-spec@0.3.0"
       ]
     },
     "temporal-spec@0.2.4": {
       "integrity": "sha512-lDMFv4nKQrSjlkHKAlHVqKrBG4DyFfa9F74cmBZ3Iy3ed8yvWnlWSIdi4IKfSqwmazAohBNwiN64qGx4y5Q3IQ=="
+    },
+    "temporal-spec@0.3.0": {
+      "integrity": "sha512-n+noVpIqz4hYgFSMOSiINNOUOMFtV5cZQNCmmszA6GiVFVRt3G7AqVyhXjhCSmowvQn+NsGn+jMDMKJYHd3bSQ=="
     },
     "tldts-core@6.1.86": {
       "integrity": "sha512-Je6p7pkk+KMzMv2XXKmAE3McmolOQFdxkKw0R8EYNr7sELW46JqnNeTX8ybPiQgvg1ymCoF8LXs5fzFaZvJPTA=="

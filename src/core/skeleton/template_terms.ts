@@ -2,11 +2,11 @@ import {
   asArray,
   parseLegacyTemplateXml,
   textValue,
-} from "ehrtslib/enhanced/parser/legacy/xml_aom_mapper.ts";
+} from "ehrtslib/parser/legacy/xml_aom_mapper.ts";
 import {
   resolveTemplateLanguage,
   termCodeCandidates,
-} from "ehrtslib/enhanced/generation/term_codes.ts";
+} from "ehrtslib/generation/term_codes.ts";
 
 export type TermBag = Record<string, { text?: string; description?: string }>;
 

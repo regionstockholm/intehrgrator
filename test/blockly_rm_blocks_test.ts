@@ -17,7 +17,7 @@ import {
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
-import { loadSkeletonIntoWorkspace } from "@intehrgrator/blockly/skeleton_loader.ts";
+import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   attributesFor,
@@ -144,6 +144,46 @@ Deno.test("loadSkeletonIntoWorkspace auto-attaches mandatory DV shells", () => {
   workspace.dispose();
 });
 
+Deno.test("imported skeleton starts expanded; collapse-all skips the root", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const roots = workspace.getTopBlocks(false);
+  assert(roots.length >= 1, "expected a root block");
+  const root = roots[0];
+  assertEquals(root.isCollapsed(), false);
+
+  const nested = workspace.getAllBlocks(false).filter((block) => {
+    if (block === root) return false;
+    return typeof block.isShadow !== "function" || !block.isShadow();
+  });
+  assert(nested.length > 0, "expected nested blocks under the root");
+  assert(
+    nested.every((block) => !block.isCollapsed()),
+    "imported nested blocks should start expanded",
+  );
+
+  setAllBlocksCollapsed(workspace, true);
+  assertEquals(root.isCollapsed(), false, "root must stay expanded after collapse-all");
+  assert(
+    nested.some((block) => block.isCollapsed()),
+    "collapse-all should collapse at least one nested block",
+  );
+
+  root.setCollapsed(true);
+  assertEquals(root.isCollapsed(), false, "root must not be collapsible");
+
+  setAllBlocksCollapsed(workspace, false);
+  assert(
+    nested.every((block) => !block.isCollapsed()),
+    "expand-all should expand nested blocks",
+  );
+
+  workspace.dispose();
+});
+
 Deno.test("ensureElementDataValueShell is idempotent", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
@@ -184,5 +224,33 @@ Deno.test("SECTION and OBSERVATION nest into COMPOSITION content", () => {
   assert(observation.previousConnection);
   section.nextConnection?.connect(observation.previousConnection);
   assertEquals(observation.getRootBlock().id, composition.id);
+  workspace.dispose();
+});
+
+Deno.test("ENTRY subclasses EVALUATION INSTRUCTION ACTION ADMIN_ENTRY nest as CONTENT_ITEM", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  const content = composition.getInput(rmAttributeInputName("content"))?.connection;
+  assert(content);
+  for (const type of ["evaluation", "instruction", "action", "admin_entry"]) {
+    const child = workspace.newBlock(type);
+    assertEquals(child.getFieldValue("RM_TYPE"), type.toUpperCase());
+    assert(child.previousConnection);
+    content.connect(child.previousConnection);
+    assertEquals(child.getParent()?.id, composition.id);
+    child.unplug();
+  }
+  workspace.dispose();
+});
+
+Deno.test("ELEMENT block is labelled ELEMENT in the header", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const block = workspace.newBlock("element");
+  assertEquals(block.getFieldValue("RM_TYPE"), "ELEMENT");
+  const header = block.getInput("HEADER");
+  const labels = header?.fieldRow.map((field) => field.getText()) ?? [];
+  assertEquals(labels[0], "ELEMENT");
   workspace.dispose();
 });

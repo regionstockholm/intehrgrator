@@ -165,6 +165,9 @@ const specTheme = EditorView.theme({
     fontSize: "12px",
     lineHeight: "14px",
   },
+  ".spec-widget .info-tip": {
+    flex: "0 0 auto",
+  },
   ".spec-widget-info": {
     flex: "0 0 auto",
     width: "14px",
@@ -176,23 +179,6 @@ const specTheme = EditorView.theme({
     font: "italic bold 9px/12px Georgia, serif",
     cursor: "pointer",
     padding: "0",
-  },
-  ".spec-widget-balloon": {
-    position: "absolute",
-    right: "0",
-    top: `${SPEC_LINE_HEIGHT}px`,
-    zIndex: "5",
-    margin: "0",
-    maxWidth: "min(420px, 70vw)",
-    maxHeight: "200px",
-    overflow: "auto",
-    padding: "8px 10px",
-    background: "#003b49",
-    color: "#f5f5f0",
-    borderRadius: "6px",
-    font: "11px/1.35 ui-monospace, monospace",
-    boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
-    whiteSpace: "pre-wrap",
   },
 });
 

@@ -99,10 +99,14 @@
     <section class="pane mapping-pane">
       <div class="pane-header">
         <h2>Mapping Editors</h2>
-        <label class="pane-lang" for="language-dropdown">
-          <span id="language-label">Language</span>
-          <select id="language-dropdown" aria-label="Blockly language"></select>
-        </label>
+        <div class="pane-header-actions">
+          <button id="btn-expand-all" class="pane-btn pane-btn-on-dark" type="button" title="Expand all nested blocks">Expand all</button>
+          <button id="btn-collapse-all" class="pane-btn pane-btn-on-dark" type="button" title="Collapse all nested blocks">Collapse all</button>
+          <label class="pane-lang" for="language-dropdown">
+            <span id="language-label">Language</span>
+            <select id="language-dropdown" aria-label="Blockly language"></select>
+          </label>
+        </div>
       </div>
       <div
         class="pane-body"
@@ -264,6 +268,16 @@
       <div class="dialog-actions">
         <button type="button" id="load-url-cancel" value="cancel">Cancel</button>
         <button type="submit" id="load-url-confirm" value="confirm">Load</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-optional-rm" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2 id="optional-rm-title">Add optional RM</h2>
+      <p>Choose an RM attribute that is valid on this type and not already present.</p>
+      <div id="optional-rm-list" class="load-project-list"></div>
+      <div class="dialog-actions">
+        <button type="button" id="optional-rm-cancel" value="cancel">Cancel</button>
       </div>
     </form>
   </dialog>

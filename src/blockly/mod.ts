@@ -17,6 +17,8 @@ export {
   applyModelExpressions,
   highlightListeningSlot,
   loadSkeletonIntoWorkspace,
+  lockWorkspaceRootsExpanded,
+  setAllBlocksCollapsed,
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
 export { blockToExpression } from "./expression_serialize.ts";
@@ -87,6 +89,19 @@ function registerGenerators(): void {
     "state",
     "protocol",
   ]);
+  javascriptGenerator.forBlock["evaluation"] = rmObjectStatement("EVALUATION", [
+    "data",
+    "protocol",
+  ]);
+  javascriptGenerator.forBlock["instruction"] = rmObjectStatement("INSTRUCTION", [
+    "activities",
+    "protocol",
+  ]);
+  javascriptGenerator.forBlock["action"] = rmObjectStatement("ACTION", [
+    "description",
+    "protocol",
+  ]);
+  javascriptGenerator.forBlock["admin_entry"] = rmObjectStatement("ADMIN_ENTRY", ["data"]);
   javascriptGenerator.forBlock["cluster"] = rmObjectStatement("CLUSTER", ["items"]);
 }
 

@@ -3,6 +3,7 @@ import {
   SOURCE_TYPE_EMOJI,
   type SourceReturnType,
 } from "../../blockly/source_query.ts";
+import { attachInfoTip, detachInfoTip } from "../../ui/info_tip.ts";
 import type { SpecLine } from "./project.ts";
 
 /** Matching CodeMirror line box — keep Spec rows as dense as a code listing. */
@@ -104,38 +105,35 @@ export class MappingSpecWidget extends WidgetType {
       row.appendChild(summary);
     }
 
+    const tip = document.createElement("span");
+    tip.className = "info-tip info-tip--end";
     const infoBtn = document.createElement("button");
     infoBtn.type = "button";
-    infoBtn.className = "spec-widget-info";
+    infoBtn.className = "info-tip-btn spec-widget-info";
     infoBtn.textContent = "i";
+    infoBtn.setAttribute("aria-expanded", "false");
     infoBtn.setAttribute("aria-label", "Block details");
     const balloon = document.createElement("pre");
-    balloon.className = "spec-widget-balloon";
+    balloon.className = "info-tip-balloon info-tip-balloon--code";
     balloon.hidden = true;
+    balloon.setAttribute("role", "tooltip");
     balloon.textContent = JSON.stringify(this.line.info, null, 2);
-    const show = () => {
-      balloon.hidden = false;
-    };
-    const hide = () => {
-      balloon.hidden = true;
-    };
-    infoBtn.addEventListener("mouseenter", show);
-    infoBtn.addEventListener("mouseleave", hide);
-    infoBtn.addEventListener("focus", show);
-    infoBtn.addEventListener("blur", hide);
-    infoBtn.addEventListener("click", (event) => {
-      event.preventDefault();
-      balloon.hidden = !balloon.hidden;
-    });
-    row.append(infoBtn, balloon);
+    tip.append(infoBtn, balloon);
+    attachInfoTip(tip);
+    row.append(tip);
     return row;
+  }
+
+  override destroy(dom: HTMLElement): void {
+    const tip = dom.querySelector<HTMLElement>(".info-tip");
+    if (tip) detachInfoTip(tip);
   }
 
   override ignoreEvent(event: Event): boolean {
     const target = event.target;
     if (!(target instanceof Element)) return false;
     return Boolean(
-      target.closest("input, select, button, .spec-widget-balloon"),
+      target.closest("input, select, button, .info-tip, .info-tip-balloon"),
     );
   }
 }

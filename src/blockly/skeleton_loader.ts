@@ -42,9 +42,44 @@ export function loadSkeletonIntoWorkspace(
       y += height + 24;
     }
     applyModelExpressions(workspace, model);
+    setAllBlocksCollapsed(workspace, false);
     highlightListeningSlot(workspace, listeningSlotId);
   } finally {
     Blockly.Events.enable();
+  }
+}
+
+const lockedRoots = new WeakSet<Blockly.Block>();
+
+/** Top-level stacks (typically COMPOSITION) stay expanded and cannot be collapsed. */
+export function lockWorkspaceRootsExpanded(workspace: Blockly.Workspace): void {
+  for (const block of workspace.getTopBlocks(false)) {
+    lockRootExpanded(block);
+  }
+}
+
+/**
+ * Collapse or expand every nested block. Workspace roots are always left expanded.
+ */
+export function setAllBlocksCollapsed(
+  workspace: Blockly.Workspace,
+  collapsed: boolean,
+): void {
+  const roots = new Set(workspace.getTopBlocks(false));
+  const grouped = typeof Blockly.Events.setGroup === "function";
+  if (grouped) Blockly.Events.setGroup(true);
+  try {
+    for (const block of workspace.getAllBlocks(false)) {
+      if (typeof block.isShadow === "function" && block.isShadow()) continue;
+      if (typeof block.setCollapsed !== "function") continue;
+      if (roots.has(block)) {
+        block.setCollapsed(false);
+        continue;
+      }
+      block.setCollapsed(collapsed);
+    }
+  } finally {
+    if (grouped) Blockly.Events.setGroup(false);
   }
 }
 
@@ -97,19 +132,34 @@ function buildBlockFromNode(
   isRoot: boolean,
   depth: number,
 ): BlockSvg | null {
+  let block: BlockSvg | null = null;
   if (node.blockType === "target_structure") {
-    return buildTargetStructureBlock(workspace, node, isRoot, depth);
+    block = buildTargetStructureBlock(workspace, node, isRoot, depth);
+  } else if (node.blockType === "target_value") {
+    block = buildTargetValueBlock(workspace, node, isRoot);
+  } else if (node.blockType === "element" || node.rmType === "ELEMENT") {
+    block = buildElementBlock(workspace, node, isRoot);
+  } else if (node.kind === "value") {
+    block = buildElementBlockFromValue(workspace, node, isRoot);
+  } else {
+    block = buildContainerBlock(workspace, node, isRoot, depth);
   }
-  if (node.blockType === "target_value") {
-    return buildTargetValueBlock(workspace, node, isRoot);
-  }
-  if (node.blockType === "element" || node.rmType === "ELEMENT") {
-    return buildElementBlock(workspace, node, isRoot);
-  }
-  if (node.kind === "value") {
-    return buildElementBlockFromValue(workspace, node, isRoot);
-  }
-  return buildContainerBlock(workspace, node, isRoot, depth);
+  if (block && isRoot) lockRootExpanded(block);
+  return block;
+}
+
+function lockRootExpanded(block: Blockly.Block): void {
+  const mutable = block as Blockly.Block & {
+    setCollapsed: (collapsed: boolean) => void;
+  };
+  if (typeof mutable.setCollapsed !== "function") return;
+  if (mutable.isCollapsed?.()) mutable.setCollapsed(false);
+  if (lockedRoots.has(block)) return;
+  lockedRoots.add(block);
+  const original = mutable.setCollapsed.bind(block);
+  mutable.setCollapsed = (_collapsed: boolean) => {
+    original(false);
+  };
 }
 
 function buildTargetStructureBlock(
@@ -135,7 +185,6 @@ function buildTargetStructureBlock(
     block.setPreviousStatement(true);
     block.setNextStatement(true);
   }
-  if (!isRoot && depth > 0) block.setCollapsed(true);
   return finalizeBlock(block);
 }
 
@@ -196,11 +245,6 @@ function buildContainerBlock(
 
   if (node.mandatory) {
     block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
-  }
-
-  // Hybrid density: collapse nested structure by default
-  if (!isRoot && depth > 0 && typeof block.setCollapsed === "function") {
-    block.setCollapsed(true);
   }
 
   return finalizeBlock(block);

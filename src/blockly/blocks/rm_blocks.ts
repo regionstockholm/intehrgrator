@@ -49,6 +49,41 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
+  defineContainerBlock("evaluation", "EVALUATION", [
+    { name: "data" },
+    { name: "protocol" },
+  ], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "EVALUATION",
+    nestCheck: "CONTENT_ITEM",
+  });
+
+  defineContainerBlock("instruction", "INSTRUCTION", [
+    { name: "activities" },
+    { name: "protocol" },
+  ], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "INSTRUCTION",
+    nestCheck: "CONTENT_ITEM",
+  });
+
+  defineContainerBlock("action", "ACTION", [
+    { name: "description" },
+    { name: "protocol" },
+  ], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "ACTION",
+    nestCheck: "CONTENT_ITEM",
+  });
+
+  defineContainerBlock("admin_entry", "ADMIN_ENTRY", [
+    { name: "data" },
+  ], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "ADMIN_ENTRY",
+    nestCheck: "CONTENT_ITEM",
+  });
+
   defineContainerBlock("cluster", "CLUSTER", [
     { name: "items" },
   ], STRUCTURE_COLOUR, {
@@ -123,6 +158,23 @@ export function syncRmAttributeInputs(
       .appendField(attr);
   }
   ensurePlusButton(block);
+}
+
+export function rmTypeOfBlock(block: Blockly.Block): string {
+  return (block.getFieldValue("RM_TYPE") || block.type || "").toUpperCase();
+}
+
+export function presentAttributeNames(block: Blockly.Block): string[] {
+  const names = new Set<string>(block.extraInputs_ ?? []);
+  for (const input of block.inputList) {
+    if (input.name.startsWith(RM_ATTR_INPUT_PREFIX)) {
+      names.add(input.name.slice(RM_ATTR_INPUT_PREFIX.length));
+    }
+    if (input.name.startsWith(OPTIONAL_INPUT_PREFIX)) {
+      names.add(input.name.slice(OPTIONAL_INPUT_PREFIX.length));
+    }
+  }
+  return [...names];
 }
 
 export function rmAttributeInputName(attr: string): string {
@@ -286,14 +338,15 @@ function defineValueElementBlock(): void {
   Blockly.Blocks["element"] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput("HEADER")
-        .appendField(new Blockly.FieldLabel("name"), "NAME")
+        .appendField("ELEMENT")
+        .appendField(new Blockly.FieldLabel(""), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
       appendPlusField(this);
       this.appendValueInput("VALUE")
         .setCheck(null)
         .appendField("value");
       this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(""), "RM_TYPE");
+        .appendField(new Blockly.FieldLabelSerializable("ELEMENT"), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
@@ -304,9 +357,10 @@ function defineValueElementBlock(): void {
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
       this.getField("ARCHETYPE_CTX")!.setVisible(false);
-      this.setPreviousStatement(true);
-      this.setNextStatement(true);
+      this.setPreviousStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
+      this.setNextStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
       this.setColour(ELEMENT_COLOUR);
+      this.setTooltip("openEHR RM ELEMENT — named data item with a DATA_VALUE");
       this.setInputsInline(true);
       Blockly.Extensions.apply("optional_rm_mutator", this, true);
     },
@@ -386,6 +440,17 @@ function wirePlusClick(block: Blockly.Block): void {
   block.firePlusClick = () => optionalRmPickHandler?.(block);
 }
 
+function appendClickableImage(
+  _block: Blockly.Block,
+  src: string,
+  alt: string,
+  onClick: () => void,
+) {
+  const field = new Blockly.FieldImage(src, 18, 18, alt, () => onClick());
+  field.setOnClickHandler(() => onClick());
+  return field;
+}
+
 function defineCodePhraseBlock(): void {
   if (Blockly.Blocks["code_phrase"]) return;
   Blockly.Blocks["code_phrase"] = {
@@ -447,11 +512,10 @@ function appendPlusField(block: Blockly.Block): void {
   if (block.getInput("PLUS")) return;
   wirePlusClick(block);
   block.appendDummyInput("PLUS")
-    .appendField(new Blockly.FieldImage(
+    .appendField(appendClickableImage(
+      block,
       "data:image/svg+xml," + encodeURIComponent(plusSvg()),
-      16,
-      16,
-      "+",
+      "Add optional RM",
       () => block.firePlusClick?.(),
     ));
 }
@@ -468,11 +532,10 @@ function ensurePlusButton(block: Blockly.Block): void {
 function appendPlusFieldsButton(block: Blockly.Block): void {
   if (block.getInput("PLUS_FIELDS")) return;
   block.appendDummyInput("PLUS_FIELDS")
-    .appendField(new Blockly.FieldImage(
+    .appendField(appendClickableImage(
+      block,
       "data:image/svg+xml," + encodeURIComponent(plusFieldsSvg()),
-      16,
-      16,
-      "+ fields",
+      "Add optional field",
       () => block.firePlusFieldsClick?.(),
     ));
 }
@@ -563,7 +626,7 @@ declare module "blockly/core" {
 }
 
 function plusSvg(): string {
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#E87722" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#E87722"/><path fill="#fff" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
 }
 
 function plusFieldsSvg(): string {

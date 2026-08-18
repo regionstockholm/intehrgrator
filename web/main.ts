@@ -25,6 +25,8 @@ import {
 import {
   initBlocklyGenerators,
   loadSkeletonIntoWorkspace,
+  lockWorkspaceRootsExpanded,
+  setAllBlocksCollapsed,
   applyModelExpressions,
   highlightListeningSlot,
   slotIdFromBlock,
@@ -37,6 +39,11 @@ import {
   workspacePositionFromClient,
   registerCompactThrasosRenderer,
 } from "../src/blockly/mod.ts";
+import {
+  presentAttributeNames,
+  rmTypeOfBlock,
+} from "../src/blockly/blocks/rm_blocks.ts";
+import type { AttachmentOption } from "../src/types/mod.ts";
 import {
   changeLocaleAndReload,
   detectLocale,
@@ -96,6 +103,9 @@ const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElem
 const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
 const dialogLoadProject = document.getElementById("dialog-load-project") as HTMLDialogElement;
 const loadProjectList = document.getElementById("load-project-list")!;
+const dialogOptionalRm = document.getElementById("dialog-optional-rm") as HTMLDialogElement;
+const optionalRmList = document.getElementById("optional-rm-list")!;
+const optionalRmTitle = document.getElementById("optional-rm-title")!;
 
 const specEditor = createMappingSpecEditor(mappingJsonHost, {
   onFieldEdit: (blockId, field, value) => {
@@ -181,6 +191,7 @@ async function bootBlockly(): Promise<void> {
   workspace = Blockly.inject(blocklyMount, {
     theme: createModestTheme(),
     toolbox: buildDemoToolbox(locale),
+    collapse: true,
     grid: { spacing: 20, length: 2, colour: "#E8EAED" },
     zoom: {
       controls: true,
@@ -199,33 +210,40 @@ async function bootBlockly(): Promise<void> {
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
     Blockly.serialization.workspaces.load(loadOnce, workspace);
+    lockWorkspaceRootsExpanded(workspace);
   }
 
   setOptionalRmPickHandler((block) => {
-    const slotId = block.getFieldValue("SLOT_ID");
-    if (!slotId) {
-      statusMain.textContent = "Select a skeleton node with a slot before inserting optional RM.";
-      return;
-    }
-    const options = controller.getOptionalAttachments(slotId);
-    if (!options.length) {
-      statusMain.textContent = "No optional RM structures available here.";
-      return;
-    }
-    const labels = options.map((o, i) => `${i + 1}. ${o.label} (${o.attributeName}: ${o.rmType})`);
-    const choice = globalThis.prompt(
-      `Add optional RM structure:\n${labels.join("\n")}\n\nEnter number:`,
-      "1",
+    const rmType = rmTypeOfBlock(block);
+    const slotId = block.getFieldValue("SLOT_ID") || "";
+    const options = controller.getOptionalAttachmentsFor(
+      rmType,
+      slotId,
+      presentAttributeNames(block),
     );
-    const idx = Number(choice) - 1;
-    if (!Number.isFinite(idx) || idx < 0 || idx >= options.length) return;
-    const picked = options[idx]!;
-    controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
-    if (typeof block.addInput_ === "function") {
-      block.addInput_(picked.attributeName);
+    if (!options.length) {
+      statusMain.textContent = `No optional RM structures left on ${rmType}.`;
+      return;
     }
-    statusMain.textContent = `Added ${picked.label}`;
+    openOptionalRmPicker(rmType, options, (picked) => {
+      if (slotId) controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
+      if (typeof block.addInput_ === "function") {
+        block.addInput_(picked.attributeName);
+      }
+      statusMain.textContent = `Added ${picked.label} (${picked.attributeName}: ${picked.rmType})`;
+    });
   });
+
+  workspace.configureContextMenu = (options) => {
+    const selected = Blockly.getSelected?.() as { firePlusClick?: () => void } | null;
+    if (selected?.firePlusClick) {
+      options.push({
+        text: "Add optional RM…",
+        enabled: true,
+        callback: () => selected.firePlusClick?.(),
+      });
+    }
+  };
 
   initSplitPanes(document, () => Blockly.svgResize(workspace));
   controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
@@ -331,6 +349,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       } finally {
         Blockly.Events.enable();
       }
+      lockWorkspaceRootsExpanded(workspace);
     } else {
       loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
     }
@@ -405,6 +424,14 @@ installUrlLoadUi({
   },
 });
 
+bind("btn-expand-all", () => {
+  setAllBlocksCollapsed(workspace, false);
+  Blockly.svgResize(workspace);
+});
+bind("btn-collapse-all", () => {
+  setAllBlocksCollapsed(workspace, true);
+  Blockly.svgResize(workspace);
+});
 bind("btn-run-test", () => {
   controller.runTestNow();
   const result = controller.getState().testResult;
@@ -443,6 +470,30 @@ void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) =>
 });
 
 initFileDropTargets();
+
+function openOptionalRmPicker(
+  rmType: string,
+  options: AttachmentOption[],
+  onPick: (option: AttachmentOption) => void,
+): void {
+  optionalRmTitle.textContent = `Add optional RM on ${rmType}`;
+  optionalRmList.replaceChildren();
+  for (const option of options) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "load-project-item";
+    btn.textContent = `${option.label}  ·  ${option.attributeName}: ${option.rmType}`;
+    btn.addEventListener("click", () => {
+      dialogOptionalRm.close();
+      onPick(option);
+    });
+    optionalRmList.appendChild(btn);
+  }
+  dialogOptionalRm.showModal();
+}
+document.getElementById("optional-rm-cancel")?.addEventListener("click", () => {
+  dialogOptionalRm.close();
+});
 
 /** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
 function initBlocklySourceDrop(): void {

@@ -565,6 +565,21 @@ export class WorkbenchController {
     });
   }
 
+  /** Attachments for a Blockly block — skeleton slot when present, otherwise RM type. */
+  getOptionalAttachmentsFor(
+    rmType: string,
+    slotId: string,
+    presentFromBlock: string[] = [],
+  ) {
+    if (slotId && findSkeletonNode(this.skeleton, slotId)) {
+      return this.getOptionalAttachments(slotId);
+    }
+    return getValidAttachments(rmType, {
+      presentAttributes: new Set(presentFromBlock),
+      templateConstrained: new Set(),
+    });
+  }
+
   addOptionalRm(parentSlotId: string, rmType: string, attributeName: string): void {
     this.model = {
       ...this.model,

@@ -49,8 +49,11 @@ function setOpen(tip: Element, open: boolean): void {
 }
 
 function closeAll(except?: Element): void {
-  document.querySelectorAll(".info-tip.is-open").forEach((tip) => {
-    if (tip !== except) setOpen(tip, false);
+  document.querySelectorAll<HTMLElement>(".info-tip.is-open, .info-tip.is-hover").forEach((tip) => {
+    if (tip === except) return;
+    setOpen(tip, false);
+    tip.classList.remove("is-hover");
+    sync(tip);
   });
 }
 
@@ -65,6 +68,8 @@ function ensureLayer(): HTMLElement {
 }
 
 const balloons = new WeakMap<HTMLElement, HTMLElement>();
+const attached = new WeakSet<HTMLElement>();
+let globalsInstalled = false;
 
 function balloonFor(tip: HTMLElement): HTMLElement | null {
   return balloons.get(tip) ?? tip.querySelector<HTMLElement>(".info-tip-balloon");
@@ -89,7 +94,7 @@ function place(tip: HTMLElement): void {
   const pos = computeBalloonPosition(
     btn.getBoundingClientRect(),
     { width: balloon.offsetWidth, height: balloon.offsetHeight },
-    { width: window.innerWidth, height: window.innerHeight },
+    { width: globalThis.innerWidth, height: globalThis.innerHeight },
     tip.classList.contains("info-tip--end"),
   );
   balloon.style.left = `${pos.left}px`;
@@ -118,63 +123,77 @@ function sync(tip: HTMLElement): void {
   else restore(tip);
 }
 
-export function installInfoTips(root: ParentNode = document): void {
-  root.querySelectorAll<HTMLElement>(".info-tip").forEach((tip) => {
-    const btn = tip.querySelector<HTMLButtonElement>(".info-tip-btn");
-    if (!btn) return;
+/** Bind one (i) marker. Safe to call for dynamically created tips (e.g. CodeMirror widgets). */
+export function attachInfoTip(tip: HTMLElement): void {
+  if (attached.has(tip)) return;
+  const btn = tip.querySelector<HTMLButtonElement>(".info-tip-btn");
+  if (!btn) return;
+  attached.add(tip);
+  ensureGlobals();
 
-    let hideTimer = 0;
-    const cancelHide = () => {
-      if (hideTimer) {
-        clearTimeout(hideTimer);
-        hideTimer = 0;
-      }
-    };
-    const scheduleHide = () => {
-      if (tip.classList.contains("is-open")) return;
-      cancelHide();
-      hideTimer = globalThis.setTimeout(() => {
-        tip.classList.remove("is-hover");
-        sync(tip);
-      }, 120);
-    };
-
-    btn.addEventListener("click", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const next = !tip.classList.contains("is-open");
-      closeAll(tip);
-      setOpen(tip, next);
-      if (next) tip.classList.add("is-hover");
-      else tip.classList.remove("is-hover");
+  let hideTimer = 0;
+  const cancelHide = () => {
+    if (hideTimer) {
+      clearTimeout(hideTimer);
+      hideTimer = 0;
+    }
+  };
+  const scheduleHide = () => {
+    if (tip.classList.contains("is-open")) return;
+    cancelHide();
+    hideTimer = globalThis.setTimeout(() => {
+      tip.classList.remove("is-hover");
       sync(tip);
-    });
+    }, 120);
+  };
 
-    tip.addEventListener("mouseenter", () => {
-      cancelHide();
-      tip.classList.add("is-hover");
-      sync(tip);
-    });
-    tip.addEventListener("mouseleave", () => scheduleHide());
-    tip.addEventListener("focusin", () => {
-      cancelHide();
-      tip.classList.add("is-hover");
-      sync(tip);
-    });
-    tip.addEventListener("focusout", (event) => {
-      const next = event.relatedTarget as Node | null;
-      if (next && tip.contains(next)) return;
-      scheduleHide();
-    });
-
-    const balloon = tip.querySelector<HTMLElement>(".info-tip-balloon");
-    balloon?.addEventListener("mouseenter", () => {
-      cancelHide();
-      tip.classList.add("is-hover");
-    });
-    balloon?.addEventListener("mouseleave", () => scheduleHide());
-    balloon?.addEventListener("click", (event) => event.stopPropagation());
+  btn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const next = !tip.classList.contains("is-open");
+    closeAll(tip);
+    setOpen(tip, next);
+    if (next) tip.classList.add("is-hover");
+    else tip.classList.remove("is-hover");
+    sync(tip);
   });
+
+  tip.addEventListener("mouseenter", () => {
+    cancelHide();
+    tip.classList.add("is-hover");
+    sync(tip);
+  });
+  tip.addEventListener("mouseleave", () => scheduleHide());
+  tip.addEventListener("focusin", () => {
+    cancelHide();
+    tip.classList.add("is-hover");
+    sync(tip);
+  });
+  tip.addEventListener("focusout", (event) => {
+    const next = event.relatedTarget as Node | null;
+    const balloon = balloonFor(tip);
+    if (next && (tip.contains(next) || balloon?.contains(next))) return;
+    scheduleHide();
+  });
+
+  const balloon = tip.querySelector<HTMLElement>(".info-tip-balloon");
+  balloon?.addEventListener("mouseenter", () => {
+    cancelHide();
+    tip.classList.add("is-hover");
+  });
+  balloon?.addEventListener("mouseleave", () => scheduleHide());
+  balloon?.addEventListener("click", (event) => event.stopPropagation());
+}
+
+/** Return a portaled balloon to its tip (call when the tip's host is destroyed). */
+export function detachInfoTip(tip: HTMLElement): void {
+  tip.classList.remove("is-open", "is-hover");
+  restore(tip);
+}
+
+function ensureGlobals(): void {
+  if (globalsInstalled) return;
+  globalsInstalled = true;
 
   document.addEventListener("click", () => {
     closeAll();
@@ -196,6 +215,11 @@ export function installInfoTips(root: ParentNode = document): void {
       if (isShown(tip)) place(tip);
     });
   };
-  window.addEventListener("resize", reposition);
-  window.addEventListener("scroll", reposition, true);
+  globalThis.addEventListener("resize", reposition);
+  globalThis.addEventListener("scroll", reposition, true);
+}
+
+export function installInfoTips(root: ParentNode = document): void {
+  ensureGlobals();
+  root.querySelectorAll<HTMLElement>(".info-tip").forEach((tip) => attachInfoTip(tip));
 }

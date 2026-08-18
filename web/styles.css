@@ -129,6 +129,14 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font: 11px/1.4 system-ui, sans-serif; white-space: normal;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
 }
+.info-tip-balloon.info-tip-balloon--code {
+  margin: 0;
+  max-width: min(420px, 70vw);
+  max-height: min(200px, 40vh);
+  overflow: auto;
+  font: 11px/1.35 ui-monospace, monospace;
+  white-space: pre-wrap;
+}
 #info-tip-layer {
   position: fixed; inset: 0; z-index: 10000; pointer-events: none;
 }
@@ -319,14 +327,16 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   stroke: #fff;
 }
 .blockly-mount .blocklyText {
-  fill: black !important;
   font: 400 12px "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif !important;
 }
+.blockly-mount .blocklyImage {
+  cursor: pointer;
+}
 
-/* Secondary at-code on skeleton blocks */
+/* Secondary at-code on skeleton blocks — inherit Blockly's contrast colour */
 .blockly-mount .blocklyText.blockly-at-code {
-  fill: var(--text-secondary);
   font-size: 10px !important;
+  opacity: 0.8;
 }
 
 /* Mapping Spec: inline widgets must not inflate CodeMirror's line box. */

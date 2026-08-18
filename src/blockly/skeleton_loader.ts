@@ -16,7 +16,7 @@ import {
   syncRmAttributeInputs,
 } from "./blocks/rm_blocks.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
-import { blocklyCheckForReturnType } from "./block_checks.ts";
+import { createSourceQueryBlock } from "./source_query.ts";
 import {
   syncTargetChildInputs,
   targetChildInputName,
@@ -351,18 +351,6 @@ function expressionToBlock(
   } catch {
     return createSourceQueryBlock(workspace, expression, returnType);
   }
-}
-
-function createSourceQueryBlock(
-  workspace: Blockly.Workspace,
-  xpath: string,
-  returnType: string,
-): BlockSvg {
-  const block = workspace.newBlock("source_query") as BlockSvg;
-  block.setFieldValue(xpath, "EXPRESSION");
-  block.setFieldValue(returnType, "RETURN_TYPE");
-  block.setOutput(true, blocklyCheckForReturnType(returnType) ?? null);
-  return finalizeBlock(block);
 }
 
 function finalizeBlock(block: BlockSvg): BlockSvg {

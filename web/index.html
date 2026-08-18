@@ -18,6 +18,7 @@
     <button id="btn-save-project" type="button">Save as</button>
     <button id="btn-export-project" type="button">Export Project</button>
     <button id="btn-import-project" type="button">Import Project</button>
+    <button id="btn-better-form" type="button" hidden title="Requires licensed Better renderer (deno task setup:better-forms)">Open Better form</button>
   </header>
 
   <main
@@ -37,14 +38,38 @@
         <div class="pane-section">
           <div class="section-header">
             <h3>Schema</h3>
-            <button id="btn-load-schema" class="pane-btn" type="button">Load Schema</button>
+            <div class="split-btn">
+              <button id="btn-load-schema" class="pane-btn split-btn-main" type="button">Load Schema</button>
+              <button
+                id="btn-load-schema-menu"
+                class="pane-btn split-btn-chevron"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="menu-load-schema"
+                aria-label="More schema load options"
+              >▾</button>
+              <div id="menu-load-schema" class="split-btn-menu" hidden role="menu"></div>
+            </div>
           </div>
           <div id="schema-tree" class="tree-pane"></div>
         </div>
         <div class="pane-section">
           <div class="section-header">
             <h3>Examples</h3>
-            <button id="btn-add-example" class="pane-btn" type="button">+ Add Example</button>
+            <div class="split-btn">
+              <button id="btn-add-example" class="pane-btn split-btn-main" type="button">+ Add Example</button>
+              <button
+                id="btn-add-example-menu"
+                class="pane-btn split-btn-chevron"
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded="false"
+                aria-controls="menu-add-example"
+                aria-label="More example load options"
+              >▾</button>
+              <div id="menu-add-example" class="split-btn-menu" hidden role="menu"></div>
+            </div>
           </div>
           <div id="example-validation" class="example-validation" hidden></div>
           <div id="example-tabs" class="example-tabs"></div>
@@ -94,7 +119,19 @@
     <section class="pane slots-pane">
       <div class="pane-header">
         <h2>Target</h2>
-        <button id="btn-open-template" class="pane-btn pane-btn-on-dark" type="button">Open target Schema/Template</button>
+        <div class="split-btn">
+          <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button">Open target Schema/Template</button>
+          <button
+            id="btn-open-template-menu"
+            class="pane-btn pane-btn-on-dark split-btn-chevron"
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded="false"
+            aria-controls="menu-open-template"
+            aria-label="More target load options"
+          >▾</button>
+          <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
+        </div>
       </div>
       <div id="target-format-badge" class="target-format-badge">No target</div>
       <div class="pane-body slot-rail">
@@ -115,7 +152,6 @@
             </select>
           </label>
           <button id="btn-export-ts" class="pane-btn pane-btn-on-dark" type="button">Export</button>
-          <button id="btn-better-form" class="pane-btn pane-btn-on-dark" type="button" hidden title="Requires licensed Better renderer (deno task setup:better-forms)">Better Form</button>
         </div>
       </div>
       <div
@@ -170,6 +206,25 @@
       <div id="load-project-list" class="load-project-list"></div>
       <div class="dialog-actions">
         <button type="button" id="load-project-cancel" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-load-url" class="app-dialog app-dialog--wide">
+    <form method="dialog" class="dialog-form">
+      <h2 id="load-url-title">Load from URL</h2>
+      <p id="load-url-hint">Paste an https URL. GitHub file pages are converted to raw content.</p>
+      <label class="dialog-label">
+        URL
+        <input id="load-url-input" type="text" inputmode="url" autocomplete="url" required placeholder="https://…" />
+      </label>
+      <p id="load-url-error" class="dialog-error" hidden></p>
+      <div>
+        <h3 class="dialog-subhead">Recent URLs</h3>
+        <div id="load-url-history" class="load-project-list"></div>
+      </div>
+      <div class="dialog-actions">
+        <button type="button" id="load-url-cancel" value="cancel">Cancel</button>
+        <button type="submit" id="load-url-confirm" value="confirm">Load</button>
       </div>
     </form>
   </dialog>

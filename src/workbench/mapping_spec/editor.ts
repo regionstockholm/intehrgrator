@@ -44,7 +44,6 @@ function buildDecorations(view: EditorView): Decoration {
     ranges.push(
       Decoration.replace({
         widget: new MappingSpecWidget(meta, onEdit),
-        block: true,
         inclusive: true,
       }).range(line.from, line.to),
     );
@@ -128,6 +127,12 @@ const specTheme = EditorView.theme({
     border: "1px solid #d9d9d9",
     borderRadius: "3px",
     background: "#fff",
+  },
+  ".spec-widget-type": {
+    flex: "0 0 auto",
+    fontSize: "11px",
+    fontFamily: "ui-monospace, monospace",
+    color: "#9a4b00",
   },
   ".spec-widget-info": {
     flex: "0 0 auto",

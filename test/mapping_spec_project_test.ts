@@ -47,6 +47,7 @@ Deno.test("projectBlocklyState compresses nested blocks and omits x/y from text"
     source?.editable?.find((field) => field.field === "EXPRESSION")?.value,
     "$.systolic",
   );
+  assertEquals(source?.summary, "number · $.systolic");
   assertEquals(source?.info.x, undefined);
   assertEquals(
     projection.lines.find((line) => line.blockId === "el1")?.info.x,
@@ -58,4 +59,23 @@ Deno.test("empty workspace projects a header and empty marker", () => {
   const projection = projectBlocklyState({ blocks: { languageVersion: 0, blocks: [] } });
   assertEquals(projection.lines[0]?.kind, "header");
   assertStringIncludes(projection.text, "no blocks");
+});
+
+Deno.test("projectBlocklyState classifies typed source_query_number as source", () => {
+  const projection = projectBlocklyState({
+    blocks: {
+      languageVersion: 0,
+      blocks: [{
+        type: "source_query_number",
+        id: "n1",
+        x: 10,
+        y: 10,
+        fields: { EXPRESSION: "$.systolic" },
+      }],
+    },
+  });
+  const source = projection.lines.find((line) => line.kind === "source_query");
+  assertEquals(source?.type, "source_query_number");
+  assertEquals(source?.summary, "number · $.systolic");
+  assertEquals(source?.editable?.map((f) => f.field), ["EXPRESSION"]);
 });

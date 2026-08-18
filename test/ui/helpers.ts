@@ -76,36 +76,63 @@ export async function html5DragDrop(
   page: Page,
   sourceSelector: string,
   targetSelector: string,
+  point: "center" | "bottom-right" = "center",
 ): Promise<void> {
   await page.waitForSelector(sourceSelector, { timeout: 10_000 });
   await page.waitForSelector(targetSelector, { timeout: 10_000 });
   const ok = await page.evaluate(
-    ({ sourceSelector, targetSelector }) => {
+    ({ sourceSelector, targetSelector, point }) => {
       const source = document.querySelector(sourceSelector);
       const target = document.querySelector(targetSelector);
-      if (!(source instanceof HTMLElement) || !(target instanceof HTMLElement)) {
+      if (!(source instanceof Element) || !(target instanceof Element)) {
         return false;
       }
 
+      const rect = target.getBoundingClientRect();
+      const clientX = point === "bottom-right"
+        ? rect.right - 24
+        : rect.left + rect.width / 2;
+      const clientY = point === "bottom-right"
+        ? rect.bottom - 24
+        : rect.top + rect.height / 2;
+
       const dt = new DataTransfer();
-      source.dispatchEvent(
-        new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer: dt }),
-      );
-      target.dispatchEvent(
-        new DragEvent("dragenter", { bubbles: true, cancelable: true, dataTransfer: dt }),
-      );
-      target.dispatchEvent(
-        new DragEvent("dragover", { bubbles: true, cancelable: true, dataTransfer: dt }),
-      );
-      target.dispatchEvent(
-        new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: dt }),
-      );
-      source.dispatchEvent(
-        new DragEvent("dragend", { bubbles: true, cancelable: true, dataTransfer: dt }),
-      );
+      const opts = { bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY };
+      source.dispatchEvent(new DragEvent("dragstart", opts));
+      target.dispatchEvent(new DragEvent("dragenter", opts));
+      target.dispatchEvent(new DragEvent("dragover", opts));
+      target.dispatchEvent(new DragEvent("drop", opts));
+      source.dispatchEvent(new DragEvent("dragend", opts));
       return true;
     },
-    { sourceSelector, targetSelector },
+    { sourceSelector, targetSelector, point },
   );
   if (!ok) throw new Error(`html5DragDrop failed: ${sourceSelector} → ${targetSelector}`);
+}
+
+/** Drop a text file onto a pane (OS-file drop path used by Source Schema / Examples). */
+export async function dropTextFile(
+  page: Page,
+  targetSelector: string,
+  filename: string,
+  content: string,
+  mime = "application/json",
+): Promise<void> {
+  await page.waitForSelector(targetSelector, { timeout: 10_000 });
+  await page.evaluate(
+    ({ targetSelector, filename, content, mime }) => {
+      const target = document.querySelector(targetSelector);
+      if (!(target instanceof HTMLElement)) {
+        throw new Error(`missing drop target ${targetSelector}`);
+      }
+      const file = new File([content], filename, { type: mime });
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      const opts = { bubbles: true, cancelable: true, dataTransfer: dt };
+      target.dispatchEvent(new DragEvent("dragenter", opts));
+      target.dispatchEvent(new DragEvent("dragover", opts));
+      target.dispatchEvent(new DragEvent("drop", opts));
+    },
+    { targetSelector, filename, content, mime },
+  );
 }

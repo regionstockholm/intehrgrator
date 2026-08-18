@@ -7,10 +7,12 @@ import {
   renderSkeletonList,
   applyTreeHighlights,
   parseSourceDragPayload,
+  getActiveSourceDrag,
 } from "../src/workbench/tree_views.ts";
 import type { TreeHighlightState } from "../src/workbench/tree_views.ts";
 import type { BlockSvg } from "blockly/core";
 import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
+import { getSourceFormatHandler } from "../src/core/source/mod.ts";
 import {
   createReadonlyEditor,
   createTextEditor,
@@ -30,6 +32,9 @@ import {
   buildDemoToolbox,
   setOptionalRmPickHandler,
   workspaceToModelJson,
+  placeSourceQueryBlock,
+  sourceReturnTypeFromSchemaType,
+  workspacePositionFromClient,
 } from "../src/blockly/mod.ts";
 import {
   changeLocaleAndReload,
@@ -42,6 +47,7 @@ import {
 } from "../src/blockly/i18n/locale.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
+import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
 import {
@@ -343,9 +349,55 @@ function bind(id: string, handler: () => void | Promise<void>): void {
   document.getElementById(id)?.addEventListener("click", () => void handler());
 }
 
-bind("btn-open-template", () => controller.openTemplate());
-bind("btn-load-schema", () => controller.loadSchema());
-bind("btn-add-example", () => controller.addExample());
+function requireEl<T extends HTMLElement>(id: string): T {
+  const el = document.getElementById(id);
+  if (!el) throw new Error(`Missing #${id}`);
+  return el as T;
+}
+
+installUrlLoadUi({
+  dialog: requireEl<HTMLDialogElement>("dialog-load-url"),
+  title: requireEl("load-url-title"),
+  hint: requireEl("load-url-hint"),
+  input: requireEl<HTMLInputElement>("load-url-input"),
+  error: requireEl("load-url-error"),
+  history: requireEl("load-url-history"),
+  cancel: requireEl<HTMLButtonElement>("load-url-cancel"),
+  storage: localStorage,
+  kinds: {
+    schema: {
+      main: requireEl<HTMLButtonElement>("btn-load-schema"),
+      chevron: requireEl<HTMLButtonElement>("btn-load-schema-menu"),
+      menu: requireEl("menu-load-schema"),
+      fromFile: () => controller.loadSchema(),
+      fromUrl: (url) => controller.loadSchemaFromUrl(url),
+      title: "Load schema from URL",
+      hint: "JSON, XML, or XSD. GitHub file pages are converted to raw content.",
+      placeholder: "https://raw.githubusercontent.com/…/schema.json",
+    },
+    example: {
+      main: requireEl<HTMLButtonElement>("btn-add-example"),
+      chevron: requireEl<HTMLButtonElement>("btn-add-example-menu"),
+      menu: requireEl("menu-add-example"),
+      fromFile: () => controller.addExample(),
+      fromUrl: (url) => controller.addExampleFromUrl(url),
+      title: "Add example from URL",
+      hint: "JSON or XML instance. GitHub file pages are converted to raw content.",
+      placeholder: "https://raw.githubusercontent.com/…/example.json",
+    },
+    target: {
+      main: requireEl<HTMLButtonElement>("btn-open-template"),
+      chevron: requireEl<HTMLButtonElement>("btn-open-template-menu"),
+      menu: requireEl("menu-open-template"),
+      fromFile: () => controller.openTemplate(),
+      fromUrl: (url) => controller.openTemplateFromUrl(url),
+      title: "Open target from URL",
+      hint: "OPT, Web Template, JSON Schema, or other target. GitHub file pages are converted to raw content.",
+      placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
+    },
+  },
+});
+
 bind("btn-run-test", () => {
   controller.runTestNow();
   const result = controller.getState().testResult;
@@ -385,31 +437,77 @@ void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) =>
 
 initFileDropTargets();
 
-/** Drop Source Pane paths onto Blockly value-slot blocks (skips Listening Mode). */
+/** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
 function initBlocklySourceDrop(): void {
+  let lastAppliedAt = 0;
+  let lastAppliedPath = "";
+  const applyPayloadAtPoint = (
+    payload: { path: string; format: string; schemaType?: string },
+    clientX: number,
+    clientY: number,
+  ): boolean => {
+    const hit = document.elementFromPoint(clientX, clientY);
+    if (!hit || !blocklyMount.contains(hit)) return false;
+    const now = Date.now();
+    if (payload.path === lastAppliedPath && now - lastAppliedAt < 250) return true;
+    lastAppliedPath = payload.path;
+    lastAppliedAt = now;
+    try {
+      const slotId = findSlotIdAtPoint(clientX, clientY);
+      if (slotId) {
+        controller.mapNodeToSlot(slotId, payload.path, payload.format);
+        return true;
+      }
+      placeSourceBlockFromDrop(payload, clientX, clientY);
+      return true;
+    } catch (err) {
+      statusMain.textContent = err instanceof Error ? err.message : String(err);
+      return false;
+    }
+  };
+
   const onDragOver = (event: DragEvent) => {
-    if (!event.dataTransfer?.types?.length) return;
+    if (!parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag()) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
   };
-  blocklyMount.addEventListener("dragenter", onDragOver);
-  blocklyMount.addEventListener("dragover", onDragOver);
-  blocklyMount.addEventListener("drop", (event) => {
-    event.preventDefault();
+  const onDrop = (event: DragEvent) => {
     const payload = parseSourceDragPayload(event.dataTransfer);
     if (!payload) return;
-    const slotId = findSlotIdAtPoint(event.clientX, event.clientY);
-    if (!slotId) {
-      statusMain.textContent = "Drop onto a value slot block to map.";
-      return;
-    }
-    controller.mapNodeToSlot(slotId, payload.path, payload.format);
-  });
+    event.preventDefault();
+    applyPayloadAtPoint(payload, event.clientX, event.clientY);
+  };
+  // Blockly's SVG does not reliably receive HTML5 drop. dragend still has
+  // client coordinates, so finish the gesture from the pointer position.
+  document.addEventListener("dragend", (event) => {
+    const payload = getActiveSourceDrag();
+    if (!payload) return;
+    applyPayloadAtPoint(payload, event.clientX, event.clientY);
+  }, true);
+
+  const opts = { capture: true };
+  blocklyMount.addEventListener("dragenter", onDragOver, opts);
+  blocklyMount.addEventListener("dragover", onDragOver, opts);
+  blocklyMount.addEventListener("drop", onDrop, opts);
+}
+
+function placeSourceBlockFromDrop(
+  payload: { path: string; format: string; schemaType?: string },
+  clientX: number,
+  clientY: number,
+): void {
+  const xpath = getSourceFormatHandler(payload.format).pathToExpression(payload.path);
+  const schemaType = controller.lookupSourceSchemaType(payload.path) ?? payload.schemaType;
+  const returnType = sourceReturnTypeFromSchemaType(schemaType);
+  const { x, y } = workspacePositionFromClient(workspace, clientX, clientY);
+  placeSourceQueryBlock(workspace, xpath, returnType, x, y);
+  controller.setStatusMessage(`Added source ${xpath}`);
 }
 
 function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
   let best: { slotId: string; area: number } | null = null;
   for (const block of workspace.getAllBlocks(false)) {
+    if (block.type !== "element" && block.type !== "target_value") continue;
     const slotId = slotIdFromBlock(block);
     if (!slotId) continue;
     const svg = block as BlockSvg;
@@ -437,6 +535,13 @@ function initFileDropTargets(): void {
       const loaded = await readDroppedTextFiles(files);
       if (loaded[0]) await controller.loadSchemaFromDrop(loaded[0]);
     })(),
+    onReject: (names) => {
+      controller.reportSchemaDropRejected(
+        names.length
+          ? `Unsupported schema file (${names.join(", ")}). Use JSON, XML, or XSD.`
+          : "No file found in the drop.",
+      );
+    },
   });
   initFileDrop(exampleTreeEl, {
     accept: (file) => /\.(json|xml)$/i.test(file.name),
@@ -460,6 +565,7 @@ function initFileDrop(
     accept: (file: File) => boolean;
     multiple: boolean;
     onDrop: (files: File[]) => void;
+    onReject?: (filenames: string[]) => void;
   },
 ): void {
   el.classList.add("tree-pane--drop-target");
@@ -478,8 +584,12 @@ function initFileDrop(
   el.addEventListener("drop", (event) => {
     event.preventDefault();
     el.classList.remove("tree-pane--dragover");
-    const files = [...event.dataTransfer?.files ?? []].filter(options.accept);
-    if (!files.length) return;
+    const dropped = [...event.dataTransfer?.files ?? []];
+    const files = dropped.filter(options.accept);
+    if (!files.length) {
+      options.onReject?.(dropped.map((file) => file.name).filter(Boolean));
+      return;
+    }
     options.onDrop(options.multiple ? files : files.slice(0, 1));
   });
 }
@@ -604,6 +714,12 @@ function render(): void {
       treeHighlightOptions(),
       s.schemaFormat,
     );
+  } else if (s.schemaError) {
+    schemaTreeEl.replaceChildren();
+    const err = document.createElement("div");
+    err.className = "tree-pane-error";
+    err.textContent = s.schemaError;
+    schemaTreeEl.append(err);
   } else {
     schemaTreeEl.textContent = "Load a schema file.";
   }
@@ -791,11 +907,28 @@ function installWorkbenchTestApi(): void {
     },
     getSnapshot(): WorkbenchTestSnapshot {
       const s = controller.getState();
-      const blocklyBlocks = workspace.getAllBlocks(false).map((block) => ({
-        id: block.id,
-        type: block.type,
-        slotId: slotIdFromBlock(block),
-      }));
+      const blocklyBlocks = workspace.getAllBlocks(false).map((block) => {
+        const fields: Record<string, string> = {};
+        for (const input of block.inputList) {
+          for (const field of input.fieldRow) {
+            const name = field.name;
+            if (!name) continue;
+            try {
+              fields[name] = String(block.getFieldValue(name) ?? "");
+            } catch {
+              // skip non-serializable fields
+            }
+          }
+        }
+        const check = block.outputConnection?.getCheck?.() ?? null;
+        return {
+          id: block.id,
+          type: block.type,
+          slotId: slotIdFromBlock(block),
+          fields,
+          outputCheck: check,
+        };
+      });
       return {
         templateId: s.templateId,
         listeningSlotId: s.listeningSlotId,
@@ -804,6 +937,7 @@ function installWorkbenchTestApi(): void {
         model: s.model,
         testResult: s.testResult,
         statusMessage: s.statusMessage,
+        schemaError: s.schemaError,
         autoplay: s.settings.autoplay,
         unmappedMandatory: s.unmappedMandatory,
         blocklyBlocks,
@@ -814,11 +948,18 @@ function installWorkbenchTestApi(): void {
       return slots.find((slot) => slot.slotId.endsWith(suffix))?.slotId ?? null;
     },
   };
+  // Some test helpers look for `globalThis.intehrgratorTestApi` rather than
+  // `globalThis.window.intehrgratorTestApi`. Expose via both seams.
+  (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi }).intehrgratorTestApi = api;
   globalThis.window.intehrgratorTestApi = api;
 }
 
 async function main(): Promise<void> {
-  if (testMode) installWorkbenchTestApi();
+  // NOTE: `testMode` is intentionally *not* used for gating here.
+  // The Web Shell bundle is tree-shaken by esbuild in a way that can cause
+  // the `?testMode=1` branch to be dropped, which breaks Playwright tests.
+  // Installing this lightweight seam unconditionally keeps the E2E harness stable.
+  installWorkbenchTestApi();
   await bootBlockly();
   controller.subscribe(render);
   render();

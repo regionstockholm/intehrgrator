@@ -58,10 +58,38 @@ export function runTest(
       };
     }
 
+    // UI / E2E tests rely on slot values showing up in two places:
+    // 1) `testResult.composition.slots[slotId]` (used for numeric assertions)
+    // 2) `#test-output` innerText includes the slot values (the UI prefers
+    //    `testResult.output` over `testResult.composition` when rendering).
+    //
+    // Some target renderers (eg JSON Schema → mapped object) should keep
+    // `result.output` as the target-shaped artifact. For those, slot values
+    // should be visible via `result.composition`, not by mutating `output`.
+    //
+    // openEHR template → COMPOSITION currently has no `slots` seam in the
+    // rendered artifact, so enrich `output` only for that target type.
+    const outputWithSlots = (() => {
+      const isRenderableObject = output && typeof output === "object" && !Array.isArray(output);
+      const targetFormat = options.target?.format;
+      if (!isRenderableObject) return output;
+      if (targetFormat !== "openehr-template") return output;
+      return { slots: slotValues, ...(output as Record<string, unknown>) };
+    })();
+
+    const composition = (() => {
+      const isRenderableObject = output && typeof output === "object" && !Array.isArray(output);
+      if (!isRenderableObject) return outputWithSlots;
+      // For non-openehr targets, keep `output` pristine but still expose slot
+      // values via `composition`.
+      if (options.target?.format !== "openehr-template") return { ...(output as Record<string, unknown>), slots: slotValues };
+      return outputWithSlots;
+    })();
+
     return {
       ok: warnings.length === 0,
-      output,
-      composition: output,
+      output: outputWithSlots,
+      composition,
       warnings,
     };
   } catch (e) {

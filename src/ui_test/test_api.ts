@@ -12,6 +12,8 @@ export interface BlocklyBlockSummary {
   id: string;
   type: string;
   slotId: string | null;
+  fields: Record<string, string>;
+  outputCheck: string | string[] | null;
 }
 
 export interface WorkbenchTestSnapshot {
@@ -22,6 +24,7 @@ export interface WorkbenchTestSnapshot {
   model: MappingModel;
   testResult: TestResult | null;
   statusMessage: string;
+  schemaError: string | null;
   autoplay: boolean;
   unmappedMandatory: number;
   blocklyBlocks: BlocklyBlockSummary[];

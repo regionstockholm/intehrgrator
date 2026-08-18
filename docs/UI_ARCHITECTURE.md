@@ -116,9 +116,9 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Location | Action | v1 |
 |--------|----------|--------|-----|
-| Load Schema | Source → Schema section | Load a schema file (JSON, XML, or other structural definition) | ✓ |
-| + Add Example | Source → Examples section | Open a JSON/XML instance as a new example tab | ✓ |
-| Open target Schema/Template | Target value slots pane header | Load an OPT file (.opt, .opt2, .json) to generate the target skeleton | ✓ |
+| Load Schema | Source → Schema section | Split control: main click loads a schema file; chevron offers **From file**, **From URL**, and recent URLs | ✓ |
+| + Add Example | Source → Examples section | Split control: main click opens a JSON/XML instance; chevron offers file, URL, and recent URLs | ✓ |
+| Open target Schema/Template | Target value slots pane header | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
 | Export TS | Output Previews pane header | Download the generated TypeScript mapping script | ✓ |
 | Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
 | Autoplay / Pause | Output → Conversion Test Run(s) | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |

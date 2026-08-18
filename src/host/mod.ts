@@ -31,8 +31,21 @@ export interface HostAdapter {
   listLoadableProjects(): Promise<LoadableProjectEntry[]>;
   /** Resolve an app-relative documentation URL in the current host. */
   resolveAppUrl(path: string): string;
+  /** Fetch a remote text file (schema, example, or target). GitHub blob URLs are rewritten to raw. */
+  fetchTextUrl(url: string): Promise<PickedTextFile>;
 }
 
 export { createHostAdapter } from "./create_host.ts";
 export { WebHostAdapter } from "./web_adapter.ts";
 export { VsCodeWebviewHostAdapter } from "./vscode_webview_adapter.ts";
+export {
+  assertHttpUrl,
+  filenameFromUrl,
+  toFetchableUrl,
+} from "./fetch_url.ts";
+export {
+  forgetUrl,
+  listUrlHistory,
+  rememberUrl,
+  type UrlHistoryKind,
+} from "./url_history.ts";

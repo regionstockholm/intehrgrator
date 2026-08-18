@@ -11,9 +11,23 @@ export interface SourceDragPayload {
   path: string;
   format: SourceFormatId;
   origin: "schema" | "instance";
+  /** JSON Schema / instance type name (`string`, `integer`, `boolean`, …). */
+  schemaType?: string;
 }
 
 export function parseSourceDragPayload(dt: DataTransfer | null): SourceDragPayload | null {
+  const fromTransfer = parseSourceDragPayloadFromTransfer(dt);
+  if (fromTransfer) return fromTransfer;
+  return activeSourceDrag;
+}
+
+let activeSourceDrag: SourceDragPayload | null = null;
+
+export function getActiveSourceDrag(): SourceDragPayload | null {
+  return activeSourceDrag;
+}
+
+function parseSourceDragPayloadFromTransfer(dt: DataTransfer | null): SourceDragPayload | null {
   if (!dt) return null;
   const raw = dt.getData(SOURCE_DRAG_MIME) || dt.getData("text/plain");
   if (!raw) return null;
@@ -26,6 +40,7 @@ export function parseSourceDragPayload(dt: DataTransfer | null): SourceDragPaylo
         origin: parsed.origin === "schema" || parsed.origin === "instance"
           ? parsed.origin
           : "instance",
+        schemaType: typeof parsed.schemaType === "string" ? parsed.schemaType : undefined,
       };
     }
   } catch {
@@ -111,7 +126,7 @@ function buildSchemaNode(
   meta.className = "tree-meta";
   meta.textContent = formatSchemaMeta(node);
   label.append(document.createTextNode(node.name), meta);
-  attachTreeInteractions(label, node.path, syncPath, "schema", format, onSelect, options);
+  attachTreeInteractions(label, node, syncPath, "schema", format, onSelect, options);
   row.appendChild(label);
 
   const wrap = document.createElement("div");
@@ -137,7 +152,7 @@ function buildInstanceNode(
   label.textContent = node.value !== undefined
     ? `${node.name}  ${formatValue(node.value)}`
     : node.name;
-  attachTreeInteractions(label, node.path, syncPath, "instance", format, onSelect, options);
+  attachTreeInteractions(label, node, syncPath, "instance", format, onSelect, options);
   row.appendChild(label);
 
   const wrap = document.createElement("div");
@@ -159,7 +174,7 @@ function createTreeRow(path: string, syncPath: string, depth: number): HTMLEleme
 
 function attachTreeInteractions(
   label: HTMLSpanElement,
-  path: string,
+  node: SchemaTreeNode,
   syncPath: string,
   origin: "schema" | "instance",
   format: SourceFormatId,
@@ -169,16 +184,27 @@ function attachTreeInteractions(
   label.draggable = true;
   label.addEventListener("click", (event) => {
     options.onHighlight?.(syncPath, origin);
-    onSelect(path, event);
+    onSelect(node.path, event);
   });
   label.addEventListener("mouseenter", () => options.onHighlight?.(syncPath, origin));
   label.addEventListener("mouseleave", () => options.onHighlight?.(null, origin));
   label.addEventListener("dragstart", (e) => {
-    const payload: SourceDragPayload = { path, format, origin };
+    const payload: SourceDragPayload = {
+      path: node.path,
+      format,
+      origin,
+      schemaType: node.type,
+    };
+    activeSourceDrag = payload;
     const json = JSON.stringify(payload);
     e.dataTransfer?.setData(SOURCE_DRAG_MIME, json);
     e.dataTransfer?.setData("text/plain", json);
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+  });
+  label.addEventListener("dragend", () => {
+    queueMicrotask(() => {
+      activeSourceDrag = null;
+    });
   });
 }
 

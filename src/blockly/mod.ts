@@ -7,6 +7,11 @@ import { registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
+import {
+  SOURCE_QUERY_BLOCK_TYPES,
+  fontoxpathFnForReturnType,
+  returnTypeFromSourceBlock,
+} from "./source_query.ts";
 
 export {
   applyModelExpressions,
@@ -15,6 +20,14 @@ export {
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
 export { blockToExpression } from "./expression_serialize.ts";
+export {
+  createSourceQueryBlock,
+  isSourceQueryBlockType,
+  placeSourceQueryBlock,
+  sourceBlockTypeForReturnType,
+  sourceReturnTypeFromSchemaType,
+  workspacePositionFromClient,
+} from "./source_query.ts";
 export { createModestTheme } from "./theme.ts";
 /** @deprecated use createModestTheme */
 export { createModestTheme as createCompactTheme } from "./theme.ts";
@@ -30,16 +43,14 @@ export function initBlocklyGenerators(): void {
 }
 
 function registerGenerators(): void {
-  javascriptGenerator.forBlock["source_query"] = (block) => {
+  const sourceGenerator = (block: Blockly.Block) => {
     const expr = block.getFieldValue("EXPRESSION");
-    const ret = block.getFieldValue("RETURN_TYPE") || "string";
-    const fn = ret === "number"
-      ? "evaluateXPathToNumber"
-      : ret === "boolean"
-      ? "evaluateXPathToBoolean"
-      : "evaluateXPathToString";
-    return [`${fn}(${JSON.stringify(expr)}, sourceCtx.data)`, Order.FUNCTION_CALL];
+    const fn = fontoxpathFnForReturnType(returnTypeFromSourceBlock(block));
+    return [`${fn}(${JSON.stringify(expr)}, sourceCtx.data)`, Order.FUNCTION_CALL] as [string, number];
   };
+  for (const type of SOURCE_QUERY_BLOCK_TYPES) {
+    javascriptGenerator.forBlock[type] = sourceGenerator;
+  }
 
   for (const rmType of dataValueLeafTypes()) {
     const type = blockTypeForRm(rmType);

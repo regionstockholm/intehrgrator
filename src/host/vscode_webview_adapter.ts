@@ -88,6 +88,10 @@ export class VsCodeWebviewHostAdapter implements HostAdapter {
     return new URL(path.replace(/^\//, ""), location.href).href;
   }
 
+  async fetchTextUrl(url: string): Promise<PickedTextFile> {
+    return await this.request("fetchTextUrl", { url }) as PickedTextFile;
+  }
+
   private request(command: string, payload: Record<string, unknown> = {}): Promise<unknown> {
     const id = crypto.randomUUID();
     return new Promise((resolve, reject) => {

@@ -5,7 +5,7 @@ import { collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton
 import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 
-function stubHost(): HostAdapter {
+function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
     pickTextFile: async () => null,
     pickBinaryFile: async () => null,
@@ -18,6 +18,8 @@ function stubHost(): HostAdapter {
     loadStoredProjectRecord: async () => null as StoredProjectRecord | null,
     listLoadableProjects: async () => [] as LoadableProjectEntry[],
     resolveAppUrl: (path) => path,
+    fetchTextUrl: () => Promise.reject(new Error("fetchTextUrl not stubbed")),
+    ...overrides,
   };
 }
 
@@ -40,6 +42,8 @@ Deno.test("controller loads template/schema/example from content", async () => {
   const state = controller.getState();
   assert(state.templateId.includes("blood_pressure"));
   assert(state.schemaTree);
+  assertEquals(controller.lookupSourceSchemaType("$.systolic"), "number");
+  assertEquals(controller.lookupSourceSchemaType("$.patientId"), "string");
   assertEquals(state.examples.length, 1);
   assertEquals(state.activeExample?.filename, "bp_example.json");
 
@@ -122,4 +126,91 @@ Deno.test("free-form Handlebars target walks source like Kintegrate", () => {
   );
   controller.runTestNow();
   assertEquals(controller.getState().testResult?.output, "ADA: 9");
+});
+
+Deno.test("schema drop of JSON Schema document populates the schema tree", async () => {
+  const schema = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  await controller.loadSchemaFromDrop({ name: "bp-sche.json", text: schema });
+  const state = controller.getState();
+  assertEquals(state.schemaError, null);
+  assert(state.schemaTree);
+  assertEquals(state.schemaTree.children.some((c) => c.name === "systolic"), true);
+  assertStringIncludes(state.statusMessage, "bp-sche.json");
+});
+
+Deno.test("schema drop of truncated JSON reports an error instead of staying silent", async () => {
+  const truncated = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_sche_truncated.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  await controller.loadSchemaFromDrop({ name: "bp-sche.json", text: truncated });
+  const state = controller.getState();
+  assertEquals(state.schemaTree, null);
+  assert(state.schemaError, "schema pane needs a visible error, not only the status bar");
+  assertStringIncludes(state.schemaError, "bp-sche.json");
+  assertStringIncludes(state.schemaError.toLowerCase(), "could not load");
+  assertStringIncludes(state.statusMessage, "bp-sche.json");
+});
+
+Deno.test("controller loads schema, example, and target from URL via host", async () => {
+  const schema = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+  );
+  const example = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+  );
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const requested: string[] = [];
+  const files: Record<string, { name: string; text: string }> = {
+    "https://example.test/bp.json": { name: "bp.json", text: schema },
+    "https://example.test/inst.json": { name: "inst.json", text: example },
+    "https://example.test/bp.opt": { name: "bp.opt", text: opt },
+  };
+  const controller = new WorkbenchController(stubHost({
+    fetchTextUrl: (url) => {
+      requested.push(url);
+      const file = files[url];
+      if (!file) return Promise.reject(new Error(`unexpected url ${url}`));
+      return Promise.resolve(file);
+    },
+  }));
+
+  await controller.loadSchemaFromUrl("https://example.test/bp.json");
+  await controller.addExampleFromUrl("https://example.test/inst.json");
+  await controller.openTemplateFromUrl("https://example.test/bp.opt");
+
+  assertEquals(requested, [
+    "https://example.test/bp.json",
+    "https://example.test/inst.json",
+    "https://example.test/bp.opt",
+  ]);
+  const state = controller.getState();
+  assertEquals(state.schemaError, null);
+  assertEquals(state.schemaFilename, "bp.json");
+  assertEquals(state.activeExample?.filename, "inst.json");
+  assert(state.templateId.includes("blood_pressure"));
+});
+
+Deno.test("controller surfaces fetch failure when loading schema from URL", async () => {
+  const controller = new WorkbenchController(stubHost({
+    fetchTextUrl: () => Promise.reject(new Error("HTTP 404")),
+  }));
+  await controller.loadSchemaFromUrl("https://example.test/missing.json").then(
+    () => {
+      throw new Error("expected loadSchemaFromUrl to throw");
+    },
+    (err) => {
+      assert(err instanceof Error);
+      assertStringIncludes(err.message, "404");
+    },
+  );
+  const state = controller.getState();
+  assertEquals(state.schemaTree, null);
+  assert(state.schemaError);
+  assertStringIncludes(state.schemaError, "404");
 });

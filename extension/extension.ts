@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { assertHttpUrl, filenameFromUrl, toFetchableUrl } from "../src/host/fetch_url.ts";
 
 const VIEW_TYPE = "intehrgrator.workbench";
 const SAVES_KEY = "intehrgrator.saves";
@@ -141,6 +142,15 @@ async function dispatchHostCommand(
           displayName,
           savedAt,
         }));
+    case "fetchTextUrl": {
+      const fetchable = toFetchableUrl(String(payload.url ?? ""));
+      assertHttpUrl(fetchable);
+      const response = await fetch(fetchable);
+      if (!response.ok) {
+        throw new Error(`Could not load ${fetchable} (${response.status} ${response.statusText})`);
+      }
+      return { name: filenameFromUrl(fetchable), text: await response.text() };
+    }
     default:
       throw new Error(`Unsupported host command: ${command}`);
   }

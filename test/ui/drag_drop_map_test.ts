@@ -47,8 +47,8 @@ Deno.test({
       assert(mapped?.expression.includes("xpathNumber"), mapped?.expression);
       assert(mapped?.expression.includes("systolic"), mapped?.expression);
       assert(
-        afterMap.blocklyBlocks.some((b) => b.type === "source_query"),
-        `expected source_query block after drag-and-drop, got: ${
+        afterMap.blocklyBlocks.some((b) => b.type === "source_query_number"),
+        `expected source_query_number block after drag-and-drop, got: ${
           afterMap.blocklyBlocks.map((b) => b.type).join(", ")
         }`,
       );

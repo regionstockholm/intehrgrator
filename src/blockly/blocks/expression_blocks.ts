@@ -1,5 +1,10 @@
 import { Blockly } from "../blockly_core.ts";
+import { blocklyCheckForReturnType } from "../block_checks.ts";
 import { msg, detectLocale } from "../i18n/locale.ts";
+import {
+  type SourceReturnType,
+  sourceBlockTypeForReturnType,
+} from "../source_query.ts";
 
 const LOOP_COLOUR = "#A5D6A7";
 const SOURCE_COLOUR = "#E87722";
@@ -11,20 +16,9 @@ const SOURCE_COLOUR = "#E87722";
 export function registerExpressionBlocks(): void {
   const m = msg(detectLocale());
 
-  Blockly.Blocks["source_query"] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput()
-        .appendField(m.SOURCE_QUERY)
-        .appendField(new Blockly.FieldTextInput("/path"), "EXPRESSION");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput("string"), "RETURN_TYPE")
-        .setVisible(false);
-      this.setOutput(true, "String");
-      this.setColour(SOURCE_COLOUR);
-      this.setTooltip(m.SOURCE_QUERY_TOOLTIP);
-      this.setStyle?.("colour_blocks");
-    },
-  };
+  defineSourceQueryBlock("string", m.SOURCE_QUERY, m.SOURCE_QUERY_TOOLTIP);
+  defineSourceQueryBlock("number", m.SOURCE_QUERY, m.SOURCE_QUERY_TOOLTIP);
+  defineSourceQueryBlock("boolean", m.SOURCE_QUERY, m.SOURCE_QUERY_TOOLTIP);
 
   /**
    * Loop over nodes from a multi-valued source path.
@@ -47,6 +41,33 @@ export function registerExpressionBlocks(): void {
       this.setTooltip(m.FOR_EACH_SOURCE_TOOLTIP);
       this.setStyle?.("loop_blocks");
       this.setInputsInline(false);
+    },
+  };
+}
+
+function defineSourceQueryBlock(
+  returnType: SourceReturnType,
+  label: string,
+  tooltip: string,
+): void {
+  const type = sourceBlockTypeForReturnType(returnType);
+  Blockly.Blocks[type] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput()
+        .appendField(label)
+        .appendField(returnType)
+        .appendField(new Blockly.FieldTextInput("/path"), "EXPRESSION");
+      if (type === "source_query") {
+        // Hidden field kept so older workspaces that stored RETURN_TYPE still load.
+        this.appendDummyInput()
+          .appendField(new Blockly.FieldTextInput(returnType), "RETURN_TYPE")
+          .setVisible(false);
+      }
+      this.setOutput(true, blocklyCheckForReturnType(returnType));
+      this.setColour(SOURCE_COLOUR);
+      this.setTooltip(tooltip);
+      this.setStyle?.("colour_blocks");
+      this.setInputsInline(true);
     },
   };
 }

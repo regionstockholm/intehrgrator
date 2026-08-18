@@ -1,6 +1,11 @@
 import type { Block } from "blockly/core";
 import type { ExprAst } from "../core/expression/mod.ts";
 import { serialize } from "../core/expression/mod.ts";
+import {
+  createSourceQueryBlock,
+  returnTypeFromSourceBlock,
+  xpathEvaluatorForReturnType,
+} from "./source_query.ts";
 
 type BlockSvg = import("blockly/core").BlockSvg;
 type Workspace = import("blockly/core").Workspace;
@@ -9,14 +14,11 @@ export function blockToExpression(block: Block | null): string | null {
   if (!block) return null;
 
   switch (block.type) {
-    case "source_query": {
+    case "source_query":
+    case "source_query_number":
+    case "source_query_boolean": {
       const expr = block.getFieldValue("EXPRESSION");
-      const ret = block.getFieldValue("RETURN_TYPE") || "string";
-      const fn = ret === "number"
-        ? "xpathNumber"
-        : ret === "boolean"
-        ? "xpathBoolean"
-        : "xpathString";
+      const fn = xpathEvaluatorForReturnType(returnTypeFromSourceBlock(block));
       return `${fn}(${JSON.stringify(expr)})`;
     }
     // Stock Blockly literals / ops
@@ -144,10 +146,7 @@ export function astToExpressionBlock(
         : ast.name === "xpathBoolean"
         ? "boolean"
         : "string";
-      const block = workspace.newBlock("source_query") as BlockSvg;
-      block.setFieldValue(xpath, "EXPRESSION");
-      block.setFieldValue(ret, "RETURN_TYPE");
-      return finalize(block);
+      return finalize(createSourceQueryBlock(workspace, xpath, ret));
     }
     if (ast.name === "trim" && ast.args[0]) {
       const block = workspace.newBlock("text_trim") as BlockSvg;
@@ -197,8 +196,5 @@ export function astToExpressionBlock(
     }
   }
 
-  const block = workspace.newBlock("source_query") as BlockSvg;
-  block.setFieldValue(serialize(ast), "EXPRESSION");
-  block.setFieldValue(returnType, "RETURN_TYPE");
-  return finalize(block);
+  return finalize(createSourceQueryBlock(workspace, serialize(ast), returnType));
 }

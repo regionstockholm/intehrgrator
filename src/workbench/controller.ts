@@ -29,8 +29,10 @@ import {
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runTest } from "../core/test_runner/mod.ts";
 import {
+  canonicalSyncPath,
   detectSourceFormat,
   ExampleInstanceManager,
+  findNodeBySyncPath,
   getSourceFormatHandler,
   type InstanceValidationIssue,
   validateInstanceAgainstSchema,
@@ -61,6 +63,7 @@ export class WorkbenchController {
   private schemaFilename = "";
   private schemaContent = "";
   private schemaFormat: SourceFormatId = "json";
+  private schemaError: string | null = null;
   private target: TargetDefinition | null = null;
   private model: MappingModel = createEmptyModel("");
   private settings: ProjectSettings = { ...DEFAULT_SETTINGS };
@@ -113,6 +116,7 @@ export class WorkbenchController {
       schemaTree: this.schemaTree,
       schemaFilename: this.schemaFilename,
       schemaFormat: this.schemaFormat,
+      schemaError: this.schemaError,
       exampleTree: this.buildExampleTree(),
       model: this.model,
       settings: this.settings,
@@ -140,6 +144,17 @@ export class WorkbenchController {
     );
     if (!file) return;
     this.loadTargetContent(file.name, file.text);
+  }
+
+  async openTemplateFromUrl(url: string): Promise<void> {
+    try {
+      const file = await this.host.fetchTextUrl(url);
+      this.loadTargetContent(file.name, file.text);
+    } catch (err) {
+      this.statusMessage = `Target load failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+      throw err;
+    }
   }
 
   /** Backwards-compatible alias used by the Workbench Test API. */
@@ -177,34 +192,58 @@ export class WorkbenchController {
       if (!file) return;
       this.loadSchemaContent(file.name, file.text);
     } catch (err) {
-      this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
-      this.notifyChange();
+      this.setSchemaError(
+        `Schema load failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
+  }
+
+  async loadSchemaFromUrl(url: string): Promise<void> {
+    try {
+      const file = await this.host.fetchTextUrl(url);
+      this.loadSchemaContent(file.name, file.text);
+    } catch (err) {
+      this.setSchemaError(
+        `Schema load failed: ${err instanceof Error ? err.message : String(err)}`,
+      );
+      throw err;
+    }
+    if (this.schemaError) throw new Error(this.schemaError);
   }
 
   /** Load Source Schema from in-memory content — used by Workbench Test API and hosts. */
   loadSchemaContent(filename: string, content: string): void {
-    this.applySchemaFile(filename, content);
+    this.tryApplySchemaFile(filename, content);
   }
 
   async loadSchemaFromDrop(file: PickedTextFile): Promise<void> {
     if (!/\.(json|xml|xsd)$/i.test(file.name)) {
-      this.statusMessage = "Schema drop: JSON, XML, or XSD files only";
-      this.notifyChange();
+      this.setSchemaError("Schema drop: JSON, XML, or XSD files only");
       return;
     }
-    try {
-      this.applySchemaFile(file.name, file.text);
-    } catch (err) {
-      this.statusMessage = `Schema load failed: ${err instanceof Error ? err.message : String(err)}`;
-      this.notifyChange();
-    }
+    this.tryApplySchemaFile(file.name, file.text);
+  }
+
+  /** Visible schema-pane error when a drop had no usable File (or the wrong type). */
+  reportSchemaDropRejected(message: string): void {
+    this.setSchemaError(message);
   }
 
   async addExample(): Promise<void> {
     const file = await this.host.pickTextFile(".json,.xml");
     if (!file) return;
     this.addExampleContent(file.name, file.text);
+  }
+
+  async addExampleFromUrl(url: string): Promise<void> {
+    try {
+      const file = await this.host.fetchTextUrl(url);
+      this.addExampleContent(file.name, file.text);
+    } catch (err) {
+      this.statusMessage = `Example load failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+      throw err;
+    }
   }
 
   /** Add an Example Instance from in-memory content — used by Workbench Test API and hosts. */
@@ -299,6 +338,21 @@ export class WorkbenchController {
     this.statusMessage = `Mapped ${slot.label}`;
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
+  }
+
+  /**
+   * JSON Schema / inferred type for a source path, when a Source Schema is loaded.
+   * Used to pick a typed `source_query*` block on canvas drop.
+   */
+  lookupSourceSchemaType(path: string): string | null {
+    if (!this.schemaTree) return null;
+    const node = findNodeBySyncPath(this.schemaTree, canonicalSyncPath(path));
+    return node?.type ?? null;
+  }
+
+  setStatusMessage(message: string): void {
+    this.statusMessage = message;
+    this.notifyChange();
   }
 
   /** Patch a Mapping Model slot expression (AI import / derived-index edits). */
@@ -557,7 +611,25 @@ export class WorkbenchController {
     );
   }
 
+  private tryApplySchemaFile(filename: string, content: string): void {
+    try {
+      this.applySchemaFile(filename, content);
+    } catch (err) {
+      this.schemaTree = null;
+      const detail = err instanceof Error ? err.message : String(err);
+      this.setSchemaError(`Could not load ${filename}: ${detail}`);
+    }
+  }
+
+  private setSchemaError(message: string): void {
+    this.schemaError = message;
+    this.statusMessage = message;
+    console.error(message);
+    this.notifyChange();
+  }
+
   private applySchemaFile(filename: string, content: string): void {
+    this.schemaError = null;
     this.schemaFilename = filename;
     this.schemaContent = content;
     const format = detectSourceFormat(filename, content);
@@ -622,6 +694,7 @@ export class WorkbenchController {
     this.schemaFilename = "";
     this.schemaContent = "";
     this.schemaFormat = "json";
+    this.schemaError = null;
     this.target = null;
     this.model = createEmptyModel("");
     this.settings = { ...DEFAULT_SETTINGS };
@@ -711,6 +784,7 @@ export class WorkbenchController {
     this.schemaFilename = "";
     this.schemaContent = "";
     this.schemaFormat = "json";
+    this.schemaError = null;
     const storedTarget = bundle.target ?? (bundle.template
       ? {
         format: "openehr-template" as const,

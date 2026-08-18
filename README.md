@@ -5,7 +5,7 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 ## Quick start
 
 ```bash
-deno task vendor   # clone ehrtslib into vendor/ (first time)
+deno task vendor   # clone ehrtslib + openEHR-model-examples into vendor/
 deno task test     # unit tests (no browser)
 deno task test:ui  # Playwright: Click-to-Map + Test Run (see docs/UI_TESTING.md)
 deno task build    # outputs static site to dist/
@@ -53,6 +53,7 @@ Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 ## Libraries
 
 - [ErikSundvall/ehrtslib](https://github.com/ErikSundvall/ehrtslib) — openEHR TypeScript (RM, Test Run)
+- [Ehrlibs/openEHR-model-examples](https://github.com/Ehrlibs/openEHR-model-examples) — demo archetypes/templates (`deno task vendor` → `vendor/openEHR-model-examples/`)
 - [openEHR/archie](https://github.com/openEHR/archie) — openEHR Java (export target)
 - [FontoXML/fontoxpath](https://github.com/FontoXML/fontoxpath) — XPath 3.1 queries on JSON/XML sources
 - [fast-xml-parser](https://github.com/NaturalIntelligence/fast-xml-parser) — openEHR RM XML (aligned with ehrtslib)

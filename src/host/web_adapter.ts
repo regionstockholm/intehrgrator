@@ -1,6 +1,7 @@
 import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
 import type { HostAdapter, PickedBinaryFile, PickedTextFile } from "./mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
+import { assertHttpUrl, filenameFromUrl, toFetchableUrl } from "./fetch_url.ts";
 import {
   listLoadableProjects,
   loadStoredProjectRecord,
@@ -101,5 +102,15 @@ export class WebHostAdapter implements HostAdapter {
 
   resolveAppUrl(path: string): string {
     return new URL(path, location.href).href;
+  }
+
+  async fetchTextUrl(url: string): Promise<PickedTextFile> {
+    const fetchable = toFetchableUrl(url, location.href);
+    assertHttpUrl(fetchable);
+    const response = await fetch(fetchable);
+    if (!response.ok) {
+      throw new Error(`Could not load ${fetchable} (${response.status} ${response.statusText})`);
+    }
+    return { name: filenameFromUrl(fetchable), text: await response.text() };
   }
 }

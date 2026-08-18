@@ -136,7 +136,13 @@ function walkBlock(block: BlocklyBlockJson, indent: number, lines: SpecLine[]): 
 }
 
 function classify(type: string): SpecLineKind {
-  if (type === "source_query") return "source_query";
+  if (
+    type === "source_query" ||
+    type === "source_query_number" ||
+    type === "source_query_boolean"
+  ) {
+    return "source_query";
+  }
   if (type === "element" || type === "target_value") return "value";
   if (type === "target_structure" || type.startsWith("rm_")) return "container";
   if (type.startsWith(DV_PREFIX) || type.startsWith("DV_")) return "dv";
@@ -179,17 +185,25 @@ function editableFields(
   type: string,
   fields: Record<string, unknown>,
 ): SpecEditableField[] {
-  if (type !== "source_query") return [];
-  return [
-    {
+  if (
+    type !== "source_query" &&
+    type !== "source_query_number" &&
+    type !== "source_query_boolean"
+  ) {
+    return [];
+  }
+  const fieldsOut: SpecEditableField[] = [];
+  if (type === "source_query") {
+    fieldsOut.push({
       field: "RETURN_TYPE",
       value: typeof fields["RETURN_TYPE"] === "string" ? fields["RETURN_TYPE"] : "string",
-    },
-    {
-      field: "EXPRESSION",
-      value: typeof fields["EXPRESSION"] === "string" ? fields["EXPRESSION"] : "",
-    },
-  ];
+    });
+  }
+  fieldsOut.push({
+    field: "EXPRESSION",
+    value: typeof fields["EXPRESSION"] === "string" ? fields["EXPRESSION"] : "",
+  });
+  return fieldsOut;
 }
 
 function buildSummary(
@@ -206,7 +220,13 @@ function buildSummary(
   const slot = typeof fields["SLOT_ID"] === "string" ? fields["SLOT_ID"] : "";
   if (kind === "source_query") {
     const expr = typeof fields["EXPRESSION"] === "string" ? fields["EXPRESSION"] : "";
-    const ret = typeof fields["RETURN_TYPE"] === "string" ? fields["RETURN_TYPE"] : "string";
+    const ret = type === "source_query_number"
+      ? "number"
+      : type === "source_query_boolean"
+      ? "boolean"
+      : typeof fields["RETURN_TYPE"] === "string"
+      ? fields["RETURN_TYPE"]
+      : "string";
     return `${ret} · ${expr}`;
   }
   if (kind === "value" || kind === "container" || kind === "dv") {

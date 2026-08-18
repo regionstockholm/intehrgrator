@@ -42,22 +42,30 @@ export class MappingSpecWidget extends WidgetType {
       const returnField = this.line.editable.find((f) => f.field === "RETURN_TYPE");
       const exprField = this.line.editable.find((f) => f.field === "EXPRESSION");
 
-      const select = document.createElement("select");
-      select.className = "spec-widget-select";
-      select.setAttribute("aria-label", "Return type");
-      for (const opt of ["string", "number", "boolean"]) {
-        const option = document.createElement("option");
-        option.value = opt;
-        option.textContent = opt;
-        if (opt === (returnField?.value ?? "string")) option.selected = true;
-        select.appendChild(option);
-      }
-      select.addEventListener("change", () => {
-        if (this.line.blockId) {
-          this.onFieldEdit?.(this.line.blockId, "RETURN_TYPE", select.value);
+      if (returnField) {
+        const select = document.createElement("select");
+        select.className = "spec-widget-select";
+        select.setAttribute("aria-label", "Return type");
+        for (const opt of ["string", "number", "boolean"]) {
+          const option = document.createElement("option");
+          option.value = opt;
+          option.textContent = opt;
+          if (opt === (returnField.value ?? "string")) option.selected = true;
+          select.appendChild(option);
         }
-      });
-      row.appendChild(select);
+        select.addEventListener("change", () => {
+          if (this.line.blockId) {
+            this.onFieldEdit?.(this.line.blockId, "RETURN_TYPE", select.value);
+          }
+        });
+        row.appendChild(select);
+      } else {
+        const typeHint = document.createElement("span");
+        typeHint.className = "spec-widget-type";
+        const summaryType = this.line.summary.split(" · ")[0] ?? "";
+        typeHint.textContent = summaryType;
+        row.appendChild(typeHint);
+      }
 
       const input = document.createElement("input");
       input.type = "text";

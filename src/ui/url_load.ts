@@ -18,6 +18,7 @@ export interface SplitLoadKindConfig {
   title: string;
   hint: string;
   placeholder: string;
+  historyHeading: string;
 }
 
 export interface UrlLoadUiOptions {
@@ -27,13 +28,14 @@ export interface UrlLoadUiOptions {
   input: HTMLInputElement;
   error: HTMLElement;
   history: HTMLElement;
+  historyHeading: HTMLElement;
   cancel: HTMLButtonElement;
   storage: Storage;
   kinds: Record<UrlHistoryKind, SplitLoadKindConfig>;
 }
 
 export function installUrlLoadUi(options: UrlLoadUiOptions): void {
-  const { dialog, title, hint, input, error, history, cancel, storage, kinds } = options;
+  const { dialog, title, hint, input, error, history, historyHeading, cancel, storage, kinds } = options;
   let activeKind: UrlHistoryKind = "schema";
 
   for (const config of Object.values(kinds)) {
@@ -76,7 +78,7 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
     if (!urls.length) return;
     const heading = document.createElement("div");
     heading.className = "split-btn-menu-heading";
-    heading.textContent = "Recent URLs";
+    heading.textContent = config.historyHeading;
     config.menu.append(heading);
     for (const url of urls) {
       appendMenuItem(config.menu, url, () => {
@@ -146,12 +148,14 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
     const config = kinds[kind];
     title.textContent = config.title;
     hint.textContent = config.hint;
+    historyHeading.textContent = config.historyHeading;
     input.placeholder = config.placeholder;
-    input.value = "";
+    input.value = listUrlHistory(kind, storage)[0] ?? "";
     clearError();
     renderDialogHistory(kind);
     dialog.showModal();
     input.focus();
+    input.select();
   };
 
   const loadUrl = async (kind: UrlHistoryKind, url: string) => {

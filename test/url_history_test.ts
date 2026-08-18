@@ -42,6 +42,16 @@ Deno.test("rememberUrl stores most-recent-first and moves duplicates to front", 
   assertEquals(listUrlHistory("example", storage), []);
 });
 
+Deno.test("schema, example, and target URL histories stay isolated", () => {
+  const storage = memoryStorage();
+  rememberUrl("schema", "https://example.test/schema.json", storage);
+  rememberUrl("example", "https://example.test/instance.json", storage);
+  rememberUrl("target", "https://example.test/bp.opt", storage);
+  assertEquals(listUrlHistory("schema", storage), ["https://example.test/schema.json"]);
+  assertEquals(listUrlHistory("example", storage), ["https://example.test/instance.json"]);
+  assertEquals(listUrlHistory("target", storage), ["https://example.test/bp.opt"]);
+});
+
 Deno.test("forgetUrl removes one history entry", () => {
   const storage = memoryStorage();
   rememberUrl("target", "https://example.test/one.opt", storage);

@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
+import { join } from "@std/path";
 import { loadJsonSchema } from "@intehrgrator/core/source/schema_loader.ts";
 import { validateInstanceAgainstSchema } from "@intehrgrator/core/source/instance_validation.ts";
 
@@ -50,4 +51,37 @@ Deno.test("validateInstanceAgainstSchema reports type mismatch", () => {
     schema,
   );
   assertEquals(issues.some((i) => i.message.includes("Type mismatch")), true);
+});
+
+Deno.test("validateInstanceAgainstSchema reports JSON Schema minimum and enum violations", async () => {
+  const schemaText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-sche.json"),
+  );
+  const instanceText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-inst-3-invalid.json"),
+  );
+  const schema = loadJsonSchema(schemaText, "BloodPressureMeasurement");
+  const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
+  assert(
+    issues.some((i) => i.path.includes("diastolic") && /minimum|>=|below/i.test(i.message)),
+    `expected diastolic minimum issue, got: ${JSON.stringify(issues)}`,
+  );
+  assert(
+    issues.some((i) =>
+      i.path.includes("bodyPosition") && /enum|allowed|one of/i.test(i.message)
+    ),
+    `expected bodyPosition enum issue, got: ${JSON.stringify(issues)}`,
+  );
+});
+
+Deno.test("validateInstanceAgainstSchema accepts valid BP instance against JSON Schema", async () => {
+  const schemaText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-sche.json"),
+  );
+  const instanceText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-inst.json"),
+  );
+  const schema = loadJsonSchema(schemaText, "BloodPressureMeasurement");
+  const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
+  assertEquals(issues, []);
 });

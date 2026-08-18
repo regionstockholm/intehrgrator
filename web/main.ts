@@ -362,6 +362,7 @@ installUrlLoadUi({
   input: requireEl<HTMLInputElement>("load-url-input"),
   error: requireEl("load-url-error"),
   history: requireEl("load-url-history"),
+  historyHeading: requireEl("load-url-history-heading"),
   cancel: requireEl<HTMLButtonElement>("load-url-cancel"),
   storage: localStorage,
   kinds: {
@@ -374,6 +375,7 @@ installUrlLoadUi({
       title: "Load schema from URL",
       hint: "JSON, XML, or XSD. GitHub file pages are converted to raw content.",
       placeholder: "https://raw.githubusercontent.com/…/schema.json",
+      historyHeading: "Recent schema URLs",
     },
     example: {
       main: requireEl<HTMLButtonElement>("btn-add-example"),
@@ -384,6 +386,7 @@ installUrlLoadUi({
       title: "Add example from URL",
       hint: "JSON or XML instance. GitHub file pages are converted to raw content.",
       placeholder: "https://raw.githubusercontent.com/…/example.json",
+      historyHeading: "Recent example URLs",
     },
     target: {
       main: requireEl<HTMLButtonElement>("btn-open-template"),
@@ -394,6 +397,7 @@ installUrlLoadUi({
       title: "Open target from URL",
       hint: "OPT, Web Template, JSON Schema, or other target. GitHub file pages are converted to raw content.",
       placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
+      historyHeading: "Recent target URLs",
     },
   },
 });
@@ -737,7 +741,12 @@ function render(): void {
         handleTreeHighlight(canonicalSyncPath(path), "instance", true);
         handleSourceSelection(path, format, event);
       },
-      treeHighlightOptions(),
+      {
+        ...treeHighlightOptions(),
+        invalidByPath: Object.fromEntries(
+          s.activeExampleValidation.map((issue) => [issue.path, issue.message]),
+        ),
+      },
       format,
     );
     applyTreeHighlights(schemaTreeEl, exampleTreeEl, activeTreeHighlight(s));
@@ -938,6 +947,7 @@ function installWorkbenchTestApi(): void {
         testResult: s.testResult,
         statusMessage: s.statusMessage,
         schemaError: s.schemaError,
+        exampleIssueCount: s.activeExampleValidation.length,
         autoplay: s.settings.autoplay,
         unmappedMandatory: s.unmappedMandatory,
         blocklyBlocks,

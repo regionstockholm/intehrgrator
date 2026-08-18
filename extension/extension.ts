@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { assertHttpUrl, filenameFromUrl, toFetchableUrl } from "../src/host/fetch_url.ts";
+import { acceptToVscodeFilters } from "../src/host/file_picker.ts";
 
 const VIEW_TYPE = "intehrgrator.workbench";
 const SAVES_KEY = "intehrgrator.saves";
@@ -75,7 +76,7 @@ async function dispatchHostCommand(
 ): Promise<unknown> {
   switch (command) {
     case "pickTextFile": {
-      const uri = await pickFile();
+      const uri = await pickFile(context, payload);
       if (!uri) return null;
       return {
         name: uri.path.split("/").pop() ?? "input",
@@ -83,7 +84,7 @@ async function dispatchHostCommand(
       };
     }
     case "pickBinaryFile": {
-      const uri = await pickFile();
+      const uri = await pickFile(context, payload);
       if (!uri) return null;
       return {
         name: uri.path.split("/").pop() ?? "input",
@@ -156,9 +157,38 @@ async function dispatchHostCommand(
   }
 }
 
-async function pickFile(): Promise<vscode.Uri | null> {
-  const picked = await vscode.window.showOpenDialog({ canSelectMany: false });
-  return picked?.[0] ?? null;
+async function pickFile(
+  context: vscode.ExtensionContext,
+  payload: Record<string, unknown>,
+): Promise<vscode.Uri | null> {
+  const kind = typeof payload.kind === "string" ? payload.kind : "";
+  const lastDir = lastPickerDirs(context)[kind];
+  const picked = await vscode.window.showOpenDialog({
+    canSelectMany: false,
+    defaultUri: lastDir ? vscode.Uri.parse(lastDir) : defaultSaveUri(""),
+    filters: acceptToVscodeFilters(
+      typeof payload.accept === "string" ? payload.accept : undefined,
+    ),
+  });
+  const uri = picked?.[0] ?? null;
+  if (uri && kind) await rememberPickerDir(context, kind, uri);
+  return uri;
+}
+
+const LAST_DIR_KEY = "intehrgrator.lastPickerDir";
+
+function lastPickerDirs(context: vscode.ExtensionContext): Record<string, string> {
+  return context.workspaceState.get<Record<string, string>>(LAST_DIR_KEY, {});
+}
+
+async function rememberPickerDir(
+  context: vscode.ExtensionContext,
+  kind: string,
+  fileUri: vscode.Uri,
+): Promise<void> {
+  const dir = fileUri.with({ path: fileUri.path.replace(/\/[^/]+$/, "") || "/" });
+  const dirs = { ...lastPickerDirs(context), [kind]: dir.toString() };
+  await context.workspaceState.update(LAST_DIR_KEY, dirs);
 }
 
 async function writeDownload(filename: string, bytes: Uint8Array): Promise<void> {

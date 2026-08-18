@@ -398,6 +398,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-radius: 3px;
 }
 .tree-row.synced .tree-label { color: #b35c00; }
+.tree-row--invalid .tree-label-instance { color: var(--error); }
 
 .status-bar {
   display: flex; align-items: center; gap: 12px;

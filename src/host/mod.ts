@@ -3,6 +3,7 @@ import type {
   LoadableProjectEntry,
   StoredProjectRecord,
 } from "../core/persistence/mod.ts";
+import type { FilePickerKind } from "./file_picker.ts";
 
 export interface PickedTextFile {
   name: string;
@@ -19,8 +20,8 @@ export interface PickedBinaryFile {
  * No DOM File, IndexedDB, or editor API types cross this seam.
  */
 export interface HostAdapter {
-  pickTextFile(accept?: string): Promise<PickedTextFile | null>;
-  pickBinaryFile(accept?: string): Promise<PickedBinaryFile | null>;
+  pickTextFile(accept?: string, kind?: FilePickerKind): Promise<PickedTextFile | null>;
+  pickBinaryFile(accept?: string, kind?: FilePickerKind): Promise<PickedBinaryFile | null>;
   downloadText(filename: string, content: string, mime?: string): void | Promise<void>;
   downloadBytes(filename: string, bytes: Uint8Array, mime?: string): void | Promise<void>;
   copyToClipboard(text: string): Promise<void>;
@@ -49,3 +50,8 @@ export {
   rememberUrl,
   type UrlHistoryKind,
 } from "./url_history.ts";
+export {
+  acceptToExtensions,
+  filePickerId,
+  type FilePickerKind,
+} from "./file_picker.ts";

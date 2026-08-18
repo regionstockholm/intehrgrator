@@ -141,6 +141,7 @@ export class WorkbenchController {
   async openTemplate(): Promise<void> {
     const file = await this.host.pickTextFile(
       ".opt,.opt2,.json,.xsd,.xml,.adl,.adls,.hbs,.handlebars,.txt,.md,.html,.csv",
+      "target",
     );
     if (!file) return;
     this.loadTargetContent(file.name, file.text);
@@ -188,7 +189,10 @@ export class WorkbenchController {
 
   async loadSchema(): Promise<void> {
     try {
-      const file = await this.host.pickTextFile(".json,.xml,.xsd,application/json,application/xml");
+      const file = await this.host.pickTextFile(
+        ".json,.xml,.xsd,application/json,application/xml",
+        "schema",
+      );
       if (!file) return;
       this.loadSchemaContent(file.name, file.text);
     } catch (err) {
@@ -230,7 +234,7 @@ export class WorkbenchController {
   }
 
   async addExample(): Promise<void> {
-    const file = await this.host.pickTextFile(".json,.xml");
+    const file = await this.host.pickTextFile(".json,.xml", "example");
     if (!file) return;
     this.addExampleContent(file.name, file.text);
   }
@@ -249,7 +253,7 @@ export class WorkbenchController {
   /** Add an Example Instance from in-memory content — used by Workbench Test API and hosts. */
   addExampleContent(filename: string, content: string): void {
     this.applyExampleFile(filename, content);
-    this.statusMessage = `Added example ${filename}`;
+    this.statusMessage = this.exampleLoadStatus(filename);
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
@@ -265,8 +269,8 @@ export class WorkbenchController {
       this.applyExampleFile(file.name, file.text);
     }
     this.statusMessage = supported.length === 1
-      ? `Added example ${supported[0].name}`
-      : `Added ${supported.length} examples`;
+      ? this.exampleLoadStatus(supported[0].name)
+      : this.examplesLoadStatus(supported.length);
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
@@ -491,7 +495,7 @@ export class WorkbenchController {
   }
 
   async importProject(): Promise<void> {
-    const file = await this.host.pickBinaryFile(".intehrgrator,.zip");
+    const file = await this.host.pickBinaryFile(".intehrgrator,.zip", "project");
     if (!file) return;
     const bundle = importBundle(file.bytes);
     this.resetWorkspaceState();
@@ -596,6 +600,7 @@ export class WorkbenchController {
         example.content,
         example.format,
         this.schemaTree,
+        this.schemaContent,
       );
     }
     return out;
@@ -608,7 +613,24 @@ export class WorkbenchController {
       active.content,
       active.format,
       this.schemaTree,
+      this.schemaContent,
     );
+  }
+
+  private exampleLoadStatus(filename: string): string {
+    const issues = this.buildActiveExampleValidation();
+    if (!issues.length) return `Added example ${filename}`;
+    const n = issues.length;
+    return `Added example ${filename} with ${n} schema mismatch${n === 1 ? "" : "es"}`;
+  }
+
+  private examplesLoadStatus(count: number): string {
+    const mismatchCount = Object.values(this.buildExampleValidations())
+      .reduce((sum, issues) => sum + issues.length, 0);
+    if (!mismatchCount) return `Added ${count} examples`;
+    return `Added ${count} examples with ${mismatchCount} schema mismatch${
+      mismatchCount === 1 ? "" : "es"
+    }`;
   }
 
   private tryApplySchemaFile(filename: string, content: string): void {

@@ -2,8 +2,10 @@ import type { SchemaTreeNode, SourceFormatId } from "../../types/mod.ts";
 import {
   canonicalSyncPath,
   findNodeBySyncPath,
+  isJsonSchemaDocument,
 } from "./schema_loader.ts";
 import { getSourceFormatHandler } from "./format_handler.ts";
+import { validateJsonAgainstJsonSchema } from "./json_schema_validate.ts";
 
 export interface InstanceValidationIssue {
   path: string;
@@ -14,7 +16,11 @@ export function validateInstanceAgainstSchema(
   content: string,
   format: SourceFormatId,
   schema: SchemaTreeNode,
+  schemaDocument?: string,
 ): InstanceValidationIssue[] {
+  const jsonSchemaIssues = validateAgainstJsonSchemaDocument(content, format, schemaDocument);
+  if (jsonSchemaIssues) return jsonSchemaIssues;
+
   let instanceTree: SchemaTreeNode;
   try {
     instanceTree = getSourceFormatHandler(format).loadInstance(content, schema.name);
@@ -25,6 +31,31 @@ export function validateInstanceAgainstSchema(
     }];
   }
   return collectInstanceValidationIssues(instanceTree, schema);
+}
+
+function validateAgainstJsonSchemaDocument(
+  content: string,
+  format: SourceFormatId,
+  schemaDocument?: string,
+): InstanceValidationIssue[] | null {
+  if (!schemaDocument || format === "xml") return null;
+  let schema: unknown;
+  try {
+    schema = JSON.parse(schemaDocument);
+  } catch {
+    return null;
+  }
+  if (!isJsonSchemaDocument(schema)) return null;
+  let instance: unknown;
+  try {
+    instance = JSON.parse(content);
+  } catch (err) {
+    return [{
+      path: "$",
+      message: err instanceof Error ? err.message : String(err),
+    }];
+  }
+  return validateJsonAgainstJsonSchema(instance, schema as Record<string, unknown>);
 }
 
 function collectInstanceValidationIssues(

@@ -61,6 +61,8 @@ export interface TreeHighlightState {
 
 export interface SchemaTreeRenderOptions {
   onHighlight?: (syncPath: string | null, origin: "schema" | "instance") => void;
+  /** Instance-tree path → validation message, for JSON Schema / structural mismatches. */
+  invalidByPath?: Record<string, string>;
 }
 
 export function applyTreeHighlights(
@@ -146,6 +148,11 @@ function buildInstanceNode(
 ): HTMLElement {
   const syncPath = canonicalSyncPath(node.path);
   const row = createTreeRow(node.path, syncPath, depth);
+  const invalidMessage = options.invalidByPath?.[node.path];
+  if (invalidMessage) {
+    row.classList.add("tree-row--invalid");
+    row.title = invalidMessage;
+  }
 
   const label = document.createElement("span");
   label.className = "tree-label tree-label-instance";

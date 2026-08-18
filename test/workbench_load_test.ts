@@ -141,6 +141,33 @@ Deno.test("schema drop of JSON Schema document populates the schema tree", async
   assertStringIncludes(state.statusMessage, "bp-sche.json");
 });
 
+Deno.test("invalid example instance still loads and reports JSON Schema value mismatches", async () => {
+  const schema = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-sche.json"),
+  );
+  const instance = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-inst-3-invalid.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadSchemaContent("bp-sche.json", schema);
+  controller.addExampleContent("bp-inst-3-invalid.json", instance);
+
+  const state = controller.getState();
+  assertEquals(state.examples.length, 1);
+  assertEquals(state.activeExample?.filename, "bp-inst-3-invalid.json");
+  assert(state.exampleTree, "invalid instance must still load into the example tree");
+  assert(
+    state.activeExampleValidation.some((i) => i.path.includes("diastolic")),
+    JSON.stringify(state.activeExampleValidation),
+  );
+  assert(
+    state.activeExampleValidation.some((i) => i.path.includes("bodyPosition")),
+    JSON.stringify(state.activeExampleValidation),
+  );
+  assertStringIncludes(state.statusMessage, "bp-inst-3-invalid.json");
+  assertStringIncludes(state.statusMessage, "schema mismatch");
+});
+
 Deno.test("schema drop of truncated JSON reports an error instead of staying silent", async () => {
   const truncated = await Deno.readTextFile(
     join(import.meta.dirname!, "fixtures", "ui", "bp_sche_truncated.json"),

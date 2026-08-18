@@ -44,7 +44,7 @@ export function findNodeBySyncPath(
   return null;
 }
 
-function isJsonSchemaDocument(value: unknown): boolean {
+export function isJsonSchemaDocument(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const o = value as JsonSchemaObject;
   if (typeof o.$schema === "string") return true;

@@ -1,7 +1,8 @@
 import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
-import type { HostAdapter, PickedBinaryFile, PickedTextFile } from "./mod.ts";
+import type { FilePickerKind, HostAdapter, PickedBinaryFile, PickedTextFile } from "./mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 import { assertHttpUrl, filenameFromUrl, toFetchableUrl } from "./fetch_url.ts";
+import { acceptToPickerTypes, filePickerId } from "./file_picker.ts";
 import {
   listLoadableProjects,
   loadStoredProjectRecord,
@@ -10,19 +11,57 @@ import {
 } from "./web_storage.ts";
 
 export class WebHostAdapter implements HostAdapter {
-  async pickTextFile(accept?: string): Promise<PickedTextFile | null> {
-    const file = await this.pickDomFile(accept);
+  async pickTextFile(accept?: string, kind?: FilePickerKind): Promise<PickedTextFile | null> {
+    const file = await this.pickDomFile(accept, kind);
     return file ? { name: file.name, text: await file.text() } : null;
   }
 
-  async pickBinaryFile(accept?: string): Promise<PickedBinaryFile | null> {
-    const file = await this.pickDomFile(accept);
+  async pickBinaryFile(accept?: string, kind?: FilePickerKind): Promise<PickedBinaryFile | null> {
+    const file = await this.pickDomFile(accept, kind);
     return file
       ? { name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) }
       : null;
   }
 
-  private async pickDomFile(accept?: string): Promise<File | null> {
+  private async pickDomFile(accept?: string, kind?: FilePickerKind): Promise<File | null> {
+    const fromFsAccess = await this.pickWithFileSystemAccess(accept, kind);
+    if (fromFsAccess !== undefined) return fromFsAccess;
+    return await this.pickWithInputElement(accept);
+  }
+
+  /**
+   * Chromium File System Access API remembers the last folder per `id`.
+   * Returns undefined when the API is unavailable so the input fallback can run.
+   */
+  private async pickWithFileSystemAccess(
+    accept?: string,
+    kind?: FilePickerKind,
+  ): Promise<File | null | undefined> {
+    const showOpenFilePicker = (
+      globalThis as typeof globalThis & {
+        showOpenFilePicker?: (options: {
+          multiple?: boolean;
+          id?: string;
+          types?: Array<{ description?: string; accept: Record<string, string[]> }>;
+        }) => Promise<FileSystemFileHandle[]>;
+      }
+    ).showOpenFilePicker;
+    if (typeof showOpenFilePicker !== "function") return undefined;
+
+    try {
+      const [handle] = await showOpenFilePicker({
+        multiple: false,
+        id: filePickerId(kind),
+        types: acceptToPickerTypes(accept),
+      });
+      return handle ? await handle.getFile() : null;
+    } catch (err) {
+      if (isAbortError(err)) return null;
+      throw err;
+    }
+  }
+
+  private async pickWithInputElement(accept?: string): Promise<File | null> {
     return await new Promise((resolve) => {
       const input = document.createElement("input");
       input.type = "file";
@@ -113,4 +152,8 @@ export class WebHostAdapter implements HostAdapter {
     }
     return { name: filenameFromUrl(fetchable), text: await response.text() };
   }
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === "AbortError";
 }

@@ -25,6 +25,7 @@ export interface WorkbenchTestSnapshot {
   testResult: TestResult | null;
   statusMessage: string;
   schemaError: string | null;
+  exampleIssueCount: number;
   autoplay: boolean;
   unmappedMandatory: number;
   blocklyBlocks: BlocklyBlockSummary[];

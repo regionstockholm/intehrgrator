@@ -4,6 +4,7 @@ import type {
   StoredProjectRecord,
 } from "../core/persistence/mod.ts";
 import type {
+  FilePickerKind,
   HostAdapter,
   PickedBinaryFile,
   PickedTextFile,
@@ -40,12 +41,12 @@ export class VsCodeWebviewHostAdapter implements HostAdapter {
     });
   }
 
-  async pickTextFile(accept?: string): Promise<PickedTextFile | null> {
-    return await this.request("pickTextFile", { accept }) as PickedTextFile | null;
+  async pickTextFile(accept?: string, kind?: FilePickerKind): Promise<PickedTextFile | null> {
+    return await this.request("pickTextFile", { accept, kind }) as PickedTextFile | null;
   }
 
-  async pickBinaryFile(accept?: string): Promise<PickedBinaryFile | null> {
-    const result = await this.request("pickBinaryFile", { accept }) as {
+  async pickBinaryFile(accept?: string, kind?: FilePickerKind): Promise<PickedBinaryFile | null> {
+    const result = await this.request("pickBinaryFile", { accept, kind }) as {
       name: string;
       bytes: number[];
     } | null;

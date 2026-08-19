@@ -266,6 +266,8 @@ function resolveUrlLoader(
   }
   return config.fromUrl;
 }
+
+function appendMenuItem(
   menu: HTMLElement,
   label: string,
   onClick: () => void,

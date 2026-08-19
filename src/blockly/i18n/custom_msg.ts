@@ -17,6 +17,9 @@ export const SUPPORTED_LOCALES: Array<{ code: IntehrLocale; name: string }> = [
 export interface IntehrMessages {
   CAT_SOURCE: string;
   CAT_OPENEHR_TYPES: string;
+  CAT_JSON: string;
+  CAT_XML: string;
+  CAT_TARGET_SCHEMA: string;
   CAT_LOGIC: string;
   CAT_LOOPS: string;
   CAT_MATH: string;
@@ -38,6 +41,9 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   en: {
     CAT_SOURCE: "Source",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_JSON: "JSON",
+    CAT_XML: "XML",
+    CAT_TARGET_SCHEMA: "Target schema",
     CAT_LOGIC: "Logic",
     CAT_LOOPS: "Loops",
     CAT_MATH: "Math",
@@ -58,6 +64,9 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   sv: {
     CAT_SOURCE: "Källa",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_JSON: "JSON",
+    CAT_XML: "XML",
+    CAT_TARGET_SCHEMA: "Målschema",
     CAT_LOGIC: "Logik",
     CAT_LOOPS: "Loopar",
     CAT_MATH: "Matematik",
@@ -78,6 +87,9 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   de: {
     CAT_SOURCE: "Quelle",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_JSON: "JSON",
+    CAT_XML: "XML",
+    CAT_TARGET_SCHEMA: "Zielschema",
     CAT_LOGIC: "Logik",
     CAT_LOOPS: "Schleifen",
     CAT_MATH: "Mathematik",
@@ -98,6 +110,9 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   es: {
     CAT_SOURCE: "Origen",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_JSON: "JSON",
+    CAT_XML: "XML",
+    CAT_TARGET_SCHEMA: "Esquema destino",
     CAT_LOGIC: "Lógica",
     CAT_LOOPS: "Bucles",
     CAT_MATH: "Matemáticas",
@@ -118,6 +133,9 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   ca: {
     CAT_SOURCE: "Origen",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_JSON: "JSON",
+    CAT_XML: "XML",
+    CAT_TARGET_SCHEMA: "Esquema de destinació",
     CAT_LOGIC: "Lògica",
     CAT_LOOPS: "Bucles",
     CAT_MATH: "Matemàtiques",
@@ -138,6 +156,9 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   fr: {
     CAT_SOURCE: "Source",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_JSON: "JSON",
+    CAT_XML: "XML",
+    CAT_TARGET_SCHEMA: "Schéma cible",
     CAT_LOGIC: "Logique",
     CAT_LOOPS: "Boucles",
     CAT_MATH: "Math",

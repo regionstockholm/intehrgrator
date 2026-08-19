@@ -6,13 +6,17 @@
  */
 import { XMLParser } from "fast-xml-parser";
 import type {
+  ClinicalModelFileset,
   SchemaTreeNode,
   SkeletonNode,
   TargetFormatId,
 } from "../../types/mod.ts";
-import { generateSkeleton } from "../skeleton/generate_skeleton.ts";
+import {
+  generateSkeleton,
+  generateSkeletonFromWebTemplate,
+} from "../skeleton/generate_skeleton.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
-import { getSourceFormatHandler } from "../source/format_handler.ts";
+import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
 
 export interface TargetDefinition {
   format: TargetFormatId;
@@ -20,6 +24,8 @@ export interface TargetDefinition {
   targetId: string;
   content: string;
   skeleton: SkeletonNode[];
+  /** Fetched GitHub `.t.json` + ADL closure for round-trip restore without GitHub. */
+  fileset?: ClinicalModelFileset;
 }
 
 export interface TargetRenderRequest {
@@ -59,10 +65,7 @@ export function detectTargetFormat(filename: string, content = ""): TargetFormat
   }
   if (lower.endsWith(".json") || content.trimStart().startsWith("{")) {
     try {
-      const json = JSON.parse(content) as unknown;
-      if (isRecord(json) && typeof json.templateId === "string" && isRecord(json.tree)) {
-        return "openehr-template";
-      }
+      if (isWebTemplateJson(JSON.parse(content) as unknown)) return "openehr-template";
     } catch {
       // The chosen handler reports malformed content.
     }
@@ -75,20 +78,13 @@ registerTargetFormatHandler({
   id: "openehr-template",
   load(filename, content) {
     if (content.trimStart().startsWith("{")) {
-      const schemaTree = getSourceFormatHandler("openehr-web-template").loadSchema(
-        content,
-        stripExtension(filename),
-      );
-      const document = JSON.parse(content) as Record<string, unknown>;
-      const targetId = typeof document.templateId === "string"
-        ? document.templateId
-        : stripExtension(filename);
+      const generated = generateSkeletonFromWebTemplate(content);
       return {
         format: "openehr-template",
         filename,
-        targetId,
+        targetId: generated.templateId,
         content,
-        skeleton: [schemaTreeToSkeleton(schemaTree, targetId, "openehr-template", true)],
+        skeleton: generated.skeleton,
       };
     }
     const generated = generateSkeleton(content);

@@ -889,6 +889,7 @@ export class WorkbenchController {
           targetId: this.target.targetId,
           content: this.target.content,
           skeleton: this.target.skeleton,
+          fileset: this.target.fileset,
         }
         : null,
       sourceSchema: this.schemaTree
@@ -981,6 +982,7 @@ export class WorkbenchController {
       targetId: loaded.templateId,
       content: loaded.optXml,
       skeleton: loaded.skeleton,
+      fileset: loaded.fileset,
     };
     this.templateFilename = loaded.filename;
     this.templateContent = loaded.optXml;

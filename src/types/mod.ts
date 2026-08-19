@@ -93,6 +93,12 @@ export interface ExampleInstance {
   content: string;
 }
 
+export interface ClinicalModelFileset {
+  sourceUrl?: string;
+  rootPath: string;
+  files: Array<{ path: string; content: string }>;
+}
+
 export interface ProjectSettings {
   exportTarget: ExportTarget;
   theme: "karolinska";
@@ -120,6 +126,7 @@ export interface ProjectBundle {
     targetId: string;
     content: string;
     skeleton: SkeletonNode[];
+    fileset?: ClinicalModelFileset;
   } | null;
   sourceSchema: {
     filename: string;

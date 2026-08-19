@@ -106,35 +106,51 @@ Please answer these before a revision of this PRD and implementation:
    - B. Always convert to Web Template JSON and walk that tree
    - C. Keep both walkers and only unify Blockly block types
 
+Answer: A
+
 2. **How complete should the first canvas be?**
    - A. Mandatory template + silent-mandatory RM only (current skeleton policy)
    - B. Entire template tree including optional 0..1 / 0..* branches, collapsed
    - C. Mandatory now, optional via a “show optional nodes” toggle
+
+Answer: A - the optional things are already possible to do by using the encircled plus signs on the openEHR blockly blocks
 
 3. **Web Template as target vs source**
    - A. Web Template file used as *target* is converted to OPT then scaffolded as openEHR blocks
    - B. Web Template as target stays a generic JSON-like `target_structure` tree; only OPT/`.t.json` get openEHR blocks
    - C. User chooses at load time
 
+Answer: A - ehrtslib should be the core library for  - if anything is missing there then we can update ehrtslib, i am its maintainer
+
 4. **`rm_structure` fallback**
    - A. Delete generic `rm_structure` for openEHR targets once typed blocks cover the RM set
    - B. Keep it only for RM types that have no dedicated toolbox block
    - C. Keep it indefinitely as the implementation for all containers
+
+Answer: A - AND add missing blocks use /opennehr-assistant if needed to understand
 
 5. **Regeneration after Optional RM Insertion**
    - A. Rebuild the whole canvas from skeleton + `optionalRm[]` (simpler, may lose x/y)
    - B. Mutate the live Blockly tree in place (keeps layout, harder)
    - C. Rebuild but persist x/y per `slotId`
 
+Answer: Try B
+
 6. **GitHub `.t.json` stored in the Project Bundle**
    - A. Store resolved OPT XML only (current load path)
    - B. Store OPT XML + Web Template JSON
    - C. Store the full fetched file-set (`.t.json` + ADL) for round-trip fidelity
 
+Answer: C
+
 7. **Should scaffolding run for JSON Schema / XSD targets?**
    - A. No — only openEHR templates (recommended)
    - B. Yes — map those to `target_structure` / `target_value` only
    - C. Later, generate a best-effort openEHR-like tree (out of scope for this PRD)
+
+Answer: B - feel free to add suitable blockly toolbox/drawers and blocks for...
+ 1. generating generic JSON / XML output
+ 2. dynamically generated blocks based on specific selected schema
 
 ---
 

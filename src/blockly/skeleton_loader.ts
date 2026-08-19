@@ -1,8 +1,9 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
 import type { MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
-import { isDataValueType } from "../core/rm_meta.ts";
+import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
+import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
@@ -12,11 +13,13 @@ import {
   ensureRmBlockType,
   expressionBlockFromDataValueShell,
   isDataValueBlock,
+  optionalRmInputName,
   rmAttributeInputName,
   syncRmAttributeInputs,
 } from "./blocks/rm_blocks.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
+import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
 import {
   syncTargetChildInputs,
   targetChildInputName,
@@ -91,15 +94,15 @@ export function applyModelExpressions(
   try {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
-      if (block.type !== "element" && block.type !== "target_value") continue;
+      if (block.type !== "element" && !isGenericValueBlockType(block.type)) continue;
       const slotId = block.getFieldValue("SLOT_ID");
       if (!slotId) continue;
       const slot = slotMap.get(slotId);
       if (!slot) continue;
-      if (block.type === "target_value") {
-        attachExpressionToTarget(workspace, block, slot.expression, slot.returnType);
-      } else {
+      if (block.type === "element") {
         attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
+      } else {
+        attachExpressionToTarget(workspace, block, slot.expression, slot.returnType);
       }
     }
   } finally {
@@ -124,6 +127,44 @@ export function slotIdFromBlock(block: Blockly.Block | null): string | null {
   if (!block) return null;
   const slotId = block.getFieldValue("SLOT_ID");
   return slotId || null;
+}
+
+/** Insert an Optional RM child on a live container without rebuilding the canvas. */
+export function attachOptionalRmChild(
+  workspace: WorkspaceSvg,
+  parent: Blockly.Block,
+  insertion: { rmType: string; attributeName: string; label?: string },
+): BlockSvg | null {
+  if (typeof parent.addInput_ === "function") {
+    parent.addInput_(insertion.attributeName);
+  }
+  const parentSlotId = parent.getFieldValue("SLOT_ID") || "";
+  const parentRmType = parent.getFieldValue("RM_TYPE") || parent.type.toUpperCase();
+  const slash = parentSlotId.indexOf("/");
+  const parentNode: SkeletonNode = {
+    slotId: parentSlotId,
+    blockType: parent.type,
+    rmType: parentRmType,
+    label: parent.getFieldValue("NAME") || parentRmType,
+    kind: "container",
+    mandatory: false,
+    children: [],
+    archetypeId: slash > 0 ? parentSlotId.slice(0, slash) : parentSlotId,
+    attachmentPoint: slash >= 0 ? parentSlotId.slice(slash) : "",
+  };
+  const childNode = skeletonNodeForOptionalRm(
+    parentNode,
+    insertion.rmType,
+    insertion.attributeName,
+  );
+  if (insertion.label) childNode.label = insertion.label;
+  const child = buildBlockFromNode(workspace, childNode, false, 1);
+  if (!child) return null;
+  const inputName = parent.getInput(rmAttributeInputName(insertion.attributeName))
+    ? rmAttributeInputName(insertion.attributeName)
+    : optionalRmInputName(insertion.attributeName);
+  connectStatementChain(parent, inputName, [child]);
+  return child;
 }
 
 function buildBlockFromNode(
@@ -211,9 +252,12 @@ function buildContainerBlock(
   isRoot: boolean,
   depth: number,
 ): BlockSvg {
-  ensureRmBlockType("rm_structure", node.rmType);
-  const block = workspace.newBlock("rm_structure") as BlockSvg;
-  block.setFieldValue(node.rmType, "RM_TYPE");
+  const blockType = node.blockType && node.blockType !== "rm_structure"
+    ? node.blockType
+    : blockTypeForRm(node.rmType);
+  ensureRmBlockType(blockType, node.rmType);
+  const block = workspace.newBlock(blockType) as BlockSvg;
+  setFieldIfPresent(block, "RM_TYPE", node.rmType);
   setFieldIfPresent(block, "SLOT_ID", node.slotId);
   setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId ?? "");
   applySkeletonBlockLabels(block, node);

@@ -1,4 +1,8 @@
 import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
+import {
+  parseWebTemplate,
+  webTemplateToOpt,
+} from "ehrtslib/serialization/simplified/mod.ts";
 import type { SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,
@@ -37,6 +41,21 @@ export function generateSkeleton(optSource: string): GenerateSkeletonResult {
   return {
     ...generated,
     warnings: [...parsed.warnings, ...generated.warnings],
+  };
+}
+
+/** Convert a Web Template JSON document to the same OPERATIONAL_TEMPLATE walker. */
+export function generateSkeletonFromWebTemplate(
+  source: string | unknown,
+): GenerateSkeletonResult {
+  const webTemplate = parseWebTemplate(source);
+  const opt = webTemplateToOpt(webTemplate) as AmObject;
+  const generated = generateSkeletonFromOperational(opt);
+  return {
+    ...generated,
+    templateId: generated.templateId !== "unknown"
+      ? generated.templateId
+      : webTemplate.templateId,
   };
 }
 
@@ -225,31 +244,77 @@ function buildSilentMandatoryNode(
 ): SkeletonNode | null {
   const attrRmType = silentMandatoryRmType(parentRmType, attrName);
   if (!attrRmType) return null;
+  const node = buildNodeForRmType(
+    attrRmType,
+    templateId,
+    archetypeRef,
+    path,
+    lookupTermText(terms, attrName) ?? attrName,
+    terms,
+  );
+  node.rmAttribute = attrName;
+  node.mandatory = true;
+  node.silentMandatory = true;
+  return node;
+}
 
+/**
+ * Skeleton node for Optional RM Insertion — same typed containers / DV shells
+ * as silent-mandatory, but not marked mandatory.
+ */
+export function skeletonNodeForOptionalRm(
+  parent: Pick<SkeletonNode, "slotId" | "archetypeId" | "archetypeRef" | "attachmentPoint">,
+  rmType: string,
+  attributeName: string,
+): SkeletonNode {
+  const templateId = parent.archetypeId ?? parent.slotId.split("/")[0] ?? "template";
+  const parentPath = parent.attachmentPoint ||
+    (parent.slotId.startsWith(templateId) ? parent.slotId.slice(templateId.length) : "");
+  const path = `${parentPath.replace(/\/$/, "")}/${attributeName}`;
+  const node = buildNodeForRmType(
+    rmType,
+    templateId,
+    parent.archetypeRef,
+    path,
+    attributeName,
+    {},
+  );
+  node.rmAttribute = attributeName;
+  node.mandatory = false;
+  node.silentMandatory = false;
+  return node;
+}
+
+function buildNodeForRmType(
+  rmType: string,
+  templateId: string,
+  archetypeRef: string | undefined,
+  path: string,
+  label: string,
+  terms: TermBag,
+): SkeletonNode {
   const archetypeCtx = archetypeRef
     ? { archetypeRef, archetypeShortName: archetypeShortName(archetypeRef) }
     : {};
-  const label = lookupTermText(terms, attrName) ?? attrName;
 
-  if (isDataValueType(attrRmType) || attrRmType.startsWith("DV_")) {
+  if (isDataValueType(rmType) || rmType.startsWith("DV_")) {
     return {
       slotId: `${templateId}${path}/value`,
-      blockType: blockTypeForRm(attrRmType),
-      rmType: attrRmType,
+      blockType: blockTypeForRm(rmType),
+      rmType,
       label,
       archetypeId: templateId,
       ...archetypeCtx,
       kind: "value",
-      mandatory: true,
-      silentMandatory: true,
+      mandatory: false,
       children: [],
     };
   }
 
   const childSlots: SkeletonNode[] = [];
-  for (const nested of mandatoryAttributesFor(attrRmType)) {
+  for (const nested of mandatoryAttributesFor(rmType)) {
     const nestedNode = buildSilentMandatoryNode(
-      attrRmType,
+      rmType,
       nested,
       templateId,
       archetypeRef,
@@ -261,14 +326,13 @@ function buildSilentMandatoryNode(
 
   return {
     slotId: `${templateId}${path}`,
-    blockType: blockTypeForRm(attrRmType),
-    rmType: attrRmType,
+    blockType: blockTypeForRm(rmType),
+    rmType,
     label,
     archetypeId: templateId,
     ...archetypeCtx,
     kind: "container",
-    mandatory: true,
-    silentMandatory: true,
+    mandatory: false,
     children: childSlots,
     attachmentPoint: path,
   };

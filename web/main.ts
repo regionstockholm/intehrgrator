@@ -28,6 +28,7 @@ import {
   lockWorkspaceRootsExpanded,
   setAllBlocksCollapsed,
   applyModelExpressions,
+  attachOptionalRmChild,
   highlightListeningSlot,
   slotIdFromBlock,
   createModestTheme,
@@ -138,9 +139,10 @@ const testOutputEditor = createReadonlyEditor(document.getElementById("test-outp
 
 /** Set in boot() after locale + inject. */
 let workspace!: Blockly.WorkspaceSvg;
-
+let blocklyLocale = detectLocale();
 let blocklySkeletonKey = "";
 let blocklySlotSignature = "";
+let toolboxKey = "";
 let ephemeralTreeHighlight: TreeHighlightState | null = null;
 let lastActiveExampleId: string | null = null;
 
@@ -189,6 +191,7 @@ function setupLanguageMenu(locale: IntehrLocale): void {
 
 async function bootBlockly(): Promise<void> {
   const locale = detectLocale();
+  blocklyLocale = locale;
   await loadBlocklyLocale(locale);
   initBlocklyGenerators();
   setupLanguageMenu(locale);
@@ -232,9 +235,7 @@ async function bootBlockly(): Promise<void> {
     }
     openOptionalRmPicker(rmType, options, (picked) => {
       if (slotId) controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
-      if (typeof block.addInput_ === "function") {
-        block.addInput_(picked.attributeName);
-      }
+      attachOptionalRmChild(workspace, block, picked);
       statusMain.textContent = `Added ${picked.label} (${picked.attributeName}: ${picked.rmType})`;
     });
   });
@@ -333,7 +334,19 @@ function handleSourceSelection(
   controller.bindFromNode(path, format);
 }
 
+function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
+  const key = `${s.target?.format ?? ""}|${s.templateId}|${s.skeleton.length}`;
+  if (key === toolboxKey) return;
+  toolboxKey = key;
+  workspace.updateToolbox(buildDemoToolbox(blocklyLocale, {
+    targetFormat: s.target?.format,
+    skeleton: s.skeleton,
+  }));
+}
+
 function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): void {
+  if (!workspace) return;
+  syncToolbox(s);
   if (!s.templateId || !s.skeleton.length) {
     blocklySkeletonKey = "";
     blocklySlotSignature = "";

@@ -17,7 +17,7 @@ import {
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
-import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed } from "@intehrgrator/blockly/skeleton_loader.ts";
+import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   attributesFor,
@@ -86,7 +86,7 @@ Deno.test("orderedRmAttributes puts mandatory RM attrs first", () => {
 Deno.test("syncRmAttributeInputs labels statement mouths with RM attribute names", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
-  const block = workspace.newBlock("rm_structure");
+  const block = workspace.newBlock("observation");
   syncRmAttributeInputs(block, "OBSERVATION", ["protocol", "data"]);
   const labels = block.inputList
     .filter((input) => input.name.startsWith("ATTR_"))
@@ -127,6 +127,13 @@ Deno.test("loadSkeletonIntoWorkspace auto-attaches mandatory DV shells", () => {
     (b) => b.getFieldValue("RM_TYPE") === "OBSERVATION",
   );
   assert(observation, "expected observation block");
+  assertEquals(observation.type, "observation");
+  const root = workspace.getTopBlocks(false)[0];
+  assertEquals(root?.type, "composition");
+  assertEquals(
+    workspace.getAllBlocks(false).some((b) => b.type === "rm_structure"),
+    false,
+  );
   assert(observation.getInput(rmAttributeInputName("data")), "expected data statement input");
   assert(!observation.getInput("BODY"), "generic children input should not be used");
 
@@ -252,5 +259,28 @@ Deno.test("ELEMENT block is labelled ELEMENT in the header", () => {
   const header = block.getInput("HEADER");
   const labels = header?.fieldRow.map((field) => field.getText()) ?? [];
   assertEquals(labels[0], "ELEMENT");
+  workspace.dispose();
+});
+
+Deno.test("Optional RM Insertion attaches a typed child without clearing the canvas", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const root = workspace.getTopBlocks(false)[0];
+  assert(root);
+  const beforeIds = new Set(workspace.getAllBlocks(false).map((b) => b.id));
+  const child = attachOptionalRmChild(workspace as unknown as Blockly.WorkspaceSvg, root, {
+    rmType: "FEEDER_AUDIT",
+    attributeName: "feeder_audit",
+    label: "Feeder Audit",
+  });
+  assert(child, "expected feeder_audit child block");
+  assertEquals(child.type, "feeder_audit");
+  assertEquals(child.getParent()?.id, root.id);
+  assertEquals(root.type, "composition");
+  for (const id of beforeIds) {
+    assert(workspace.getBlockById(id), `existing block ${id} should stay on the canvas`);
+  }
   workspace.dispose();
 });

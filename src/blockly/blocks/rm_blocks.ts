@@ -2,10 +2,13 @@ import { Blockly } from "../blockly_core.ts";
 import { mandatoryAttributesFor } from "../../core/rm_mandatory.ts";
 import {
   attributesFor,
+  baseRmTypeName,
   blocklyCheckForPrimitiveType,
   blockTypeForRm,
   dataValueLeafTypes,
+  isDataValueType,
   isPrimitiveRmType,
+  isSubtypeOf,
   mandatoryAttributes,
   optionalAttributes,
   primaryMappingAttribute,
@@ -13,7 +16,7 @@ import {
 } from "../../core/rm_meta.ts";
 import { blocklyCheckForDv } from "../block_checks.ts";
 
-const OPTIONAL_INPUT_PREFIX = "OPT_";
+export const OPTIONAL_INPUT_PREFIX = "OPT_";
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
 export const RM_ATTR_INPUT_PREFIX = "ATTR_";
 export const DV_FIELD_PREFIX = "FLD_";
@@ -23,9 +26,51 @@ const CONTAINER_COLOUR = "#005C53";
 const DV_COLOUR = "#4A6FA5";
 const ELEMENT_COLOUR = "#3D7A6A";
 
-export function registerRmBlocks(): void {
-  defineGenericStructureBlock("rm_structure", STRUCTURE_COLOUR);
+const RM_CONTAINER_TYPES = new Set<string>();
 
+const EXTRA_RM_CONTAINERS = [
+  "HISTORY",
+  "EVENT",
+  "POINT_EVENT",
+  "INTERVAL_EVENT",
+  "EVENT_CONTEXT",
+  "ITEM_TREE",
+  "ITEM_LIST",
+  "ITEM_TABLE",
+  "ITEM_SINGLE",
+  "ACTIVITY",
+  "PARTY_IDENTIFIED",
+  "PARTY_SELF",
+  "PARTY_RELATED",
+  "PARTY_PROXY",
+  "PARTICIPATION",
+  "FEEDER_AUDIT",
+  "FEEDER_AUDIT_DETAILS",
+  "ISM_TRANSITION",
+  "LINK",
+  "ARCHETYPED",
+];
+
+export function isRmContainerBlockType(type: string): boolean {
+  if (RM_CONTAINER_TYPES.has(type) || type === "element") return true;
+  return EXTRA_RM_CONTAINERS.some((rmType) => blockTypeForRm(rmType) === type) ||
+    [
+      "composition",
+      "section",
+      "observation",
+      "evaluation",
+      "instruction",
+      "action",
+      "admin_entry",
+      "cluster",
+    ].includes(type);
+}
+
+export function optionalRmInputName(attr: string): string {
+  return `${OPTIONAL_INPUT_PREFIX}${attr}`;
+}
+
+export function registerRmBlocks(): void {
   defineContainerBlock("composition", "COMPOSITION", [
     { name: "content", check: "CONTENT_ITEM" },
     { name: "context", check: "EVENT_CONTEXT" },
@@ -93,6 +138,9 @@ export function registerRmBlocks(): void {
   });
 
   defineValueElementBlock();
+  for (const rmType of EXTRA_RM_CONTAINERS) {
+    ensureRmContainerBlock(rmType);
+  }
   defineDataValueBlocksFromMeta();
   defineCodePhraseBlock();
   registerOptionalRmMutator();
@@ -101,11 +149,43 @@ export function registerRmBlocks(): void {
 
 export function ensureRmBlockType(blockType: string, rmType: string): void {
   if (Blockly.Blocks[blockType]) return;
-  if (rmType.startsWith("DV_") || rmType === "CODE_PHRASE") {
+  if (rmType.startsWith("DV_") || rmType === "CODE_PHRASE" || isDataValueType(rmType)) {
     defineDataValueBlock(rmType);
     return;
   }
-  defineGenericStructureBlock(blockType, STRUCTURE_COLOUR);
+  ensureRmContainerBlock(rmType);
+}
+
+function ensureRmContainerBlock(rmType: string): string {
+  const type = blockTypeForRm(rmType);
+  if (Blockly.Blocks[type]) {
+    RM_CONTAINER_TYPES.add(type);
+    return type;
+  }
+  const inputs = attributesFor(rmType)
+    .filter((attr) => !isPrimitiveRmType(baseRmTypeName(attr.typeName)))
+    .map((attr) => ({ name: attr.name }));
+  defineContainerBlock(type, rmType, inputs, STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType,
+    nestCheck: nestCheckFor(rmType),
+  });
+  return type;
+}
+
+function nestCheckFor(rmType: string): string | string[] | null {
+  if (rmType === "COMPOSITION") return null;
+  if (isSubtypeOf(rmType, "CONTENT_ITEM")) return "CONTENT_ITEM";
+  if (isSubtypeOf(rmType, "ITEM")) return ["ITEM", "CLUSTER", "ELEMENT"];
+  if (isSubtypeOf(rmType, "EVENT") || rmType === "EVENT") return "EVENT";
+  if (rmType === "HISTORY") return "HISTORY";
+  if (isSubtypeOf(rmType, "ITEM_STRUCTURE")) {
+    return ["ITEM_STRUCTURE", "ITEM_TREE", "ITEM_LIST", "ITEM_TABLE", "ITEM_SINGLE"];
+  }
+  if (isSubtypeOf(rmType, "PARTY_PROXY") || rmType === "PARTY_PROXY") return "PARTY_PROXY";
+  if (rmType === "EVENT_CONTEXT") return "EVENT_CONTEXT";
+  if (rmType === "ACTIVITY") return "ACTIVITY";
+  return rmType;
 }
 
 /** Blockly type for a DATA_VALUE leaf, ensuring the def exists. */
@@ -277,9 +357,13 @@ function defineContainerBlock(
     nestCheck?: string | string[] | null;
   },
 ): void {
+  RM_CONTAINER_TYPES.add(type);
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField(label);
+      this.appendDummyInput("HEADER")
+        .appendField(label)
+        .appendField(new Blockly.FieldLabel(""), "NAME")
+        .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
       if (options.expandable) {
         appendPlusField(this);
       }
@@ -294,6 +378,12 @@ function defineContainerBlock(
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
+      this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
+      this.getField("ARCHETYPE_CTX")!.setVisible(false);
       this.setColour(colour);
       this.setTooltip(`openEHR RM ${options.rmType}`);
       this.setInputsInline(true);
@@ -308,33 +398,8 @@ function defineContainerBlock(
   };
 }
 
-function defineGenericStructureBlock(type: string, colour: string): void {
-  if (Blockly.Blocks[type]) return;
-  Blockly.Blocks[type] = {
-    init: function (this: Blockly.Block) {
-      this.appendDummyInput("HEADER")
-        .appendField(new Blockly.FieldLabel("label"), "NAME")
-        .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
-      this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
-      this.getField("ARCHETYPE_CTX")!.setVisible(false);
-      this.setColour(colour);
-      this.setTooltip("openEHR RM structure");
-      this.setInputsInline(true);
-    },
-  };
-}
-
 function defineValueElementBlock(): void {
+  RM_CONTAINER_TYPES.add("element");
   Blockly.Blocks["element"] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput("HEADER")

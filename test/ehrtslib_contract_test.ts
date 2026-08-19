@@ -14,6 +14,9 @@ import {
   subtypesOf,
 } from "ehrtslib/meta/mod.ts";
 import {
+  webTemplateToOpt,
+} from "ehrtslib/serialization/simplified/mod.ts";
+import {
   asArray,
   parseLegacyTemplateXml,
   textValue,
@@ -24,6 +27,7 @@ import {
 } from "ehrtslib/generation/term_codes.ts";
 
 Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
+  assertEquals(typeof webTemplateToOpt, "function");
   assertEquals(typeof parseTemplateInput, "function");
   assertEquals(typeof attributesFor, "function");
   assertEquals(typeof hasRmType, "function");

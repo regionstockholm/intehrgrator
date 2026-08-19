@@ -3,6 +3,8 @@
  * Coordinates and other layout chrome are omitted from the text; kept in `info` for ⓘ.
  */
 
+import { isRmContainerBlockType } from "../../blockly/blocks/rm_blocks.ts";
+
 export type SpecLineKind =
   | "header"
   | "container"
@@ -143,31 +145,19 @@ function classify(type: string): SpecLineKind {
   ) {
     return "source_query";
   }
-  if (type === "element" || type === "target_value") return "value";
-  if (type === "target_structure" || type.startsWith("rm_")) return "container";
-  if (type.startsWith(DV_PREFIX) || type.startsWith("DV_")) return "dv";
+  if (type === "element" || type === "target_value" || type === "json_value" || type === "xml_text") {
+    return "value";
+  }
   if (
-    [
-      "composition",
-      "observation",
-      "evaluation",
-      "instruction",
-      "action",
-      "admin_entry",
-      "section",
-      "cluster",
-      "item_tree",
-      "item_list",
-      "item_single",
-      "item_table",
-      "event",
-      "point_event",
-      "interval_event",
-      "history",
-    ].includes(type)
+    type === "target_structure" ||
+    type === "json_object" ||
+    type === "json_array" ||
+    type === "xml_element" ||
+    isRmContainerBlockType(type)
   ) {
     return "container";
   }
+  if (type.startsWith(DV_PREFIX) || type.startsWith("DV_")) return "dv";
   return "other";
 }
 

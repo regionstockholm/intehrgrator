@@ -11,9 +11,15 @@
 
 import type { BlocklyOptions } from "blockly/core";
 import { dataValueLeafTypes, blockTypeForRm } from "../core/rm_meta.ts";
+import type { SkeletonNode, TargetFormatId } from "../types/mod.ts";
 import { msg } from "./i18n/custom_msg.ts";
 
 export type ToolboxJson = NonNullable<BlocklyOptions["toolbox"]>;
+
+export interface ToolboxContext {
+  targetFormat?: TargetFormatId;
+  skeleton?: SkeletonNode[];
+}
 
 function dataValueToolboxContents(): Array<{ kind: string; type: string }> {
   return dataValueLeafTypes().map((rmType) => ({
@@ -32,14 +38,80 @@ function openEhrTypeToolboxContents(): Array<{ kind: string; type: string; gap?:
     { kind: "block", type: "action", gap: 8 },
     { kind: "block", type: "admin_entry", gap: 8 },
     { kind: "block", type: "cluster", gap: 8 },
+    { kind: "block", type: "history", gap: 8 },
+    { kind: "block", type: "event_context", gap: 8 },
+    { kind: "block", type: "item_tree", gap: 8 },
     { kind: "block", type: "element", gap: 16 },
     ...dataValueToolboxContents(),
   ];
 }
 
-/** Build the workspace toolbox (Blockly demo + Source / openEHR types). */
-export function buildDemoToolbox(locale: string): ToolboxJson {
+function schemaFlyoutContents(
+  skeleton: SkeletonNode[],
+): Array<{ kind: string; type: string; fields?: Record<string, string>; gap?: number }> {
+  const out: Array<{ kind: string; type: string; fields?: Record<string, string>; gap?: number }> = [];
+  const walk = (node: SkeletonNode) => {
+    const type = node.blockType === "target_value" || node.kind === "value"
+      ? "target_value"
+      : "target_structure";
+    out.push({
+      kind: "block",
+      type,
+      gap: 4,
+      fields: {
+        NAME: node.label,
+        TARGET_TYPE: node.rmType,
+        SLOT_ID: node.slotId,
+      },
+    });
+    for (const child of node.children) walk(child);
+  };
+  for (const root of skeleton) walk(root);
+  return out.slice(0, 40);
+}
+
+/** Build the workspace toolbox (Blockly demo + Source / openEHR types / JSON / XML). */
+export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): ToolboxJson {
   const m = msg(locale);
+  const extraTargetCategories: Array<Record<string, unknown>> = [
+    {
+      kind: "category",
+      name: m.CAT_JSON,
+      colour: 40,
+      cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryJson" },
+      contents: [
+        { kind: "block", type: "json_object", gap: 8 },
+        { kind: "block", type: "json_array", gap: 8 },
+        { kind: "block", type: "json_value", gap: 8 },
+        { kind: "block", type: "target_structure", gap: 8 },
+        { kind: "block", type: "target_value" },
+      ],
+    },
+    {
+      kind: "category",
+      name: m.CAT_XML,
+      colour: 200,
+      cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryXml" },
+      contents: [
+        { kind: "block", type: "xml_element", gap: 8 },
+        { kind: "block", type: "xml_text", gap: 8 },
+        { kind: "block", type: "target_structure", gap: 8 },
+        { kind: "block", type: "target_value" },
+      ],
+    },
+  ];
+  if (
+    (context.targetFormat === "json-schema" || context.targetFormat === "xml-schema") &&
+    context.skeleton?.length
+  ) {
+    extraTargetCategories.push({
+      kind: "category",
+      name: m.CAT_TARGET_SCHEMA,
+      colour: 0,
+      cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryTargetSchema" },
+      contents: schemaFlyoutContents(context.skeleton),
+    });
+  }
   return {
     kind: "categoryToolbox",
     contents: [
@@ -61,6 +133,7 @@ export function buildDemoToolbox(locale: string): ToolboxJson {
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryOpenEhrTypes" },
         contents: openEhrTypeToolboxContents(),
       },
+      ...extraTargetCategories,
       {
         kind: "category",
         name: m.CAT_LOGIC,

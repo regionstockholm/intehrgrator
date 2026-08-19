@@ -300,6 +300,15 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyToolboxCategoryOpenEhrTypes {
   border-left: 15px solid #4a6fa5 !important;
 }
+.blockly-mount .blocklyToolboxCategoryJson {
+  border-left: 15px solid #d97706 !important;
+}
+.blockly-mount .blocklyToolboxCategoryXml {
+  border-left: 15px solid #0284c7 !important;
+}
+.blockly-mount .blocklyToolboxCategoryTargetSchema {
+  border-left: 15px solid #4b5563 !important;
+}
 .blockly-mount .blocklyToolboxCategoryLogic {
   border-left: 15px solid #d1c4e9 !important;
 }

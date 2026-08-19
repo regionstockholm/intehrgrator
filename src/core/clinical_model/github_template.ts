@@ -12,7 +12,7 @@ import {
 import { OptXmlSerializer } from "ehrtslib/generation/opt_xml_serializer.ts";
 import { buildWebTemplate } from "ehrtslib/serialization/simplified/web_template_builder.ts";
 import { generateSkeletonFromOperational } from "../skeleton/generate_skeleton.ts";
-import type { SkeletonNode } from "../../types/mod.ts";
+import type { ClinicalModelFileset, SkeletonNode } from "../../types/mod.ts";
 
 const CLINICAL_MODEL_URL_SUFFIX = /\.(t\.json|adl|adls|opt|oet)$/i;
 
@@ -37,6 +37,8 @@ export interface GitHubClinicalModelLoadResult {
   skeleton: SkeletonNode[];
   warnings: string[];
   fetched: number;
+  /** Full fetched file-set (`.t.json` + ADL/OPT) for Project Bundle round-trip. */
+  fileset: ClinicalModelFileset;
 }
 
 export function isGitHubClinicalModelUrl(input: string): boolean {
@@ -69,7 +71,7 @@ export async function loadGitHubClinicalModel(
   const templateId = generated.templateId !== "unknown"
     ? generated.templateId
     : webTemplate.templateId || basename(closure.rootPath);
-  const storedName = storedFilename(closure.rootPath);
+  const storedName = (closure.rootPath.split("/").pop() ?? closure.rootPath);
 
   return {
     sourceUrl,
@@ -81,12 +83,15 @@ export async function loadGitHubClinicalModel(
     skeleton: generated.skeleton,
     warnings: [...closure.warnings, ...resolved.warnings, ...generated.warnings],
     fetched: closure.fetched,
+    fileset: {
+      sourceUrl,
+      rootPath: closure.rootPath,
+      files: workspace.listFiles().map((file) => ({
+        path: file.path,
+        content: file.content,
+      })),
+    },
   };
-}
-
-function storedFilename(path: string): string {
-  const base = path.split("/").pop() ?? path;
-  return base.replace(/\.t\.json$/i, ".opt");
 }
 
 function basename(path: string): string {

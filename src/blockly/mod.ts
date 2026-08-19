@@ -3,7 +3,7 @@ import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import type { SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName } from "./blocks/rm_blocks.ts";
-import { registerTargetBlocks } from "./blocks/target_blocks.ts";
+import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
@@ -15,6 +15,7 @@ import {
 
 export {
   applyModelExpressions,
+  attachOptionalRmChild,
   highlightListeningSlot,
   loadSkeletonIntoWorkspace,
   lockWorkspaceRootsExpanded,
@@ -38,7 +39,8 @@ export { createModestTheme as createCompactTheme } from "./theme.ts";
 export { registerCompactThrasosRenderer, COMPACT_RENDERER_NAME } from "./compact_renderer.ts";
 export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
-export { buildDemoToolbox } from "./toolbox_demo.ts";
+export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";
+export { buildDemoToolbox, type ToolboxContext } from "./toolbox_demo.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -159,7 +161,7 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
 } {
   const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
   for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "element" && block.type !== "target_value") continue;
+    if (block.type !== "element" && !isGenericValueBlockType(block.type)) continue;
     const slotId = block.getFieldValue("SLOT_ID");
     const rmType = block.getFieldValue("RM_TYPE") || block.getFieldValue("TARGET_TYPE");
     const valueBlock = block.getInputTargetBlock("VALUE");

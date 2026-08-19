@@ -57,6 +57,7 @@ Deno.test("loadGitHubClinicalModel fetches an OPT from GitHub and builds a skele
   assert(loaded.templateId.includes("blood_pressure"));
   assert(loaded.skeleton.length > 0);
   assertStringIncludes(loaded.optXml, "template");
+  assertEquals(loaded.fileset.files.some((f) => f.path.endsWith("blood_pressure.opt")), true);
   const wt = JSON.parse(loaded.webTemplateJson) as { templateId?: string; tree?: unknown };
   assert(wt.tree, "web template JSON should include a tree for schema load");
 });

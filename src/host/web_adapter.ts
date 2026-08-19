@@ -2,7 +2,7 @@ import type { ProjectBundle } from "@intehrgrator/types/mod.ts";
 import type { FilePickerKind, HostAdapter, PickedBinaryFile, PickedTextFile } from "./mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 import { assertHttpUrl, filenameFromUrl, toFetchableUrl } from "./fetch_url.ts";
-import { acceptToPickerTypes, filePickerId } from "./file_picker.ts";
+import { acceptToExtensions, acceptToPickerTypes, filePickerId } from "./file_picker.ts";
 import {
   listLoadableProjects,
   loadStoredProjectRecord,
@@ -14,6 +14,15 @@ export class WebHostAdapter implements HostAdapter {
   async pickTextFile(accept?: string, kind?: FilePickerKind): Promise<PickedTextFile | null> {
     const file = await this.pickDomFile(accept, kind);
     return file ? { name: file.name, text: await file.text() } : null;
+  }
+
+  async pickTextFilesFromDirectory(
+    accept = ".json,.xml",
+    kind?: FilePickerKind,
+  ): Promise<PickedTextFile[] | null> {
+    const fromFsAccess = await this.pickDirectoryWithFileSystemAccess(accept, kind);
+    if (fromFsAccess !== undefined) return fromFsAccess;
+    return await this.pickDirectoryWithInputElement(accept);
   }
 
   async pickBinaryFile(accept?: string, kind?: FilePickerKind): Promise<PickedBinaryFile | null> {
@@ -59,6 +68,82 @@ export class WebHostAdapter implements HostAdapter {
       if (isAbortError(err)) return null;
       throw err;
     }
+  }
+
+  private async pickDirectoryWithFileSystemAccess(
+    accept: string,
+    kind?: FilePickerKind,
+  ): Promise<PickedTextFile[] | null | undefined> {
+    const showDirectoryPicker = (
+      globalThis as typeof globalThis & {
+        showDirectoryPicker?: (options?: {
+          id?: string;
+          mode?: "read";
+        }) => Promise<FileSystemDirectoryHandle>;
+      }
+    ).showDirectoryPicker;
+    if (typeof showDirectoryPicker !== "function") return undefined;
+
+    const extensions = acceptToExtensions(accept);
+    const matchesAccept = (name: string) =>
+      !extensions.length || extensions.some((ext) => name.toLowerCase().endsWith(ext));
+
+    try {
+      const dir = await showDirectoryPicker({
+        id: kind ? `${filePickerId(kind)}-dir` : undefined,
+        mode: "read",
+      });
+      return await collectDirectoryTextFiles(dir, matchesAccept);
+    } catch (err) {
+      if (isAbortError(err)) return null;
+      throw err;
+    }
+  }
+
+  private async pickDirectoryWithInputElement(accept: string): Promise<PickedTextFile[] | null> {
+    const extensions = acceptToExtensions(accept);
+    const matchesAccept = (name: string) =>
+      !extensions.length || extensions.some((ext) => name.toLowerCase().endsWith(ext));
+
+    return await new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.multiple = true;
+      input.webkitdirectory = true;
+      input.style.position = "fixed";
+      input.style.left = "-9999px";
+
+      let settled = false;
+      const finish = async (files: FileList | null) => {
+        if (settled) return;
+        settled = true;
+        input.remove();
+        if (!files?.length) {
+          resolve(null);
+          return;
+        }
+        const out: PickedTextFile[] = [];
+        for (const file of files) {
+          const name = file.webkitRelativePath || file.name;
+          if (!matchesAccept(name)) continue;
+          out.push({ name: name.split("/").pop() ?? name, text: await file.text() });
+        }
+        resolve(out.length ? out : null);
+      };
+
+      input.addEventListener("change", () => void finish(input.files));
+      input.addEventListener("cancel", () => void finish(null));
+
+      document.body.appendChild(input);
+      input.click();
+
+      globalThis.addEventListener("focus", function onWindowFocus() {
+        setTimeout(() => {
+          globalThis.removeEventListener("focus", onWindowFocus);
+          if (!settled && !input.files?.length) void finish(null);
+        }, 400);
+      }, { once: true });
+    });
   }
 
   private async pickWithInputElement(accept?: string): Promise<File | null> {
@@ -156,4 +241,23 @@ export class WebHostAdapter implements HostAdapter {
 
 function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
+}
+
+async function collectDirectoryTextFiles(
+  dir: FileSystemDirectoryHandle,
+  matchesAccept: (name: string) => boolean,
+  prefix = "",
+): Promise<PickedTextFile[]> {
+  const out: PickedTextFile[] = [];
+  for await (const [name, handle] of dir.entries()) {
+    const path = prefix ? `${prefix}/${name}` : name;
+    if (handle.kind === "file") {
+      if (!matchesAccept(name)) continue;
+      const file = await handle.getFile();
+      out.push({ name, text: await file.text() });
+    } else if (handle.kind === "directory") {
+      out.push(...await collectDirectoryTextFiles(handle, matchesAccept, path));
+    }
+  }
+  return out;
 }

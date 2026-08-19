@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { assertHttpUrl, filenameFromUrl, toFetchableUrl } from "../src/host/fetch_url.ts";
-import { acceptToVscodeFilters } from "../src/host/file_picker.ts";
+import { acceptToExtensions, acceptToVscodeFilters } from "../src/host/file_picker.ts";
 
 const VIEW_TYPE = "intehrgrator.workbench";
 const SAVES_KEY = "intehrgrator.saves";
@@ -82,6 +82,10 @@ async function dispatchHostCommand(
         name: uri.path.split("/").pop() ?? "input",
         text: new TextDecoder().decode(await vscode.workspace.fs.readFile(uri)),
       };
+    }
+    case "pickTextFilesFromDirectory": {
+      const files = await pickDirectoryTextFiles(context, payload);
+      return files.length ? files : null;
     }
     case "pickBinaryFile": {
       const uri = await pickFile(context, payload);
@@ -173,6 +177,51 @@ async function pickFile(
   const uri = picked?.[0] ?? null;
   if (uri && kind) await rememberPickerDir(context, kind, uri);
   return uri;
+}
+
+async function pickDirectoryTextFiles(
+  context: vscode.ExtensionContext,
+  payload: Record<string, unknown>,
+): Promise<Array<{ name: string; text: string }>> {
+  const kind = typeof payload.kind === "string" ? payload.kind : "";
+  const accept = typeof payload.accept === "string" ? payload.accept : ".json,.xml";
+  const extensions = acceptToExtensions(accept).map((ext) => ext.slice(1));
+  const lastDir = lastPickerDirs(context)[`${kind}-dir`];
+  const picked = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    defaultUri: lastDir ? vscode.Uri.parse(lastDir) : defaultSaveUri(""),
+  });
+  const uri = picked?.[0] ?? null;
+  if (!uri) return [];
+  if (kind) await rememberPickerDir(context, `${kind}-dir`, uri);
+
+  const out: Array<{ name: string; text: string }> = [];
+  await collectTextFilesFromDirectory(uri, extensions, out);
+  return out;
+}
+
+async function collectTextFilesFromDirectory(
+  dir: vscode.Uri,
+  extensions: string[],
+  out: Array<{ name: string; text: string }>,
+): Promise<void> {
+  const entries = await vscode.workspace.fs.readDirectory(dir);
+  for (const [name, type] of entries) {
+    const child = vscode.Uri.joinPath(dir, name);
+    if (type === vscode.FileType.Directory) {
+      await collectTextFilesFromDirectory(child, extensions, out);
+      continue;
+    }
+    if (type !== vscode.FileType.File) continue;
+    const lower = name.toLowerCase();
+    if (extensions.length && !extensions.some((ext) => lower.endsWith(`.${ext}`))) continue;
+    out.push({
+      name,
+      text: new TextDecoder().decode(await vscode.workspace.fs.readFile(child)),
+    });
+  }
 }
 
 const LAST_DIR_KEY = "intehrgrator.lastPickerDir";

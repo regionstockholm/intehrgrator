@@ -246,7 +246,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 
 .mapping-pane { display: flex; flex-direction: column; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
-.mapping-editor-tabs { display: flex; gap: 4px; margin-bottom: 6px; }
+.mapping-editor-tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
+.mapping-editor-tab-group { display: flex; gap: 4px; }
+.mapping-spec-download { margin-left: auto; font-size: 11px; padding: 3px 8px; }
 .mapping-editor-tab {
   border: 1px solid var(--border); border-radius: 4px; background: #fff;
   color: var(--text-secondary); padding: 3px 7px; font-size: 11px; cursor: pointer;

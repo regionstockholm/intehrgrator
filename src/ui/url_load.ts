@@ -6,6 +6,7 @@ import {
   rememberUrl,
   type UrlHistoryKind,
 } from "../host/url_history.ts";
+import { isGitHubExamplesDirectoryUrl } from "../core/source/github_examples.ts";
 
 export type { UrlHistoryKind };
 
@@ -15,12 +16,26 @@ export interface SplitLoadKindConfig {
   menu: HTMLElement;
   fromFile: () => void | Promise<void>;
   fromUrl: (url: string) => Promise<void>;
+  /** When set, used for ▾ → From GitHub folder… dialog submissions. */
+  fromGitHubDirectory?: (url: string) => Promise<void>;
   title: string;
   hint: string;
   placeholder: string;
   historyHeading: string;
   /** Extra first-class menu action, e.g. GitHub .t.json closure load. */
   github?: {
+    label: string;
+    title: string;
+    hint: string;
+    placeholder: string;
+  };
+  /** Bulk load JSON/XML instances from a local folder. */
+  bulkLocal?: {
+    label: string;
+    fromDirectory: () => void | Promise<void>;
+  };
+  /** Bulk load JSON/XML instances from a GitHub tree URL. */
+  bulkGitHubDir?: {
     label: string;
     title: string;
     hint: string;
@@ -44,6 +59,7 @@ export interface UrlLoadUiOptions {
 export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   const { dialog, title, hint, input, error, history, historyHeading, cancel, storage, kinds } = options;
   let activeKind: UrlHistoryKind = "schema";
+  let activePreset: "url" | "github" | "githubDir" = "url";
 
   for (const config of Object.values(kinds)) {
     document.body.append(config.menu);
@@ -77,10 +93,22 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
       closeMenus();
       void config.fromFile();
     });
+    if (config.bulkLocal) {
+      appendMenuItem(config.menu, config.bulkLocal.label, () => {
+        closeMenus();
+        void config.bulkLocal!.fromDirectory();
+      });
+    }
     if (config.github) {
       appendMenuItem(config.menu, config.github.label, () => {
         closeMenus();
         openDialog(kind, "github");
+      });
+    }
+    if (config.bulkGitHubDir) {
+      appendMenuItem(config.menu, config.bulkGitHubDir.label, () => {
+        closeMenus();
+        openDialog(kind, "githubDir");
       });
     }
     appendMenuItem(config.menu, "From URL…", () => {
@@ -156,10 +184,15 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
     }
   };
 
-  const openDialog = (kind: UrlHistoryKind, preset: "url" | "github" = "url") => {
+  const openDialog = (kind: UrlHistoryKind, preset: "url" | "github" | "githubDir" = "url") => {
     activeKind = kind;
+    activePreset = preset;
     const config = kinds[kind];
-    const github = preset === "github" ? config.github : undefined;
+    const github = preset === "github"
+      ? config.github
+      : preset === "githubDir"
+      ? config.bulkGitHubDir
+      : undefined;
     title.textContent = github?.title ?? config.title;
     hint.textContent = github?.hint ?? config.hint;
     historyHeading.textContent = config.historyHeading;
@@ -173,7 +206,9 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   };
 
   const loadUrl = async (kind: UrlHistoryKind, url: string) => {
-    await kinds[kind].fromUrl(url);
+    const config = kinds[kind];
+    const loader = resolveUrlLoader(config, url, activePreset);
+    await loader(url);
     rememberUrl(kind, url.trim(), storage);
   };
 
@@ -214,7 +249,23 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   });
 }
 
-function appendMenuItem(
+function resolveUrlLoader(
+  config: SplitLoadKindConfig,
+  url: string,
+  preset: "url" | "github" | "githubDir",
+): (url: string) => Promise<void> {
+  if (preset === "githubDir" && config.fromGitHubDirectory) {
+    return config.fromGitHubDirectory;
+  }
+  if (
+    config.fromGitHubDirectory &&
+    isGitHubExamplesDirectoryUrl(url) &&
+    /github\.com\/[^/]+\/[^/]+\/tree\//i.test(url.trim())
+  ) {
+    return config.fromGitHubDirectory;
+  }
+  return config.fromUrl;
+}
   menu: HTMLElement,
   label: string,
   onClick: () => void,

@@ -21,6 +21,11 @@ export interface PickedBinaryFile {
  */
 export interface HostAdapter {
   pickTextFile(accept?: string, kind?: FilePickerKind): Promise<PickedTextFile | null>;
+  /** Recursively pick JSON/XML instance files from a local folder. */
+  pickTextFilesFromDirectory(
+    accept?: string,
+    kind?: FilePickerKind,
+  ): Promise<PickedTextFile[] | null>;
   pickBinaryFile(accept?: string, kind?: FilePickerKind): Promise<PickedBinaryFile | null>;
   downloadText(filename: string, content: string, mime?: string): void | Promise<void>;
   downloadBytes(filename: string, bytes: Uint8Array, mime?: string): void | Promise<void>;

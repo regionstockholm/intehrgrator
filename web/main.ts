@@ -58,6 +58,7 @@ import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { installInfoTips } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
+import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
 import {
@@ -97,6 +98,7 @@ const targetFormatBadge = document.getElementById("target-format-badge")!;
 const exportTargetSelect = document.getElementById("export-target") as HTMLSelectElement;
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
 const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
+const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
 const mappingJsonHost = document.getElementById("spec-editor")!;
 const handlebarsHost = document.getElementById("handlebars-editor")!;
 
@@ -150,10 +152,12 @@ function showTextView(view: "mapping-json" | "handlebars"): void {
   mappingJsonTab.classList.toggle("active", !showHandlebars);
   handlebarsTab.classList.toggle("active", showHandlebars);
   if (handlebarsInsertToolbar) handlebarsInsertToolbar.hidden = !showHandlebars;
+  downloadSpecBtn.hidden = showHandlebars;
 }
 
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
+downloadSpecBtn.addEventListener("click", () => controller.exportMappingSpec());
 exportTargetSelect.addEventListener("change", () => {
   const target = exportTargetSelect.value as
     | "typescript"
@@ -412,10 +416,21 @@ installUrlLoadUi({
       menu: requireEl("menu-add-example"),
       fromFile: () => controller.addExample(),
       fromUrl: (url) => controller.addExampleFromUrl(url),
+      fromGitHubDirectory: (url) => controller.addExamplesFromGitHubDirectory(url),
       title: "Add example from URL",
       hint: "JSON or XML instance. GitHub file pages are converted to raw content.",
       placeholder: "https://raw.githubusercontent.com/…/example.json",
       historyHeading: "Recent example URLs",
+      bulkLocal: {
+        label: "From local folder…",
+        fromDirectory: () => controller.addExamplesFromLocalDirectory(),
+      },
+      bulkGitHubDir: {
+        label: "From GitHub folder…",
+        title: "Add examples from GitHub folder",
+        hint: "Paste a GitHub tree URL to a folder. All JSON and XML files under that path are loaded.",
+        placeholder: DEFAULT_GITHUB_EXAMPLES_URL,
+      },
     },
     target: {
       main: requireEl<HTMLButtonElement>("btn-open-template"),

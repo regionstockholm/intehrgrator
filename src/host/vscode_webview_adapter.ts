@@ -45,6 +45,15 @@ export class VsCodeWebviewHostAdapter implements HostAdapter {
     return await this.request("pickTextFile", { accept, kind }) as PickedTextFile | null;
   }
 
+  async pickTextFilesFromDirectory(
+    accept?: string,
+    kind?: FilePickerKind,
+  ): Promise<PickedTextFile[] | null> {
+    return await this.request("pickTextFilesFromDirectory", { accept, kind }) as
+      | PickedTextFile[]
+      | null;
+  }
+
   async pickBinaryFile(accept?: string, kind?: FilePickerKind): Promise<PickedBinaryFile | null> {
     const result = await this.request("pickBinaryFile", { accept, kind }) as {
       name: string;

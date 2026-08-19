@@ -8,6 +8,7 @@ import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/co
 function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
     pickTextFile: async () => null,
+    pickTextFilesFromDirectory: async () => null,
     pickBinaryFile: async () => null,
     downloadText: () => {},
     downloadBytes: () => {},

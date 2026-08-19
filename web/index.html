@@ -71,7 +71,7 @@
                 <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-add-example" aria-label="Supported example formats">i</button>
                 <span id="tip-add-example" class="info-tip-balloon" role="tooltip">
                   Supported: JSON or XML instance files.<br>
-                  Load from a local file or from a URL, use ▾ to switch.
+                  Load one file, a local folder, a GitHub folder (▾), or a single file from URL.
                 </span>
               </span>
               <div class="split-btn">
@@ -117,8 +117,21 @@
         <div id="blockly-mount" class="blockly-mount"></div>
         <div class="mapping-bottom">
           <div class="mapping-editor-tabs" role="tablist" aria-label="Mapping editor text views">
-            <button id="tab-mapping-json" class="mapping-editor-tab active" type="button">Mapping Spec</button>
-            <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
+            <div class="mapping-editor-tab-group">
+              <button id="tab-mapping-json" class="mapping-editor-tab active" type="button">Mapping Spec</button>
+              <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
+            </div>
+            <button
+              id="btn-download-spec"
+              class="pane-btn pane-btn-icon mapping-spec-download"
+              type="button"
+              title="Download mapping specification"
+            >
+              <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
+              </svg>
+              Download
+            </button>
           </div>
           <div id="handlebars-insert-toolbar" class="handlebars-insert-toolbar" hidden>
             <span class="handlebars-insert-label">Tree insert</span>

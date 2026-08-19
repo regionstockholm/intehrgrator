@@ -47,6 +47,7 @@ function memoryHost(overrides: Partial<HostAdapter> = {}): MemoryHost {
     saves,
     exported: null,
     pickTextFile: async () => null,
+    pickTextFilesFromDirectory: async () => null,
     pickBinaryFile: async () => {
       if (!host.exported) return null;
       return { name: host.exported.filename, bytes: host.exported.bytes };

@@ -52,6 +52,8 @@ import {
   loadGitHubClinicalModel,
   type GitHubClinicalModelLoadResult,
 } from "../core/clinical_model/github_template.ts";
+import { loadGitHubExampleDirectory } from "../core/source/github_examples.ts";
+import { projectBlocklyState } from "./mapping_spec/project.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import {
   snapshotUrlHistory,
@@ -305,6 +307,40 @@ export class WorkbenchController {
     }
   }
 
+  async addExamplesFromLocalDirectory(): Promise<void> {
+    const files = await this.host.pickTextFilesFromDirectory(".json,.xml", "example");
+    if (!files?.length) return;
+    for (const file of files) {
+      this.applyExampleFile(file.name, file.text);
+    }
+    this.statusMessage = this.examplesLoadStatus(files.length);
+    this.markDirty();
+    if (this.settings.autoplay) this.scheduleTestRun();
+  }
+
+  async addExamplesFromGitHubDirectory(url: string): Promise<void> {
+    try {
+      const loaded = await loadGitHubExampleDirectory(url, { fetch: this.githubFetch });
+      if (!loaded.files.length) {
+        throw new Error("No JSON or XML example files found in that folder.");
+      }
+      for (const file of loaded.files) {
+        this.applyExampleFile(file.name, file.text);
+      }
+      this.rememberLoadUrl("example", url);
+      const warnNote = loaded.warnings.length ? ` (${loaded.warnings.length} warnings)` : "";
+      this.statusMessage = `${this.examplesLoadStatus(loaded.files.length)}${warnNote}`;
+      this.markDirty();
+      if (this.settings.autoplay) this.scheduleTestRun();
+    } catch (err) {
+      this.statusMessage = `Example folder load failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`;
+      this.notifyChange();
+      throw err;
+    }
+  }
+
   /** Add an Example Instance from in-memory content — used by Workbench Test API and hosts. */
   addExampleContent(filename: string, content: string): void {
     this.applyExampleFile(filename, content);
@@ -496,6 +532,13 @@ export class WorkbenchController {
       code,
       adapter.mime,
     );
+  }
+
+  exportMappingSpec(): void {
+    const state = this.getBlocklyState?.() ?? this.blocklyState;
+    const text = projectBlocklyState(state).text;
+    const base = safeFilename(this.templateId || this.projectId || "mapping");
+    void this.host.downloadText(`${base}.mapping-spec.txt`, text, "text/plain");
   }
 
   async saveProjectAs(displayName: string): Promise<void> {

@@ -356,26 +356,29 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   line-height: 0 !important;
 }
 
-.slot-rail { padding: 8px; overflow: auto; background: var(--surface-alt); min-width: 0; min-height: 0; flex: 1; }
+.slot-rail { padding: 8px 8px 8px 14px; overflow: auto; background: var(--surface-alt); min-width: 0; min-height: 0; flex: 1; }
 
-/* RTL skeleton tree: root right, leaves left */
+/* Nested skeleton tree: root left, children indented; RM type + ZipEHR emoji right-aligned */
 .skeleton-tree,
 .skeleton-tree-children {
   list-style: none;
   margin: 0;
   padding: 0;
-  direction: rtl;
+}
+.skeleton-tree-children {
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+  margin-left: 6px;
 }
 .skeleton-tree-node { margin: 0; }
 .skeleton-tree-row {
   display: flex;
   align-items: baseline;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
   padding-top: 1px;
   padding-bottom: 1px;
-  direction: ltr;
 }
 .skeleton-branch-label {
   font-size: 10px;
@@ -413,11 +416,24 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   min-width: 0;
   font-weight: 500;
 }
+.slot-type-meta {
+  flex: 0 0 auto;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 3px;
+  white-space: nowrap;
+}
+.slot-rm-emoji {
+  font-size: 11px;
+  line-height: 1;
+}
 .slot-rm-type {
   flex: 0 0 auto;
   font-size: 9px;
   color: var(--text-secondary);
   white-space: nowrap;
+  text-align: right;
 }
 .truncate-suffix {
   display: block;

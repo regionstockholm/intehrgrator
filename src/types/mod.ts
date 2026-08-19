@@ -136,6 +136,12 @@ export interface ProjectBundle {
     handlebarsTemplate?: string;
   };
   settings: ProjectSettings;
+  /** Recent schema / example / target URLs (including GitHub .t.json closures). */
+  urlHistory?: {
+    schema: string[];
+    example: string[];
+    target: string[];
+  };
   aiAssist?: {
     lastPrompt?: string;
     lastImportReport?: string;

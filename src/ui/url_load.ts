@@ -19,6 +19,13 @@ export interface SplitLoadKindConfig {
   hint: string;
   placeholder: string;
   historyHeading: string;
+  /** Extra first-class menu action, e.g. GitHub .t.json closure load. */
+  github?: {
+    label: string;
+    title: string;
+    hint: string;
+    placeholder: string;
+  };
 }
 
 export interface UrlLoadUiOptions {
@@ -70,9 +77,15 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
       closeMenus();
       void config.fromFile();
     });
+    if (config.github) {
+      appendMenuItem(config.menu, config.github.label, () => {
+        closeMenus();
+        openDialog(kind, "github");
+      });
+    }
     appendMenuItem(config.menu, "From URL…", () => {
       closeMenus();
-      openDialog(kind);
+      openDialog(kind, "url");
     });
     const urls = listUrlHistory(kind, storage);
     if (!urls.length) return;
@@ -143,14 +156,15 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
     }
   };
 
-  const openDialog = (kind: UrlHistoryKind) => {
+  const openDialog = (kind: UrlHistoryKind, preset: "url" | "github" = "url") => {
     activeKind = kind;
     const config = kinds[kind];
-    title.textContent = config.title;
-    hint.textContent = config.hint;
+    const github = preset === "github" ? config.github : undefined;
+    title.textContent = github?.title ?? config.title;
+    hint.textContent = github?.hint ?? config.hint;
     historyHeading.textContent = config.historyHeading;
-    input.placeholder = config.placeholder;
-    input.value = listUrlHistory(kind, storage)[0] ?? "";
+    input.placeholder = github?.placeholder ?? config.placeholder;
+    input.value = listUrlHistory(kind, storage)[0] ?? github?.placeholder ?? "";
     clearError();
     renderDialogHistory(kind);
     dialog.showModal();

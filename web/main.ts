@@ -57,6 +57,7 @@ import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { installInfoTips } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
+import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
 import {
@@ -75,7 +76,7 @@ import {
 } from "../src/ui_test/test_api.ts";
 
 const host = createHostAdapter();
-const controller = new WorkbenchController(host);
+const controller = new WorkbenchController(host, { urlStorage: localStorage });
 const testMode = isTestMode();
 let workbenchReadyResolve!: () => void;
 const workbenchReady = new Promise<void>((resolve) => {
@@ -395,9 +396,15 @@ installUrlLoadUi({
       fromFile: () => controller.loadSchema(),
       fromUrl: (url) => controller.loadSchemaFromUrl(url),
       title: "Load schema from URL",
-      hint: "JSON, XML, or XSD. GitHub file pages are converted to raw content.",
+      hint: "JSON, XML, XSD, or a GitHub .t.json template (archetypes are fetched from the same repo). GitHub file pages are converted to raw content.",
       placeholder: "https://raw.githubusercontent.com/…/schema.json",
       historyHeading: "Recent schema URLs",
+      github: {
+        label: "From GitHub template…",
+        title: "Load openEHR template from GitHub",
+        hint: "Paste a GitHub blob or raw URL to a Better .t.json (or .adl / .opt). Dependent archetypes are pulled from the same repository branch.",
+        placeholder: DEFAULT_GITHUB_TEMPLATE_URL,
+      },
     },
     example: {
       main: requireEl<HTMLButtonElement>("btn-add-example"),
@@ -417,9 +424,15 @@ installUrlLoadUi({
       fromFile: () => controller.openTemplate(),
       fromUrl: (url) => controller.openTemplateFromUrl(url),
       title: "Open target from URL",
-      hint: "OPT, Web Template, JSON Schema, or other target. GitHub file pages are converted to raw content.",
+      hint: "OPT, Web Template, JSON Schema, or a GitHub .t.json. GitHub file pages are converted to raw content.",
       placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
       historyHeading: "Recent target URLs",
+      github: {
+        label: "From GitHub template…",
+        title: "Open openEHR template from GitHub",
+        hint: "Paste a GitHub blob or raw URL to a Better .t.json (or .adl / .opt). Dependent archetypes are pulled from the same repository branch.",
+        placeholder: DEFAULT_GITHUB_TEMPLATE_URL,
+      },
     },
   },
 });

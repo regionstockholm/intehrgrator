@@ -1,8 +1,9 @@
 import type { SchemaTreeNode, SkeletonNode, SourceFormatId } from "../types/mod.ts";
 import { isAutoFixedValueSlot } from "../core/rm_mandatory.ts";
+import { zipehrEmojiForRmType } from "../core/rm_emoji.ts";
 import { canonicalSyncPath, isSourceFormatId } from "../core/source/mod.ts";
 
-const SKELETON_INDENT_PX = 10;
+const SKELETON_INDENT_PX = 12;
 
 /** Custom MIME for Source Pane → value-slot drag-and-drop mapping. */
 export const SOURCE_DRAG_MIME = "application/x-intehrgrator-source";
@@ -280,7 +281,7 @@ function buildSkeletonBranch(
 
   const row = document.createElement("div");
   row.className = "skeleton-tree-row";
-  row.style.paddingRight = `${depth * SKELETON_INDENT_PX}px`;
+  row.style.paddingLeft = `${depth * SKELETON_INDENT_PX}px`;
 
   const label = document.createElement("span");
   label.className = "skeleton-branch-label truncate-suffix";
@@ -314,19 +315,31 @@ function buildValueSlotItem(
 
   const row = document.createElement("div");
   row.className = "skeleton-tree-row";
-  row.style.paddingRight = `${depth * SKELETON_INDENT_PX}px`;
+  row.style.paddingLeft = `${depth * SKELETON_INDENT_PX}px`;
 
   const label = document.createElement("span");
   label.className = "slot-label truncate-suffix";
   label.textContent = node.label;
   label.title = node.slotId;
 
+  const typeMeta = document.createElement("span");
+  typeMeta.className = "slot-type-meta";
+  const emoji = zipehrEmojiForRmType(node.rmType);
+  if (emoji) {
+    const icon = document.createElement("span");
+    icon.className = "slot-rm-emoji";
+    icon.textContent = emoji;
+    icon.setAttribute("aria-hidden", "true");
+    icon.title = node.rmType;
+    typeMeta.appendChild(icon);
+  }
   const rmType = document.createElement("span");
   rmType.className = "slot-rm-type";
   rmType.textContent = node.rmType;
   rmType.title = node.slotId;
+  typeMeta.appendChild(rmType);
 
-  row.append(label, rmType);
+  row.append(label, typeMeta);
   li.appendChild(row);
   li.addEventListener("click", () => onArm(node.slotId));
 

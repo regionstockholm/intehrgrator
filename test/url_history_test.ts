@@ -3,6 +3,8 @@ import {
   forgetUrl,
   listUrlHistory,
   rememberUrl,
+  restoreUrlHistory,
+  snapshotUrlHistory,
   urlHistoryKey,
 } from "@intehrgrator/host/url_history.ts";
 
@@ -60,4 +62,18 @@ Deno.test("forgetUrl removes one history entry", () => {
   assertEquals(listUrlHistory("target", storage), ["https://example.test/two.opt"]);
   storage.removeItem(urlHistoryKey("target"));
   assertEquals(listUrlHistory("target", storage), []);
+});
+
+Deno.test("snapshot and restore round-trip URL histories used in project bundles", () => {
+  const storage = memoryStorage();
+  rememberUrl("schema", "https://github.com/org/repo/blob/main/a.t.json", storage);
+  rememberUrl("target", "https://example.test/bp.opt", storage);
+  const snap = snapshotUrlHistory(storage);
+  const other = memoryStorage();
+  restoreUrlHistory(snap, other);
+  assertEquals(listUrlHistory("schema", other), [
+    "https://github.com/org/repo/blob/main/a.t.json",
+  ]);
+  assertEquals(listUrlHistory("target", other), ["https://example.test/bp.opt"]);
+  assertEquals(listUrlHistory("example", other), []);
 });

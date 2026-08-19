@@ -33,12 +33,28 @@ export function generateSkeleton(optSource: string): GenerateSkeletonResult {
   if (!opt?.definition) {
     throw new Error("Could not parse operational template from input");
   }
+  const generated = generateSkeletonFromOperational(opt, optSource);
+  return {
+    ...generated,
+    warnings: [...parsed.warnings, ...generated.warnings],
+  };
+}
+
+/** Walk an already-resolved OPERATIONAL_TEMPLATE (OPT XML, flattened .t.json, …). */
+export function generateSkeletonFromOperational(
+  opt: AmObject,
+  optSource = "",
+): GenerateSkeletonResult {
+  if (!opt?.definition) {
+    throw new Error("Could not parse operational template from input");
+  }
 
   const templateId = opt.template_id?.value ?? opt.archetype_id?.value ?? "unknown";
   const lang = resolveOptLanguage(opt);
   const fallbackTerms = mergedOntologyTerms(opt, lang);
-  const archetypeTerms = buildArchetypeTermsIndex(optSource);
-  const rootArchetypeRef = compositionArchetypeRef(optSource) ??
+  const archetypeTerms = optSource ? buildArchetypeTermsIndex(optSource) : new Map();
+  const rootArchetypeRef = (optSource ? compositionArchetypeRef(optSource) : undefined) ??
+    (opt.definition?.archetype_ref as string | undefined) ??
     Object.keys(archetypeTerms)[0];
 
   const root = walkComplex(
@@ -53,7 +69,7 @@ export function generateSkeleton(optSource: string): GenerateSkeletonResult {
   return {
     templateId,
     skeleton: root ? [root] : [],
-    warnings: parsed.warnings,
+    warnings: [],
   };
 }
 

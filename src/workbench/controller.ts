@@ -47,13 +47,34 @@ import {
   getTargetFormatHandler,
   type TargetDefinition,
 } from "../core/target/mod.ts";
+import {
+  isGitHubClinicalModelUrl,
+  loadGitHubClinicalModel,
+  type GitHubClinicalModelLoadResult,
+} from "../core/clinical_model/github_template.ts";
+import { isTemplateJson } from "ehrtslib/parser/mod.ts";
+import {
+  snapshotUrlHistory,
+  restoreUrlHistory,
+  rememberUrl,
+  type UrlHistoryKind,
+} from "../host/url_history.ts";
 
 export type WorkbenchListener = () => void;
 
-const AUTOSAVE_DEBOUNCE_MS = 10_000;
+export const AUTOSAVE_DEBOUNCE_MS = 10_000;
+
+export interface WorkbenchControllerOptions {
+  urlStorage?: Storage;
+  autosaveDebounceMs?: number;
+  githubFetch?: typeof fetch;
+}
 
 export class WorkbenchController {
   private listeners = new Set<WorkbenchListener>();
+  private readonly urlStorage: Storage | undefined;
+  private readonly autosaveDebounceMs: number;
+  private readonly githubFetch: typeof fetch | undefined;
   private projectId: string = crypto.randomUUID();
   private templateFilename = "";
   private templateContent = "";
@@ -85,7 +106,14 @@ export class WorkbenchController {
   private lastAutosaveAt: string | null = null;
   private statusMessage = "Ready";
 
-  constructor(private host: HostAdapter) {}
+  constructor(
+    private host: HostAdapter,
+    options: WorkbenchControllerOptions = {},
+  ) {
+    this.urlStorage = options.urlStorage;
+    this.autosaveDebounceMs = options.autosaveDebounceMs ?? AUTOSAVE_DEBOUNCE_MS;
+    this.githubFetch = options.githubFetch;
+  }
 
   setBlocklyStateGetter(fn: () => unknown): void {
     this.getBlocklyState = fn;
@@ -135,6 +163,7 @@ export class WorkbenchController {
       saveStatus: this.getSaveStatus(),
       validationIssues: validateModel(this.model, this.skeleton),
       unmappedMandatory: countUnmappedMandatory(this.model, this.skeleton),
+      urlHistory: this.captureUrlHistory(),
     };
   }
 
@@ -144,13 +173,25 @@ export class WorkbenchController {
       "target",
     );
     if (!file) return;
-    this.loadTargetContent(file.name, file.text);
+    try {
+      this.loadTargetContent(file.name, file.text);
+    } catch (err) {
+      this.statusMessage = `Target load failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+    }
   }
 
   async openTemplateFromUrl(url: string): Promise<void> {
     try {
+      if (isGitHubClinicalModelUrl(url)) {
+        const loaded = await this.loadGitHubModel(url);
+        this.applyGitHubTarget(loaded);
+        this.rememberLoadUrl("target", url);
+        return;
+      }
       const file = await this.host.fetchTextUrl(url);
       this.loadTargetContent(file.name, file.text);
+      this.rememberLoadUrl("target", url);
     } catch (err) {
       this.statusMessage = `Target load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -169,6 +210,11 @@ export class WorkbenchController {
     content: string,
     format: TargetFormatId = detectTargetFormat(filename, content),
   ): void {
+    if (isTemplateJson(content)) {
+      throw new Error(
+        "Better .t.json templates need a GitHub blob/raw URL so dependent archetypes can be fetched. Use ▾ → From GitHub template…",
+      );
+    }
     const target = getTargetFormatHandler(format).load(filename, content);
     this.target = target;
     this.templateContent = target.content;
@@ -204,8 +250,16 @@ export class WorkbenchController {
 
   async loadSchemaFromUrl(url: string): Promise<void> {
     try {
+      if (isGitHubClinicalModelUrl(url)) {
+        const loaded = await this.loadGitHubModel(url);
+        this.applyGitHubSchema(loaded);
+        this.rememberLoadUrl("schema", url);
+        if (this.schemaError) throw new Error(this.schemaError);
+        return;
+      }
       const file = await this.host.fetchTextUrl(url);
       this.loadSchemaContent(file.name, file.text);
+      this.rememberLoadUrl("schema", url);
     } catch (err) {
       this.setSchemaError(
         `Schema load failed: ${err instanceof Error ? err.message : String(err)}`,
@@ -243,6 +297,7 @@ export class WorkbenchController {
     try {
       const file = await this.host.fetchTextUrl(url);
       this.addExampleContent(file.name, file.text);
+      this.rememberLoadUrl("example", url);
     } catch (err) {
       this.statusMessage = `Example load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -700,7 +755,16 @@ export class WorkbenchController {
     this.autosaveTimer = setTimeout(() => {
       this.autosaveTimer = null;
       void this.performAutosave();
-    }, AUTOSAVE_DEBOUNCE_MS) as unknown as number;
+    }, this.autosaveDebounceMs) as unknown as number;
+  }
+
+  /** Flush a pending autosave immediately — used by tests and page-unload hooks. */
+  async flushAutosave(): Promise<void> {
+    if (this.autosaveTimer !== null) {
+      clearTimeout(this.autosaveTimer);
+      this.autosaveTimer = null;
+    }
+    await this.performAutosave();
   }
 
   private async performAutosave(): Promise<void> {
@@ -800,6 +864,7 @@ export class WorkbenchController {
         handlebarsTemplate: this.handlebarsTemplate,
       },
       settings: this.settings,
+      urlHistory: this.captureUrlHistory(),
     };
   }
 
@@ -848,7 +913,52 @@ export class WorkbenchController {
     }
     for (const ex of bundle.examples) this.examples.addExample(ex);
     if (bundle.activeExampleId) this.examples.setActive(bundle.activeExampleId);
+    if (this.urlStorage) restoreUrlHistory(bundle.urlHistory, this.urlStorage);
     this.refreshDerived();
+  }
+
+  private captureUrlHistory() {
+    return this.urlStorage
+      ? snapshotUrlHistory(this.urlStorage)
+      : { schema: [] as string[], example: [] as string[], target: [] as string[] };
+  }
+
+  private rememberLoadUrl(kind: UrlHistoryKind, url: string): void {
+    if (this.urlStorage) rememberUrl(kind, url, this.urlStorage);
+  }
+
+  private async loadGitHubModel(url: string): Promise<GitHubClinicalModelLoadResult> {
+    return await loadGitHubClinicalModel(url, { fetch: this.githubFetch });
+  }
+
+  private applyGitHubTarget(loaded: GitHubClinicalModelLoadResult): void {
+    this.target = {
+      format: "openehr-template",
+      filename: loaded.filename,
+      targetId: loaded.templateId,
+      content: loaded.optXml,
+      skeleton: loaded.skeleton,
+    };
+    this.templateFilename = loaded.filename;
+    this.templateContent = loaded.optXml;
+    this.templateId = loaded.templateId;
+    this.skeleton = loaded.skeleton;
+    this.model = createEmptyModel(this.templateId);
+    this.model.targetFormat = "openehr-template";
+    this.blocklyState = null;
+    this.refreshDerived();
+    const extra = loaded.warnings.length ? ` (${loaded.warnings.length} warnings)` : "";
+    this.statusMessage =
+      `Loaded GitHub template ${loaded.templateId} (${loaded.fetched} files)${extra}`;
+    this.markDirty();
+  }
+
+  private applyGitHubSchema(loaded: GitHubClinicalModelLoadResult): void {
+    const schemaName = loaded.filename.replace(/\.opt$/i, ".wt.json");
+    this.applySchemaFile(schemaName, loaded.webTemplateJson);
+    const extra = loaded.warnings.length ? ` (${loaded.warnings.length} warnings)` : "";
+    this.statusMessage =
+      `Loaded GitHub schema ${loaded.templateId} (${loaded.fetched} files)${extra}`;
   }
 }
 

@@ -48,7 +48,11 @@ export {
   forgetUrl,
   listUrlHistory,
   rememberUrl,
+  replaceUrlHistory,
+  restoreUrlHistory,
+  snapshotUrlHistory,
   type UrlHistoryKind,
+  type UrlHistorySnapshot,
 } from "./url_history.ts";
 export {
   acceptToExtensions,

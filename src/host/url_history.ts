@@ -1,5 +1,9 @@
 export type UrlHistoryKind = "schema" | "example" | "target";
 
+export type UrlHistorySnapshot = Record<UrlHistoryKind, string[]>;
+
+const HISTORY_KINDS: UrlHistoryKind[] = ["schema", "example", "target"];
+
 const STORAGE_PREFIX = "intehrgrator:url-history:";
 const MAX_ENTRIES = 15;
 
@@ -30,6 +34,27 @@ export function rememberUrl(kind: UrlHistoryKind, url: string, storage: Storage)
 
 export function forgetUrl(kind: UrlHistoryKind, url: string, storage: Storage): void {
   write(kind, listUrlHistory(kind, storage).filter((item) => item !== url), storage);
+}
+
+export function replaceUrlHistory(kind: UrlHistoryKind, urls: string[], storage: Storage): void {
+  const next = urls.filter((item) => typeof item === "string" && item.trim().length > 0)
+    .slice(0, MAX_ENTRIES);
+  write(kind, next, storage);
+}
+
+export function snapshotUrlHistory(storage: Storage): UrlHistorySnapshot {
+  return {
+    schema: listUrlHistory("schema", storage),
+    example: listUrlHistory("example", storage),
+    target: listUrlHistory("target", storage),
+  };
+}
+
+export function restoreUrlHistory(snapshot: UrlHistorySnapshot | undefined, storage: Storage): void {
+  if (!snapshot) return;
+  for (const kind of HISTORY_KINDS) {
+    replaceUrlHistory(kind, snapshot[kind] ?? [], storage);
+  }
 }
 
 function write(kind: UrlHistoryKind, urls: string[], storage: Storage): void {

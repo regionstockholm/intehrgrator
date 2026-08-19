@@ -53,7 +53,7 @@ export function detectTargetFormat(filename: string, content = ""): TargetFormat
   const lower = filename.toLowerCase();
   if (/\.(hbs|handlebars|txt|md|html|csv)$/.test(lower)) return "free-form";
   if (lower.endsWith(".xsd")) return "xml-schema";
-  if (/\.(opt|opt2|adl|adls)$/.test(lower)) return "openehr-template";
+  if (/\.(opt|opt2|adl|adls|t\.json)$/.test(lower)) return "openehr-template";
   if (lower.endsWith(".xml")) {
     return /<(?:\w+:)?schema\b/.test(content) ? "xml-schema" : "openehr-template";
   }

@@ -252,6 +252,19 @@ function buildContainerBlock(
   isRoot: boolean,
   depth: number,
 ): BlockSvg {
+  function hasMandatoryDataValueDescendant(n: SkeletonNode): boolean {
+    for (const c of n.children) {
+      if (
+        c.kind === "value" &&
+        isDataValueType(c.rmType) &&
+        c.mandatory === true &&
+        !(c.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(c.label))
+      ) return true;
+      if (c.kind === "container" && hasMandatoryDataValueDescendant(c)) return true;
+    }
+    return false;
+  }
+
   const blockType = node.blockType && node.blockType !== "rm_structure"
     ? node.blockType
     : blockTypeForRm(node.rmType);
@@ -263,7 +276,36 @@ function buildContainerBlock(
   applySkeletonBlockLabels(block, node);
 
   const visibleChildren = node.children.filter(
-    (child) => !(child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)),
+    (child) => {
+      if (child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)) return false;
+
+      // SECTION is a user-visible openEHR structure; even when its occurrence is
+      // optional in OPT, we still want it present in the initial canvas
+      // (and rely on nesting logic to attach it properly).
+      if (child.blockType === "section" || child.rmType === "SECTION") return true;
+
+      // Default visibility policy:
+      // - show openEHR structures that are mandatory in the OPT walk
+      // - keep optional RM structures hidden until the user clicks the `+` picker
+      if (child.mandatory === true) return true;
+
+      // ELEMENT wrappers can have `mandatory=false` even when their primary typed DATA_VALUE
+      // is mandatory (so mapping slots must remain reachable).
+      if (child.rmType === "ELEMENT" || child.blockType === "element") {
+        return child.children.some((gc) =>
+          gc.kind === "value" &&
+          isDataValueType(gc.rmType) &&
+          gc.mandatory === true &&
+          !(gc.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(gc.label))
+        );
+      }
+
+      // Keep intermediate structural wrappers visible when they contain
+      // mandatory value slots underneath. This avoids “disappearing”
+      // subtrees while still hiding optional RM insertions that have no
+      // mandatory descendants in the OPT walk.
+      return hasMandatoryDataValueDescendant(child);
+    },
   );
 
   const attributes = [

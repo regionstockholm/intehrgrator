@@ -49,6 +49,7 @@ const EXTRA_RM_CONTAINERS = [
   "ISM_TRANSITION",
   "LINK",
   "ARCHETYPED",
+  "GENERIC_ENTRY",
 ];
 
 export function isRmContainerBlockType(type: string): boolean {
@@ -164,6 +165,7 @@ function ensureRmContainerBlock(rmType: string): string {
   }
   const inputs = attributesFor(rmType)
     .filter((attr) => !isPrimitiveRmType(baseRmTypeName(attr.typeName)))
+    .filter((attr) => attr.mandatory)
     .map((attr) => ({ name: attr.name }));
   defineContainerBlock(type, rmType, inputs, STRUCTURE_COLOUR, {
     expandable: true,
@@ -178,6 +180,7 @@ function nestCheckFor(rmType: string): string | string[] | null {
   if (isSubtypeOf(rmType, "CONTENT_ITEM")) return "CONTENT_ITEM";
   if (isSubtypeOf(rmType, "ITEM")) return ["ITEM", "CLUSTER", "ELEMENT"];
   if (isSubtypeOf(rmType, "EVENT") || rmType === "EVENT") return "EVENT";
+  if (rmType === "GENERIC_ENTRY") return "CONTENT_ITEM";
   if (rmType === "HISTORY") return "HISTORY";
   if (isSubtypeOf(rmType, "ITEM_STRUCTURE")) {
     return ["ITEM_STRUCTURE", "ITEM_TREE", "ITEM_LIST", "ITEM_TABLE", "ITEM_SINGLE"];
@@ -234,8 +237,17 @@ export function syncRmAttributeInputs(
     }
   }
   for (const attr of orderedRmAttributes(rmType, attributes)) {
-    block.appendStatementInput(`${RM_ATTR_INPUT_PREFIX}${attr}`)
+    const stmt = block.appendStatementInput(`${RM_ATTR_INPUT_PREFIX}${attr}`)
       .appendField(attr);
+    const meta = attributesFor(rmType).find((a) => a.name === attr);
+    if (meta) {
+      const base = baseRmTypeName(meta.typeName);
+      // Dynamic blocks lose connection type checks unless we re-apply them on sync.
+      // Without this, nested blocks can become free-floating on larger templates.
+      if (!isPrimitiveRmType(base) && !isDataValueType(base) && base !== "CODE_PHRASE") {
+        stmt.setCheck(base);
+      }
+    }
   }
   ensurePlusButton(block);
 }

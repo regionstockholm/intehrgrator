@@ -20,12 +20,11 @@ export function registerCompactThrasosRenderer(): string {
       constants.FIELD_BORDER_RECT_Y_PADDING = 1;
       constants.FIELD_TEXT_HEIGHT = 14;
       constants.FIELD_TEXT_BASELINE = 11;
-      constants.EMPTY_INLINE_INPUT_PADDING = 6;
-      constants.EMPTY_INLINE_INPUT_HEIGHT = 18;
       constants.DUMMY_INPUT_MIN_HEIGHT = 16;
       constants.BETWEEN_STATEMENT_PADDING_Y = 2;
       constants.STATEMENT_BOTTOM_SPACER = 4;
       constants.STATEMENT_INPUT_PADDING_LEFT = 8;
+      // Do not override EMPTY_INLINE_INPUT_* — puzzle-tab sockets need Thrasos defaults.
       return constants;
     }
   }

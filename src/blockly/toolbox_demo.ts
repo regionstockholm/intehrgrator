@@ -37,6 +37,7 @@ function openEhrTypeToolboxContents(): Array<{ kind: string; type: string; gap?:
     { kind: "block", type: "instruction", gap: 8 },
     { kind: "block", type: "action", gap: 8 },
     { kind: "block", type: "admin_entry", gap: 8 },
+    { kind: "block", type: "generic_entry", gap: 8 },
     { kind: "block", type: "cluster", gap: 8 },
     { kind: "block", type: "history", gap: 8 },
     { kind: "block", type: "event_context", gap: 8 },

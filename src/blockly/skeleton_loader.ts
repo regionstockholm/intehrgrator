@@ -47,6 +47,7 @@ export function loadSkeletonIntoWorkspace(
     applyModelExpressions(workspace, model);
     setAllBlocksCollapsed(workspace, false);
     highlightListeningSlot(workspace, listeningSlotId);
+    refreshWorkspaceLayout(workspace);
   } finally {
     Blockly.Events.enable();
   }
@@ -164,6 +165,7 @@ export function attachOptionalRmChild(
     ? rmAttributeInputName(insertion.attributeName)
     : optionalRmInputName(insertion.attributeName);
   connectStatementChain(parent, inputName, [child]);
+  refreshBlockLayout(parent as BlockSvg);
   return child;
 }
 
@@ -215,6 +217,11 @@ function buildTargetStructureBlock(
   block.setFieldValue(node.slotId, "SLOT_ID");
   const groups = [...new Set(node.children.map((child) => child.rmAttribute ?? child.label))];
   syncTargetChildInputs(block, groups);
+  if (!isRoot) {
+    block.setPreviousStatement(true);
+    block.setNextStatement(true);
+  }
+  finalizeBlock(block);
   for (const group of groups) {
     const children = node.children
       .filter((child) => (child.rmAttribute ?? child.label) === group)
@@ -222,11 +229,8 @@ function buildTargetStructureBlock(
       .filter((child): child is BlockSvg => child !== null);
     connectStatementChain(block, targetChildInputName(group), children);
   }
-  if (!isRoot) {
-    block.setPreviousStatement(true);
-    block.setNextStatement(true);
-  }
-  return finalizeBlock(block);
+  refreshBlockLayout(block);
+  return block;
 }
 
 function buildTargetValueBlock(
@@ -317,13 +321,6 @@ function buildContainerBlock(
   ];
   syncRmAttributeInputs(block, node.rmType, attributes);
 
-  for (const attr of attributes) {
-    const attrChildren = visibleChildren.filter((child) => child.rmAttribute === attr);
-    const childBlocks = attrChildren
-      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
-      .filter((child): child is BlockSvg => child !== null);
-    connectStatementChain(block, rmAttributeInputName(attr), childBlocks);
-  }
   if (!isRoot) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
@@ -333,7 +330,19 @@ function buildContainerBlock(
     block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
   }
 
-  return finalizeBlock(block);
+  // Initialise SVG before nesting children so puzzle-tab sockets measure correctly.
+  finalizeBlock(block);
+
+  for (const attr of attributes) {
+    const attrChildren = visibleChildren.filter((child) => child.rmAttribute === attr);
+    const childBlocks = attrChildren
+      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
+      .filter((child): child is BlockSvg => child !== null);
+    connectStatementChain(block, rmAttributeInputName(attr), childBlocks);
+  }
+
+  refreshBlockLayout(block);
+  return block;
 }
 
 function buildElementBlock(
@@ -353,13 +362,6 @@ function buildElementBlock(
   applySkeletonBlockLabels(block, node);
   configureElementValueSlot(block, dvType);
 
-  const valueMandatory = Boolean(
-    (primary?.mandatory ?? false) || (node.mandatory && primary),
-  );
-  if (valueMandatory && primary && isDataValueType(dvType)) {
-    ensureElementDataValueShell(workspace, block, dvType);
-  }
-
   if (!isRoot) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
@@ -368,7 +370,19 @@ function buildElementBlock(
   if (node.mandatory && primary && !hasMappedExpression(block)) {
     block.setWarningText("Unmapped mandatory value");
   }
-  return finalizeBlock(block);
+
+  // Render the ELEMENT shell before attaching the typed DATA_VALUE child.
+  finalizeBlock(block);
+
+  const valueMandatory = Boolean(
+    (primary?.mandatory ?? false) || (node.mandatory && primary),
+  );
+  if (valueMandatory && primary && isDataValueType(dvType)) {
+    ensureElementDataValueShell(workspace, block, dvType);
+  }
+
+  refreshBlockLayout(block);
+  return block;
 }
 
 function buildElementBlockFromValue(
@@ -386,10 +400,6 @@ function buildElementBlockFromValue(
   applySkeletonBlockLabels(block, node);
   configureElementValueSlot(block, node.rmType);
 
-  if (node.mandatory && isDataValueType(node.rmType)) {
-    ensureElementDataValueShell(workspace, block, node.rmType);
-  }
-
   if (!isRoot) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
@@ -397,7 +407,15 @@ function buildElementBlockFromValue(
   if (node.mandatory) {
     block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
   }
-  return finalizeBlock(block);
+
+  finalizeBlock(block);
+
+  if (node.mandatory && isDataValueType(node.rmType)) {
+    ensureElementDataValueShell(workspace, block, node.rmType);
+  }
+
+  refreshBlockLayout(block);
+  return block;
 }
 
 function primaryValueChild(node: SkeletonNode): SkeletonNode | undefined {
@@ -489,6 +507,23 @@ function finalizeBlock(block: BlockSvg): BlockSvg {
     block.render();
   }
   return block;
+}
+
+function refreshBlockLayout(block: BlockSvg): void {
+  if (typeof document !== "undefined" && typeof block.render === "function") {
+    block.render();
+  }
+}
+
+/** Re-measure all blocks after programmatic skeleton assembly. */
+function refreshWorkspaceLayout(workspace: WorkspaceSvg): void {
+  if (typeof document === "undefined") return;
+  for (const block of workspace.getAllBlocks(false)) {
+    refreshBlockLayout(block as BlockSvg);
+  }
+  if (typeof Blockly.svgResize === "function") {
+    Blockly.svgResize(workspace);
+  }
 }
 
 function setFieldIfPresent(block: Blockly.Block, name: string, value: string): void {

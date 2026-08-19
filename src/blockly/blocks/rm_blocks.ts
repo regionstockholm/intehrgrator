@@ -1,4 +1,5 @@
 import { Blockly } from "../blockly_core.ts";
+import type { BlockSvg } from "blockly/core";
 import { mandatoryAttributesFor } from "../../core/rm_mandatory.ts";
 import {
   attributesFor,
@@ -313,8 +314,11 @@ export function ensureElementDataValueShell(
     valueInput.connection.connect(shell.outputConnection);
   }
   if (typeof document !== "undefined") {
-    (shell as Blockly.BlockSvg).initSvg?.();
-    (shell as Blockly.BlockSvg).render?.();
+    const shellSvg = shell as BlockSvg;
+    shellSvg.initSvg?.();
+    shellSvg.render?.();
+    const parentSvg = elementBlock as BlockSvg;
+    if (typeof parentSvg.render === "function") parentSvg.render();
   }
   return shell;
 }

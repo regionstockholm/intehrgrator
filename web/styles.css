@@ -350,6 +350,46 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   opacity: 0.8;
 }
 
+/* ZipEHR RM-type glyphs on output tabs and slots (~50% larger than 12px body).
+   Target the field group so HEADER (left/output) glyphs match slot glyphs;
+   `.blocklyText { font: 12px !important }` would otherwise keep them small. */
+.blockly-mount .blockly-rm-emoji-field .blocklyText,
+.blockly-mount .blocklyText.blockly-rm-emoji {
+  font-size: 18px !important;
+}
+/* Document-like ZipEHR glyphs (DV_TEXT / DV_CODED_TEXT / DV_PARAGRAPH) at 2× body size. */
+.blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-lg .blocklyText,
+.blockly-mount .blocklyText.blockly-rm-emoji-lg {
+  font-size: 24px !important;
+}
+.blockly-mount .blockly-rm-emoji-field {
+  cursor: help;
+}
+.blockly-mount .blockly-rm-emoji-qmark-ring {
+  fill: none;
+  stroke-width: 1.6px;
+  pointer-events: none;
+}
+
+.blocklyTooltipDiv {
+  white-space: pre-line;
+  max-width: 22rem;
+}
+
+.blockly-rm-emoji-tip {
+  position: fixed;
+  z-index: 10000;
+  max-width: 22rem;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #202124;
+  color: #fff;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  white-space: pre-line;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+}
+
 /* Mapping Spec: inline widgets must not inflate CodeMirror's line box. */
 #spec-editor .cm-content,
 #spec-editor .cm-line,

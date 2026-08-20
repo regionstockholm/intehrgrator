@@ -16,6 +16,11 @@ import {
   type RmAttributeMeta,
 } from "../../core/rm_meta.ts";
 import { blocklyCheckForDv } from "../block_checks.ts";
+import {
+  appendBlockOutputEmoji,
+  appendSlotTypeEmoji,
+  slotRmTypeForAttr,
+} from "../rm_type_emoji.ts";
 
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
@@ -240,6 +245,7 @@ export function syncRmAttributeInputs(
   for (const attr of orderedRmAttributes(rmType, attributes)) {
     const stmt = block.appendStatementInput(`${RM_ATTR_INPUT_PREFIX}${attr}`)
       .appendField(attr);
+    const slotType = slotRmTypeForAttr(rmType, attr);
     const meta = attributesFor(rmType).find((a) => a.name === attr);
     if (meta) {
       const base = baseRmTypeName(meta.typeName);
@@ -249,6 +255,7 @@ export function syncRmAttributeInputs(
         stmt.setCheck(base);
       }
     }
+    appendSlotTypeEmoji(stmt, slotType);
   }
   ensurePlusButton(block);
 }
@@ -284,6 +291,7 @@ export function configureElementValueSlot(block: Blockly.Block, rmType: string):
   if (!input) return;
   const check = blocklyCheckForDv(rmType);
   input.setCheck(check);
+  appendSlotTypeEmoji(input, rmType);
 }
 
 /** Create (or return) the DATA_VALUE shell on an ELEMENT value input. */
@@ -376,7 +384,9 @@ function defineContainerBlock(
   RM_CONTAINER_TYPES.add(type);
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput("HEADER")
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputEmoji(header, options.rmType);
+      header
         .appendField(label)
         .appendField(new Blockly.FieldLabel(""), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
@@ -387,6 +397,10 @@ function defineContainerBlock(
         const stmt = this.appendStatementInput(rmAttributeInputName(input.name))
           .appendField(input.name);
         if (input.check) stmt.setCheck(input.check);
+        appendSlotTypeEmoji(
+          stmt,
+          slotRmTypeForAttr(options.rmType, input.name, input.check),
+        );
       }
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
@@ -418,14 +432,17 @@ function defineValueElementBlock(): void {
   RM_CONTAINER_TYPES.add("element");
   Blockly.Blocks["element"] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput("HEADER")
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputEmoji(header, "ELEMENT");
+      header
         .appendField("ELEMENT")
         .appendField(new Blockly.FieldLabel(""), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
       appendPlusField(this);
-      this.appendValueInput("VALUE")
+      const value = this.appendValueInput("VALUE")
         .setCheck(null)
         .appendField("value");
+      appendSlotTypeEmoji(value, slotRmTypeForAttr("ELEMENT", "value"));
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable("ELEMENT"), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -460,8 +477,9 @@ function defineDataValueBlock(rmType: string): void {
 
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput("HEADER")
-        .appendField(rmType.replace(/^DV_/, ""));
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputEmoji(header, rmType);
+      header.appendField(rmType.replace(/^DV_/, ""));
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
@@ -536,13 +554,17 @@ function defineCodePhraseBlock(): void {
   if (Blockly.Blocks["code_phrase"]) return;
   Blockly.Blocks["code_phrase"] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("CODE_PHRASE");
-      this.appendValueInput(dvFieldInputName("code_string"))
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputEmoji(header, "CODE_PHRASE");
+      header.appendField("CODE_PHRASE");
+      const code = this.appendValueInput(dvFieldInputName("code_string"))
         .setCheck("String")
         .appendField("code");
-      this.appendValueInput(dvFieldInputName("terminology_id"))
+      appendSlotTypeEmoji(code, "String");
+      const terminology = this.appendValueInput(dvFieldInputName("terminology_id"))
         .setCheck("String")
         .appendField("terminology");
+      appendSlotTypeEmoji(terminology, "String");
       this.setOutput(true, "CODE_PHRASE");
       this.setColour(DV_COLOUR);
       this.setInputsInline(true);
@@ -569,9 +591,10 @@ function appendDvFieldInput(
     (attr.typeName.startsWith("CODE_PHRASE") || attr.typeName === "CODE_PHRASE"
       ? ["String", "CODE_PHRASE"]
       : "String");
-  block.appendValueInput(name)
+  const input = block.appendValueInput(name)
     .setCheck(check)
     .appendField(attr.name);
+  appendSlotTypeEmoji(input, baseRmTypeName(attr.typeName));
 }
 
 function ensureDvFieldVisible(block: Blockly.Block, attrName: string): void {
@@ -652,8 +675,9 @@ function registerOptionalRmMutator(): void {
         }
       }
       for (const name of this.extraInputs_ ?? []) {
-        this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
+        const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
           .appendField(name);
+        appendSlotTypeEmoji(stmt, slotRmTypeForAttr(rmTypeOfBlock(this), name));
       }
     },
   } as Blockly.Mutator & {

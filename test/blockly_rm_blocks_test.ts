@@ -17,6 +17,16 @@ import {
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
+import { zipehrEmojiForRmType } from "@intehrgrator/core/rm_emoji.ts";
+import {
+  ABSTRACT_SLOT_GLYPH,
+  BLOCK_OUT_EMOJI_FIELD,
+  isRmTypeEmojiField,
+  RM_EMOJI_FONT_PX,
+  RM_EMOJI_LARGE_FONT_PX,
+  rmTypeConnectionTooltip,
+  slotEmojiFieldName,
+} from "@intehrgrator/blockly/rm_type_emoji.ts";
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
@@ -258,7 +268,62 @@ Deno.test("ELEMENT block is labelled ELEMENT in the header", () => {
   assertEquals(block.getFieldValue("RM_TYPE"), "ELEMENT");
   const header = block.getInput("HEADER");
   const labels = header?.fieldRow.map((field) => field.getText()) ?? [];
-  assertEquals(labels[0], "ELEMENT");
+  assertEquals(block.getField(BLOCK_OUT_EMOJI_FIELD)?.getText(), zipehrEmojiForRmType("ELEMENT"));
+  assertEquals(labels.includes("ELEMENT"), true);
+  workspace.dispose();
+});
+
+Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+
+  const qty = workspace.newBlock("dv_quantity");
+  const qtyOut = qty.getField(BLOCK_OUT_EMOJI_FIELD);
+  assertEquals(qtyOut?.getText(), zipehrEmojiForRmType("DV_QUANTITY"));
+  assertEquals(qtyOut?.getTooltip?.(), "DV_QUANTITY");
+  assertEquals(isRmTypeEmojiField(qtyOut), true);
+  qtyOut?.updateSize_?.();
+  assertEquals(qtyOut?.getSize()?.height, RM_EMOJI_FONT_PX);
+  const magnitude = qty.getInput(dvFieldInputName("magnitude"));
+  magnitude?.fieldRow.at(-1)?.updateSize_?.();
+  assertEquals(magnitude?.fieldRow.at(-1)?.getSize()?.height, RM_EMOJI_FONT_PX);
+  assertEquals(
+    magnitude?.fieldRow.at(-1)?.getText(),
+    zipehrEmojiForRmType("Real"),
+  );
+  assertEquals(magnitude?.fieldRow.at(-1)?.name, slotEmojiFieldName(dvFieldInputName("magnitude")));
+
+  const dvText = workspace.newBlock("dv_text");
+  const textOut = dvText.getField(BLOCK_OUT_EMOJI_FIELD);
+  textOut?.updateSize_?.();
+  assertEquals(textOut?.getSize()?.height, RM_EMOJI_LARGE_FONT_PX);
+
+  const observation = workspace.newBlock("observation");
+  assertEquals(
+    observation.getField(BLOCK_OUT_EMOJI_FIELD)?.getText(),
+    zipehrEmojiForRmType("OBSERVATION"),
+  );
+  const data = observation.getInput(rmAttributeInputName("data"));
+  assertEquals(data?.fieldRow[0]?.getText(), "data");
+  assertEquals(data?.fieldRow.at(-1)?.getText(), zipehrEmojiForRmType("HISTORY"));
+
+  const element = workspace.newBlock("element");
+  const value = element.getInput("VALUE");
+  assertEquals(value?.fieldRow.at(-1)?.getText(), ABSTRACT_SLOT_GLYPH);
+  assertEquals(value?.fieldRow.at(-1)?.getTooltip?.(), rmTypeConnectionTooltip("DATA_VALUE"));
+  configureElementValueSlot(element, "DV_QUANTITY");
+  assertEquals(value?.fieldRow.at(-1)?.getText(), zipehrEmojiForRmType("DV_QUANTITY"));
+  assertEquals(value?.fieldRow.at(-1)?.getTooltip?.(), "DV_QUANTITY");
+  configureElementValueSlot(element, "DV_CODED_TEXT");
+  assertEquals(value?.fieldRow.at(-1)?.getText(), zipehrEmojiForRmType("DV_CODED_TEXT"));
+  assertEquals(value?.fieldRow.at(-1)?.getTooltip?.(), "DV_CODED_TEXT");
+
+  const composition = workspace.newBlock("composition");
+  const content = composition.getInput(rmAttributeInputName("content"));
+  assertEquals(content?.fieldRow.at(-1)?.getText(), ABSTRACT_SLOT_GLYPH);
+  assertEquals(isRmTypeEmojiField(content?.fieldRow.at(-1) ?? null), true);
+  assertEquals(content?.fieldRow.at(-1)?.getTooltip?.()?.includes("CONTENT_ITEM (abstract)"), true);
+
   workspace.dispose();
 });
 

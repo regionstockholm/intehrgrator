@@ -36,6 +36,40 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .toolbar-spacer { flex: 1; }
 
+.toolbar-split-btn {
+  display: inline-flex;
+  align-items: stretch;
+  position: relative;
+}
+.toolbar-split-btn .split-btn-main,
+.toolbar-split-btn .split-btn-chevron {
+  background: var(--primary);
+  color: #fff;
+  border: 1px solid transparent;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 6px 10px;
+}
+.toolbar-split-btn .split-btn-main {
+  border-radius: 4px 0 0 4px;
+}
+.toolbar-split-btn .split-btn-chevron {
+  border-radius: 0 4px 4px 0;
+  border-left: 1px solid rgba(255, 255, 255, 0.25);
+  padding-left: 6px;
+  padding-right: 6px;
+}
+.toolbar-split-btn .split-btn-main:hover,
+.toolbar-split-btn .split-btn-chevron:hover {
+  background: #00786b;
+}
+.toolbar-split-btn .split-btn-menu {
+  right: 0;
+  left: auto;
+  min-width: 220px;
+  z-index: 40;
+}
+
 .panes {
   padding: 8px; height: calc(100vh - 88px); min-height: 0;
 }

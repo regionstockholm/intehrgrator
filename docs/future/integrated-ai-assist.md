@@ -8,8 +8,8 @@ Call AI APIs directly from the app to suggest mappings without copy-paste. Natur
 
 ## v1 substitute: Copy-Paste AI Assist
 
-- **Copy AI Prompt** — generates markdown prompt with template/source references, slot manifest, and link to `AI_SUGGESTION_FORMAT.md`
-- **Import Suggestions** — parses `intehrgrator-suggestions` JSON from pasted response
+- **Copy AI Prompt** — generates markdown prompt with target/source origins (file or URI), delivery mode (inline multipart / attach checklist / URI browse), slot manifest (`valueType`), and link to `AI_SUGGESTION_FORMAT.md`
+- **Import Suggestions** — parses `intehrgrator-suggestions` JSON version 2 (Blockly block subset)
 
 ## When to integrate natively
 

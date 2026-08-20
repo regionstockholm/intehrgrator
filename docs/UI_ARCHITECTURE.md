@@ -104,7 +104,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| Copy AI Prompt | Generate markdown prompt to clipboard for external AI chat | ✓ |
+| Copy AI Prompt | Generate markdown prompt to clipboard (▾: embed / attach / browse URIs) | ✓ |
 | Import Suggestions | Parse pasted `intehrgrator-suggestions` JSON and apply mappings | ✓ |
 | New Project | Reset workspace to empty project (confirm if content present) | ✓ |
 | Load Project | Open modal listing autosave + recent manual saves | ✓ |
@@ -165,20 +165,24 @@ No in-app AI API in the web shell. Integrated AI is deferred to VS Code; see [do
 ### Copy AI Prompt
 
 1. User optionally selects a single value slot (scopes prompt to that `slotId`) or leaves unselected (all unmapped slots)
-2. Clicks **Copy AI Prompt**
+2. Clicks **Copy AI Prompt** (main button uses last delivery mode; ▾ chooses mode)
 3. App copies markdown to clipboard containing:
-   - Task description and scope (`slot` | `full`)
-   - Template id, filename, structure summary / reference
-   - Source filename, structure summary / reference
-   - Slot manifest: `{ slotId, rmType, label }` for in-scope unmapped slots
-   - Link to [AI_SUGGESTION_FORMAT.md](AI_SUGGESTION_FORMAT.md) (deployed URL) specifying the deterministic response format
-4. User pastes into external AI chat (ChatGPT, Claude, Cursor, etc.); may attach full source/OPT files there
+   - Task description (map source → loaded **Target instance format**) and scope (`slot` | `full`)
+   - Target: format, `targetId`, filename, origin (file or URI), structure summary
+   - Source schema and example instance(s): format, filename, origin
+   - Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` for in-scope unmapped slots
+   - **Artifact delivery** — one of:
+     - **Embed files in prompt** (`inline`) — multipart file bodies in the clipboard text
+     - **Attach files in chat** (`attach`) — checklist for chat UI uploads
+     - **Browse URIs** (`uri`) — instruct agents that can fetch URLs; local-only files fall back to attach checklist
+   - Link to [AI_SUGGESTION_FORMAT.md](AI_SUGGESTION_FORMAT.md) (deployed URL) specifying version 2 Blockly-subset response format
+4. User pastes into external AI chat (ChatGPT, Claude, Cursor, etc.)
 
 ### Import Suggestions
 
 1. User copies the `intehrgrator-suggestions` fenced JSON block from the AI response
-2. Clicks **Import Suggestions** → paste dialog
-3. App validates format, matches `templateId`, resolves each `slotId` to a Blockly value slot, inserts expressions
+2. Clicks **Import Suggestions** → paste dialog / clipboard read
+3. App validates format and version `"2"`; matches `target.targetId` / `target.format`, resolves each `slotId`, converts Blockly `block` → Mapping Model expression, applies to the value slot
 4. Reports applied / skipped / errors; user verifies with **Run Test**
 
 ## Cross-Pane Interaction: "Click-to-Map"

@@ -11,7 +11,29 @@
   <header class="toolbar">
     <strong class="brand">intEHRgrator</strong>
     <span class="toolbar-spacer"></span>
-    <button id="btn-copy-ai" type="button">Copy AI Prompt</button>
+    <div class="split-btn toolbar-split-btn">
+      <button id="btn-copy-ai" class="split-btn-main" type="button" title="Copy AI prompt with files embedded">Copy AI Prompt</button>
+      <button
+        id="btn-copy-ai-menu"
+        class="split-btn-chevron"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="menu-copy-ai"
+        aria-label="AI prompt delivery options"
+      >▾</button>
+      <div id="menu-copy-ai" class="split-btn-menu" hidden role="menu">
+        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="inline">
+          Embed files in prompt
+        </button>
+        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="attach">
+          Attach files in chat
+        </button>
+        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="uri">
+          Browse URIs (when available)
+        </button>
+      </div>
+    </div>
     <button id="btn-import-ai" type="button">Import Suggestions</button>
     <button id="btn-new-project" type="button">New Project</button>
     <button id="btn-load-project" type="button">Load Project</button>

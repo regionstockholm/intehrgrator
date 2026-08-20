@@ -39,7 +39,13 @@ import {
 } from "../core/source/mod.ts";
 import { buildSourceQueryExpression } from "../core/expression/mod.ts";
 import { returnTypeForDv } from "../core/rm_mandatory.ts";
-import { buildPrompt, importSuggestions, parseSuggestionsPayload } from "../core/ai/mod.ts";
+import {
+  type AiArtifactDelivery,
+  type AiPromptArtifact,
+  buildPrompt,
+  importSuggestions,
+  parseSuggestionsPayload,
+} from "../core/ai/mod.ts";
 import type { HostAdapter, PickedTextFile } from "../host/mod.ts";
 import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
 import {
@@ -87,6 +93,12 @@ export class WorkbenchController {
   private schemaContent = "";
   private schemaFormat: SourceFormatId = "json";
   private schemaError: string | null = null;
+  /** Origin URI when schema was loaded from URL (session). */
+  private schemaOriginUrl: string | null = null;
+  /** Origin URI when target was loaded from URL (session). */
+  private targetOriginUrl: string | null = null;
+  /** Example id → origin URI when loaded from URL (session). */
+  private exampleOriginUrls = new Map<string, string>();
   private target: TargetDefinition | null = null;
   private model: MappingModel = createEmptyModel("");
   private settings: ProjectSettings = { ...DEFAULT_SETTINGS };
@@ -188,11 +200,13 @@ export class WorkbenchController {
       if (isGitHubClinicalModelUrl(url)) {
         const loaded = await this.loadGitHubModel(url);
         this.applyGitHubTarget(loaded);
+        this.targetOriginUrl = url;
         this.rememberLoadUrl("target", url);
         return;
       }
       const file = await this.host.fetchTextUrl(url);
       this.loadTargetContent(file.name, file.text);
+      this.targetOriginUrl = url;
       this.rememberLoadUrl("target", url);
     } catch (err) {
       this.statusMessage = `Target load failed: ${err instanceof Error ? err.message : String(err)}`;
@@ -223,6 +237,7 @@ export class WorkbenchController {
     this.templateFilename = target.filename;
     this.templateId = target.targetId;
     this.skeleton = target.skeleton;
+    this.targetOriginUrl = null;
     this.model = createEmptyModel(this.templateId);
     this.model.targetFormat = target.format;
     if (format === "free-form") {
@@ -255,12 +270,14 @@ export class WorkbenchController {
       if (isGitHubClinicalModelUrl(url)) {
         const loaded = await this.loadGitHubModel(url);
         this.applyGitHubSchema(loaded);
+        this.schemaOriginUrl = url;
         this.rememberLoadUrl("schema", url);
         if (this.schemaError) throw new Error(this.schemaError);
         return;
       }
       const file = await this.host.fetchTextUrl(url);
       this.loadSchemaContent(file.name, file.text);
+      this.schemaOriginUrl = url;
       this.rememberLoadUrl("schema", url);
     } catch (err) {
       this.setSchemaError(
@@ -298,8 +315,12 @@ export class WorkbenchController {
   async addExampleFromUrl(url: string): Promise<void> {
     try {
       const file = await this.host.fetchTextUrl(url);
-      this.addExampleContent(file.name, file.text);
+      const id = this.applyExampleFile(file.name, file.text);
+      this.exampleOriginUrls.set(id, url);
       this.rememberLoadUrl("example", url);
+      this.statusMessage = this.exampleLoadStatus(file.name);
+      this.markDirty();
+      if (this.settings.autoplay) this.scheduleTestRun();
     } catch (err) {
       this.statusMessage = `Example load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -603,32 +624,98 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
-  async copyAiPrompt(scope: "full" | "slot" = "full", slotId?: string): Promise<void> {
+  async copyAiPrompt(
+    delivery: AiArtifactDelivery = "inline",
+    scope: "full" | "slot" = "full",
+    slotId?: string,
+  ): Promise<void> {
+    const resolvedSlotId = scope === "slot"
+      ? (slotId ?? this.listeningSlotId ?? undefined)
+      : slotId;
     const prompt = buildPrompt({
       scope,
-      slotId,
-      templateId: this.templateId,
-      templateFilename: this.templateFilename,
-      sourceFilename: this.schemaFilename,
+      slotId: resolvedSlotId,
+      targetId: this.templateId,
+      targetFormat: this.target?.format ?? this.model.targetFormat ?? "openehr-template",
+      targetFilename: this.templateFilename,
+      sourceFormat: this.schemaTree ? this.schemaFormat : undefined,
+      activeExampleFilename: this.examples.getActive()?.filename,
       skeleton: this.skeleton,
       model: this.model,
       formatDocUrl: this.host.resolveAppUrl("docs/AI_SUGGESTION_FORMAT.md"),
+      delivery,
+      artifacts: this.collectAiArtifacts(),
     });
     await this.host.copyToClipboard(prompt);
-    this.statusMessage = "AI prompt copied";
+    this.statusMessage = `AI prompt copied (${delivery})`;
     this.notifyChange();
   }
 
   async importAiSuggestionsFromClipboard(): Promise<void> {
     const text = await this.host.readClipboard();
     const payload = parseSuggestionsPayload(text);
-    const known = new Set(collectValueSlots(this.skeleton).map((s) => s.slotId));
-    const { model, report } = importSuggestions(this.model, payload, known);
+    const valueSlots = collectValueSlots(this.skeleton);
+    const known = new Set(collectAllSlotIds(this.skeleton));
+    const slotMeta = new Map(
+      valueSlots.map((s) => [s.slotId, {
+        rmType: s.rmType,
+        returnType: returnTypeForTarget(s.rmType),
+        label: s.label,
+        mandatory: s.mandatory,
+      }]),
+    );
+    const { model, report } = importSuggestions(this.model, payload, known, slotMeta);
     this.model = model;
     this.refreshDerived();
     this.statusMessage =
-      `Import: ${report.applied} applied, ${report.skipped} skipped, ${report.errors.length} errors`;
+      `Import: ${report.applied} applied, ${report.loopsAccepted} loops, ${report.skipped} skipped, ${report.errors.length} errors`;
     this.markDirty();
+  }
+
+  private collectAiArtifacts(): AiPromptArtifact[] {
+    const artifacts: AiPromptArtifact[] = [];
+    if (this.target && this.templateContent) {
+      artifacts.push({
+        role: "target",
+        filename: this.templateFilename || this.target.filename,
+        format: this.target.format,
+        content: this.templateContent,
+        originUrl: this.targetOriginUrl ?? this.target.fileset?.sourceUrl,
+      });
+      const fileset = this.target.fileset;
+      if (fileset?.files?.length) {
+        for (const file of fileset.files) {
+          const base = file.path.split("/").pop() || file.path;
+          if (base === this.templateFilename) continue;
+          artifacts.push({
+            role: "target-fileset",
+            filename: file.path,
+            format: "openehr-template",
+            content: file.content,
+            originUrl: fileset.sourceUrl,
+          });
+        }
+      }
+    }
+    if (this.schemaTree && this.schemaContent) {
+      artifacts.push({
+        role: "source-schema",
+        filename: this.schemaFilename,
+        format: this.schemaFormat,
+        content: this.schemaContent,
+        originUrl: this.schemaOriginUrl ?? undefined,
+      });
+    }
+    for (const ex of this.examples.list()) {
+      artifacts.push({
+        role: "example",
+        filename: ex.filename,
+        format: ex.format,
+        content: ex.content,
+        originUrl: this.exampleOriginUrls.get(ex.id),
+      });
+    }
+    return artifacts;
   }
 
   setExportTarget(target: ExportTarget): void {
@@ -767,6 +854,7 @@ export class WorkbenchController {
     this.schemaError = null;
     this.schemaFilename = filename;
     this.schemaContent = content;
+    this.schemaOriginUrl = null;
     const format = detectSourceFormat(filename, content);
     this.schemaFormat = format;
     this.schemaTree = getSourceFormatHandler(format).loadSchema(
@@ -777,10 +865,11 @@ export class WorkbenchController {
     this.markDirty();
   }
 
-  private applyExampleFile(filename: string, content: string): void {
+  private applyExampleFile(filename: string, content: string): string {
     const format = detectSourceFormat(filename, content);
     const id = crypto.randomUUID();
     this.examples.addExample({ id, filename, format, content });
+    return id;
   }
 
   private refreshDerived(): void {
@@ -839,6 +928,9 @@ export class WorkbenchController {
     this.schemaContent = "";
     this.schemaFormat = "json";
     this.schemaError = null;
+    this.schemaOriginUrl = null;
+    this.targetOriginUrl = null;
+    this.exampleOriginUrls = new Map();
     this.target = null;
     this.model = createEmptyModel("");
     this.settings = { ...DEFAULT_SETTINGS };
@@ -1014,6 +1106,15 @@ function findSkeletonNode(nodes: SkeletonNode[], slotId: string): SkeletonNode |
     if (child) return child;
   }
   return null;
+}
+
+function collectAllSlotIds(nodes: SkeletonNode[]): string[] {
+  const out: string[] = [];
+  for (const n of nodes) {
+    out.push(n.slotId);
+    out.push(...collectAllSlotIds(n.children));
+  }
+  return out;
 }
 
 function returnTypeForTarget(type: string): string {

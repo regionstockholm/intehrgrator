@@ -132,11 +132,11 @@ Second Host adapter (`VsCodeWebviewHostAdapter` + `extension/`) packaging the sa
 _Avoid_: Separate fork of the workbench
 
 **AI Assist (copy-paste)**:
-v1 workflow: **Copy AI Prompt** generates a markdown prompt (template/source references, slot manifest, link to response format spec); user pastes into an external AI chat; **Import Suggestions** parses the structured response and applies mappings. No API calls from the web app.
+v1 workflow: **Copy AI Prompt** generates a markdown prompt (target/source origins as file or URI; delivery mode: inline multipart, chat attach, or URI browse; slot manifest; link to response format spec); user pastes into an external AI chat; **Import Suggestions** parses the structured response and applies mappings. No API calls from the web app.
 _Avoid_: AI Suggest button (implies in-app API), AI integration
 
 **Mapping Suggestion Import**:
-Applying parsed suggestions from an external AI response in `intehrgrator-suggestions` JSON format. See `docs/AI_SUGGESTION_FORMAT.md`.
+Applying parsed suggestions from an external AI response in `intehrgrator-suggestions` JSON version 2 (slot-keyed Blockly block subset). See `docs/AI_SUGGESTION_FORMAT.md`.
 _Avoid_: AI paste, bulk map
 
 **Host Abstraction**:
@@ -179,4 +179,4 @@ _Avoid_: Mapping file, saved state
 >
 > **Informatician:** Can AI help me map the boring fields?
 >
-> **Developer:** Click **Copy AI Prompt**, paste it into your AI chat of choice, attach the source file if needed. When you get a response, copy the JSON block and use **Import Suggestions**. Run Test to verify before exporting.
+> **Developer:** Click **Copy AI Prompt** (▾ to choose embed files, chat attach, or URI browse), paste into your AI chat of choice. When you get a response, copy the JSON block and use **Import Suggestions**. Run Test to verify before exporting.

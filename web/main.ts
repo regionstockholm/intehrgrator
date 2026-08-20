@@ -523,8 +523,52 @@ bind("btn-load-project", () => void openLoadProjectDialog());
 bind("btn-save-project", () => openSaveAsDialog());
 bind("btn-export-project", () => controller.exportProject());
 bind("btn-import-project", () => controller.importProject());
-bind("btn-copy-ai", () => controller.copyAiPrompt());
+bind("btn-copy-ai", () => controller.copyAiPrompt(lastAiDelivery()));
 bind("btn-import-ai", () => controller.importAiSuggestionsFromClipboard());
+installCopyAiMenu();
+
+function lastAiDelivery(): "inline" | "attach" | "uri" {
+  const raw = localStorage.getItem("intehrgrator.aiDelivery");
+  if (raw === "attach" || raw === "uri" || raw === "inline") return raw;
+  return "inline";
+}
+
+function installCopyAiMenu(): void {
+  const chevron = document.getElementById("btn-copy-ai-menu");
+  const menu = document.getElementById("menu-copy-ai");
+  if (!chevron || !menu) return;
+
+  const close = () => {
+    menu.hidden = true;
+    chevron.setAttribute("aria-expanded", "false");
+  };
+
+  chevron.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const open = menu.hidden;
+    menu.hidden = !open;
+    chevron.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+
+  menu.querySelectorAll<HTMLButtonElement>("[data-ai-delivery]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const delivery = btn.dataset.aiDelivery;
+      if (delivery !== "inline" && delivery !== "attach" && delivery !== "uri") return;
+      localStorage.setItem("intehrgrator.aiDelivery", delivery);
+      close();
+      void controller.copyAiPrompt(delivery);
+    });
+  });
+
+  document.addEventListener("click", (event) => {
+    if (menu.hidden) return;
+    const t = event.target as Node | null;
+    if (t && (menu.contains(t) || chevron.contains(t) || document.getElementById("btn-copy-ai")?.contains(t))) {
+      return;
+    }
+    close();
+  });
+}
 
 let betterFormBridge: BetterFormBridge | null = null;
 void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) => {

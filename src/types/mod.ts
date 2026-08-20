@@ -165,13 +165,32 @@ export interface TestResult {
   warnings: string[];
 }
 
+/** Blockly JSON fragment allowed in AI suggestion envelopes (version 2). */
+export interface SuggestionBlock {
+  type: string;
+  fields?: Record<string, string | number | boolean>;
+  inputs?: Record<string, { block?: SuggestionBlock; shadow?: SuggestionBlock }>;
+  extraState?: unknown;
+}
+
 export interface SuggestionEnvelope {
   format: "intehrgrator-suggestions";
-  version: "1";
-  templateId: string;
+  version: "2";
+  target: {
+    format: TargetFormatId | string;
+    targetId: string;
+  };
+  /** Repeatable source→target iteration (`for_each_source` only). */
+  loops?: Array<{
+    attachSlotId: string;
+    block: SuggestionBlock;
+    note?: string;
+  }>;
   suggestions: Array<{
     slotId: string;
-    expression: string;
+    block: SuggestionBlock;
+    /** When set, `block` EXPRESSION is relative to that loop VAR's PATH. */
+    loopVar?: string;
     note?: string;
   }>;
 }
@@ -180,6 +199,8 @@ export interface ImportSuggestionsReport {
   applied: number;
   skipped: number;
   errors: string[];
+  /** Validated `loops[]` entries (Blockly placement may still be canvas-side). */
+  loopsAccepted: number;
 }
 
 export const DEFAULT_SETTINGS: ProjectSettings = {

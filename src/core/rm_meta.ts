@@ -86,6 +86,17 @@ export function primaryMappingAttribute(rmType: string): RmAttributeMeta | null 
     null;
 }
 
+/**
+ * Whether an RM attribute is a value slot (CODE_PHRASE / DATA_VALUE / primitive)
+ * rather than a nested structural statement (content, composer, context, …).
+ */
+export function isRmValueAttribute(parentRmType: string, attrName: string): boolean {
+  const meta = attributesFor(parentRmType).find((a) => a.name === attrName);
+  if (!meta) return false;
+  const base = baseRmTypeName(meta.typeName);
+  return isPrimitiveRmType(base) || isDataValueType(base);
+}
+
 export function blocklyCheckForPrimitiveType(typeName: string): string | null {
   switch (baseRmTypeName(typeName)) {
     case "String":

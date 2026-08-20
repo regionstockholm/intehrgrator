@@ -87,6 +87,45 @@ Deno.test("validateInstanceAgainstSchema accepts valid BP instance against JSON 
   assertEquals(issues, []);
 });
 
+Deno.test("validateInstanceAgainstSchema accepts repeated BP series instances", async () => {
+  const schemaText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-sche.json"),
+  );
+  const schema = loadJsonSchema(schemaText, "BloodPressureSeries");
+  for (const name of ["bp-series-inst.json", "bp-series-inst-2.json"]) {
+    const instanceText = await Deno.readTextFile(
+      join(import.meta.dirname!, "fixtures", "legacy-simulated", name),
+    );
+    const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
+    assertEquals(issues, [], name);
+  }
+});
+
+Deno.test("validateInstanceAgainstSchema reports nested series constraint violations", async () => {
+  const schemaText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-sche.json"),
+  );
+  const instanceText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-inst-3-invalid.json"),
+  );
+  const schema = loadJsonSchema(schemaText, "BloodPressureSeries");
+  const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
+  assert(
+    issues.some((i) =>
+      i.path.includes("measurements[2]") && i.path.includes("diastolic") &&
+      /minimum|>=|below|less than/i.test(i.message)
+    ),
+    `expected nested diastolic minimum issue, got: ${JSON.stringify(issues)}`,
+  );
+  assert(
+    issues.some((i) =>
+      i.path.includes("measurements[2]") && i.path.includes("bodyPosition") &&
+      /enum|allowed|one of|any of/i.test(i.message)
+    ),
+    `expected nested bodyPosition enum issue, got: ${JSON.stringify(issues)}`,
+  );
+});
+
 Deno.test("jsonPointerToPath matches Source Pane instance paths", () => {
   assertEquals(jsonPointerToPath("#"), "$");
   assertEquals(jsonPointerToPath("#/diastolic"), "$.diastolic");

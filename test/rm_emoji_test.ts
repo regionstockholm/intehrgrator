@@ -32,6 +32,16 @@ Deno.test("abstract RM types without ZipEHR glyphs use an encircled question mar
   assertEquals(connectionPointGlyph("unknown_type"), undefined);
 });
 
+Deno.test("abstract PARTY_PROXY slots use ? even though ZipEHR has an emoji", () => {
+  assertEquals(connectionPointGlyph("PARTY_PROXY"), zipehrEmojiForRmType("PARTY_PROXY"));
+  assertEquals(connectionPointGlyph("PARTY_PROXY", true), ABSTRACT_SLOT_GLYPH);
+  const tip = rmTypeConnectionTooltip("PARTY_PROXY");
+  assertEquals(tip.startsWith("PARTY_PROXY (abstract)"), true);
+  assertEquals(tip.includes("PARTY_SELF"), true);
+  assertEquals(tip.includes("PARTY_IDENTIFIED"), true);
+  assertEquals(tip.includes("PARTY_RELATED"), true);
+});
+
 Deno.test("connection tooltips name the RM class and list abstract subclasses", () => {
   assertEquals(rmTypeConnectionTooltip("DV_QUANTITY"), "DV_QUANTITY");
   const content = rmTypeConnectionTooltip("CONTENT_ITEM");

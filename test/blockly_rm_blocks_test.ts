@@ -6,12 +6,14 @@ import {
   blocklyCheckForReturnType,
 } from "@intehrgrator/blockly/block_checks.ts";
 import {
+  applyFixedFieldsToDataValueShell,
   configureElementValueSlot,
   dvFieldInputName,
   ensureElementDataValueShell,
   isDataValueBlock,
   orderedRmAttributes,
   registerRmBlocks,
+  RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
   syncRmAttributeInputs,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
@@ -28,6 +30,8 @@ import {
   slotEmojiFieldName,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
+import { createTermPickBlock } from "@intehrgrator/blockly/blocks/term_pick.ts";
+import { termSetById } from "@intehrgrator/core/openehr_term_catalog.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   attributesFor,
@@ -214,16 +218,31 @@ Deno.test("ensureElementDataValueShell is idempotent", () => {
   workspace.dispose();
 });
 
-Deno.test("COMPOSITION toolbox block has RM content/context mouths", () => {
+Deno.test("COMPOSITION toolbox block has mandatory RM slots", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
   const block = workspace.newBlock("composition");
   assertEquals(block.getFieldValue("RM_TYPE"), "COMPOSITION");
-  assert(block.getInput(rmAttributeInputName("content")), "expected content statement");
-  assert(block.getInput(rmAttributeInputName("context")), "expected context statement");
+  assertEquals(
+    block.getInput(rmAttributeInputName("language"))?.connection?.getCheck(),
+    ["CODE_PHRASE"],
+  );
+  assertEquals(
+    block.getInput(rmAttributeInputName("territory"))?.connection?.getCheck(),
+    ["CODE_PHRASE"],
+  );
+  assertEquals(
+    block.getInput(rmAttributeInputName("category"))?.connection?.getCheck(),
+    ["DV_CODED_TEXT"],
+  );
+  assertEquals(
+    block.getInput(rmAttributeInputName("composer"))?.connection?.getCheck(),
+    ["PARTY_PROXY"],
+  );
   assertEquals(block.getInput(rmAttributeInputName("content"))?.connection?.getCheck(), [
     "CONTENT_ITEM",
   ]);
+  assert(block.getInput(rmAttributeInputName("context")), "expected context statement");
   assertEquals(block.previousConnection, null);
   workspace.dispose();
 });
@@ -256,6 +275,90 @@ Deno.test("ENTRY subclasses EVALUATION INSTRUCTION ACTION ADMIN_ENTRY nest as CO
     assert(child.previousConnection);
     content.connect(child.previousConnection);
     assertEquals(child.getParent()?.id, composition.id);
+    child.unplug();
+  }
+  workspace.dispose();
+});
+
+Deno.test("PARTY_PROXY specialization slot accepts PARTY_SELF IDENTIFIED RELATED", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const proxy = workspace.newBlock("party_proxy");
+  const kind = proxy.getInput(RM_SPECIALIZATION_INPUT);
+  assert(kind?.connection, "expected PARTY_PROXY specialization puzzle");
+  assertEquals(kind.connection.getCheck()?.slice().sort(), [
+    "PARTY_IDENTIFIED",
+    "PARTY_RELATED",
+    "PARTY_SELF",
+  ]);
+  const kindEmoji = kind.fieldRow.at(-1);
+  assertEquals(kindEmoji?.getText(), ABSTRACT_SLOT_GLYPH);
+  assertEquals(isRmTypeEmojiField(kindEmoji ?? null), true);
+  assertEquals(kindEmoji?.getTooltip?.()?.includes("PARTY_PROXY (abstract)"), true);
+  assertEquals(kindEmoji?.getTooltip?.()?.includes("PARTY_SELF"), true);
+  for (const type of ["party_self", "party_identified", "party_related"]) {
+    const child = workspace.newBlock(type);
+    assert(child.outputConnection);
+    kind.connection.connect(child.outputConnection);
+    assertEquals(child.getParent()?.id, proxy.id);
+    child.unplug();
+  }
+  workspace.dispose();
+});
+
+Deno.test("PARTY_IDENTIFIED and PARTY_RELATED nest into COMPOSITION composer", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  const composer = composition.getInput(rmAttributeInputName("composer"))?.connection;
+  assert(composer);
+  assertEquals(composer.getCheck(), ["PARTY_PROXY"]);
+  for (const type of ["party_identified", "party_related", "party_self"]) {
+    const child = workspace.newBlock(type);
+    assert(child.outputConnection);
+    composer.connect(child.outputConnection);
+    assertEquals(child.getParent()?.id, composition.id);
+    child.unplug();
+  }
+  workspace.dispose();
+});
+
+Deno.test("EVENT_CONTEXT health_care_facility accepts PARTY_IDENTIFIED not PARTY_SELF", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const context = workspace.newBlock("event_context");
+  syncRmAttributeInputs(context, "EVENT_CONTEXT", ["start_time", "setting", "health_care_facility"]);
+  const facility = context.getInput(rmAttributeInputName("health_care_facility"))?.connection;
+  assert(facility);
+  assertEquals(facility.getCheck(), ["PARTY_IDENTIFIED"]);
+  for (const type of ["party_identified", "party_related"]) {
+    const child = workspace.newBlock(type);
+    assert(child.outputConnection);
+    facility.connect(child.outputConnection);
+    assertEquals(child.getParent()?.id, context.id);
+    child.unplug();
+  }
+  const self = workspace.newBlock("party_self");
+  assertEquals(
+    workspace.connectionChecker.canConnect(facility, self.outputConnection!, false),
+    false,
+  );
+  workspace.dispose();
+});
+
+Deno.test("PARTY_PROXY subclasses nest into ENTRY subject", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const observation = workspace.newBlock("observation");
+  syncRmAttributeInputs(observation, "OBSERVATION", ["data", "subject"]);
+  const subject = observation.getInput(rmAttributeInputName("subject"))?.connection;
+  assert(subject);
+  assertEquals(subject.getCheck(), ["PARTY_PROXY"]);
+  for (const type of ["party_self", "party_identified", "party_related", "party_proxy"]) {
+    const child = workspace.newBlock(type);
+    assert(child.outputConnection);
+    subject.connect(child.outputConnection);
+    assertEquals(child.getParent()?.id, observation.id);
     child.unplug();
   }
   workspace.dispose();
@@ -324,6 +427,11 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
   assertEquals(isRmTypeEmojiField(content?.fieldRow.at(-1) ?? null), true);
   assertEquals(content?.fieldRow.at(-1)?.getTooltip?.()?.includes("CONTENT_ITEM (abstract)"), true);
 
+  const composer = composition.getInput(rmAttributeInputName("composer"));
+  assertEquals(composer?.fieldRow.at(-1)?.getText(), ABSTRACT_SLOT_GLYPH);
+  assertEquals(composer?.fieldRow.at(-1)?.getTooltip?.()?.includes("PARTY_PROXY (abstract)"), true);
+  assertEquals(composer?.fieldRow.at(-1)?.getTooltip?.()?.includes("PARTY_SELF"), true);
+
   workspace.dispose();
 });
 
@@ -347,5 +455,79 @@ Deno.test("Optional RM Insertion attaches a typed child without clearing the can
   for (const id of beforeIds) {
     assert(workspace.getBlockById(id), `existing block ${id} should stay on the canvas`);
   }
+  workspace.dispose();
+});
+
+Deno.test("term_pick can be configured to a composition category code", () => {
+  ensureBlocks();
+  const set = termSetById("openehr:composition_category");
+  assert(set, "expected composition_category term set");
+  const workspace = new Blockly.Workspace();
+  const block = createTermPickBlock(workspace, set, "433", "slot/category");
+  assertEquals(block.getFieldValue("SET"), "openehr:composition_category");
+  assertEquals(block.getFieldValue("CODE"), "433");
+  assertEquals(block.getFieldValue("SLOT_ID"), "slot/category");
+  workspace.dispose();
+});
+
+Deno.test("skeleton canvas pre-fills RM terminology on language and territory", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const composition = workspace.getTopBlocks(false)[0];
+  assertEquals(composition?.type, "composition");
+  const languageInput = composition.getInput(rmAttributeInputName("language"));
+  assertEquals(languageInput?.connection?.getCheck(), ["CODE_PHRASE"]);
+  const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
+  assert(language, "expected CODE_PHRASE term picker on COMPOSITION.language");
+  assertEquals(language.type, "term_pick");
+  assertEquals(language.getFieldValue("SET"), "ISO_639-1");
+  assertEquals(language.type === "element", false);
+
+  const territory = composition.getInputTargetBlock(rmAttributeInputName("territory"));
+  assertEquals(territory?.type, "term_pick");
+  assertEquals(territory?.getFieldValue("SET"), "ISO_3166-1");
+
+  const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
+  assertEquals(category?.type, "term_pick");
+  assertEquals(category?.getFieldValue("SET"), "openehr:composition_category");
+  assertEquals(category?.getFieldValue("CODE"), "433");
+
+  const observation = workspace.getAllBlocks(false).find(
+    (b) => b.getFieldValue("RM_TYPE") === "OBSERVATION",
+  );
+  assert(observation, "expected observation");
+  const encoding = observation.getInputTargetBlock(rmAttributeInputName("encoding"));
+  assertEquals(encoding?.type, "term_pick");
+  assertEquals(encoding?.getFieldValue("SET"), "IANA_character-sets");
+
+  workspace.dispose();
+});
+
+Deno.test("skeleton canvas pre-fills COMPOSITION.category from the template", () => {
+  ensureBlocks();
+  const persistent = fixture.replace(
+    "<code_list>433</code_list>",
+    "<code_list>431</code_list>",
+  );
+  const { skeleton } = generateSkeleton(persistent);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const composition = workspace.getTopBlocks(false)[0];
+  const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
+  assertEquals(category?.type, "term_pick");
+  assertEquals(category?.getFieldValue("CODE"), "431");
+  workspace.dispose();
+});
+
+Deno.test("applyFixedFieldsToDataValueShell fills CODE_PHRASE terminology", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const shell = workspace.newBlock("code_phrase");
+  applyFixedFieldsToDataValueShell(workspace, shell, { terminology_id: "ISO_639-1" });
+  const term = shell.getInputTargetBlock(dvFieldInputName("terminology_id"));
+  assertEquals(term?.getFieldValue("TEXT"), "ISO_639-1");
   workspace.dispose();
 });

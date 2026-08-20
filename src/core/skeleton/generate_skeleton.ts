@@ -12,6 +12,8 @@ import {
   mandatoryAttributesFor,
   returnTypeForDv,
 } from "../rm_mandatory.ts";
+import { withRmConstrainedFields } from "../rm_terminology.ts";
+import { isSubtypeOf } from "../rm_meta.ts";
 import {
   archetypeShortName,
   buildArchetypeTermsIndex,
@@ -144,6 +146,7 @@ function walkComplex(
     );
     for (const child of childNodes) {
       child.rmAttribute = attrName;
+      applyRmConstrainedFields(child, rmType);
       children.push(child);
     }
   }
@@ -255,6 +258,7 @@ function buildSilentMandatoryNode(
   node.rmAttribute = attrName;
   node.mandatory = true;
   node.silentMandatory = true;
+  applyRmConstrainedFields(node, parentRmType);
   return node;
 }
 
@@ -386,6 +390,10 @@ function silentMandatoryRmType(parentType: string, attrName: string): string | n
   };
 
   if (map[parentType]?.[attrName]) return map[parentType][attrName];
+  for (const [type, attrs] of Object.entries(map)) {
+    if (type === parentType) continue;
+    if (isSubtypeOf(parentType, type) && attrs[attrName]) return attrs[attrName];
+  }
 
   if (LOCATABLE_TYPES.has(parentType) && (attrName === "archetype_node_id" || attrName === "name")) {
     return "DV_TEXT";
@@ -401,13 +409,81 @@ function isMandatory(cObj: AmObject): boolean {
   return lower > 0;
 }
 
+function applyRmConstrainedFields(node: SkeletonNode, parentRmType: string): void {
+  if (!node.rmAttribute) return;
+  node.fixedFields = withRmConstrainedFields(
+    node.fixedFields,
+    parentRmType,
+    node.rmAttribute,
+  );
+}
+
 function extractFixedFields(cObj: AmObject): Record<string, string> | undefined {
   const fields: Record<string, string> = {};
-  const codeList = cObj.code_list as Array<{ code?: string }> | undefined;
-  if (codeList?.[0]?.code) fields.defining_code = codeList[0].code;
+  const terminology = terminologyIdFromAm(cObj);
+  if (terminology) fields.terminology_id = terminology;
+
+  const codes = codeListFromAm(cObj);
+  const specified = codes.length === 1 ? codes[0] : assumedCodeFromAm(cObj);
+  if (specified) {
+    fields.defining_code = specified;
+    fields.code_string = specified;
+  }
+
   const list = cObj.list as string[] | undefined;
-  if (list?.length === 1) fields.value = list[0];
+  if (list?.length === 1) fields.value = list[0]!;
+
+  for (const attr of (cObj.attributes ?? []) as AmObject[]) {
+    const attrName = attr.rm_attribute_name as string | undefined;
+    const nestedChild = (attr.children ?? [])[0] as AmObject | undefined;
+    if (!nestedChild) continue;
+    const nested = extractFixedFields(nestedChild);
+    if (!nested) continue;
+    if (attrName === "defining_code") Object.assign(fields, nested);
+    else if (attrName === "value" && nested.value) fields.value = nested.value;
+    else if (attrName === "terminology_id" && nested.value) {
+      fields.terminology_id = nested.value;
+    }
+  }
+
   return Object.keys(fields).length ? fields : undefined;
+}
+
+function terminologyIdFromAm(cObj: AmObject): string | undefined {
+  const tid = cObj.terminology_id ?? cObj.terminology;
+  if (typeof tid === "string" && tid) return tid;
+  if (tid && typeof tid === "object") {
+    const value = (tid as { value?: unknown }).value;
+    if (typeof value === "string" && value) return value;
+  }
+  return undefined;
+}
+
+function codeListFromAm(cObj: AmObject): string[] {
+  const list = cObj.code_list ?? cObj.constraint;
+  if (list == null) return [];
+  const arr = Array.isArray(list) ? list : [list];
+  return arr.map(amCodeString).filter(Boolean);
+}
+
+/** Single constrained code, or AOM assumed_value when the template leaves a choice. */
+function assumedCodeFromAm(cObj: AmObject): string | undefined {
+  return amCodeString(cObj.assumed_value) || undefined;
+}
+
+function amCodeString(item: unknown): string {
+  if (item == null) return "";
+  if (typeof item === "string" || typeof item === "number") return String(item);
+  if (typeof item !== "object") return "";
+  const rec = item as {
+    code?: unknown;
+    code_string?: unknown;
+    value?: unknown;
+  };
+  return amCodeString(rec.code_string) || amCodeString(rec.code) ||
+    (typeof rec.value === "string" || typeof rec.value === "number"
+      ? String(rec.value)
+      : "");
 }
 
 export function collectValueSlots(nodes: SkeletonNode[]): SkeletonNode[] {

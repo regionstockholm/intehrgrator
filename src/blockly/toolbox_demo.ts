@@ -28,9 +28,30 @@ function dataValueToolboxContents(): Array<{ kind: string; type: string }> {
   }));
 }
 
-function openEhrTypeToolboxContents(): Array<{ kind: string; type: string; gap?: number }> {
+function termPickShadow(setId: string, code?: string) {
+  const fields: Record<string, string> = { SET: setId };
+  if (code) fields.CODE = code;
+  return { shadow: { type: "term_pick", fields } };
+}
+
+function compositionToolboxBlock(): Record<string, unknown> {
+  return {
+    kind: "block",
+    type: "composition",
+    gap: 8,
+    inputs: {
+      ATTR_language: termPickShadow("ISO_639-1"),
+      ATTR_territory: termPickShadow("ISO_3166-1"),
+      ATTR_category: termPickShadow("openehr:composition_category"),
+      ATTR_composer: { block: { type: "party_identified" } },
+    },
+  };
+}
+
+function openEhrTypeToolboxContents(): Array<Record<string, unknown>> {
   return [
-    { kind: "block", type: "composition", gap: 8 },
+    compositionToolboxBlock(),
+    { kind: "block", type: "section", gap: 8 },
     { kind: "block", type: "section", gap: 8 },
     { kind: "block", type: "observation", gap: 8 },
     { kind: "block", type: "evaluation", gap: 8 },
@@ -41,8 +62,14 @@ function openEhrTypeToolboxContents(): Array<{ kind: string; type: string; gap?:
     { kind: "block", type: "cluster", gap: 8 },
     { kind: "block", type: "history", gap: 8 },
     { kind: "block", type: "event_context", gap: 8 },
+    { kind: "block", type: "party_proxy", gap: 8 },
+    { kind: "block", type: "party_self", gap: 8 },
+    { kind: "block", type: "party_identified", gap: 8 },
+    { kind: "block", type: "party_related", gap: 8 },
     { kind: "block", type: "item_tree", gap: 8 },
     { kind: "block", type: "element", gap: 16 },
+    { kind: "block", type: "term_pick", gap: 8 },
+    { kind: "block", type: "code_phrase", gap: 8 },
     ...dataValueToolboxContents(),
   ];
 }

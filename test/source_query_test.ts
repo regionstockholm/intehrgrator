@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { join } from "@std/path";
 import { inferSchemaFromInstance, loadJsonSchema, pathToFontoxpath, canonicalSyncPath } from "@intehrgrator/core/source/schema_loader.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
 
@@ -45,6 +46,34 @@ Deno.test("fontoxpath json number evaluation", () => {
   const ctx = createSourceContext(JSON.stringify({ vitals: [{ systolic: 130 }] }), "json");
   const value = evaluate('xpathNumber("$.vitals[1].systolic")', ctx, "number");
   assertEquals(value, 130);
+});
+
+Deno.test("legacy-simulated BP series supports indexed iteration paths", async () => {
+  const instanceText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-inst.json"),
+  );
+  const schemaText = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-sche.json"),
+  );
+  const tree = loadJsonSchema(schemaText, "BloodPressureSeries");
+  const measurements = tree.children.find((c) => c.name === "measurements");
+  const diagnosis = tree.children.find((c) => c.name === "diagnosis");
+  assertEquals(diagnosis?.type, "object");
+  assertEquals(diagnosis?.multiplicity, "1");
+  assertEquals(measurements?.type, "array");
+  assertEquals(measurements?.multiplicity, "1..*");
+  assertEquals(
+    measurements?.children[0]?.children.some((c) => c.name === "diagnosis"),
+    false,
+  );
+
+  const ctx = createSourceContext(instanceText, "json");
+  assertEquals(evaluate('xpathString("$.diagnosis.code")', ctx, "string"), "S06.0");
+  assertEquals(evaluate('xpathString("$.diagnosis.display")', ctx, "string"), "Concussion");
+  assertEquals(evaluate('xpathNumber("$.measurements[1].systolic")', ctx, "number"), 120);
+  assertEquals(evaluate('xpathNumber("$.measurements[2].systolic")', ctx, "number"), 128);
+  assertEquals(evaluate('xpathNumber("$.measurements[3].diastolic")', ctx, "number"), 78);
+  assertEquals(evaluate('xpathString("$.measurements[3].timestamp")', ctx, "string"), "2026-07-03T07:45:00Z");
 });
 
 Deno.test("pathToFontoxpath json", () => {

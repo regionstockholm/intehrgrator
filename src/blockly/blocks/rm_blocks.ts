@@ -1,5 +1,6 @@
 import { Blockly } from "../blockly_core.ts";
 import type { BlockSvg } from "blockly/core";
+import "blockly/blocks";
 import { mandatoryAttributesFor } from "../../core/rm_mandatory.ts";
 import {
   attributesFor,
@@ -9,10 +10,12 @@ import {
   dataValueLeafTypes,
   isDataValueType,
   isPrimitiveRmType,
+  isRmValueAttribute,
   isSubtypeOf,
   mandatoryAttributes,
   optionalAttributes,
   primaryMappingAttribute,
+  subtypesOf,
   type RmAttributeMeta,
 } from "../../core/rm_meta.ts";
 import { blocklyCheckForDv } from "../block_checks.ts";
@@ -21,11 +24,14 @@ import {
   appendSlotTypeEmoji,
   slotRmTypeForAttr,
 } from "../rm_type_emoji.ts";
+import { registerTermPickBlock } from "./term_pick.ts";
 
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
 export const RM_ATTR_INPUT_PREFIX = "ATTR_";
 export const DV_FIELD_PREFIX = "FLD_";
+/** Puzzle slot on abstract PARTY_PROXY for a concrete subclass. */
+export const RM_SPECIALIZATION_INPUT = "KIND";
 
 const STRUCTURE_COLOUR = "#003B49";
 const CONTAINER_COLOUR = "#005C53";
@@ -79,6 +85,10 @@ export function optionalRmInputName(attr: string): string {
 
 export function registerRmBlocks(): void {
   defineContainerBlock("composition", "COMPOSITION", [
+    { name: "language" },
+    { name: "territory" },
+    { name: "category" },
+    { name: "composer" },
     { name: "content", check: "CONTENT_ITEM" },
     { name: "context", check: "EVENT_CONTEXT" },
   ], CONTAINER_COLOUR, { expandable: true, rmType: "COMPOSITION" });
@@ -145,11 +155,13 @@ export function registerRmBlocks(): void {
   });
 
   defineValueElementBlock();
+  definePartyProxyBlock();
   for (const rmType of EXTRA_RM_CONTAINERS) {
     ensureRmContainerBlock(rmType);
   }
   defineDataValueBlocksFromMeta();
   defineCodePhraseBlock();
+  registerTermPickBlock();
   registerOptionalRmMutator();
   registerDvFieldsMutator();
 }
@@ -191,10 +203,31 @@ function nestCheckFor(rmType: string): string | string[] | null {
   if (isSubtypeOf(rmType, "ITEM_STRUCTURE")) {
     return ["ITEM_STRUCTURE", "ITEM_TREE", "ITEM_LIST", "ITEM_TABLE", "ITEM_SINGLE"];
   }
-  if (isSubtypeOf(rmType, "PARTY_PROXY") || rmType === "PARTY_PROXY") return "PARTY_PROXY";
+  if (isSubtypeOf(rmType, "PARTY_PROXY")) return partyProxyNestCheck(rmType);
   if (rmType === "EVENT_CONTEXT") return "EVENT_CONTEXT";
   if (rmType === "ACTIVITY") return "ACTIVITY";
   return rmType;
+}
+
+/** Blockly output types: own class plus PARTY_PROXY ancestors so slots match. */
+function partyProxyNestCheck(rmType: string): string | string[] {
+  const checks = new Set<string>([rmType, "PARTY_PROXY"]);
+  if (isSubtypeOf(rmType, "PARTY_IDENTIFIED")) checks.add("PARTY_IDENTIFIED");
+  const list = [...checks];
+  return list.length === 1 ? list[0]! : list;
+}
+
+function partyProxySpecializationCheck(): string[] {
+  return subtypesOf("PARTY_PROXY", { concreteOnly: true }).slice().sort();
+}
+
+function definePartyProxyBlock(): void {
+  defineContainerBlock("party_proxy", "PARTY_PROXY", [], STRUCTURE_COLOUR, {
+    expandable: true,
+    rmType: "PARTY_PROXY",
+    nestCheck: nestCheckFor("PARTY_PROXY"),
+    specializationCheck: partyProxySpecializationCheck(),
+  });
 }
 
 /** Blockly type for a DATA_VALUE leaf, ensuring the def exists. */
@@ -243,21 +276,55 @@ export function syncRmAttributeInputs(
     }
   }
   for (const attr of orderedRmAttributes(rmType, attributes)) {
-    const stmt = block.appendStatementInput(`${RM_ATTR_INPUT_PREFIX}${attr}`)
-      .appendField(attr);
-    const slotType = slotRmTypeForAttr(rmType, attr);
-    const meta = attributesFor(rmType).find((a) => a.name === attr);
-    if (meta) {
-      const base = baseRmTypeName(meta.typeName);
-      // Dynamic blocks lose connection type checks unless we re-apply them on sync.
-      // Without this, nested blocks can become free-floating on larger templates.
-      if (!isPrimitiveRmType(base) && !isDataValueType(base) && base !== "CODE_PHRASE") {
-        stmt.setCheck(base);
-      }
-    }
-    appendSlotTypeEmoji(stmt, slotType);
+    appendRmAttributeInput(block, rmType, attr);
   }
   ensurePlusButton(block);
+}
+
+function appendRmAttributeInput(
+  block: Blockly.Block,
+  rmType: string,
+  attr: string,
+  checkOverride?: string | string[] | null,
+): void {
+  const slotType = slotRmTypeForAttr(rmType, attr);
+  if (isRmValueAttribute(rmType, attr) || isPartyProxyType(slotType)) {
+    const input = block.appendValueInput(rmAttributeInputName(attr))
+      .appendField(attr);
+    const check = checkOverride ?? puzzleCheckForAttr(rmType, attr, slotType);
+    if (check) input.setCheck(check);
+    appendSlotTypeEmoji(input, slotType);
+    return;
+  }
+  const stmt = block.appendStatementInput(rmAttributeInputName(attr))
+    .appendField(attr);
+  const check = checkOverride ?? statementCheckForAttr(rmType, attr);
+  if (check) stmt.setCheck(check);
+  appendSlotTypeEmoji(stmt, slotType);
+}
+
+function puzzleCheckForAttr(
+  _rmType: string,
+  _attr: string,
+  slotType: string | undefined,
+): string | string[] | null {
+  if (isPartyProxyType(slotType)) return slotType ?? "PARTY_PROXY";
+  return slotType ? blocklyCheckForDv(slotType) : null;
+}
+
+function isPartyProxyType(rmType: string | undefined): boolean {
+  return Boolean(rmType && isSubtypeOf(rmType, "PARTY_PROXY"));
+}
+
+function statementCheckForAttr(
+  rmType: string,
+  attr: string,
+): string | string[] | null {
+  const meta = attributesFor(rmType).find((a) => a.name === attr);
+  if (!meta) return null;
+  const base = baseRmTypeName(meta.typeName);
+  if (isPrimitiveRmType(base) || isDataValueType(base)) return null;
+  return base;
 }
 
 export function rmTypeOfBlock(block: Blockly.Block): string {
@@ -331,6 +398,94 @@ export function ensureElementDataValueShell(
   return shell;
 }
 
+/**
+ * Pre-fill RM/template-constrained fields (e.g. terminology_id = ISO_639-1)
+ * as Blockly shadow text so they are present from the first canvas.
+ */
+export function applyFixedFieldsToDataValueShell(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  fields: Record<string, string> | undefined,
+): void {
+  if (!fields) return;
+  const rmType = (shell.getFieldValue("RM_TYPE") || shell.type || "").toUpperCase();
+  const isPhrase = shell.type === "code_phrase" || rmType === "CODE_PHRASE";
+
+  if (isPhrase) {
+    if (fields.terminology_id) {
+      connectLiteralText(workspace, shell, dvFieldInputName("terminology_id"), fields.terminology_id);
+    }
+    const code = fields.code_string ?? fields.defining_code ?? fields.value;
+    if (code) {
+      connectLiteralText(workspace, shell, dvFieldInputName("code_string"), code);
+    }
+    return;
+  }
+
+  if (fields.value) {
+    ensureDvFieldVisible(shell, "value");
+    connectLiteralText(workspace, shell, dvFieldInputName("value"), fields.value);
+  }
+
+  if (fields.terminology_id || fields.defining_code || fields.code_string) {
+    ensureDvFieldVisible(shell, "defining_code");
+    const phrase = ensureNestedCodePhrase(workspace, shell, dvFieldInputName("defining_code"));
+    if (phrase) {
+      applyFixedFieldsToDataValueShell(workspace, phrase, {
+        terminology_id: fields.terminology_id ?? "",
+        code_string: fields.defining_code ?? fields.code_string ?? "",
+      });
+    }
+  }
+}
+
+function ensureNestedCodePhrase(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  inputName: string,
+): Blockly.Block | null {
+  const input = shell.getInput(inputName);
+  if (!input?.connection) return null;
+  const existing = input.connection.targetBlock();
+  if (existing && (existing.type === "code_phrase" || existing.getFieldValue("RM_TYPE") === "CODE_PHRASE")) {
+    return existing;
+  }
+  if (existing) return null;
+  ensureRmBlockType("code_phrase", "CODE_PHRASE");
+  const phrase = workspace.newBlock("code_phrase");
+  if (phrase.outputConnection) {
+    input.connection.connect(phrase.outputConnection);
+  }
+  if (typeof document !== "undefined") {
+    const svg = phrase as BlockSvg;
+    svg.initSvg?.();
+    svg.render?.();
+  }
+  return phrase;
+}
+
+function connectLiteralText(
+  _workspace: Blockly.Workspace,
+  parent: Blockly.Block,
+  inputName: string,
+  value: string,
+): void {
+  if (!value) return;
+  const input = parent.getInput(inputName);
+  if (!input?.connection) return;
+  if (input.connection.targetBlock()) return;
+  if (typeof input.connection.setShadowState === "function") {
+    input.connection.setShadowState({
+      type: "text",
+      fields: { TEXT: value },
+    });
+    return;
+  }
+  const text = _workspace.newBlock("text");
+  text.setFieldValue(value, "TEXT");
+  if (text.outputConnection) input.connection.connect(text.outputConnection);
+}
+
 export function isDataValueBlock(block: Blockly.Block): boolean {
   const rm = block.getFieldValue("RM_TYPE") || "";
   return block.type.startsWith("dv_") || rm.startsWith("DV_") || block.type === "code_phrase";
@@ -379,6 +534,7 @@ function defineContainerBlock(
     expandable?: boolean;
     rmType: string;
     nestCheck?: string | string[] | null;
+    specializationCheck?: string | string[] | null;
   },
 ): void {
   RM_CONTAINER_TYPES.add(type);
@@ -393,14 +549,13 @@ function defineContainerBlock(
       if (options.expandable) {
         appendPlusField(this);
       }
+      if (options.specializationCheck) {
+        const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT);
+        kind.setCheck(options.specializationCheck);
+        appendSlotTypeEmoji(kind, options.rmType);
+      }
       for (const input of inputs) {
-        const stmt = this.appendStatementInput(rmAttributeInputName(input.name))
-          .appendField(input.name);
-        if (input.check) stmt.setCheck(input.check);
-        appendSlotTypeEmoji(
-          stmt,
-          slotRmTypeForAttr(options.rmType, input.name, input.check),
-        );
+        appendRmAttributeInput(this, options.rmType, input.name, input.check);
       }
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
@@ -417,7 +572,9 @@ function defineContainerBlock(
       this.setColour(colour);
       this.setTooltip(`openEHR RM ${options.rmType}`);
       this.setInputsInline(true);
-      if (options.nestCheck) {
+      if (isPartyProxyType(options.rmType)) {
+        this.setOutput(true, options.nestCheck ?? options.rmType);
+      } else if (options.nestCheck) {
         this.setPreviousStatement(true, options.nestCheck);
         this.setNextStatement(true, options.nestCheck);
       }
@@ -675,9 +832,21 @@ function registerOptionalRmMutator(): void {
         }
       }
       for (const name of this.extraInputs_ ?? []) {
+        const parentRm = rmTypeOfBlock(this);
+        const slotType = slotRmTypeForAttr(parentRm, name);
+        if (isRmValueAttribute(parentRm, name) || isPartyProxyType(slotType)) {
+          const input = this.appendValueInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
+            .appendField(name);
+          const check = isPartyProxyType(slotType)
+            ? slotType
+            : (slotType ? blocklyCheckForDv(slotType) : null);
+          if (check) input.setCheck(check);
+          appendSlotTypeEmoji(input, slotType);
+          continue;
+        }
         const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
           .appendField(name);
-        appendSlotTypeEmoji(stmt, slotRmTypeForAttr(rmTypeOfBlock(this), name));
+        appendSlotTypeEmoji(stmt, slotType);
       }
     },
   } as Blockly.Mutator & {

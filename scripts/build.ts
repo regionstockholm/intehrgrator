@@ -36,9 +36,34 @@ const buildTimestamp = new Date().toISOString();
 
 await ensureDir(outDir);
 
+const xmlEmbedPlugin: esbuild.Plugin = {
+  name: "openehr-term-xml-embed",
+  setup(build) {
+    build.onResolve({ filter: /openehr_term_xml_embed\.ts$/ }, () => ({
+      path: join(root, "src/core/openehr_term_xml_embed.ts"),
+      namespace: "openehr-term-xml",
+    }));
+    build.onLoad({ filter: /.*/, namespace: "openehr-term-xml" }, async () => {
+      const dir = join(root, "vendor/ehrtslib/terminology_data");
+      const en = await Deno.readTextFile(join(dir, "openehr_terminology_en.xml"));
+      const ext = await Deno.readTextFile(join(dir, "openehr_external_terminologies.xml"));
+      return {
+        contents:
+          `export function openEhrTerminologyXml() {\n` +
+          `  return {\n` +
+          `    en: ${JSON.stringify(en)},\n` +
+          `    ext: ${JSON.stringify(ext)},\n` +
+          `  };\n` +
+          `}\n`,
+        loader: "js",
+      };
+    });
+  },
+};
+
 await esbuild.build({
   absWorkingDir: root,
-  plugins: [...denoPlugins({ configPath })],
+  plugins: [xmlEmbedPlugin, ...denoPlugins({ configPath })],
   entryPoints: ["web/main.ts"],
   bundle: true,
   outfile: "dist/bundle.js",
@@ -55,7 +80,7 @@ await esbuild.build({
 
 await esbuild.build({
   absWorkingDir: root,
-  plugins: [vscodeExternal, ...denoPlugins({ configPath })],
+  plugins: [xmlEmbedPlugin, vscodeExternal, ...denoPlugins({ configPath })],
   entryPoints: ["extension/extension.ts"],
   bundle: true,
   outfile: "dist/extension.js",

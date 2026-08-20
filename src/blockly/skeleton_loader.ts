@@ -4,9 +4,11 @@ import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
+import { termSetById, termSetForRmAttribute } from "../core/openehr_term_catalog.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
+  applyFixedFieldsToDataValueShell,
   configureElementValueSlot,
   connectExpressionToDataValueShell,
   ensureElementDataValueShell,
@@ -17,6 +19,7 @@ import {
   rmAttributeInputName,
   syncRmAttributeInputs,
 } from "./blocks/rm_blocks.ts";
+import { createTermPickBlock, isTermPickBlock } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
 import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
@@ -95,14 +98,15 @@ export function applyModelExpressions(
   try {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
-      if (block.type !== "element" && !isGenericValueBlockType(block.type)) continue;
       const slotId = block.getFieldValue("SLOT_ID");
       if (!slotId) continue;
       const slot = slotMap.get(slotId);
       if (!slot) continue;
       if (block.type === "element") {
         attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
-      } else {
+      } else if (isTermPickBlock(block) || isDataValueBlock(block)) {
+        attachExpressionToTypedValue(workspace, block, slot.expression, slot.returnType, slot.rmType);
+      } else if (isGenericValueBlockType(block.type)) {
         attachExpressionToTarget(workspace, block, slot.expression, slot.returnType);
       }
     }
@@ -159,12 +163,12 @@ export function attachOptionalRmChild(
     insertion.attributeName,
   );
   if (insertion.label) childNode.label = insertion.label;
-  const child = buildBlockFromNode(workspace, childNode, false, 1);
+  const child = buildBlockFromNode(workspace, childNode, false, 1, parentRmType);
   if (!child) return null;
   const inputName = parent.getInput(rmAttributeInputName(insertion.attributeName))
     ? rmAttributeInputName(insertion.attributeName)
     : optionalRmInputName(insertion.attributeName);
-  connectStatementChain(parent, inputName, [child]);
+  connectAttributeChildren(parent, inputName, [child]);
   refreshBlockLayout(parent as BlockSvg);
   return child;
 }
@@ -174,6 +178,7 @@ function buildBlockFromNode(
   node: SkeletonNode,
   isRoot: boolean,
   depth: number,
+  parentRmType?: string,
 ): BlockSvg | null {
   let block: BlockSvg | null = null;
   if (node.blockType === "target_structure") {
@@ -183,7 +188,7 @@ function buildBlockFromNode(
   } else if (node.blockType === "element" || node.rmType === "ELEMENT") {
     block = buildElementBlock(workspace, node, isRoot);
   } else if (node.kind === "value") {
-    block = buildElementBlockFromValue(workspace, node, isRoot);
+    block = buildTypedValueBlock(workspace, node, isRoot, parentRmType);
   } else {
     block = buildContainerBlock(workspace, node, isRoot, depth);
   }
@@ -242,7 +247,7 @@ function buildTargetValueBlock(
   block.setFieldValue(node.label, "NAME");
   block.setFieldValue(node.rmType, "TARGET_TYPE");
   block.setFieldValue(node.slotId, "SLOT_ID");
-  if (!isRoot) {
+  if (!isRoot && !block.outputConnection) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
   }
@@ -321,7 +326,7 @@ function buildContainerBlock(
   ];
   syncRmAttributeInputs(block, node.rmType, attributes);
 
-  if (!isRoot) {
+  if (!isRoot && !block.outputConnection) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
   }
@@ -336,9 +341,9 @@ function buildContainerBlock(
   for (const attr of attributes) {
     const attrChildren = visibleChildren.filter((child) => child.rmAttribute === attr);
     const childBlocks = attrChildren
-      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
+      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1, node.rmType))
       .filter((child): child is BlockSvg => child !== null);
-    connectStatementChain(block, rmAttributeInputName(attr), childBlocks);
+    connectAttributeChildren(block, rmAttributeInputName(attr), childBlocks);
   }
 
   refreshBlockLayout(block);
@@ -362,7 +367,7 @@ function buildElementBlock(
   applySkeletonBlockLabels(block, node);
   configureElementValueSlot(block, dvType);
 
-  if (!isRoot) {
+  if (!isRoot && !block.outputConnection) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
   }
@@ -378,42 +383,45 @@ function buildElementBlock(
     (primary?.mandatory ?? false) || (node.mandatory && primary),
   );
   if (valueMandatory && primary && isDataValueType(dvType)) {
-    ensureElementDataValueShell(workspace, block, dvType);
+    const shell = ensureElementDataValueShell(workspace, block, dvType);
+    if (shell) applyFixedFieldsToDataValueShell(workspace, shell, primary.fixedFields ?? node.fixedFields);
   }
 
   refreshBlockLayout(block);
   return block;
 }
 
-function buildElementBlockFromValue(
+function buildTypedValueBlock(
   workspace: WorkspaceSvg,
   node: SkeletonNode,
-  isRoot: boolean,
+  _isRoot: boolean,
+  parentRmType?: string,
 ): BlockSvg {
-  ensureRmBlockType("element", "ELEMENT");
-  const block = workspace.newBlock("element") as BlockSvg;
-  block.setFieldValue(node.rmType, "RM_TYPE");
-  block.setFieldValue(node.slotId, "SLOT_ID");
-  if (node.archetypeNodeId) {
-    setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
+  const termSet = parentRmType && node.rmAttribute
+    ? termSetForRmAttribute(parentRmType, node.rmAttribute)
+    : undefined;
+  if (termSet) {
+    const code = node.fixedFields?.code_string ?? node.fixedFields?.defining_code;
+    const block = createTermPickBlock(workspace, termSet, code, node.slotId);
+    if (node.mandatory && !code) {
+      block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
+    }
+    return finalizeBlock(block);
   }
-  applySkeletonBlockLabels(block, node);
-  configureElementValueSlot(block, node.rmType);
 
-  if (!isRoot) {
-    block.setPreviousStatement(true);
-    block.setNextStatement(true);
-  }
+  const blockType = node.blockType && node.blockType !== "rm_structure" && node.blockType !== "element"
+    ? node.blockType
+    : blockTypeForRm(node.rmType);
+  ensureRmBlockType(blockType, node.rmType);
+  const block = workspace.newBlock(blockType) as BlockSvg;
+  setFieldIfPresent(block, "RM_TYPE", node.rmType);
+  setFieldIfPresent(block, "SLOT_ID", node.slotId);
+  applySkeletonBlockLabels(block, node);
   if (node.mandatory) {
     block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
   }
-
   finalizeBlock(block);
-
-  if (node.mandatory && isDataValueType(node.rmType)) {
-    ensureElementDataValueShell(workspace, block, node.rmType);
-  }
-
+  applyFixedFieldsToDataValueShell(workspace, block, node.fixedFields);
   refreshBlockLayout(block);
   return block;
 }
@@ -425,6 +433,21 @@ function primaryValueChild(node: SkeletonNode): SkeletonNode | undefined {
       isDataValueType(child.rmType) &&
       !AUTO_FIXED_LOCATABLE_ATTRS.has(child.label),
   );
+}
+
+function connectAttributeChildren(
+  parent: Blockly.Block,
+  inputName: string,
+  blocks: Blockly.Block[],
+): void {
+  if (!blocks.length) return;
+  const input = parent.getInput(inputName);
+  if (!input?.connection) return;
+  if (blocks[0]?.outputConnection && !blocks[0].previousConnection) {
+    input.connection.connect(blocks[0].outputConnection);
+    return;
+  }
+  connectStatementChain(parent, inputName, blocks);
 }
 
 function connectStatementChain(
@@ -447,6 +470,38 @@ function connectStatementChain(
     }
     previous = block;
   }
+}
+
+function attachExpressionToTypedValue(
+  workspace: Blockly.Workspace,
+  valueBlock: Blockly.Block,
+  expression: string,
+  returnType: string,
+  rmTypeHint?: string,
+): void {
+  const exprBlock = expressionToBlock(workspace, expression, returnType);
+  if (isTermPickBlock(valueBlock)) {
+    const parentConnection = valueBlock.outputConnection?.targetConnection;
+    const set = termSetById(valueBlock.getFieldValue("SET"));
+    const slotId = valueBlock.getFieldValue("SLOT_ID");
+    const rmType = rmTypeHint || set?.valueRmType || "CODE_PHRASE";
+    valueBlock.dispose(false);
+    const shellType = rmType === "DV_CODED_TEXT" ? "DV_CODED_TEXT" : "CODE_PHRASE";
+    ensureRmBlockType(blockTypeForRm(shellType), shellType);
+    const shell = workspace.newBlock(blockTypeForRm(shellType));
+    if (shell.getField("RM_TYPE")) shell.setFieldValue(shellType, "RM_TYPE");
+    if (slotId && shell.getField("SLOT_ID")) shell.setFieldValue(slotId, "SLOT_ID");
+    if (shell.outputConnection && parentConnection) {
+      parentConnection.connect(shell.outputConnection);
+    }
+    applyFixedFieldsToDataValueShell(workspace, shell, {
+      terminology_id: set?.terminologyId ?? "",
+    });
+    connectExpressionToDataValueShell(shell, exprBlock);
+    finalizeBlock(shell as BlockSvg);
+    return;
+  }
+  connectExpressionToDataValueShell(valueBlock, exprBlock);
 }
 
 function attachExpressionToElement(

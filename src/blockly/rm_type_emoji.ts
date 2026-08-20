@@ -62,9 +62,18 @@ export function rmEmojiFontPx(rmType: string): number {
   return isHardToReadRmEmoji(rmType) ? RM_EMOJI_LARGE_FONT_PX : RM_EMOJI_FONT_PX;
 }
 
-/** Glyph shown at a connection: ZipEHR emoji, or an encircled ? for abstract types. */
-export function connectionPointGlyph(rmType: string | undefined): string | undefined {
+/**
+ * Glyph shown at a connection.
+ * Slots of abstract types (PARTY_PROXY, CONTENT_ITEM, …) use the encircled ?
+ * even when ZipEHR also has an emoji — the popup lists allowed subclasses.
+ * Block output still prefers the ZipEHR emoji so the block keeps its identity.
+ */
+export function connectionPointGlyph(
+  rmType: string | undefined,
+  forSlot = false,
+): string | undefined {
   if (!rmType) return undefined;
+  if (forSlot && isAbstractPlaceholderType(rmType)) return ABSTRACT_SLOT_GLYPH;
   const emoji = zipehrEmojiForRmType(rmType);
   if (emoji) return emoji;
   if (isAbstractPlaceholderType(rmType)) return ABSTRACT_SLOT_GLYPH;
@@ -72,8 +81,8 @@ export function connectionPointGlyph(rmType: string | undefined): string | undef
 }
 
 export function isAbstractPlaceholderType(rmType: string): boolean {
-  if (zipehrEmojiForRmType(rmType)) return false;
   if (isAbstractType(rmType)) return true;
+  if (zipehrEmojiForRmType(rmType)) return false;
   return subtypesOf(rmType, { concreteOnly: true }).length > 0;
 }
 
@@ -107,12 +116,14 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
   readonly pinId = `rm-emoji-${++pinSeq}`;
 
   private rmType_ = "";
+  private forSlot_ = false;
   private ring_: SVGCircleElement | null = null;
 
-  constructor(rmType: string) {
-    const glyph = connectionPointGlyph(rmType) ?? "";
+  constructor(rmType: string, forSlot = false) {
+    const glyph = connectionPointGlyph(rmType, forSlot) ?? "";
     super(glyph, cssClassFor(rmType), { tooltip: rmTypeConnectionTooltip(rmType) });
     this.rmType_ = rmType;
+    this.forSlot_ = forSlot;
     this.setTooltip(rmTypeConnectionTooltip(rmType));
     installRmTypeEmojiTooltips();
   }
@@ -123,7 +134,7 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
 
   setRmType(rmType: string): void {
     this.rmType_ = rmType;
-    const glyph = connectionPointGlyph(rmType) ?? "";
+    const glyph = connectionPointGlyph(rmType, this.forSlot_) ?? "";
     this.setClass(cssClassFor(rmType));
     this.syncCssClasses_?.();
     this.setTooltip(rmTypeConnectionTooltip(rmType));
@@ -155,14 +166,14 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
   }
 
   getDisplayText_(): string {
-    if (isAbstractPlaceholderType(this.rmType_)) return "?";
+    if (this.showsAbstractPlaceholder_()) return "?";
     return super.getDisplayText_?.() ?? String(this.getText?.() ?? "");
   }
 
   updateSize_(): void {
     if (!this.size_) return;
     const px = rmEmojiFontPx(this.rmType_);
-    const abstract = isAbstractPlaceholderType(this.rmType_);
+    const abstract = this.showsAbstractPlaceholder_();
     const text = abstract
       ? "?"
       : String(this.getText?.() ?? this.getValue?.() ?? "");
@@ -172,9 +183,13 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     this.syncAbstractRing_(px, abstract);
   }
 
+  private showsAbstractPlaceholder_(): boolean {
+    return this.forSlot_ && isAbstractPlaceholderType(this.rmType_);
+  }
+
   private layoutGlyph_(): void {
     const px = rmEmojiFontPx(this.rmType_);
-    const abstract = isAbstractPlaceholderType(this.rmType_);
+    const abstract = this.showsAbstractPlaceholder_();
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
     el.style.setProperty("font-size", abstract ? `${Math.round(px * 0.62)}px` : `${px}px`, "important");
@@ -289,14 +304,17 @@ function measureGlyphWidth(text: string, fontPx: number): number {
   return Math.ceil(fontPx * 1.05 * Math.max(1, Array.from(text).length));
 }
 
-export function createRmTypeEmojiField(rmType: string): FieldRmTypeEmoji | null {
-  if (!connectionPointGlyph(rmType)) return null;
-  return new FieldRmTypeEmoji(rmType);
+export function createRmTypeEmojiField(
+  rmType: string,
+  forSlot = false,
+): FieldRmTypeEmoji | null {
+  if (!connectionPointGlyph(rmType, forSlot)) return null;
+  return new FieldRmTypeEmoji(rmType, forSlot);
 }
 
 /** First field on HEADER — sits in the upper-left, next to output / previous-statement. */
 export function appendBlockOutputEmoji(header: Input, rmType: string): void {
-  const field = createRmTypeEmojiField(rmType);
+  const field = createRmTypeEmojiField(rmType, false);
   if (field) header.appendField(field, BLOCK_OUT_EMOJI_FIELD);
 }
 
@@ -308,7 +326,7 @@ export function appendSlotTypeEmoji(input: Input, rmType: string | undefined): v
   const name = slotEmojiFieldName(input.name);
   const existing = input.fieldRow.find((f) => f.name === name);
   if (existing && isRmTypeEmojiField(existing)) {
-    if (!rmType || !connectionPointGlyph(rmType)) {
+    if (!rmType || !connectionPointGlyph(rmType, true)) {
       existing.setValue("");
       existing.setTooltip("");
       return;
@@ -317,13 +335,13 @@ export function appendSlotTypeEmoji(input: Input, rmType: string | undefined): v
     return;
   }
   if (existing) {
-    const glyph = connectionPointGlyph(rmType);
+    const glyph = connectionPointGlyph(rmType, true);
     existing.setValue(glyph ?? "");
     existing.setTooltip(rmType ? rmTypeConnectionTooltip(rmType) : "");
     return;
   }
   if (!rmType) return;
-  const field = createRmTypeEmojiField(rmType);
+  const field = createRmTypeEmojiField(rmType, true);
   if (field) input.appendField(field, name);
 }
 

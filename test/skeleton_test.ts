@@ -3,6 +3,7 @@ import { join } from "@std/path";
 import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
 import { generateSkeleton, collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { isAutoFixedValueSlot, mandatoryAttributesFor } from "@intehrgrator/core/rm_mandatory.ts";
+import { rmConstrainedTerminologyId } from "@intehrgrator/core/rm_terminology.ts";
 import { countUnmappedMandatory, createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 
 const fixture = await Deno.readTextFile(
@@ -81,4 +82,65 @@ Deno.test("OBSERVATION descendants include rmAttribute on data path", () => {
   })[0];
   assert(history, "expected HISTORY under observation data");
   assertEquals(history.rmAttribute, "data");
+});
+
+function findByAttr(nodes: SkeletonNode[], rmType: string, attr: string): SkeletonNode | undefined {
+  for (const node of nodes) {
+    if (node.rmType === rmType) {
+      const child = node.children.find((c) => c.rmAttribute === attr);
+      if (child) return child;
+    }
+    const nested = findByAttr(node.children, rmType, attr);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
+Deno.test("RM code-set attributes expose their constrained terminology_id", () => {
+  assertEquals(rmConstrainedTerminologyId("COMPOSITION", "language"), "ISO_639-1");
+  assertEquals(rmConstrainedTerminologyId("COMPOSITION", "territory"), "ISO_3166-1");
+  assertEquals(rmConstrainedTerminologyId("OBSERVATION", "language"), "ISO_639-1");
+  assertEquals(rmConstrainedTerminologyId("OBSERVATION", "encoding"), "IANA_character-sets");
+  assertEquals(rmConstrainedTerminologyId("COMPOSITION", "category"), "openehr");
+  assertEquals(rmConstrainedTerminologyId("EVENT_CONTEXT", "setting"), "openehr");
+});
+
+Deno.test("skeleton pre-fills RM terminology for language, territory, and encoding", () => {
+  const { skeleton } = generateSkeleton(fixture);
+  const language = findByAttr(skeleton, "COMPOSITION", "language");
+  const territory = findByAttr(skeleton, "COMPOSITION", "territory");
+  const encoding = findByAttr(skeleton, "OBSERVATION", "encoding");
+  const category = findByAttr(skeleton, "COMPOSITION", "category");
+  assertEquals(language?.fixedFields?.terminology_id, "ISO_639-1");
+  assertEquals(territory?.fixedFields?.terminology_id, "ISO_3166-1");
+  assertEquals(encoding?.fixedFields?.terminology_id, "IANA_character-sets");
+  assertEquals(category?.fixedFields?.terminology_id, "openehr");
+  assertEquals(category?.fixedFields?.defining_code, "433");
+});
+
+Deno.test("skeleton pre-fills COMPOSITION.category from the template code list", () => {
+  const persistent = fixture.replace(
+    "<code_list>433</code_list>",
+    "<code_list>431</code_list>",
+  );
+  const { skeleton } = generateSkeleton(persistent);
+  const category = findByAttr(skeleton, "COMPOSITION", "category");
+  assertEquals(category?.fixedFields?.defining_code, "431");
+  assertEquals(category?.fixedFields?.code_string, "431");
+});
+
+Deno.test("COMPOSITION language and territory are CODE_PHRASE values, not ELEMENT", () => {
+  const { skeleton } = generateSkeleton(fixture);
+  const language = findByAttr(skeleton, "COMPOSITION", "language");
+  const territory = findByAttr(skeleton, "COMPOSITION", "territory");
+  const category = findByAttr(skeleton, "COMPOSITION", "category");
+  assertEquals(language?.rmType, "CODE_PHRASE");
+  assertEquals(language?.kind, "value");
+  assertEquals(language?.blockType, "code_phrase");
+  assertEquals(language?.children.length, 0);
+  assertEquals(territory?.rmType, "CODE_PHRASE");
+  assertEquals(territory?.kind, "value");
+  assertEquals(territory?.children.length, 0);
+  assertEquals(category?.rmType, "DV_CODED_TEXT");
+  assertEquals(category?.kind, "value");
 });

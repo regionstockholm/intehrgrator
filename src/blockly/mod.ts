@@ -117,15 +117,14 @@ function registerGenerators(): void {
     for (const input of block.inputList) {
       if (!input.name.startsWith("ATTR_")) continue;
       const attr = input.name.slice("ATTR_".length);
-      const valueCode = javascriptGenerator.valueToCode(block, input.name, Order.NONE);
-      if (valueCode) {
-        parts.push(`${attr}: ${valueCode}`);
+      const { value, statement } = codeForRmAttributeInput(block, input.name);
+      if (value) {
+        parts.push(`${attr}: ${value}`);
         continue;
       }
-      const stmt = javascriptGenerator.statementToCode(block, input.name);
-      if (!stmt.trim()) continue;
-      if (attr === "content") parts.push(`content: [\n${stmt}]`);
-      else parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
+      if (!statement?.trim()) continue;
+      if (attr === "content") parts.push(`content: [\n${statement}]`);
+      else parts.push(`${attr}: ${stripTrailingComma(statement)}`);
     }
     return `const composition = new openehr_rm.COMPOSITION({ ${parts.join(", ")} });\n`;
   };
@@ -234,18 +233,32 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
       if (seen.has(attr)) continue;
       seen.add(attr);
       const inputName = rmAttributeInputName(attr);
-      const valueCode = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
-      if (valueCode) {
-        parts.push(`${attr}: ${valueCode}`);
+      const { value, statement } = codeForRmAttributeInput(block, inputName);
+      if (value) {
+        parts.push(`${attr}: ${value}`);
         continue;
       }
-      const stmt = javascriptGenerator.statementToCode(block, inputName);
-      if (!stmt.trim()) continue;
+      if (!statement?.trim()) continue;
       const asList = ["content", "items", "events", "activities"].includes(attr);
-      parts.push(asList ? `${attr}: [\n${stmt}]` : `${attr}: ${stripTrailingComma(stmt)}`);
+      parts.push(asList ? `${attr}: [\n${statement}]` : `${attr}: ${stripTrailingComma(statement)}`);
     }
     return `{ ${parts.join(", ")} },\n`;
   };
+}
+
+function codeForRmAttributeInput(
+  block: Blockly.Block,
+  inputName: string,
+): { value?: string; statement?: string } {
+  const input = block.getInput(inputName);
+  if (!input) return {};
+  // Blockly input type ids (VALUE=1, STATEMENT=3) — stable across CJS/ESM shims.
+  if (input.type === 1) {
+    const value = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
+    return value ? { value } : {};
+  }
+  const statement = javascriptGenerator.statementToCode(block, inputName);
+  return statement.trim() ? { statement } : {};
 }
 
 function stripTrailingComma(code: string): string {

@@ -10,26 +10,34 @@ import { registerRmBlocks } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { generateSkeletonFromWebTemplate } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 
-const bigWt = await (async () => {
-  const repoRelative = join(
+const fixtureCandidates = [
+  join(
     import.meta.dirname!,
     "..",
     "uploads",
     "Accident_report_including_vital_signs.sv.wt-0.json",
-  );
-  try {
-    const txt = await Deno.readTextFile(repoRelative);
-    const start = txt.indexOf("{");
-    return start >= 0 ? txt.slice(start) : txt;
-  } catch {
-    // Cursor upload target (when the file lives outside the repo).
-    const txt = await Deno.readTextFile(
-      "C:\\Users\\fbpf\\.cursor\\projects\\c-lokalt-dev-intehrgrator\\uploads\\Accident_report_including_vital_signs.sv.wt-0.json",
-    );
-    const start = txt.indexOf("{");
-    return start >= 0 ? txt.slice(start) : txt;
+  ),
+  join(
+    import.meta.dirname!,
+    "fixtures",
+    "Accident_report_including_vital_signs.sv.wt-0.json",
+  ),
+];
+
+async function readFirstAvailableFixture(): Promise<string | null> {
+  for (const path of fixtureCandidates) {
+    try {
+      const txt = await Deno.readTextFile(path);
+      const start = txt.indexOf("{");
+      return start >= 0 ? txt.slice(start) : txt;
+    } catch {
+      // try next candidate
+    }
   }
-})();
+  return null;
+}
+
+const bigWt = await readFirstAvailableFixture();
 
 let blocksReady = false;
 function ensureBlocks(): void {
@@ -49,38 +57,41 @@ function blockCountByType(nodes: SkeletonNode[]): Map<string, number> {
   return m;
 }
 
-Deno.test("Large Web Template: SECTION blocks attach to COMPOSITION (no free-floating)", () => {
-  ensureBlocks();
-  const { skeleton } = generateSkeletonFromWebTemplate(bigWt);
-  const workspace = new Blockly.Workspace();
+Deno.test({
+  name: "Large Web Template: SECTION blocks attach to COMPOSITION (no free-floating)",
+  ignore: bigWt === null,
+  fn: () => {
+    ensureBlocks();
+    const { skeleton } = generateSkeletonFromWebTemplate(bigWt!);
+    const workspace = new Blockly.Workspace();
 
-  loadSkeletonIntoWorkspace(
-    workspace,
-    skeleton,
-    createEmptyModel("t"),
-    null,
-  );
-
-  const tops = workspace.getTopBlocks(false);
-  const topSectionCount = tops.filter((b) => b.type === "section").length;
-  assertEquals(topSectionCount, 0);
-
-  const sectionBlocks = workspace
-    .getAllBlocks(false)
-    .filter((b) => b.type === "section");
-  assert(sectionBlocks.length > 0, "expected at least one SECTION block");
-
-  for (const s of sectionBlocks) {
-    assert(
-      s.getParent() !== null,
-      "SECTION blocks should be nested under a parent statement chain",
+    loadSkeletonIntoWorkspace(
+      workspace,
+      skeleton,
+      createEmptyModel("t"),
+      null,
     );
-  }
 
-  // Sanity check: skeleton contains section nodes too.
-  const byType = blockCountByType(skeleton);
-  assert(byType.get("section") !== undefined);
+    const tops = workspace.getTopBlocks(false);
+    const topSectionCount = tops.filter((b) => b.type === "section").length;
+    assertEquals(topSectionCount, 0);
 
-  workspace.dispose();
+    const sectionBlocks = workspace
+      .getAllBlocks(false)
+      .filter((b) => b.type === "section");
+    assert(sectionBlocks.length > 0, "expected at least one SECTION block");
+
+    for (const s of sectionBlocks) {
+      assert(
+        s.getParent() !== null,
+        "SECTION blocks should be nested under a parent statement chain",
+      );
+    }
+
+    // Sanity check: skeleton contains section nodes too.
+    const byType = blockCountByType(skeleton);
+    assert(byType.get("section") !== undefined);
+
+    workspace.dispose();
+  },
 });
-

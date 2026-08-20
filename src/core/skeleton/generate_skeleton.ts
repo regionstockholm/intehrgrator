@@ -17,9 +17,7 @@ import { withRmConstrainedFields } from "../rm_terminology.ts";
 import { isSubtypeOf } from "../rm_meta.ts";
 import {
   archetypeShortName,
-  buildArchetypeTermsIndex,
   buildWebTemplateTermsIndex,
-  compositionArchetypeRef,
   liveArchetypeTermsIndex,
   locatableNodeLabel,
   lookupTermText,
@@ -89,13 +87,11 @@ export function generateSkeletonFromOperational(
   const lang = resolveOptLanguage(opt);
   const fallbackTerms = mergedOntologyTerms(opt, lang);
   const archetypeTerms = mergeTermMaps(
-    optSource ? buildArchetypeTermsIndex(optSource) : undefined,
     liveArchetypeTermsIndex(opt, lang),
     extraArchetypeTerms,
   );
   const archetypeTermRecord = termBagsRecord(archetypeTerms);
-  const rootArchetypeRef = (optSource ? compositionArchetypeRef(optSource) : undefined) ??
-    (opt.definition?.archetype_ref as string | undefined) ??
+  const rootArchetypeRef = (opt.definition?.archetype_ref as string | undefined) ??
     (extraArchetypeTerms?.has(TEMPLATE_ROOT_TERM_SCOPE) ? TEMPLATE_ROOT_TERM_SCOPE : undefined) ??
     [...archetypeTerms.keys()][0];
 

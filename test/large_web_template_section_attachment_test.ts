@@ -10,25 +10,15 @@ import { registerRmBlocks } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { generateSkeletonFromWebTemplate } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 
-const bigWt = await (async () => {
+const webTemplateJson = await (async () => {
   const repoRelative = join(
     import.meta.dirname!,
-    "..",
-    "uploads",
-    "Accident_report_including_vital_signs.sv.wt-0.json",
+    "fixtures",
+    "section_attachment.wt.json",
   );
-  try {
-    const txt = await Deno.readTextFile(repoRelative);
-    const start = txt.indexOf("{");
-    return start >= 0 ? txt.slice(start) : txt;
-  } catch {
-    // Cursor upload target (when the file lives outside the repo).
-    const txt = await Deno.readTextFile(
-      "C:\\Users\\fbpf\\.cursor\\projects\\c-lokalt-dev-intehrgrator\\uploads\\Accident_report_including_vital_signs.sv.wt-0.json",
-    );
-    const start = txt.indexOf("{");
-    return start >= 0 ? txt.slice(start) : txt;
-  }
+  const txt = await Deno.readTextFile(repoRelative);
+  const start = txt.indexOf("{");
+  return start >= 0 ? txt.slice(start) : txt;
 })();
 
 let blocksReady = false;
@@ -49,9 +39,9 @@ function blockCountByType(nodes: SkeletonNode[]): Map<string, number> {
   return m;
 }
 
-Deno.test("Large Web Template: SECTION blocks attach to COMPOSITION (no free-floating)", () => {
+Deno.test("Web Template SECTION blocks attach to COMPOSITION (no free-floating)", () => {
   ensureBlocks();
-  const { skeleton } = generateSkeletonFromWebTemplate(bigWt);
+  const { skeleton } = generateSkeletonFromWebTemplate(webTemplateJson);
   const workspace = new Blockly.Workspace();
 
   loadSkeletonIntoWorkspace(
@@ -83,4 +73,3 @@ Deno.test("Large Web Template: SECTION blocks attach to COMPOSITION (no free-flo
 
   workspace.dispose();
 });
-

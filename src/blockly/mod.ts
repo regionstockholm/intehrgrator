@@ -1,18 +1,32 @@
-import * as Blockly from "blockly/core";
+import type { Block, Workspace } from "blockly/core";
 import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
+import { Blockly } from "./blockly_core.ts";
 import type { SkeletonNode } from "../types/mod.ts";
-import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName } from "./blocks/rm_blocks.ts";
-import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
+import {
+  expressionBlockFromDataValueShell,
+  isDataValueBlock,
+  registerRmBlocks,
+  rmAttributeInputName,
+} from "./blocks/rm_blocks.ts";
+import {
+  isGenericValueBlockType,
+  registerTargetBlocks,
+} from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
-import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
+import {
+  attributesFor,
+  blockTypeForRm,
+  dataValueLeafTypes,
+  isPrimitiveRmType,
+} from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
 import {
-  SOURCE_QUERY_BLOCK_TYPES,
   fontoxpathFnForReturnType,
   returnTypeFromSourceBlock,
+  SOURCE_QUERY_BLOCK_TYPES,
 } from "./source_query.ts";
 
 export {
@@ -29,22 +43,29 @@ export {
   createSourceQueryBlock,
   isSourceQueryBlockType,
   placeSourceQueryBlock,
+  SOURCE_TYPE_EMOJI,
   sourceBlockTypeForReturnType,
   sourceQueryFieldLabel,
   sourceReturnTypeFromSchemaType,
-  SOURCE_TYPE_EMOJI,
   workspacePositionFromClient,
 } from "./source_query.ts";
 export { createModestTheme } from "./theme.ts";
 /** @deprecated use createModestTheme */
 export { createModestTheme as createCompactTheme } from "./theme.ts";
-export { registerCompactThrasosRenderer, COMPACT_RENDERER_NAME } from "./compact_renderer.ts";
+export {
+  COMPACT_RENDERER_NAME,
+  registerCompactThrasosRenderer,
+} from "./compact_renderer.ts";
 export {
   openWorkspaceSnapshotWindow,
   workspaceToStandaloneSvg,
 } from "./workspace_snapshot.ts";
 export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
-export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
+export {
+  blockTypeForRm,
+  dataValueLeafTypes,
+  getValidAttachments,
+} from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";
 export { buildDemoToolbox, type ToolboxContext } from "./toolbox_demo.ts";
 
@@ -56,10 +77,13 @@ export function initBlocklyGenerators(): void {
 }
 
 function registerGenerators(): void {
-  const sourceGenerator = (block: Blockly.Block) => {
+  const sourceGenerator = (block: Block) => {
     const expr = block.getFieldValue("EXPRESSION");
     const fn = fontoxpathFnForReturnType(returnTypeFromSourceBlock(block));
-    return [`${fn}(${JSON.stringify(expr)}, sourceCtx.data)`, Order.FUNCTION_CALL] as [string, number];
+    return [
+      `${fn}(${JSON.stringify(expr)}, sourceCtx.data)`,
+      Order.FUNCTION_CALL,
+    ] as [string, number];
   };
   for (const type of SOURCE_QUERY_BLOCK_TYPES) {
     javascriptGenerator.forBlock[type] = sourceGenerator;
@@ -67,15 +91,21 @@ function registerGenerators(): void {
 
   for (const rmType of dataValueLeafTypes()) {
     const type = blockTypeForRm(rmType);
-    javascriptGenerator.forBlock[type] = (block) => generateDvConstructor(block, rmType);
+    javascriptGenerator.forBlock[type] = (block) =>
+      generateDvConstructor(block, rmType);
   }
   javascriptGenerator.forBlock["dv_quantity_value"] = (block) =>
     generateDvConstructor(block, "DV_QUANTITY");
 
   javascriptGenerator.forBlock["code_phrase"] = (block) => {
-    const code = javascriptGenerator.valueToCode(block, "FLD_code_string", Order.NONE) ||
+    const code =
+      javascriptGenerator.valueToCode(block, "FLD_code_string", Order.NONE) ||
       '""';
-    const terminology = javascriptGenerator.valueToCode(block, "FLD_terminology_id", Order.NONE) ||
+    const terminology = javascriptGenerator.valueToCode(
+      block,
+      "FLD_terminology_id",
+      Order.NONE,
+    ) ||
       '""';
     return [
       `new openehr_rm.CODE_PHRASE({ terminology_id: { value: ${terminology} }, code_string: ${code} })`,
@@ -89,12 +119,15 @@ function registerGenerators(): void {
     const code = rawCode === TERM_PICK_NONE ? "" : rawCode;
     const terminology = JSON.stringify(set?.terminologyId ?? "openehr");
     const codeJson = JSON.stringify(code);
-    const rubric = set?.codes.find((item) => item.code === code)?.rubric ?? code;
+    const rubric = set?.codes.find((item) => item.code === code)?.rubric ??
+      code;
     const phrase =
       `new openehr_rm.CODE_PHRASE({ terminology_id: { value: ${terminology} }, code_string: ${codeJson} })`;
     if (set?.valueRmType === "DV_CODED_TEXT") {
       return [
-        `new openehr_rm.DV_CODED_TEXT({ value: ${JSON.stringify(rubric)}, defining_code: ${phrase} })`,
+        `new openehr_rm.DV_CODED_TEXT({ value: ${
+          JSON.stringify(rubric)
+        }, defining_code: ${phrase} })`,
         Order.NEW,
       ] as [string, number];
     }
@@ -106,7 +139,9 @@ function registerGenerators(): void {
     const path = block.getFieldValue("PATH") || "/";
     const body = javascriptGenerator.statementToCode(block, "DO");
     return (
-      `for (const __node of evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data)) {\n` +
+      `for (const __node of evaluateXPathToNodes(${
+        JSON.stringify(path)
+      }, sourceCtx.data)) {\n` +
       `  __vars[${JSON.stringify(name)}] = __node;\n` +
       `${body}}\n`
     );
@@ -117,38 +152,57 @@ function registerGenerators(): void {
     for (const input of block.inputList) {
       if (!input.name.startsWith("ATTR_")) continue;
       const attr = input.name.slice("ATTR_".length);
-      const valueCode = javascriptGenerator.valueToCode(block, input.name, Order.NONE);
+      const valueCode = input.connection?.type === Blockly.INPUT_VALUE
+        ? javascriptGenerator.valueToCode(block, input.name, Order.NONE)
+        : "";
       if (valueCode) {
         parts.push(`${attr}: ${valueCode}`);
         continue;
       }
-      const stmt = javascriptGenerator.statementToCode(block, input.name);
+      const stmt = input.connection?.type === Blockly.NEXT_STATEMENT
+        ? javascriptGenerator.statementToCode(block, input.name)
+        : "";
       if (!stmt.trim()) continue;
       if (attr === "content") parts.push(`content: [\n${stmt}]`);
       else parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
     }
-    return `const composition = new openehr_rm.COMPOSITION({ ${parts.join(", ")} });\n`;
+    return `const composition = new openehr_rm.COMPOSITION({ ${
+      parts.join(", ")
+    } });\n`;
   };
-  javascriptGenerator.forBlock["section"] = rmObjectStatement("SECTION", ["items"]);
-  javascriptGenerator.forBlock["observation"] = rmObjectStatement("OBSERVATION", [
-    "data",
-    "state",
-    "protocol",
+  javascriptGenerator.forBlock["section"] = rmObjectStatement("SECTION", [
+    "items",
   ]);
+  javascriptGenerator.forBlock["observation"] = rmObjectStatement(
+    "OBSERVATION",
+    [
+      "data",
+      "state",
+      "protocol",
+    ],
+  );
   javascriptGenerator.forBlock["evaluation"] = rmObjectStatement("EVALUATION", [
     "data",
     "protocol",
   ]);
-  javascriptGenerator.forBlock["instruction"] = rmObjectStatement("INSTRUCTION", [
-    "activities",
-    "protocol",
-  ]);
+  javascriptGenerator.forBlock["instruction"] = rmObjectStatement(
+    "INSTRUCTION",
+    [
+      "activities",
+      "protocol",
+    ],
+  );
   javascriptGenerator.forBlock["action"] = rmObjectStatement("ACTION", [
     "description",
     "protocol",
   ]);
-  javascriptGenerator.forBlock["admin_entry"] = rmObjectStatement("ADMIN_ENTRY", ["data"]);
-  javascriptGenerator.forBlock["cluster"] = rmObjectStatement("CLUSTER", ["items"]);
+  javascriptGenerator.forBlock["admin_entry"] = rmObjectStatement(
+    "ADMIN_ENTRY",
+    ["data"],
+  );
+  javascriptGenerator.forBlock["cluster"] = rmObjectStatement("CLUSTER", [
+    "items",
+  ]);
 }
 
 export function skeletonToBlocklyXml(skeleton: SkeletonNode[]): string {
@@ -167,9 +221,9 @@ export function skeletonToBlocklyXml(skeleton: SkeletonNode[]): string {
 }
 
 function createBlockFromSkeleton(
-  workspace: Blockly.Workspace,
+  workspace: Workspace,
   node: SkeletonNode,
-): Blockly.Block | null {
+): Block | null {
   const block = workspace.newBlock(node.blockType);
   block.initSvg();
   block.render();
@@ -193,21 +247,27 @@ function createBlockFromSkeleton(
     if (!childBlock) continue;
     const input = block.inputList[inputIndex++];
     if (input?.connection) {
-      input.connection.connect(childBlock.previousConnection ?? childBlock.outputConnection);
+      input.connection.connect(
+        childBlock.previousConnection ?? childBlock.outputConnection,
+      );
     }
   }
 
   return block;
 }
 
-export function workspaceToModelJson(workspace: Blockly.Workspace): {
+export function workspaceToModelJson(workspace: Workspace): {
   slots: Array<{ slotId: string; rmType: string; expression: string }>;
 } {
-  const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
+  const slots: Array<{ slotId: string; rmType: string; expression: string }> =
+    [];
   for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "element" && !isGenericValueBlockType(block.type)) continue;
+    if (block.type !== "element" && !isGenericValueBlockType(block.type)) {
+      continue;
+    }
     const slotId = block.getFieldValue("SLOT_ID");
-    const rmType = block.getFieldValue("RM_TYPE") || block.getFieldValue("TARGET_TYPE");
+    const rmType = block.getFieldValue("RM_TYPE") ||
+      block.getFieldValue("TARGET_TYPE");
     const valueBlock = block.getInputTargetBlock("VALUE");
     const exprBlock = valueBlock && isDataValueBlock(valueBlock)
       ? expressionBlockFromDataValueShell(valueBlock)
@@ -221,7 +281,7 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
 }
 
 function rmObjectStatement(rmType: string, attrs: string[]) {
-  return (block: Blockly.Block) => {
+  return (block: Block) => {
     const parts = [`_type: ${JSON.stringify(rmType)}`];
     const seen = new Set<string>();
     const names = [
@@ -234,15 +294,26 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
       if (seen.has(attr)) continue;
       seen.add(attr);
       const inputName = rmAttributeInputName(attr);
-      const valueCode = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
+      const input = block.getInput(inputName);
+      const valueCode = input?.connection?.type === Blockly.INPUT_VALUE
+        ? javascriptGenerator.valueToCode(block, inputName, Order.NONE)
+        : "";
       if (valueCode) {
         parts.push(`${attr}: ${valueCode}`);
         continue;
       }
-      const stmt = javascriptGenerator.statementToCode(block, inputName);
+      const stmt = input?.connection?.type === Blockly.NEXT_STATEMENT
+        ? javascriptGenerator.statementToCode(block, inputName)
+        : "";
       if (!stmt.trim()) continue;
-      const asList = ["content", "items", "events", "activities"].includes(attr);
-      parts.push(asList ? `${attr}: [\n${stmt}]` : `${attr}: ${stripTrailingComma(stmt)}`);
+      const asList = ["content", "items", "events", "activities"].includes(
+        attr,
+      );
+      parts.push(
+        asList
+          ? `${attr}: [\n${stmt}]`
+          : `${attr}: ${stripTrailingComma(stmt)}`,
+      );
     }
     return `{ ${parts.join(", ")} },\n`;
   };
@@ -252,7 +323,7 @@ function stripTrailingComma(code: string): string {
   return code.trim().replace(/,\s*$/, "");
 }
 
-function generateDvConstructor(block: Blockly.Block, rmType: string): [string, number] {
+function generateDvConstructor(block: Block, rmType: string): [string, number] {
   const parts: string[] = [];
   for (const attr of attributesFor(rmType)) {
     if (!isPrimitiveRmType(attr.typeName) && attr.typeName !== "CODE_PHRASE") {
@@ -268,7 +339,9 @@ function generateDvConstructor(block: Blockly.Block, rmType: string): [string, n
     if (!code) continue;
     parts.push(`${attr.name}: ${code}`);
   }
-  if (rmType === "DV_QUANTITY" && !parts.some((p) => p.startsWith("magnitude"))) {
+  if (
+    rmType === "DV_QUANTITY" && !parts.some((p) => p.startsWith("magnitude"))
+  ) {
     const mag = javascriptGenerator.valueToCode(block, "MAGNITUDE", Order.NONE);
     if (mag) parts.push(`magnitude: ${mag}`);
     const unitsField = block.getFieldValue("UNITS");
@@ -281,7 +354,9 @@ function generateDvConstructor(block: Blockly.Block, rmType: string): [string, n
 }
 
 /** Toolbox entries for concrete DATA_VALUE leaves. */
-export function dataValueToolboxContents(): Array<{ kind: string; type: string }> {
+export function dataValueToolboxContents(): Array<
+  { kind: string; type: string }
+> {
   return dataValueLeafTypes().map((rmType) => ({
     kind: "block",
     type: blockTypeForRm(rmType),

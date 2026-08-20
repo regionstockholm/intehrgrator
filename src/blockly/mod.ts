@@ -39,6 +39,10 @@ export { createModestTheme } from "./theme.ts";
 /** @deprecated use createModestTheme */
 export { createModestTheme as createCompactTheme } from "./theme.ts";
 export { registerCompactThrasosRenderer, COMPACT_RENDERER_NAME } from "./compact_renderer.ts";
+export {
+  openWorkspaceSnapshotWindow,
+  workspaceToStandaloneSvg,
+} from "./workspace_snapshot.ts";
 export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";

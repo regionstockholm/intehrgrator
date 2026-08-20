@@ -39,6 +39,7 @@ import {
   sourceReturnTypeFromSchemaType,
   workspacePositionFromClient,
   registerCompactThrasosRenderer,
+  openWorkspaceSnapshotWindow,
 } from "../src/blockly/mod.ts";
 import {
   presentAttributeNames,
@@ -249,6 +250,11 @@ async function bootBlockly(): Promise<void> {
         callback: () => selected.firePlusClick?.(),
       });
     }
+    options.push({
+      text: "Open canvas snapshot…",
+      enabled: workspace.getTopBlocks(false).length > 0,
+      callback: () => openCanvasSnapshot(),
+    });
   };
 
   initSplitPanes(document, () => Blockly.svgResize(workspace));
@@ -473,6 +479,26 @@ bind("btn-collapse-all", () => {
   setAllBlocksCollapsed(workspace, true);
   Blockly.svgResize(workspace);
 });
+bind("btn-open-canvas", () => openCanvasSnapshot());
+
+function openCanvasSnapshot(): void {
+  const state = controller.getState();
+  const filenameBase = (state.templateId || "mapping-canvas").replace(/[^A-Za-z0-9._-]+/g, "-");
+  const title = state.templateId
+    ? `intEHRgrator — ${state.templateId}`
+    : "intEHRgrator — Mapping canvas";
+  const popup = openWorkspaceSnapshotWindow(workspace, {
+    title,
+    filenameBase,
+    onBlocked: (svgXml, base) => {
+      if (svgXml) void host.downloadText(`${base}.svg`, svgXml, "image/svg+xml");
+      statusMain.textContent = svgXml
+        ? "Popup blocked — downloaded SVG instead."
+        : "Popup blocked and the canvas is empty.";
+    },
+  });
+  if (popup) statusMain.textContent = "Opened mapping canvas snapshot.";
+}
 bind("btn-run-test", () => {
   controller.runTestNow();
   const result = controller.getState().testResult;

@@ -22,6 +22,10 @@ import {
   textValue,
 } from "ehrtslib/parser/legacy/xml_aom_mapper.ts";
 import {
+  resolveLocatableLabel,
+  TERM_ARCHETYPE_SCOPE_KEY,
+} from "ehrtslib/generation/term_scope.ts";
+import {
   resolveTemplateLanguage,
   termCodeCandidates,
 } from "ehrtslib/generation/term_codes.ts";
@@ -44,5 +48,7 @@ Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assert(hasRmType("COMPOSITION"));
   assert(isDataValueType("DV_QUANTITY"));
   assert(attributesFor("DV_QUANTITY").some((a) => a.name === "magnitude"));
+  assertEquals(typeof resolveLocatableLabel, "function");
+  assertEquals(TERM_ARCHETYPE_SCOPE_KEY, "term_archetype_scope");
   assertEquals(termCodeCandidates("at0004")[0], "at0004");
 });

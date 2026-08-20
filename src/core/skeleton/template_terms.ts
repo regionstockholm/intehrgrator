@@ -7,6 +7,14 @@ import {
   resolveTemplateLanguage,
   termCodeCandidates,
 } from "ehrtslib/generation/term_codes.ts";
+import {
+  resolveLocatableLabel,
+  TERM_ARCHETYPE_SCOPE_KEY,
+  TERM_NAME_FALLBACK_NODE_ID_KEY,
+  type OperationalTemplateWithTermScopes,
+  type TermScopeMeta,
+} from "ehrtslib/generation/term_scope.ts";
+import type { WebTemplate, WebTemplateNode } from "ehrtslib/serialization/simplified/types.ts";
 
 export type TermBag = Record<string, { text?: string; description?: string }>;
 
@@ -44,6 +52,134 @@ export function lookupTermText(terms: TermBag, nodeId?: string): string | undefi
     if (text) return text;
   }
   return undefined;
+}
+
+const ARCHETYPE_ID_RE = /^openEHR-/i;
+const TEMPLATE_SLOT_ID_RE = /^at0\.\d/i;
+/** Synthetic bag for Web Template composition roots whose nodeId is not an archetype id. */
+export const TEMPLATE_ROOT_TERM_SCOPE = "__template_root__";
+
+export function isArchetypeId(value?: string): boolean {
+  return !!value && ARCHETYPE_ID_RE.test(value);
+}
+
+export function mergeTermMaps(
+  ...maps: Array<Map<string, TermBag> | undefined>
+): Map<string, TermBag> {
+  const out = new Map<string, TermBag>();
+  for (const map of maps) {
+    if (!map) continue;
+    for (const [id, bag] of map) {
+      out.set(id, { ...out.get(id), ...bag });
+    }
+  }
+  return out;
+}
+
+export function termBagsRecord(map: Map<string, TermBag>): Record<string, TermBag> {
+  return Object.fromEntries(map);
+}
+
+/** Per-archetype bags attached by ehrtslib flattening (`flattenToOperationalTemplate`). */
+export function liveArchetypeTermsIndex(
+  opt: OperationalTemplateWithTermScopes,
+  lang: string,
+): Map<string, TermBag> {
+  const index = new Map<string, TermBag>();
+  const tables = opt.archetype_term_definitions ?? {};
+  for (const [id, table] of Object.entries(tables)) {
+    if (!table || typeof table !== "object") continue;
+    const bag = (table[lang] ?? table.en ?? Object.values(table)[0] ?? {}) as TermBag;
+    if (bag && typeof bag === "object") index.set(id, bag);
+  }
+  return index;
+}
+
+function webTemplateNodeName(node: WebTemplateNode, lang: string): string | undefined {
+  return node.localizedNames?.[lang] ?? node.name ?? node.localizedName;
+}
+
+function putTerm(index: Map<string, TermBag>, scope: string, code: string, text: string): void {
+  const bag = index.get(scope) ?? {};
+  if (!bag[code]?.text) bag[code] = { text };
+  index.set(scope, bag);
+}
+
+/**
+ * Display names from a Web Template tree, keyed by owning archetype id.
+ * Survives `webTemplateToOpt`, which flattens colliding at-codes into one ontology.
+ */
+export function buildWebTemplateTermsIndex(
+  webTemplate: WebTemplate,
+): Map<string, TermBag> {
+  const index = new Map<string, TermBag>();
+  const lang = webTemplate.defaultLanguage || "en";
+
+  function walk(node: WebTemplateNode, inherited: string | undefined): void {
+    let scope = inherited;
+    const name = webTemplateNodeName(node, lang);
+    if (isArchetypeId(node.nodeId)) {
+      scope = node.nodeId;
+      if (name) {
+        putTerm(index, scope, node.nodeId, name);
+        putTerm(index, scope, "at0000", name);
+      }
+    } else if (scope && node.nodeId && name) {
+      putTerm(index, scope, node.nodeId, name);
+    }
+    for (const child of node.children ?? []) walk(child, scope);
+  }
+
+  const root = webTemplate.tree;
+  const rootName = webTemplateNodeName(root, lang);
+  const rootScope = isArchetypeId(root.nodeId) ? root.nodeId! : TEMPLATE_ROOT_TERM_SCOPE;
+  if (rootName) {
+    if (root.nodeId) putTerm(index, rootScope, root.nodeId, rootName);
+    putTerm(index, rootScope, "at0000", rootName);
+  }
+  walk(root, isArchetypeId(root.nodeId) ? root.nodeId : rootScope);
+  return index;
+}
+
+export function termScopeOf(
+  node: TermScopeMeta & { archetype_ref?: string },
+  inherited?: string,
+): string | undefined {
+  return node[TERM_ARCHETYPE_SCOPE_KEY] ?? node.archetype_ref ?? inherited;
+}
+
+export function nameFallbackOf(
+  node: TermScopeMeta & { node_id?: string; archetype_ref?: string },
+): string | undefined {
+  const tagged = node[TERM_NAME_FALLBACK_NODE_ID_KEY];
+  if (tagged) return tagged;
+  const nodeId = node.node_id;
+  if (nodeId && TEMPLATE_SLOT_ID_RE.test(nodeId) && (node.archetype_ref || node[TERM_ARCHETYPE_SCOPE_KEY])) {
+    return "at0000";
+  }
+  return undefined;
+}
+
+export function locatableNodeLabel(
+  nodeId: string | undefined,
+  rmType: string,
+  scope: string | undefined,
+  nameFallback: string | undefined,
+  templateTerms: TermBag,
+  archetypeTerms: Record<string, TermBag>,
+): string {
+  return resolveLocatableLabel(
+    nodeId,
+    nameFallback,
+    templateTerms,
+    archetypeTerms,
+    scope,
+  ) ?? nodeId ?? rmType;
+}
+
+export function publicArchetypeRef(scope?: string): string | undefined {
+  if (!scope || scope.startsWith("__")) return undefined;
+  return scope;
 }
 
 function parseTermsOnNode(node: Record<string, unknown>): TermBag {

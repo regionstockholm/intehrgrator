@@ -3,6 +3,7 @@ import {
   parseWebTemplate,
   webTemplateToOpt,
 } from "ehrtslib/serialization/simplified/mod.ts";
+import type { TermScopeMeta } from "ehrtslib/generation/term_scope.ts";
 import type { SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,
@@ -17,10 +18,19 @@ import { isSubtypeOf } from "../rm_meta.ts";
 import {
   archetypeShortName,
   buildArchetypeTermsIndex,
+  buildWebTemplateTermsIndex,
   compositionArchetypeRef,
+  liveArchetypeTermsIndex,
+  locatableNodeLabel,
   lookupTermText,
   mergedOntologyTerms,
+  mergeTermMaps,
+  nameFallbackOf,
+  publicArchetypeRef,
   resolveOptLanguage,
+  TEMPLATE_ROOT_TERM_SCOPE,
+  termBagsRecord,
+  termScopeOf,
   type TermBag,
 } from "./template_terms.ts";
 
@@ -52,7 +62,11 @@ export function generateSkeletonFromWebTemplate(
 ): GenerateSkeletonResult {
   const webTemplate = parseWebTemplate(source);
   const opt = webTemplateToOpt(webTemplate) as AmObject;
-  const generated = generateSkeletonFromOperational(opt);
+  const generated = generateSkeletonFromOperational(
+    opt,
+    "",
+    buildWebTemplateTermsIndex(webTemplate),
+  );
   return {
     ...generated,
     templateId: generated.templateId !== "unknown"
@@ -65,6 +79,7 @@ export function generateSkeletonFromWebTemplate(
 export function generateSkeletonFromOperational(
   opt: AmObject,
   optSource = "",
+  extraArchetypeTerms?: Map<string, TermBag>,
 ): GenerateSkeletonResult {
   if (!opt?.definition) {
     throw new Error("Could not parse operational template from input");
@@ -73,10 +88,16 @@ export function generateSkeletonFromOperational(
   const templateId = opt.template_id?.value ?? opt.archetype_id?.value ?? "unknown";
   const lang = resolveOptLanguage(opt);
   const fallbackTerms = mergedOntologyTerms(opt, lang);
-  const archetypeTerms = optSource ? buildArchetypeTermsIndex(optSource) : new Map();
+  const archetypeTerms = mergeTermMaps(
+    optSource ? buildArchetypeTermsIndex(optSource) : undefined,
+    liveArchetypeTermsIndex(opt, lang),
+    extraArchetypeTerms,
+  );
+  const archetypeTermRecord = termBagsRecord(archetypeTerms);
   const rootArchetypeRef = (optSource ? compositionArchetypeRef(optSource) : undefined) ??
     (opt.definition?.archetype_ref as string | undefined) ??
-    Object.keys(archetypeTerms)[0];
+    (extraArchetypeTerms?.has(TEMPLATE_ROOT_TERM_SCOPE) ? TEMPLATE_ROOT_TERM_SCOPE : undefined) ??
+    [...archetypeTerms.keys()][0];
 
   const root = walkComplex(
     opt.definition,
@@ -84,7 +105,7 @@ export function generateSkeletonFromOperational(
     rootArchetypeRef,
     "",
     fallbackTerms,
-    archetypeTerms,
+    archetypeTermRecord,
   );
 
   return {
@@ -100,14 +121,23 @@ function walkComplex(
   archetypeRef: string | undefined,
   path: string,
   fallbackTerms: TermBag,
-  archetypeTerms: Map<string, TermBag>,
+  archetypeTerms: Record<string, TermBag>,
 ): SkeletonNode | null {
   const rmType = cObj.rm_type_name ?? "ITEM_TREE";
   const nodeId = cObj.node_id as string | undefined;
   const slotPath = path || "/";
-  const nodeArchetypeRef = (cObj.archetype_ref as string | undefined) ?? archetypeRef;
+  const nodeArchetypeRef = publicArchetypeRef(
+    termScopeOf(cObj as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
+  );
   const terms = termsForArchetype(nodeArchetypeRef, fallbackTerms, archetypeTerms);
-  const label = lookupTermText(terms, nodeId) ?? nodeId ?? rmType;
+  const label = locatableNodeLabel(
+    nodeId,
+    rmType,
+    nodeArchetypeRef ?? archetypeRef,
+    nameFallbackOf(cObj as TermScopeMeta & { node_id?: string; archetype_ref?: string }),
+    fallbackTerms,
+    archetypeTerms,
+  );
   const blockType = blockTypeForRm(rmType);
   const archetypeCtx = nodeArchetypeRef
     ? { archetypeRef: nodeArchetypeRef, archetypeShortName: archetypeShortName(nodeArchetypeRef) }
@@ -139,7 +169,7 @@ function walkComplex(
     const childNodes = walkAttribute(
       attr,
       templateId,
-      nodeArchetypeRef,
+      nodeArchetypeRef ?? archetypeRef,
       `${slotPath}/${attrName}`,
       fallbackTerms,
       archetypeTerms,
@@ -188,14 +218,15 @@ function walkAttribute(
   archetypeRef: string | undefined,
   path: string,
   fallbackTerms: TermBag,
-  archetypeTerms: Map<string, TermBag>,
+  archetypeTerms: Record<string, TermBag>,
 ): SkeletonNode[] {
   const children = (attr.children ?? []) as AmObject[];
   const nodes: SkeletonNode[] = [];
 
   for (const child of children) {
-    const childArchetypeRef = (child.archetype_ref as string | undefined) ?? archetypeRef;
-    const terms = termsForArchetype(childArchetypeRef, fallbackTerms, archetypeTerms);
+    const childArchetypeRef = publicArchetypeRef(
+      termScopeOf(child as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
+    ) ?? archetypeRef;
     const isComplex = child.attributes != null || child.rm_type_name === "ELEMENT" ||
       !String(child.rm_type_name ?? "").startsWith("DV_");
     if (isComplex && child.attributes) {
@@ -221,7 +252,14 @@ function walkAttribute(
         slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
-        label: lookupTermText(terms, nodeId) ?? nodeId ?? rmType,
+        label: locatableNodeLabel(
+          nodeId,
+          rmType,
+          childArchetypeRef,
+          nameFallbackOf(child as TermScopeMeta & { node_id?: string; archetype_ref?: string }),
+          fallbackTerms,
+          archetypeTerms,
+        ),
         archetypeNodeId: nodeId,
         archetypeId: templateId,
         rmAttribute: attr.rm_attribute_name as string | undefined,
@@ -345,10 +383,10 @@ function buildNodeForRmType(
 function termsForArchetype(
   archetypeRef: string | undefined,
   fallbackTerms: TermBag,
-  archetypeTerms: Map<string, TermBag>,
+  archetypeTerms: Record<string, TermBag>,
 ): TermBag {
-  if (archetypeRef && archetypeTerms.has(archetypeRef)) {
-    return archetypeTerms.get(archetypeRef)!;
+  if (archetypeRef && archetypeTerms[archetypeRef]) {
+    return archetypeTerms[archetypeRef]!;
   }
   return fallbackTerms;
 }

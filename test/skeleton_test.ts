@@ -1,5 +1,6 @@
 import { assertEquals, assert } from "@std/assert";
 import { join } from "@std/path";
+import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
 import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
 import {
   generateSkeleton,
@@ -61,6 +62,13 @@ Deno.test("skeleton resolves at0004 labels per archetype", () => {
   assertEquals(labels, ["Manufacturer details", "Systolic"]);
   const archetypes = at0004.map((n) => n.archetypeShortName).sort();
   assertEquals(archetypes, ["sample_blood_pressure", "sample_device"]);
+});
+
+Deno.test("ehrtslib OPT parse supplies scoped terms without XML overlay", () => {
+  const parsed = parseTemplateInput(fixture);
+  const { skeleton } = generateSkeletonFromOperational(parsed.operationalTemplate!);
+  const at0004 = flattenSkeleton(skeleton).filter((n) => n.archetypeNodeId === "at0004");
+  assertEquals(at0004.map((n) => n.label).sort(), ["Manufacturer details", "Systolic"]);
 });
 
 function flattenSkeleton(nodes: SkeletonNode[]): SkeletonNode[] {

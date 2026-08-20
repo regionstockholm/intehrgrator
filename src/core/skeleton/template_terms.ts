@@ -3,11 +3,10 @@ import {
   parseLegacyTemplateXml,
   textValue,
 } from "ehrtslib/parser/legacy/xml_aom_mapper.ts";
+import { resolveTemplateLanguage } from "ehrtslib/generation/term_codes.ts";
 import {
-  resolveTemplateLanguage,
-  termCodeCandidates,
-} from "ehrtslib/generation/term_codes.ts";
-import {
+  archetypeTermBagsForLanguage,
+  lookupTermInBag,
   resolveLocatableLabel,
   TERM_ARCHETYPE_SCOPE_KEY,
   TERM_NAME_FALLBACK_NODE_ID_KEY,
@@ -46,12 +45,7 @@ export function termTextFromEntry(val: unknown): string | undefined {
 }
 
 export function lookupTermText(terms: TermBag, nodeId?: string): string | undefined {
-  if (!nodeId) return undefined;
-  for (const code of termCodeCandidates(nodeId)) {
-    const text = termTextFromEntry(terms[code]?.text);
-    if (text) return text;
-  }
-  return undefined;
+  return lookupTermInBag(terms, nodeId);
 }
 
 const ARCHETYPE_ID_RE = /^openEHR-/i;
@@ -80,19 +74,12 @@ export function termBagsRecord(map: Map<string, TermBag>): Record<string, TermBa
   return Object.fromEntries(map);
 }
 
-/** Per-archetype bags attached by ehrtslib flattening (`flattenToOperationalTemplate`). */
+/** Per-archetype bags from ehrtslib (`flattenToOperationalTemplate` / OPT XML parse). */
 export function liveArchetypeTermsIndex(
   opt: OperationalTemplateWithTermScopes,
   lang: string,
 ): Map<string, TermBag> {
-  const index = new Map<string, TermBag>();
-  const tables = opt.archetype_term_definitions ?? {};
-  for (const [id, table] of Object.entries(tables)) {
-    if (!table || typeof table !== "object") continue;
-    const bag = (table[lang] ?? table.en ?? Object.values(table)[0] ?? {}) as TermBag;
-    if (bag && typeof bag === "object") index.set(id, bag);
-  }
-  return index;
+  return new Map(Object.entries(archetypeTermBagsForLanguage(opt, lang)));
 }
 
 function webTemplateNodeName(node: WebTemplateNode, lang: string): string | undefined {
@@ -202,7 +189,10 @@ function parseTermsOnNode(node: Record<string, unknown>): TermBag {
   return bag;
 }
 
-/** Per-archetype term tables from OPT XML (avoids merged at-code collisions). */
+/**
+ * Per-archetype term tables from OPT XML.
+ * ehrtslib `parseOptXml` now attaches the same data; this walk is a fallback overlay.
+ */
 export function buildArchetypeTermsIndex(optSource: string): Map<string, TermBag> {
   const index = new Map<string, TermBag>();
   try {

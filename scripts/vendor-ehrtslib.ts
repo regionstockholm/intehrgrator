@@ -9,6 +9,8 @@ type VendorSpec = {
 const repos: VendorSpec[] = [
   {
     dir: "ehrtslib",
+    // origin/main includes the scoped at-code / C_ARCHETYPE_ROOT fix
+    // (ErikSundvall/ehrtslib@ac845d6, 2026-08-20).
     url: "https://github.com/ErikSundvall/ehrtslib.git",
   },
   {

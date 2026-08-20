@@ -3,7 +3,10 @@ import {
   parseWebTemplate,
   webTemplateToOpt,
 } from "ehrtslib/serialization/simplified/mod.ts";
-import type { TermScopeMeta } from "ehrtslib/generation/term_scope.ts";
+import {
+  applyOperationalTemplateTermScopes,
+  type TermScopeMeta,
+} from "ehrtslib/generation/term_scope.ts";
 import type { SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,
@@ -87,6 +90,7 @@ export function generateSkeletonFromOperational(
 
   const templateId = opt.template_id?.value ?? opt.archetype_id?.value ?? "unknown";
   const lang = resolveOptLanguage(opt);
+  applyOperationalTemplateTermScopes(opt, lang);
   const fallbackTerms = mergedOntologyTerms(opt, lang);
   const archetypeTerms = mergeTermMaps(
     optSource ? buildArchetypeTermsIndex(optSource) : undefined,

@@ -1,5 +1,5 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
-import type { MappingModel, SkeletonNode } from "../types/mod.ts";
+import type { MappingLoop, MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
@@ -110,8 +110,82 @@ export function applyModelExpressions(
         attachExpressionToTarget(workspace, block, slot.expression, slot.returnType);
       }
     }
+    applyModelLoops(workspace, model);
   } finally {
     Blockly.Events.enable();
+  }
+}
+
+/** Wrap each repeating container with `for_each_source` when the model has loops. */
+export function applyModelLoops(
+  workspace: Blockly.Workspace,
+  model: MappingModel,
+): void {
+  for (const loop of model.loops ?? []) {
+    const inner = findAttachBlock(workspace, loop.attachSlotId);
+    if (!inner) continue;
+    wrapBlockWithForEachSource(workspace, inner, loop);
+  }
+}
+
+function findAttachBlock(
+  workspace: Blockly.Workspace,
+  slotId: string,
+): Blockly.Block | null {
+  let fallback: Blockly.Block | null = null;
+  for (const block of workspace.getAllBlocks(false)) {
+    if (block.getFieldValue("SLOT_ID") !== slotId) continue;
+    if (block.type === "for_each_source") continue;
+    if (block.previousConnection) return block;
+    fallback = block;
+  }
+  return fallback;
+}
+
+function wrapBlockWithForEachSource(
+  workspace: Blockly.Workspace,
+  inner: Blockly.Block,
+  loop: MappingLoop,
+): void {
+  const parent = inner.getParent();
+  if (parent?.type === "for_each_source") {
+    parent.setFieldValue(loop.varName, "VAR");
+    parent.setFieldValue(loop.path, "PATH");
+    return;
+  }
+
+  const wrap = workspace.newBlock("for_each_source");
+  wrap.setFieldValue(loop.varName, "VAR");
+  wrap.setFieldValue(loop.path, "PATH");
+  const svg = wrap as BlockSvg;
+  if (typeof document !== "undefined" && typeof svg.initSvg === "function") {
+    svg.initSvg();
+  }
+
+  const wasTop = !parent;
+  const xy = typeof inner.getRelativeToSurfaceXY === "function"
+    ? inner.getRelativeToSurfaceXY()
+    : { x: 0, y: 0 };
+  const prevTarget = inner.previousConnection?.targetConnection ?? null;
+  const nextBlock = inner.getNextBlock();
+  if (inner.previousConnection?.isConnected()) inner.previousConnection.disconnect();
+  if (inner.nextConnection?.isConnected()) inner.nextConnection.disconnect();
+
+  const doConn = wrap.getInput("DO")?.connection;
+  if (doConn && inner.previousConnection) {
+    doConn.connect(inner.previousConnection);
+  }
+  if (prevTarget && wrap.previousConnection) {
+    prevTarget.connect(wrap.previousConnection);
+  }
+  if (nextBlock?.previousConnection && wrap.nextConnection) {
+    wrap.nextConnection.connect(nextBlock.previousConnection);
+  }
+  if (wasTop && typeof wrap.moveBy === "function") {
+    wrap.moveBy(xy.x, xy.y);
+  }
+  if (typeof document !== "undefined" && typeof svg.render === "function") {
+    svg.render();
   }
 }
 

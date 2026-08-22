@@ -28,6 +28,7 @@ import {
   lockWorkspaceRootsExpanded,
   setAllBlocksCollapsed,
   applyModelExpressions,
+  applyModelLoops,
   attachOptionalRmChild,
   highlightListeningSlot,
   slotIdFromBlock,
@@ -269,9 +270,11 @@ async function bootBlockly(): Promise<void> {
       return;
     }
     if (event.type === Blockly.Events.FINISHED_LOADING || event.isUiEvent) return;
+    const derived = workspaceToModelJson(workspace);
     controller.syncFromBlockly(
       Blockly.serialization.workspaces.save(workspace),
-      workspaceToModelJson(workspace).slots,
+      derived.slots,
+      derived.loops,
     );
   });
 }
@@ -360,9 +363,12 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   }
 
   const skeletonKey = `${s.projectId}|${s.templateId}|${s.skeleton.length}`;
-  const slotSignature = s.model.slots
-    .map((slot) => `${slot.slotId}=${slot.expression}`)
-    .join("|");
+  const slotSignature = [
+    ...s.model.slots.map((slot) => `${slot.slotId}=${slot.expression}`),
+    ...(s.model.loops ?? []).map((loop) =>
+      `loop:${loop.attachSlotId}=${loop.varName}@${loop.path}`
+    ),
+  ].join("|");
 
   if (skeletonKey !== blocklySkeletonKey) {
     if (s.blocklyState && typeof s.blocklyState === "object") {
@@ -370,6 +376,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       try {
         workspace.clear();
         Blockly.serialization.workspaces.load(s.blocklyState, workspace);
+        applyModelLoops(workspace, s.model);
       } finally {
         Blockly.Events.enable();
       }

@@ -25,6 +25,13 @@ export interface OptionalRmInsertion {
   attributeName: string;
 }
 
+export interface MappingLoop {
+  attachSlotId: string;
+  varName: string;
+  /** Absolute source path of the iterated nodes (e.g. `$.measurements`). */
+  path: string;
+}
+
 export interface MappingModel {
   modelVersion: number;
   /** Target definition id. Kept as `templateId` for bundle compatibility. */
@@ -32,6 +39,8 @@ export interface MappingModel {
   targetFormat?: TargetFormatId;
   slots: MappingSlot[];
   optionalRm: OptionalRmInsertion[];
+  /** Repeatable source→target iteration (`for_each_source` / `[*]` paths). */
+  loops?: MappingLoop[];
 }
 
 export type SkeletonNodeKind = "container" | "value";
@@ -199,7 +208,7 @@ export interface ImportSuggestionsReport {
   applied: number;
   skipped: number;
   errors: string[];
-  /** Validated `loops[]` entries (Blockly placement may still be canvas-side). */
+  /** Validated `loops[]` entries; the canvas wraps `attachSlotId` with `for_each_source`. */
   loopsAccepted: number;
 }
 

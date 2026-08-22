@@ -36,42 +36,13 @@ No separate “frame this node” tree state is required for that workflow.
 
 ## Residual gap (optional, Blockly-scoped — not a tree context root)
 
-If Click-to-Map while a listening slot sits **inside** a `for_each_source` body should insert a **relative** path evaluated against the current loop node, that is a Blockly-scope concern:
+Click-to-Map inside a repeating target container now stores a **relative** path and records a Mapping Model loop. The canvas wraps that container with `for_each_source` (`VAR` / `PATH`). Test Run evaluates each `source_query` against the current loop node (`ctx.json` = that node, `vars[VAR]` bound).
 
-- Detect nearest enclosing `for_each_source` (or equivalent `with`)
-- Relativize the clicked path against the loop `PATH`
-- Optionally evaluate nested `source_query` with context node = `__vars[VAR]` instead of document root
+Do **not** clone EVENT (or other repeating) **blocks** on the canvas for each instance. The RM output list (`HISTORY.events`) is produced at Test Run by expanding the single mapped EVENT once per source node.
 
-That is **not** the same as persisting a context-boundary mark on the Source Schema tree. Prefer Blockly ancestry over kintegrate-style tree framing.
+Manual Blockly authoring is the same shape: one `for_each_source` around the repeating container; inner `source_query` paths relative to `PATH`.
 
-### Interface sketch (only if product asks for relative Click-to-Map)
-
-```ts
-/** Resolved when Click-to-Map runs inside a source loop / with block. */
-interface SourceIterationScope {
-  /** Blockly block id of the enclosing for_each_source (or future with_source). */
-  blockId: string;
-  /** Absolute fontoxpath of the iterated nodes (for_each_source PATH). */
-  iterationPath: string;
-  /** Variable name bound to the current node. */
-  varName: string;
-}
-
-interface RelativeSourceBind {
-  /** Absolute path of the clicked tree node. */
-  absolutePath: string;
-  /** Path relative to iterationPath, suitable for eval against the loop node. */
-  relativePath: string;
-  scope: SourceIterationScope;
-}
-
-// Workbench / Source Format Handler extension points (future):
-// findEnclosingSourceIteration(workspace, slotBlockId): SourceIterationScope | null
-// relativizeSourcePath(absolutePath, scope.iterationPath, format): string
-// handler.evaluate(expr, ctx, returnType, { contextNode?: unknown })
-```
-
-Until relative bind is implemented, document absolute paths + `for_each_source` as the supported pattern.
+A kintegrate-style “frame this node” mark on the Source Schema tree is still not required.
 
 ## Related
 

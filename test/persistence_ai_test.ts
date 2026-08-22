@@ -66,7 +66,7 @@ Deno.test("AI import applies Blockly source_query suggestion", () => {
   assertEquals(next.slots[0].expression, 'xpathNumber("$.vitals[1].systolic")');
 });
 
-Deno.test("AI import joins loopVar relative paths", () => {
+Deno.test("AI import keeps loopVar relative paths", () => {
   const model = createEmptyModel("t1");
   model.targetFormat = "openehr-template";
   const { model: next, report } = importSuggestions(model, {
@@ -91,11 +91,13 @@ Deno.test("AI import joins loopVar relative paths", () => {
   }, new Set(["t1/events", "t1/events/systolic"]));
   assertEquals(report.loopsAccepted, 1);
   assertEquals(report.applied, 1);
-  assertEquals(next.slots[0].expression, 'xpathNumber("$.vitals/systolic")');
+  assertEquals(next.slots[0].expression, 'xpathNumber("systolic")');
+  assertEquals(next.loops, [{ attachSlotId: "t1/events", varName: "vital", path: "$.vitals" }]);
 });
 
 Deno.test("joinLoopPath", () => {
-  assertEquals(joinLoopPath("$.vitals", "systolic"), "$.vitals/systolic");
+  assertEquals(joinLoopPath("$.vitals", "systolic"), "$.vitals[*].systolic");
+  assertEquals(joinLoopPath("$.vitals[*]", "systolic"), "$.vitals[*].systolic");
   assertEquals(joinLoopPath("/patient/vitals", "systolic"), "/patient/vitals/systolic");
   assertEquals(joinLoopPath("$.vitals", "$.other"), "$.other");
 });

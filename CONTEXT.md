@@ -37,7 +37,7 @@ Adapter seam (`load`, `render`) that turns a target definition into a Template S
 _Avoid_: Target Format Handler (old name), Target parser union
 
 **Source iteration (`for_each_source`)**:
-Blockly loop that binds each node from a multi-valued Source Path to a named variable. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`.
+Blockly loop that binds each node from a multi-valued Source Path to a named variable. Click-to-Map under a repeating target container stores relative source paths and wraps that container with this block. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`.
 _Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
 
 **Mapping Editor**:

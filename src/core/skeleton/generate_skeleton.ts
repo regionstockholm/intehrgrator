@@ -124,13 +124,13 @@ function walkComplex(
   archetypeTerms: Record<string, TermBag>,
 ): SkeletonNode | null {
   const rmType = cObj.rm_type_name ?? "ITEM_TREE";
-  const nodeId = cObj.node_id as string | undefined;
+  const { nodeId, nameHint } = splitAqlStyleNodeId(cObj.node_id as string | undefined);
   const slotPath = path || "/";
   const nodeArchetypeRef = publicArchetypeRef(
     termScopeOf(cObj as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
   );
   const terms = termsForArchetype(nodeArchetypeRef, fallbackTerms, archetypeTerms);
-  const label = locatableNodeLabel(
+  const label = nameHint || locatableNodeLabel(
     nodeId,
     rmType,
     nodeArchetypeRef ?? archetypeRef,
@@ -142,6 +142,8 @@ function walkComplex(
   const archetypeCtx = nodeArchetypeRef
     ? { archetypeRef: nodeArchetypeRef, archetypeShortName: archetypeShortName(nodeArchetypeRef) }
     : {};
+  const multiplicity = multiplicityOfAm(cObj);
+  const mandatory = isMandatory(cObj);
 
   if (isDataValueType(rmType)) {
     return {
@@ -153,7 +155,8 @@ function walkComplex(
       archetypeId: templateId,
       ...archetypeCtx,
       kind: "value",
-      mandatory: isMandatory(cObj),
+      mandatory,
+      multiplicity,
       children: [],
       fixedFields: extractFixedFields(cObj),
     };
@@ -197,6 +200,15 @@ function walkComplex(
     }
   }
 
+  if (rmType === "ELEMENT") {
+    for (const child of children) {
+      if (child.kind === "value" && isDataValueType(child.rmType)) {
+        if (!child.label || child.label === child.rmType) child.label = label;
+        if (!child.archetypeNodeId) child.archetypeNodeId = nodeId;
+      }
+    }
+  }
+
   return {
     slotId: `${templateId}${slotPath}`,
     blockType,
@@ -206,7 +218,8 @@ function walkComplex(
     archetypeId: templateId,
     ...archetypeCtx,
     kind: "container",
-    mandatory: isMandatory(cObj),
+    mandatory,
+    multiplicity,
     children,
     attachmentPoint: slotPath,
   };
@@ -227,21 +240,20 @@ function walkAttribute(
     const childArchetypeRef = publicArchetypeRef(
       termScopeOf(child as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
     ) ?? archetypeRef;
-    const isComplex = child.attributes != null || child.rm_type_name === "ELEMENT" ||
-      !String(child.rm_type_name ?? "").startsWith("DV_");
-    if (isComplex && child.attributes) {
+    const rmType = child.rm_type_name ?? "DV_TEXT";
+    const { nodeId, nameHint } = splitAqlStyleNodeId(child.node_id as string | undefined);
+    const isDv = isDataValueType(rmType);
+    if (!isDv || child.attributes) {
       const node = walkComplex(
         child,
         templateId,
         childArchetypeRef,
-        `${path}/${child.node_id ?? child.rm_type_name}`,
+        `${path}/${pathNodeSegment(nodeId, rmType)}`,
         fallbackTerms,
         archetypeTerms,
       );
       if (node) nodes.push(node);
     } else {
-      const rmType = child.rm_type_name ?? "DV_TEXT";
-      const nodeId = child.node_id as string | undefined;
       const archetypeCtx = childArchetypeRef
         ? {
           archetypeRef: childArchetypeRef,
@@ -252,7 +264,7 @@ function walkAttribute(
         slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
-        label: locatableNodeLabel(
+        label: nameHint || locatableNodeLabel(
           nodeId,
           rmType,
           childArchetypeRef,
@@ -266,6 +278,7 @@ function walkAttribute(
         ...archetypeCtx,
         kind: "value",
         mandatory: isMandatory(child),
+        multiplicity: multiplicityOfAm(child),
         children: [],
         fixedFields: extractFixedFields(child),
       });
@@ -445,6 +458,85 @@ function isMandatory(cObj: AmObject): boolean {
   if (!occ) return false;
   const lower = Number(occ.lower ?? 0);
   return lower > 0;
+}
+
+const AQL_NAME_PRED = /^(.*),'([^']+)'$/;
+
+/** Split Better/AQL-style node ids such as `at0002,'Injury'` or `openEHR-EHR-SECTION.adhoc.v1,'Vital signs'`. */
+export function splitAqlStyleNodeId(nodeId?: string): { nodeId?: string; nameHint?: string } {
+  if (!nodeId) return {};
+  const match = AQL_NAME_PRED.exec(nodeId);
+  if (match) return { nodeId: match[1], nameHint: match[2] };
+  return { nodeId };
+}
+
+function pathNodeSegment(nodeId: string | undefined, rmType: string): string {
+  return nodeId || rmType;
+}
+
+export function multiplicityOfAm(cObj: AmObject): string | undefined {
+  const occ = cObj?.occurrences ?? cObj?.existence;
+  if (!occ) return undefined;
+  const lower = Number(occ.lower ?? 0);
+  const unbounded = occ.upper_unbounded === true ||
+    occ._upper_unbounded === true ||
+    occ._upper_unbounded?.value === true;
+  const upperRaw = occ.upper ?? occ._upper;
+  const upper = unbounded || upperRaw == null ? null : Number(upperRaw);
+  if (upper == null || Number.isNaN(upper) || upper < 0) {
+    return lower > 0 ? "1..*" : "0..*";
+  }
+  if (upper === 1) return lower > 0 ? "1" : "0..1";
+  return `${lower}..${upper}`;
+}
+
+export function isRepeatingMultiplicity(multiplicity?: string): boolean {
+  return Boolean(multiplicity && multiplicity.includes("*"));
+}
+
+export function collectRepeatableContainers(nodes: SkeletonNode[]): SkeletonNode[] {
+  const out: SkeletonNode[] = [];
+  for (const node of nodes) {
+    if (node.kind === "container" && isRepeatingMultiplicity(node.multiplicity)) {
+      out.push(node);
+    }
+    out.push(...collectRepeatableContainers(node.children));
+  }
+  return out;
+}
+
+export function collectAllSlotIds(nodes: SkeletonNode[]): string[] {
+  const out: string[] = [];
+  for (const node of nodes) {
+    out.push(node.slotId);
+    out.push(...collectAllSlotIds(node.children));
+  }
+  return out;
+}
+
+export function findSkeletonTrail(nodes: SkeletonNode[], slotId: string): SkeletonNode[] {
+  function walk(node: SkeletonNode, trail: SkeletonNode[]): SkeletonNode[] | null {
+    const next = [...trail, node];
+    if (node.slotId === slotId) return next;
+    for (const child of node.children) {
+      const hit = walk(child, next);
+      if (hit) return hit;
+    }
+    return null;
+  }
+  for (const root of nodes) {
+    const hit = walk(root, []);
+    if (hit) return hit;
+  }
+  return [];
+}
+
+export function nearestRepeatingContainer(trail: SkeletonNode[]): SkeletonNode | null {
+  for (let i = trail.length - 1; i >= 0; i--) {
+    const node = trail[i]!;
+    if (node.kind === "container" && isRepeatingMultiplicity(node.multiplicity)) return node;
+  }
+  return null;
 }
 
 function applyRmConstrainedFields(node: SkeletonNode, parentRmType: string): void {

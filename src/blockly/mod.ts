@@ -1,7 +1,7 @@
 import * as Blockly from "blockly/core";
 import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
-import type { SkeletonNode } from "../types/mod.ts";
+import type { MappingLoop, SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName } from "./blocks/rm_blocks.ts";
 import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
@@ -17,6 +17,7 @@ import {
 
 export {
   applyModelExpressions,
+  applyModelLoops,
   attachOptionalRmChild,
   highlightListeningSlot,
   loadSkeletonIntoWorkspace,
@@ -104,11 +105,14 @@ function registerGenerators(): void {
   javascriptGenerator.forBlock["for_each_source"] = (block) => {
     const name = block.getFieldValue("VAR") || "item";
     const path = block.getFieldValue("PATH") || "/";
-    const body = javascriptGenerator.statementToCode(block, "DO");
+    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__node";
+    const body = javascriptGenerator.statementToCode(block, "DO").trim();
+    const returned = body ? stripTrailingComma(body) : "null";
     return (
-      `for (const __node of evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data)) {\n` +
-      `  __vars[${JSON.stringify(name)}] = __node;\n` +
-      `${body}}\n`
+      `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}) => {\n` +
+      `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+      `  return ${returned};\n` +
+      `}),\n`
     );
   };
 
@@ -117,15 +121,14 @@ function registerGenerators(): void {
     for (const input of block.inputList) {
       if (!input.name.startsWith("ATTR_")) continue;
       const attr = input.name.slice("ATTR_".length);
-      const valueCode = javascriptGenerator.valueToCode(block, input.name, Order.NONE);
-      if (valueCode) {
-        parts.push(`${attr}: ${valueCode}`);
+      const stmt = javascriptGenerator.statementToCode(block, input.name);
+      if (stmt.trim()) {
+        if (attr === "content") parts.push(`content: [\n${stmt}]`);
+        else parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
         continue;
       }
-      const stmt = javascriptGenerator.statementToCode(block, input.name);
-      if (!stmt.trim()) continue;
-      if (attr === "content") parts.push(`content: [\n${stmt}]`);
-      else parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
+      const valueCode = javascriptGenerator.valueToCode(block, input.name, Order.NONE);
+      if (valueCode) parts.push(`${attr}: ${valueCode}`);
     }
     return `const composition = new openehr_rm.COMPOSITION({ ${parts.join(", ")} });\n`;
   };
@@ -202,22 +205,54 @@ function createBlockFromSkeleton(
 
 export function workspaceToModelJson(workspace: Blockly.Workspace): {
   slots: Array<{ slotId: string; rmType: string; expression: string }>;
+  loops: MappingLoop[];
 } {
   const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
+  const seen = new Set<string>();
   for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "element" && !isGenericValueBlockType(block.type)) continue;
+    if (block.type !== "element" && !isGenericValueBlockType(block.type) && !isDataValueBlock(block)) {
+      continue;
+    }
     const slotId = block.getFieldValue("SLOT_ID");
     const rmType = block.getFieldValue("RM_TYPE") || block.getFieldValue("TARGET_TYPE");
     const valueBlock = block.getInputTargetBlock("VALUE");
     const exprBlock = valueBlock && isDataValueBlock(valueBlock)
       ? expressionBlockFromDataValueShell(valueBlock)
+      : isDataValueBlock(block)
+      ? expressionBlockFromDataValueShell(block)
       : valueBlock;
     const expression = blockToExpression(exprBlock);
-    if (slotId && expression) {
+    if (slotId && expression && !seen.has(slotId)) {
+      seen.add(slotId);
       slots.push({ slotId, rmType, expression });
     }
   }
-  return { slots };
+  return { slots, loops: loopsFromWorkspace(workspace) };
+}
+
+function loopsFromWorkspace(workspace: Blockly.Workspace): MappingLoop[] {
+  const loops: MappingLoop[] = [];
+  for (const block of workspace.getAllBlocks(false)) {
+    if (block.type !== "for_each_source") continue;
+    const inner = block.getInputTargetBlock("DO");
+    const attachSlotId = firstSlotIdInStack(inner);
+    const varName = String(block.getFieldValue("VAR") || "");
+    const path = String(block.getFieldValue("PATH") || "");
+    if (attachSlotId && varName && path) {
+      loops.push({ attachSlotId, varName, path });
+    }
+  }
+  return loops;
+}
+
+function firstSlotIdInStack(block: Blockly.Block | null): string | null {
+  let current = block;
+  while (current) {
+    const slotId = current.getFieldValue("SLOT_ID");
+    if (slotId) return slotId;
+    current = current.getNextBlock();
+  }
+  return null;
 }
 
 function rmObjectStatement(rmType: string, attrs: string[]) {
@@ -234,6 +269,14 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
       if (seen.has(attr)) continue;
       seen.add(attr);
       const inputName = rmAttributeInputName(attr);
+      const asList = ["content", "items", "events", "activities"].includes(attr);
+      if (asList) {
+        const stmt = javascriptGenerator.statementToCode(block, inputName);
+        if (stmt.trim()) {
+          parts.push(`${attr}: [\n${stmt}]`);
+          continue;
+        }
+      }
       const valueCode = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
       if (valueCode) {
         parts.push(`${attr}: ${valueCode}`);
@@ -241,8 +284,7 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
       }
       const stmt = javascriptGenerator.statementToCode(block, inputName);
       if (!stmt.trim()) continue;
-      const asList = ["content", "items", "events", "activities"].includes(attr);
-      parts.push(asList ? `${attr}: [\n${stmt}]` : `${attr}: ${stripTrailingComma(stmt)}`);
+      parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
     }
     return `{ ${parts.join(", ")} },\n`;
   };

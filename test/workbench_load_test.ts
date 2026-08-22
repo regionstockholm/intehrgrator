@@ -242,3 +242,28 @@ Deno.test("controller surfaces fetch failure when loading schema from URL", asyn
   assert(state.schemaError);
   assertStringIncludes(state.schemaError, "404");
 });
+
+Deno.test("mapNodeToSlot promotes indexed JSON paths onto repeating EVENT slots", async () => {
+  const wt = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "../vendor/openEHR-model-examples/local/theme-packs/sport-event-details/templates/Accident report including vital signs.wt.json",
+    ),
+  );
+  const example = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-inst.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);
+  controller.addExampleContent("bp-series-inst.json", example);
+  const rate = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.slotId.includes("OBSERVATION.pulse.v2") &&
+    s.slotId.includes("items/at0004/") &&
+    s.rmType === "DV_QUANTITY"
+  );
+  assert(rate);
+  controller.mapNodeToSlot(rate.slotId, "$.measurements[1].pulse", "json");
+  const mapped = controller.getState().model.slots.find((s) => s.slotId === rate.slotId);
+  assertEquals(mapped?.expression, 'xpathNumber("pulse")');
+  assertEquals(controller.getState().model.loops?.[0]?.path, "$.measurements");
+});

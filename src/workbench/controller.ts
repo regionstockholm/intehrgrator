@@ -1,5 +1,6 @@
 import type {
   ExportTarget,
+  MappingLoop,
   MappingModel,
   ProjectBundle,
   ProjectSettings,
@@ -19,11 +20,14 @@ import {
   importBundle,
 } from "../core/persistence/mod.ts";
 import { DEFAULT_SETTINGS } from "../types/mod.ts";
-import { collectValueSlots } from "../core/skeleton/generate_skeleton.ts";
+import { collectValueSlots, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
 import {
   applyExpressionEdit,
   countUnmappedMandatory,
   createEmptyModel,
+  promoteIndexedSourcePath,
+  relativePathFromLoop,
+  upsertLoop,
   validateModel,
 } from "../core/mapping_model/mod.ts";
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
@@ -441,7 +445,19 @@ export class WorkbenchController {
   mapNodeToSlot(slotId: string, path: string, format: SourceFormatId): void {
     const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === slotId);
     if (!slot) return;
-    const xpath = getSourceFormatHandler(format).pathToExpression(path);
+    let xpath = getSourceFormatHandler(format).pathToExpression(path);
+    const repeating = nearestRepeatingContainer(findSkeletonTrail(this.skeleton, slotId));
+    if (repeating) {
+      const promoted = promoteIndexedSourcePath(xpath);
+      if (promoted) {
+        xpath = relativePathFromLoop(promoted.mappedPath, promoted.loopPath);
+        this.model = upsertLoop(this.model, {
+          attachSlotId: repeating.slotId,
+          varName: promoted.varName,
+          path: promoted.loopPath,
+        });
+      }
+    }
     const expr = buildSourceQueryExpression(xpath, returnTypeForTarget(slot.rmType));
     this.model = applyExpressionEdit(this.model, slot.slotId, expr, {
       rmType: slot.rmType,
@@ -496,11 +512,13 @@ export class WorkbenchController {
   syncFromBlockly(
     blocklyState: unknown,
     slots: Array<{ slotId: string; rmType: string; expression: string }>,
+    loops: MappingLoop[] = [],
   ): void {
     if (!this.templateId) return;
     let next = createEmptyModel(this.templateId);
     next.targetFormat = this.target?.format;
     next.optionalRm = [...this.model.optionalRm];
+    next.loops = loops.length ? loops : [...(this.model.loops ?? [])];
     const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
     for (const item of slots) {
       const targetSlot = targetSlots.get(item.slotId);

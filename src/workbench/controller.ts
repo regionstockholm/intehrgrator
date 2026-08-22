@@ -562,6 +562,14 @@ export class WorkbenchController {
     void this.host.downloadText(`${base}.mapping-spec.txt`, text, "text/plain");
   }
 
+  /** Full Blockly workspace JSON (canonical mapping definition, includes x/y). */
+  exportBlocklyDefinition(): void {
+    const state = this.getBlocklyState?.() ?? this.blocklyState;
+    const text = formatBlocklyState(state) || "{}";
+    const base = safeFilename(this.templateId || this.projectId || "mapping");
+    void this.host.downloadText(`${base}.blockly.json`, text, "application/json");
+  }
+
   async saveProjectAs(displayName: string): Promise<void> {
     const name = displayName.trim();
     if (!name) throw new Error("Project name is required");

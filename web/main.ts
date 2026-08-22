@@ -480,6 +480,7 @@ bind("btn-collapse-all", () => {
   Blockly.svgResize(workspace);
 });
 bind("btn-open-canvas", () => openCanvasSnapshot());
+bind("btn-download-blockly", () => controller.exportBlocklyDefinition());
 
 function openCanvasSnapshot(): void {
   const state = controller.getState();

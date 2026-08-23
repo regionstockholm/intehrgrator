@@ -20,6 +20,7 @@ import {
 } from "../src/workbench/codemirror_setup.ts";
 import {
   createMappingSpecEditor,
+  mappingSpecDocumentText,
   setMappingSpecFromBlockly,
 } from "../src/workbench/mapping_spec/mod.ts";
 import {
@@ -1160,6 +1161,12 @@ function installWorkbenchTestApi(): void {
     findSlotIdBySuffix(suffix) {
       const slots = collectValueSlots(controller.getState().skeleton);
       return slots.find((slot) => slot.slotId.endsWith(suffix))?.slotId ?? null;
+    },
+    getMappingSpecDocument() {
+      return mappingSpecDocumentText(specEditor);
+    },
+    loadBlocklyJson(filename, content) {
+      controller.loadBlocklyDefinition(filename, content);
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

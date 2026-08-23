@@ -72,6 +72,7 @@ function defineValueBlock(
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
       this.getField("SLOT_ID")?.setVisible(false);
+      appendHiddenTargetMandatory(this);
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
@@ -79,6 +80,13 @@ function defineValueBlock(
       this.setInputsInline(true);
     },
   };
+}
+
+function appendHiddenTargetMandatory(block: Block): void {
+  if (block.getField("MANDATORY")) return;
+  block.appendDummyInput()
+    .appendField(new Blockly.FieldLabelSerializable(""), "MANDATORY");
+  block.getField("MANDATORY")?.setVisible(false);
 }
 
 export function syncTargetChildInputs(

@@ -173,6 +173,7 @@ function walkComplex(
     const attrName = attr.rm_attribute_name as string | undefined;
     if (!attrName) continue;
     presentAttrs.add(attrName);
+    const slotCard = multiplicityOfAttribute(attr);
     const childNodes = walkAttribute(
       attr,
       templateId,
@@ -183,6 +184,7 @@ function walkComplex(
     );
     for (const child of childNodes) {
       child.rmAttribute = attrName;
+      child.slotCardinality = slotCard ?? child.multiplicity;
       applyRmConstrainedFields(child, rmType);
       children.push(child);
     }
@@ -200,6 +202,7 @@ function walkComplex(
     );
     if (silent) {
       silent.rmAttribute = attrName;
+      silent.slotCardinality = silent.slotCardinality ?? silent.multiplicity;
       children.push(silent);
     }
   }
@@ -313,6 +316,7 @@ function buildSilentMandatoryNode(
   node.rmAttribute = attrName;
   node.mandatory = true;
   node.silentMandatory = true;
+  node.slotCardinality = node.slotCardinality ?? node.multiplicity;
   applyRmConstrainedFields(node, parentRmType);
   return node;
 }
@@ -492,6 +496,19 @@ export function multiplicityOfAm(cObj: AmObject): string | undefined {
   }
   if (upper === 1) return lower > 0 ? "1" : "0..1";
   return `${lower}..${upper}`;
+}
+
+function multiplicityOfAttribute(attr: AmObject): string | undefined {
+  if (!attr) return undefined;
+  const card = attr.cardinality;
+  if (card) {
+    const interval = card.interval ?? card;
+    return multiplicityOfAm({ occurrences: interval });
+  }
+  if (attr.existence) {
+    return multiplicityOfAm({ occurrences: attr.existence });
+  }
+  return undefined;
 }
 
 export function isRepeatingMultiplicity(multiplicity?: string): boolean {

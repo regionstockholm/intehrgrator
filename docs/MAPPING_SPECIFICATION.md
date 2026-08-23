@@ -4,11 +4,12 @@ The canonical Mapping Specification is Blockly workspace JSON from
 `Blockly.serialization.workspaces.save`. It is persisted in
 `ProjectBundle.mapping.blocklyState`.
 
-The Mapping Editor **Mapping Spec** tab shows a dense, line-numbered
-**projection** of that JSON: recurring constructs become CodeMirror widgets
-(containers, value slots, `DV_*` shells, `source_query`). Layout chrome such as
-`x`/`y` is omitted from the view; an ⓘ control reveals those details. Only safe
-fields are editable in the Spec (v1: `source_query` expression and return type);
+The Mapping Editor **Mapping Spec** tab stores the **full Blockly workspace
+JSON** as the CodeMirror document (`JSON.stringify(blocklyState, null, 2)`).
+Visual widgets overlay each block `"type"` line and hide layout chrome such as
+`x`/`y`; an ⓘ control still reveals those details. Download/Upload round-trip
+that same JSON so a mapping can be reproduced exactly. Only safe fields are
+editable in the Spec widgets (v1: `source_query` expression and return type);
 structure changes stay in Blockly.
 
 The former private `@template ...` DSL has been removed. It duplicated Blockly

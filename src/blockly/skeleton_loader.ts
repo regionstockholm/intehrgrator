@@ -13,7 +13,6 @@ import {
   connectExpressionToDataValueShell,
   ensureElementDataValueShell,
   ensureRmBlockType,
-  expressionBlockFromDataValueShell,
   isDataValueBlock,
   optionalRmInputName,
   rmAttributeInputName,
@@ -27,6 +26,12 @@ import {
   syncTargetChildInputs,
   targetChildInputName,
 } from "./blocks/target_blocks.ts";
+import { refreshWorkspaceConstraints } from "./block_constraints.ts";
+import {
+  parseSlotCardinality,
+  rmAttributeCardinality,
+  type SlotCardinality,
+} from "./slot_cardinality.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -51,6 +56,7 @@ export function loadSkeletonIntoWorkspace(
     setAllBlocksCollapsed(workspace, false);
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);
+    refreshWorkspaceConstraints(workspace);
   } finally {
     Blockly.Events.enable();
   }
@@ -244,6 +250,7 @@ export function attachOptionalRmChild(
     : optionalRmInputName(insertion.attributeName);
   connectAttributeChildren(parent, inputName, [child]);
   refreshBlockLayout(parent as BlockSvg);
+  refreshWorkspaceConstraints(workspace);
   return child;
 }
 
@@ -325,7 +332,7 @@ function buildTargetValueBlock(
     block.setPreviousStatement(true);
     block.setNextStatement(true);
   }
-  if (node.mandatory) block.setWarningText("Unmapped mandatory value");
+  setMandatoryFlag(block, node.mandatory);
   return finalizeBlock(block);
 }
 
@@ -398,16 +405,23 @@ function buildContainerBlock(
         .filter((attr): attr is string => Boolean(attr)),
     ),
   ];
-  syncRmAttributeInputs(block, node.rmType, attributes);
+  const cards: Record<string, SlotCardinality> = {};
+  for (const attr of attributes) {
+    const kids = visibleChildren.filter((child) => child.rmAttribute === attr);
+    const raw = kids[0]?.slotCardinality ?? kids[0]?.multiplicity;
+    const parsed = parseSlotCardinality(raw) ??
+      rmAttributeCardinality(node.rmType, attr);
+    if (parsed) cards[attr] = parsed;
+  }
+  block.slotCardinalities_ = cards;
+  syncRmAttributeInputs(block, node.rmType, attributes, cards);
 
   if (!isRoot && !block.outputConnection) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);
   }
 
-  if (node.mandatory) {
-    block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
-  }
+  setMandatoryFlag(block, node.mandatory);
 
   // Initialise SVG before nesting children so puzzle-tab sockets measure correctly.
   finalizeBlock(block);
@@ -446,16 +460,14 @@ function buildElementBlock(
     block.setNextStatement(true);
   }
 
-  if (node.mandatory && primary && !hasMappedExpression(block)) {
-    block.setWarningText("Unmapped mandatory value");
-  }
+  const valueMandatory = Boolean(
+    (primary?.mandatory ?? false) || Boolean(node.mandatory && primary),
+  );
+  setMandatoryFlag(block, valueMandatory);
 
   // Render the ELEMENT shell before attaching the typed DATA_VALUE child.
   finalizeBlock(block);
 
-  const valueMandatory = Boolean(
-    (primary?.mandatory ?? false) || (node.mandatory && primary),
-  );
   if (valueMandatory && primary && isDataValueType(dvType)) {
     const shell = ensureElementDataValueShell(workspace, block, dvType);
     if (shell) applyFixedFieldsToDataValueShell(workspace, shell, primary.fixedFields ?? node.fixedFields);
@@ -477,9 +489,7 @@ function buildTypedValueBlock(
   if (termSet) {
     const code = node.fixedFields?.code_string ?? node.fixedFields?.defining_code;
     const block = createTermPickBlock(workspace, termSet, code, node.slotId);
-    if (node.mandatory && !code) {
-      block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
-    }
+    setMandatoryFlag(block, node.mandatory);
     return finalizeBlock(block);
   }
 
@@ -491,9 +501,7 @@ function buildTypedValueBlock(
   setFieldIfPresent(block, "RM_TYPE", node.rmType);
   setFieldIfPresent(block, "SLOT_ID", node.slotId);
   applySkeletonBlockLabels(block, node);
-  if (node.mandatory) {
-    block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
-  }
+  setMandatoryFlag(block, node.mandatory);
   finalizeBlock(block);
   applyFixedFieldsToDataValueShell(workspace, block, node.fixedFields);
   refreshBlockLayout(block);
@@ -660,11 +668,6 @@ function setFieldIfPresent(block: Blockly.Block, name: string, value: string): v
   if (field) field.setValue(value);
 }
 
-function hasMappedExpression(block: Blockly.Block): boolean {
-  const valueBlock = block.getInput("VALUE")?.connection?.targetBlock();
-  if (!valueBlock) return false;
-  if (isDataValueBlock(valueBlock)) {
-    return Boolean(expressionBlockFromDataValueShell(valueBlock));
-  }
-  return true;
+function setMandatoryFlag(block: Blockly.Block, mandatory: boolean): void {
+  setFieldIfPresent(block, "MANDATORY", mandatory ? "1" : "");
 }

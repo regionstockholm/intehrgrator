@@ -22,9 +22,23 @@ import { blocklyCheckForDv } from "../block_checks.ts";
 import {
   appendBlockOutputEmoji,
   appendSlotTypeEmoji,
+  isRmTypeEmojiField,
+  BLOCK_OUT_EMOJI_FIELD,
   slotRmTypeForAttr,
 } from "../rm_type_emoji.ts";
+import {
+  appendSlotCardinality,
+  parseSlotCardinality,
+  rmAttributeCardinality,
+  type SlotCardinality,
+} from "../slot_cardinality.ts";
 import { registerTermPickBlock } from "./term_pick.ts";
+
+export const EVENT_KIND_OPTIONS: Array<[string, string]> = [
+  ["EVENT", "EVENT"],
+  ["POINT_EVENT", "POINT_EVENT"],
+  ["INTERVAL_EVENT", "INTERVAL_EVENT"],
+];
 
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
@@ -63,6 +77,11 @@ const EXTRA_RM_CONTAINERS = [
   "ARCHETYPED",
   "GENERIC_ENTRY",
 ];
+
+export function isEventFamilyType(rmType: string): boolean {
+  const name = (rmType || "").toUpperCase();
+  return name === "EVENT" || isSubtypeOf(name, "EVENT");
+}
 
 export function isRmContainerBlockType(type: string): boolean {
   if (RM_CONTAINER_TYPES.has(type) || type === "element") return true;
@@ -269,16 +288,161 @@ export function syncRmAttributeInputs(
   block: Blockly.Block,
   rmType: string,
   attributes: string[],
+  cardinalities?: Record<string, SlotCardinality>,
 ): void {
+  const saved = snapshotAttributeConnections(block);
   for (const input of [...block.inputList]) {
     if (input.name.startsWith(RM_ATTR_INPUT_PREFIX)) {
       block.removeInput(input.name);
     }
   }
   for (const attr of orderedRmAttributes(rmType, attributes)) {
-    appendRmAttributeInput(block, rmType, attr);
+    appendRmAttributeInput(
+      block,
+      rmType,
+      attr,
+      undefined,
+      cardinalities?.[attr] ?? slotCardinalityFor(block, rmType, attr),
+    );
   }
+  restoreAttributeConnections(block, saved);
   ensurePlusButton(block);
+}
+
+/**
+ * Switch an EVENT-family block between EVENT / POINT_EVENT / INTERVAL_EVENT
+ * without dropping already-attached children. Extra INTERVAL_EVENT fields
+ * appear when needed; filled extras are kept if the user switches away.
+ */
+export function applyEventRmType(block: Blockly.Block, newType: string): void {
+  const next = (newType || "").toUpperCase();
+  if (!isEventFamilyType(next)) return;
+
+  const current = String(block.getFieldValue("RM_TYPE") || "").toUpperCase();
+  if (current !== next && block.getField("RM_TYPE")) {
+    block.setFieldValue(next, "RM_TYPE");
+  }
+
+  const emoji = block.getField(BLOCK_OUT_EMOJI_FIELD);
+  if (isRmTypeEmojiField(emoji)) emoji.setRmType(next);
+
+  const connected = presentAttributeNames(block).filter((name) =>
+    Boolean(
+      block.getInput(rmAttributeInputName(name))?.connection?.targetBlock() ||
+        block.getInput(optionalRmInputName(name))?.connection?.targetBlock(),
+    )
+  );
+  const show = eventAttributesToShow(next, connected);
+  const cards = { ...(block.slotCardinalities_ ?? {}) };
+  syncRmAttributeInputs(block, next, show, cards);
+  if (typeof block.render === "function" && typeof document !== "undefined") {
+    block.render();
+  }
+}
+
+function eventAttributesToShow(rmType: string, connected: string[]): string[] {
+  const names = new Set<string>(connected);
+  for (const attr of ["time", "data"]) names.add(attr);
+  if (rmType === "INTERVAL_EVENT") {
+    names.add("width");
+    names.add("math_function");
+    names.add("sample_count");
+  }
+  return [...names];
+}
+
+function slotCardinalityFor(
+  block: Blockly.Block,
+  rmType: string,
+  attr: string,
+): SlotCardinality | undefined {
+  return block.slotCardinalities_?.[attr] ??
+    rmAttributeCardinality(rmType, attr) ??
+    parseSlotCardinality("0..1");
+}
+
+function snapshotAttributeConnections(
+  block: Blockly.Block,
+): Record<string, Blockly.Block[]> {
+  const saved: Record<string, Blockly.Block[]> = {};
+  for (const input of [...block.inputList]) {
+    if (!input.name.startsWith(RM_ATTR_INPUT_PREFIX)) continue;
+    const attr = input.name.slice(RM_ATTR_INPUT_PREFIX.length);
+    const first = input.connection?.targetBlock();
+    if (!first) continue;
+    const chain: Blockly.Block[] = [];
+    if (first.outputConnection && !first.previousConnection) {
+      first.outputConnection.disconnect();
+      chain.push(first);
+    } else {
+      let current: Blockly.Block | null = first;
+      while (current) {
+        const next = current.getNextBlock();
+        if (current.nextConnection?.isConnected()) current.nextConnection.disconnect();
+        if (current.previousConnection?.isConnected()) {
+          current.previousConnection.disconnect();
+        }
+        chain.push(current);
+        current = next;
+      }
+    }
+    saved[attr] = chain;
+  }
+  return saved;
+}
+
+function restoreAttributeConnections(
+  block: Blockly.Block,
+  saved: Record<string, Blockly.Block[]>,
+): void {
+  for (const [attr, blocks] of Object.entries(saved)) {
+    const input = block.getInput(rmAttributeInputName(attr)) ??
+      block.getInput(optionalRmInputName(attr));
+    if (!input?.connection || !blocks.length) continue;
+    const head = blocks[0]!;
+    const headConn = head.outputConnection && !head.previousConnection
+      ? head.outputConnection
+      : head.previousConnection;
+    if (headConn) tryConnect(input, headConn);
+    let previous = head;
+    for (const child of blocks.slice(1)) {
+      if (previous.nextConnection && child.previousConnection) {
+        try {
+          previous.nextConnection.connect(child.previousConnection);
+        } catch {
+          /* type mismatch */
+        }
+      }
+      previous = child;
+    }
+  }
+}
+
+function tryConnect(
+  input: Blockly.Input,
+  childConn: Blockly.Connection,
+): void {
+  const parentConn = input.connection;
+  if (!parentConn) return;
+  const attempt = (): void => {
+    if (parentConn.isConnected()) parentConn.disconnect();
+    parentConn.connect(childConn);
+  };
+  try {
+    attempt();
+  } catch {
+    /* type check rejected */
+  }
+  if (parentConn.targetConnection === childConn) return;
+  const prevCheck = parentConn.getCheck();
+  input.setCheck(null);
+  try {
+    attempt();
+  } catch {
+    /* still incompatible */
+  } finally {
+    if (prevCheck) input.setCheck(prevCheck);
+  }
 }
 
 function appendRmAttributeInput(
@@ -286,13 +450,16 @@ function appendRmAttributeInput(
   rmType: string,
   attr: string,
   checkOverride?: string | string[] | null,
+  cardinality?: SlotCardinality,
 ): void {
   const slotType = slotRmTypeForAttr(rmType, attr);
+  const card = cardinality ?? slotCardinalityFor(block, rmType, attr);
   if (isRmValueAttribute(rmType, attr) || isPartyProxyType(slotType)) {
     const input = block.appendValueInput(rmAttributeInputName(attr))
       .appendField(attr);
     const check = checkOverride ?? puzzleCheckForAttr(rmType, attr, slotType);
     if (check) input.setCheck(check);
+    appendSlotCardinality(input, card);
     appendSlotTypeEmoji(input, slotType);
     return;
   }
@@ -300,6 +467,7 @@ function appendRmAttributeInput(
     .appendField(attr);
   const check = checkOverride ?? statementCheckForAttr(rmType, attr);
   if (check) stmt.setCheck(check);
+  appendSlotCardinality(stmt, card);
   appendSlotTypeEmoji(stmt, slotType);
 }
 
@@ -320,11 +488,9 @@ function statementCheckForAttr(
   rmType: string,
   attr: string,
 ): string | string[] | null {
-  const meta = attributesFor(rmType).find((a) => a.name === attr);
-  if (!meta) return null;
-  const base = baseRmTypeName(meta.typeName);
-  if (isPrimitiveRmType(base) || isDataValueType(base)) return null;
-  return base;
+  const slotType = slotRmTypeForAttr(rmType, attr);
+  if (!slotType || isPrimitiveRmType(slotType) || isDataValueType(slotType)) return null;
+  return nestCheckFor(slotType) ?? slotType;
 }
 
 export function rmTypeOfBlock(block: Blockly.Block): string {
@@ -358,6 +524,7 @@ export function configureElementValueSlot(block: Blockly.Block, rmType: string):
   if (!input) return;
   const check = blocklyCheckForDv(rmType);
   input.setCheck(check);
+  appendSlotCardinality(input, { min: 1, max: 1 });
   appendSlotTypeEmoji(input, rmType);
 }
 
@@ -542,8 +709,13 @@ function defineContainerBlock(
     init: function (this: Blockly.Block) {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, options.rmType);
+      if (isEventFamilyType(options.rmType)) {
+        header.appendField(new Blockly.FieldDropdown(EVENT_KIND_OPTIONS), "RM_TYPE");
+        this.setFieldValue(options.rmType, "RM_TYPE");
+      } else {
+        header.appendField(label, "RM_CLASS");
+      }
       header
-        .appendField(label)
         .appendField(new Blockly.FieldLabel(""), "NAME")
         .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
       if (options.expandable) {
@@ -560,9 +732,12 @@ function defineContainerBlock(
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
+      if (!isEventFamilyType(options.rmType)) {
+        this.appendDummyInput()
+          .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
+        this.getField("RM_TYPE")!.setVisible(false);
+      }
+      appendHiddenLabel(this, "MANDATORY", "");
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
       this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
@@ -599,10 +774,12 @@ function defineValueElementBlock(): void {
       const value = this.appendValueInput("VALUE")
         .setCheck(null)
         .appendField("value");
+      appendSlotCardinality(value, { min: 1, max: 1 });
       appendSlotTypeEmoji(value, slotRmTypeForAttr("ELEMENT", "value"));
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable("ELEMENT"), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
+      appendHiddenLabel(this, "MANDATORY", "");
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
@@ -643,6 +820,7 @@ function defineDataValueBlock(rmType: string): void {
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(rmType), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
+      appendHiddenLabel(this, "MANDATORY", "");
 
       const mandatory = mandatoryAttributes(rmType).filter((a) =>
         isMappableField(a)
@@ -801,6 +979,37 @@ function appendPlusFieldsButton(block: Blockly.Block): void {
     ));
 }
 
+function parseMutatorExtraState(
+  state: { extras?: string[]; attrs?: string[] } | string | null,
+): { extras: string[]; attrs: string[] } {
+  if (state == null || state === "") return { extras: [], attrs: [] };
+  const obj = typeof state === "string"
+    ? JSON.parse(state) as { extras?: string[]; attrs?: string[] }
+    : state;
+  return {
+    extras: Array.isArray(obj.extras) ? obj.extras : [],
+    attrs: Array.isArray(obj.attrs) ? obj.attrs : [],
+  };
+}
+
+function restoreMutatorAttributes(
+  block: Blockly.Block,
+  extras: string[],
+  attrs: string[],
+): void {
+  block.extraInputs_ = extras;
+  const rm = rmTypeOfBlock(block);
+  if (isEventFamilyType(rm) && (attrs.length || extras.length)) {
+    syncRmAttributeInputs(
+      block,
+      rm,
+      eventAttributesToShow(rm, attrs),
+      block.slotCardinalities_,
+    );
+  }
+  block.updateShape_?.();
+}
+
 let optionalRmMutatorRegistered = false;
 
 function registerOptionalRmMutator(): void {
@@ -811,12 +1020,28 @@ function registerOptionalRmMutator(): void {
       const container = Blockly.utils.xml.createElement("mutation");
       const extras = this.extraInputs_ ?? [];
       container.setAttribute("extras", JSON.stringify(extras));
+      container.setAttribute("attrs", JSON.stringify(presentAttributeNames(this)));
       return container;
     },
     domToMutation: function (this: Blockly.Block, xmlElement: Element) {
       const extras = JSON.parse(xmlElement.getAttribute("extras") || "[]") as string[];
       this.extraInputs_ = extras;
-      this.updateShape_?.();
+      const attrs = JSON.parse(xmlElement.getAttribute("attrs") || "[]") as string[];
+      restoreMutatorAttributes(this, extras, attrs);
+    },
+    saveExtraState: function (this: Blockly.Block) {
+      return {
+        extras: this.extraInputs_ ?? [],
+        attrs: presentAttributeNames(this),
+      };
+    },
+    loadExtraState: function (
+      this: Blockly.Block,
+      state: { extras?: string[]; attrs?: string[] } | string | null,
+    ) {
+      const parsed = parseMutatorExtraState(state);
+      this.extraInputs_ = parsed.extras;
+      restoreMutatorAttributes(this, parsed.extras, parsed.attrs);
     },
     addInput_: function (this: Blockly.Block, name: string) {
       this.extraInputs_ = this.extraInputs_ ?? [];
@@ -841,17 +1066,27 @@ function registerOptionalRmMutator(): void {
             ? slotType
             : (slotType ? blocklyCheckForDv(slotType) : null);
           if (check) input.setCheck(check);
+          appendSlotCardinality(
+            input,
+            this.slotCardinalities_?.[name] ?? rmAttributeCardinality(parentRm, name),
+          );
           appendSlotTypeEmoji(input, slotType);
           continue;
         }
         const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
           .appendField(name);
+        appendSlotCardinality(
+          stmt,
+          this.slotCardinalities_?.[name] ?? rmAttributeCardinality(parentRm, name),
+        );
         appendSlotTypeEmoji(stmt, slotType);
       }
     },
   } as Blockly.Mutator & {
     addInput_?: (name: string) => void;
     updateShape_?: () => void;
+    saveExtraState?: () => { extras: string[]; attrs: string[] };
+    loadExtraState?: (state: { extras?: string[]; attrs?: string[] } | string | null) => void;
   });
 }
 
@@ -891,12 +1126,20 @@ declare module "blockly/core" {
   interface Block {
     extraInputs_?: string[];
     extraDvFields_?: string[];
+    slotCardinalities_?: Record<string, SlotCardinality>;
     firePlusClick?: () => void;
     firePlusFieldsClick?: () => void;
     addInput_?: (name: string) => void;
     updateShape_?: () => void;
     updateDvFields_?: () => void;
   }
+}
+
+function appendHiddenLabel(block: Blockly.Block, name: string, value: string): void {
+  if (block.getField(name)) return;
+  block.appendDummyInput()
+    .appendField(new Blockly.FieldLabelSerializable(value), name);
+  block.getField(name)?.setVisible(false);
 }
 
 function plusSvg(): string {

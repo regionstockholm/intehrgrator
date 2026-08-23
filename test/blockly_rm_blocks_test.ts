@@ -16,6 +16,7 @@ import {
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
   syncRmAttributeInputs,
+  applyEventRmType,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
@@ -30,6 +31,16 @@ import {
   slotEmojiFieldName,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
+import {
+  ABSTRACT_EVENT_WARNING,
+  blockConstraintMessages,
+  refreshWorkspaceConstraints,
+  warningTextOf,
+} from "@intehrgrator/blockly/block_constraints.ts";
+import {
+  formatSlotCardinality,
+  isSlotCardinalityField,
+} from "@intehrgrator/blockly/slot_cardinality.ts";
 import { createTermPickBlock } from "@intehrgrator/blockly/blocks/term_pick.ts";
 import { termSetById } from "@intehrgrator/core/openehr_term_catalog.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
@@ -531,3 +542,93 @@ Deno.test("applyFixedFieldsToDataValueShell fills CODE_PHRASE terminology", () =
   assertEquals(term?.getFieldValue("TEXT"), "ISO_639-1");
   workspace.dispose();
 });
+
+Deno.test("mandatory containers do not get a warning triangle just for being mandatory", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const composition = workspace.getTopBlocks(false)[0];
+  assert(composition);
+  const warning = (warningTextOf(composition) ?? blockConstraintMessages(composition).join("\n"));
+  assertEquals(warning.includes("Mandatory"), false);
+  const observation = workspace.getAllBlocks(false).find(
+    (b) => b.getFieldValue("RM_TYPE") === "OBSERVATION",
+  );
+  assert(observation);
+  assertEquals(
+    (warningTextOf(observation) ?? blockConstraintMessages(observation).join("\n")).includes("Mandatory"),
+    false,
+  );
+  workspace.dispose();
+});
+
+Deno.test("slots show [min..max] cardinality left of the ZipEHR emoji", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const observation = workspace.newBlock("observation");
+  syncRmAttributeInputs(observation, "OBSERVATION", ["data"]);
+  const data = observation.getInput(rmAttributeInputName("data"));
+  assert(data);
+  const card = data.fieldRow.find((field) => isSlotCardinalityField(field));
+  assert(card);
+  assertEquals(card.getText(), formatSlotCardinality({ min: 1, max: 1 }));
+  assertEquals(data.fieldRow.at(-1)?.name?.startsWith("SLOT_EMOJI_"), true);
+  workspace.dispose();
+});
+
+Deno.test("unmapped mandatory ELEMENT shows a constraint warning", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const systolic = workspace.getAllBlocks(false).find(
+    (b) => b.getFieldValue("NAME") === "Systolic" && b.type === "element",
+  );
+  assert(systolic, "expected systolic element");
+  assertEquals(systolic.getFieldValue("MANDATORY"), "1");
+  const text = warningTextOf(systolic) ?? blockConstraintMessages(systolic).join("\n");
+  assertEquals(text.includes("Unmapped mandatory value"), true);
+  workspace.dispose();
+});
+
+Deno.test("EVENT.data slot accepts ITEM_STRUCTURE (generic T bound)", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const event = workspace.newBlock("event");
+  syncRmAttributeInputs(event, "EVENT", ["time", "data"]);
+  const dataInput = event.getInput(rmAttributeInputName("data"));
+  const check = dataInput?.connection?.getCheck() ?? [];
+  assertEquals(check.includes("ITEM_STRUCTURE"), true);
+  assertEquals(check.includes("ITEM_TREE"), true);
+  workspace.dispose();
+});
+
+Deno.test("EVENT block warns while abstract and can switch subtype without dropping children", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const event = workspace.newBlock("event");
+  event.setFieldValue("EVENT", "RM_TYPE");
+  syncRmAttributeInputs(event, "EVENT", ["time", "data"]);
+  const data = workspace.newBlock("item_tree");
+  const dataInput = event.getInput(rmAttributeInputName("data"));
+  assert(dataInput?.connection && data.previousConnection);
+  dataInput.connection.connect(data.previousConnection);
+  assertEquals(event.getInputTargetBlock(rmAttributeInputName("data"))?.id, data.id);
+  refreshWorkspaceConstraints(workspace);
+  assertEquals(blockConstraintMessages(event).includes(ABSTRACT_EVENT_WARNING), true);
+
+  applyEventRmType(event, "POINT_EVENT");
+  refreshWorkspaceConstraints(workspace);
+  assertEquals(event.getFieldValue("RM_TYPE"), "POINT_EVENT");
+  assertEquals(event.getInputTargetBlock(rmAttributeInputName("data"))?.id, data.id);
+  assertEquals(blockConstraintMessages(event).includes(ABSTRACT_EVENT_WARNING), false);
+
+  applyEventRmType(event, "INTERVAL_EVENT");
+  assertEquals(event.getFieldValue("RM_TYPE"), "INTERVAL_EVENT");
+  assertEquals(event.getInputTargetBlock(rmAttributeInputName("data"))?.id, data.id);
+  assert(event.getInput(rmAttributeInputName("width")), "INTERVAL_EVENT.width should appear");
+  assert(event.getInput(rmAttributeInputName("math_function")), "INTERVAL_EVENT.math_function should appear");
+  workspace.dispose();
+});
+

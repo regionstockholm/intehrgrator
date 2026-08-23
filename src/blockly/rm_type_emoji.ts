@@ -12,6 +12,7 @@ import {
   attributesFor,
   baseRmTypeName,
   isAbstractType,
+  resolveGenericSlotType,
   subtypesOf,
 } from "../core/rm_meta.ts";
 
@@ -43,7 +44,7 @@ export function slotRmTypeForAttr(
   check?: string | string[] | null,
 ): string | undefined {
   const meta = attributesFor(parentRmType).find((a) => a.name === attrName);
-  if (meta) return baseRmTypeName(meta.typeName);
+  if (meta) return resolveGenericSlotType(parentRmType, meta.typeName);
   if (typeof check === "string") return check;
   if (Array.isArray(check)) {
     for (const t of check) {

@@ -282,7 +282,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
 .mapping-editor-tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .mapping-editor-tab-group { display: flex; gap: 4px; }
-.mapping-spec-download { margin-left: auto; font-size: 11px; padding: 3px 8px; }
+.mapping-spec-download,
+.mapping-spec-upload { margin-left: 4px; font-size: 11px; padding: 3px 8px; }
+.mapping-spec-download { margin-left: auto; }
 .mapping-editor-tab {
   border: 1px solid var(--border); border-radius: 4px; background: #fff;
   color: var(--text-secondary); padding: 3px 7px; font-size: 11px; cursor: pointer;
@@ -382,6 +384,24 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyText.blockly-at-code {
   font-size: 10px !important;
   opacity: 0.8;
+}
+
+.blockly-mount .blocklyText.blockly-slot-card {
+  font-size: 11px !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400 !important;
+}
+.blockly-mount .blocklyText.blockly-slot-card--unmet {
+  font-weight: 700 !important;
+}
+
+.blockly-icon-warning .blocklyIconShape {
+  fill: #F9A825 !important;
+  stroke: #E65100 !important;
+  stroke-width: 1.25px !important;
+}
+.blockly-icon-warning .blocklyIconSymbol {
+  fill: #3E2723 !important;
 }
 
 /* ZipEHR RM-type glyphs on output tabs and slots (~50% larger than 12px body).

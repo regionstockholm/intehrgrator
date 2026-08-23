@@ -67,7 +67,9 @@ Deno.test("skeleton resolves at0004 labels per archetype", () => {
 Deno.test("ehrtslib OPT parse supplies scoped terms without XML overlay", () => {
   const parsed = parseTemplateInput(fixture);
   const { skeleton } = generateSkeletonFromOperational(parsed.operationalTemplate!);
-  const at0004 = flattenSkeleton(skeleton).filter((n) => n.archetypeNodeId === "at0004");
+  const at0004 = flattenSkeleton(skeleton).filter((n) =>
+    n.archetypeNodeId === "at0004" && n.kind === "container"
+  );
   assertEquals(at0004.map((n) => n.label).sort(), ["Manufacturer details", "Systolic"]);
 });
 

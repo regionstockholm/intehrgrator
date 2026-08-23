@@ -4,9 +4,6 @@ on:
   push:
     branches: [main, "cursor/**"]
   pull_request:
-  # Catch ehrtslib origin/main breaks even when this repo is idle.
-  schedule:
-    - cron: "17 6 * * *"
   workflow_dispatch:
 
 jobs:

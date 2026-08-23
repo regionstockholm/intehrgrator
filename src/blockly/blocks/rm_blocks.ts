@@ -998,12 +998,11 @@ function restoreMutatorAttributes(
   attrs: string[],
 ): void {
   block.extraInputs_ = extras;
-  const rm = rmTypeOfBlock(block);
-  if (isEventFamilyType(rm) && (attrs.length || extras.length)) {
+  if (attrs.length) {
     syncRmAttributeInputs(
       block,
-      rm,
-      eventAttributesToShow(rm, attrs),
+      rmTypeOfBlock(block),
+      attrs,
       block.slotCardinalities_,
     );
   }

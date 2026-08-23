@@ -632,3 +632,27 @@ Deno.test("EVENT block warns while abstract and can switch subtype without dropp
   workspace.dispose();
 });
 
+Deno.test("Blockly JSON extraState restores dynamic ATTR_ sockets including EVENT extras", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const observation = workspace.newBlock("observation");
+  syncRmAttributeInputs(observation, "OBSERVATION", ["data", "encoding"]);
+  const event = workspace.newBlock("event");
+  applyEventRmType(event, "INTERVAL_EVENT");
+  const tree = workspace.newBlock("item_tree");
+  event.getInput(rmAttributeInputName("data"))!.connection!.connect(tree.previousConnection!);
+
+  const saved = Blockly.serialization.workspaces.save(workspace);
+  workspace.dispose();
+
+  const loaded = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(saved, loaded);
+  const obs2 = loaded.getAllBlocks(false).find((b) => b.type === "observation");
+  const ev2 = loaded.getAllBlocks(false).find((b) => b.type === "event");
+  assert(obs2?.getInput(rmAttributeInputName("encoding")), "ATTR_encoding must round-trip");
+  assertEquals(ev2?.getFieldValue("RM_TYPE"), "INTERVAL_EVENT");
+  assert(ev2?.getInput(rmAttributeInputName("width")), "INTERVAL width must round-trip");
+  assertEquals(ev2?.getInputTargetBlock(rmAttributeInputName("data"))?.type, "item_tree");
+  loaded.dispose();
+});
+

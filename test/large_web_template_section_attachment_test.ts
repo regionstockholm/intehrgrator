@@ -10,25 +10,42 @@ import { registerRmBlocks } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { generateSkeletonFromWebTemplate } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 
-const bigWt = await (async () => {
-  const repoRelative = join(
-    import.meta.dirname!,
-    "..",
-    "uploads",
-    "Accident_report_including_vital_signs.sv.wt-0.json",
-  );
+async function readWebTemplateText(path: string): Promise<string | null> {
   try {
-    const txt = await Deno.readTextFile(repoRelative);
+    const txt = await Deno.readTextFile(path);
     const start = txt.indexOf("{");
     return start >= 0 ? txt.slice(start) : txt;
   } catch {
-    // Cursor upload target (when the file lives outside the repo).
-    const txt = await Deno.readTextFile(
-      "C:\\Users\\fbpf\\.cursor\\projects\\c-lokalt-dev-intehrgrator\\uploads\\Accident_report_including_vital_signs.sv.wt-0.json",
-    );
-    const start = txt.indexOf("{");
-    return start >= 0 ? txt.slice(start) : txt;
+    return null;
   }
+}
+
+const bigWt = await (async () => {
+  const candidates = [
+    join(
+      import.meta.dirname!,
+      "..",
+      "uploads",
+      "Accident_report_including_vital_signs.sv.wt-0.json",
+    ),
+    join(
+      import.meta.dirname!,
+      "..",
+      "vendor",
+      "openEHR-model-examples",
+      "local",
+      "theme-packs",
+      "sport-event-details",
+      "templates",
+      "Accident report including vital signs.sv.wt.json",
+    ),
+    "C:\\Users\\fbpf\\.cursor\\projects\\c-lokalt-dev-intehrgrator\\uploads\\Accident_report_including_vital_signs.sv.wt-0.json",
+  ];
+  for (const path of candidates) {
+    const txt = await readWebTemplateText(path);
+    if (txt) return txt;
+  }
+  return null;
 })();
 
 let blocksReady = false;
@@ -49,9 +66,12 @@ function blockCountByType(nodes: SkeletonNode[]): Map<string, number> {
   return m;
 }
 
-Deno.test("Large Web Template: SECTION blocks attach to COMPOSITION (no free-floating)", () => {
+Deno.test({
+  name: "Large Web Template: SECTION blocks attach to COMPOSITION (no free-floating)",
+  ignore: !bigWt,
+  fn() {
   ensureBlocks();
-  const { skeleton } = generateSkeletonFromWebTemplate(bigWt);
+  const { skeleton } = generateSkeletonFromWebTemplate(bigWt!);
   const workspace = new Blockly.Workspace();
 
   loadSkeletonIntoWorkspace(
@@ -82,5 +102,6 @@ Deno.test("Large Web Template: SECTION blocks attach to COMPOSITION (no free-flo
   assert(byType.get("section") !== undefined);
 
   workspace.dispose();
+  },
 });
 

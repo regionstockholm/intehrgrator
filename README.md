@@ -19,7 +19,7 @@ deno task dev      # serve dist/ on http://localhost:5173
 
 The Web Shell is published on every push to `main` via the **Deploy GitHub Pages** workflow (also runnable manually from Actions). Ensure **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
 
-CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, so upstream module moves fail tests instead of shipping against a stale pin. A daily scheduled CI run catches breaks even when this repo is idle.
+CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, so upstream module moves fail tests instead of shipping against a stale pin.
 
 Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 

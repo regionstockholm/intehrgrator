@@ -3,11 +3,10 @@ import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
-  ViewPlugin,
   WidgetType,
   keymap,
   lineNumbers,
-  type ViewUpdate,
+  type DecorationSet,
 } from "@codemirror/view";
 import {
   blocklyJsonDocument,
@@ -56,21 +55,26 @@ class HiddenJsonWidget extends WidgetType {
   }
 }
 
-function buildDecorations(view: EditorView): Decoration {
-  const doc = view.state.field(jsonDocField);
-  const onEdit = view.state.facet(editFacet);
-  const ranges = [];
-  const text = view.state.doc.toString();
-  if (!doc.widgets.length) {
-    return Decoration.none;
-  }
+/**
+ * Replace decorations that span line breaks must come from a StateField,
+ * not a ViewPlugin (CodeMirror: "may not be specified via plugins").
+ */
+function buildDecorations(state: EditorState): DecorationSet {
+  const doc = state.field(jsonDocField);
+  const onEdit = state.facet(editFacet);
+  if (!doc.widgets.length) return Decoration.none;
 
+  const ranges = [];
+  const text = state.doc.toString();
   let cursor = 0;
   for (const widget of doc.widgets) {
     if (widget.from > cursor) {
       ranges.push(
-        Decoration.replace({ widget: new HiddenJsonWidget(), inclusive: true })
-          .range(cursor, widget.from),
+        Decoration.replace({
+          widget: new HiddenJsonWidget(),
+          block: true,
+          inclusive: true,
+        }).range(cursor, widget.from),
       );
     }
     ranges.push(
@@ -84,33 +88,31 @@ function buildDecorations(view: EditorView): Decoration {
   }
   if (cursor < text.length) {
     ranges.push(
-      Decoration.replace({ widget: new HiddenJsonWidget(), inclusive: true })
-        .range(cursor, text.length),
+      Decoration.replace({
+        widget: new HiddenJsonWidget(),
+        block: true,
+        inclusive: true,
+      }).range(cursor, text.length),
     );
   }
   return Decoration.set(ranges, true);
 }
 
-const widgetPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: Decoration;
-    constructor(view: EditorView) {
-      this.decorations = buildDecorations(view);
-    }
-    update(update: ViewUpdate) {
-      if (
-        update.docChanged ||
-        update.viewportChanged ||
-        update.transactions.some((tr) =>
-          tr.effects.some((effect) => effect.is(setJsonDocEffect))
-        )
-      ) {
-        this.decorations = buildDecorations(update.view);
-      }
-    }
+const jsonDecorations = StateField.define<DecorationSet>({
+  create(state) {
+    return buildDecorations(state);
   },
-  { decorations: (value) => value.decorations },
-);
+  update(value, tr) {
+    if (
+      tr.docChanged ||
+      tr.effects.some((effect) => effect.is(setJsonDocEffect))
+    ) {
+      return buildDecorations(tr.state);
+    }
+    return value;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
 
 const specTheme = EditorView.theme({
   "&": { height: "100%", fontSize: "12px" },
@@ -241,7 +243,7 @@ export function createMappingSpecEditor(
         keymap.of([...defaultKeymap, ...historyKeymap]),
         jsonDocField.init(() => empty),
         editFacet.of(options.onFieldEdit),
-        widgetPlugin,
+        jsonDecorations,
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
         specTheme,

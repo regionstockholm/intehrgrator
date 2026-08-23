@@ -121,14 +121,14 @@ function registerGenerators(): void {
     for (const input of block.inputList) {
       if (!input.name.startsWith("ATTR_")) continue;
       const attr = input.name.slice("ATTR_".length);
-      const stmt = javascriptGenerator.statementToCode(block, input.name);
-      if (stmt.trim()) {
-        if (attr === "content") parts.push(`content: [\n${stmt}]`);
-        else parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
+      const generated = generateRmAttributeCode(block, input.name);
+      if (generated.value) {
+        parts.push(`${attr}: ${generated.value}`);
         continue;
       }
-      const valueCode = javascriptGenerator.valueToCode(block, input.name, Order.NONE);
-      if (valueCode) parts.push(`${attr}: ${valueCode}`);
+      if (!generated.stmt?.trim()) continue;
+      if (attr === "content") parts.push(`content: [\n${generated.stmt}]`);
+      else parts.push(`${attr}: ${stripTrailingComma(generated.stmt)}`);
     }
     return `const composition = new openehr_rm.COMPOSITION({ ${parts.join(", ")} });\n`;
   };
@@ -269,22 +269,15 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
       if (seen.has(attr)) continue;
       seen.add(attr);
       const inputName = rmAttributeInputName(attr);
-      const asList = ["content", "items", "events", "activities"].includes(attr);
-      if (asList) {
-        const stmt = javascriptGenerator.statementToCode(block, inputName);
-        if (stmt.trim()) {
-          parts.push(`${attr}: [\n${stmt}]`);
-          continue;
-        }
-      }
-      const valueCode = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
-      if (valueCode) {
-        parts.push(`${attr}: ${valueCode}`);
+      const generated = generateRmAttributeCode(block, inputName);
+      if (generated.value) {
+        parts.push(`${attr}: ${generated.value}`);
         continue;
       }
-      const stmt = javascriptGenerator.statementToCode(block, inputName);
+      const stmt = generated.stmt ?? "";
       if (!stmt.trim()) continue;
-      parts.push(`${attr}: ${stripTrailingComma(stmt)}`);
+      const asList = ["content", "items", "events", "activities"].includes(attr);
+      parts.push(asList ? `${attr}: [\n${stmt}]` : `${attr}: ${stripTrailingComma(stmt)}`);
     }
     return `{ ${parts.join(", ")} },\n`;
   };
@@ -292,6 +285,22 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
 
 function stripTrailingComma(code: string): string {
   return code.trim().replace(/,\s*$/, "");
+}
+
+/** Blockly `inputTypes.STATEMENT` / `ConnectionType.NEXT_STATEMENT`. */
+const STATEMENT_INPUT_TYPE = 3;
+
+function generateRmAttributeCode(
+  block: Blockly.Block,
+  inputName: string,
+): { value?: string; stmt?: string } {
+  const input = block.getInput(inputName);
+  if (!input) return {};
+  if (input.type === STATEMENT_INPUT_TYPE) {
+    return { stmt: javascriptGenerator.statementToCode(block, inputName) };
+  }
+  const value = javascriptGenerator.valueToCode(block, inputName, Order.NONE);
+  return value ? { value } : {};
 }
 
 function generateDvConstructor(block: Blockly.Block, rmType: string): [string, number] {

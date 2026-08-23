@@ -3,7 +3,8 @@
  * `deno task vendor` tracks origin/main; if upstream moves these paths or
  * signatures, this file should fail first with a clear module/API error.
  */
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { join } from "@std/path";
 import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
 import {
   attributesFor,
@@ -21,14 +22,24 @@ import {
   parseLegacyTemplateXml,
   textValue,
 } from "ehrtslib/parser/legacy/xml_aom_mapper.ts";
+import { OptXmlSerializer } from "ehrtslib/generation/opt_xml_serializer.ts";
 import {
+  applyOperationalTemplateTermScopes,
+  archetypeTermBagsForLanguage,
+  COMPONENT_TERM_DEFINITIONS_KEY,
+  lookupTermInBag,
   resolveLocatableLabel,
   TERM_ARCHETYPE_SCOPE_KEY,
+  type OperationalTemplateWithTermScopes,
 } from "ehrtslib/generation/term_scope.ts";
 import {
   resolveTemplateLanguage,
   termCodeCandidates,
 } from "ehrtslib/generation/term_codes.ts";
+
+const bpOpt = await Deno.readTextFile(
+  join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+);
 
 Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof webTemplateToOpt, "function");
@@ -44,6 +55,10 @@ Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof textValue, "function");
   assertEquals(typeof resolveTemplateLanguage, "function");
   assertEquals(typeof termCodeCandidates, "function");
+  assertEquals(typeof applyOperationalTemplateTermScopes, "function");
+  assertEquals(typeof archetypeTermBagsForLanguage, "function");
+  assertEquals(typeof lookupTermInBag, "function");
+  assertEquals(COMPONENT_TERM_DEFINITIONS_KEY, "opt_component_term_definitions");
 
   assert(hasRmType("COMPOSITION"));
   assert(isDataValueType("DV_QUANTITY"));
@@ -51,4 +66,35 @@ Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof resolveLocatableLabel, "function");
   assertEquals(TERM_ARCHETYPE_SCOPE_KEY, "term_archetype_scope");
   assertEquals(termCodeCandidates("at0004")[0], "at0004");
+});
+
+Deno.test("OPT XML parse keeps colliding at-codes archetype-local", () => {
+  const parsed = parseTemplateInput(bpOpt);
+  const opt = parsed.operationalTemplate as OperationalTemplateWithTermScopes;
+  assert(opt, "expected operational template");
+  const bags = archetypeTermBagsForLanguage(opt, "en");
+  assertEquals(
+    lookupTermInBag(bags["openEHR-EHR-OBSERVATION.sample_blood_pressure.v1"] ?? {}, "at0004"),
+    "Systolic",
+  );
+  assertEquals(
+    lookupTermInBag(bags["openEHR-EHR-CLUSTER.sample_device.v1"] ?? {}, "at0004"),
+    "Manufacturer details",
+  );
+  const mergedAt0004 = (opt as {
+    ontology?: { term_definitions?: Record<string, Record<string, { text?: string }>> };
+  }).ontology?.term_definitions?.en?.at0004?.text;
+  assert(
+    mergedAt0004 === "Systolic" || mergedAt0004 === "Manufacturer details",
+    `flat ontology at0004 is last-wins (${mergedAt0004}), not a per-node name`,
+  );
+});
+
+Deno.test("OptXmlSerializer emits C_ARCHETYPE_ROOT and per-root term_definitions", () => {
+  const parsed = parseTemplateInput(bpOpt);
+  assert(parsed.operationalTemplate, "expected operational template");
+  const xml = new OptXmlSerializer().serialize(parsed.operationalTemplate);
+  assertStringIncludes(xml, 'xsi:type="C_ARCHETYPE_ROOT"');
+  assertStringIncludes(xml, "openEHR-EHR-CLUSTER.sample_device.v1");
+  assertStringIncludes(xml, "Manufacturer details");
 });

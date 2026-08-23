@@ -1,10 +1,17 @@
 import type {
   ExportTarget,
+  MappingLoop,
   MappingModel,
   SourceFormatId,
   TestResult,
 } from "../../types/mod.ts";
 import { getSourceFormatHandler } from "../source/format_handler.ts";
+import { collectJsonNodes, type SourceContext } from "../source/query_runtime.ts";
+import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
+import {
+  collectAllSlotIds,
+  findSkeletonTrail,
+} from "../skeleton/generate_skeleton.ts";
 import { generateTypeScript } from "../codegen/mod.ts";
 import {
   getTargetFormatHandler,
@@ -28,17 +35,13 @@ export function runTest(
   try {
     const handler = getSourceFormatHandler(format);
     const ctx = handler.createContext(exampleContent);
-    const slotValues: Record<string, unknown> = {};
-
-    for (const slot of model.slots) {
-      try {
-        slotValues[slot.slotId] = handler.evaluate(slot.expression, ctx, slot.returnType);
-      } catch (e) {
-        warnings.push(
-          `${slot.slotId}: ${e instanceof Error ? e.message : String(e)}`,
-        );
-      }
-    }
+    const slotValues = evaluateSlotValues(
+      model,
+      handler,
+      ctx,
+      warnings,
+      options.target?.skeleton ?? [],
+    );
 
     let output: unknown;
     if (options.exportTarget === "handlebars") {
@@ -103,4 +106,68 @@ export function runTest(
 
 export function previewGeneratedCode(model: MappingModel): string {
   return generateTypeScript(model);
+}
+
+function evaluateSlotValues(
+  model: MappingModel,
+  handler: ReturnType<typeof getSourceFormatHandler>,
+  ctx: SourceContext,
+  warnings: string[],
+  skeleton: TargetDefinition["skeleton"],
+): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  const handled = new Set<string>();
+  if (skeleton.length && model.loops?.length && ctx.kind === "json") {
+    for (const loop of model.loops) {
+      evaluateLoopSlots(model, loop, handler, ctx, skeleton, values, handled, warnings);
+    }
+  }
+  for (const slot of model.slots) {
+    if (handled.has(slot.slotId)) continue;
+    try {
+      values[slot.slotId] = handler.evaluate(slot.expression, ctx, slot.returnType);
+    } catch (e) {
+      warnings.push(
+        `${slot.slotId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
+  return values;
+}
+
+function evaluateLoopSlots(
+  model: MappingModel,
+  loop: MappingLoop,
+  handler: ReturnType<typeof getSourceFormatHandler>,
+  ctx: SourceContext,
+  skeleton: TargetDefinition["skeleton"],
+  values: Record<string, unknown>,
+  handled: Set<string>,
+  warnings: string[],
+): void {
+  const trail = findSkeletonTrail(skeleton, loop.attachSlotId);
+  const container = trail.at(-1);
+  if (!container) return;
+  const ids = new Set(collectAllSlotIds([container]));
+  const nodes = collectJsonNodes(loop.path, ctx.json);
+  for (const slot of model.slots) {
+    if (!ids.has(slot.slotId) || !expressionUsesRelativeSourcePath(slot.expression)) {
+      continue;
+    }
+    handled.add(slot.slotId);
+    try {
+      values[slot.slotId] = nodes.map((node) =>
+        handler.evaluate(slot.expression, {
+          ...ctx,
+          json: node,
+          data: node,
+          vars: { ...(ctx.vars ?? {}), [loop.varName]: node },
+        }, slot.returnType)
+      );
+    } catch (e) {
+      warnings.push(
+        `${slot.slotId}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+    }
+  }
 }

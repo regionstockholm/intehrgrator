@@ -5,6 +5,7 @@
 
 import type {
   ImportSuggestionsReport,
+  MappingLoop,
   MappingModel,
   SkeletonNode,
   SuggestionBlock,
@@ -12,7 +13,7 @@ import type {
   TargetFormatId,
 } from "../../types/mod.ts";
 import { applyExpressionEdit } from "../mapping_model/mod.ts";
-import { collectValueSlots } from "../skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectRepeatableContainers } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
 
 export type AiArtifactDelivery = "attach" | "inline" | "uri";
@@ -70,7 +71,8 @@ export function joinLoopPath(loopPath: string, relative: string): string {
   if (isAbsoluteSourcePath(rel)) return rel;
   if (loopPath.startsWith("$")) {
     if (rel.startsWith("[")) return `${loopPath}${rel}`;
-    return `${loopPath}/${rel.replace(/^\//, "")}`;
+    const base = loopPath.replace(/\[\*\]$/, "");
+    return `${base}[*].${rel.replace(/^\//, "")}`;
   }
   if (loopPath.startsWith("/")) {
     return `${loopPath.replace(/\/$/, "")}/${rel.replace(/^\//, "")}`;
@@ -132,11 +134,28 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "",
   );
 
+  const repeatable = collectRepeatableContainers(options.skeleton).map((s) => ({
+    slotId: s.slotId,
+    valueType: s.rmType,
+    label: s.label,
+    multiplicity: s.multiplicity,
+  }));
+  if (repeatable.length) {
+    sections.push(
+      "## Repeatable containers",
+      "Copy `attachSlotId` from this list. One `for_each_source` loop per repeating container.",
+      "```json",
+      JSON.stringify(repeatable, null, 2),
+      "```",
+      "",
+    );
+  }
+
   sections.push(...deliverySections(options.delivery, options.artifacts));
   sections.push(
     "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION`.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). The app wraps the repeating container with `for_each_source` and evaluates each source node. Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {
@@ -317,6 +336,7 @@ export function importSuggestions(
   };
 
   const loopPaths = new Map<string, string>();
+  const acceptedLoops: MappingLoop[] = [];
   for (const loop of payload.loops ?? []) {
     try {
       validateLoopEntry(loop.block);
@@ -330,6 +350,7 @@ export function importSuggestions(
         throw new Error(`Duplicate loop VAR: ${varName}`);
       }
       loopPaths.set(varName, path);
+      acceptedLoops.push({ attachSlotId: loop.attachSlotId, varName, path });
       report.loopsAccepted++;
     } catch (e) {
       report.skipped++;
@@ -337,6 +358,12 @@ export function importSuggestions(
         `loop ${loop.attachSlotId}: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
+  }
+  if (acceptedLoops.length) {
+    const kept = (model.loops ?? []).filter(
+      (existing) => !acceptedLoops.some((loop) => loop.attachSlotId === existing.attachSlotId),
+    );
+    next = { ...next, loops: [...kept, ...acceptedLoops] };
   }
 
   for (const suggestion of payload.suggestions) {
@@ -350,16 +377,10 @@ export function importSuggestions(
       if (suggestion.block.type === "for_each_source") {
         throw new Error("for_each_source belongs in loops[], not suggestions[].block");
       }
-      const rewrite = suggestion.loopVar
-        ? (xpath: string) => {
-          const base = loopPaths.get(suggestion.loopVar!);
-          if (!base) {
-            throw new Error(`Unknown loopVar: ${suggestion.loopVar}`);
-          }
-          return isAbsoluteSourcePath(xpath) ? xpath : joinLoopPath(base, xpath);
-        }
-        : undefined;
-      expression = suggestionBlockToExpression(suggestion.block, rewrite);
+      if (suggestion.loopVar && !loopPaths.has(suggestion.loopVar)) {
+        throw new Error(`Unknown loopVar: ${suggestion.loopVar}`);
+      }
+      expression = suggestionBlockToExpression(suggestion.block);
     } catch (e) {
       report.skipped++;
       report.errors.push(

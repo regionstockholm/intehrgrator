@@ -20,7 +20,7 @@ export {
   pathToFontoxpath,
 } from "./schema_loader.ts";
 
-export { evaluate, createSourceContext } from "./query_runtime.ts";
+export { evaluate, createSourceContext, collectJsonNodes } from "./query_runtime.ts";
 
 export { ExampleInstanceManager } from "./example_manager.ts";
 

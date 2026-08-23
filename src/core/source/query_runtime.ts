@@ -10,6 +10,8 @@ export interface SourceContext {
   data: unknown;
   json?: unknown;
   xmlDocument?: Document;
+  /** Loop variables (`for_each_source` VAR → current source node). */
+  vars?: Record<string, unknown>;
 }
 
 export function createSourceContext(
@@ -67,14 +69,45 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           return xpathEval(String(args[0] ?? ""), ctx, "number");
         case "xpathBoolean":
           return xpathEval(String(args[0] ?? ""), ctx, "boolean");
+        case "var":
+          return ctx.vars?.[String(args[0])] ?? null;
       }
     }
   }
   return null;
 }
 
+/** Resolve a JSON authoring path to an array of nodes (`$.measurements`). */
+export function collectJsonNodes(path: string, json: unknown): unknown[] {
+  const raw = walkJsonSegments(json, parseJsonAuthoringPath(normalizeJsonAuthoringPath(path)));
+  if (Array.isArray(raw)) return raw;
+  if (raw === undefined || raw === null) return [];
+  return [raw];
+}
+
+function normalizeJsonAuthoringPath(expr: string): string {
+  const trimmed = expr.trim();
+  if (!trimmed || trimmed.startsWith("$") || trimmed.startsWith("/")) return trimmed;
+  return `$.${trimmed.replace(/^\./, "")}`;
+}
+
+function isRelativeJsonPath(expr: string): boolean {
+  return expr.length > 0 && !expr.startsWith("$") && !expr.startsWith("/");
+}
+
 function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
   if (ctx.kind === "json") {
+    const trimmed = expr.trim();
+    const relative = isRelativeJsonPath(trimmed);
+    const path = relative
+      ? (trimmed === "." ? "$" : `$.${trimmed.replace(/^\./, "")}`)
+      : trimmed;
+    if (/\[\*\]/.test(path)) {
+      return evalJsonWildcard(path, ctx.json);
+    }
+    if (relative) {
+      return walkJsonSegments(ctx.json, parseJsonAuthoringPath(path));
+    }
     const query = toJsonXPath(expr);
     const variables = { source: ctx.json };
     switch (type) {
@@ -100,11 +133,40 @@ function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
   }
 }
 
+/**
+ * Walk JSON `[*]` paths in document order so missing optional fields stay as
+ * holes (`undefined`) instead of being dropped by an XPath sequence.
+ */
+function evalJsonWildcard(expr: string, json: unknown): unknown[] {
+  const result = walkJsonSegments(json, parseJsonAuthoringPath(expr));
+  return Array.isArray(result) ? result : result === undefined ? [] : [result];
+}
+
+function walkJsonSegments(
+  node: unknown,
+  segments: Array<string | number>,
+): unknown {
+  if (segments.length === 0) return node;
+  const [head, ...rest] = segments;
+  if (head === "*") {
+    if (!Array.isArray(node)) return [];
+    return node.map((item) => walkJsonSegments(item, rest));
+  }
+  if (node == null || typeof node !== "object") return undefined;
+  if (typeof head === "number") {
+    if (!Array.isArray(node)) return undefined;
+    const index = head >= 1 ? head - 1 : head;
+    return walkJsonSegments(node[index], rest);
+  }
+  return walkJsonSegments((node as Record<string, unknown>)[head], rest);
+}
+
 /** Convert authoring paths like `$.vitals[1].systolic` to XPath 3.1 map syntax. */
 function toJsonXPath(expr: string): string {
   if (expr.startsWith("$source")) return expr;
   const segments = parseJsonAuthoringPath(expr);
   return segments.reduce<string>((query, segment) => {
+    if (segment === "*") return `${query}?*`;
     if (typeof segment === "number") return `${query}?${segment}`;
     if (/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(segment) && !segment.includes(".")) {
       return `${query}?${segment}`;
@@ -129,6 +191,8 @@ function parseJsonAuthoringPath(expr: string): Array<string | number> {
       const token = source.slice(i + 1, close).trim();
       if (/^\d+$/.test(token)) {
         segments.push(Number(token));
+      } else if (token === "*") {
+        segments.push("*");
       } else if (
         (token.startsWith('"') && token.endsWith('"')) ||
         (token.startsWith("'") && token.endsWith("'"))
@@ -152,6 +216,7 @@ function parseJsonAuthoringPath(expr: string): Array<string | number> {
 }
 
 function coerceReturn(value: unknown, returnType: string): unknown {
+  if (Array.isArray(value)) return value.map((item) => coerceReturn(item, returnType));
   if (value === null || value === undefined) return value;
   switch (returnType) {
     case "number":

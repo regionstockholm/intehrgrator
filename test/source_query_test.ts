@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import { inferSchemaFromInstance, loadJsonSchema, pathToFontoxpath, canonicalSyncPath } from "@intehrgrator/core/source/schema_loader.ts";
-import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
+import { evaluate, createSourceContext, collectJsonNodes } from "@intehrgrator/core/source/query_runtime.ts";
 
 Deno.test("loadJsonSchema from json document", () => {
   const tree = loadJsonSchema(JSON.stringify({ patient: { id: "x" } }), "patient");
@@ -74,6 +74,18 @@ Deno.test("legacy-simulated BP series supports indexed iteration paths", async (
   assertEquals(evaluate('xpathNumber("$.measurements[2].systolic")', ctx, "number"), 128);
   assertEquals(evaluate('xpathNumber("$.measurements[3].diastolic")', ctx, "number"), 78);
   assertEquals(evaluate('xpathString("$.measurements[3].timestamp")', ctx, "string"), "2026-07-03T07:45:00Z");
+  assertEquals(evaluate('xpathNumber("$.measurements[*].systolic")', ctx, "number"), [120, 128, 118]);
+  assertEquals(evaluate('xpathNumber("$.measurements[*].pulse")', ctx, "number"), [72, 76, undefined]);
+  const first = collectJsonNodes("$.measurements", ctx.json)[0];
+  assertEquals(
+    evaluate('xpathNumber("pulse")', { ...ctx, json: first, data: first }, "number"),
+    72,
+  );
+  assertEquals(evaluate('xpathString("$.measurements[*].timestamp")', ctx, "string"), [
+    "2026-07-02T08:30:00Z",
+    "2026-07-02T14:15:00Z",
+    "2026-07-03T07:45:00Z",
+  ]);
 });
 
 Deno.test("pathToFontoxpath json", () => {

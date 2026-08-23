@@ -54,7 +54,7 @@ Deno.test("silent-mandatory RM attributes for COMPOSITION", () => {
 Deno.test("skeleton resolves at0004 labels per archetype", () => {
   const { skeleton } = generateSkeleton(fixture);
   const at0004 = skeleton.flatMap(function walk(n): SkeletonNode[] {
-    const self = n.archetypeNodeId === "at0004" ? [n] : [];
+    const self = n.archetypeNodeId === "at0004" && n.kind === "container" ? [n] : [];
     return [...self, ...n.children.flatMap((c) => walk(c))];
   });
   assertEquals(at0004.length, 2);
@@ -314,4 +314,35 @@ Deno.test("COMPOSITION language and territory are CODE_PHRASE values, not ELEMEN
   assertEquals(territory?.children.length, 0);
   assertEquals(category?.rmType, "DV_CODED_TEXT");
   assertEquals(category?.kind, "value");
+});
+
+Deno.test("web template AQL-style node ids are sanitized and EVENT multiplicity is preserved", async () => {
+  const wt = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "../vendor/openEHR-model-examples/local/theme-packs/sport-event-details/templates/Accident report including vital signs.wt.json",
+    ),
+  );
+  const { skeleton } = generateSkeletonFromWebTemplate(wt);
+  const nodes = flattenSkeleton(skeleton);
+  const evalNode = nodes.find((n) => n.rmType === "EVALUATION");
+  assertEquals(evalNode?.multiplicity, "0..*");
+  const pulseEvent = nodes.find((n) =>
+    n.rmType === "EVENT" && n.slotId.includes("OBSERVATION.pulse.v2")
+  );
+  assertEquals(pulseEvent?.multiplicity, "0..*");
+  const injury = nodes.find((n) =>
+    n.kind === "value" && n.slotId.includes("problem_diagnosis") &&
+    n.slotId.includes("items/at0002/")
+  );
+  assert(injury, "expected Injury value slot");
+  assertEquals(injury.label, "Injury");
+  assertEquals(injury.archetypeNodeId, "at0002");
+  assertEquals(injury.slotId.includes("'"), false);
+  const vitalSigns = nodes.find((n) => n.rmType === "SECTION" && n.label === "Vital signs");
+  const calculated = nodes.find((n) => n.rmType === "SECTION" && n.label === "Calculated scales");
+  assert(vitalSigns, "expected Vital signs section");
+  assert(calculated, "expected Calculated scales section");
+  const context = nodes.find((n) => n.rmType === "EVENT_CONTEXT");
+  assertEquals(context?.kind, "container");
 });

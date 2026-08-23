@@ -98,7 +98,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 2. Map child value slots with `loopVar` = that `VAR` and **relative** `EXPRESSION` (child step(s) only).
 3. One source loop ↔ one repeating target container. Do not unroll `[1]`,`[2]`,… unless the user asked for a single instance.
 
-**Path dialects** (`PATH` / absolute `EXPRESSION`): JSON/`$…` · XML `/…` · FLAT bracket keys as in the source tree.
+**Path dialects** (`PATH` / absolute `EXPRESSION`): JSON/`$…` · XML `/…` · FLAT bracket keys as in the source tree. Relative `EXPRESSION` stays relative to the loop node (e.g. `pulse`, not `$.measurements[*].pulse`).
 
 ## Prompt / input
 
@@ -110,7 +110,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 4. Link to this doc
 5. Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …)
 6. Artifact delivery (below)
-7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating
+7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating. Repeatable containers are listed separately for `attachSlotId`. Do not map source quantities onto ordinal/score fields unless the source is already that score.
 
 ### Artifact delivery
 
@@ -128,7 +128,7 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 
 1. Extract fence (or raw JSON)
 2. Require `format` + `version` `"2"`; match `target`
-3. Validate `loops[]` (`for_each_source` only); join `loopVar` + relative `EXPRESSION` onto that loop’s `PATH` when applying value slots
+3. Validate `loops[]` (`for_each_source` only); keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container with `for_each_source` on the canvas
 4. Apply each suggestion `block` → value slot; report applied / skipped / errors
 5. User **Test Run**
 

@@ -90,3 +90,33 @@ Deno.test("exportMappingSpec downloads projected spec text", () => {
   assertStringIncludes(downloaded, "Blockly projection");
   assertStringIncludes(downloaded, "empty workspace");
 });
+
+Deno.test("exportBlocklyDefinition downloads full workspace JSON with coordinates", () => {
+  let filename = "";
+  let downloaded = "";
+  const host = stubHost({
+    downloadText: (name, content) => {
+      filename = name;
+      downloaded = content;
+    },
+  });
+  const blocklyState = {
+    blocks: {
+      languageVersion: 0,
+      blocks: [{
+        type: "source_query_number",
+        id: "q1",
+        x: 120,
+        y: 48,
+        fields: { EXPRESSION: "/vitals/systolic" },
+      }],
+    },
+  };
+  const controller = new WorkbenchController(host);
+  controller.setBlocklyStateGetter(() => blocklyState);
+  controller.exportBlocklyDefinition();
+  assertStringIncludes(filename, ".blockly.json");
+  assertStringIncludes(downloaded, '"x": 120');
+  assertStringIncludes(downloaded, '"y": 48');
+  assertStringIncludes(downloaded, "source_query_number");
+});

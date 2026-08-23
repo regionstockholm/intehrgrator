@@ -24,6 +24,7 @@ export function createEmptyModel(templateId: string): MappingModel {
     templateId,
     slots: [],
     optionalRm: [],
+    loops: [],
   };
 }
 
@@ -92,6 +93,14 @@ export function validateModel(
 
   return issues;
 }
+
+export {
+  upsertLoop,
+  promoteIndexedSourcePath,
+  relativePathFromLoop,
+  isRelativeAuthoringPath,
+  expressionUsesRelativeSourcePath,
+} from "./loops.ts";
 
 export function applyExpressionEdit(
   model: MappingModel,

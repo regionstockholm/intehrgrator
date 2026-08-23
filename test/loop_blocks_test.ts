@@ -1,7 +1,12 @@
 import { assertEquals, assert } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { javascriptGenerator } from "blockly/javascript";
-import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
+import {
+  applyModelLoops,
+  initBlocklyGenerators,
+  workspaceToModelJson,
+} from "@intehrgrator/blockly/mod.ts";
+import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 
 let ready = false;
 function ensure(): void {
@@ -49,6 +54,26 @@ Deno.test("for_each_source binds loop variable from path", () => {
   assert(code.includes("evaluateXPathToNodes"), code);
   assert(code.includes('"/patient/vitals"'), code);
   assert(code.includes('__vars["vital"]'), code);
-  assertEquals(code.includes("for (const __node of"), true);
+  assertEquals(code.includes(".map((vital)"), true);
+  workspace.dispose();
+});
+
+Deno.test("applyModelLoops wraps the repeating container with for_each_source", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const event = workspace.newBlock("event");
+  event.setFieldValue("evt-1", "SLOT_ID");
+  const model = createEmptyModel("t1");
+  model.loops = [{ attachSlotId: "evt-1", varName: "measurements", path: "$.measurements" }];
+  applyModelLoops(workspace, model);
+  const parent = event.getParent();
+  assertEquals(parent?.type, "for_each_source");
+  assertEquals(parent?.getFieldValue("VAR"), "measurements");
+  assertEquals(parent?.getFieldValue("PATH"), "$.measurements");
+  assertEquals(workspaceToModelJson(workspace).loops, [{
+    attachSlotId: "evt-1",
+    varName: "measurements",
+    path: "$.measurements",
+  }]);
   workspace.dispose();
 });

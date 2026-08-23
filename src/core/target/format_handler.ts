@@ -14,6 +14,8 @@ import type {
 import {
   generateSkeleton,
   generateSkeletonFromWebTemplate,
+  collectAllSlotIds,
+  isRepeatingMultiplicity,
 } from "../skeleton/generate_skeleton.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
@@ -266,9 +268,33 @@ function renderOpenEhrNode(
   node: SkeletonNode,
   values: Readonly<Record<string, unknown>>,
 ): unknown {
+  if (
+    node.kind === "container" &&
+    isRepeatingMultiplicity(node.multiplicity)
+  ) {
+    const count = repeatingInstanceCount(node, values);
+    if (count > 1) {
+      const copies: unknown[] = [];
+      for (let i = 0; i < count; i++) {
+        const one = renderOpenEhrNodeOnce(node, indexSlotValues(values, i, node));
+        if (one !== undefined) copies.push(one);
+      }
+      return copies;
+    }
+  }
+  return renderOpenEhrNodeOnce(node, values);
+}
+
+function renderOpenEhrNodeOnce(
+  node: SkeletonNode,
+  values: Readonly<Record<string, unknown>>,
+): unknown {
   if (node.kind === "value") {
-    const value = values[node.slotId] ?? fixedValue(node);
-    if (value === undefined) return undefined;
+    let value = Object.hasOwn(values, node.slotId) ? values[node.slotId] : fixedValue(node);
+    if (Array.isArray(value)) {
+      value = value.find((item) => !isAbsentValue(item));
+    }
+    if (isAbsentValue(value)) return undefined;
     if (!node.rmType.startsWith("DV_") && node.rmType !== "CODE_PHRASE") return value;
     const output: Record<string, unknown> = { _type: node.rmType };
     if (node.rmType === "DV_QUANTITY") output.magnitude = value;
@@ -290,8 +316,15 @@ function renderOpenEhrNode(
     if (value === undefined) continue;
     const attribute = child.rmAttribute ?? child.label;
     const list = grouped.get(attribute) ?? [];
-    list.push(value);
+    if (Array.isArray(value) && child.kind === "container") {
+      list.push(...value);
+    } else {
+      list.push(value);
+    }
     grouped.set(attribute, list);
+  }
+  if (grouped.size === 0 && !node.mandatory && node.rmType !== "COMPOSITION") {
+    return undefined;
   }
   for (const [attribute, valuesForAttribute] of grouped) {
     output[attribute] = shouldRenderAsArray(attribute, valuesForAttribute.length)
@@ -299,6 +332,32 @@ function renderOpenEhrNode(
       : valuesForAttribute[0];
   }
   return output;
+}
+
+function repeatingInstanceCount(
+  node: SkeletonNode,
+  values: Readonly<Record<string, unknown>>,
+): number {
+  let max = 0;
+  for (const slotId of collectAllSlotIds([node])) {
+    const value = values[slotId];
+    if (Array.isArray(value)) max = Math.max(max, value.length);
+  }
+  return max;
+}
+
+function indexSlotValues(
+  values: Readonly<Record<string, unknown>>,
+  index: number,
+  subtree: SkeletonNode,
+): Record<string, unknown> {
+  const ids = new Set(collectAllSlotIds([subtree]));
+  const out: Record<string, unknown> = { ...values };
+  for (const [key, value] of Object.entries(values)) {
+    if (!ids.has(key)) continue;
+    if (Array.isArray(value)) out[key] = value[index];
+  }
+  return out;
 }
 
 function renderXmlNode(
@@ -312,6 +371,11 @@ function renderXmlNode(
   }
   const body = node.children.map((child) => renderXmlNode(child, values)).join("");
   return `<${name}>${body}</${name}>`;
+}
+
+function isAbsentValue(value: unknown): boolean {
+  return value === undefined || value === null ||
+    (typeof value === "number" && Number.isNaN(value));
 }
 
 function fixedValue(node: SkeletonNode): unknown {

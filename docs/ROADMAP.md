@@ -6,6 +6,8 @@
 - [ ] add a button for loading example sets with, source, target and sometimes mappings
 - [ ] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
+- [ ] Synk highlight mellan mappning och conversion test run (ev conversin script)
+- [ ] Aktivera Expand/collapse json etc i code mirror
 
 ## Add support for map structures
 - [ ] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist.
@@ -56,4 +58,11 @@
 - [ ] Engine-specific JSON notes + CI golden run against Saxon/BaseX
 - See [future/xquery-export-investigation.md](future/xquery-export-investigation.md)
 
- 
+ ##
+ - [ ] Check versions of source & target (in ehrtslib app) before running 
+
+ # Demo
+
+  enklare template
+  har testat lagra
+  PPT om flöden

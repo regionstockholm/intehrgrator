@@ -5,7 +5,7 @@
  * with `?testMode=1`. Prefer `deno task test:ui` which builds, serves, and runs this.
  */
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { chromium } from "npm:playwright@1.51.0";
 import {
   baseUrl,
@@ -62,14 +62,14 @@ Deno.test({
       }, { timeout: 10_000 });
 
       const snap = await getSnapshot(page);
-      const composition = snap.testResult?.composition as {
-        slots?: Record<string, unknown>;
-      } | undefined;
-      assertEquals(composition?.slots?.[slotId], 120, JSON.stringify(snap.testResult));
+      const output = snap.testResult?.output as Record<string, unknown> | undefined;
       assertEquals(snap.testResult?.ok, true, (snap.testResult?.warnings ?? []).join("; "));
+      assert(output && !("slots" in output), `openEHR Test Run must not include a slots sidecar: ${JSON.stringify(output)}`);
+      assertStringIncludes(JSON.stringify(output), "120");
 
       const outputText = await page.locator("#test-output").innerText();
       assert(outputText.includes("120"), outputText);
+      assert(!outputText.includes('"slots"'), outputText);
     } finally {
       await browser.close();
     }

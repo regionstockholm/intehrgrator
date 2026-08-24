@@ -402,7 +402,7 @@ export class WorkbenchController {
     this.clearTreeHighlight();
     const cached = this.examples.getCachedResult(id);
     this.testResult = cached
-      ? { ok: true, composition: cached, warnings: [] }
+      ? { ok: true, output: cached, composition: cached, warnings: [] }
       : null;
     this.markDirty();
   }
@@ -416,7 +416,7 @@ export class WorkbenchController {
       const active = this.examples.getActive();
       const cached = active ? this.examples.getCachedResult(active.id) : undefined;
       this.testResult = cached
-        ? { ok: true, composition: cached, warnings: [] }
+        ? { ok: true, output: cached, composition: cached, warnings: [] }
         : null;
     }
     this.markDirty();
@@ -561,8 +561,8 @@ export class WorkbenchController {
       exportTarget: this.settings.exportTarget,
       handlebarsTemplate: this.handlebarsTemplate,
     });
-    if (this.testResult.composition) {
-      this.examples.setCachedResult(active.id, this.testResult.composition);
+    if (this.testResult.output !== undefined) {
+      this.examples.setCachedResult(active.id, this.testResult.output);
     }
     this.notifyChange();
   }

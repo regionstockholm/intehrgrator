@@ -60,6 +60,7 @@ Deno.test("controller loads template/schema/example from content", async () => {
   const after = controller.getState();
   const composition = after.testResult?.output as { _type?: string };
   assertEquals(composition?._type, "COMPOSITION");
+  assertEquals("slots" in (composition ?? {}), false, "openEHR Test Run must not include a slots sidecar");
   assertStringIncludes(JSON.stringify(composition), "120");
 });
 
@@ -90,6 +91,7 @@ Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", asy
   controller.runTestNow();
   const composition = controller.getState().testResult?.output as { _type?: string };
   assertEquals(composition?._type, "COMPOSITION");
+  assertEquals("slots" in (composition ?? {}), false, "openEHR Test Run must not include a slots sidecar");
   assertStringIncludes(JSON.stringify(composition), "120");
 });
 

@@ -56,6 +56,7 @@ Deno.test("Test Run expands repeating EVENT from relative loop paths", async () 
 
   const result = runTest(model, instance, "json", { target });
   assertEquals(result.ok, true, (result.warnings ?? []).join("; "));
+  assertNoSlotsSidecar(result.output);
   const events = findPulseEvents(result.output);
   assertEquals(events.length, 3);
   const magnitudes = events.map((e) => {
@@ -157,6 +158,14 @@ async function loadPulseTarget() {
     ?.slotId;
   if (!eventSlotId) throw new Error("expected repeating pulse EVENT");
   return { target, rate, time, eventSlotId };
+}
+
+function assertNoSlotsSidecar(output: unknown): void {
+  assertEquals(
+    Boolean(output && typeof output === "object" && "slots" in output),
+    false,
+    "openEHR Test Run must not include a slots sidecar",
+  );
 }
 
 function findPulseEvents(node: unknown): Array<{

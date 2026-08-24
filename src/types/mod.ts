@@ -81,6 +81,8 @@ export interface SkeletonNode {
   targetPath?: string;
   /** Compact target cardinality, e.g. `1`, `0..1`, `0..*`, `1..*`. */
   multiplicity?: string;
+  /** Cardinality of the parent attribute slot this node occupies. */
+  slotCardinality?: string;
   children: SkeletonNode[];
   attachmentPoint?: string;
 }

@@ -1,15 +1,15 @@
 ## small fixes
 - .xml som ok format i diverse file pickers
-- [ ] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
+- [x] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
 - [x] snygga till överlappande block i blockbibliotek
-- [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
-- [ ] Get allowed occurences visible on blockly slots
-- [ ] add a button for loading example sets wint source
+- [x] Get allowed occurences visible on blockly slots
+- [ ] add a button for loading example sets with, source, target and sometimes mappings
 - [ ] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
+- [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 
 ## Add support for map structures
-- [ ] Model after list blocks, check for already available implemetnations in blockly
-- [ ] Make it possible to digest CSV tables for setting up mappings, preferably multi columnt to get bothe label and code for terminology bound texts
+- [ ] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist.
+- [ ] Make it possible to digest CSV tables for setting up mappings, preferably multi column to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT
 - [ ] Make it possible to digest FHIR terminology mappings for setting up mappings
 
 
@@ -33,8 +33,8 @@
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md) and [ADR 0001](adr/0001-mapping-and-target-seams.md)
 - [ ] add blockly support for handlebars snippets inside new kind of text block based on variables/context/xpath etc
 
-## Schema specific synamic blockly toolboxes
-- [ ] test with TakeCare schema
+## Schema specific dynamic blockly toolboxes
+- [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins?
 - [ ] add special support for TakeCare term id (moltiple systems, e.g. both test and prod )
 
 ## AI Assistance

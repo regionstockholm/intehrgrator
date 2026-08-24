@@ -3,23 +3,27 @@ import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
-  ViewPlugin,
+  WidgetType,
   keymap,
   lineNumbers,
-  type ViewUpdate,
+  type DecorationSet,
 } from "@codemirror/view";
-import { projectBlocklyState, type SpecLine, type SpecProjection } from "./project.ts";
+import {
+  blocklyJsonDocument,
+  type BlocklyJsonDocument,
+  type SpecLine,
+} from "./project.ts";
 import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler } from "./widgets.ts";
 
-const setProjectionEffect = StateEffect.define<SpecProjection>();
+const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
-const projectionField = StateField.define<SpecProjection>({
+const jsonDocField = StateField.define<BlocklyJsonDocument>({
   create() {
-    return projectBlocklyState(null);
+    return blocklyJsonDocument(null);
   },
   update(value, tr) {
     for (const effect of tr.effects) {
-      if (effect.is(setProjectionEffect)) return effect.value;
+      if (effect.is(setJsonDocEffect)) return effect.value;
     }
     return value;
   },
@@ -34,43 +38,81 @@ const editFacet = Facet.define<
   },
 });
 
-function buildDecorations(view: EditorView): Decoration {
-  const projection = view.state.field(projectionField);
-  const onEdit = view.state.facet(editFacet);
+class HiddenJsonWidget extends WidgetType {
+  override get estimatedHeight(): number {
+    return 0;
+  }
+
+  override toDOM(): HTMLElement {
+    const span = document.createElement("span");
+    span.className = "cm-spec-json-chrome";
+    span.hidden = true;
+    return span;
+  }
+
+  override eq(): boolean {
+    return true;
+  }
+}
+
+/**
+ * Replace decorations that span line breaks must come from a StateField,
+ * not a ViewPlugin (CodeMirror: "may not be specified via plugins").
+ */
+function buildDecorations(state: EditorState): DecorationSet {
+  const doc = state.field(jsonDocField);
+  const onEdit = state.facet(editFacet);
+  if (!doc.widgets.length) return Decoration.none;
+
   const ranges = [];
-  for (let i = 0; i < projection.lines.length; i++) {
-    const line = view.state.doc.line(i + 1);
-    const meta = projection.lines[i]!;
+  const text = state.doc.toString();
+  let cursor = 0;
+  for (const widget of doc.widgets) {
+    if (widget.from > cursor) {
+      ranges.push(
+        Decoration.replace({
+          widget: new HiddenJsonWidget(),
+          block: true,
+          inclusive: true,
+        }).range(cursor, widget.from),
+      );
+    }
     ranges.push(
       Decoration.replace({
-        widget: new MappingSpecWidget(meta, onEdit),
+        widget: new MappingSpecWidget(widget.line, onEdit),
         inclusive: true,
-      }).range(line.from, line.to),
+      }).range(widget.from, widget.to),
+    );
+    cursor = widget.to;
+    if (text[cursor] === "\n") cursor++;
+  }
+  if (cursor < text.length) {
+    ranges.push(
+      Decoration.replace({
+        widget: new HiddenJsonWidget(),
+        block: true,
+        inclusive: true,
+      }).range(cursor, text.length),
     );
   }
   return Decoration.set(ranges, true);
 }
 
-const widgetPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: Decoration;
-    constructor(view: EditorView) {
-      this.decorations = buildDecorations(view);
-    }
-    update(update: ViewUpdate) {
-      if (
-        update.docChanged ||
-        update.viewportChanged ||
-        update.transactions.some((tr) =>
-          tr.effects.some((effect) => effect.is(setProjectionEffect))
-        )
-      ) {
-        this.decorations = buildDecorations(update.view);
-      }
-    }
+const jsonDecorations = StateField.define<DecorationSet>({
+  create(state) {
+    return buildDecorations(state);
   },
-  { decorations: (value) => value.decorations },
-);
+  update(value, tr) {
+    if (
+      tr.docChanged ||
+      tr.effects.some((effect) => effect.is(setJsonDocEffect))
+    ) {
+      return buildDecorations(tr.state);
+    }
+    return value;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
 
 const specTheme = EditorView.theme({
   "&": { height: "100%", fontSize: "12px" },
@@ -190,7 +232,7 @@ export function createMappingSpecEditor(
   parent: HTMLElement,
   options: MappingSpecEditorOptions = {},
 ): EditorView {
-  const empty = projectBlocklyState(null);
+  const empty = blocklyJsonDocument(null);
   return new EditorView({
     parent,
     state: EditorState.create({
@@ -199,9 +241,9 @@ export function createMappingSpecEditor(
         lineNumbers(),
         history(),
         keymap.of([...defaultKeymap, ...historyKeymap]),
-        projectionField.init(() => empty),
+        jsonDocField.init(() => empty),
         editFacet.of(options.onFieldEdit),
-        widgetPlugin,
+        jsonDecorations,
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
         specTheme,
@@ -212,32 +254,18 @@ export function createMappingSpecEditor(
 
 /** Replace the Spec view from canonical Blockly workspace JSON. */
 export function setMappingSpecFromBlockly(view: EditorView, blocklyState: unknown): void {
-  const projection = projectBlocklyState(blocklyState);
+  const next = blocklyJsonDocument(blocklyState);
   const current = view.state.doc.toString();
-  if (
-    current === projection.text &&
-    sameLines(view.state.field(projectionField).lines, projection.lines)
-  ) {
-    return;
-  }
+  if (current === next.text) return;
   view.dispatch({
-    changes: { from: 0, to: view.state.doc.length, insert: projection.text },
-    effects: setProjectionEffect.of(projection),
+    changes: { from: 0, to: view.state.doc.length, insert: next.text },
+    effects: setJsonDocEffect.of(next),
   });
 }
 
-function sameLines(a: SpecLine[], b: SpecLine[]): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (
-      a[i]!.blockId !== b[i]!.blockId ||
-      a[i]!.summary !== b[i]!.summary ||
-      JSON.stringify(a[i]!.editable) !== JSON.stringify(b[i]!.editable)
-    ) {
-      return false;
-    }
-  }
-  return true;
+/** The editor document is the full Blockly workspace JSON. */
+export function mappingSpecDocumentText(view: EditorView): string {
+  return view.state.doc.toString();
 }
 
-export type { SpecFieldEditHandler, SpecProjection, SpecLine };
+export type { SpecFieldEditHandler, SpecLine };

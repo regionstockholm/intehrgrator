@@ -1,5 +1,7 @@
 export {
+  blocklyJsonDocument,
   projectBlocklyState,
+  type BlocklyJsonDocument,
   type SpecEditableField,
   type SpecLine,
   type SpecLineKind,
@@ -8,6 +10,7 @@ export {
 
 export {
   createMappingSpecEditor,
+  mappingSpecDocumentText,
   setMappingSpecFromBlockly,
   type MappingSpecEditorOptions,
   type SpecFieldEditHandler,

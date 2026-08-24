@@ -244,6 +244,37 @@ function collectInfo(block: BlocklyBlockJson): Record<string, unknown> {
   return info;
 }
 
+export interface BlocklyJsonDocument {
+  text: string;
+  widgets: Array<{ from: number; to: number; line: SpecLine }>;
+}
+
+/** Pretty-printed Blockly JSON plus widget ranges on each block `"type"` line. */
+export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
+  const text = state == null ? "{}" : JSON.stringify(state, null, 2);
+  const specBlocks = projectBlocklyState(state).lines.filter(
+    (line) => line.kind !== "header" && line.type !== "empty",
+  );
+  const widgets: BlocklyJsonDocument["widgets"] = [];
+  const jsonLines = text.split("\n");
+  let offset = 0;
+  let specIdx = 0;
+  for (let i = 0; i < jsonLines.length; i++) {
+    const line = jsonLines[i]!;
+    const from = offset;
+    const to = from + line.length;
+    offset = to + (i < jsonLines.length - 1 ? 1 : 0);
+    if (specIdx < specBlocks.length && /^\s*"type": /.test(line)) {
+      widgets.push({ from, to, line: specBlocks[specIdx]! });
+      specIdx++;
+    }
+  }
+  if (specIdx !== specBlocks.length) {
+    return { text, widgets: [] };
+  }
+  return { text, widgets };
+}
+
 function toProjection(lines: SpecLine[]): SpecProjection {
   const text = lines
     .map((line) => {

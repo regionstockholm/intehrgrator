@@ -67,7 +67,6 @@ import {
   type GitHubClinicalModelLoadResult,
 } from "../core/clinical_model/github_template.ts";
 import { loadGitHubExampleDirectory } from "../core/source/github_examples.ts";
-import { projectBlocklyState } from "./mapping_spec/project.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import {
   snapshotUrlHistory,
@@ -121,6 +120,7 @@ export class WorkbenchController {
     origin: null,
   };
   private blocklyState: unknown = null;
+  private blocklyReloadToken = 0;
   private getBlocklyState: (() => unknown) | null = null;
   private debounceTimer: number | null = null;
   private autosaveTimer: number | null = null;
@@ -176,6 +176,7 @@ export class WorkbenchController {
       activeExampleValidation: this.buildActiveExampleValidation(),
       specText: formatBlocklyState(this.getBlocklyState?.() ?? this.blocklyState),
       blocklyState: this.blocklyState,
+      blocklyReloadToken: this.blocklyReloadToken,
       handlebarsTemplate: this.handlebarsTemplate,
       generatedCode: this.generatedCode,
       testResult: this.testResult,
@@ -253,6 +254,7 @@ export class WorkbenchController {
       this.handlebarsTemplate = content;
     }
     this.blocklyState = null;
+    this.blocklyReloadToken += 1;
     this.refreshDerived();
     this.statusMessage = `Loaded ${format} target ${this.templateId}`;
     this.markDirty();
@@ -578,10 +580,7 @@ export class WorkbenchController {
   }
 
   exportMappingSpec(): void {
-    const state = this.getBlocklyState?.() ?? this.blocklyState;
-    const text = projectBlocklyState(state).text;
-    const base = safeFilename(this.templateId || this.projectId || "mapping");
-    void this.host.downloadText(`${base}.mapping-spec.txt`, text, "text/plain");
+    this.exportBlocklyDefinition();
   }
 
   /** Full Blockly workspace JSON (canonical mapping definition, includes x/y). */
@@ -590,6 +589,35 @@ export class WorkbenchController {
     const text = formatBlocklyState(state) || "{}";
     const base = safeFilename(this.templateId || this.projectId || "mapping");
     void this.host.downloadText(`${base}.blockly.json`, text, "application/json");
+  }
+
+  /** Load a previously downloaded Blockly workspace JSON onto the canvas. */
+  async importBlocklyDefinition(): Promise<void> {
+    const file = await this.host.pickTextFile(".json,.blockly.json", "mapping");
+    if (!file) return;
+    this.loadBlocklyDefinition(file.name, file.text);
+  }
+
+  loadBlocklyDefinition(filename: string, content: string): void {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch (err) {
+      this.statusMessage =
+        `Blockly JSON parse failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+      return;
+    }
+    if (!parsed || typeof parsed !== "object") {
+      this.statusMessage = "Blockly JSON must be an object";
+      this.notifyChange();
+      return;
+    }
+    this.blocklyState = parsed;
+    this.blocklyReloadToken += 1;
+    this.statusMessage = `Loaded Blockly mapping ${filename}`;
+    this.markDirty();
+    this.notifyChange();
   }
 
   async saveProjectAs(displayName: string): Promise<void> {
@@ -945,7 +973,7 @@ export class WorkbenchController {
   }
 
   private refreshDerived(): void {
-    // Spec view is a projected Mapping Spec (widgets); keep pretty JSON for diagnostics/AI copy.
+    // Spec view is widgets over the pretty Blockly JSON document.
     this.specText = formatBlocklyState(this.getBlocklyState?.() ?? this.blocklyState);
     this.generatedCode = this.model.templateId
       ? generate(this.model, this.settings.exportTarget, {
@@ -1014,6 +1042,7 @@ export class WorkbenchController {
     this.listeningSlotId = null;
     this.treeHighlight = { syncPath: null, origin: null };
     this.blocklyState = null;
+    this.blocklyReloadToken += 1;
     this.dirty = false;
     this.lastAutosaveAt = null;
     if (this.autosaveTimer !== null) {
@@ -1155,6 +1184,7 @@ export class WorkbenchController {
     this.model = createEmptyModel(this.templateId);
     this.model.targetFormat = "openehr-template";
     this.blocklyState = null;
+    this.blocklyReloadToken += 1;
     this.refreshDerived();
     const extra = loaded.warnings.length ? ` (${loaded.warnings.length} warnings)` : "";
     this.statusMessage =

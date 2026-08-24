@@ -406,7 +406,7 @@ try {
   note(`UI loops: ${JSON.stringify(uiSnap.model.loops ?? [])}`);
   await saveDownload(page, "#btn-export-project", "ui-mapping.intehrgrator.zip");
   await saveDownload(page, "#btn-download-blockly", "ui-mapping.blockly.json");
-  await saveDownload(page, "#btn-download-spec", "ui-mapping.mapping-spec.txt");
+  await saveDownload(page, "#btn-download-spec", "ui-mapping-spec.blockly.json");
   note("Saved UI mapping exports");
 
   // --- 2. Fresh load → Copy AI Prompt → import suggestions ---
@@ -447,7 +447,7 @@ try {
   const aiSnap = await runTestAndSnapshot("05-ai-mapping-snapshot.json");
   await saveDownload(page, "#btn-export-project", "ai-mapping.intehrgrator.zip");
   await saveDownload(page, "#btn-download-blockly", "ai-mapping.blockly.json");
-  await saveDownload(page, "#btn-download-spec", "ai-mapping.mapping-spec.txt");
+  await saveDownload(page, "#btn-download-spec", "ai-mapping-spec.blockly.json");
   note("Saved AI mapping exports");
 
   const uiPulse = summarizePulse(uiSnap.testResult?.output);

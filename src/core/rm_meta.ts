@@ -44,6 +44,19 @@ export function baseRmTypeName(typeName: string): string {
   return typeName;
 }
 
+/**
+ * Resolve a BMM type parameter (e.g. EVENT.data is `T`) to its
+ * `conforms_to_type` bound. EVENT&lt;T&gt; locks T to ITEM_STRUCTURE
+ * (`openehr://spec/type/RM/EVENT`).
+ */
+export function resolveGenericSlotType(parentRmType: string, typeName: string): string {
+  const base = baseRmTypeName(typeName);
+  if (base === "T" && (parentRmType === "EVENT" || isSubtypeOf(parentRmType, "EVENT"))) {
+    return "ITEM_STRUCTURE";
+  }
+  return base;
+}
+
 export function isPrimitiveRmType(typeName: string): boolean {
   return PRIMITIVE_RM_TYPES.has(baseRmTypeName(typeName));
 }

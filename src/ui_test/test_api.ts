@@ -50,6 +50,10 @@ export interface IntehrgratorTestApi {
    * where absolute slotIds are long archetype paths).
    */
   findSlotIdBySuffix(suffix: string): string | null;
+  /** CodeMirror Mapping Spec document (full Blockly workspace JSON). */
+  getMappingSpecDocument(): string;
+  /** Load a Blockly workspace JSON file (same path as Mapping Spec Upload). */
+  loadBlocklyJson(filename: string, content: string): void;
 }
 
 declare global {

@@ -20,6 +20,7 @@ import {
 } from "../src/workbench/codemirror_setup.ts";
 import {
   createMappingSpecEditor,
+  mappingSpecDocumentText,
   setMappingSpecFromBlockly,
 } from "../src/workbench/mapping_spec/mod.ts";
 import {
@@ -38,10 +39,13 @@ import {
   workspaceToModelJson,
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
+  applyEventRmType,
+  isEventFamilyType,
   workspacePositionFromClient,
   registerCompactThrasosRenderer,
   openWorkspaceSnapshotWindow,
 } from "../src/blockly/mod.ts";
+import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
   presentAttributeNames,
   rmTypeOfBlock,
@@ -103,6 +107,7 @@ const exportTargetSelect = document.getElementById("export-target") as HTMLSelec
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
 const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
 const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
+const uploadSpecBtn = document.getElementById("btn-upload-spec") as HTMLButtonElement;
 const mappingJsonHost = document.getElementById("spec-editor")!;
 const handlebarsHost = document.getElementById("handlebars-editor")!;
 
@@ -158,11 +163,13 @@ function showTextView(view: "mapping-json" | "handlebars"): void {
   handlebarsTab.classList.toggle("active", showHandlebars);
   if (handlebarsInsertToolbar) handlebarsInsertToolbar.hidden = !showHandlebars;
   downloadSpecBtn.hidden = showHandlebars;
+  if (uploadSpecBtn) uploadSpecBtn.hidden = showHandlebars;
 }
 
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
-downloadSpecBtn.addEventListener("click", () => controller.exportMappingSpec());
+downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
+uploadSpecBtn?.addEventListener("click", () => void controller.importBlocklyDefinition());
 exportTargetSelect.addEventListener("change", () => {
   const target = exportTargetSelect.value as
     | "typescript"
@@ -270,6 +277,22 @@ async function bootBlockly(): Promise<void> {
       if (slotId) controller.armSlot(slotId);
       return;
     }
+    if (
+      event.type === Blockly.Events.BLOCK_CHANGE &&
+      "name" in event &&
+      event.name === "RM_TYPE" &&
+      "blockId" in event &&
+      typeof event.blockId === "string"
+    ) {
+      const block = workspace.getBlockById(event.blockId);
+      const next = String((event as { newValue?: unknown }).newValue ?? "");
+      if (block && (isEventFamilyType(next) || next === "EVENT")) {
+        applyEventRmType(block, next);
+      }
+    }
+    if (event.type !== Blockly.Events.FINISHED_LOADING && !event.isUiEvent) {
+      refreshWorkspaceConstraints(workspace);
+    }
     if (event.type === Blockly.Events.FINISHED_LOADING || event.isUiEvent) return;
     const derived = workspaceToModelJson(workspace);
     controller.syncFromBlockly(
@@ -357,13 +380,20 @@ function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
 function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): void {
   if (!workspace) return;
   syncToolbox(s);
-  if (!s.templateId || !s.skeleton.length) {
+  if (!s.templateId && !s.blocklyState) {
     blocklySkeletonKey = "";
     blocklySlotSignature = "";
     return;
   }
+  if (!s.templateId || !s.skeleton.length) {
+    if (!(s.blocklyState && typeof s.blocklyState === "object" && s.blocklyReloadToken)) {
+      blocklySkeletonKey = "";
+      blocklySlotSignature = "";
+      return;
+    }
+  }
 
-  const skeletonKey = `${s.projectId}|${s.templateId}|${s.skeleton.length}`;
+  const skeletonKey = `${s.projectId}|${s.templateId}|${s.skeleton.length}|${s.blocklyReloadToken}`;
   const slotSignature = [
     ...s.model.slots.map((slot) => `${slot.slotId}=${slot.expression}`),
     ...(s.model.loops ?? []).map((loop) =>
@@ -378,10 +408,22 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         workspace.clear();
         Blockly.serialization.workspaces.load(s.blocklyState, workspace);
         applyModelLoops(workspace, s.model);
+        refreshWorkspaceConstraints(workspace);
       } finally {
         Blockly.Events.enable();
       }
       lockWorkspaceRootsExpanded(workspace);
+      blocklySkeletonKey = skeletonKey;
+      blocklySlotSignature = slotSignature;
+      const derived = workspaceToModelJson(workspace);
+      if (s.blocklyReloadToken > 0) {
+        controller.syncFromBlockly(
+          Blockly.serialization.workspaces.save(workspace),
+          derived.slots,
+          derived.loops,
+        );
+      }
+      return;
     } else {
       loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
     }
@@ -1158,6 +1200,12 @@ function installWorkbenchTestApi(): void {
     findSlotIdBySuffix(suffix) {
       const slots = collectValueSlots(controller.getState().skeleton);
       return slots.find((slot) => slot.slotId.endsWith(suffix))?.slotId ?? null;
+    },
+    getMappingSpecDocument() {
+      return mappingSpecDocumentText(specEditor);
+    },
+    loadBlocklyJson(filename, content) {
+      controller.loadBlocklyDefinition(filename, content);
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

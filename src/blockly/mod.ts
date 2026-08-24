@@ -25,6 +25,7 @@ export {
   setAllBlocksCollapsed,
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
+export { refreshWorkspaceConstraints, ABSTRACT_EVENT_WARNING, warningTextOf } from "./block_constraints.ts";
 export { blockToExpression } from "./expression_serialize.ts";
 export {
   createSourceQueryBlock,
@@ -44,7 +45,7 @@ export {
   openWorkspaceSnapshotWindow,
   workspaceToStandaloneSvg,
 } from "./workspace_snapshot.ts";
-export { setOptionalRmPickHandler } from "./blocks/rm_blocks.ts";
+export { setOptionalRmPickHandler, applyEventRmType, isEventFamilyType } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";
 export { buildDemoToolbox, type ToolboxContext } from "./toolbox_demo.ts";

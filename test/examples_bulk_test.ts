@@ -78,17 +78,50 @@ Deno.test("addExamplesFromGitHubDirectory bulk-loads instances and remembers URL
   assertEquals(controller.getState().urlHistory?.example.includes(url), true);
 });
 
-Deno.test("exportMappingSpec downloads projected spec text", () => {
+Deno.test("exportMappingSpec downloads full Blockly workspace JSON", () => {
+  let filename = "";
   let downloaded = "";
   const host = stubHost({
-    downloadText: (_name, content) => {
+    downloadText: (name, content) => {
+      filename = name;
       downloaded = content;
     },
   });
+  const blocklyState = {
+    blocks: {
+      languageVersion: 0,
+      blocks: [{
+        type: "source_query_number",
+        id: "q1",
+        x: 120,
+        y: 48,
+        fields: { EXPRESSION: "/vitals/systolic" },
+      }],
+    },
+  };
   const controller = new WorkbenchController(host);
+  controller.setBlocklyStateGetter(() => blocklyState);
   controller.exportMappingSpec();
-  assertStringIncludes(downloaded, "Blockly projection");
-  assertStringIncludes(downloaded, "empty workspace");
+  assertStringIncludes(filename, ".blockly.json");
+  assertStringIncludes(downloaded, '"x": 120');
+  assertStringIncludes(downloaded, '"y": 48');
+  assertEquals(JSON.parse(downloaded).blocks.blocks[0].type, "source_query_number");
+});
+
+Deno.test("loadBlocklyDefinition stores workspace JSON for canvas restore", () => {
+  const host = stubHost();
+  const controller = new WorkbenchController(host);
+  const blocklyState = {
+    blocks: {
+      languageVersion: 0,
+      blocks: [{ type: "composition", id: "c1", x: 8, y: 16, fields: { RM_TYPE: "COMPOSITION" } }],
+    },
+  };
+  controller.loadBlocklyDefinition("bp.blockly.json", JSON.stringify(blocklyState));
+  const state = controller.getState();
+  assertEquals(state.blocklyReloadToken > 0, true);
+  assertEquals((state.blocklyState as { blocks?: { blocks?: Array<{ id?: string }> } })?.blocks?.blocks?.[0]?.id, "c1");
+  assertStringIncludes(state.specText, '"x": 8');
 });
 
 Deno.test("exportBlocklyDefinition downloads full workspace JSON with coordinates", () => {

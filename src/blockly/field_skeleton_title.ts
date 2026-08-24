@@ -27,7 +27,9 @@ export function isSkeletonTitleField(
 export class FieldSkeletonTitle extends FieldLabelBase {
   readonly isSkeletonTitleField = true;
   EDITABLE = false;
-  SERIALIZABLE = false;
+  // Persist the node name in Blockly JSON so Mapping Spec download/upload
+  // round-trips labels. className/at-code are restored from the skeleton.
+  SERIALIZABLE = true;
 
   private className_ = "";
   private atCode_ = "";

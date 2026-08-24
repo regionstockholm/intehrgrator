@@ -50,6 +50,11 @@ export function registerTermPickBlock(): void {
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable("CODE_PHRASE"), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
+      if (!this.getField("MANDATORY")) {
+        this.appendDummyInput()
+          .appendField(new Blockly.FieldLabelSerializable(""), "MANDATORY");
+        this.getField("MANDATORY")!.setVisible(false);
+      }
 
       this.setOutput(true, ["CODE_PHRASE", "DV_CODED_TEXT"]);
       this.setColour(TERM_COLOUR);

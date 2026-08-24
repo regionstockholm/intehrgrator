@@ -2,13 +2,24 @@
 - .xml som ok format i diverse file pickers
 - snygga till överlappande block i blockbibliotek
 - Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
+- [ ] Get allowed occurences visible on blockly slots
+- [ ] add a button for loading example sets wint source
+- [ ] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
+
+## Add support for map structures
+- [ ] Model after list blocks, check for already available implemetnations in blockly
+- [ ] Make it possible to digest CSV tables for setting up mappings, preferably multi columnt to get bothe label and code for terminology bound texts
+- [ ] Make it possible to digest FHIR terminology mappings for setting up mappings
 
 
 ## target visualisation tree
 - [ ] figure out if the extra pane for highligting missing mappings is still needed or if warning signs in blockly blocks is enough. Perhaps add warning markers in mapping codemirror pane too. Remove extra pane when no longer needed.
 
+
 ## open EHR reference model classes available as blockly blocks.
-- [ ] check if any calsses are mnnissing
+- [ ] check if any classes are missing
+- [ ] There are two similarly looking blocks for SECTION, compare, then remove one.
+- [ ] Change the CLUSTER block into the same colour as the ELEMENT block and mov 
 - [ ] improve sorting of blocks in blockly toolbox (put common ones eralier, possibly subdivide/group, fix colour/pattern semantics)
 
 
@@ -25,6 +36,10 @@
 - [ ] test with TakeCare schema
 - [ ] add special support for TakeCare term id (moltiple systems, e.g. both test and prod )
 
+## AI Assistance
+- [ ] validate that AI assistance (initial cut & paste variant) works, improve if needed.
+- [ ] Add hints in prompt/instruction-file regarding openehr-assistant (possibly with deepwiki link)
+
 # conversion script generation
 
 ## Golden examples
@@ -40,4 +55,4 @@
 - [ ] Engine-specific JSON notes + CI golden run against Saxon/BaseX
 - See [future/xquery-export-investigation.md](future/xquery-export-investigation.md)
 
-##
+ 

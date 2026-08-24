@@ -338,6 +338,34 @@
       </div>
     </form>
   </dialog>
+  <dialog id="dialog-import-ai" class="app-dialog app-dialog--xl">
+    <form method="dialog" class="dialog-form">
+      <h2>Import AI suggestions</h2>
+      <p>
+        Paste the JSON from the AI chat (a raw object or an
+        <code>intehrgrator-suggestions</code> fence). Import validates against the
+        suggestion JSON Schema; errors stay visible here and can be copied back to the AI.
+      </p>
+      <label class="dialog-label">
+        Suggestions
+        <textarea
+          id="import-ai-text"
+          rows="14"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder='{"format":"intehrgrator-suggestions","version":"2","suggestions":[…]}'
+        ></textarea>
+      </label>
+      <div id="import-ai-report" class="import-ai-report" hidden></div>
+      <div class="dialog-actions">
+        <button type="button" id="import-ai-clipboard">Paste clipboard</button>
+        <button type="button" id="import-ai-copy-errors" hidden>Copy errors for AI</button>
+        <span class="dialog-actions-spacer"></span>
+        <button type="button" id="import-ai-cancel" value="cancel">Cancel</button>
+        <button type="submit" id="import-ai-confirm" value="confirm">Import</button>
+      </div>
+    </form>
+  </dialog>
   <script type="module" src="./bundle.js"></script>
 </body>
 </html>

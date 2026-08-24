@@ -430,6 +430,10 @@ try {
     (globalThis as unknown as { __clip?: string }).__clip = text;
   }, suggestions);
   await page.click("#btn-import-ai");
+  await page.waitForSelector("#dialog-import-ai[open]", { timeout: 5_000 });
+  const prefilled = await page.inputValue("#import-ai-text");
+  if (!prefilled.trim()) await page.fill("#import-ai-text", suggestions);
+  await page.click("#import-ai-confirm");
   await page.waitForFunction(() => {
     const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
       .intehrgratorTestApi;

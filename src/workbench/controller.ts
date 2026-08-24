@@ -1,9 +1,11 @@
 import type {
   ExportTarget,
+  ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
   ProjectBundle,
   ProjectSettings,
+  SchemaIssue,
   SchemaTreeNode,
   SkeletonNode,
   SourceFormatId,
@@ -49,6 +51,8 @@ import {
   buildPrompt,
   importSuggestions,
   parseSuggestionsPayload,
+  extractSuggestionsJson,
+  validateSuggestionEnvelope,
 } from "../core/ai/mod.ts";
 import type { HostAdapter, PickedTextFile } from "../host/mod.ts";
 import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
@@ -677,25 +681,67 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
-  async importAiSuggestionsFromClipboard(): Promise<void> {
-    const text = await this.host.readClipboard();
-    const payload = parseSuggestionsPayload(text);
-    const valueSlots = collectValueSlots(this.skeleton);
-    const known = new Set(collectAllSlotIds(this.skeleton));
-    const slotMeta = new Map(
-      valueSlots.map((s) => [s.slotId, {
-        rmType: s.rmType,
-        returnType: returnTypeForTarget(s.rmType),
-        label: s.label,
-        mandatory: s.mandatory,
-      }]),
-    );
-    const { model, report } = importSuggestions(this.model, payload, known, slotMeta);
-    this.model = model;
-    this.refreshDerived();
-    this.statusMessage =
-      `Import: ${report.applied} applied, ${report.loopsAccepted} loops, ${report.skipped} skipped, ${report.errors.length} errors`;
-    this.markDirty();
+  async readClipboardText(): Promise<string> {
+    try {
+      return await this.host.readClipboard();
+    } catch {
+      return "";
+    }
+  }
+
+  importAiSuggestions(text: string): ImportSuggestionsReport {
+    const empty: ImportSuggestionsReport = {
+      applied: 0,
+      skipped: 0,
+      errors: [],
+      loopsAccepted: 0,
+      schemaIssues: [],
+    };
+    if (!this.templateId) {
+      const report = { ...empty, errors: ["Load a target template first"] };
+      this.statusMessage = `Import failed: ${report.errors[0]}`;
+      this.notifyChange();
+      return report;
+    }
+    let schemaIssues: SchemaIssue[] = [];
+    try {
+      schemaIssues = validateSuggestionEnvelope(extractSuggestionsJson(text));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      schemaIssues = [{ path: "$", message }];
+    }
+    try {
+      const payload = parseSuggestionsPayload(text, {
+        fallbackTarget: {
+          targetId: this.templateId,
+          format: this.target?.format ?? this.model.targetFormat ?? "openehr-template",
+        },
+      });
+      const valueSlots = collectValueSlots(this.skeleton);
+      const known = new Set(collectAllSlotIds(this.skeleton));
+      const slotMeta = new Map(
+        valueSlots.map((s) => [s.slotId, {
+          rmType: s.rmType,
+          returnType: returnTypeForTarget(s.rmType),
+          label: s.label,
+          mandatory: s.mandatory,
+        }]),
+      );
+      const { model, report } = importSuggestions(this.model, payload, known, slotMeta);
+      report.schemaIssues = schemaIssues;
+      this.model = model;
+      this.refreshDerived();
+      const schemaNote = schemaIssues.length ? `, ${schemaIssues.length} schema` : "";
+      this.statusMessage =
+        `Import: ${report.applied} applied, ${report.loopsAccepted} loops, ${report.skipped} skipped, ${report.errors.length} errors${schemaNote}`;
+      this.markDirty();
+      return report;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      this.statusMessage = `Import failed: ${message}`;
+      this.notifyChange();
+      return { ...empty, errors: [message], schemaIssues };
+    }
   }
 
   private collectAiArtifacts(): AiPromptArtifact[] {

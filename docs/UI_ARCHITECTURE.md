@@ -180,10 +180,10 @@ No in-app AI API in the web shell. Integrated AI is deferred to VS Code; see [do
 
 ### Import Suggestions
 
-1. User copies the `intehrgrator-suggestions` fenced JSON block from the AI response
-2. Clicks **Import Suggestions** → paste dialog / clipboard read
-3. App validates format and version `"2"`; matches `target.targetId` / `target.format`, resolves each `slotId`, converts Blockly `block` → Mapping Model expression, applies to the value slot
-4. Reports applied / skipped / errors; user verifies with **Run Test**
+1. User copies the `intehrgrator-suggestions` fenced JSON (or raw JSON) from the AI response
+2. Clicks **Import Suggestions** → paste dialog (pre-filled from clipboard when the text looks like suggestions)
+3. App validates version `"2"` against [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json); matches `target` when present (otherwise uses the loaded target); resolves each `slotId`; converts Blockly `block` → Mapping Model expression; applies to the value slot
+4. Applied / skipped / schema errors stay visible in the dialog; **Copy errors for AI** builds a follow-up the user can paste back into the chat; user verifies with **Run Test**
 
 ## Cross-Pane Interaction: "Click-to-Map"
 

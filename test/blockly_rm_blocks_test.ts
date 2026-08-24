@@ -531,3 +531,40 @@ Deno.test("applyFixedFieldsToDataValueShell fills CODE_PHRASE terminology", () =
   assertEquals(term?.getFieldValue("TEXT"), "ISO_639-1");
   workspace.dispose();
 });
+
+Deno.test("skeleton canvas wraps Position value set in lists_getIndex of lists_create_with", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const position = workspace.getAllBlocks(false).find(
+    (b) => b.type === "element" && b.getFieldValue("NAME") === "Position",
+  );
+  assert(position, "expected Position ELEMENT on the canvas");
+  const shell = position.getInputTargetBlock("VALUE");
+  assert(shell && isDataValueBlock(shell), "expected DV_CODED_TEXT shell");
+  assertEquals(shell.getFieldValue("RM_TYPE"), "DV_CODED_TEXT");
+
+  const selector = shell.getInputTargetBlock(dvFieldInputName("value"));
+  assertEquals(selector?.type, "lists_getIndex");
+  assertEquals(selector?.getFieldValue("MODE"), "GET");
+  assertEquals(selector?.getFieldValue("WHERE"), "FIRST");
+
+  const list = selector?.getInputTargetBlock("VALUE");
+  assertEquals(list?.type, "lists_create_with");
+  assertEquals((list as { itemCount_?: number } | null)?.itemCount_, 6);
+  assertEquals(list?.getInputTargetBlock("ADD0")?.getFieldValue("TEXT"), "Standing");
+  assertEquals(list?.getInputTargetBlock("ADD1")?.getFieldValue("TEXT"), "Sitting");
+  assertEquals(list?.getInputTargetBlock("ADD2")?.getFieldValue("TEXT"), "Reclining");
+  assertEquals(list?.getInputTargetBlock("ADD3")?.getFieldValue("TEXT"), "Lying");
+
+  const phrase = shell.getInputTargetBlock(dvFieldInputName("defining_code"));
+  assertEquals(phrase?.type, "code_phrase");
+  assertEquals(
+    phrase?.getInputTargetBlock(dvFieldInputName("code_string"))?.getFieldValue("TEXT"),
+    "at1000",
+  );
+
+  workspace.dispose();
+});

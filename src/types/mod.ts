@@ -45,6 +45,13 @@ export interface MappingModel {
 
 export type SkeletonNodeKind = "container" | "value";
 
+/** One member of a template-constrained coded/string value set. */
+export interface AllowedValue {
+  code: string;
+  label: string;
+  terminologyId?: string;
+}
+
 export interface SkeletonNode {
   slotId: string;
   blockType: string;
@@ -64,6 +71,12 @@ export interface SkeletonNode {
   silentMandatory?: boolean;
   fixedValue?: string;
   fixedFields?: Record<string, string>;
+  /**
+   * Template-constrained value set (C_CODE_PHRASE `code_list`, C_STRING list, …)
+   * when more than one code/string is allowed. Scaffolded as a Blockly list
+   * wrapped in `lists_getIndex` (get first).
+   */
+  allowedValues?: AllowedValue[];
   /** Format-native target path (JSON Pointer, XML path, or openEHR slot path). */
   targetPath?: string;
   /** Compact target cardinality, e.g. `1`, `0..1`, `0..*`, `1..*`. */
@@ -204,12 +217,20 @@ export interface SuggestionEnvelope {
   }>;
 }
 
+export interface SchemaIssue {
+  path: string;
+  message: string;
+  keyword?: string;
+}
+
 export interface ImportSuggestionsReport {
   applied: number;
   skipped: number;
   errors: string[];
   /** Validated `loops[]` entries; the canvas wraps `attachSlotId` with `for_each_source`. */
   loopsAccepted: number;
+  /** JSON Schema issues against docs/AI_SUGGESTION_FORMAT.schema.json. */
+  schemaIssues: SchemaIssue[];
 }
 
 export const DEFAULT_SETTINGS: ProjectSettings = {

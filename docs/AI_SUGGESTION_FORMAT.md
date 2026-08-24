@@ -1,6 +1,6 @@
 # AI Mapping Suggestion Exchange Format
 
-Link this doc in prompts; do not paraphrase. **Version `2` only.**
+Link this doc in prompts; do not paraphrase. **Version `2` only.** Machine-readable contract: [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json) (JSON Schema 2020-12). **Import Suggestions** validates pasted JSON against that schema and can copy the errors back to the AI.
 
 ## Purpose
 
@@ -126,9 +126,11 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 
 ## Import
 
-1. Extract fence (or raw JSON)
-2. Require `format` + `version` `"2"`; match `target`
-3. Validate `loops[]` (`for_each_source` only); keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container with `for_each_source` on the canvas
+**Import Suggestions** opens a paste dialog (clipboard is pre-filled only when the text looks like a suggestion envelope, not a Copy AI Prompt). The pasted JSON is validated against [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json). Schema and apply errors stay in that dialog; **Copy errors for AI** puts a follow-up prompt on the clipboard.
+
+1. Extract fence (or raw JSON). `format` and `target` may be omitted; the loaded target is used.
+2. Require `version` `"2"`; match `target` when present
+3. Nested `attachSlotId` / `for_each_source` groups inside `suggestions[]` are flattened into `loops[]`. Validate `for_each_source`; keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container with `for_each_source` on the canvas
 4. Apply each suggestion `block` → value slot; report applied / skipped / errors
 5. User **Test Run**
 
@@ -200,4 +202,4 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 
 ## Related
 
-[MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) · [BLOCKLY_INTEGRATION.md](BLOCKLY_INTEGRATION.md) · [SOURCE_QUERY.md](SOURCE_QUERY.md) · [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) · [future/integrated-ai-assist.md](future/integrated-ai-assist.md)
+[MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) · [BLOCKLY_INTEGRATION.md](BLOCKLY_INTEGRATION.md) · [SOURCE_QUERY.md](SOURCE_QUERY.md) · [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) · [future/integrated-ai-assist.md](future/integrated-ai-assist.md) · [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json)

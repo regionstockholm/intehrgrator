@@ -318,6 +318,37 @@ Deno.test("COMPOSITION language and territory are CODE_PHRASE values, not ELEMEN
   assertEquals(category?.kind, "value");
 });
 
+Deno.test("Position DV_CODED_TEXT carries the template local value set", () => {
+  const { skeleton } = generateSkeleton(fixture);
+  const position = flattenSkeleton(skeleton).find((n) =>
+    n.rmType === "ELEMENT" && n.archetypeNodeId === "at0008" && n.label === "Position"
+  );
+  assert(position, "expected Position ELEMENT");
+  const dv = position.children.find((c) => c.rmType === "DV_CODED_TEXT");
+  assert(dv, "expected DV_CODED_TEXT under Position");
+  assertEquals(dv.allowedValues?.map((v) => v.code), [
+    "at1000",
+    "at1001",
+    "at1002",
+    "at1003",
+    "at1013",
+    "at1014",
+  ]);
+  assertEquals(dv.allowedValues?.[0]?.label, "Standing");
+  assertEquals(dv.allowedValues?.[1]?.label, "Sitting");
+  assertEquals(dv.allowedValues?.[2]?.label, "Reclining");
+  assertEquals(dv.allowedValues?.[3]?.label, "Lying");
+  assertEquals(dv.allowedValues?.[0]?.terminologyId, "local");
+  assertEquals(dv.fixedFields?.defining_code, undefined);
+
+  const cuff = flattenSkeleton(skeleton).find((n) =>
+    n.rmType === "ELEMENT" && n.label === "Cuff size"
+  );
+  const cuffDv = cuff?.children.find((c) => c.rmType === "DV_CODED_TEXT");
+  assert(cuffDv?.allowedValues && cuffDv.allowedValues.length > 1, "expected Cuff size value set");
+  assertEquals(cuffDv.allowedValues[0]?.label, "Adult");
+});
+
 Deno.test("web template AQL-style node ids are sanitized and EVENT multiplicity is preserved", async () => {
   const wt = await Deno.readTextFile(
     join(

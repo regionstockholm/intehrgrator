@@ -7,6 +7,7 @@ import type {
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  SchemaIssue,
   SkeletonNode,
   SuggestionBlock,
   SuggestionEnvelope,
@@ -15,6 +16,9 @@ import type {
 import { applyExpressionEdit } from "../mapping_model/mod.ts";
 import { collectValueSlots, collectRepeatableContainers } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
+import { Validator, type Schema } from "@cfworker/json-schema";
+import { SUGGESTION_FORMAT_SCHEMA } from "./suggestion_schema.ts";
+import { jsonPointerToDotPath } from "./json_locate.ts";
 
 export type AiArtifactDelivery = "attach" | "inline" | "uri";
 
@@ -126,6 +130,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "## Response format",
     `Respond with exactly one fenced JSON block tagged \`intehrgrator-suggestions\` per: ${options.formatDocUrl}`,
     "Use version `\"2\"` with Blockly `block` fragments (not JS-shaped xpath wrappers).",
+    `The JSON must validate against: ${schemaUrlFromFormatDoc(options.formatDocUrl)}`,
     "",
     "## Slot manifest",
     "```json",
@@ -291,23 +296,371 @@ function escapeFilename(name: string): string {
   return name.replace(/["\r\n]/g, "_");
 }
 
-export function parseSuggestionsPayload(text: string): SuggestionEnvelope {
-  const fence = text.match(/```intehrgrator-suggestions\s*([\s\S]*?)```/);
-  const raw = fence?.[1]?.trim() ?? text.trim();
-  const parsed = JSON.parse(raw) as SuggestionEnvelope;
-  if (parsed.format !== "intehrgrator-suggestions") {
+export interface ParseSuggestionsOptions {
+  /** Used when the AI omitted `target` (common in chat replies). */
+  fallbackTarget?: { format: string; targetId: string };
+}
+
+const BLOCK_TYPE_ALIASES: Record<string, string> = {
+  source_query_string: "source_query",
+  source_query_text: "source_query",
+};
+
+/** Blockly serialization noise AIs often include; strip rather than reject. */
+const IGNORED_BLOCK_KEYS = new Set([
+  "id",
+  "x",
+  "y",
+  "mutation",
+  "icons",
+  "enabled",
+  "inline",
+  "collapsed",
+  "deletable",
+  "movable",
+  "editable",
+]);
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** True when clipboard/paste looks like a suggestion envelope, not a Copy AI Prompt. */
+export function looksLikeSuggestionsPayload(text: string): boolean {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("# intEHRgrator")) return false;
+  try {
+    const parsed = extractSuggestionsJson(trimmed);
+    return isRecord(parsed) && Array.isArray(parsed.suggestions);
+  } catch {
+    return false;
+  }
+}
+
+export function extractSuggestionsJson(text: string): unknown {
+  const trimmed = text.trim();
+  const tagged = trimmed.match(/```intehrgrator-suggestions\s*([\s\S]*?)```/);
+  if (tagged?.[1]) return JSON.parse(tagged[1].trim());
+
+  const jsonFence = trimmed.match(/```json\s*([\s\S]*?)```/);
+  if (jsonFence?.[1]) {
+    const inner = JSON.parse(jsonFence[1].trim());
+    if (isRecord(inner) && Array.isArray(inner.suggestions)) return inner;
+  }
+
+  if (trimmed.startsWith("{")) return JSON.parse(trimmed);
+
+  throw new Error("No suggestion JSON found (expected an object or intehrgrator-suggestions fence)");
+}
+
+const SCHEMA_WRAPPERS = new Set([
+  "A subschema had errors.",
+  "Items did not match schema.",
+]);
+
+const EXTRA_BLOCK_KEYS = new Set(["mutation", "id", "x", "y", "icons", "enabled", "inline", "collapsed"]);
+
+function pointerLeaf(pointer: string): string {
+  const parts = pointer.replace(/^#/, "").split("/").filter(Boolean);
+  return parts[parts.length - 1] ?? "";
+}
+
+function keepSchemaError(keyword: string | undefined, pointer: string, raw: string): boolean {
+  if (!keyword) return false;
+  if (SCHEMA_WRAPPERS.has(raw)) return false;
+  if (/^Property "[^"]+" does not match schema\.$/.test(raw)) return false;
+  if (keyword === "required" || keyword === "enum" || keyword === "const") return true;
+  const extra = /Property "([^"]+)" does not match additional properties schema/.exec(raw)?.[1]
+    ?? (keyword === "false" ? pointerLeaf(pointer) : undefined);
+  if (extra && EXTRA_BLOCK_KEYS.has(extra)) return true;
+  if (/^#\/suggestions\/\d+\/(attachSlotId|for_each_source|suggestions)$/.test(pointer)) return true;
+  return false;
+}
+
+/** Validate extracted JSON against docs/AI_SUGGESTION_FORMAT.schema.json. */
+export function validateSuggestionEnvelope(instance: unknown): SchemaIssue[] {
+  const validator = new Validator(SUGGESTION_FORMAT_SCHEMA as Schema, "2020-12", false);
+  const result = validator.validate(instance);
+  if (result.valid) return [];
+
+  const issues: SchemaIssue[] = [];
+  const seen = new Set<string>();
+  for (const error of result.errors) {
+    if (!keepSchemaError(error.keyword, error.instanceLocation, error.error)) continue;
+    const path = jsonPointerToDotPath(error.instanceLocation);
+    const message = explainSuggestionSchemaIssue(path, error.error, error.keyword, error.instanceLocation);
+    const key = `${path}|${message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    issues.push({ path, message, keyword: error.keyword });
+  }
+  return collapseSchemaIssues(issues);
+}
+
+function collapseSchemaIssues(issues: SchemaIssue[]): SchemaIssue[] {
+  const nestedParents = new Set<string>();
+  const out: SchemaIssue[] = [];
+  const hasMutationLeaf = issues.some((issue) => issue.path.endsWith(".mutation"));
+  for (const issue of issues) {
+    const nested = /^(.*suggestions\[\d+\])\.(attachSlotId|for_each_source|suggestions)$/.exec(issue.path);
+    if (nested) {
+      const parent = nested[1]!;
+      if (nestedParents.has(parent)) continue;
+      nestedParents.add(parent);
+      out.push({
+        path: parent,
+        keyword: issue.keyword,
+        message:
+          `${parent}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH }, and child fills in suggestions[] with matching loopVar.`,
+      });
+      continue;
+    }
+    if (hasMutationLeaf && issue.path.endsWith(".block") && issue.message.includes("mutation")) {
+      continue;
+    }
+    out.push(issue);
+  }
+  return out;
+}
+
+export function explainSuggestionSchemaIssue(
+  path: string,
+  raw: string,
+  keyword?: string,
+  pointer = "",
+): string {
+  const extra = /Property "([^"]+)" does not match additional properties schema/.exec(raw)?.[1]
+    ?? pointerLeaf(pointer);
+
+  if (EXTRA_BLOCK_KEYS.has(extra)) {
+    return `${path}: unexpected "${extra}". Blocks allow only type, fields, inputs, extraState.`;
+  }
+  if (/^#\/suggestions\/\d+\/(attachSlotId|for_each_source|suggestions)$/.test(pointer)) {
+    return `${path}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH }, and child fills in suggestions[] with matching loopVar.`;
+  }
+  if (keyword === "enum" || /does not match any of/i.test(raw)) {
+    if (/\.type$/.test(path)) {
+      return `${path}: invalid block type. Use source_query, source_query_number, or source_query_boolean (not source_query_string). Loops use for_each_source only in loops[].`;
+    }
+  }
+  if (keyword === "const") {
+    if (path === "$.format") return `${path}: format must be the string "intehrgrator-suggestions".`;
+    if (path === "$.version") return `${path}: version must be the string "2" (not the number 2).`;
+  }
+  if (keyword === "required" || /required property/i.test(raw)) {
+    const cleaned = raw.replace(/^Instance does not have required property/, "Missing required property");
+    if (path === "$") {
+      return `${path}: ${cleaned} Envelope requires format, version, target, and suggestions.`;
+    }
+    return `${path}: ${cleaned}`;
+  }
+  return `${path}: ${raw}`;
+}
+
+export interface FollowUpOptions {
+  formatDocUrl: string;
+  schemaUrl: string;
+  payload: string;
+  schemaIssues: SchemaIssue[];
+  errors: string[];
+}
+
+/** Markdown the user can paste back into the AI chat to request a corrected envelope. */
+export function formatImportFollowUp(options: FollowUpOptions): string {
+  const lines: string[] = [
+    "The previous `intehrgrator-suggestions` JSON did not validate. Please return exactly one corrected fenced block tagged `intehrgrator-suggestions` (version `\"2\"`).",
+    "",
+    `Format: ${options.formatDocUrl}`,
+    `JSON Schema: ${options.schemaUrl}`,
+    "",
+    "### Errors",
+  ];
+  const issues = [
+    ...options.schemaIssues.map((issue) => `- \`${issue.path}\`: ${issue.message}`),
+    ...options.errors.map((err) => `- ${err}`),
+  ];
+  if (!issues.length) issues.push("- (no structured errors)");
+  lines.push(...issues);
+  lines.push(
+    "",
+    "Fix every error. Copy each `slotId` / `attachSlotId` from the original prompt. Put repeating source nodes in top-level `loops[]` (`for_each_source` with `VAR` + `PATH`); child mappings use `loopVar` and a **relative** `EXPRESSION`. Do not emit `mutation`, `id`, `x`, `y`, or `source_query_string` (use `source_query` for strings).",
+    "",
+    "### Previous payload",
+    "```json",
+    options.payload.trim(),
+    "```",
+  );
+  return lines.join("\n");
+}
+
+export function schemaUrlFromFormatDoc(formatDocUrl: string): string {
+  return formatDocUrl.replace(/AI_SUGGESTION_FORMAT\.md/i, "AI_SUGGESTION_FORMAT.schema.json");
+}
+
+export function parseSuggestionsPayload(
+  text: string,
+  options: ParseSuggestionsOptions = {},
+): SuggestionEnvelope {
+  const parsed = extractSuggestionsJson(text);
+  return normalizeSuggestionEnvelope(parsed, options.fallbackTarget);
+}
+
+function normalizeSuggestionEnvelope(
+  raw: unknown,
+  fallbackTarget?: { format: string; targetId: string },
+): SuggestionEnvelope {
+  if (!isRecord(raw)) throw new Error("Suggestions payload must be a JSON object");
+  if (raw.format != null && raw.format !== "intehrgrator-suggestions") {
     throw new Error("Invalid format field");
   }
-  if (parsed.version !== "2") {
-    throw new Error(`Unsupported version: ${parsed.version} (expected "2")`);
+  const version = String(raw.version ?? "");
+  if (version !== "2") {
+    throw new Error(`Unsupported version: ${raw.version} (expected "2")`);
   }
-  if (!parsed.target?.targetId || !parsed.target?.format) {
-    throw new Error("Missing target.targetId or target.format");
-  }
-  if (!Array.isArray(parsed.suggestions)) {
+  if (!Array.isArray(raw.suggestions)) {
     throw new Error("Missing suggestions array");
   }
-  return parsed;
+
+  const targetRaw = isRecord(raw.target) ? raw.target : {};
+  const targetId = String(targetRaw.targetId ?? fallbackTarget?.targetId ?? "");
+  const targetFormat = String(targetRaw.format ?? fallbackTarget?.format ?? "");
+  if (!targetId || !targetFormat) {
+    throw new Error("Missing target.targetId or target.format");
+  }
+
+  const { loops, suggestions } = flattenSuggestionGroups(raw);
+  return {
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: targetFormat, targetId },
+    ...(loops.length ? { loops } : {}),
+    suggestions,
+  };
+}
+
+type RawLoop = NonNullable<SuggestionEnvelope["loops"]>[number];
+type RawSuggestion = SuggestionEnvelope["suggestions"][number];
+
+/**
+ * AIs often nest `for_each_source` groups inside `suggestions[]` instead of
+ * emitting top-level `loops[]`. Flatten that into the documented shape.
+ */
+function flattenSuggestionGroups(raw: Record<string, unknown>): {
+  loops: RawLoop[];
+  suggestions: RawSuggestion[];
+} {
+  const loops: RawLoop[] = [];
+  const suggestions: RawSuggestion[] = [];
+
+  if (Array.isArray(raw.loops)) {
+    for (const item of raw.loops) {
+      if (!isRecord(item)) continue;
+      const attachSlotId = String(item.attachSlotId ?? "");
+      const block = coerceLoopBlock(item);
+      if (attachSlotId && block) loops.push({ attachSlotId, block, note: optionalNote(item.note) });
+    }
+  }
+
+  collectSuggestionItems(raw.suggestions, loops, suggestions, undefined);
+  return { loops, suggestions };
+}
+
+function collectSuggestionItems(
+  items: unknown,
+  loops: RawLoop[],
+  suggestions: RawSuggestion[],
+  inheritedLoopVar: string | undefined,
+): void {
+  if (!Array.isArray(items)) return;
+  for (const item of items) {
+    if (!isRecord(item)) continue;
+    const nested = Array.isArray(item.suggestions) ? item.suggestions : null;
+    const attachSlotId = typeof item.attachSlotId === "string" ? item.attachSlotId : "";
+    if (attachSlotId && nested) {
+      const loopVar = String(item.loopVar ?? "item");
+      const block = coerceLoopBlock(item);
+      if (block) loops.push({ attachSlotId, block, note: optionalNote(item.note) });
+      collectSuggestionItems(nested, loops, suggestions, loopVar);
+      continue;
+    }
+    if (typeof item.slotId === "string" && isRecord(item.block)) {
+      suggestions.push({
+        slotId: item.slotId,
+        block: sanitizeBlock(item.block) as SuggestionBlock,
+        loopVar: typeof item.loopVar === "string" ? item.loopVar : inheritedLoopVar,
+        note: optionalNote(item.note),
+      });
+    }
+  }
+}
+
+function coerceLoopBlock(item: Record<string, unknown>): SuggestionBlock | null {
+  if (isRecord(item.block) && item.block.type === "for_each_source") {
+    return sanitizeBlock(item.block) as SuggestionBlock;
+  }
+  if (isRecord(item.for_each_source) && item.for_each_source.type === "for_each_source") {
+    return sanitizeBlock(item.for_each_source) as SuggestionBlock;
+  }
+  const path = typeof item.for_each_source === "string"
+    ? item.for_each_source
+    : typeof item.PATH === "string"
+    ? item.PATH
+    : "";
+  if (!path) return null;
+  const varName = String(item.loopVar ?? "item");
+  return { type: "for_each_source", fields: { VAR: varName, PATH: path } };
+}
+
+function optionalNote(note: unknown): string | undefined {
+  return typeof note === "string" ? note : undefined;
+}
+
+function sanitizeBlock(raw: Record<string, unknown>): Record<string, unknown> {
+  const type = BLOCK_TYPE_ALIASES[String(raw.type ?? "")] ?? String(raw.type ?? "");
+  const out: Record<string, unknown> = { type };
+  if (isRecord(raw.fields)) out.fields = raw.fields;
+  if (raw.extraState !== undefined) out.extraState = raw.extraState;
+  if (isRecord(raw.inputs)) {
+    const inputs: Record<string, unknown> = {};
+    for (const [name, input] of Object.entries(raw.inputs)) {
+      if (!isRecord(input)) continue;
+      const next: Record<string, unknown> = {};
+      if (isRecord(input.block)) next.block = sanitizeBlock(input.block);
+      if (isRecord(input.shadow)) next.shadow = sanitizeBlock(input.shadow);
+      inputs[name] = next;
+    }
+    out.inputs = inputs;
+  }
+  return out;
+}
+
+/** Collapse `templateId//path` (AI separator) onto `templateId/path` (skeleton ids). */
+export function resolveKnownSlotId(slotId: string, knownSlotIds: Set<string>): string | null {
+  if (knownSlotIds.has(slotId)) return slotId;
+  const collapsed = collapseSlashes(slotId);
+  if (knownSlotIds.has(collapsed)) return collapsed;
+  for (const known of knownSlotIds) {
+    if (collapseSlashes(known) === collapsed) return known;
+  }
+  return null;
+}
+
+function collapseSlashes(slotId: string): string {
+  return slotId.replace(/\/{2,}/g, "/");
+}
+
+/** `$item?pulse` / `$item.pulse` → `pulse` when `loopVar` is `item`. */
+export function rewriteLoopRelativePath(expr: string, loopVar: string): string {
+  const trimmed = expr.trim();
+  if (!loopVar) return trimmed;
+  const escaped = loopVar.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  if (trimmed === `$${loopVar}`) return ".";
+  const lookup = new RegExp(`^\\$${escaped}\\?`);
+  if (lookup.test(trimmed)) return trimmed.replace(lookup, "");
+  const dotted = new RegExp(`^\\$${escaped}\\.`);
+  if (dotted.test(trimmed)) return trimmed.replace(dotted, "");
+  return trimmed;
 }
 
 export function importSuggestions(
@@ -333,24 +686,28 @@ export function importSuggestions(
     skipped: 0,
     errors: [],
     loopsAccepted: 0,
+    schemaIssues: [],
   };
 
   const loopPaths = new Map<string, string>();
   const acceptedLoops: MappingLoop[] = [];
   for (const loop of payload.loops ?? []) {
+    const attachSlotId = resolveKnownSlotId(loop.attachSlotId, knownSlotIds) ?? loop.attachSlotId;
     try {
-      validateLoopEntry(loop.block);
-      if (!knownSlotIds.has(loop.attachSlotId)) {
+      const block = sanitizeBlock(loop.block as unknown as Record<string, unknown>) as SuggestionBlock;
+      validateLoopEntry(block);
+      if (!knownSlotIds.has(attachSlotId)) {
         throw new Error(`Unknown attachSlotId: ${loop.attachSlotId}`);
       }
-      const varName = String(loop.block.fields?.VAR ?? "");
-      const path = String(loop.block.fields?.PATH ?? "");
+      const varName = String(block.fields?.VAR ?? "");
+      const path = String(block.fields?.PATH ?? "");
       if (!varName || !path) throw new Error("for_each_source requires VAR and PATH");
-      if (loopPaths.has(varName)) {
-        throw new Error(`Duplicate loop VAR: ${varName}`);
+      const existingPath = loopPaths.get(varName);
+      if (existingPath && existingPath !== path) {
+        throw new Error(`Duplicate loop VAR: ${varName} with a different PATH`);
       }
       loopPaths.set(varName, path);
-      acceptedLoops.push({ attachSlotId: loop.attachSlotId, varName, path });
+      acceptedLoops.push({ attachSlotId, varName, path });
       report.loopsAccepted++;
     } catch (e) {
       report.skipped++;
@@ -367,20 +724,25 @@ export function importSuggestions(
   }
 
   for (const suggestion of payload.suggestions) {
-    if (!knownSlotIds.has(suggestion.slotId)) {
+    const slotId = resolveKnownSlotId(suggestion.slotId, knownSlotIds);
+    if (!slotId) {
       report.skipped++;
       report.errors.push(`Unknown slotId: ${suggestion.slotId}`);
       continue;
     }
     let expression: string;
     try {
-      if (suggestion.block.type === "for_each_source") {
+      const block = sanitizeBlock(suggestion.block as unknown as Record<string, unknown>) as SuggestionBlock;
+      if (block.type === "for_each_source") {
         throw new Error("for_each_source belongs in loops[], not suggestions[].block");
       }
       if (suggestion.loopVar && !loopPaths.has(suggestion.loopVar)) {
         throw new Error(`Unknown loopVar: ${suggestion.loopVar}`);
       }
-      expression = suggestionBlockToExpression(suggestion.block);
+      const rewrite = suggestion.loopVar
+        ? (xpath: string) => rewriteLoopRelativePath(xpath, suggestion.loopVar!)
+        : undefined;
+      expression = suggestionBlockToExpression(block, rewrite);
     } catch (e) {
       report.skipped++;
       report.errors.push(
@@ -394,8 +756,8 @@ export function importSuggestions(
       report.errors.push(`${suggestion.slotId}: ${err}`);
       continue;
     }
-    const meta = slotMeta?.get(suggestion.slotId);
-    next = applyExpressionEdit(next, suggestion.slotId, expression, meta);
+    const meta = slotMeta?.get(slotId);
+    next = applyExpressionEdit(next, slotId, expression, meta);
     report.applied++;
   }
 
@@ -407,20 +769,16 @@ export function suggestionBlockToExpression(
   block: SuggestionBlock,
   rewriteSourcePath?: (xpath: string) => string,
 ): string {
-  validateBlockShape(block);
-  const expr = blockJsonToExpression(block, rewriteSourcePath);
-  if (!expr) throw new Error(`Unsupported or empty block type: ${block.type}`);
+  const clean = sanitizeBlock(block as unknown as Record<string, unknown>) as SuggestionBlock;
+  validateBlockShape(clean);
+  const expr = blockJsonToExpression(clean, rewriteSourcePath);
+  if (!expr) throw new Error(`Unsupported or empty block type: ${clean.type}`);
   return expr;
 }
 
 function validateLoopEntry(block: SuggestionBlock): void {
   if (!block || block.type !== "for_each_source") {
     throw new Error("loops[].block must be type for_each_source");
-  }
-  for (const key of Object.keys(block)) {
-    if (!["type", "fields", "inputs", "extraState"].includes(key)) {
-      throw new Error(`Disallowed block key: ${key}`);
-    }
   }
   if (block.inputs?.DO?.block) {
     throw new Error("Leave for_each_source DO empty; put value fills in suggestions[]");
@@ -430,10 +788,12 @@ function validateLoopEntry(block: SuggestionBlock): void {
 function validateBlockShape(block: SuggestionBlock, depth = 0): void {
   if (depth > 12) throw new Error("Block tree too deep");
   if (!block || typeof block !== "object") throw new Error("Invalid block");
-  if (typeof block.type !== "string" || !VALUE_BLOCK_TYPES.has(block.type)) {
+  const type = BLOCK_TYPE_ALIASES[block.type] ?? block.type;
+  if (typeof type !== "string" || !VALUE_BLOCK_TYPES.has(type)) {
     throw new Error(`Disallowed block type: ${String(block?.type)}`);
   }
   for (const key of Object.keys(block)) {
+    if (IGNORED_BLOCK_KEYS.has(key)) continue;
     if (!["type", "fields", "inputs", "extraState"].includes(key)) {
       throw new Error(`Disallowed block key: ${key}`);
     }

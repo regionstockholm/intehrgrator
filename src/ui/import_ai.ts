@@ -1,0 +1,207 @@
+/**
+ * Paste dialog for AI mapping suggestions.
+ * Shows the payload, JSON Schema errors, and a copy-for-AI follow-up.
+ */
+
+import type { ImportSuggestionsReport } from "../types/mod.ts";
+import {
+  formatImportFollowUp,
+  looksLikeSuggestionsPayload,
+  schemaUrlFromFormatDoc,
+} from "../core/ai/mod.ts";
+import { locateIssueInText } from "../core/ai/json_locate.ts";
+
+export interface ImportAiDialogOptions {
+  dialog: HTMLDialogElement;
+  textarea: HTMLTextAreaElement;
+  report: HTMLElement;
+  cancel: HTMLButtonElement;
+  clipboard: HTMLButtonElement;
+  copyErrors: HTMLButtonElement;
+  openButton: HTMLButtonElement;
+  formatDocUrl: string;
+  readClipboard: () => Promise<string>;
+  copyToClipboard: (text: string) => Promise<void>;
+  importText: (text: string) => ImportSuggestionsReport;
+}
+
+export function formatImportReport(report: ImportSuggestionsReport): {
+  summary: string;
+  kind: "ok" | "partial" | "error";
+} {
+  const schemaCount = report.schemaIssues?.length ?? 0;
+  const summary =
+    `${report.applied} applied · ${report.loopsAccepted} loops · ${report.skipped} skipped · ${report.errors.length} errors · ${schemaCount} schema`;
+  const hasProblems = report.errors.length > 0 || schemaCount > 0;
+  if (!hasProblems && report.applied + report.loopsAccepted > 0) {
+    return { summary, kind: "ok" };
+  }
+  if (report.applied + report.loopsAccepted > 0) return { summary, kind: "partial" };
+  return { summary, kind: "error" };
+}
+
+export function installImportAiDialog(options: ImportAiDialogOptions): void {
+  const {
+    dialog,
+    textarea,
+    report,
+    cancel,
+    clipboard,
+    copyErrors,
+    openButton,
+    formatDocUrl,
+    readClipboard,
+    copyToClipboard,
+    importText,
+  } = options;
+  const form = dialog.querySelector("form");
+  let lastReport: ImportSuggestionsReport | null = null;
+
+  const clearReport = () => {
+    lastReport = null;
+    report.hidden = true;
+    report.classList.remove("import-ai-report--ok", "import-ai-report--partial", "import-ai-report--error");
+    report.replaceChildren();
+    copyErrors.hidden = true;
+    copyErrors.textContent = "Copy errors for AI";
+    textarea.classList.remove("import-ai-text--invalid");
+    textarea.removeAttribute("aria-invalid");
+  };
+
+  const showReport = (result: ImportSuggestionsReport) => {
+    lastReport = result;
+    const { summary, kind } = formatImportReport(result);
+    report.hidden = false;
+    report.classList.remove("import-ai-report--ok", "import-ai-report--partial", "import-ai-report--error");
+    report.classList.add(`import-ai-report--${kind}`);
+
+    const summaryEl = document.createElement("p");
+    summaryEl.className = "import-ai-summary";
+    summaryEl.textContent = summary;
+
+    const list = document.createElement("ul");
+    list.className = "import-ai-error-list";
+    const items: Array<{ path: string; message: string }> = [
+      ...(result.schemaIssues ?? []).map((issue) => ({
+        path: issue.path,
+        message: issue.message,
+      })),
+      ...result.errors.map((err) => ({ path: "", message: err })),
+    ];
+    for (const item of items) {
+      const li = document.createElement("li");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "import-ai-error";
+      if (item.path) {
+        const code = document.createElement("code");
+        code.textContent = item.path;
+        btn.append(code, document.createTextNode(" — " + stripPathPrefix(item.message, item.path)));
+      } else {
+        btn.textContent = item.message;
+      }
+      btn.addEventListener("click", () => highlightIssue(item));
+      li.append(btn);
+      list.append(li);
+    }
+
+    report.replaceChildren(summaryEl);
+    if (items.length) report.append(list);
+
+    const hasProblems = items.length > 0;
+    copyErrors.hidden = !hasProblems;
+    textarea.classList.toggle("import-ai-text--invalid", hasProblems && result.applied === 0);
+    textarea.setAttribute("aria-invalid", hasProblems ? "true" : "false");
+    cancel.textContent = result.applied > 0 ? "Close" : "Cancel";
+  };
+
+  const highlightIssue = (item: { path: string; message: string }) => {
+    const span = locateIssueInText(textarea.value, item.path, item.message);
+    if (!span) return;
+    textarea.focus();
+    textarea.setSelectionRange(span.start, span.end);
+  };
+
+  const fillFromClipboard = async () => {
+    const text = await readClipboard();
+    if (looksLikeSuggestionsPayload(text)) {
+      textarea.value = text;
+      return true;
+    }
+    return false;
+  };
+
+  const open = async () => {
+    clearReport();
+    cancel.textContent = "Cancel";
+    textarea.value = "";
+    dialog.showModal();
+    const filled = await fillFromClipboard();
+    if (!filled) {
+      textarea.placeholder = '{"format":"intehrgrator-suggestions","version":"2","suggestions":[…]}';
+    }
+    textarea.focus();
+    if (filled) textarea.select();
+  };
+
+  const apply = () => {
+    const text = textarea.value.trim();
+    if (!text) {
+      showReport({
+        applied: 0,
+        skipped: 0,
+        errors: ["Paste the AI JSON (or an intehrgrator-suggestions fence) first"],
+        loopsAccepted: 0,
+        schemaIssues: [],
+      });
+      return;
+    }
+    showReport(importText(text));
+  };
+
+  const copyFollowUp = async () => {
+    if (!lastReport) return;
+    const text = formatImportFollowUp({
+      formatDocUrl,
+      schemaUrl: schemaUrlFromFormatDoc(formatDocUrl),
+      payload: textarea.value,
+      schemaIssues: lastReport.schemaIssues ?? [],
+      errors: lastReport.errors,
+    });
+    await copyToClipboard(text);
+    copyErrors.textContent = "Copied";
+    globalThis.setTimeout(() => {
+      if (copyErrors.textContent === "Copied") copyErrors.textContent = "Copy errors for AI";
+    }, 2000);
+  };
+
+  openButton.addEventListener("click", () => void open());
+  clipboard.addEventListener("click", () => {
+    void (async () => {
+      const text = await readClipboard();
+      if (!text) {
+        showReport({
+          applied: 0,
+          skipped: 0,
+          errors: ["Clipboard is empty or not readable in this browser"],
+          loopsAccepted: 0,
+          schemaIssues: [],
+        });
+        return;
+      }
+      textarea.value = text;
+      clearReport();
+    })();
+  });
+  copyErrors.addEventListener("click", () => void copyFollowUp());
+  cancel.addEventListener("click", () => dialog.close());
+  form?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    apply();
+  });
+}
+
+function stripPathPrefix(message: string, path: string): string {
+  const prefix = `${path}: `;
+  return message.startsWith(prefix) ? message.slice(prefix.length) : message;
+}

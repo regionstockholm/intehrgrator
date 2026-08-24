@@ -60,6 +60,7 @@ import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { installInfoTips } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
+import { installImportAiDialog } from "../src/ui/import_ai.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
@@ -532,7 +533,19 @@ bind("btn-save-project", () => openSaveAsDialog());
 bind("btn-export-project", () => controller.exportProject());
 bind("btn-import-project", () => controller.importProject());
 bind("btn-copy-ai", () => controller.copyAiPrompt(lastAiDelivery()));
-bind("btn-import-ai", () => controller.importAiSuggestionsFromClipboard());
+installImportAiDialog({
+  dialog: requireEl<HTMLDialogElement>("dialog-import-ai"),
+  textarea: requireEl<HTMLTextAreaElement>("import-ai-text"),
+  report: requireEl("import-ai-report"),
+  cancel: requireEl<HTMLButtonElement>("import-ai-cancel"),
+  clipboard: requireEl<HTMLButtonElement>("import-ai-clipboard"),
+  copyErrors: requireEl<HTMLButtonElement>("import-ai-copy-errors"),
+  openButton: requireEl<HTMLButtonElement>("btn-import-ai"),
+  formatDocUrl: host.resolveAppUrl("docs/AI_SUGGESTION_FORMAT.md"),
+  readClipboard: () => controller.readClipboardText(),
+  copyToClipboard: (text) => host.copyToClipboard(text),
+  importText: (text) => controller.importAiSuggestions(text),
+});
 installCopyAiMenu();
 
 function lastAiDelivery(): "inline" | "attach" | "uri" {

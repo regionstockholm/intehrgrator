@@ -577,6 +577,11 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 }
 .app-dialog--wide { max-width: 560px; }
+.app-dialog--xl {
+  max-width: 760px;
+  max-height: calc(100vh - 24px);
+}
+.app-dialog--xl .dialog-form { max-height: calc(100vh - 24px); overflow: auto; }
 .dialog-error { color: var(--error); }
 .dialog-subhead {
   margin: 0 0 6px; font-size: 12px; color: var(--text-secondary);
@@ -612,12 +617,66 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font-size: 12px;
   color: var(--text-secondary);
 }
-.dialog-label input {
+.dialog-label input,
+.dialog-label textarea {
   font-size: 14px;
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: 4px;
 }
+.dialog-label textarea {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  min-height: 220px;
+  resize: vertical;
+  width: 100%;
+}
+.dialog-label textarea.import-ai-text--invalid {
+  border-color: var(--error);
+}
+.import-ai-report {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+  word-break: break-word;
+  max-height: 200px;
+  overflow: auto;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--surface-alt);
+}
+.import-ai-summary { margin: 0 0 6px; font-weight: 600; }
+.import-ai-error-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.import-ai-error {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  color: inherit;
+}
+.import-ai-error:hover { background: rgba(198, 40, 40, 0.08); }
+.import-ai-error code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+.import-ai-report--ok { color: var(--success); border-color: var(--success); }
+.import-ai-report--partial { color: var(--text); }
+.import-ai-report--error { color: var(--error); border-color: var(--error); }
+.dialog-actions-spacer { flex: 1; }
 .dialog-actions {
   display: flex;
   justify-content: flex-end;

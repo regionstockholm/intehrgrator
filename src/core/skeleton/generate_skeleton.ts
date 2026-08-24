@@ -7,7 +7,7 @@ import {
   applyOperationalTemplateTermScopes,
   type TermScopeMeta,
 } from "ehrtslib/generation/term_scope.ts";
-import type { SkeletonNode } from "../../types/mod.ts";
+import type { AllowedValue, SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,
   isAutoFixedValueSlot,
@@ -150,6 +150,7 @@ function walkComplex(
   const mandatory = isMandatory(cObj);
 
   if (isDataValueType(rmType)) {
+    const allowedValues = extractAllowedValues(cObj, terms);
     return {
       slotId: `${templateId}${slotPath}/value`,
       blockType: blockTypeForRm(rmType),
@@ -163,6 +164,7 @@ function walkComplex(
       multiplicity,
       children: [],
       fixedFields: extractFixedFields(cObj),
+      ...(allowedValues.length ? { allowedValues } : {}),
     };
   }
 
@@ -264,6 +266,8 @@ function walkAttribute(
           archetypeShortName: archetypeShortName(childArchetypeRef),
         }
         : {};
+      const terms = termsForArchetype(childArchetypeRef, fallbackTerms, archetypeTerms);
+      const allowedValues = extractAllowedValues(child, terms);
       nodes.push({
         slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
@@ -285,6 +289,7 @@ function walkAttribute(
         multiplicity: multiplicityOfAm(child),
         children: [],
         fixedFields: extractFixedFields(child),
+        ...(allowedValues.length ? { allowedValues } : {}),
       });
     }
   }
@@ -558,7 +563,9 @@ function extractFixedFields(cObj: AmObject): Record<string, string> | undefined 
   if (terminology) fields.terminology_id = terminology;
 
   const codes = codeListFromAm(cObj);
-  const specified = codes.length === 1 ? codes[0] : assumedCodeFromAm(cObj);
+  // A multi-value `code_list` is scaffolded as a Blockly list; only a single
+  // constrained code (or assumed_value when the list is empty) is a fixed field.
+  const specified = codes.length === 1 ? codes[0] : (codes.length === 0 ? assumedCodeFromAm(cObj) : undefined);
   if (specified) {
     fields.defining_code = specified;
     fields.code_string = specified;
@@ -598,6 +605,56 @@ function codeListFromAm(cObj: AmObject): string[] {
   if (list == null) return [];
   const arr = Array.isArray(list) ? list : [list];
   return arr.map(amCodeString).filter(Boolean);
+}
+
+/**
+ * Constrained coded/string choices from C_CODE_PHRASE `code_list` (including
+ * nested `defining_code`) or a C_STRING `list` of more than one value.
+ *
+ * @see openehr://guides/archetypes/terminology — value sets on DV_CODED_TEXT
+ * @see openehr://guides/archetypes/adl-idioms-cheatsheet — coded leaf
+ */
+function extractAllowedValues(cObj: AmObject, terms: TermBag): AllowedValue[] {
+  const terminology = terminologyIdFromAm(cObj);
+  const codes = codeListFromAm(cObj);
+  if (codes.length > 1) {
+    return codes.map((code) => ({
+      code,
+      label: lookupTermText(terms, code) ?? code,
+      terminologyId: terminology,
+    }));
+  }
+
+  for (const attr of (cObj.attributes ?? []) as AmObject[]) {
+    const nestedChild = (attr.children ?? [])[0] as AmObject | undefined;
+    if (!nestedChild) continue;
+    const nested = extractAllowedValues(nestedChild, terms);
+    if (!nested.length) continue;
+    return nested.map((item) => ({
+      ...item,
+      terminologyId: item.terminologyId ?? terminology,
+    }));
+  }
+
+  const strings = stringListFromAm(cObj);
+  if (strings.length > 1) {
+    return strings.map((value) => ({
+      code: value,
+      label: value,
+      terminologyId: terminology,
+    }));
+  }
+
+  return [];
+}
+
+function stringListFromAm(cObj: AmObject): string[] {
+  const list = cObj.list;
+  if (!Array.isArray(list) || list.length < 2) return [];
+  if (!list.every((item) => typeof item === "string" || typeof item === "number")) {
+    return [];
+  }
+  return list.map((item) => String(item)).filter(Boolean);
 }
 
 /** Single constrained code, or AOM assumed_value when the template leaves a choice. */

@@ -1,12 +1,16 @@
 import { assertEquals, assertThrows } from "@std/assert";
 import {
   buildPrompt,
+  formatImportFollowUp,
   formatMultipart,
   importSuggestions,
   joinLoopPath,
+  looksLikeSuggestionsPayload,
   mimeForFilename,
   parseSuggestionsPayload,
+  resolveKnownSlotId,
   suggestionBlockToExpression,
+  validateSuggestionEnvelope,
 } from "@intehrgrator/core/ai/mod.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
@@ -102,6 +106,14 @@ Deno.test("joinLoopPath", () => {
   assertEquals(joinLoopPath("$.vitals", "$.other"), "$.other");
 });
 
+Deno.test("resolveKnownSlotId matches collapsed slashes either way", () => {
+  const known = new Set(["Accident report//content/pulse"]);
+  assertEquals(resolveKnownSlotId("Accident report//content/pulse", known), "Accident report//content/pulse");
+  assertEquals(resolveKnownSlotId("Accident report/content/pulse", known), "Accident report//content/pulse");
+  assertEquals(resolveKnownSlotId("Accident report///content/pulse", known), "Accident report//content/pulse");
+  assertEquals(resolveKnownSlotId("Accident report/other", known), null);
+});
+
 Deno.test("AI import rejects version 1", () => {
   assertThrows(() => {
     parseSuggestionsPayload(`\`\`\`intehrgrator-suggestions
@@ -151,6 +163,7 @@ Deno.test("buildPrompt inline embeds multipart body", () => {
   assertEquals(prompt.includes("--intehrgrator-part"), true);
   assertEquals(prompt.includes('X-Intehrgrator-Role: source-schema'), true);
   assertEquals(prompt.includes('{"type":"object"}'), true);
+  assertEquals(prompt.includes("AI_SUGGESTION_FORMAT.schema.json"), true);
 });
 
 Deno.test("buildPrompt uri lists browseable URLs", () => {
@@ -228,4 +241,140 @@ Deno.test("autosave and manual save use distinct storage keys", () => {
 Deno.test("formatSaveTime renders hh:mm", () => {
   const formatted = formatSaveTime("2026-07-02T14:05:00.000Z");
   assertEquals(/^\d{2}:\d{2}$/.test(formatted), true);
+});
+
+/** Shape Gemini actually returned: missing format/target, nested loops, Blockly mutation noise. */
+const GEMINI_SHAPED = `{
+  "version": "2",
+  "suggestions": [
+    {
+      "slotId": "Accident report//context/start_time/value",
+      "block": {
+        "type": "source_query_string",
+        "mutation": { "domain": "fontoxpath" },
+        "fields": { "EXPRESSION": "$.header.timestamp" }
+      }
+    },
+    {
+      "attachSlotId": "Accident report//content/pulse/events/at0003",
+      "for_each_source": "$.readings[*]",
+      "loopVar": "item",
+      "suggestions": [
+        {
+          "slotId": "Accident report//content/pulse/events/at0003/data/at0004/value/value/value",
+          "block": {
+            "type": "source_query_number",
+            "mutation": { "domain": "fontoxpath" },
+            "fields": { "EXPRESSION": "$item?pulse" }
+          }
+        },
+        {
+          "slotId": "Accident report//content/pulse/events/at0003/time/value",
+          "block": {
+            "type": "source_query_string",
+            "fields": { "EXPRESSION": "$item?timestamp" }
+          }
+        }
+      ]
+    },
+    {
+      "attachSlotId": "Accident report//content/respiration/events/at0002",
+      "for_each_source": "$.readings[*]",
+      "loopVar": "item",
+      "suggestions": [
+        {
+          "slotId": "Accident report//content/respiration/events/at0002/data/at0004/value/value/value",
+          "block": {
+            "type": "source_query_number",
+            "fields": { "EXPRESSION": "$item?respiration_rate" }
+          }
+        }
+      ]
+    }
+  ]
+}`;
+
+Deno.test("looksLikeSuggestionsPayload accepts Gemini-shaped JSON, not Copy AI Prompt markdown", () => {
+  assertEquals(looksLikeSuggestionsPayload(GEMINI_SHAPED), true);
+  assertEquals(
+    looksLikeSuggestionsPayload("# intEHRgrator mapping assist\n\n## Slot manifest\n```json\n[]\n```\n"),
+    false,
+  );
+});
+
+Deno.test("AI import accepts Gemini-shaped envelope (nested loops, aliases, // slot ids)", () => {
+  const model = createEmptyModel("Accident report");
+  model.targetFormat = "openehr-template";
+  const startTime = "Accident report/context/start_time/value";
+  const pulseEvent = "Accident report/content/pulse/events/at0003";
+  const pulseRate = "Accident report/content/pulse/events/at0003/data/at0004/value/value/value";
+  const pulseTime = "Accident report/content/pulse/events/at0003/time/value";
+  const respEvent = "Accident report/content/respiration/events/at0002";
+  const respRate = "Accident report/content/respiration/events/at0002/data/at0004/value/value/value";
+
+  const payload = parseSuggestionsPayload(GEMINI_SHAPED, {
+    fallbackTarget: { format: "openehr-template", targetId: "Accident report" },
+  });
+  const { model: next, report } = importSuggestions(
+    model,
+    payload,
+    new Set([startTime, pulseEvent, pulseRate, pulseTime, respEvent, respRate]),
+  );
+
+  assertEquals(report.errors, []);
+  assertEquals(report.applied, 4);
+  assertEquals(report.loopsAccepted, 2);
+  assertEquals(next.slots.find((s) => s.slotId === startTime)?.expression, 'xpathString("$.header.timestamp")');
+  assertEquals(next.slots.find((s) => s.slotId === pulseRate)?.expression, 'xpathNumber("pulse")');
+  assertEquals(next.slots.find((s) => s.slotId === pulseTime)?.expression, 'xpathString("timestamp")');
+  assertEquals(next.slots.find((s) => s.slotId === respRate)?.expression, 'xpathNumber("respiration_rate")');
+  assertEquals(next.loops, [
+    { attachSlotId: pulseEvent, varName: "item", path: "$.readings[*]" },
+    { attachSlotId: respEvent, varName: "item", path: "$.readings[*]" },
+  ]);
+});
+
+Deno.test("suggestion JSON Schema accepts the documented repeating-vitals example", () => {
+  const issues = validateSuggestionEnvelope({
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "openehr-template", targetId: "vitals_encounter_v1" },
+    loops: [{
+      attachSlotId: "vitals_encounter_v1/content/data/events",
+      block: {
+        type: "for_each_source",
+        fields: { VAR: "vital", PATH: "$.vitals" },
+      },
+    }],
+    suggestions: [{
+      slotId: "vitals_encounter_v1/content/data/events/data/items/at0004/value/value/value",
+      loopVar: "vital",
+      block: {
+        type: "source_query_number",
+        fields: { EXPRESSION: "systolic" },
+      },
+    }],
+  });
+  assertEquals(issues, []);
+});
+
+Deno.test("suggestion JSON Schema explains Gemini-shaped deviations", () => {
+  const issues = validateSuggestionEnvelope(JSON.parse(GEMINI_SHAPED));
+  const text = issues.map((i) => i.message).join("\n");
+  assertEquals(issues.some((i) => i.path === "$" && i.message.includes("format")), true);
+  assertEquals(issues.some((i) => i.path === "$" && i.message.includes("target")), true);
+  assertEquals(/source_query_string|invalid block type/.test(text), true);
+  assertEquals(/mutation/.test(text), true);
+  assertEquals(/nested loops/.test(text), true);
+
+  const followUp = formatImportFollowUp({
+    formatDocUrl: "https://example.test/docs/AI_SUGGESTION_FORMAT.md",
+    schemaUrl: "https://example.test/docs/AI_SUGGESTION_FORMAT.schema.json",
+    payload: GEMINI_SHAPED,
+    schemaIssues: issues,
+    errors: [],
+  });
+  assertEquals(followUp.includes("JSON Schema:"), true);
+  assertEquals(followUp.includes("Previous payload"), true);
+  assertEquals(followUp.includes("nested loops") || followUp.includes("source_query"), true);
 });

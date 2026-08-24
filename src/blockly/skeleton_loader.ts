@@ -1,5 +1,5 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
-import type { MappingLoop, MappingModel, SkeletonNode } from "../types/mod.ts";
+import type { MappingLoop, MappingModel, SkeletonNode, AllowedValue } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
@@ -7,6 +7,8 @@ import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts
 import { termSetById, termSetForRmAttribute } from "../core/openehr_term_catalog.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
+import "blockly/blocks";
+import * as enMsg from "blockly/msg/en";
 import {
   applyFixedFieldsToDataValueShell,
   configureElementValueSlot,
@@ -446,19 +448,27 @@ function buildElementBlock(
     block.setNextStatement(true);
   }
 
-  if (node.mandatory && primary && !hasMappedExpression(block)) {
-    block.setWarningText("Unmapped mandatory value");
-  }
-
   // Render the ELEMENT shell before attaching the typed DATA_VALUE child.
   finalizeBlock(block);
 
   const valueMandatory = Boolean(
     (primary?.mandatory ?? false) || (node.mandatory && primary),
   );
-  if (valueMandatory && primary && isDataValueType(dvType)) {
+  const allowedValues = primary?.allowedValues ?? node.allowedValues ?? [];
+  if ((valueMandatory || allowedValues.length > 1) && primary && isDataValueType(dvType)) {
     const shell = ensureElementDataValueShell(workspace, block, dvType);
-    if (shell) applyFixedFieldsToDataValueShell(workspace, shell, primary.fixedFields ?? node.fixedFields);
+    if (shell) {
+      applyFixedFieldsToDataValueShell(
+        workspace,
+        shell,
+        fixedFieldsForAllowedValues(primary.fixedFields ?? node.fixedFields, allowedValues),
+      );
+      attachValueSetSelector(workspace, shell, allowedValues);
+    }
+  }
+
+  if (node.mandatory && primary && !hasMappedExpression(block)) {
+    block.setWarningText("Unmapped mandatory value");
   }
 
   refreshBlockLayout(block);
@@ -495,9 +505,84 @@ function buildTypedValueBlock(
     block.setWarningText(node.silentMandatory ? "Mandatory (RM)" : "Mandatory");
   }
   finalizeBlock(block);
-  applyFixedFieldsToDataValueShell(workspace, block, node.fixedFields);
+  applyFixedFieldsToDataValueShell(
+    workspace,
+    block,
+    fixedFieldsForAllowedValues(node.fixedFields, node.allowedValues),
+  );
+  attachValueSetSelector(workspace, block, node.allowedValues);
   refreshBlockLayout(block);
   return block;
+}
+
+/**
+ * Stock Blockly `lists_getIndex` (get first) wrapping `lists_create_with`
+ * of the template's allowed labels. Default pick is the first list item.
+ */
+function attachValueSetSelector(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  values: AllowedValue[] | undefined,
+): void {
+  if (!values || values.length < 2) return;
+  const selector = createValueSetSelector(workspace, values);
+  connectExpressionToDataValueShell(shell, selector);
+}
+
+function fixedFieldsForAllowedValues(
+  fields: Record<string, string> | undefined,
+  values: AllowedValue[] | undefined,
+): Record<string, string> | undefined {
+  if (!values || values.length < 2) return fields;
+  const first = values[0]!;
+  return {
+    ...fields,
+    ...(first.terminologyId ? { terminology_id: first.terminologyId } : {}),
+    defining_code: first.code,
+    code_string: first.code,
+  };
+}
+
+type ListCreateBlock = BlockSvg & {
+  itemCount_: number;
+  updateShape_: () => void;
+};
+
+type ListGetIndexBlock = BlockSvg & {
+  updateAt_?: (hasAt: boolean) => void;
+};
+
+/** lists_getIndex dropdown labels come from Blockly.Msg; tests may not have set a locale. */
+function ensureStockListMessages(): void {
+  const Msg = (Blockly as unknown as { Msg?: Record<string, string> }).Msg;
+  if (Msg?.LISTS_GET_INDEX_FIRST) return;
+  const anyMod = enMsg as { default?: Record<string, string> } & Record<string, string>;
+  const table = anyMod.default && typeof anyMod.default === "object" ? anyMod.default : anyMod;
+  Blockly.setLocale(table);
+}
+
+function createValueSetSelector(
+  workspace: Blockly.Workspace,
+  values: AllowedValue[],
+): BlockSvg {
+  ensureStockListMessages();
+  const list = workspace.newBlock("lists_create_with") as ListCreateBlock;
+  list.itemCount_ = values.length;
+  list.updateShape_();
+  for (let i = 0; i < values.length; i++) {
+    const text = workspace.newBlock("text") as BlockSvg;
+    text.setFieldValue(values[i]!.label || values[i]!.code, "TEXT");
+    list.getInput(`ADD${i}`)?.connection?.connect(text.outputConnection!);
+    finalizeBlock(text);
+  }
+  finalizeBlock(list);
+
+  const get = workspace.newBlock("lists_getIndex") as ListGetIndexBlock;
+  get.setFieldValue("GET", "MODE");
+  get.setFieldValue("FIRST", "WHERE");
+  get.updateAt_?.(false);
+  get.getInput("VALUE")?.connection?.connect(list.outputConnection!);
+  return finalizeBlock(get);
 }
 
 function primaryValueChild(node: SkeletonNode): SkeletonNode | undefined {

@@ -269,3 +269,35 @@ Deno.test("mapNodeToSlot promotes indexed JSON paths onto repeating EVENT slots"
   assertEquals(mapped?.expression, 'xpathNumber("pulse")');
   assertEquals(controller.getState().model.loops?.[0]?.path, "$.measurements");
 });
+
+Deno.test("controller switches multilingual target ontology language without dropping mappings", async () => {
+  const wt = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "../vendor/openEHR-model-examples/local/theme-packs/sport-event-details/templates/Accident report including vital signs.wt.json",
+    ),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);
+  const before = controller.getState();
+  assertEquals(before.modelLanguages.sort().join(","), "de,en,sv");
+  const injury = collectValueSlots(before.skeleton).find((s) =>
+    s.slotId.includes("problem_diagnosis") && s.slotId.includes("items/at0002/")
+  );
+  assert(injury);
+  assertEquals(injury.label, "Injury");
+  controller.mapNodeToSlot(injury.slotId, "$.injury", "json");
+  const expression = controller.getState().model.slots.find((s) => s.slotId === injury.slotId)
+    ?.expression;
+  assert(expression);
+
+  controller.setModelLanguage("sv");
+  const after = controller.getState();
+  assertEquals(after.modelLanguage, "sv");
+  const svInjury = collectValueSlots(after.skeleton).find((s) => s.slotId === injury.slotId);
+  assertEquals(svInjury?.label, "Skada");
+  assertEquals(
+    after.model.slots.find((s) => s.slotId === injury.slotId)?.expression,
+    expression,
+  );
+});

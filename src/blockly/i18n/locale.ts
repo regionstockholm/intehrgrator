@@ -1,6 +1,7 @@
 /**
- * Blockly locale loading for intEHRgrator.
+ * Blockly / application UI locale loading for intEHRgrator.
  * Stock strings: blockly/msg/{lang}. Custom: ./custom_msg.ts
+ * Full chrome i18n is deferred; this setting currently drives Blockly messages.
  */
 import { Blockly } from "../blockly_core.ts";
 import {

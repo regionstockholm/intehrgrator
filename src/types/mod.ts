@@ -129,6 +129,8 @@ export interface ProjectSettings {
   validationStrict: boolean;
   autoscroll: boolean;
   autoplay: boolean;
+  /** Ontology / localizedNames language for the loaded multilingual target. */
+  modelLanguage?: string;
 }
 
 export interface ProjectBundle {
@@ -151,6 +153,9 @@ export interface ProjectBundle {
     content: string;
     skeleton: SkeletonNode[];
     fileset?: ClinicalModelFileset;
+    language?: string;
+    languages?: string[];
+    webTemplateJson?: string;
   } | null;
   sourceSchema: {
     filename: string;

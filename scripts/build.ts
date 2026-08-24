@@ -99,6 +99,7 @@ await copy(
   { overwrite: true },
 );
 await copy(join(root, "docs"), join(outDir, "docs"), { overwrite: true, recursive: true });
+await copy(join(root, "examples"), join(outDir, "examples"), { overwrite: true, recursive: true });
 const localBetterRenderer = join(root, ".local", "better-form-renderer");
 try {
   await Deno.stat(localBetterRenderer);

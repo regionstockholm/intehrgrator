@@ -12,6 +12,11 @@ import {
 import { OptXmlSerializer } from "ehrtslib/generation/opt_xml_serializer.ts";
 import { buildWebTemplate } from "ehrtslib/serialization/simplified/web_template_builder.ts";
 import { generateSkeletonFromOperational } from "../skeleton/generate_skeleton.ts";
+import {
+  availableWebTemplateLanguages,
+  buildWebTemplateTermsIndex,
+  orderLanguages,
+} from "../skeleton/template_terms.ts";
 import type { ClinicalModelFileset, SkeletonNode } from "../../types/mod.ts";
 
 const CLINICAL_MODEL_URL_SUFFIX = /\.(t\.json|adl|adls|opt|oet)$/i;
@@ -35,6 +40,8 @@ export interface GitHubClinicalModelLoadResult {
   /** Web Template JSON for Source Schema trees. */
   webTemplateJson: string;
   skeleton: SkeletonNode[];
+  language: string;
+  languages: string[];
   warnings: string[];
   fetched: number;
   /** Full fetched file-set (`.t.json` + ADL/OPT) for Project Bundle round-trip. */
@@ -52,7 +59,7 @@ export function isGitHubClinicalModelUrl(input: string): boolean {
 
 export async function loadGitHubClinicalModel(
   sourceUrl: string,
-  options?: GitHubClinicalModelLoadOptions,
+  options?: GitHubClinicalModelLoadOptions & { language?: string },
 ): Promise<GitHubClinicalModelLoadResult> {
   const workspace = new ClinicalModelWorkspace();
   const closure = await workspace.loadFromGitHubClinicalModelUrl(sourceUrl, {
@@ -66,12 +73,25 @@ export async function loadGitHubClinicalModel(
   const optXml = rootFile && isOptXml(rootFile.content)
     ? rootFile.content
     : new OptXmlSerializer().serialize(opt);
-  const webTemplate = buildWebTemplate(opt);
-  const generated = generateSkeletonFromOperational(opt, optXml);
+  const webTemplate = buildWebTemplate(opt, { defaultLanguage: options?.language });
+  const generated = generateSkeletonFromOperational(
+    opt,
+    optXml,
+    buildWebTemplateTermsIndex(webTemplate, options?.language),
+    { language: options?.language },
+  );
   const templateId = generated.templateId !== "unknown"
     ? generated.templateId
     : webTemplate.templateId || basename(closure.rootPath);
   const storedName = (closure.rootPath.split("/").pop() ?? closure.rootPath);
+  const wtLanguages = availableWebTemplateLanguages(webTemplate);
+  const languages = orderLanguages(
+    options?.language ?? generated.language,
+    [...generated.languages, ...wtLanguages],
+  );
+  const language = options?.language && languages.includes(options.language)
+    ? options.language
+    : (generated.language || languages[0] || "en");
 
   return {
     sourceUrl,
@@ -81,6 +101,8 @@ export async function loadGitHubClinicalModel(
     optXml,
     webTemplateJson: JSON.stringify(webTemplate),
     skeleton: generated.skeleton,
+    language,
+    languages,
     warnings: [...closure.warnings, ...resolved.warnings, ...generated.warnings],
     fetched: closure.fetched,
     fileset: {

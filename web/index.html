@@ -35,12 +35,29 @@
       </div>
     </div>
     <button id="btn-import-ai" type="button">Import Suggestions</button>
+    <div class="split-btn toolbar-split-btn">
+      <button id="btn-example-sets" class="split-btn-main" type="button" title="Load a complete example set (source, target, optional mapping) from catalog URIs">Example Sets</button>
+      <button
+        id="btn-example-sets-menu"
+        class="split-btn-chevron"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="menu-example-sets"
+        aria-label="Choose example set"
+      >▾</button>
+      <div id="menu-example-sets" class="split-btn-menu" hidden role="menu"></div>
+    </div>
     <button id="btn-new-project" type="button">New Project</button>
     <button id="btn-load-project" type="button">Load Project</button>
     <button id="btn-save-project" type="button">Save as</button>
     <button id="btn-export-project" type="button">Export Project</button>
     <button id="btn-import-project" type="button">Import Project</button>
     <button id="btn-better-form" type="button" hidden title="Requires licensed Better renderer (deno task setup:better-forms)">Open Better form</button>
+    <label class="toolbar-lang" for="ui-language-dropdown">
+      <span id="ui-language-label">Language</span>
+      <select id="ui-language-dropdown" aria-label="Application UI language"></select>
+    </label>
   </header>
 
   <main
@@ -146,10 +163,6 @@
             </svg>
             Download JSON
           </button>
-          <label class="pane-lang" for="language-dropdown">
-            <span id="language-label">Language</span>
-            <select id="language-dropdown" aria-label="Blockly language"></select>
-          </label>
         </div>
       </div>
       <div
@@ -230,6 +243,10 @@
             >▾</button>
             <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
           </div>
+          <label class="pane-lang pane-lang--on-dark" id="model-language-wrap" hidden for="model-language-dropdown">
+            <span id="model-language-label">Model</span>
+            <select id="model-language-dropdown" aria-label="Target model ontology language"></select>
+          </label>
         </div>
       </div>
       <div id="target-format-badge" class="target-format-badge">No target</div>

@@ -25,6 +25,7 @@ export {
   setAllBlocksCollapsed,
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
+export { applySkeletonBlockLabels, relabelWorkspaceFromSkeleton } from "./block_labels.ts";
 export { refreshWorkspaceConstraints, ABSTRACT_EVENT_WARNING, warningTextOf } from "./block_constraints.ts";
 export { blockToExpression } from "./expression_serialize.ts";
 export {

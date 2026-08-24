@@ -17,6 +17,7 @@ import {
   collectAllSlotIds,
   isRepeatingMultiplicity,
 } from "../skeleton/generate_skeleton.ts";
+import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
 
@@ -28,6 +29,17 @@ export interface TargetDefinition {
   skeleton: SkeletonNode[];
   /** Fetched GitHub `.t.json` + ADL closure for round-trip restore without GitHub. */
   fileset?: ClinicalModelFileset;
+  /** Web Template JSON used for ontology/label language switching when content is OPT XML. */
+  webTemplateJson?: string;
+  /** Ontology / localized label language currently applied to `skeleton`. */
+  language?: string;
+  /** Languages available on this target model (when multilingual). */
+  languages?: string[];
+}
+
+export interface TargetLoadOptions {
+  /** Preferred ontology / documentation language. */
+  language?: string;
 }
 
 export interface TargetRenderRequest {
@@ -37,7 +49,7 @@ export interface TargetRenderRequest {
 
 export interface TargetFormatHandler {
   readonly id: TargetFormatId;
-  load(filename: string, content: string): TargetDefinition;
+  load(filename: string, content: string, options?: TargetLoadOptions): TargetDefinition;
   render(request: TargetRenderRequest): unknown;
 }
 
@@ -76,26 +88,60 @@ export function detectTargetFormat(filename: string, content = ""): TargetFormat
   return "free-form";
 }
 
+/** Reload an existing target definition with a different ontology/documentation language. */
+export function reloadTargetLanguage(
+  definition: TargetDefinition,
+  language: string,
+): TargetDefinition {
+  if (definition.webTemplateJson) {
+    const generated = generateSkeletonFromWebTemplate(definition.webTemplateJson, {
+      language,
+    });
+    return {
+      ...definition,
+      skeleton: generated.skeleton,
+      language: generated.language,
+      languages: generated.languages,
+    };
+  }
+  const reloaded = getTargetFormatHandler(definition.format).load(
+    definition.filename,
+    definition.content,
+    { language },
+  );
+  return {
+    ...reloaded,
+    fileset: definition.fileset,
+    webTemplateJson: definition.webTemplateJson,
+  };
+}
+
 registerTargetFormatHandler({
   id: "openehr-template",
-  load(filename, content) {
+  load(filename, content, options) {
     if (content.trimStart().startsWith("{")) {
-      const generated = generateSkeletonFromWebTemplate(content);
+      const generated = generateSkeletonFromWebTemplate(content, {
+        language: options?.language,
+      });
       return {
         format: "openehr-template",
         filename,
         targetId: generated.templateId,
         content,
         skeleton: generated.skeleton,
+        language: generated.language,
+        languages: generated.languages,
       };
     }
-    const generated = generateSkeleton(content);
+    const generated = generateSkeleton(content, { language: options?.language });
     return {
       format: "openehr-template",
       filename,
       targetId: generated.templateId,
       content,
       skeleton: generated.skeleton,
+      language: generated.language,
+      languages: generated.languages,
     };
   },
   render({ definition, slotValues }) {
@@ -132,14 +178,16 @@ registerTargetFormatHandler({
 
 registerTargetFormatHandler({
   id: "xml-schema",
-  load(filename, content) {
-    const parsed = parseXmlSchema(content, stripExtension(filename));
+  load(filename, content, options) {
+    const parsed = parseXmlSchema(content, stripExtension(filename), options?.language);
     return {
       format: "xml-schema",
       filename,
       targetId: parsed.targetId,
       content,
       skeleton: [parsed.root],
+      language: parsed.language,
+      languages: parsed.languages,
     };
   },
   render({ definition, slotValues }) {
@@ -191,9 +239,11 @@ function schemaTreeToSkeleton(
   };
 }
 
-function parseXmlSchema(content: string, fallbackId: string): {
+function parseXmlSchema(content: string, fallbackId: string, preferredLang?: string): {
   targetId: string;
   root: SkeletonNode;
+  language?: string;
+  languages?: string[];
 } {
   const parser = new XMLParser({
     ignoreAttributes: false,
@@ -203,13 +253,74 @@ function parseXmlSchema(content: string, fallbackId: string): {
   const document = parser.parse(content) as Record<string, unknown>;
   const schema = asRecord(document.schema);
   if (!schema) throw new Error("Invalid XML Schema: missing xs:schema");
+  const languages = collectXmlSchemaLanguages(schema);
+  const language = preferredLang && languages.includes(preferredLang)
+    ? preferredLang
+    : languages[0];
   const rootElement = arrayOf(schema.element)[0];
   if (!rootElement) throw new Error("Invalid XML Schema: no root xs:element");
   const rootName = stringAttr(rootElement, "@name") || fallbackId;
   return {
     targetId: stringAttr(schema, "@targetNamespace") || rootName,
-    root: xsdElementToSkeleton(rootElement, rootName, `/${rootName}`, true),
+    root: xsdElementToSkeleton(rootElement, rootName, `/${rootName}`, true, language),
+    language,
+    languages: languages.length ? languages : undefined,
   };
+}
+
+function collectXmlSchemaLanguages(node: unknown, langs = new Set<string>()): string[] {
+  if (!node || typeof node !== "object") return orderLanguages(undefined, [...langs]);
+  if (Array.isArray(node)) {
+    for (const item of node) collectXmlSchemaLanguages(item, langs);
+    return orderLanguages(undefined, [...langs]);
+  }
+  const rec = node as Record<string, unknown>;
+  const annotation = asRecord(rec.annotation);
+  for (const doc of documentationNodes(annotation)) {
+    const lang = documentationLang(doc);
+    if (lang) langs.add(lang);
+  }
+  for (const value of Object.values(rec)) collectXmlSchemaLanguages(value, langs);
+  return orderLanguages(undefined, [...langs]);
+}
+
+function documentationNodes(
+  annotation: Record<string, unknown> | null,
+): Array<Record<string, unknown> | string> {
+  if (!annotation) return [];
+  const raw = annotation.documentation;
+  if (typeof raw === "string") return [raw];
+  if (Array.isArray(raw)) return raw.filter((item) => typeof item === "string" || isRecord(item));
+  return isRecord(raw) ? [raw] : [];
+}
+
+function documentationLang(doc: Record<string, unknown> | string): string {
+  if (typeof doc === "string") return "";
+  return stringAttr(doc, "@lang") || stringAttr(doc, "@xml:lang");
+}
+
+function xsdDocumentationLabel(
+  element: Record<string, unknown>,
+  language: string | undefined,
+): string | undefined {
+  const docs = documentationNodes(asRecord(element.annotation));
+  if (!docs.length) return undefined;
+  if (language) {
+    const match = docs.find((doc) => documentationLang(doc) === language);
+    const text = documentationText(match);
+    if (text) return text;
+  }
+  return documentationText(docs[0]);
+}
+
+function documentationText(doc: Record<string, unknown> | string | undefined): string | undefined {
+  if (doc == null) return undefined;
+  if (typeof doc === "string") {
+    const trimmed = doc.trim();
+    return trimmed || undefined;
+  }
+  if (typeof doc["#text"] === "string" && doc["#text"].trim()) return doc["#text"].trim();
+  return undefined;
 }
 
 function xsdElementToSkeleton(
@@ -217,15 +328,17 @@ function xsdElementToSkeleton(
   fallbackName: string,
   path: string,
   root = false,
+  language?: string,
 ): SkeletonNode {
   const name = stringAttr(element, "@name") || fallbackName;
+  const label = xsdDocumentationLabel(element, language) || name;
   const complex = asRecord(element.complexType);
   const sequence = asRecord(complex?.sequence) ?? asRecord(complex?.all) ??
     asRecord(complex?.choice);
   const childElements = arrayOf(sequence?.element);
   const children = childElements.map((child) => {
     const childName = stringAttr(child, "@name") || typeLocalName(stringAttr(child, "@ref")) || "element";
-    return xsdElementToSkeleton(child, childName, `${path}/${childName}`);
+    return xsdElementToSkeleton(child, childName, `${path}/${childName}`, false, language);
   });
   const min = Number(stringAttr(element, "@minOccurs") || (root ? "1" : "1"));
   const maxToken = stringAttr(element, "@maxOccurs") || "1";
@@ -238,7 +351,7 @@ function xsdElementToSkeleton(
     targetPath: path,
     blockType: kind === "container" ? "target_structure" : "target_value",
     rmType: type,
-    label: name,
+    label,
     rmAttribute: root ? undefined : name,
     kind,
     mandatory: min > 0,
@@ -364,13 +477,19 @@ function renderXmlNode(
   node: SkeletonNode,
   values: Readonly<Record<string, unknown>>,
 ): string {
-  const name = xmlName(node.label);
+  const name = xmlName(xmlTagName(node));
   if (node.kind === "value") {
     const value = values[node.slotId] ?? fixedValue(node);
     return value === undefined ? "" : `<${name}>${escapeXml(String(value))}</${name}>`;
   }
   const body = node.children.map((child) => renderXmlNode(child, values)).join("");
   return `<${name}>${body}</${name}>`;
+}
+
+function xmlTagName(node: SkeletonNode): string {
+  if (node.rmAttribute) return node.rmAttribute;
+  const fromPath = node.targetPath?.split("/").filter(Boolean).pop();
+  return fromPath || node.label;
 }
 
 function isAbsentValue(value: unknown): boolean {

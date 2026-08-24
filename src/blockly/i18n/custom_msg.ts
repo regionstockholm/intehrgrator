@@ -35,6 +35,8 @@ export interface IntehrMessages {
   FOR_EACH_SOURCE_DO: string;
   FOR_EACH_SOURCE_TOOLTIP: string;
   LANGUAGE_LABEL: string;
+  UI_LANGUAGE_LABEL: string;
+  MODEL_LANGUAGE_LABEL: string;
 }
 
 const TABLE: Record<IntehrLocale, IntehrMessages> = {
@@ -60,6 +62,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_TOOLTIP:
       "Loop over every node matched by a source path. Current node is stored in the named variable.",
     LANGUAGE_LABEL: "Language",
+    UI_LANGUAGE_LABEL: "UI",
+    MODEL_LANGUAGE_LABEL: "Model",
   },
   sv: {
     CAT_SOURCE: "Källa",
@@ -83,6 +87,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_TOOLTIP:
       "Loopa över varje nod som matchas av en källsökväg. Aktuell nod lagras i den namngivna variabeln.",
     LANGUAGE_LABEL: "Språk",
+    UI_LANGUAGE_LABEL: "UI",
+    MODEL_LANGUAGE_LABEL: "Modell",
   },
   de: {
     CAT_SOURCE: "Quelle",
@@ -106,6 +112,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_TOOLTIP:
       "Schleife über jeden Knoten eines Quellpfads. Der aktuelle Knoten wird in der genannten Variable gespeichert.",
     LANGUAGE_LABEL: "Sprache",
+    UI_LANGUAGE_LABEL: "UI",
+    MODEL_LANGUAGE_LABEL: "Modell",
   },
   es: {
     CAT_SOURCE: "Origen",
@@ -129,6 +137,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada nodo coincidente con una ruta de origen. El nodo actual se guarda en la variable indicada.",
     LANGUAGE_LABEL: "Idioma",
+    UI_LANGUAGE_LABEL: "IU",
+    MODEL_LANGUAGE_LABEL: "Modelo",
   },
   ca: {
     CAT_SOURCE: "Origen",
@@ -152,6 +162,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada node que coincideix amb un camí d'origen. El node actual es desa a la variable indicada.",
     LANGUAGE_LABEL: "Idioma",
+    UI_LANGUAGE_LABEL: "IU",
+    MODEL_LANGUAGE_LABEL: "Model",
   },
   fr: {
     CAT_SOURCE: "Source",
@@ -175,6 +187,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_TOOLTIP:
       "Boucle sur chaque nœud correspondant à un chemin source. Le nœud courant est stocké dans la variable nommée.",
     LANGUAGE_LABEL: "Langue",
+    UI_LANGUAGE_LABEL: "IU",
+    MODEL_LANGUAGE_LABEL: "Modèle",
   },
 };
 

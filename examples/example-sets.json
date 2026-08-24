@@ -1,0 +1,32 @@
+{
+  "$comment": "intEHRgrator example-set catalog. Canonical home is ehrtslib (ErikSundvall/ehrtslib examples/). Relative URIs resolve against this file's URL. This is a dummy first instance.",
+  "version": 1,
+  "sets": [
+    {
+      "id": "dummy-json-vitals",
+      "title": "Dummy vitals (JSON Schema)",
+      "description": "Minimal JSON Schema source, two instances, and a JSON Schema target. No mapping.",
+      "source": {
+        "schema": "./dummy-json-vitals/source.schema.json",
+        "instances": [
+          "./dummy-json-vitals/instance-1.json",
+          "./dummy-json-vitals/instance-2.json"
+        ]
+      },
+      "target": "./dummy-json-vitals/target.schema.json"
+    },
+    {
+      "id": "dummy-json-vitals-mapped",
+      "title": "Dummy vitals with mapping",
+      "description": "Same dummy files plus a stub (empty) Blockly mapping.",
+      "source": {
+        "schema": "./dummy-json-vitals/source.schema.json",
+        "instances": [
+          "./dummy-json-vitals/instance-1.json"
+        ]
+      },
+      "target": "./dummy-json-vitals/target.schema.json",
+      "mapping": "./dummy-json-vitals/mapping.blockly.json"
+    }
+  ]
+}

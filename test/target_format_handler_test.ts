@@ -76,6 +76,33 @@ Deno.test("XML Schema target renders XML", () => {
   assertEquals(result.output, "<message><text>A &amp; B</text></message>");
 });
 
+Deno.test("XML Schema target uses xml:lang documentation as labels", () => {
+  const xsd = `<?xml version="1.0"?>
+    <xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+      <xs:element name="report">
+        <xs:annotation>
+          <xs:documentation xml:lang="en">Accident report</xs:documentation>
+          <xs:documentation xml:lang="sv">Olycksrapport</xs:documentation>
+        </xs:annotation>
+        <xs:complexType><xs:sequence>
+          <xs:element name="injury" type="xs:string">
+            <xs:annotation>
+              <xs:documentation xml:lang="en">Injury</xs:documentation>
+              <xs:documentation xml:lang="sv">Skada</xs:documentation>
+            </xs:annotation>
+          </xs:element>
+        </xs:sequence></xs:complexType>
+      </xs:element>
+    </xs:schema>`;
+  const en = getTargetFormatHandler("xml-schema").load("report.xsd", xsd, { language: "en" });
+  const sv = getTargetFormatHandler("xml-schema").load("report.xsd", xsd, { language: "sv" });
+  assertEquals(en.languages?.sort(), ["en", "sv"]);
+  assertEquals(en.skeleton[0].label, "Accident report");
+  assertEquals(en.skeleton[0].children[0]?.label, "Injury");
+  assertEquals(sv.skeleton[0].label, "Olycksrapport");
+  assertEquals(sv.skeleton[0].children[0]?.label, "Skada");
+});
+
 Deno.test("Kintegrate Handlebars helpers and openEHR keys remain compatible", () => {
   const output = renderHandlebars(
     "{{toUpperCase patient.name}}: {{#if (gte patient.score 5)}}ok{{/if}}",

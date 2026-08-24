@@ -379,3 +379,24 @@ Deno.test("web template AQL-style node ids are sanitized and EVENT multiplicity 
   const context = nodes.find((n) => n.rmType === "EVENT_CONTEXT");
   assertEquals(context?.kind, "container");
 });
+
+Deno.test("web template skeleton labels follow requested ontology language", async () => {
+  const wt = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "../vendor/openEHR-model-examples/local/theme-packs/sport-event-details/templates/Accident report including vital signs.wt.json",
+    ),
+  );
+  const en = generateSkeletonFromWebTemplate(wt, { language: "en" });
+  const sv = generateSkeletonFromWebTemplate(wt, { language: "sv" });
+  assertEquals(en.languages.sort().join(","), "de,en,sv");
+  assertEquals(en.language, "en");
+  assertEquals(sv.language, "sv");
+  const findInjury = (skeleton: SkeletonNode[]) =>
+    flattenSkeleton(skeleton).find((n) =>
+      n.kind === "value" && n.slotId.includes("problem_diagnosis") &&
+      n.slotId.includes("items/at0002/")
+    );
+  assertEquals(findInjury(en.skeleton)?.label, "Injury");
+  assertEquals(findInjury(sv.skeleton)?.label, "Skada");
+});

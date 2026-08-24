@@ -59,6 +59,7 @@ import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
 import {
   detectTargetFormat,
   getTargetFormatHandler,
+  reloadTargetLanguage,
   type TargetDefinition,
 } from "../core/target/mod.ts";
 import {
@@ -67,6 +68,12 @@ import {
   type GitHubClinicalModelLoadResult,
 } from "../core/clinical_model/github_template.ts";
 import { loadGitHubExampleDirectory } from "../core/source/github_examples.ts";
+import {
+  BUNDLED_EXAMPLE_SETS_PATH,
+  parseExampleSetCatalog,
+  type ExampleSet,
+  type ExampleSetCatalog,
+} from "../core/example_sets/mod.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import {
   snapshotUrlHistory,
@@ -187,6 +194,8 @@ export class WorkbenchController {
       validationIssues: validateModel(this.model, this.skeleton),
       unmappedMandatory: countUnmappedMandatory(this.model, this.skeleton),
       urlHistory: this.captureUrlHistory(),
+      modelLanguage: this.target?.language ?? this.settings.modelLanguage ?? null,
+      modelLanguages: this.target?.languages ?? [],
     };
   }
 
@@ -240,7 +249,35 @@ export class WorkbenchController {
         "Better .t.json templates need a GitHub blob/raw URL so dependent archetypes can be fetched. Use ▾ → From GitHub template…",
       );
     }
-    const target = getTargetFormatHandler(format).load(filename, content);
+    const preferredLanguage = this.settings.modelLanguage;
+    const target = getTargetFormatHandler(format).load(filename, content, {
+      language: preferredLanguage,
+    });
+    this.applyLoadedTarget(target);
+  }
+
+  /**
+   * Switch ontology / documentation language on a multilingual target.
+   * Regenerates skeleton labels without clearing Blockly mappings.
+   */
+  setModelLanguage(language: string): void {
+    if (!this.target) return;
+    const available = this.target.languages ?? [];
+    if (available.length && !available.includes(language)) return;
+    if (this.target.language === language) return;
+    const previous = this.getBlocklyState?.() ?? this.blocklyState;
+    const reloaded = reloadTargetLanguage(this.target, language);
+    this.target = reloaded;
+    this.skeleton = reloaded.skeleton;
+    this.settings = { ...this.settings, modelLanguage: language };
+    this.syncSlotLabelsFromSkeleton();
+    if (previous) this.blocklyState = previous;
+    this.refreshDerived();
+    this.statusMessage = `Model language: ${language}`;
+    this.markDirty();
+  }
+
+  private applyLoadedTarget(target: TargetDefinition): void {
     this.target = target;
     this.templateContent = target.content;
     this.templateFilename = target.filename;
@@ -249,15 +286,31 @@ export class WorkbenchController {
     this.targetOriginUrl = null;
     this.model = createEmptyModel(this.templateId);
     this.model.targetFormat = target.format;
-    if (format === "free-form") {
+    if (target.language) {
+      this.settings = { ...this.settings, modelLanguage: target.language };
+    }
+    if (target.format === "free-form") {
       this.settings.exportTarget = "handlebars";
-      this.handlebarsTemplate = content;
+      this.handlebarsTemplate = target.content;
     }
     this.blocklyState = null;
     this.blocklyReloadToken += 1;
     this.refreshDerived();
-    this.statusMessage = `Loaded ${format} target ${this.templateId}`;
+    this.statusMessage = `Loaded ${target.format} target ${this.templateId}`;
     this.markDirty();
+  }
+
+  private syncSlotLabelsFromSkeleton(): void {
+    const byId = new Map(
+      collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]),
+    );
+    this.model = {
+      ...this.model,
+      slots: this.model.slots.map((slot) => {
+        const next = byId.get(slot.slotId);
+        return next?.label ? { ...slot, label: next.label } : slot;
+      }),
+    };
   }
 
   async loadSchema(): Promise<void> {
@@ -333,6 +386,50 @@ export class WorkbenchController {
       if (this.settings.autoplay) this.scheduleTestRun();
     } catch (err) {
       this.statusMessage = `Example load failed: ${err instanceof Error ? err.message : String(err)}`;
+      this.notifyChange();
+      throw err;
+    }
+  }
+
+  /** Fetch and parse an example-set catalog. Relative URIs resolve against the catalog URL. */
+  async loadExampleSetCatalog(url?: string): Promise<ExampleSetCatalog> {
+    const catalogUrl = url?.trim() || this.host.resolveAppUrl(BUNDLED_EXAMPLE_SETS_PATH);
+    try {
+      const file = await this.host.fetchTextUrl(catalogUrl);
+      const catalog = parseExampleSetCatalog(file.text, catalogUrl);
+      this.statusMessage = `Loaded example-set catalog (${catalog.sets.length} set${
+        catalog.sets.length === 1 ? "" : "s"
+      })`;
+      this.notifyChange();
+      return catalog;
+    } catch (err) {
+      this.statusMessage = `Example-set catalog failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`;
+      this.notifyChange();
+      throw err;
+    }
+  }
+
+  /** Replace the workspace with a catalog example set (source, target, optional mapping). */
+  async loadExampleSet(set: ExampleSet): Promise<void> {
+    this.resetWorkspaceState();
+    try {
+      await this.openTemplateFromUrl(set.target);
+      await this.loadSchemaFromUrl(set.source.schema);
+      for (const instanceUrl of set.source.instances) {
+        await this.addExampleFromUrl(instanceUrl);
+      }
+      if (set.mapping) {
+        const file = await this.host.fetchTextUrl(set.mapping);
+        this.loadBlocklyDefinition(file.name, file.text);
+      }
+      this.statusMessage = `Loaded example set "${set.title}"`;
+      this.notifyChange();
+    } catch (err) {
+      this.statusMessage = `Example set "${set.title}" failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`;
       this.notifyChange();
       throw err;
     }
@@ -1083,6 +1180,9 @@ export class WorkbenchController {
           content: this.target.content,
           skeleton: this.target.skeleton,
           fileset: this.target.fileset,
+          webTemplateJson: this.target.webTemplateJson,
+          language: this.target.language,
+          languages: this.target.languages,
         }
         : null,
       sourceSchema: this.schemaTree
@@ -1140,6 +1240,22 @@ export class WorkbenchController {
       this.templateId = storedTarget.targetId;
       this.skeleton = storedTarget.skeleton;
       this.model.targetFormat = storedTarget.format;
+      const preferred = this.settings.modelLanguage;
+      if (
+        preferred &&
+        preferred !== storedTarget.language &&
+        storedTarget.content &&
+        storedTarget.format !== "free-form"
+      ) {
+        try {
+          const reloaded = reloadTargetLanguage(storedTarget, preferred);
+          this.target = reloaded;
+          this.skeleton = reloaded.skeleton;
+          this.syncSlotLabelsFromSkeleton();
+        } catch {
+          // Keep persisted skeleton when regenerate fails.
+        }
+      }
     }
     if (bundle.sourceSchema?.tree?.[0]) {
       this.schemaTree = bundle.sourceSchema.tree[0];
@@ -1165,7 +1281,10 @@ export class WorkbenchController {
   }
 
   private async loadGitHubModel(url: string): Promise<GitHubClinicalModelLoadResult> {
-    return await loadGitHubClinicalModel(url, { fetch: this.githubFetch });
+    return await loadGitHubClinicalModel(url, {
+      fetch: this.githubFetch,
+      language: this.settings.modelLanguage,
+    });
   }
 
   private applyGitHubTarget(loaded: GitHubClinicalModelLoadResult): void {
@@ -1176,6 +1295,9 @@ export class WorkbenchController {
       content: loaded.optXml,
       skeleton: loaded.skeleton,
       fileset: loaded.fileset,
+      webTemplateJson: loaded.webTemplateJson,
+      language: loaded.language,
+      languages: loaded.languages,
     };
     this.templateFilename = loaded.filename;
     this.templateContent = loaded.optXml;
@@ -1183,6 +1305,9 @@ export class WorkbenchController {
     this.skeleton = loaded.skeleton;
     this.model = createEmptyModel(this.templateId);
     this.model.targetFormat = "openehr-template";
+    if (loaded.language) {
+      this.settings = { ...this.settings, modelLanguage: loaded.language };
+    }
     this.blocklyState = null;
     this.blocklyReloadToken += 1;
     this.refreshDerived();

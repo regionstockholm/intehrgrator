@@ -3,7 +3,10 @@ import {
   parseLegacyTemplateXml,
   textValue,
 } from "ehrtslib/parser/legacy/xml_aom_mapper.ts";
-import { resolveTemplateLanguage } from "ehrtslib/generation/term_codes.ts";
+import {
+  availableTemplateLanguages,
+  resolveTemplateLanguage,
+} from "ehrtslib/generation/term_codes.ts";
 import {
   archetypeTermBagsForLanguage,
   lookupTermInBag,
@@ -30,8 +33,59 @@ export function resolveOptLanguage(
     original_language?: unknown;
     ontology?: { original_language?: { code_string?: string }; term_definitions?: Record<string, unknown> };
   },
+  preferred?: string,
 ): string {
-  return resolveTemplateLanguage(opt);
+  return resolveTemplateLanguage(opt, preferred);
+}
+
+/** Language codes available for OPT ontology / description details. */
+export function availableOptLanguages(
+  opt: {
+    original_language?: unknown;
+    ontology?: {
+      original_language?: { code_string?: string };
+      term_definitions?: Record<string, unknown>;
+    };
+    description?: { details?: Record<string, unknown> };
+  },
+): string[] {
+  return availableTemplateLanguages(opt);
+}
+
+/**
+ * Language codes available on a Web Template (`languages`, `defaultLanguage`,
+ * plus any `localizedNames` / coded `localizedLabels` found in the tree).
+ */
+export function availableWebTemplateLanguages(webTemplate: WebTemplate): string[] {
+  const langs = new Set<string>();
+  if (webTemplate.defaultLanguage) langs.add(webTemplate.defaultLanguage);
+  for (const lang of webTemplate.languages ?? []) {
+    if (lang) langs.add(lang);
+  }
+  walkWebTemplateLanguages(webTemplate.tree, langs);
+  return orderLanguages(webTemplate.defaultLanguage || "en", [...langs]);
+}
+
+function walkWebTemplateLanguages(node: WebTemplateNode, langs: Set<string>): void {
+  for (const lang of Object.keys(node.localizedNames ?? {})) langs.add(lang);
+  for (const lang of Object.keys(node.localizedDescriptions ?? {})) langs.add(lang);
+  for (const input of node.inputs ?? []) {
+    for (const item of input.list ?? []) {
+      for (const lang of Object.keys(item.localizedLabels ?? {})) langs.add(lang);
+      for (const lang of Object.keys(item.localizedDescriptions ?? {})) langs.add(lang);
+    }
+  }
+  for (const child of node.children ?? []) walkWebTemplateLanguages(child, langs);
+}
+
+/** Prefer default language first, then remaining codes sorted. */
+export function orderLanguages(preferred: string | undefined, languages: string[]): string[] {
+  const unique = [...new Set(languages.filter(Boolean))];
+  if (!preferred) return unique.sort((a, b) => a.localeCompare(b));
+  return [
+    preferred,
+    ...unique.filter((lang) => lang !== preferred).sort((a, b) => a.localeCompare(b)),
+  ];
 }
 
 /** Extract term text from OPT/AOM term entry shapes. */
@@ -83,48 +137,85 @@ export function liveArchetypeTermsIndex(
 }
 
 function webTemplateNodeName(node: WebTemplateNode, lang: string): string | undefined {
-  return node.localizedNames?.[lang] ?? node.name ?? node.localizedName;
+  return node.localizedNames?.[lang] ??
+    node.localizedName ??
+    node.name ??
+    Object.values(node.localizedNames ?? {})[0];
 }
 
-function putTerm(index: Map<string, TermBag>, scope: string, code: string, text: string): void {
+function putTerm(
+  index: Map<string, TermBag>,
+  scope: string,
+  code: string,
+  text: string,
+  overwrite = false,
+): void {
   const bag = index.get(scope) ?? {};
-  if (!bag[code]?.text) bag[code] = { text };
+  if (overwrite || !bag[code]?.text) bag[code] = { text };
   index.set(scope, bag);
+}
+
+function occurrenceName(node: WebTemplateNode, defaultLang: string): string | undefined {
+  return node.localizedNames?.[defaultLang] ?? node.name ?? node.localizedName;
+}
+
+function occurrenceScope(archetypeId: string, name?: string): string {
+  return name ? `${archetypeId},'${name}'` : archetypeId;
 }
 
 /**
  * Display names from a Web Template tree, keyed by owning archetype id.
- * Survives `webTemplateToOpt`, which flattens colliding at-codes into one ontology.
+ * Repeated archetypes (two `SECTION.adhoc` headings) also get an occurrence
+ * key `archetypeId,'Default-language name'` so OPT AQL name predicates resolve.
  */
 export function buildWebTemplateTermsIndex(
   webTemplate: WebTemplate,
+  preferredLang?: string,
 ): Map<string, TermBag> {
   const index = new Map<string, TermBag>();
-  const lang = webTemplate.defaultLanguage || "en";
+  const available = availableWebTemplateLanguages(webTemplate);
+  const defaultLang = webTemplate.defaultLanguage || available[0] || "en";
+  const lang = preferredLang && available.includes(preferredLang)
+    ? preferredLang
+    : defaultLang;
 
-  function walk(node: WebTemplateNode, inherited: string | undefined): void {
-    let scope = inherited;
+  function record(node: WebTemplateNode, inherited: string | undefined): string | undefined {
     const name = webTemplateNodeName(node, lang);
     if (isArchetypeId(node.nodeId)) {
-      scope = node.nodeId;
+      const qualified = occurrenceScope(node.nodeId!, occurrenceName(node, defaultLang));
       if (name) {
-        putTerm(index, scope, node.nodeId, name);
-        putTerm(index, scope, "at0000", name);
+        putTerm(index, node.nodeId!, node.nodeId!, name);
+        putTerm(index, node.nodeId!, "at0000", name);
+        putTerm(index, qualified, node.nodeId!, name, true);
+        putTerm(index, qualified, "at0000", name, true);
       }
-    } else if (scope && node.nodeId && name) {
-      putTerm(index, scope, node.nodeId, name);
+      return qualified;
     }
+    if (inherited && node.nodeId && name) {
+      putTerm(index, inherited, node.nodeId, name, true);
+    }
+    return inherited;
+  }
+
+  function walk(node: WebTemplateNode, inherited: string | undefined): void {
+    const scope = record(node, inherited);
     for (const child of node.children ?? []) walk(child, scope);
   }
 
   const root = webTemplate.tree;
   const rootName = webTemplateNodeName(root, lang);
-  const rootScope = isArchetypeId(root.nodeId) ? root.nodeId! : TEMPLATE_ROOT_TERM_SCOPE;
+  const rootScope = isArchetypeId(root.nodeId)
+    ? occurrenceScope(root.nodeId!, occurrenceName(root, defaultLang))
+    : TEMPLATE_ROOT_TERM_SCOPE;
   if (rootName) {
-    if (root.nodeId) putTerm(index, rootScope, root.nodeId, rootName);
-    putTerm(index, rootScope, "at0000", rootName);
+    if (root.nodeId) putTerm(index, rootScope, root.nodeId, rootName, true);
+    putTerm(index, rootScope, "at0000", rootName, true);
+    if (isArchetypeId(root.nodeId)) {
+      putTerm(index, root.nodeId!, root.nodeId!, rootName);
+      putTerm(index, root.nodeId!, "at0000", rootName);
+    }
   }
-  walk(root, isArchetypeId(root.nodeId) ? root.nodeId : rootScope);
+  walk(root, rootScope);
   return index;
 }
 

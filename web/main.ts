@@ -44,6 +44,7 @@ import {
   workspacePositionFromClient,
   registerCompactThrasosRenderer,
   openWorkspaceSnapshotWindow,
+  relabelWorkspaceFromSkeleton,
 } from "../src/blockly/mod.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
@@ -67,6 +68,11 @@ import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import { installImportAiDialog } from "../src/ui/import_ai.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
+import {
+  EHRTSLIB_EXAMPLE_SETS_CATALOG_URL,
+  type ExampleSet,
+  type ExampleSetCatalog,
+} from "../src/core/example_sets/mod.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
 import {
@@ -149,6 +155,7 @@ const testOutputEditor = createReadonlyEditor(document.getElementById("test-outp
 let workspace!: Blockly.WorkspaceSvg;
 let blocklyLocale = detectLocale();
 let blocklySkeletonKey = "";
+let blocklyLabelLanguage = "";
 let blocklySlotSignature = "";
 let toolboxKey = "";
 let ephemeralTreeHighlight: TreeHighlightState | null = null;
@@ -180,11 +187,11 @@ exportTargetSelect.addEventListener("change", () => {
   if (target === "handlebars") showTextView("handlebars");
 });
 
-function setupLanguageMenu(locale: IntehrLocale): void {
-  const labelEl = document.getElementById("language-label");
-  const select = document.getElementById("language-dropdown") as HTMLSelectElement | null;
+function setupUiLanguageMenu(locale: IntehrLocale): void {
+  const labelEl = document.getElementById("ui-language-label");
+  const select = document.getElementById("ui-language-dropdown") as HTMLSelectElement | null;
   if (!select) return;
-  if (labelEl) labelEl.textContent = msg(locale).LANGUAGE_LABEL;
+  if (labelEl) labelEl.textContent = msg(locale).UI_LANGUAGE_LABEL;
   select.replaceChildren();
   for (const { code, name } of SUPPORTED_LOCALES) {
     const opt = document.createElement("option");
@@ -199,12 +206,57 @@ function setupLanguageMenu(locale: IntehrLocale): void {
   });
 }
 
+function setupModelLanguageMenu(): void {
+  const wrap = document.getElementById("model-language-wrap");
+  const labelEl = document.getElementById("model-language-label");
+  const select = document.getElementById("model-language-dropdown") as HTMLSelectElement | null;
+  if (!wrap || !select) return;
+  if (labelEl) labelEl.textContent = msg(blocklyLocale).MODEL_LANGUAGE_LABEL;
+  select.addEventListener("change", () => {
+    controller.setModelLanguage(select.value);
+  });
+}
+
+function syncModelLanguageMenu(s: ReturnType<WorkbenchController["getState"]>): void {
+  const wrap = document.getElementById("model-language-wrap");
+  const select = document.getElementById("model-language-dropdown") as HTMLSelectElement | null;
+  if (!wrap || !select) return;
+  const languages = s.modelLanguages ?? [];
+  const multilingual = languages.length > 1;
+  wrap.hidden = !multilingual;
+  if (!multilingual) return;
+  const current = s.modelLanguage ?? languages[0] ?? "";
+  const same =
+    select.options.length === languages.length &&
+    languages.every((lang, i) => select.options[i]?.value === lang) &&
+    select.value === current;
+  if (same) return;
+  select.replaceChildren();
+  for (const lang of languages) {
+    const opt = document.createElement("option");
+    opt.value = lang;
+    opt.textContent = displayLanguageName(lang);
+    if (lang === current) opt.selected = true;
+    select.appendChild(opt);
+  }
+}
+
+function displayLanguageName(code: string): string {
+  try {
+    const display = new Intl.DisplayNames([blocklyLocale, "en"], { type: "language" });
+    return display.of(code) ?? code;
+  } catch {
+    return code;
+  }
+}
+
 async function bootBlockly(): Promise<void> {
   const locale = detectLocale();
   blocklyLocale = locale;
   await loadBlocklyLocale(locale);
   initBlocklyGenerators();
-  setupLanguageMenu(locale);
+  setupUiLanguageMenu(locale);
+  setupModelLanguageMenu();
 
   workspace = Blockly.inject(blocklyMount, {
     theme: createModestTheme(),
@@ -368,7 +420,7 @@ function handleSourceSelection(
 }
 
 function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
-  const key = `${s.target?.format ?? ""}|${s.templateId}|${s.skeleton.length}`;
+  const key = `${s.target?.format ?? ""}|${s.templateId}|${s.skeleton.length}|${s.modelLanguage ?? ""}`;
   if (key === toolboxKey) return;
   toolboxKey = key;
   workspace.updateToolbox(buildDemoToolbox(blocklyLocale, {
@@ -382,12 +434,14 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   syncToolbox(s);
   if (!s.templateId && !s.blocklyState) {
     blocklySkeletonKey = "";
+    blocklyLabelLanguage = "";
     blocklySlotSignature = "";
     return;
   }
   if (!s.templateId || !s.skeleton.length) {
     if (!(s.blocklyState && typeof s.blocklyState === "object" && s.blocklyReloadToken)) {
       blocklySkeletonKey = "";
+      blocklyLabelLanguage = "";
       blocklySlotSignature = "";
       return;
     }
@@ -400,6 +454,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       `loop:${loop.attachSlotId}=${loop.varName}@${loop.path}`
     ),
   ].join("|");
+  const labelLanguage = s.modelLanguage ?? "";
 
   if (skeletonKey !== blocklySkeletonKey) {
     if (s.blocklyState && typeof s.blocklyState === "object") {
@@ -409,11 +464,13 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         Blockly.serialization.workspaces.load(s.blocklyState, workspace);
         applyModelLoops(workspace, s.model);
         refreshWorkspaceConstraints(workspace);
+        relabelWorkspaceFromSkeleton(workspace, s.skeleton);
       } finally {
         Blockly.Events.enable();
       }
       lockWorkspaceRootsExpanded(workspace);
       blocklySkeletonKey = skeletonKey;
+      blocklyLabelLanguage = labelLanguage;
       blocklySlotSignature = slotSignature;
       const derived = workspaceToModelJson(workspace);
       if (s.blocklyReloadToken > 0) {
@@ -428,8 +485,21 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
     }
     blocklySkeletonKey = skeletonKey;
+    blocklyLabelLanguage = labelLanguage;
     blocklySlotSignature = slotSignature;
     return;
+  }
+
+  if (labelLanguage !== blocklyLabelLanguage) {
+    Blockly.Events.disable();
+    try {
+      relabelWorkspaceFromSkeleton(workspace, s.skeleton);
+    } finally {
+      Blockly.Events.enable();
+    }
+    blocklyLabelLanguage = labelLanguage;
+    toolboxKey = "";
+    syncToolbox(s);
   }
 
   if (slotSignature !== blocklySlotSignature) {
@@ -589,6 +659,7 @@ installImportAiDialog({
   importText: (text) => controller.importAiSuggestions(text),
 });
 installCopyAiMenu();
+installExampleSetsMenu();
 
 function lastAiDelivery(): "inline" | "attach" | "uri" {
   const raw = localStorage.getItem("intehrgrator.aiDelivery");
@@ -646,6 +717,170 @@ function installCopyAiMenu(): void {
       void controller.copyAiPrompt(delivery);
     });
   });
+
+  document.addEventListener("click", (event) => {
+    if (menu.hidden) return;
+    const t = event.target as Node | null;
+    if (t && (menu.contains(t) || chevron.contains(t) || main.contains(t))) return;
+    close();
+  });
+
+  globalThis.addEventListener("resize", () => {
+    if (!menu.hidden) positionMenu();
+  });
+}
+
+function installExampleSetsMenu(): void {
+  const chevron = document.getElementById("btn-example-sets-menu");
+  const main = document.getElementById("btn-example-sets");
+  const menu = document.getElementById("menu-example-sets");
+  if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) {
+    return;
+  }
+
+  document.body.append(menu);
+
+  let catalog: ExampleSetCatalog | null = null;
+  let catalogUrl: string | null = null;
+  let loading = false;
+
+  const close = () => {
+    menu.hidden = true;
+    chevron.setAttribute("aria-expanded", "false");
+  };
+
+  const positionMenu = () => {
+    const rect = chevron.getBoundingClientRect();
+    const leftEdge = main.getBoundingClientRect().left;
+    menu.style.position = "fixed";
+    menu.style.left = "auto";
+    menu.style.right = `${Math.max(8, globalThis.innerWidth - rect.right)}px`;
+    menu.style.minWidth = `${Math.max(240, rect.right - leftEdge)}px`;
+    menu.hidden = false;
+    const menuHeight = menu.getBoundingClientRect().height;
+    const openUp = rect.bottom + 2 + menuHeight > globalThis.innerHeight && rect.top > menuHeight + 8;
+    menu.style.top = openUp ? `${rect.top - menuHeight - 2}px` : `${rect.bottom + 2}px`;
+  };
+
+  const appendItem = (
+    label: string,
+    onClick: () => void,
+    className = "split-btn-menu-item",
+    disabled = false,
+  ) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = className;
+    btn.role = "menuitem";
+    btn.textContent = label;
+    btn.disabled = disabled;
+    if (!disabled) {
+      btn.addEventListener("click", () => {
+        close();
+        onClick();
+      });
+    }
+    menu.append(btn);
+    return btn;
+  };
+
+  const confirmReplace = (): boolean => {
+    if (!controller.hasWorkspaceContent()) return true;
+    return confirm(
+      "Load this example set? The current workspace will be replaced. Unsaved changes may be lost.",
+    );
+  };
+
+  const loadSet = (set: ExampleSet) => {
+    if (!confirmReplace()) return;
+    void (async () => {
+      try {
+        await controller.loadExampleSet(set);
+      } catch {
+        // Status bar already has the error.
+      }
+    })();
+  };
+
+  const renderMenu = () => {
+    menu.replaceChildren();
+    if (loading) {
+      appendItem("Loading catalog…", () => {}, "split-btn-menu-item", true);
+      return;
+    }
+    if (catalog?.sets.length) {
+      const heading = document.createElement("div");
+      heading.className = "split-btn-menu-heading";
+      heading.textContent = "Example sets";
+      menu.append(heading);
+      for (const set of catalog.sets) {
+        const item = appendItem(set.title, () => loadSet(set));
+        item.dataset.exampleSetId = set.id;
+        if (set.description) item.title = set.description;
+      }
+    } else {
+      appendItem("No example sets in catalog", () => {}, "split-btn-menu-item", true);
+    }
+    const catalogHeading = document.createElement("div");
+    catalogHeading.className = "split-btn-menu-heading";
+    catalogHeading.textContent = "Catalog";
+    menu.append(catalogHeading);
+    appendItem("Bundled dummy catalog", () => {
+      void fetchCatalog();
+    });
+    appendItem("ehrtslib catalog (GitHub)…", () => {
+      void fetchCatalog(EHRTSLIB_EXAMPLE_SETS_CATALOG_URL);
+    });
+    appendItem("Load catalog from URL…", () => {
+      const next = prompt(
+        "Example-set catalog JSON URL",
+        catalogUrl ?? EHRTSLIB_EXAMPLE_SETS_CATALOG_URL,
+      );
+      if (!next?.trim()) return;
+      void fetchCatalog(next.trim());
+    });
+  };
+
+  const fetchCatalog = async (url?: string) => {
+    loading = true;
+    renderMenu();
+    try {
+      catalog = await controller.loadExampleSetCatalog(url);
+      catalogUrl = catalog.catalogUrl;
+    } catch {
+      catalog = catalog;
+    } finally {
+      loading = false;
+      if (!menu.hidden) renderMenu();
+    }
+  };
+
+  const open = () => {
+    chevron.setAttribute("aria-expanded", "true");
+    renderMenu();
+    positionMenu();
+    if (!catalog && !loading) void fetchCatalog();
+  };
+
+  main.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!menu.hidden) {
+      close();
+      return;
+    }
+    open();
+  });
+
+  chevron.addEventListener("click", (event) => {
+    event.stopPropagation();
+    if (!menu.hidden) {
+      close();
+      return;
+    }
+    open();
+  });
+
+  menu.addEventListener("click", (event) => event.stopPropagation());
 
   document.addEventListener("click", (event) => {
     if (menu.hidden) return;
@@ -960,6 +1195,8 @@ function render(): void {
   );
 
   statusBuild.textContent = `${BUILD_ID} · ${BUILD_TIMESTAMP}`;
+
+  syncModelLanguageMenu(s);
 
   if (s.schemaTree) {
     renderSchemaTree(

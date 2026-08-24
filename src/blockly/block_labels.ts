@@ -32,6 +32,28 @@ export function applySkeletonBlockLabels(block: Block, node: SkeletonNode): void
   block.setTooltip(skeletonBlockTooltip(node));
 }
 
+/** Update NAME / ontology labels on existing workspace blocks from a new skeleton. */
+export function relabelWorkspaceFromSkeleton(
+  workspace: { getAllBlocks: (ordered?: boolean) => Block[] },
+  skeleton: SkeletonNode[],
+): void {
+  const bySlot = new Map<string, SkeletonNode>();
+  walkSkeleton(skeleton, (node) => bySlot.set(node.slotId, node));
+  for (const block of workspace.getAllBlocks(false)) {
+    const slotId = block.getFieldValue?.("SLOT_ID");
+    if (typeof slotId !== "string" || !slotId) continue;
+    const node = bySlot.get(slotId);
+    if (node) applySkeletonBlockLabels(block, node);
+  }
+}
+
+function walkSkeleton(nodes: SkeletonNode[], visit: (node: SkeletonNode) => void): void {
+  for (const node of nodes) {
+    visit(node);
+    if (node.children.length) walkSkeleton(node.children, visit);
+  }
+}
+
 function setFieldIfPresent(block: Block, name: string, value: string): void {
   const field = block.getField(name);
   if (field) field.setValue(value);

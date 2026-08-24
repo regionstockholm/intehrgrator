@@ -20,6 +20,8 @@ import { withRmConstrainedFields } from "../rm_terminology.ts";
 import { isSubtypeOf } from "../rm_meta.ts";
 import {
   archetypeShortName,
+  availableOptLanguages,
+  availableWebTemplateLanguages,
   buildArchetypeTermsIndex,
   buildWebTemplateTermsIndex,
   compositionArchetypeRef,
@@ -40,19 +42,31 @@ import {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AmObject = any;
 
+export interface GenerateSkeletonOptions {
+  /** Preferred ontology / localizedNames language (ISO 639-1). */
+  language?: string;
+}
+
 export interface GenerateSkeletonResult {
   templateId: string;
   skeleton: SkeletonNode[];
   warnings: string[];
+  /** Language used for term/label resolution. */
+  language: string;
+  /** Languages available on the source model (may be a single entry). */
+  languages: string[];
 }
 
-export function generateSkeleton(optSource: string): GenerateSkeletonResult {
+export function generateSkeleton(
+  optSource: string,
+  options?: GenerateSkeletonOptions,
+): GenerateSkeletonResult {
   const parsed = parseTemplateInput(optSource);
   const opt = parsed.operationalTemplate as AmObject;
   if (!opt?.definition) {
     throw new Error("Could not parse operational template from input");
   }
-  const generated = generateSkeletonFromOperational(opt, optSource);
+  const generated = generateSkeletonFromOperational(opt, optSource, undefined, options);
   return {
     ...generated,
     warnings: [...parsed.warnings, ...generated.warnings],
@@ -62,19 +76,28 @@ export function generateSkeleton(optSource: string): GenerateSkeletonResult {
 /** Convert a Web Template JSON document to the same OPERATIONAL_TEMPLATE walker. */
 export function generateSkeletonFromWebTemplate(
   source: string | unknown,
+  options?: GenerateSkeletonOptions,
 ): GenerateSkeletonResult {
   const webTemplate = parseWebTemplate(source);
   const opt = webTemplateToOpt(webTemplate) as AmObject;
+  const preferred = options?.language;
+  const languages = availableWebTemplateLanguages(webTemplate);
+  const language = preferred && languages.includes(preferred)
+    ? preferred
+    : (webTemplate.defaultLanguage || languages[0] || "en");
   const generated = generateSkeletonFromOperational(
     opt,
     "",
-    buildWebTemplateTermsIndex(webTemplate),
+    buildWebTemplateTermsIndex(webTemplate, language),
+    { language },
   );
   return {
     ...generated,
     templateId: generated.templateId !== "unknown"
       ? generated.templateId
       : webTemplate.templateId,
+    language,
+    languages: languages.length ? languages : [language],
   };
 }
 
@@ -83,13 +106,18 @@ export function generateSkeletonFromOperational(
   opt: AmObject,
   optSource = "",
   extraArchetypeTerms?: Map<string, TermBag>,
+  options?: GenerateSkeletonOptions,
 ): GenerateSkeletonResult {
   if (!opt?.definition) {
     throw new Error("Could not parse operational template from input");
   }
 
   const templateId = opt.template_id?.value ?? opt.archetype_id?.value ?? "unknown";
-  const lang = resolveOptLanguage(opt);
+  const languages = availableOptLanguages(opt);
+  const preferred = options?.language;
+  const lang = preferred && (languages.length === 0 || languages.includes(preferred))
+    ? resolveOptLanguage(opt, preferred)
+    : resolveOptLanguage(opt);
   applyOperationalTemplateTermScopes(opt, lang);
   const fallbackTerms = mergedOntologyTerms(opt, lang);
   const archetypeTerms = mergeTermMaps(
@@ -116,6 +144,8 @@ export function generateSkeletonFromOperational(
     templateId,
     skeleton: root ? [root] : [],
     warnings: [],
+    language: lang,
+    languages: languages.length ? languages : [lang],
   };
 }
 
@@ -134,7 +164,8 @@ function walkComplex(
     termScopeOf(cObj as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
   );
   const terms = termsForArchetype(nodeArchetypeRef, fallbackTerms, archetypeTerms);
-  const label = nameHint || locatableNodeLabel(
+  const label = resolvedNodeLabel(
+    nameHint,
     nodeId,
     rmType,
     nodeArchetypeRef ?? archetypeRef,
@@ -275,7 +306,8 @@ function walkAttribute(
         slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
-        label: nameHint || locatableNodeLabel(
+        label: resolvedNodeLabel(
+          nameHint,
           nodeId,
           rmType,
           childArchetypeRef,
@@ -481,6 +513,31 @@ export function splitAqlStyleNodeId(nodeId?: string): { nodeId?: string; nameHin
   const match = AQL_NAME_PRED.exec(nodeId);
   if (match) return { nodeId: match[1], nameHint: match[2] };
   return { nodeId };
+}
+
+/**
+ * Prefer ontology / localizedNames over AQL name predicates baked into node_id
+ * (`at0002,'Injury'`), so model language switching can replace the English hint.
+ */
+function resolvedNodeLabel(
+  nameHint: string | undefined,
+  nodeId: string | undefined,
+  rmType: string,
+  scope: string | undefined,
+  nameFallback: string | undefined,
+  templateTerms: TermBag,
+  archetypeTerms: Record<string, TermBag>,
+): string {
+  const fromTerms = locatableNodeLabel(
+    nodeId,
+    rmType,
+    scope,
+    nameFallback,
+    templateTerms,
+    archetypeTerms,
+  );
+  if (fromTerms && fromTerms !== nodeId && fromTerms !== rmType) return fromTerms;
+  return nameHint || fromTerms;
 }
 
 function pathNodeSegment(nodeId: string | undefined, rmType: string): string {

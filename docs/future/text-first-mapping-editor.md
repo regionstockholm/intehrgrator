@@ -10,7 +10,6 @@ Evolve the Mapping Editor so experienced informaticians can work primarily in Co
 
 - Power users may prefer typing transforms directly over manipulating blocks
 - Deep templates are hard to navigate in Blockly even with a minimap
-- CodeMirror holds the **Mapping Specification** (declarative DSL), not Generated Export; making edit boundaries obvious reduces Blockly dependency
 
 ## CodeMirror affordances (later stage)
 
@@ -32,7 +31,6 @@ Example widget behaviors:
 
 1. **v1:** Blockly top + CodeMirror bottom; expressions editable in text; structure via blocks
 2. **v2:** Decorations/widgets make edit boundaries obvious; collapsible Blockly panel
-3. **v3:** "Text-first" layout — CodeMirror full height, Blockly as optional side panel or hidden; structure changes still via `+` picker rendered as CodeMirror widgets (not free-text editing)
 
 Blockly may never be fully removed — it remains valuable for control-flow blocks and onboarding — but experienced users could hide it.
 

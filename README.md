@@ -3,7 +3,7 @@
 Visual integration workbench for mapping source data (JSON/XML) to openEHR Compositions via Blockly + CodeMirror.
 
 ## Webapp for users
-Go to https://regionstockholm.github.io/intehrgrator/ click (i) - ensircled i - at various places in the interface to learn about use.
+Go to https://regionstockholm.github.io/intehrgrator/ click (i) - encircled i - at various places in the interface to learn about use.
 
 ## Quick start for developers
 

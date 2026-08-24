@@ -3,27 +3,19 @@
 ## Documentation guidance
 
 - Always prefer reading and analyzing original documentation of latest version
-  of libraries and projects rather than random search hits or training data that may be of lower quality or based on outdated versions.
+  of libraries and projects rather than random search hits or training data 
+  that may be of lower quality or based on outdated versions.
 - It is good to offload some tasks to external MCP (Model Context Protocol)
-  - If you are a local agent (e.g. Gemini CLI), you already have a built in way
-    to access MCP servers, but you may need to ask user to add certain MCP
-    servers to you configuration (please do ask if you can not to it yourself).
-  - If you are Jules or any other AI that does _not_ have direct MCP tool access,
-    you must use one of the following official MCP clients, also see details and
-    examples in the file AGENTS-jules-MCP-hints.md:
-    - **TypeScript:** Use the `@modelcontextprotocol/sdk` package. See the
-      [TypeScript SDK documentation](https://github.com/modelcontextprotocol/typescript-sdk?tab=readme-ov-file#writing-mcp-clients)
-      for usage details.
-    - **Python:** Use the `fastmcp` library. See the
-      [FastMCP client documentation](https://gofastmcp.com/clients/client) for
-      usage details. A successful connection to the Deepwiki server has been
-      established using this client.
+  you may need to ask user to add certain MCP servers to you configuration 
+  (please do ask user if you can not to it yourself).
 - Deepwiki.com is a great source for outsourcing analysis of any project on
   github. If possible, delegate your questions about the library to the Deepwiki
   MCP server. Successful connections to the Deepwiki server has been established
   using all the methods described above, so if conenction fails stop and ask
   user for help, don't try to invent other ways to call MCP servers. If you are
-  a local agent (e.g. Gemini CLI), you should have direct access to the Deepwiki MCP tools already (configured by user), if not install that or ask user for help. Do NOT proceed without deepwiki access
+  a local agent (e.g. Gemini CLI), you should have direct access to the Deepwiki
+  MCP tools already (configured by user), if not install that or ask user for help.
+  Do NOT proceed without deepwiki access.
 - The DeepWiki MCP server offers three main tools:
   1. read_wiki_structure - Get a list of documentation topics for a GitHub
      repository
@@ -60,19 +52,14 @@ If running in interactive mode (e.g. Gemini CLI) then stop after each parent tas
 
 - When working with Javascript or Typescript based projects prefer using Deno
   for management over using Node.js and NPM. Deno is installed in the local
-  environment, but Jules might need to install Deno in its VM before using it.
+  environment, but Jules and other agents runnunf in cloud environments might
+  need to install Deno in its VM before using it.
 - The local environment is a Windows machine without admin privileges,
   Powershell is available. It uses [Scoop](https://scoop.sh/) for package
   installation, so base any advice on that.
 
 ## Cursor Cloud specific instructions
 
-- This repository is currently **specification/planning only** — it contains
-  Markdown docs (`README.md`, `CONTEXT.md`, `INITIAL_PROMPT.md`, `docs/`), a PRD
-  (`tasks/PRD-intehrgrator-v1.md`), a Pencil wireframe (`mapping-interface.pen`),
-  and a UI mockup PNG. There is **no application code, `package.json`, lockfile,
-  build, lint, or test target yet**, so there is nothing to install/build/run.
-  Do not fabricate an app or dependency setup based on this note alone.
 - Intended stack (per the PRD/prompt): a local-first TypeScript static web app
   (GitHub Pages "Web Shell") using Blockly + CodeMirror, `ehrtslib` for openEHR
   TypeScript, and `fontoxpath` for source queries; a VS Code extension follows

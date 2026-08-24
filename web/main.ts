@@ -543,19 +543,43 @@ function lastAiDelivery(): "inline" | "attach" | "uri" {
 
 function installCopyAiMenu(): void {
   const chevron = document.getElementById("btn-copy-ai-menu");
+  const main = document.getElementById("btn-copy-ai");
   const menu = document.getElementById("menu-copy-ai");
-  if (!chevron || !menu) return;
+  if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) return;
+
+  // Match pane split menus: portaled to body + fixed under the chevron (not in-flow in the toolbar flex).
+  document.body.append(menu);
 
   const close = () => {
     menu.hidden = true;
     chevron.setAttribute("aria-expanded", "false");
   };
 
+  const positionMenu = () => {
+    const rect = chevron.getBoundingClientRect();
+    const leftEdge = main.getBoundingClientRect().left;
+    menu.style.position = "fixed";
+    menu.style.left = "auto";
+    menu.style.right = `${Math.max(8, globalThis.innerWidth - rect.right)}px`;
+    menu.style.minWidth = `${Math.max(220, rect.right - leftEdge)}px`;
+    menu.hidden = false;
+    const menuHeight = menu.getBoundingClientRect().height;
+    const openUp = rect.bottom + 2 + menuHeight > globalThis.innerHeight && rect.top > menuHeight + 8;
+    menu.style.top = openUp ? `${rect.top - menuHeight - 2}px` : `${rect.bottom + 2}px`;
+  };
+
+  const open = () => {
+    chevron.setAttribute("aria-expanded", "true");
+    positionMenu();
+  };
+
   chevron.addEventListener("click", (event) => {
     event.stopPropagation();
-    const open = menu.hidden;
-    menu.hidden = !open;
-    chevron.setAttribute("aria-expanded", open ? "true" : "false");
+    if (!menu.hidden) {
+      close();
+      return;
+    }
+    open();
   });
 
   menu.querySelectorAll<HTMLButtonElement>("[data-ai-delivery]").forEach((btn) => {
@@ -571,10 +595,12 @@ function installCopyAiMenu(): void {
   document.addEventListener("click", (event) => {
     if (menu.hidden) return;
     const t = event.target as Node | null;
-    if (t && (menu.contains(t) || chevron.contains(t) || document.getElementById("btn-copy-ai")?.contains(t))) {
-      return;
-    }
+    if (t && (menu.contains(t) || chevron.contains(t) || main.contains(t))) return;
     close();
+  });
+
+  globalThis.addEventListener("resize", () => {
+    if (!menu.hidden) positionMenu();
   });
 }
 

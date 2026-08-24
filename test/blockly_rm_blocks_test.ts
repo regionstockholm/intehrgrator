@@ -29,6 +29,7 @@ import {
   rmTypeConnectionTooltip,
   slotEmojiFieldName,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
+import { isSkeletonTitleField } from "@intehrgrator/blockly/field_skeleton_title.ts";
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { createTermPickBlock } from "@intehrgrator/blockly/blocks/term_pick.ts";
 import { termSetById } from "@intehrgrator/core/openehr_term_catalog.ts";
@@ -369,10 +370,10 @@ Deno.test("ELEMENT block is labelled ELEMENT in the header", () => {
   const workspace = new Blockly.Workspace();
   const block = workspace.newBlock("element");
   assertEquals(block.getFieldValue("RM_TYPE"), "ELEMENT");
-  const header = block.getInput("HEADER");
-  const labels = header?.fieldRow.map((field) => field.getText()) ?? [];
   assertEquals(block.getField(BLOCK_OUT_EMOJI_FIELD)?.getText(), zipehrEmojiForRmType("ELEMENT"));
-  assertEquals(labels.includes("ELEMENT"), true);
+  const title = block.getField("NAME");
+  assert(isSkeletonTitleField(title));
+  assertEquals(title.classNameText(), "ELEMENT");
   workspace.dispose();
 });
 
@@ -565,6 +566,25 @@ Deno.test("skeleton canvas wraps Position value set in lists_getIndex of lists_c
     phrase?.getInputTargetBlock(dvFieldInputName("code_string"))?.getFieldValue("TEXT"),
     "at1000",
   );
+
+  workspace.dispose();
+});
+
+Deno.test("skeleton header stacks RM class and at-code under the node name", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const observation = workspace.getAllBlocks(false).find(
+    (b) => b.getFieldValue("RM_TYPE") === "OBSERVATION",
+  );
+  assert(observation, "expected OBSERVATION block");
+  const title = observation.getField("NAME");
+  assert(isSkeletonTitleField(title), "expected FieldSkeletonTitle on NAME");
+  assertEquals(title.classNameText(), "OBSERVATION");
+  assert(title.atCode().startsWith("at"), `expected at-code, got ${title.atCode()}`);
+  assertEquals(observation.getField("AT_CODE"), null);
 
   workspace.dispose();
 });

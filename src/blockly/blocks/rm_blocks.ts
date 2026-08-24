@@ -24,6 +24,7 @@ import {
   appendSlotTypeEmoji,
   slotRmTypeForAttr,
 } from "../rm_type_emoji.ts";
+import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
 import { registerTermPickBlock } from "./term_pick.ts";
 
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
@@ -84,7 +85,7 @@ export function optionalRmInputName(attr: string): string {
 }
 
 export function registerRmBlocks(): void {
-  defineContainerBlock("composition", "COMPOSITION", [
+  defineContainerBlock("composition", [
     { name: "language" },
     { name: "territory" },
     { name: "category" },
@@ -93,7 +94,7 @@ export function registerRmBlocks(): void {
     { name: "context", check: "EVENT_CONTEXT" },
   ], CONTAINER_COLOUR, { expandable: true, rmType: "COMPOSITION" });
 
-  defineContainerBlock("section", "SECTION", [
+  defineContainerBlock("section", [
     { name: "items", check: "CONTENT_ITEM" },
   ], CONTAINER_COLOUR, {
     expandable: true,
@@ -101,7 +102,7 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
-  defineContainerBlock("observation", "OBSERVATION", [
+  defineContainerBlock("observation", [
     { name: "data" },
     { name: "state" },
     { name: "protocol" },
@@ -111,7 +112,7 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
-  defineContainerBlock("evaluation", "EVALUATION", [
+  defineContainerBlock("evaluation", [
     { name: "data" },
     { name: "protocol" },
   ], STRUCTURE_COLOUR, {
@@ -120,7 +121,7 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
-  defineContainerBlock("instruction", "INSTRUCTION", [
+  defineContainerBlock("instruction", [
     { name: "activities" },
     { name: "protocol" },
   ], STRUCTURE_COLOUR, {
@@ -129,7 +130,7 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
-  defineContainerBlock("action", "ACTION", [
+  defineContainerBlock("action", [
     { name: "description" },
     { name: "protocol" },
   ], STRUCTURE_COLOUR, {
@@ -138,7 +139,7 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
-  defineContainerBlock("admin_entry", "ADMIN_ENTRY", [
+  defineContainerBlock("admin_entry", [
     { name: "data" },
   ], STRUCTURE_COLOUR, {
     expandable: true,
@@ -146,7 +147,7 @@ export function registerRmBlocks(): void {
     nestCheck: "CONTENT_ITEM",
   });
 
-  defineContainerBlock("cluster", "CLUSTER", [
+  defineContainerBlock("cluster", [
     { name: "items" },
   ], STRUCTURE_COLOUR, {
     expandable: true,
@@ -185,7 +186,7 @@ function ensureRmContainerBlock(rmType: string): string {
     .filter((attr) => !isPrimitiveRmType(baseRmTypeName(attr.typeName)))
     .filter((attr) => attr.mandatory)
     .map((attr) => ({ name: attr.name }));
-  defineContainerBlock(type, rmType, inputs, STRUCTURE_COLOUR, {
+  defineContainerBlock(type, inputs, STRUCTURE_COLOUR, {
     expandable: true,
     rmType,
     nestCheck: nestCheckFor(rmType),
@@ -222,7 +223,7 @@ function partyProxySpecializationCheck(): string[] {
 }
 
 function definePartyProxyBlock(): void {
-  defineContainerBlock("party_proxy", "PARTY_PROXY", [], STRUCTURE_COLOUR, {
+  defineContainerBlock("party_proxy", [], STRUCTURE_COLOUR, {
     expandable: true,
     rmType: "PARTY_PROXY",
     nestCheck: nestCheckFor("PARTY_PROXY"),
@@ -527,7 +528,6 @@ type StatementInputDef = {
 
 function defineContainerBlock(
   type: string,
-  label: string,
   inputs: StatementInputDef[],
   colour: string,
   options: {
@@ -542,10 +542,7 @@ function defineContainerBlock(
     init: function (this: Blockly.Block) {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, options.rmType);
-      header
-        .appendField(label)
-        .appendField(new Blockly.FieldLabel(""), "NAME")
-        .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
+      header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
       if (options.expandable) {
         appendPlusField(this);
       }
@@ -591,10 +588,7 @@ function defineValueElementBlock(): void {
     init: function (this: Blockly.Block) {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, "ELEMENT");
-      header
-        .appendField("ELEMENT")
-        .appendField(new Blockly.FieldLabel(""), "NAME")
-        .appendField(new Blockly.FieldLabel("", undefined, { class: "blockly-at-code" }), "AT_CODE");
+      header.appendField(new FieldSkeletonTitle("ELEMENT"), "NAME");
       appendPlusField(this);
       const value = this.appendValueInput("VALUE")
         .setCheck(null)

@@ -378,7 +378,19 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   cursor: pointer;
 }
 
-/* Secondary at-code on skeleton blocks — inherit Blockly's contrast colour */
+/* Skeleton title: bold name on line 1; RM class + at-code small on line 2 */
+.blockly-mount .blockly-skeleton-title-field .blocklyText.blockly-skeleton-name,
+.blockly-mount .blocklyText.blockly-skeleton-name {
+  font-weight: 700 !important;
+  font-size: 12px !important;
+}
+.blockly-mount .blockly-skeleton-title-field .blocklyText.blockly-skeleton-meta,
+.blockly-mount .blocklyText.blockly-skeleton-meta {
+  font-size: 9px !important;
+  font-weight: 400 !important;
+  opacity: 0.8;
+}
+/* Legacy single-line at-code (if any remain) */
 .blockly-mount .blocklyText.blockly-at-code {
   font-size: 10px !important;
   opacity: 0.8;

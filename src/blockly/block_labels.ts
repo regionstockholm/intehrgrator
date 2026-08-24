@@ -1,6 +1,7 @@
 import type { Block } from "blockly/core";
 import type { SkeletonNode } from "../types/mod.ts";
 import { archetypeShortName } from "../core/skeleton/template_terms.ts";
+import { isSkeletonTitleField } from "./field_skeleton_title.ts";
 
 export function skeletonBlockTooltip(node: SkeletonNode): string {
   const parts: string[] = [];
@@ -17,7 +18,11 @@ export function skeletonBlockTooltip(node: SkeletonNode): string {
 
 export function applySkeletonBlockLabels(block: Block, node: SkeletonNode): void {
   setFieldIfPresent(block, "NAME", node.label);
-  if (node.archetypeNodeId) {
+  const nameField = block.getField("NAME");
+  if (isSkeletonTitleField(nameField)) {
+    if (node.rmType) nameField.setClassName(node.rmType);
+    nameField.setAtCode(node.archetypeNodeId ?? "");
+  } else if (node.archetypeNodeId) {
     setFieldIfPresent(block, "AT_CODE", node.archetypeNodeId);
   }
   if (node.archetypeRef) {

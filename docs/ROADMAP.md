@@ -1,7 +1,8 @@
 ## small fixes
 - .xml som ok format i diverse file pickers
-- snygga till överlappande block i blockbibliotek
-- Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
+- [ ] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
+- [x] snygga till överlappande block i blockbibliotek
+- [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 - [ ] Get allowed occurences visible on blockly slots
 - [ ] add a button for loading example sets wint source
 - [ ] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.

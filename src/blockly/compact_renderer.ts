@@ -22,6 +22,10 @@ export function registerCompactThrasosRenderer(): string {
       if (isRmEmojiMeasurable(prev) || isRmEmojiMeasurable(next)) {
         return Math.min(spacing, 1);
       }
+      // Tighten gaps between consecutive in-row fields (title, labels, +).
+      if (prev?.field && next?.field) {
+        return Math.min(spacing, 2);
+      }
       return spacing;
     }
   }
@@ -29,15 +33,15 @@ export function registerCompactThrasosRenderer(): string {
   class CompactThrasosRenderer extends Base {
     makeConstants_() {
       const constants = super.makeConstants_();
-      constants.SMALL_PADDING = 2;
-      constants.MEDIUM_PADDING = 4;
-      constants.LARGE_PADDING = 6;
+      constants.SMALL_PADDING = 1;
+      constants.MEDIUM_PADDING = 3;
+      constants.LARGE_PADDING = 5;
       constants.MIN_BLOCK_HEIGHT = 24;
-      constants.FIELD_BORDER_RECT_X_PADDING = 3;
+      constants.FIELD_BORDER_RECT_X_PADDING = 2;
       constants.FIELD_BORDER_RECT_Y_PADDING = 1;
       constants.FIELD_TEXT_HEIGHT = 14;
       constants.FIELD_TEXT_BASELINE = 11;
-      constants.DUMMY_INPUT_MIN_HEIGHT = 24;
+      constants.DUMMY_INPUT_MIN_HEIGHT = 22;
       constants.BETWEEN_STATEMENT_PADDING_Y = 2;
       constants.STATEMENT_BOTTOM_SPACER = 4;
       constants.STATEMENT_INPUT_PADDING_LEFT = 1;

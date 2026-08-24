@@ -1,6 +1,6 @@
 # AI Mapping Suggestion Exchange Format
 
-Link this doc in prompts; do not paraphrase. **Version `2` only.** Machine-readable contract: [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json) (JSON Schema 2020-12). **Import Suggestions** validates pasted JSON against that schema and can copy the errors back to the AI.
+Link this doc in prompts; do not paraphrase. Machine-readable contract: [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json) (JSON Schema 2020-12). **Import Suggestions** validates pasted JSON against that schema and can copy the errors back to the AI.
 
 ## Purpose
 

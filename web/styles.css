@@ -222,6 +222,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   color: inherit;
 }
 .split-btn-menu-item:hover { background: #f4f8f7; }
+.split-btn-menu-item:disabled { opacity: 0.55; cursor: default; }
 .split-btn-menu-heading {
   padding: 8px 12px 4px;
   font-size: 10px;

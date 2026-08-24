@@ -848,7 +848,7 @@ function installExampleSetsMenu(): void {
       catalog = await controller.loadExampleSetCatalog(url);
       catalogUrl = catalog.catalogUrl;
     } catch {
-      catalog = catalog;
+      // Keep the previous catalog, if any; status bar already has the error.
     } finally {
       loading = false;
       if (!menu.hidden) renderMenu();

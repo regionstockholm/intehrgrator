@@ -106,6 +106,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 |--------|--------|-----|
 | Copy AI Prompt | Generate markdown prompt to clipboard (▾: embed / attach / browse URIs) | ✓ |
 | Import Suggestions | Parse pasted `intehrgrator-suggestions` JSON and apply mappings | ✓ |
+| Example Sets | Load a complete example set (source schema + instances, target, optional mapping) from a URI catalog | ✓ |
 | New Project | Reset workspace to empty project (confirm if content present) | ✓ |
 | Load Project | Open modal listing autosave + recent manual saves | ✓ |
 | Save as | Open modal to name and persist a manual save to IndexedDB | ✓ |

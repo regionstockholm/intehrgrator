@@ -3,7 +3,7 @@
 - [x] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
 - [x] snygga till överlappande block i blockbibliotek
 - [x] Get allowed occurences visible on blockly slots
-- [ ] add a button for loading example sets with, source, target and sometimes mappings
+- [x] add a button for loading example sets with, source, target and sometimes mappings
 - [ ] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 
 ## Robust good UI/UX
@@ -12,7 +12,7 @@
 - [ ] Integrate save functions with github repo (if logged in)
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
-- [ ] Synk highlight mellan mappning och conversion test run (ev conversin script)
+- [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
 
 ## Add support for map structures
 - [ ] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist.

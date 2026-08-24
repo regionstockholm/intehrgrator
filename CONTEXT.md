@@ -20,6 +20,10 @@ _Avoid_: Sample file, test data
 The currently selected example instance tab. Its tree appears below the tab bar; Test Run and the lower **Conversion Test Run(s)** section in **Output Previews** always execute against and display results for this tab only.
 _Avoid_: Current instance, selected tab
 
+**Example Set**:
+A catalogued bundle that loads a Source Schema, one or more Example Instances, a target, and optionally a Blockly mapping, all by HTTP(S) URI. The catalog JSON is maintained by ehrtslib developers; intEHRgrator ships a dummy first instance under `examples/example-sets.json`. Toolbar: **Example Sets** (▾ lists sets and catalog URLs).
+_Avoid_: Sample pack, demo project (that is a saved Project Bundle)
+
 **Source Path**:
 XPath or XQuery expression (fontoxpath) identifying a value in the loaded source. Click-to-map inserts the expression via the active Source Format Handler; typed evaluators (`xpathString`, `xpathNumber`, …) follow the Target value slot type.
 _Avoid_: JSON path, get_source dot notation
@@ -39,6 +43,10 @@ _Avoid_: Target Format Handler (old name), Target parser union
 **Source iteration (`for_each_source`)**:
 Blockly loop that binds each node from a multi-valued Source Path to a named variable. Click-to-Map under a repeating target container stores relative source paths and wraps that container with this block. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`.
 _Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
+
+**Map**:
+A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for named tables (later: a defaults table, terminology tables) as well as ad-hoc lookups.
+_Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor)
 
 **Mapping Editor**:
 The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top (with **Target value slots** rail), [CodeMirror](https://codemirror.net/) on the bottom showing the **Mapping Specification** (Blockly JSON with line numbers and Mapping Spec Widgets for density / safe field edits) and an editable **Handlebars Template** tab when Conversion script language is Handlebars. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.

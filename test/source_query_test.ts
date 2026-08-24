@@ -50,10 +50,10 @@ Deno.test("fontoxpath json number evaluation", () => {
 
 Deno.test("legacy-simulated BP series supports indexed iteration paths", async () => {
   const instanceText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-inst.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances-series", "bp-series-inst.json"),
   );
   const schemaText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-sche.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "bp-series-schema.json"),
   );
   const tree = loadJsonSchema(schemaText, "BloodPressureSeries");
   const measurements = tree.children.find((c) => c.name === "measurements");

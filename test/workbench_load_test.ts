@@ -144,10 +144,10 @@ Deno.test("schema drop of JSON Schema document populates the schema tree", async
 
 Deno.test("invalid example instance still loads and reports JSON Schema value mismatches", async () => {
   const schema = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-sche.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "bp-schema.json"),
   );
   const instance = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-inst-3-invalid.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances", "bp-inst-3-invalid.json"),
   );
   const controller = new WorkbenchController(stubHost());
   controller.loadSchemaContent("bp-sche.json", schema);
@@ -251,7 +251,7 @@ Deno.test("mapNodeToSlot promotes indexed JSON paths onto repeating EVENT slots"
     ),
   );
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-inst.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances-series", "bp-series-inst.json"),
   );
   const controller = new WorkbenchController(stubHost());
   controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);

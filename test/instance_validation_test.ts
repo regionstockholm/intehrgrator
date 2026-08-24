@@ -56,10 +56,10 @@ Deno.test("validateInstanceAgainstSchema reports type mismatch", () => {
 
 Deno.test("validateInstanceAgainstSchema reports JSON Schema minimum and enum violations", async () => {
   const schemaText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-sche.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "bp-schema.json"),
   );
   const instanceText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-inst-3-invalid.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances", "bp-inst-3-invalid.json"),
   );
   const schema = loadJsonSchema(schemaText, "BloodPressureMeasurement");
   const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
@@ -77,10 +77,10 @@ Deno.test("validateInstanceAgainstSchema reports JSON Schema minimum and enum vi
 
 Deno.test("validateInstanceAgainstSchema accepts valid BP instance against JSON Schema", async () => {
   const schemaText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-sche.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "bp-schema.json"),
   );
   const instanceText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-inst.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances", "bp-inst.json"),
   );
   const schema = loadJsonSchema(schemaText, "BloodPressureMeasurement");
   const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
@@ -89,12 +89,12 @@ Deno.test("validateInstanceAgainstSchema accepts valid BP instance against JSON 
 
 Deno.test("validateInstanceAgainstSchema accepts repeated BP series instances", async () => {
   const schemaText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-sche.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "bp-series-schema.json"),
   );
   const schema = loadJsonSchema(schemaText, "BloodPressureSeries");
   for (const name of ["bp-series-inst.json", "bp-series-inst-2.json"]) {
     const instanceText = await Deno.readTextFile(
-      join(import.meta.dirname!, "fixtures", "legacy-simulated", name),
+      join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances-series", name),
     );
     const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);
     assertEquals(issues, [], name);
@@ -103,10 +103,10 @@ Deno.test("validateInstanceAgainstSchema accepts repeated BP series instances", 
 
 Deno.test("validateInstanceAgainstSchema reports nested series constraint violations", async () => {
   const schemaText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-sche.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "bp-series-schema.json"),
   );
   const instanceText = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "legacy-simulated", "bp-series-inst-3-invalid.json"),
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances-series", "bp-series-inst-3-invalid.json"),
   );
   const schema = loadJsonSchema(schemaText, "BloodPressureSeries");
   const issues = validateInstanceAgainstSchema(instanceText, "json", schema, schemaText);

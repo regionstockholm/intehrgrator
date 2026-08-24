@@ -18,9 +18,9 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
-    const schema = await fixtureText("test/fixtures/legacy-simulated/bp-sche.json");
+    const schema = await fixtureText("test/fixtures/legacy-simulated-json/bp-schema.json");
     const instance = await fixtureText(
-      "test/fixtures/legacy-simulated/bp-inst-3-invalid.json",
+      "test/fixtures/legacy-simulated-json/instances/bp-inst-3-invalid.json",
     );
     const browser = await chromium.launch({ headless: true });
     try {

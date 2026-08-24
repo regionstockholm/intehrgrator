@@ -273,9 +273,9 @@ function findPulseEvents(node: unknown): Array<{
 const wt = await fixture(
   "vendor/openEHR-model-examples/local/theme-packs/sport-event-details/templates/Accident report including vital signs.wt.json",
 );
-const schema = await fixture("test/fixtures/legacy-simulated/bp-series-sche.json");
-const inst1 = await fixture("test/fixtures/legacy-simulated/bp-series-inst.json");
-const inst2 = await fixture("test/fixtures/legacy-simulated/bp-series-inst-2.json");
+const schema = await fixture("test/fixtures/legacy-simulated-json/bp-series-schema.json");
+const inst1 = await fixture("test/fixtures/legacy-simulated-json/instances-series/bp-series-inst.json");
+const inst2 = await fixture("test/fixtures/legacy-simulated-json/instances-series/bp-series-inst-2.json");
 
 const browser = await chromium.launch({ headless: true });
 const context = await browser.newContext();

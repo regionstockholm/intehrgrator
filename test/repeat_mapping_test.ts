@@ -33,7 +33,7 @@ Deno.test("relativePathFromLoop strips the repeating array prefix", () => {
 Deno.test("Test Run expands repeating EVENT from relative loop paths", async () => {
   const { target, rate, time, eventSlotId } = await loadPulseTarget();
   const instance = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures/legacy-simulated/bp-series-inst.json"),
+    join(import.meta.dirname!, "fixtures/legacy-simulated-json/instances-series/bp-series-inst.json"),
   );
 
   let model = createEmptyModel(target.targetId);
@@ -76,7 +76,7 @@ Deno.test("Test Run expands repeating EVENT from relative loop paths", async () 
 Deno.test("second BP series instance expands four pulse events from a loop", async () => {
   const { target, rate, time, eventSlotId } = await loadPulseTarget();
   const instance = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures/legacy-simulated/bp-series-inst-2.json"),
+    join(import.meta.dirname!, "fixtures/legacy-simulated-json/instances-series/bp-series-inst-2.json"),
   );
   let model = createEmptyModel(target.targetId);
   model.targetFormat = "openehr-template";
@@ -111,7 +111,7 @@ Deno.test("second BP series instance expands four pulse events from a loop", asy
 Deno.test("Test Run still expands repeating EVENT from [*] source paths", async () => {
   const { target, rate, time } = await loadPulseTarget();
   const instance = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures/legacy-simulated/bp-series-inst.json"),
+    join(import.meta.dirname!, "fixtures/legacy-simulated-json/instances-series/bp-series-inst.json"),
   );
   let model = createEmptyModel(target.targetId);
   model.targetFormat = "openehr-template";

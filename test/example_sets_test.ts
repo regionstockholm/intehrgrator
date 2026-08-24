@@ -48,6 +48,7 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
     "dummy-json-vitals/instance-2.json",
     "dummy-json-vitals/target.schema.json",
     "dummy-json-vitals/mapping.blockly.json",
+    "dummy-json-vitals/defaults.map.json",
   ];
   for (const part of parts) {
     const url = `https://app.test/examples/${part}`;
@@ -59,10 +60,11 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
 Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL", async () => {
   const text = await readExample("example-sets.json");
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 2);
+  assertEquals(catalog.sets.length, 3);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
+  assertEquals(vitals.defaults, undefined);
   assertEquals(
     vitals.source.schema,
     "https://app.test/examples/dummy-json-vitals/source.schema.json",
@@ -72,6 +74,10 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
   assertEquals(
     mapped.mapping,
     "https://app.test/examples/dummy-json-vitals/mapping.blockly.json",
+  );
+  assertEquals(
+    mapped.defaults,
+    "https://app.test/examples/dummy-json-vitals/defaults.map.json",
   );
 });
 
@@ -133,6 +139,9 @@ Deno.test("controller loads optional Blockly mapping from the catalog", async ()
   const state = controller.getState();
   assertEquals(state.examples.length, 1);
   assertEquals(state.blocklyState && typeof state.blocklyState, "object");
+  const queued = controller.consumePendingDefaultsMap();
+  assertEquals(queued && typeof queued, "object");
+  assertEquals((queued as { type?: string }).type, "maps_create_with");
 });
 
 Deno.test("controller surfaces catalog fetch failure", async () => {

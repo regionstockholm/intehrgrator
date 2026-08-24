@@ -33,6 +33,7 @@ export function generateXQuery(model: MappingModel): string {
     'declare option output:indent "yes";',
     "",
     "declare variable $source external;",
+    "declare variable $defaults as map(*) external := map {};",
     "",
     ...emitHelpers(),
     "",
@@ -222,6 +223,8 @@ export function emitXQueryExpr(ast: ExprAst): string {
           return emitSwitchXq(args);
         case "var":
           return `$vars(${args[0]})`;
+        case "maps_get":
+          return `(if (${args[0]} eq "defaults") then map:get($defaults, ${args[1]}) else ())`;
         case "xpathString":
         case "xpath":
           return emitXPathCall("string-at", ast.args[0]);

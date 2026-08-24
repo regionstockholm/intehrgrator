@@ -21,7 +21,7 @@ The currently selected example instance tab. Its tree appears below the tab bar;
 _Avoid_: Current instance, selected tab
 
 **Example Set**:
-A catalogued bundle that loads a Source Schema, one or more Example Instances, a target, and optionally a Blockly mapping, all by HTTP(S) URI. The catalog JSON is maintained by ehrtslib developers; intEHRgrator ships a dummy first instance under `examples/example-sets.json`. Toolbar: **Example Sets** (▾ lists sets and catalog URLs).
+A catalogued bundle that loads a Source Schema, one or more Example Instances, a target, optionally a Blockly mapping, and optionally a **Defaults Map**, all by HTTP(S) URI. The catalog JSON is maintained by ehrtslib developers; intEHRgrator ships a dummy first instance under `examples/example-sets.json`. Toolbar: **Example Sets** (▾ lists sets and catalog URLs). A `defaults` URI hydrates the **Defaults block** argument via the same path as picking a saved map.
 _Avoid_: Sample pack, demo project (that is a saved Project Bundle)
 
 **Source Path**:
@@ -48,9 +48,17 @@ _Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
 A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map**, later terminology tables, and ad-hoc lookups.
 _Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor)
 
+**Defaults block**:
+The unique canvas declaration that binds a **Map** argument as the named Map `defaults`. At most one per workspace; present before a **Template Skeleton** exists so the informatician can edit or add keys, then load a target. **Map lookup**s read that binding by name, not by a wire to the argument. Carries the control to pick or **Save as** a **Defaults Map**. Scaffolding a target **joins** the Template Skeleton and lookups to this block rather than replacing it.
+_Avoid_: Defaults panel as the source of truth, a second defaults declaration, wiring the Map argument into Target value slots
+
 **Defaults Map**:
-A named **Map** of conversion-time key/value defaults, authored on the Blockly canvas as its own stack — not a side-panel table. Placed so it does not overlap the **Template Skeleton**. Keys align with openEHR simplified-format `ctx` (`language`, `territory`, `composer_name`, `time`, …) plus any extra keys the informatician adds. Distinct from **Silent-Mandatory RM Field** (those are skeleton slots that may *look up* this map) and from **model language** (ontology labels on the Target pane).
-_Avoid_: Context, CTX, Composition Context, default Blockly field values, model language, defaults panel as the source of truth
+A saved or authored **Map** of conversion-time key/value defaults (a Blockly map constructor instance) plugged into the **Defaults block**. Keys align with openEHR simplified-format `ctx` (`language`, `territory`, `composer_name`, `time`, `health_care_facility`, …) plus any extra keys the informatician adds. The bundled factory instance seeds `language` from **UI language**, `territory` `SE`, empty `time` and `composer_name`, and `health_care_facility` “St. Dummy Demo Hospital”. Canonical store is that Blockly instance. Named snapshots (**Save as**) live in Host storage — different maps for openEHR vs other targets are user-named, not auto-switched. Distinct from **Silent-Mandatory RM Field** and from **model language**.
+_Avoid_: Context, CTX, Composition Context, default Blockly field values, model language, treating a FLAT/STRUCTURED `ctx` file as the canonical store
+
+**Map lookup**:
+A Blockly value block that retrieves an entry from a named **Map** (including the **Defaults block**'s bound **Defaults Map**) by key. Used in Target value slots. Refers to the Map by name.
+_Avoid_: `defaults_get` as a separate block type, connecting a Map constructor into multiple slots
 
 **Mapping Editor**:
 The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top (with **Target value slots** rail), [CodeMirror](https://codemirror.net/) on the bottom showing the **Mapping Specification** (Blockly JSON with line numbers and Mapping Spec Widgets for density / safe field edits) and an editable **Handlebars Template** tab when Conversion script language is Handlebars. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
@@ -62,7 +70,7 @@ _UI labels:_ pane title **Output Previews**; sections **Generated conversion scr
 _Avoid_: Right pane (ambiguous — could mean mapping), test pane alone
 
 **Test Run**:
-Evaluating Mapping Model slot expressions against the Active Example, then rendering through the selected Target instance format handler (or Handlebars conversion script for free-form / Kintegrate scripts). Displays the produced instance (Composition JSON, generic JSON, XML, or text). Required in v1.
+Evaluating Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**), then rendering through the selected Target instance format handler (or Handlebars conversion script for free-form / Kintegrate scripts). Displays the produced instance (Composition JSON, generic JSON, XML, or text). Required in v1.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run
 
@@ -71,8 +79,8 @@ When enabled, Test Run re-executes automatically (debounced) after mapping edits
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). openEHR Composition is one possible Target instance format, not the only one.
-_Avoid_: Mapper, transformer (too generic)
+Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s; openEHR Composition is one possible Target instance format, not the only one.
+_Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode
 
 **Template Skeleton**:
 The Blockly block tree auto-generated by walking the loaded OPT constraint tree plus silent-mandatory RM fields from ehrtslib's `MANDATORY_RM_ATTRIBUTES` (see `ehrtslib` `rm_instance_generator.ts`) — schema-driven, not instance-driven. RM types are BMM-derived within ehrtslib; intEHRgrator does not parse BMM. Non-mandatory RM structures are added via Optional RM Insertion (`+` picker), not pre-rendered.
@@ -81,6 +89,10 @@ _Avoid_: Target structure, block template
 **Silent-Mandatory RM Field**:
 An RM attribute or child object required by the Reference Model but not explicitly constrained in the OPT. Included in the Template Skeleton visibly alongside template-defined content.
 _Avoid_: Hidden mandatory, RM default
+
+**Default point**:
+A Target value slot that scaffolding fills with a **Map lookup** of a **Defaults Map** key. One key may bind many slots (e.g. `language` → COMPOSITION and ENTRY language). The lookup plugs into the leaf (`code_string`, time string, name), not in place of the `CODE_PHRASE` / `DV_*` / `PARTY_IDENTIFIED` shell; RM `terminology_id` stays a fixed field. Optional RM attributes that are default points (e.g. EVENT_CONTEXT `health_care_facility`) are inserted so the lookup has a slot. v1 identifies points from an openEHR RM attribute table, not from JSON Schema. Hardcoding that slot is replacing the lookup with a literal on the canvas, not a generator bake mode.
+_Avoid_: Silent-Mandatory RM Field (that is why a mandatory slot exists), treating a `ctx/` path as a slot id, replacing the typed shell with a bare Map lookup
 
 **Listening Mode**:
 Transient state of a Blockly value slot after the user clicks it, waiting for a source tree node click to insert a `source_query` block.
@@ -115,8 +127,8 @@ Optional RM types attachable via Optional RM Insertion (`+` / context menu), not
 _Avoid_: Primer-only RM list, toolbox free-build of LOCATABLE extras, library-level attachment picker API
 
 **Mapping Specification**:
-Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`), shown in the Mapping Editor Blockly JSON tab with **line numbers**. Dense recurring constructs are rendered via CodeMirror widgets; structure stays Blockly-owned. See `docs/MAPPING_SPECIFICATION.md` and ADR 0001.
-_Avoid_: Private `@template` DSL, Mapping script as a third language
+Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`), shown in the Mapping Editor Blockly JSON tab with **line numbers**. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. Dense recurring constructs are rendered via CodeMirror widgets; structure stays Blockly-owned. See `docs/MAPPING_SPECIFICATION.md` and ADR 0001.
+_Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Mapping Spec Widget**:
 A CodeMirror decoration that collapses a common Blockly JSON construct into a compact, mostly read-only chrome row. v1 covers skeleton containers, value slots, `source_query`, and `DV_*` shells (stock logic/loop widgets later). Only **safe fields** on the widget are editable (e.g. dropdown choices, variable/expression text inputs); rearranging block structure, ids, and coordinates is not done by typing raw JSON. Layout chrome such as `x`/`y` is omitted from the Spec projection by default; an **info** control (encircled *i*) reveals those details in a tooltip-like balloon. Full Blockly JSON including coordinates remains in the Project Bundle for exact restore.
@@ -127,7 +139,7 @@ Derived semantic index (`templateId`, `targetFormat`, `slotId`, `rmType`, `expre
 _Avoid_: Mapping schema, parallel IR, structural language
 
 **Generated Export**:
-Executable TypeScript, Java, or Handlebars produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in the **right pane upper** CodeMirror only — not in the center pane.
+Executable TypeScript, Java, or Handlebars produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in the **right pane upper** CodeMirror only — not in the center pane. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
 _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
@@ -163,6 +175,10 @@ _Avoid_: formTestApi (kintegrate name), Cypress-only harness
 Workspace setting choosing which script language is generated or authored for Output Previews and Export (`typescript` | `java` | `handlebars` | `xquery`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format.
 _Avoid_: Export dialect, Export Target (prefer this term), Target language alone, conflating with Target instance format
 
+**UI language**:
+The application locale for Blockly messages (toolbar setting; later full chrome i18n). ISO 639-1 codes (`en`, `sv`, `de`, `es`, `ca`, `fr`). Distinct from **model language** (ontology labels on the Target pane) and from composition `language` in a **Defaults Map** — a factory Defaults Map may copy UI language into that key once, when the factory instance is created, and does not rewrite it if the toolbar locale later changes.
+_Avoid_: Model language, conflating with Defaults Map `language`
+
 **Handlebars Template**:
 User-authored Kintegrate-compatible conversion template stored in `ProjectBundle.mapping.handlebarsTemplate`. Used when Conversion script language is `handlebars`; may walk the source tree directly and/or read Mapping Model slot values via `{{slot "…"}}`.
 _Avoid_: Mapping Specification (that term means Blockly JSON)
@@ -192,3 +208,7 @@ _Avoid_: Mapping file, saved state
 > **Informatician:** Can AI help me map the boring fields?
 >
 > **Developer:** Click **Copy AI Prompt** (▾ to choose embed files, chat attach, or URI browse), paste into your AI chat of choice. When you get a response, copy the JSON block and use **Import Suggestions**. Run Test to verify before exporting.
+>
+> **Informatician:** I want every composition to say St. Dummy Demo Hospital and Swedish, and I want to set that before I load the OPT.
+>
+> **Developer:** The **Defaults block** is already on the canvas. Edit the plugged-in **Defaults Map** (or **Save as** a named snapshot). `language` on a fresh factory map follows **UI language**; it is not **model language**. Open the template afterward — scaffolding **joins** and fills **Default point**s with **Map lookup**s. Generated Conversion Scripts still take that map as a convert-time argument.

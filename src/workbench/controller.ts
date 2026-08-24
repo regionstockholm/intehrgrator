@@ -74,6 +74,7 @@ import {
   type ExampleSet,
   type ExampleSetCatalog,
 } from "../core/example_sets/mod.ts";
+import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import {
   snapshotUrlHistory,
@@ -128,6 +129,7 @@ export class WorkbenchController {
   };
   private blocklyState: unknown = null;
   private blocklyReloadToken = 0;
+  private pendingDefaultsMap: unknown | null = null;
   private getBlocklyState: (() => unknown) | null = null;
   private debounceTimer: number | null = null;
   private autosaveTimer: number | null = null;
@@ -146,6 +148,13 @@ export class WorkbenchController {
 
   setBlocklyStateGetter(fn: () => unknown): void {
     this.getBlocklyState = fn;
+  }
+
+  /** Take a queued Defaults Map (`maps_create_with` JSON) for the canvas to hydrate. */
+  consumePendingDefaultsMap(): unknown | null {
+    const value = this.pendingDefaultsMap;
+    this.pendingDefaultsMap = null;
+    return value;
   }
 
   markDirty(): void {
@@ -424,6 +433,22 @@ export class WorkbenchController {
         const file = await this.host.fetchTextUrl(set.mapping);
         this.loadBlocklyDefinition(file.name, file.text);
       }
+      if (set.defaults) {
+        const file = await this.host.fetchTextUrl(set.defaults);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(file.text);
+        } catch (err) {
+          throw new Error(
+            `Defaults JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        const mapBlock = mapBlockFromDefaultsJson(parsed);
+        if (!mapBlock) {
+          throw new Error("Defaults JSON must be a maps_create_with block or workspace");
+        }
+        this.pendingDefaultsMap = mapBlock;
+      }
       this.statusMessage = `Loaded example set "${set.title}"`;
       this.notifyChange();
     } catch (err) {
@@ -657,6 +682,7 @@ export class WorkbenchController {
       target: this.target,
       exportTarget: this.settings.exportTarget,
       handlebarsTemplate: this.handlebarsTemplate,
+      blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
     });
     if (this.testResult.output !== undefined) {
       this.examples.setCachedResult(active.id, this.testResult.output);
@@ -1140,6 +1166,7 @@ export class WorkbenchController {
     this.treeHighlight = { syncPath: null, origin: null };
     this.blocklyState = null;
     this.blocklyReloadToken += 1;
+    this.pendingDefaultsMap = null;
     this.dirty = false;
     this.lastAutosaveAt = null;
     if (this.autosaveTimer !== null) {

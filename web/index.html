@@ -356,6 +356,38 @@
       </div>
     </form>
   </dialog>
+  <dialog id="dialog-defaults-map" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Defaults Map</h2>
+      <p>Load a saved map, browse a file or URL, or save the map plugged into the Defaults block.</p>
+      <div id="defaults-map-list" class="load-project-list"></div>
+      <label class="dialog-label">
+        URL
+        <input id="defaults-map-url-input" type="text" inputmode="url" autocomplete="url" placeholder="https://…" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="defaults-map-browse">Browse file…</button>
+        <button type="button" id="defaults-map-url-load">Load URL</button>
+        <button type="button" id="defaults-map-save-as">Save as…</button>
+        <span class="dialog-actions-spacer"></span>
+        <button type="button" id="defaults-map-cancel" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-defaults-save-as" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Save Defaults Map as</h2>
+      <p>Store the current Defaults Map under a name you can pick later.</p>
+      <label class="dialog-label">
+        Name
+        <input id="defaults-save-as-name" type="text" required placeholder="Clinic defaults" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="defaults-save-as-cancel" value="cancel">Cancel</button>
+        <button type="submit" id="defaults-save-as-confirm" value="confirm">Save</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="dialog-optional-rm" class="app-dialog">
     <form method="dialog" class="dialog-form">
       <h2 id="optional-rm-title">Add optional RM</h2>

@@ -375,6 +375,28 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
           { kind: "block", type: "lists_reverse" },
         ],
       },
+      {
+        kind: "category",
+        name: m.CAT_MAPS,
+        colour: 260,
+        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryMaps" },
+        contents: [
+          { kind: "block", type: "maps_create_with", extraState: { itemCount: 0 } },
+          { kind: "block", type: "maps_create_with", extraState: { itemCount: 3 } },
+          { kind: "block", type: "maps_create_empty" },
+          {
+            kind: "block",
+            type: "maps_get",
+            fields: { NAME: "defaults" },
+            inputs: {
+              KEY: { shadow: { type: "text", fields: { TEXT: "language" } } },
+            },
+          },
+          { kind: "block", type: "maps_keys" },
+          { kind: "block", type: "maps_length" },
+          { kind: "block", type: "maps_isEmpty" },
+        ],
+      },
       { kind: "sep" },
       {
         kind: "category",

@@ -23,6 +23,12 @@ import {
 import { createTermPickBlock, isTermPickBlock } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
+import {
+  attachDefaultPointLookups,
+  captureDefaultsBlockState,
+  placeDefaultsBesideSkeleton,
+  restoreDefaultsBlockState,
+} from "./defaults_canvas.ts";
 import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
 import {
   syncTargetChildInputs,
@@ -40,9 +46,11 @@ export function loadSkeletonIntoWorkspace(
   skeleton: SkeletonNode[],
   model: MappingModel,
   listeningSlotId: string | null = null,
+  uiLanguage = "en",
 ): void {
   Blockly.Events.disable();
   try {
+    const savedDefaults = captureDefaultsBlockState(workspace);
     workspace.clear();
     let y = 20;
     for (const root of skeleton) {
@@ -55,6 +63,11 @@ export function loadSkeletonIntoWorkspace(
       y += height + 24;
     }
     applyModelExpressions(workspace, model);
+    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage);
+    placeDefaultsBesideSkeleton(workspace);
+    attachDefaultPointLookups(workspace, skeleton, (parent, insertion) =>
+      attachOptionalRmChild(workspace, parent, insertion)
+    );
     setAllBlocksCollapsed(workspace, false);
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);

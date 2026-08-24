@@ -11,7 +11,8 @@ export type ExprAst =
       | "concat"
       | "if"
       | "switch"
-      | "var";
+      | "var"
+      | "maps_get";
     args: ExprAst[];
   }
   | { kind: "binary"; op: "+" | "-" | "*" | "/"; left: ExprAst; right: ExprAst };
@@ -26,6 +27,7 @@ const BUILTIN_NAMES = new Set([
   "if",
   "switch",
   "var",
+  "maps_get",
 ]);
 
 export function parseExpression(source: string): ExprAst {
@@ -157,7 +159,8 @@ class Parser {
           | "concat"
           | "if"
           | "switch"
-          | "var";
+          | "var"
+          | "maps_get";
         return { kind: "call", name: builtin, args };
       }
       throw new Error(`Unknown identifier: ${name}`);

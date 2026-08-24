@@ -31,6 +31,8 @@ export interface ExampleSet {
   target: string;
   /** Optional Blockly workspace JSON URI. */
   mapping?: string;
+  /** Optional Defaults Map (`maps_create_with` Blockly JSON) URI. */
+  defaults?: string;
 }
 
 export interface ExampleSetCatalog {
@@ -104,6 +106,9 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
   const mapping = raw.mapping === undefined
     ? undefined
     : resolveCatalogUri(requiredString(raw.mapping, `${prefix}.mapping`), catalogUrl);
+  const defaults = raw.defaults === undefined
+    ? undefined
+    : resolveCatalogUri(requiredString(raw.defaults, `${prefix}.defaults`), catalogUrl);
 
   return {
     id,
@@ -112,6 +117,7 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
     source: { schema, instances },
     target,
     ...(mapping ? { mapping } : {}),
+    ...(defaults ? { defaults } : {}),
   };
 }
 

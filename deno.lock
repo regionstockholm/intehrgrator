@@ -25,6 +25,7 @@
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.1.1": "1.1.1",
     "jsr:@std/testing@1": "1.0.19",
+    "npm:@blockly/workspace-minimap@0.2.16": "0.2.16_blockly@11.2.2",
     "npm:@cfworker/json-schema@^4.1.1": "4.1.1",
     "npm:@codemirror/commands@^6.8.1": "6.10.4",
     "npm:@codemirror/lang-javascript@^6.2.4": "6.2.5",
@@ -146,6 +147,12 @@
         "@csstools/css-parser-algorithms",
         "@csstools/css-tokenizer",
         "lru-cache"
+      ]
+    },
+    "@blockly/workspace-minimap@0.2.16_blockly@11.2.2": {
+      "integrity": "sha512-pfvl4J4+iv47sLWHpT9jKweQ8x7pJ1C2wlY3vO171Z8Ty7jHqY19qkltc2f2LfiIDxmTYVbtiA06Artoi5YFxw==",
+      "dependencies": [
+        "blockly"
       ]
     },
     "@cfworker/json-schema@4.1.1": {
@@ -1247,6 +1254,7 @@
       "jsr:@std/http@1",
       "jsr:@std/path@1",
       "jsr:@std/testing@1",
+      "npm:@blockly/workspace-minimap@0.2.16",
       "npm:@cfworker/json-schema@^4.1.1",
       "npm:@codemirror/commands@^6.8.1",
       "npm:@codemirror/lang-javascript@^6.2.4",

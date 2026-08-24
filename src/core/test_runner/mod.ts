@@ -18,11 +18,14 @@ import {
   type TargetDefinition,
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
+import { namedMapsFromBlocklyState } from "../defaults/mod.ts";
 
 export interface RunTestOptions {
   target?: TargetDefinition | null;
   exportTarget?: ExportTarget;
   handlebarsTemplate?: string;
+  /** Blockly workspace JSON used to materialize the Defaults Map. */
+  blocklyState?: unknown;
 }
 
 export function runTest(
@@ -35,6 +38,7 @@ export function runTest(
   try {
     const handler = getSourceFormatHandler(format);
     const ctx = handler.createContext(exampleContent);
+    ctx.namedMaps = namedMapsFromBlocklyState(options.blocklyState);
     const slotValues = evaluateSlotValues(
       model,
       handler,
@@ -148,6 +152,7 @@ function evaluateLoopSlots(
           json: node,
           data: node,
           vars: { ...(ctx.vars ?? {}), [loop.varName]: node },
+          namedMaps: ctx.namedMaps,
         }, slot.returnType)
       );
     } catch (e) {

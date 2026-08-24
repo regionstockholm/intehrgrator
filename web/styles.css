@@ -311,7 +311,10 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   padding: 4px 8px; border-bottom: 1px solid var(--border); background: #eef4f2;
   color: var(--text-secondary); font-size: 10px; text-align: center;
 }
-.blockly-mount { min-height: 120px; height: 100%; flex: 1; background: #fff; }
+.blockly-mount { min-height: 120px; height: 100%; flex: 1; background: #fff; position: relative; }
+.blockly-mount.blockly-minimap-hidden .blockly-minimap {
+  display: none;
+}
 .slots-pane { display: flex; flex-direction: column; min-width: 160px; }
 
 /*
@@ -362,6 +365,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .blockly-mount .blocklyToolboxCategoryLists {
   border-left: 15px solid #4db6ac !important;
+}
+.blockly-mount .blocklyToolboxCategoryMaps {
+  border-left: 15px solid #7e57c2 !important;
 }
 .blockly-mount .blocklyToolboxCategoryVariables {
   border-left: 15px solid #ef9a9a !important;

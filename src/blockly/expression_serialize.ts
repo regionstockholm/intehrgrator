@@ -6,6 +6,7 @@ import {
   returnTypeFromSourceBlock,
   xpathEvaluatorForReturnType,
 } from "./source_query.ts";
+import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
 
 type BlockSvg = import("blockly/core").BlockSvg;
 type Workspace = import("blockly/core").Workspace;
@@ -62,6 +63,11 @@ export function blockToExpression(block: Block | null): string | null {
     case "variables_get": {
       const name = block.getField("VAR")?.getText() ?? "v";
       return `var(${JSON.stringify(name)})`;
+    }
+    case "maps_get": {
+      const name = String(block.getFieldValue("NAME") || "defaults");
+      const key = blockToExpression(block.getInputTargetBlock("KEY")) ?? '""';
+      return `maps_get(${JSON.stringify(name)}, ${key})`;
     }
     // Legacy custom block types (read-only for older workspaces)
     case "text_literal":
@@ -179,6 +185,12 @@ export function astToExpressionBlock(
         astToExpressionBlock(workspace, ast.args[2]!, returnType, finalize).outputConnection!,
       );
       return finalize(block);
+    }
+    if (ast.name === "maps_get" && ast.args.length >= 2) {
+      registerMapBlocks();
+      const mapName = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "defaults";
+      const key = ast.args[1]?.kind === "literal" ? String(ast.args[1].value) : "";
+      return finalize(createMapsGetBlock(workspace, mapName, key) as BlockSvg);
     }
     if (ast.name === "var" && ast.args[0]?.kind === "literal") {
       const name = String(ast.args[0].value);

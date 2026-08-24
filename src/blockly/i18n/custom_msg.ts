@@ -25,6 +25,7 @@ export interface IntehrMessages {
   CAT_MATH: string;
   CAT_TEXT: string;
   CAT_LISTS: string;
+  CAT_MAPS: string;
   CAT_VARIABLES: string;
   CAT_PROCEDURES: string;
   SOURCE_QUERY: string;
@@ -51,6 +52,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Math",
     CAT_TEXT: "Text",
     CAT_LISTS: "Lists",
+    CAT_MAPS: "Maps",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Functions",
     SOURCE_QUERY: "source",
@@ -76,6 +78,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Matematik",
     CAT_TEXT: "Text",
     CAT_LISTS: "Listor",
+    CAT_MAPS: "Mappar",
     CAT_VARIABLES: "Variabler",
     CAT_PROCEDURES: "Funktioner",
     SOURCE_QUERY: "källa",
@@ -101,6 +104,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Mathematik",
     CAT_TEXT: "Text",
     CAT_LISTS: "Listen",
+    CAT_MAPS: "Maps",
     CAT_VARIABLES: "Variablen",
     CAT_PROCEDURES: "Funktionen",
     SOURCE_QUERY: "Quelle",
@@ -126,6 +130,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Matemáticas",
     CAT_TEXT: "Texto",
     CAT_LISTS: "Listas",
+    CAT_MAPS: "Mapas",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funciones",
     SOURCE_QUERY: "origen",
@@ -151,6 +156,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Matemàtiques",
     CAT_TEXT: "Text",
     CAT_LISTS: "Llistes",
+    CAT_MAPS: "Mapes",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funcions",
     SOURCE_QUERY: "origen",
@@ -176,6 +182,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Math",
     CAT_TEXT: "Texte",
     CAT_LISTS: "Listes",
+    CAT_MAPS: "Maps",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Fonctions",
     SOURCE_QUERY: "source",

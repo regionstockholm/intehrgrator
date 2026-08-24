@@ -36,12 +36,14 @@ export function generateTypeScript(model: MappingModel): string {
     "",
     "export type SourceContext = { format: string; data: unknown };",
     "",
-    "function evalExpr(expr: string, sourceCtx: SourceContext): unknown {",
-    "  // Expression dispatch generated per slot at export time",
-    "  return __evalGenerated(expr, sourceCtx);",
+    "function evalExpr(expr: string, sourceCtx: SourceContext, defaults: Record<string, unknown>): unknown {",
+    "  return __evalGenerated(expr, sourceCtx, defaults);",
     "}",
     "",
-    "export async function convertSourceToComposition(sourceCtx: SourceContext) {",
+    "export async function convertSourceToComposition(",
+    "  sourceCtx: SourceContext,",
+    "  defaults: Record<string, unknown> = {},",
+    ") {",
     "  const composition = new openehr_rm.COMPOSITION();",
     "",
   ];
@@ -53,7 +55,7 @@ export function generateTypeScript(model: MappingModel): string {
       `  // TODO: wire to RM path — magnitude/units from ${slot.rmType}`,
     );
     lines.push(
-      `  void evalExpr(${JSON.stringify(slot.expression)}, sourceCtx);`,
+      `  void evalExpr(${JSON.stringify(slot.expression)}, sourceCtx, defaults);`,
     );
     lines.push("");
   }
@@ -70,7 +72,7 @@ function buildEvalHelper(model: MappingModel): string {
     return `  if (expr === ${JSON.stringify(slot.expression)}) {\n    return ${body};\n  }`;
   });
   return [
-    "function __evalGenerated(expr: string, sourceCtx: SourceContext): unknown {",
+    "function __evalGenerated(expr: string, sourceCtx: SourceContext, defaults: Record<string, unknown>): unknown {",
     ...cases,
     "  throw new Error('Unknown expression: ' + expr);",
     "}",
@@ -98,6 +100,8 @@ function emitTsEval(ast: import("@intehrgrator/core/expression/mod.ts").ExprAst,
           return emitSwitchTs(args);
         case "var":
           return `__vars[${args[0]}]`;
+        case "maps_get":
+          return `(${args[0]} === "defaults" ? defaults : {})[${args[1]}]`;
         case "xpathString":
           return `evaluateXPathToString(${args[0]}, ${node})`;
         case "xpathNumber":
@@ -132,7 +136,7 @@ export function generateJava(model: MappingModel): string {
     "import com.nedap.archie.rm.composition.Composition;",
     "",
     "public class ConversionScript {",
-    "  public Composition convert(Object source) {",
+    "  public Composition convert(Object source, java.util.Map<String, Object> defaults) {",
     "    Composition composition = new Composition();",
   ];
 

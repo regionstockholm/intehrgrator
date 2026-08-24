@@ -5,6 +5,7 @@ import type { MappingLoop, SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName } from "./blocks/rm_blocks.ts";
 import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
+import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
@@ -50,11 +51,23 @@ export { setOptionalRmPickHandler, applyEventRmType, isEventFamilyType } from ".
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";
 export { buildDemoToolbox, type ToolboxContext } from "./toolbox_demo.ts";
+export {
+  attachDefaultPointLookups,
+  captureDefaultsBlockState,
+  ensureDefaultsBlock,
+  findDefaultsBlock,
+  hydrateDefaultsMapArgument,
+  placeDefaultsBesideSkeleton,
+  restoreDefaultsBlockState,
+  serializeDefaultsMapArgument,
+} from "./defaults_canvas.ts";
+export { setDefaultsMapPickHandler } from "./blocks/map_blocks.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
   registerTargetBlocks();
   registerExpressionBlocks();
+  registerMapBlocks();
   registerGenerators();
 }
 
@@ -116,6 +129,15 @@ function registerGenerators(): void {
       `  return ${returned};\n` +
       `}),\n`
     );
+  };
+
+  javascriptGenerator.forBlock["maps_get"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "defaults");
+    const key = javascriptGenerator.valueToCode(block, "KEY", Order.NONE) || '""';
+    return [
+      `(${name} === "defaults" ? defaults : {})[${key}]`,
+      Order.MEMBER,
+    ] as [string, number];
   };
 
   javascriptGenerator.forBlock["composition"] = (block) => {
@@ -212,6 +234,16 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
   const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
   const seen = new Set<string>();
   for (const block of workspace.getAllBlocks(false)) {
+    if (block.type === "party_identified") {
+      const slotId = block.getFieldValue("SLOT_ID");
+      const exprBlock = block.getInputTargetBlock(rmAttributeInputName("name"));
+      const expression = blockToExpression(exprBlock);
+      if (slotId && expression && !seen.has(slotId)) {
+        seen.add(slotId);
+        slots.push({ slotId, rmType: "PARTY_IDENTIFIED", expression });
+      }
+      continue;
+    }
     if (block.type !== "element" && !isGenericValueBlockType(block.type) && !isDataValueBlock(block)) {
       continue;
     }

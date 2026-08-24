@@ -12,6 +12,8 @@ export interface SourceContext {
   xmlDocument?: Document;
   /** Loop variables (`for_each_source` VAR → current source node). */
   vars?: Record<string, unknown>;
+  /** Named Maps (Defaults Map and others) for `maps_get`. */
+  namedMaps?: Record<string, Record<string, unknown>>;
 }
 
 export function createSourceContext(
@@ -71,6 +73,13 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           return xpathEval(String(args[0] ?? ""), ctx, "boolean");
         case "var":
           return ctx.vars?.[String(args[0])] ?? null;
+        case "maps_get": {
+          const mapName = String(args[0] ?? "defaults");
+          const key = String(args[1] ?? "");
+          const map = ctx.namedMaps?.[mapName];
+          if (!map || typeof map !== "object") return null;
+          return (map as Record<string, unknown>)[key] ?? null;
+        }
       }
     }
   }

@@ -3,6 +3,33 @@
   "version": 1,
   "sets": [
     {
+      "id": "dummy-json-vitals",
+      "title": "Dummy vitals example (Source: JSON Schema, Target: JSON Schema)",
+      "description": "Minimal JSON Schema source, two valid instances, and a JSON Schema target. No mapping.",
+      "source": {
+        "schema": "./dummy-json-vitals/source.schema.json",
+        "instances": [
+          "./dummy-json-vitals/instance-1.json",
+          "./dummy-json-vitals/instance-2.json"
+        ]
+      },
+      "target": "./dummy-json-vitals/target.schema.json"
+    },
+    {
+      "id": "dummy-json-vitals-mapped",
+      "title": "Dummy vitals with mapping",
+      "description": "Same dummy files plus a stub Blockly mapping and a Defaults Map.",
+      "source": {
+        "schema": "./dummy-json-vitals/source.schema.json",
+        "instances": [
+          "./dummy-json-vitals/instance-1.json"
+        ]
+      },
+      "target": "./dummy-json-vitals/target.schema.json",
+      "mapping": "./dummy-json-vitals/mapping.blockly.json",
+      "defaults": "./dummy-json-vitals/defaults.map.json"
+    },
+    {
       "id": "Simple-vitals",
       "title": "Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template)",
       "description": "Minimal JSON Schema source, two valid instances one invalid, and a simple openehr template target. No mapping.",
@@ -15,19 +42,6 @@
         ]
       },
       "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.t.json"
-    },
-    {
-      "id": "dummy-json-vitals-mapped",
-      "title": "Dummy vitals with mapping",
-      "description": "Same dummy files plus a stub (empty) Blockly mapping.",
-      "source": {
-        "schema": "./dummy-json-vitals/source.schema.json",
-        "instances": [
-          "./dummy-json-vitals/instance-1.json"
-        ]
-      },
-      "target": "./dummy-json-vitals/target.schema.json",
-      "mapping": "./dummy-json-vitals/mapping.blockly.json"
     }
   ]
 }

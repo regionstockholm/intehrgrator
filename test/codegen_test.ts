@@ -17,6 +17,7 @@ Deno.test("typescript codegen contains template id", () => {
   const ts = generate(model, "typescript");
   assertEquals(ts.includes("vitals"), true);
   assertEquals(ts.includes("evaluateXPathToNumber"), true);
+  assertEquals(ts.includes("defaults: Record<string, unknown> = {}"), true);
 });
 
 Deno.test("java codegen structure", () => {
@@ -57,6 +58,7 @@ Deno.test("xquery codegen emits mapping-result module from Blockly slots", () =>
   assertStringIncludes(xq, "local:as-value");
   assertStringIncludes(xq, "DV_QUANTITY");
   assertStringIncludes(xq, "$source?systolic");
+  assertStringIncludes(xq, "declare variable $defaults");
   assertStringIncludes(xq, "normalize-space");
   assertStringIncludes(xq, "concat(");
 
@@ -77,6 +79,10 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
   assertEquals(
     emitXQueryExpr(parseExpression('if(xpathBoolean("$.ok"), "a", "b")')),
     '(if (xs:boolean(($source?ok)[1])) then "a" else "b")',
+  );
+  assertEquals(
+    emitXQueryExpr(parseExpression('maps_get("defaults", "language")')),
+    '(if ("defaults" eq "defaults") then map:get($defaults, "language") else ())',
   );
 });
 

@@ -898,6 +898,12 @@ function defineCodePhraseBlock(): void {
       this.setOutput(true, "CODE_PHRASE");
       this.setColour(DV_COLOUR);
       this.setInputsInline(true);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldLabelSerializable("CODE_PHRASE"), "RM_TYPE");
+      this.getField("RM_TYPE")!.setVisible(false);
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
+      this.getField("SLOT_ID")!.setVisible(false);
     },
   };
 }

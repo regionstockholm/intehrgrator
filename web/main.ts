@@ -45,7 +45,13 @@ import {
   registerCompactThrasosRenderer,
   openWorkspaceSnapshotWindow,
   relabelWorkspaceFromSkeleton,
+  ensureDefaultsBlock,
+  findDefaultsBlock,
+  hydrateDefaultsMapArgument,
+  serializeDefaultsMapArgument,
+  setDefaultsMapPickHandler,
 } from "../src/blockly/mod.ts";
+import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
   presentAttributeNames,
@@ -75,6 +81,7 @@ import {
 } from "../src/core/example_sets/mod.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
+import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson } from "../src/core/defaults/mod.ts";
 import {
   buildHandlebarsPath,
   buildHandlebarsTree,
@@ -124,6 +131,12 @@ const loadProjectList = document.getElementById("load-project-list")!;
 const dialogOptionalRm = document.getElementById("dialog-optional-rm") as HTMLDialogElement;
 const optionalRmList = document.getElementById("optional-rm-list")!;
 const optionalRmTitle = document.getElementById("optional-rm-title")!;
+const dialogDefaultsMap = document.getElementById("dialog-defaults-map") as HTMLDialogElement;
+const defaultsMapList = document.getElementById("defaults-map-list")!;
+const dialogDefaultsSaveAs = document.getElementById("dialog-defaults-save-as") as HTMLDialogElement;
+const defaultsSaveAsNameInput = document.getElementById("defaults-save-as-name") as HTMLInputElement;
+const defaultsMapUrlInput = document.getElementById("defaults-map-url-input") as HTMLInputElement;
+const defaultsCatalog = createIndexedDbDefaultsCatalog();
 
 const specEditor = createMappingSpecEditor(mappingJsonHost, {
   onFieldEdit: (blockId, field, value) => {
@@ -282,6 +295,18 @@ async function bootBlockly(): Promise<void> {
     Blockly.serialization.workspaces.load(loadOnce, workspace);
     lockWorkspaceRootsExpanded(workspace);
   }
+  Blockly.Events.disable();
+  try {
+    ensureDefaultsBlock(workspace, blocklyLocale);
+  } finally {
+    Blockly.Events.enable();
+  }
+
+  setDefaultsMapPickHandler(() => {
+    void openDefaultsMapDialog();
+  });
+
+  attachWorkspaceMinimap(workspace, blocklyMount);
 
   setOptionalRmPickHandler((block) => {
     const rmType = rmTypeOfBlock(block);
@@ -419,6 +444,27 @@ function handleSourceSelection(
   controller.bindFromNode(path, format);
 }
 
+function persistBlocklyCanvas(): void {
+  const derived = workspaceToModelJson(workspace);
+  controller.syncFromBlockly(
+    Blockly.serialization.workspaces.save(workspace),
+    derived.slots,
+    derived.loops,
+  );
+}
+
+function applyPendingDefaultsMap(): void {
+  const pending = controller.consumePendingDefaultsMap();
+  if (!pending) return;
+  Blockly.Events.disable();
+  try {
+    hydrateDefaultsMapArgument(workspace, pending, blocklyLocale);
+  } finally {
+    Blockly.Events.enable();
+  }
+  persistBlocklyCanvas();
+}
+
 function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
   const key = `${s.target?.format ?? ""}|${s.templateId}|${s.skeleton.length}|${s.modelLanguage ?? ""}`;
   if (key === toolboxKey) return;
@@ -436,6 +482,13 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklySkeletonKey = "";
     blocklyLabelLanguage = "";
     blocklySlotSignature = "";
+    Blockly.Events.disable();
+    try {
+      ensureDefaultsBlock(workspace, blocklyLocale);
+    } finally {
+      Blockly.Events.enable();
+    }
+    applyPendingDefaultsMap();
     return;
   }
   if (!s.templateId || !s.skeleton.length) {
@@ -443,6 +496,13 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklySkeletonKey = "";
       blocklyLabelLanguage = "";
       blocklySlotSignature = "";
+      Blockly.Events.disable();
+      try {
+        ensureDefaultsBlock(workspace, blocklyLocale);
+      } finally {
+        Blockly.Events.enable();
+      }
+      applyPendingDefaultsMap();
       return;
     }
   }
@@ -462,6 +522,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       try {
         workspace.clear();
         Blockly.serialization.workspaces.load(s.blocklyState, workspace);
+        if (!findDefaultsBlock(workspace)) ensureDefaultsBlock(workspace, blocklyLocale);
         applyModelLoops(workspace, s.model);
         refreshWorkspaceConstraints(workspace);
         relabelWorkspaceFromSkeleton(workspace, s.skeleton);
@@ -480,13 +541,15 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           derived.loops,
         );
       }
+      applyPendingDefaultsMap();
       return;
     } else {
-      loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId);
+      loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId, blocklyLocale);
     }
     blocklySkeletonKey = skeletonKey;
     blocklyLabelLanguage = labelLanguage;
     blocklySlotSignature = slotSignature;
+    applyPendingDefaultsMap();
     return;
   }
 
@@ -508,6 +571,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   }
 
   highlightListeningSlot(workspace, s.listeningSlotId);
+  applyPendingDefaultsMap();
 }
 
 function bind(id: string, handler: () => void | Promise<void>): void {
@@ -1111,6 +1175,110 @@ function resetBlocklyView(): void {
     Blockly.Events.enable();
   }
 }
+
+async function openDefaultsMapDialog(): Promise<void> {
+  defaultsMapList.innerHTML = "";
+  if (defaultsMapUrlInput) defaultsMapUrlInput.value = "";
+  let entries: Array<{ id: string; displayName: string; savedAt: string }> = [];
+  try {
+    entries = await defaultsCatalog.list();
+  } catch (err) {
+    const empty = document.createElement("p");
+    empty.className = "load-project-empty";
+    empty.textContent = `Defaults catalog unavailable: ${
+      err instanceof Error ? err.message : String(err)
+    }`;
+    defaultsMapList.appendChild(empty);
+  }
+  if (!entries.length && defaultsMapList.childElementCount === 0) {
+    const empty = document.createElement("p");
+    empty.className = "load-project-empty";
+    empty.textContent = "No saved Defaults Maps yet. Use Save as, Browse file, or a URL.";
+    defaultsMapList.appendChild(empty);
+  }
+  for (const entry of entries) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "load-project-item";
+    const kind = document.createElement("span");
+    kind.className = "load-project-item-kind";
+    kind.textContent = "Saved map";
+    const name = document.createElement("strong");
+    name.textContent = entry.displayName;
+    const when = document.createElement("span");
+    when.textContent = formatSaveTime(entry.savedAt);
+    button.append(kind, name, when);
+    button.addEventListener("click", () => {
+      dialogDefaultsMap.close();
+      void (async () => {
+        const mapBlock = await defaultsCatalog.load(entry.id);
+        if (!mapBlock) return;
+        hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale);
+        persistBlocklyCanvas();
+      })();
+    });
+    defaultsMapList.appendChild(button);
+  }
+  dialogDefaultsMap.showModal();
+}
+
+function applyDefaultsMapJson(text: string): void {
+  const parsed = JSON.parse(text) as unknown;
+  const mapBlock = mapBlockFromDefaultsJson(parsed);
+  if (!mapBlock) throw new Error("JSON must be a maps_create_with block or workspace");
+  hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale);
+  persistBlocklyCanvas();
+}
+
+document.getElementById("defaults-map-cancel")?.addEventListener("click", () => dialogDefaultsMap.close());
+document.getElementById("defaults-map-browse")?.addEventListener("click", () => {
+  void (async () => {
+    const file = await host.pickTextFile(".json", "defaults");
+    if (!file) return;
+    dialogDefaultsMap.close();
+    try {
+      applyDefaultsMapJson(file.text);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
+document.getElementById("defaults-map-url-load")?.addEventListener("click", () => {
+  void (async () => {
+    const url = defaultsMapUrlInput?.value.trim() ?? "";
+    if (!url) return;
+    try {
+      const file = await host.fetchTextUrl(url);
+      applyDefaultsMapJson(file.text);
+      dialogDefaultsMap.close();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
+document.getElementById("defaults-map-save-as")?.addEventListener("click", () => {
+  defaultsSaveAsNameInput.value = "Defaults";
+  dialogDefaultsSaveAs.returnValue = "cancel";
+  dialogDefaultsSaveAs.showModal();
+  defaultsSaveAsNameInput.focus();
+  defaultsSaveAsNameInput.select();
+});
+document.getElementById("defaults-save-as-cancel")?.addEventListener("click", () =>
+  dialogDefaultsSaveAs.close()
+);
+dialogDefaultsSaveAs.addEventListener("close", () => {
+  if (dialogDefaultsSaveAs.returnValue !== "confirm") return;
+  void (async () => {
+    try {
+      const mapBlock = serializeDefaultsMapArgument(workspace);
+      if (!mapBlock) throw new Error("No Defaults Map to save");
+      await defaultsCatalog.save(defaultsSaveAsNameInput.value, mapBlock);
+      dialogDefaultsMap.close();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
 
 function handleNewProject(): void {
   const message = controller.hasWorkspaceContent()

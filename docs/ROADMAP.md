@@ -4,7 +4,7 @@
 - [x] snygga till överlappande block i blockbibliotek
 - [x] Get allowed occurences visible on blockly slots
 - [x] add a button for loading example sets with, source, target and sometimes mappings
-- [ ] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
+- [x] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 
 ## Robust good UI/UX
 - [ ] Aktivera Expand/collapse json etc i code mirror
@@ -15,7 +15,7 @@
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
 
 ## Add support for map structures
-- [ ] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist.
+- [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist.
 - [ ] Make it possible to digest CSV tables for setting up mappings, preferably multi column to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT
 - [ ] Make it possible to digest FHIR terminology mappings for setting up mappings
 

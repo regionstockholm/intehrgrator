@@ -154,7 +154,7 @@ Deno.test("loadSkeletonIntoWorkspace auto-attaches mandatory DV shells", () => {
   );
   assert(observation, "expected observation block");
   assertEquals(observation.type, "observation");
-  const root = workspace.getTopBlocks(false)[0];
+  const root = workspace.getTopBlocks(false).find((block) => block.type === "composition");
   assertEquals(root?.type, "composition");
   assertEquals(
     workspace.getAllBlocks(false).some((b) => b.type === "rm_structure"),
@@ -452,7 +452,7 @@ Deno.test("Optional RM Insertion attaches a typed child without clearing the can
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const root = workspace.getTopBlocks(false)[0];
+  const root = workspace.getTopBlocks(false).find((block) => block.type === "composition");
   assert(root);
   const beforeIds = new Set(workspace.getAllBlocks(false).map((b) => b.id));
   const child = attachOptionalRmChild(workspace as unknown as Blockly.WorkspaceSvg, root, {
@@ -488,19 +488,27 @@ Deno.test("skeleton canvas pre-fills RM terminology on language and territory", 
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
 
-  const composition = workspace.getTopBlocks(false)[0];
+  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
   assertEquals(composition?.type, "composition");
   const languageInput = composition.getInput(rmAttributeInputName("language"));
   assertEquals(languageInput?.connection?.getCheck(), ["CODE_PHRASE"]);
   const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
-  assert(language, "expected CODE_PHRASE term picker on COMPOSITION.language");
-  assertEquals(language.type, "term_pick");
-  assertEquals(language.getFieldValue("SET"), "ISO_639-1");
+  assert(language, "expected CODE_PHRASE on COMPOSITION.language");
+  assertEquals(language.type, "code_phrase");
+  assertEquals(
+    language.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
+    "ISO_639-1",
+  );
+  assertEquals(language.getInputTargetBlock(dvFieldInputName("code_string"))?.type, "maps_get");
   assertEquals(language.type === "element", false);
 
   const territory = composition.getInputTargetBlock(rmAttributeInputName("territory"));
-  assertEquals(territory?.type, "term_pick");
-  assertEquals(territory?.getFieldValue("SET"), "ISO_3166-1");
+  assertEquals(territory?.type, "code_phrase");
+  assertEquals(
+    territory?.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
+    "ISO_3166-1",
+  );
+  assertEquals(territory?.getInputTargetBlock(dvFieldInputName("code_string"))?.type, "maps_get");
 
   const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
   assertEquals(category?.type, "term_pick");
@@ -527,7 +535,7 @@ Deno.test("skeleton canvas pre-fills COMPOSITION.category from the template", ()
   const { skeleton } = generateSkeleton(persistent);
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const composition = workspace.getTopBlocks(false)[0];
+  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
   const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
   assertEquals(category?.type, "term_pick");
   assertEquals(category?.getFieldValue("CODE"), "431");
@@ -605,7 +613,7 @@ Deno.test("mandatory containers do not get a warning triangle just for being man
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const composition = workspace.getTopBlocks(false)[0];
+  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
   assert(composition);
   const warning = (warningTextOf(composition) ?? blockConstraintMessages(composition).join("\n"));
   assertEquals(warning.includes("Mandatory"), false);

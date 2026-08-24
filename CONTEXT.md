@@ -45,8 +45,12 @@ Blockly loop that binds each node from a multi-valued Source Path to a named var
 _Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
 
 **Map**:
-A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for named tables (later: a defaults table, terminology tables) as well as ad-hoc lookups.
+A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map**, later terminology tables, and ad-hoc lookups.
 _Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor)
+
+**Defaults Map**:
+A named **Map** of conversion-time key/value defaults, authored on the Blockly canvas as its own stack — not a side-panel table. Placed so it does not overlap the **Template Skeleton**. Keys align with openEHR simplified-format `ctx` (`language`, `territory`, `composer_name`, `time`, …) plus any extra keys the informatician adds. Distinct from **Silent-Mandatory RM Field** (those are skeleton slots that may *look up* this map) and from **model language** (ontology labels on the Target pane).
+_Avoid_: Context, CTX, Composition Context, default Blockly field values, model language, defaults panel as the source of truth
 
 **Mapping Editor**:
 The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top (with **Target value slots** rail), [CodeMirror](https://codemirror.net/) on the bottom showing the **Mapping Specification** (Blockly JSON with line numbers and Mapping Spec Widgets for density / safe field edits) and an editable **Handlebars Template** tab when Conversion script language is Handlebars. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.

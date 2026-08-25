@@ -10,7 +10,7 @@ const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 const TARGETS = [
   {
     target: "x86_64-pc-windows-msvc",
-    output: join("dist", "release", "intEHRgrator-windows-x64"),
+    output: join("dist", "release", "intEHRgrator"),
   },
   {
     target: "x86_64-unknown-linux-gnu",
@@ -56,6 +56,9 @@ for (const { target, output } of TARGETS) {
     output,
     "--include",
     "src/desktop/www",
+    // Browser bundles must not be .js in the include tree; staging writes *.js.dat.
+    "--exclude",
+    "**/*.js",
     entry,
   ];
   const cmd = new Deno.Command("deno", {
@@ -78,7 +81,7 @@ if (failed) {
 
 const archives = [
   {
-    src: join("dist", "release", "intEHRgrator-windows-x64"),
+    src: join("dist", "release", "intEHRgrator"),
     zip: join("dist", "release", "intEHRgrator-windows-x64.zip"),
   },
   {

@@ -5,7 +5,7 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 ## Webapp for users
 Go to https://regionstockholm.github.io/intehrgrator/ click (i) - encircled i - at various places in the interface to learn about use.
 
-## Desktop app (0.2)
+## Desktop app (0.2.1)
 
 Download a platform build from [Releases](https://github.com/regionstockholm/intehrgrator/releases) and run it locally — no Deno install, no GitHub Pages. The same workbench opens in a native window (OS webview) and talks only to `127.0.0.1`.
 
@@ -15,6 +15,8 @@ Download a platform build from [Releases](https://github.com/regionstockholm/int
 | `intEHRgrator-linux-x64.AppImage` | Linux x64 |
 | `intEHRgrator-macos-x64.zip` | macOS Intel |
 | `intEHRgrator-macos-arm64.zip` | macOS Apple Silicon |
+
+On Windows, unzip and run `intEHRgrator.exe` **next to** `intEHRgrator.dll` (do not copy the exe alone). On Linux, `chmod +x` the AppImage.
 
 Rebuild from source:
 

@@ -35,7 +35,10 @@ const skip = (rel: string) =>
 for await (const entry of walk(dist, { includeDirs: false })) {
   const rel = relative(dist, entry.path).replaceAll("\\", "/");
   if (skip(rel)) continue;
-  const dest = join(www, rel);
+  // deno desktop --include treats .js as module-graph roots and evaluating the
+  // browser bundle at startup leaves the native window hidden on Windows.
+  const destRel = rel.endsWith(".js") ? `${rel}.dat` : rel;
+  const dest = join(www, destRel);
   await ensureDir(dirname(dest));
   await copy(entry.path, dest, { overwrite: true });
 }

@@ -1,0 +1,12 @@
+{
+  "nodeModulesDir": "none",
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.unstable"],
+    "strict": true
+  },
+  "imports": {
+    "@std/path": "jsr:@std/path@1",
+    "@std/fs": "jsr:@std/fs@1",
+    "ehrtslib/": "../vendor/ehrtslib/"
+  }
+}

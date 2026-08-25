@@ -26,6 +26,8 @@ for (const { target, name } of TARGETS) {
       "compile",
       "-A",
       "--no-check",
+      "--config",
+      "scripts/ehrtslib.compile.json",
       "--target",
       target,
       "--output",

@@ -26,8 +26,11 @@ Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 ### Offline ehrtslib CLI
 
 `deno task compile:ehrtslib` cross-compiles a **local-only** ehrtslib executable
-(Windows, Linux, macOS Intel, macOS ARM) to `dist/release/`. The binary parses
-`.opt` / `.oet` / `.t.json` / `.adl` from disk — no GitHub, no Deno runtime.
+(Windows, Linux, macOS Intel, macOS ARM) to `dist/release/` using
+`scripts/ehrtslib.compile.json` (ehrtslib + std only, not the workbench
+`node_modules`). The binary parses `.opt` / `.oet` / `.t.json` / `.adl` from
+disk — no GitHub, no Deno runtime. Pre-built binaries are on the GitHub
+[Releases](https://github.com/regionstockholm/intehrgrator/releases) page.
 
 ```bash
 ehrtslib info path/to/template.opt

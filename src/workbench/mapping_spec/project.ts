@@ -25,6 +25,12 @@ export interface SpecLine {
   blockId?: string;
   type: string;
   label: string;
+  /**
+   * Parent named attribute this block fills (`language`, `magnitude`, …).
+   * Taken from Blockly input names (`ATTR_`, `FLD_`, `OPT_`, `OPTFLD_`, `VALUE`).
+   * Statement-chain siblings keep the same name.
+   */
+  attribute?: string;
   /** One-line summary shown in the widget chrome. */
   summary: string;
   editable?: SpecEditableField[];
@@ -104,13 +110,19 @@ export function projectBlocklyState(state: unknown): SpecProjection {
   return toProjection(lines);
 }
 
-function walkBlock(block: BlocklyBlockJson, indent: number, lines: SpecLine[]): void {
+function walkBlock(
+  block: BlocklyBlockJson,
+  indent: number,
+  lines: SpecLine[],
+  attribute?: string,
+): void {
   const type = block.type ?? "unknown";
   const fields = block.fields ?? {};
   const kind = classify(type);
   const label = pickLabel(type, fields);
   const editable = editableFields(type, fields);
   const info = collectInfo(block);
+  if (attribute) info.attribute = attribute;
 
   lines.push({
     kind,
@@ -118,6 +130,7 @@ function walkBlock(block: BlocklyBlockJson, indent: number, lines: SpecLine[]): 
     blockId: typeof block.id === "string" ? block.id : undefined,
     type,
     label,
+    attribute,
     summary: buildSummary(kind, type, fields, label),
     editable: editable.length ? editable : undefined,
     info,
@@ -127,14 +140,25 @@ function walkBlock(block: BlocklyBlockJson, indent: number, lines: SpecLine[]): 
     for (const [inputName, input] of Object.entries(block.inputs)) {
       const child = input?.block ?? input?.shadow;
       if (!child) continue;
-      // Skip nesting wrapper noise in the summary tree — still walk children.
-      void inputName;
-      walkBlock(child, indent + 1, lines);
+      walkBlock(child, indent + 1, lines, slotAttributeFromInputName(inputName));
     }
   }
   if (block.next?.block) {
-    walkBlock(block.next.block, indent, lines);
+    walkBlock(block.next.block, indent, lines, attribute);
   }
+}
+
+/**
+ * Blockly input name → RM / DV attribute shown on the filling Spec widget.
+ * Prefix order matters: `OPTFLD_` before `OPT_`.
+ */
+export function slotAttributeFromInputName(inputName: string): string | undefined {
+  const prefixed = inputName.match(/^(?:ATTR_|OPTFLD_|OPT_|FLD_|TARGET_)(.+)$/);
+  if (prefixed?.[1]) return prefixed[1];
+  if (inputName === "VALUE" || inputName === "MAGNITUDE" || inputName === "KIND") {
+    return inputName.toLowerCase();
+  }
+  return undefined;
 }
 
 function classify(type: string): SpecLineKind {
@@ -282,7 +306,8 @@ function toProjection(lines: SpecLine[]): SpecProjection {
       const parts = [line.type];
       if (line.summary) parts.push(line.summary);
       else if (line.label && line.label !== line.type) parts.push(line.label);
-      return `${pad}${parts.join(" · ")}`;
+      const body = parts.join(" · ");
+      return line.attribute ? `${pad}${line.attribute}  ${body}` : `${pad}${body}`;
     })
     .join("\n");
   return { text, lines };

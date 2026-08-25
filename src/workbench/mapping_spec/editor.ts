@@ -209,6 +209,12 @@ const specTheme = EditorView.theme({
     color: "var(--text, #1a1a1a)",
     whiteSpace: "nowrap",
   },
+  ".spec-widget-attr": {
+    flex: "0 0 auto",
+    font: "10px ui-monospace, monospace",
+    color: "#5c5c5c",
+    lineHeight: "14px",
+  },
   ".spec-widget-badge": {
     flex: "0 0 auto",
     fontSize: "9px",

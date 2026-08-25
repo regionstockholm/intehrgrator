@@ -7,10 +7,12 @@ The canonical Mapping Specification is Blockly workspace JSON from
 The Mapping Editor **Mapping Spec** tab stores the **full Blockly workspace
 JSON** as the CodeMirror document (`JSON.stringify(blocklyState, null, 2)`).
 Visual widgets overlay each block `"type"` line and hide layout chrome such as
-`x`/`y`; an ⓘ control still reveals those details. Download/Upload round-trip
-that same JSON so a mapping can be reproduced exactly. Only safe fields are
-editable in the Spec widgets (v1: `source_query` expression and return type);
-structure changes stay in Blockly.
+`x`/`y`; an ⓘ control still reveals those details. When a block fills a named
+attribute slot (`ATTR_language`, `FLD_magnitude`, ELEMENT `value`, …), the
+widget shows that attribute name at the start of the row. Download/Upload
+round-trip that same JSON so a mapping can be reproduced exactly. Only safe
+fields are editable in the Spec widgets (v1: `source_query` expression and
+return type); structure changes stay in Blockly.
 
 The former private `@template ...` DSL has been removed. It duplicated Blockly
 structure and was not an interchange format used by other tools.

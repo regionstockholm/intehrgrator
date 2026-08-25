@@ -91,6 +91,10 @@ export function generateSkeletonFromWebTemplate(
     buildWebTemplateTermsIndex(webTemplate, language),
     { language },
   );
+  applyWebTemplateInputConstraints(
+    (webTemplate as { tree?: unknown }).tree,
+    generated.skeleton,
+  );
   return {
     ...generated,
     templateId: generated.templateId !== "unknown"
@@ -629,6 +633,70 @@ function applyRmConstrainedFields(node: SkeletonNode, parentRmType: string): voi
     parentRmType,
     node.rmAttribute,
   );
+}
+
+/**
+ * Better/EHRbase Web Template `inputs[].list` (e.g. COMPOSITION.category → 433)
+ * is dropped by `webTemplateToOpt`. Copy a single constrained code onto the
+ * matching skeleton value slot so term_pick can auto-select it.
+ */
+function applyWebTemplateInputConstraints(
+  tree: unknown,
+  roots: SkeletonNode[],
+): void {
+  const nodes = flattenSkeletonNodes(roots);
+  const walk = (node: unknown): void => {
+    if (!node || typeof node !== "object") return;
+    const rec = node as {
+      aqlPath?: string;
+      id?: string;
+      inputs?: Array<{
+        terminology?: string;
+        list?: Array<{ value?: string; label?: string }>;
+      }>;
+      children?: unknown[];
+    };
+    const codes = (rec.inputs ?? []).flatMap((input) =>
+      (input.list ?? [])
+        .map((item) => item.value)
+        .filter((value): value is string => Boolean(value))
+    );
+    const terminology = (rec.inputs ?? []).find((input) => input.terminology)
+      ?.terminology;
+    const attr = (rec.aqlPath ?? rec.id ?? "").split("/").filter(Boolean).pop();
+    if (attr && codes.length) {
+      const matches = nodes.filter((sk) =>
+        sk.rmAttribute === attr ||
+        sk.slotId.endsWith(`/${attr}`) ||
+        sk.slotId.endsWith(`/${attr}/value`)
+      );
+      for (const sk of matches) {
+        if (codes.length === 1) {
+          const code = codes[0]!;
+          if (!sk.fixedFields?.code_string) {
+            sk.fixedFields = {
+              ...sk.fixedFields,
+              ...(terminology ? { terminology_id: terminology } : {}),
+              defining_code: code,
+              code_string: code,
+            };
+          }
+        } else if (!sk.allowedValues?.length) {
+          sk.allowedValues = codes.map((code) => ({
+            code,
+            label: code,
+            terminologyId: terminology,
+          }));
+        }
+      }
+    }
+    for (const child of rec.children ?? []) walk(child);
+  };
+  walk(tree);
+}
+
+function flattenSkeletonNodes(nodes: SkeletonNode[]): SkeletonNode[] {
+  return nodes.flatMap((node) => [node, ...flattenSkeletonNodes(node.children)]);
 }
 
 function extractFixedFields(cObj: AmObject): Record<string, string> | undefined {

@@ -381,10 +381,17 @@ function buildContainerBlock(
     (child) => {
       if (child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)) return false;
 
-      // SECTION is a user-visible openEHR structure; even when its occurrence is
-      // optional in OPT, we still want it present in the initial canvas
-      // (and rely on nesting logic to attach it properly).
-      if (child.blockType === "section" || child.rmType === "SECTION") return true;
+      // Content items are user-visible openEHR structure. Optional observations
+      // (e.g. Blood pressure 0..1) must still scaffold so they can be mapped.
+      if (
+        child.blockType === "section" ||
+        child.rmType === "SECTION" ||
+        child.rmType === "OBSERVATION" ||
+        child.rmType === "EVALUATION" ||
+        child.rmType === "INSTRUCTION" ||
+        child.rmType === "ACTION" ||
+        child.rmType === "ADMIN_ENTRY"
+      ) return true;
 
       // Default visibility policy:
       // - show openEHR structures that are mandatory in the OPT walk

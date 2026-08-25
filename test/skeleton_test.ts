@@ -302,6 +302,41 @@ Deno.test("skeleton pre-fills COMPOSITION.category from the template code list",
   assertEquals(category?.fixedFields?.code_string, "431");
 });
 
+Deno.test("web template skeleton keeps COMPOSITION.category code from inputs.list", () => {
+  const wt = {
+    templateId: "category-demo",
+    defaultLanguage: "en",
+    tree: {
+      id: "composition",
+      name: "Encounter",
+      rmType: "COMPOSITION",
+      nodeId: "openEHR-EHR-COMPOSITION.encounter.v1",
+      children: [
+        {
+          id: "category",
+          name: "category",
+          rmType: "DV_CODED_TEXT",
+          aqlPath: "/category",
+          min: 1,
+          max: 1,
+          inputs: [
+            {
+              suffix: "code",
+              type: "CODED_TEXT",
+              terminology: "openehr",
+              list: [{ value: "431", label: "persistent" }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const { skeleton } = generateSkeletonFromWebTemplate(JSON.stringify(wt));
+  const category = findByAttr(skeleton, "COMPOSITION", "category");
+  assertEquals(category?.fixedFields?.defining_code, "431");
+  assertEquals(category?.fixedFields?.code_string, "431");
+});
+
 Deno.test("COMPOSITION language and territory are CODE_PHRASE values, not ELEMENT", () => {
   const { skeleton } = generateSkeleton(fixture);
   const language = findByAttr(skeleton, "COMPOSITION", "language");

@@ -1,5 +1,9 @@
 import { assertEquals, assertStringIncludes } from "@std/assert";
-import { blocklyJsonDocument, projectBlocklyState } from "@intehrgrator/workbench/mapping_spec/mod.ts";
+import {
+  blocklyJsonDocument,
+  projectBlocklyState,
+  slotAttributeFromInputName,
+} from "@intehrgrator/workbench/mapping_spec/mod.ts";
 
 Deno.test("projectBlocklyState compresses nested blocks and omits x/y from text", () => {
   const state = {
@@ -43,6 +47,7 @@ Deno.test("projectBlocklyState compresses nested blocks and omits x/y from text"
 
   const source = projection.lines.find((line) => line.kind === "source_query");
   assertEquals(source?.blockId, "sq1");
+  assertEquals(source?.attribute, "magnitude");
   assertEquals(
     source?.editable?.find((field) => field.field === "EXPRESSION")?.value,
     "$.systolic",
@@ -53,6 +58,9 @@ Deno.test("projectBlocklyState compresses nested blocks and omits x/y from text"
     projection.lines.find((line) => line.blockId === "el1")?.info.x,
     40,
   );
+  assertEquals(projection.lines.find((line) => line.blockId === "dv1")?.attribute, "value");
+  assertStringIncludes(projection.text, "value  dv_quantity");
+  assertStringIncludes(projection.text, "magnitude  source_query");
 });
 
 Deno.test("empty workspace projects a header and empty marker", () => {
@@ -78,6 +86,78 @@ Deno.test("projectBlocklyState classifies typed source_query_number as source", 
   assertEquals(source?.type, "source_query_number");
   assertEquals(source?.summary, "number · $.systolic");
   assertEquals(source?.editable?.map((f) => f.field), ["EXPRESSION"]);
+});
+
+Deno.test("projectBlocklyState labels named ATTR_/FLD_ slot fillers and statement chains", () => {
+  const projection = projectBlocklyState({
+    blocks: {
+      languageVersion: 0,
+      blocks: [{
+        type: "composition",
+        id: "c1",
+        fields: { RM_TYPE: "COMPOSITION" },
+        inputs: {
+          ATTR_language: {
+            block: {
+              type: "code_phrase",
+              id: "lang",
+              fields: { RM_TYPE: "CODE_PHRASE" },
+              inputs: {
+                FLD_code_string: {
+                  block: {
+                    type: "source_query",
+                    id: "langq",
+                    fields: { EXPRESSION: "$.lang", RETURN_TYPE: "string" },
+                  },
+                },
+              },
+            },
+          },
+          ATTR_content: {
+            block: {
+              type: "observation",
+              id: "obs1",
+              fields: { NAME: "Blood pressure", RM_TYPE: "OBSERVATION" },
+              next: {
+                block: {
+                  type: "observation",
+                  id: "obs2",
+                  fields: { NAME: "Pulse", RM_TYPE: "OBSERVATION" },
+                },
+              },
+            },
+          },
+          OPT_feeder_audit: {
+            block: {
+              type: "feeder_audit",
+              id: "fa1",
+              fields: { RM_TYPE: "FEEDER_AUDIT" },
+            },
+          },
+        },
+      }],
+    },
+  });
+  assertEquals(projection.lines.find((l) => l.blockId === "c1")?.attribute, undefined);
+  assertEquals(projection.lines.find((l) => l.blockId === "lang")?.attribute, "language");
+  assertEquals(projection.lines.find((l) => l.blockId === "langq")?.attribute, "code_string");
+  assertEquals(projection.lines.find((l) => l.blockId === "obs1")?.attribute, "content");
+  assertEquals(projection.lines.find((l) => l.blockId === "obs2")?.attribute, "content");
+  assertEquals(projection.lines.find((l) => l.blockId === "fa1")?.attribute, "feeder_audit");
+  assertStringIncludes(projection.text, "language  code_phrase");
+  assertStringIncludes(projection.text, "content  observation");
+});
+
+Deno.test("slotAttributeFromInputName strips Blockly prefixes", () => {
+  assertEquals(slotAttributeFromInputName("ATTR_language"), "language");
+  assertEquals(slotAttributeFromInputName("OPT_feeder_audit"), "feeder_audit");
+  assertEquals(slotAttributeFromInputName("FLD_magnitude"), "magnitude");
+  assertEquals(slotAttributeFromInputName("OPTFLD_precision"), "precision");
+  assertEquals(slotAttributeFromInputName("TARGET_items"), "items");
+  assertEquals(slotAttributeFromInputName("VALUE"), "value");
+  assertEquals(slotAttributeFromInputName("KIND"), "kind");
+  assertEquals(slotAttributeFromInputName("VAL0"), undefined);
+  assertEquals(slotAttributeFromInputName("DO"), undefined);
 });
 
 Deno.test("blocklyJsonDocument keeps full workspace JSON including coordinates", () => {

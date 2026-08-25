@@ -38,6 +38,7 @@ export class MappingSpecWidget extends WidgetType {
       this.line.blockId === other.line.blockId &&
       this.line.kind === other.line.kind &&
       this.line.type === other.line.type &&
+      this.line.attribute === other.line.attribute &&
       this.line.summary === other.line.summary &&
       JSON.stringify(this.line.editable) === JSON.stringify(other.line.editable) &&
       JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
@@ -64,6 +65,14 @@ export class MappingSpecWidget extends WidgetType {
       warn.setAttribute("aria-label", this.warning);
       warn.title = this.warning;
       row.appendChild(warn);
+    }
+
+    if (this.line.attribute) {
+      const attr = document.createElement("span");
+      attr.className = "spec-widget-attr";
+      attr.textContent = this.line.attribute;
+      attr.title = this.line.attribute;
+      row.appendChild(attr);
     }
 
     const badge = document.createElement("span");

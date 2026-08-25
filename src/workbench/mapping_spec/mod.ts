@@ -1,6 +1,7 @@
 export {
   blocklyJsonDocument,
   projectBlocklyState,
+  slotAttributeFromInputName,
   type BlocklyJsonDocument,
   type SpecEditableField,
   type SpecLine,

@@ -579,6 +579,35 @@ Deno.test("skeleton canvas pre-fills COMPOSITION.category from the template", ()
   workspace.dispose();
 });
 
+Deno.test("optional content observations still scaffold on the canvas", () => {
+  ensureBlocks();
+  const skeleton: SkeletonNode[] = [{
+    slotId: "t",
+    blockType: "composition",
+    rmType: "COMPOSITION",
+    label: "Encounter",
+    kind: "container",
+    mandatory: true,
+    children: [{
+      slotId: "t/content/bp",
+      blockType: "observation",
+      rmType: "OBSERVATION",
+      label: "Blood pressure",
+      rmAttribute: "content",
+      kind: "container",
+      mandatory: false,
+      children: [],
+    }],
+  }];
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const content = composition?.getInputTargetBlock(rmAttributeInputName("content"));
+  assertEquals(content?.type, "observation");
+  assertEquals(content?.getFieldValue("NAME"), "Blood pressure");
+  workspace.dispose();
+});
+
 Deno.test("applyFixedFieldsToDataValueShell fills CODE_PHRASE terminology", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();

@@ -9,7 +9,7 @@ import {
 } from "@intehrgrator/core/codegen/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
-import { generateSkeleton, collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
+import { generateSkeleton, collectValueSlots, collectAllSlotIds } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import {
@@ -17,7 +17,9 @@ import {
   loadSkeletonIntoWorkspace,
   generateTypeScriptFromWorkspace,
   generateTypeScriptFromBlocklyState,
+  applyModelExpressions,
 } from "@intehrgrator/blockly/mod.ts";
+import { importSuggestions } from "@intehrgrator/core/ai/mod.ts";
 
 Deno.test("typescript codegen contains template id", () => {
   const model = applyExpressionEdit(createEmptyModel("vitals"), "s1", 'xpathNumber("/a")', {
@@ -190,6 +192,69 @@ Deno.test("typescript codegen from Blockly canvas updates when a source query is
     });
     assertStringIncludes(viaGenerate, "$.systolic");
     assertStringIncludes(viaGenerate, "new COMPOSITION({");
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("typescript codegen updates after Import Suggestions apply to Blockly", async () => {
+  initBlocklyGenerators();
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const { templateId, skeleton } = generateSkeleton(opt);
+  const systolic = collectValueSlots(skeleton).find((slot) =>
+    slot.slotId.endsWith("items/at0004/value/value/value")
+  );
+  assert(systolic, "expected systolic value slot");
+
+  const workspace = new Blockly.Workspace();
+  try {
+    const empty = createEmptyModel(templateId);
+    empty.targetFormat = "openehr-template";
+    loadSkeletonIntoWorkspace(workspace, skeleton, empty);
+    const staleState = Blockly.serialization.workspaces.save(workspace);
+
+    const { model, report } = importSuggestions(empty, {
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: templateId },
+      suggestions: [{
+        slotId: systolic.slotId,
+        block: {
+          type: "source_query_number",
+          fields: { EXPRESSION: "$.systolic" },
+        },
+      }],
+    }, new Set(collectAllSlotIds(skeleton)), new Map([
+      [systolic.slotId, {
+        rmType: systolic.rmType,
+        returnType: "number",
+        label: systolic.label,
+        mandatory: systolic.mandatory,
+      }],
+    ]));
+    assertEquals(report.applied, 1);
+    assertEquals(model.slots[0]?.expression, 'xpathNumber("$.systolic")');
+
+    const fromStaleCanvas = generate(model, "typescript", {
+      blocklyState: staleState,
+      skeleton,
+    });
+    assertEquals(
+      fromStaleCanvas.includes("$.systolic"),
+      false,
+      "stale Blockly snapshot must not be treated as the applied mapping",
+    );
+
+    applyModelExpressions(workspace, model);
+    const after = generateTypeScriptFromWorkspace(workspace, model);
+    assert(after, "expected TypeScript after applying imported expressions to the canvas");
+    assertStringIncludes(after, "xpathNumber");
+    assertStringIncludes(after, "$.systolic");
+    assertStringIncludes(after, "DV_QUANTITY");
+    assertStringIncludes(after, "new COMPOSITION({");
+    assertEquals(after.includes("void evalExpr"), false);
   } finally {
     workspace.dispose();
   }

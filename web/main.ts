@@ -554,6 +554,11 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   if (slotSignature !== blocklySlotSignature) {
     applyModelExpressions(workspace, s.model);
     blocklySlotSignature = slotSignature;
+    // applyModelExpressions suppresses Blockly events, so the usual
+    // change-listener → syncFromBlockly → refreshDerived path never runs.
+    // Snapshot the updated canvas so Generated conversion script(s) picks
+    // up Import Suggestions / Spec edits that only changed the Mapping Model.
+    controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
   }
 
   highlightListeningSlot(workspace, s.listeningSlotId);
@@ -1398,6 +1403,8 @@ function render(): void {
       : 'Add example instance(s) to enable "Conversion Test Run(s)" in output previews pane';
   }
   syncBlocklyWorkspace(s);
+  // Blockly apply may have refreshed generatedCode without a re-render.
+  const afterCanvas = controller.getState();
   renderSkeletonList(
     skeletonSlotsEl,
     s.skeleton,
@@ -1411,14 +1418,14 @@ function render(): void {
 
   setMappingSpecFromBlockly(
     specEditor,
-    s.blocklyState ?? (workspace ? Blockly.serialization.workspaces.save(workspace) : null),
+    afterCanvas.blocklyState ?? (workspace ? Blockly.serialization.workspaces.save(workspace) : null),
   );
-  if (handlebarsEditor.state.doc.toString() !== s.handlebarsTemplate) {
+  if (handlebarsEditor.state.doc.toString() !== afterCanvas.handlebarsTemplate) {
     updatingHandlebarsEditor = true;
-    setEditorDoc(handlebarsEditor, s.handlebarsTemplate);
+    setEditorDoc(handlebarsEditor, afterCanvas.handlebarsTemplate);
     updatingHandlebarsEditor = false;
   }
-  setEditorDoc(exportEditor, s.generatedCode || "// Generated Export");
+  setEditorDoc(exportEditor, afterCanvas.generatedCode || "// Generated Export");
   setEditorDoc(
     testOutputEditor,
     s.testResult
@@ -1577,6 +1584,7 @@ function installWorkbenchTestApi(): void {
         activeExampleFilename: s.activeExample?.filename ?? null,
         model: s.model,
         testResult: s.testResult,
+        generatedCode: s.generatedCode,
         statusMessage: s.statusMessage,
         schemaError: s.schemaError,
         exampleIssueCount: s.activeExampleValidation.length,

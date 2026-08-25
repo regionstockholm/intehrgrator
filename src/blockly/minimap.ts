@@ -1,35 +1,109 @@
 import type { WorkspaceSvg } from "blockly/core";
-import { PositionedMinimap } from "@blockly/workspace-minimap";
+import * as MinimapNs from "@blockly/workspace-minimap";
+import { Blockly } from "./blockly_core.ts";
+import {
+  copyWorkspaceState,
+  setAfterBlocklyEventsEnabled,
+} from "./blockly_events.ts";
+
+// Deno/CJS interop: the plugin is a CJS bundle; esbuild sees named exports.
+// deno-lint-ignore no-explicit-any
+const minimapMod = MinimapNs as any;
+const Minimap: typeof MinimapNs.Minimap =
+  minimapMod.Minimap ?? minimapMod.default?.Minimap;
 
 /**
- * Official Blockly minimap. Hidden until workspace content overflows the
+ * Official Blockly minimap, docked to the bottom of the toolbox rail so it
+ * does not cover the canvas. Hidden until workspace content overflows the
  * visible canvas at the current zoom (see UI_ARCHITECTURE.md).
+ *
+ * The plugin only mirrors BLOCK_* events. Template scaffolding and the
+ * Defaults Map are created with events disabled, so we snapshot-copy the
+ * primary workspace after those bulk loads.
  */
+class DockedMinimap extends Minimap {
+  syncFromPrimary(): void {
+    const mini = this.minimapWorkspace;
+    if (!mini) return;
+    copyWorkspaceState(this.primaryWorkspace, mini);
+    mini.zoomToFit();
+  }
+
+  layoutInToolbox(mount: HTMLElement): void {
+    const toolboxEl = mount.querySelector(".blocklyToolboxDiv") as HTMLElement | null;
+    const toolbox = this.primaryWorkspace.getToolbox?.();
+    const width = Math.round(
+      (typeof toolbox?.getWidth === "function" ? toolbox.getWidth() : 0) ||
+        toolboxEl?.offsetWidth ||
+        0,
+    );
+    if (width > 0) {
+      const mountHeight = mount.clientHeight || 0;
+      const height = Math.round(
+        Math.min(180, Math.max(width, mountHeight > 0 ? mountHeight * 0.28 : width)),
+      );
+      mount.style.setProperty("--blockly-minimap-width", `${width}px`);
+      mount.style.setProperty("--blockly-minimap-height", `${height}px`);
+    }
+    if (this.minimapWorkspace) {
+      Blockly.svgResize(this.minimapWorkspace);
+      this.minimapWorkspace.zoomToFit();
+    }
+  }
+}
+
+type AttachedMinimap = {
+  minimap: DockedMinimap;
+  workspace: WorkspaceSvg;
+  mount: HTMLElement;
+};
+
+let attached: AttachedMinimap | null = null;
+
 export function attachWorkspaceMinimap(
   workspace: WorkspaceSvg,
   mount: HTMLElement,
 ): void {
-  const minimap = new PositionedMinimap(workspace);
+  const minimap = new DockedMinimap(workspace);
   minimap.init();
+  attached = { minimap, workspace, mount };
+  setAfterBlocklyEventsEnabled(refreshWorkspaceMinimap);
 
-  const updateVisibility = () => {
-    const metrics = workspace.getMetrics?.();
-    if (!metrics) {
-      mount.classList.add("blockly-minimap-hidden");
-      return;
-    }
-    const overflow =
-      Number(metrics.scrollWidth ?? metrics.contentWidth ?? 0) >
-        Number(metrics.viewWidth ?? 0) ||
-      Number(metrics.scrollHeight ?? metrics.contentHeight ?? 0) >
-        Number(metrics.viewHeight ?? 0);
-    mount.classList.toggle("blockly-minimap-hidden", !overflow);
-  };
-
-  workspace.addChangeListener(updateVisibility);
+  workspace.addChangeListener(() => updateVisibility(workspace, mount));
   if (typeof ResizeObserver === "function") {
-    const observer = new ResizeObserver(updateVisibility);
+    const observer = new ResizeObserver(() => {
+      minimap.layoutInToolbox(mount);
+      updateVisibility(workspace, mount);
+    });
     observer.observe(mount);
   }
-  updateVisibility();
+  minimap.syncFromPrimary();
+  minimap.layoutInToolbox(mount);
+  updateVisibility(workspace, mount);
+}
+
+/** Re-copy primary blocks into the minimap and re-dock under the toolbox. */
+export function refreshWorkspaceMinimap(): void {
+  if (!attached) return;
+  attached.minimap.syncFromPrimary();
+  attached.minimap.layoutInToolbox(attached.mount);
+  updateVisibility(attached.workspace, attached.mount);
+}
+
+function updateVisibility(workspace: WorkspaceSvg, mount: HTMLElement): void {
+  const metrics = workspace.getMetrics?.();
+  if (!metrics) {
+    mount.classList.add("blockly-minimap-hidden");
+    return;
+  }
+  const wasHidden = mount.classList.contains("blockly-minimap-hidden");
+  const overflow =
+    Number(metrics.scrollWidth ?? metrics.contentWidth ?? 0) >
+      Number(metrics.viewWidth ?? 0) ||
+    Number(metrics.scrollHeight ?? metrics.contentHeight ?? 0) >
+      Number(metrics.viewHeight ?? 0);
+  mount.classList.toggle("blockly-minimap-hidden", !overflow);
+  if (wasHidden && overflow) {
+    attached?.minimap.layoutInToolbox(mount);
+  }
 }

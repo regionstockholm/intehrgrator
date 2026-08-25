@@ -40,6 +40,7 @@ import {
   rmAttributeCardinality,
   type SlotCardinality,
 } from "./slot_cardinality.ts";
+import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -48,8 +49,7 @@ export function loadSkeletonIntoWorkspace(
   listeningSlotId: string | null = null,
   uiLanguage = "en",
 ): void {
-  Blockly.Events.disable();
-  try {
+  runWithoutBlocklyEvents(() => {
     const savedDefaults = captureDefaultsBlockState(workspace);
     workspace.clear();
     let y = 20;
@@ -72,9 +72,7 @@ export function loadSkeletonIntoWorkspace(
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);
     refreshWorkspaceConstraints(workspace);
-  } finally {
-    Blockly.Events.enable();
-  }
+  });
 }
 
 const lockedRoots = new WeakSet<Blockly.Block>();
@@ -115,8 +113,7 @@ export function applyModelExpressions(
   workspace: Blockly.Workspace,
   model: MappingModel,
 ): void {
-  Blockly.Events.disable();
-  try {
+  runWithoutBlocklyEvents(() => {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
       const slotId = block.getFieldValue("SLOT_ID");
@@ -132,9 +129,7 @@ export function applyModelExpressions(
       }
     }
     applyModelLoops(workspace, model);
-  } finally {
-    Blockly.Events.enable();
-  }
+  });
 }
 
 /** Wrap each repeating container with `for_each_source` when the model has loops. */

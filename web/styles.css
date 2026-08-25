@@ -311,9 +311,38 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   padding: 4px 8px; border-bottom: 1px solid var(--border); background: #eef4f2;
   color: var(--text-secondary); font-size: 10px; text-align: center;
 }
-.blockly-mount { min-height: 120px; height: 100%; flex: 1; background: #fff; position: relative; }
+.blockly-mount {
+  --blockly-minimap-width: 147px;
+  --blockly-minimap-height: 147px;
+  min-height: 120px;
+  height: 100%;
+  flex: 1;
+  background: #fff;
+  position: relative;
+}
+.blockly-mount > .blockly-minimap {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--blockly-minimap-width);
+  height: var(--blockly-minimap-height);
+  z-index: 40;
+  box-shadow: none;
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  background: #fff;
+  box-sizing: border-box;
+}
 .blockly-mount.blockly-minimap-hidden .blockly-minimap {
   display: none;
+}
+.blockly-mount:not(.blockly-minimap-hidden) .blocklyToolboxDiv {
+  padding-bottom: var(--blockly-minimap-height);
+  box-sizing: border-box;
+}
+.blockly-mount:not(.blockly-minimap-hidden) .blocklyToolboxContents {
+  overflow-y: auto;
+  max-height: 100%;
 }
 .slots-pane { display: flex; flex-direction: column; min-width: 160px; }
 

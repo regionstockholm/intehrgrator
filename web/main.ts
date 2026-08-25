@@ -52,6 +52,7 @@ import {
   setDefaultsMapPickHandler,
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
+import { runWithoutBlocklyEvents } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
   presentAttributeNames,
@@ -296,12 +297,9 @@ async function bootBlockly(): Promise<void> {
     Blockly.serialization.workspaces.load(loadOnce, workspace);
     lockWorkspaceRootsExpanded(workspace);
   }
-  Blockly.Events.disable();
-  try {
+  runWithoutBlocklyEvents(() => {
     ensureDefaultsBlock(workspace, blocklyLocale);
-  } finally {
-    Blockly.Events.enable();
-  }
+  });
 
   setDefaultsMapPickHandler(() => {
     void openDefaultsMapDialog();
@@ -457,12 +455,9 @@ function persistBlocklyCanvas(): void {
 function applyPendingDefaultsMap(): void {
   const pending = controller.consumePendingDefaultsMap();
   if (!pending) return;
-  Blockly.Events.disable();
-  try {
+  runWithoutBlocklyEvents(() => {
     hydrateDefaultsMapArgument(workspace, pending, blocklyLocale);
-  } finally {
-    Blockly.Events.enable();
-  }
+  });
   persistBlocklyCanvas();
 }
 
@@ -483,12 +478,9 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklySkeletonKey = "";
     blocklyLabelLanguage = "";
     blocklySlotSignature = "";
-    Blockly.Events.disable();
-    try {
+    runWithoutBlocklyEvents(() => {
       ensureDefaultsBlock(workspace, blocklyLocale);
-    } finally {
-      Blockly.Events.enable();
-    }
+    });
     applyPendingDefaultsMap();
     return;
   }
@@ -497,12 +489,9 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklySkeletonKey = "";
       blocklyLabelLanguage = "";
       blocklySlotSignature = "";
-      Blockly.Events.disable();
-      try {
+      runWithoutBlocklyEvents(() => {
         ensureDefaultsBlock(workspace, blocklyLocale);
-      } finally {
-        Blockly.Events.enable();
-      }
+      });
       applyPendingDefaultsMap();
       return;
     }
@@ -519,18 +508,16 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
 
   if (skeletonKey !== blocklySkeletonKey) {
     if (s.blocklyState && typeof s.blocklyState === "object") {
-      Blockly.Events.disable();
-      try {
+      const savedState = s.blocklyState;
+      runWithoutBlocklyEvents(() => {
         workspace.clear();
-        migrateMapsCreateWithJson(s.blocklyState);
-        Blockly.serialization.workspaces.load(s.blocklyState, workspace);
+        migrateMapsCreateWithJson(savedState);
+        Blockly.serialization.workspaces.load(savedState, workspace);
         if (!findDefaultsBlock(workspace)) ensureDefaultsBlock(workspace, blocklyLocale);
         applyModelLoops(workspace, s.model);
         refreshWorkspaceConstraints(workspace);
         relabelWorkspaceFromSkeleton(workspace, s.skeleton);
-      } finally {
-        Blockly.Events.enable();
-      }
+      });
       lockWorkspaceRootsExpanded(workspace);
       blocklySkeletonKey = skeletonKey;
       blocklyLabelLanguage = labelLanguage;
@@ -556,12 +543,9 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   }
 
   if (labelLanguage !== blocklyLabelLanguage) {
-    Blockly.Events.disable();
-    try {
+    runWithoutBlocklyEvents(() => {
       relabelWorkspaceFromSkeleton(workspace, s.skeleton);
-    } finally {
-      Blockly.Events.enable();
-    }
+    });
     blocklyLabelLanguage = labelLanguage;
     toolboxKey = "";
     syncToolbox(s);
@@ -1170,12 +1154,9 @@ document.getElementById("load-project-cancel")?.addEventListener("click", () => 
 function resetBlocklyView(): void {
   blocklySkeletonKey = "";
   blocklySlotSignature = "";
-  Blockly.Events.disable();
-  try {
+  runWithoutBlocklyEvents(() => {
     workspace.clear();
-  } finally {
-    Blockly.Events.enable();
-  }
+  });
 }
 
 async function openDefaultsMapDialog(): Promise<void> {

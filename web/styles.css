@@ -139,6 +139,14 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .pane-btn-icon svg { width: 16px; height: 16px; fill: currentColor; flex-shrink: 0; }
 .pane-btn-group { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.info-tip--anchor-host {
+  position: fixed;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  pointer-events: none;
+}
 .info-tip { position: relative; display: inline-flex; flex-shrink: 0; }
 .info-tip-btn {
   width: 16px; height: 16px; padding: 0; border-radius: 50%;
@@ -758,6 +766,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .dialog-actions-spacer { flex: 1; }
 .dialog-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin-top: 4px;

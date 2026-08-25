@@ -35,6 +35,17 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   const lookup = workspace.newBlock(MAPS_GET);
   lookup.setFieldValue("defaults", "NAME");
   assertEquals(lookup.getFieldValue("NAME"), "defaults");
+
+  const defaults = workspace.newBlock("defaults_block");
+  const headerFields = defaults.getInput("HEADER")?.fieldRow ?? [];
+  const imageAlts = headerFields
+    .filter((field) => field instanceof Blockly.FieldImage)
+    .map((field) => field.getText());
+  assertEquals(imageAlts.includes("Load/save"), true);
+  assert(
+    imageAlts.some((alt) => alt.includes("convert-time")),
+    `expected info FieldImage, got ${JSON.stringify(imageAlts)}`,
+  );
   workspace.dispose();
 });
 

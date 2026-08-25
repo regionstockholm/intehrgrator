@@ -52,6 +52,7 @@ import {
   hydrateDefaultsMapArgument,
   serializeDefaultsMapArgument,
   setDefaultsMapPickHandler,
+  setDefaultsMapInfoHandler,
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
@@ -74,7 +75,7 @@ import {
 } from "../src/blockly/i18n/locale.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
-import { installInfoTips } from "../src/ui/info_tip.ts";
+import { installInfoTips, openInfoTipAt } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import { installImportAiDialog } from "../src/ui/import_ai.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
@@ -316,6 +317,11 @@ async function bootBlockly(): Promise<void> {
 
   setDefaultsMapPickHandler(() => {
     void openDefaultsMapDialog();
+  });
+  setDefaultsMapInfoHandler((anchor) => {
+    const tip = document.getElementById("defaults-map-block-info");
+    if (!(tip instanceof HTMLElement)) return;
+    openInfoTipAt(tip, anchor ?? tip.querySelector(".info-tip-btn") ?? tip);
   });
 
   attachWorkspaceMinimap(workspace, blocklyMount);
@@ -1113,7 +1119,7 @@ async function openDefaultsMapDialog(): Promise<void> {
   if (!entries.length && defaultsMapList.childElementCount === 0) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "No saved Defaults Maps yet. Use Save as, Browse file, or a URL.";
+    empty.textContent = "No saved Defaults Maps yet. Use Save as, Download, Browse file, or a URL.";
     defaultsMapList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -1175,6 +1181,19 @@ document.getElementById("defaults-map-url-load")?.addEventListener("click", () =
       alert(err instanceof Error ? err.message : String(err));
     }
   })();
+});
+document.getElementById("defaults-map-download")?.addEventListener("click", () => {
+  try {
+    const mapBlock = serializeDefaultsMapArgument(workspace);
+    if (!mapBlock) throw new Error("No Defaults Map to download");
+    void host.downloadText(
+      "defaults.map.json",
+      JSON.stringify(mapBlock, null, 2),
+      "application/json",
+    );
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
 });
 document.getElementById("defaults-map-save-as")?.addEventListener("click", () => {
   defaultsSaveAsNameInput.value = "Defaults";

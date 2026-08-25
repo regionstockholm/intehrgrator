@@ -33,6 +33,8 @@ function ensureLayer(): HTMLElement {
 
 const balloons = new WeakMap<HTMLElement, HTMLElement>();
 const attached = new WeakSet<HTMLElement>();
+/** Optional Floating UI reference when the visual (i) is not the HTML button. */
+const extraRefs = new WeakMap<HTMLElement, Element>();
 let globalsInstalled = false;
 
 function balloonFor(tip: HTMLElement): HTMLElement | null {
@@ -51,7 +53,8 @@ function place(tip: HTMLElement): void {
   balloon.hidden = false;
   balloon.style.display = "block";
   const preferEnd = tip.classList.contains("info-tip--end");
-  anchorFloating(btn, balloon, {
+  const reference = extraRefs.get(tip) ?? btn;
+  anchorFloating(reference, balloon, {
     placement: preferEnd ? "bottom-end" : "bottom-start",
     offset: 6,
     fitSize: true,
@@ -174,4 +177,20 @@ function ensureGlobals(): void {
 export function installInfoTips(root: ParentNode = document): void {
   ensureGlobals();
   root.querySelectorAll<HTMLElement>(".info-tip").forEach((tip) => attachInfoTip(tip));
+}
+
+/**
+ * Open a tip balloon anchored to `anchor` (e.g. a Blockly FieldImage).
+ * Deferred so a bubbling `click` does not immediately close it.
+ */
+export function openInfoTipAt(tip: HTMLElement, anchor: Element): void {
+  attachInfoTip(tip);
+  extraRefs.set(tip, anchor);
+  const show = () => {
+    closeAll(tip);
+    setOpen(tip, true);
+    tip.classList.add("is-hover");
+    sync(tip);
+  };
+  globalThis.setTimeout(show, 0);
 }

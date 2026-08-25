@@ -356,10 +356,10 @@
       </div>
     </form>
   </dialog>
-  <dialog id="dialog-defaults-map" class="app-dialog">
+  <dialog id="dialog-defaults-map" class="app-dialog app-dialog--wide">
     <form method="dialog" class="dialog-form">
       <h2>Defaults Map</h2>
-      <p>Load a saved map, browse a file or URL, or save the map plugged into the Defaults block.</p>
+      <p>Load a saved map, browse a file or URL, download the current map, or save the map plugged into the Defaults block.</p>
       <div id="defaults-map-list" class="load-project-list"></div>
       <label class="dialog-label">
         URL
@@ -368,6 +368,7 @@
       <div class="dialog-actions">
         <button type="button" id="defaults-map-browse">Browse file…</button>
         <button type="button" id="defaults-map-url-load">Load URL</button>
+        <button type="button" id="defaults-map-download">Download file…</button>
         <button type="button" id="defaults-map-save-as">Save as…</button>
         <span class="dialog-actions-spacer"></span>
         <button type="button" id="defaults-map-cancel" value="cancel">Cancel</button>
@@ -426,6 +427,13 @@
       </div>
     </form>
   </dialog>
+  <span id="defaults-map-block-info" class="info-tip info-tip--anchor-host">
+    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About the Defaults Map">i</button>
+    <span id="tip-defaults-map-block" class="info-tip-balloon" role="tooltip">
+      The Defaults Map is a convert-time table of site or message values (language, territory, time, composer, facility, …). Generated Conversion Scripts take it as a <code>defaults</code> argument, so canvas lookups stay reusable instead of baking those literals into the mapping.<br>
+      The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
+    </span>
+  </span>
   <script type="module" src="./bundle.js"></script>
 </body>
 </html>

@@ -21,12 +21,34 @@ const FOLDER_SVG = "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M2 5h5l1 1.5H16v8.5H2z" fill="#fff" stroke="#5f6368"/><path d="M2 6.5h14" stroke="#5f6368"/></svg>',
   );
+const INFO_SVG = "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="#fff" stroke="#005c53"/><text x="9" y="13" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="12" fill="#005c53">i</text></svg>',
+  );
 
 let defaultsMapPickHandler: (() => void) | null = null;
+let defaultsMapInfoHandler: ((anchor: Element | null) => void) | null = null;
+
+type ClickableField = {
+  getClickTarget_?: () => Element | null;
+  getSvgRoot?: () => SVGElement | null;
+  fieldGroup_?: Element | null;
+};
+
+function fieldClickAnchor(field: ClickableField): Element | null {
+  return field.getClickTarget_?.() ?? field.getSvgRoot?.() ?? field.fieldGroup_ ?? null;
+}
 
 /** Workbench registers the Defaults Map catalog / file picker. */
 export function setDefaultsMapPickHandler(handler: (() => void) | null): void {
   defaultsMapPickHandler = handler;
+}
+
+/** Workbench registers the Defaults Map (i) balloon. */
+export function setDefaultsMapInfoHandler(
+  handler: ((anchor: Element | null) => void) | null,
+): void {
+  defaultsMapInfoHandler = handler;
 }
 
 type MapCreateBlock = Blockly.Block & {
@@ -212,13 +234,24 @@ export function registerMapBlocks(): void {
 
   Blockly.Blocks[DEFAULTS_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
+      let infoField: Blockly.FieldImage;
+      infoField = new Blockly.FieldImage(
+        INFO_SVG,
+        18,
+        18,
+        "Defaults Map: convert-time language, territory, facility, and similar values. Folder: load, save, or download the map as JSON.",
+        () => {
+          defaultsMapInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
+        },
+      );
       this.appendDummyInput("HEADER")
         .appendField("Defaults Map")
         .appendField(
           new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
             defaultsMapPickHandler?.();
           }),
-        );
+        )
+        .appendField(infoField);
       this.appendValueInput("MAP")
         .setCheck("Map")
         .appendField("map");

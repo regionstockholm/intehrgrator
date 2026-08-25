@@ -6,6 +6,7 @@ import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, 
 import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
+import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
@@ -63,6 +64,11 @@ export {
 } from "./defaults_canvas.ts";
 export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler } from "./blocks/map_blocks.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
+export {
+  generateTypeScriptFromBlocklyState,
+  generateTypeScriptFromWorkspace,
+  registerTypeScriptExportAdapter,
+} from "./typescript_codegen.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -70,6 +76,7 @@ export function initBlocklyGenerators(): void {
   registerExpressionBlocks();
   registerMapBlocks();
   registerGenerators();
+  registerTypeScriptExportAdapter();
 }
 
 function registerGenerators(): void {
@@ -133,16 +140,16 @@ function registerGenerators(): void {
   };
 
   javascriptGenerator.forBlock["maps_get"] = (block) => {
-    const name = JSON.stringify(block.getFieldValue("NAME") || "defaults");
+    const name = String(block.getFieldValue("NAME") || "defaults");
     const key = javascriptGenerator.valueToCode(block, "KEY", Order.NONE) || '""';
-    return [
-      `(${name} === "defaults" ? defaults : {})[${key}]`,
-      Order.MEMBER,
-    ] as [string, number];
+    const code = name === "defaults"
+      ? `defaults[${key}]`
+      : `((${JSON.stringify(name)} === "defaults" ? defaults : {})[${key}])`;
+    return [code, Order.MEMBER];
   };
 
   javascriptGenerator.forBlock["composition"] = (block) => {
-    const parts = [`_type: "COMPOSITION"`];
+    const parts: string[] = [];
     for (const input of block.inputList) {
       if (!input.name.startsWith("ATTR_")) continue;
       const attr = input.name.slice("ATTR_".length);
@@ -155,7 +162,7 @@ function registerGenerators(): void {
       if (attr === "content") parts.push(`content: [\n${generated.stmt}]`);
       else parts.push(`${attr}: ${stripTrailingComma(generated.stmt)}`);
     }
-    return `const composition = new openehr_rm.COMPOSITION({ ${parts.join(", ")} });\n`;
+    return `const composition = new COMPOSITION({ ${parts.join(", ")} });\n`;
   };
   javascriptGenerator.forBlock["section"] = rmObjectStatement("SECTION", ["items"]);
   javascriptGenerator.forBlock["observation"] = rmObjectStatement("OBSERVATION", [
@@ -292,7 +299,7 @@ function firstSlotIdInStack(block: Blockly.Block | null): string | null {
 
 function rmObjectStatement(rmType: string, attrs: string[]) {
   return (block: Blockly.Block) => {
-    const parts = [`_type: ${JSON.stringify(rmType)}`];
+    const parts: string[] = [];
     const seen = new Set<string>();
     const names = [
       ...attrs,
@@ -314,7 +321,7 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
       const asList = ["content", "items", "events", "activities"].includes(attr);
       parts.push(asList ? `${attr}: [\n${stmt}]` : `${attr}: ${stripTrailingComma(stmt)}`);
     }
-    return `{ ${parts.join(", ")} },\n`;
+    return `rm(${rmType}, { ${parts.join(", ")} }),\n`;
   };
 }
 

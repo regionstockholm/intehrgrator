@@ -95,6 +95,51 @@ Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", asy
   assertStringIncludes(JSON.stringify(composition), "120");
 });
 
+Deno.test("Import Suggestions maps systolic and regenerates TypeScript", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const example = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.addExampleContent("bp_example.json", example);
+
+  const slotId = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.slotId.endsWith("items/at0004/value/value/value")
+  )?.slotId;
+  assert(slotId);
+  const templateId = controller.getState().templateId;
+
+  const report = controller.importAiSuggestions(JSON.stringify({
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "openehr-template", targetId: templateId },
+    suggestions: [{
+      slotId,
+      block: {
+        type: "source_query_number",
+        fields: { EXPRESSION: "$.systolic" },
+      },
+    }],
+  }));
+  assertEquals(report.applied, 1, report.errors.join("; "));
+
+  const after = controller.getState();
+  const mapped = after.model.slots.find((s) => s.slotId === slotId);
+  assert(mapped?.expression.includes("xpathNumber"), mapped?.expression);
+  assertStringIncludes(after.generatedCode, "xpathNumber");
+  assertStringIncludes(after.generatedCode, "$.systolic");
+  assertStringIncludes(after.generatedCode, "new COMPOSITION({");
+  assertEquals(after.generatedCode.includes("void evalExpr"), false);
+
+  controller.runTestNow();
+  const composition = controller.getState().testResult?.output as { _type?: string };
+  assertEquals(composition?._type, "COMPOSITION");
+  assertStringIncludes(JSON.stringify(composition), "120");
+});
+
 Deno.test("controller loads JSON Schema target and renders mapped object", () => {
   const controller = new WorkbenchController(stubHost());
   controller.loadTargetContent(

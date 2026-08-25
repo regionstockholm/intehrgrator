@@ -1,5 +1,6 @@
-import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertFalse, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
+import { collectTemplateJsonExternalRefsFromText } from "ehrtslib/parser/mod.ts";
 import {
   DEFAULT_GITHUB_TEMPLATE_URL,
   isGitHubClinicalModelUrl,
@@ -8,7 +9,8 @@ import {
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
 import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
-import { mockGithubFetch } from "./github_mock.ts";
+import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
+import { mockGithubFetch, readVendoredClinicalModelFiles } from "./github_mock.ts";
 
 function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
@@ -75,6 +77,59 @@ Deno.test("controller openTemplateFromUrl uses GitHub clinical-model closure for
   assert(state.templateId.includes("blood_pressure"));
   assert(state.skeleton.length > 0);
   assertStringIncludes(state.statusMessage, "GitHub template");
+});
+
+const SIMPLE_DIAGNOSE_TJSON =
+  "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.t.json";
+
+function walkSkeleton(nodes: SkeletonNode[]): SkeletonNode[] {
+  return nodes.flatMap((node) => [node, ...walkSkeleton(node.children)]);
+}
+
+Deno.test("differential .t.json lists overlay parent archetypes as external refs", async () => {
+  const tjson = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "..",
+      "vendor",
+      "openEHR-model-examples",
+      "local",
+      "theme-packs",
+      "simple-diagnose-and-vitals",
+      "simple-diagnose-and-vitals.t.json",
+    ),
+  );
+  const refs = collectTemplateJsonExternalRefsFromText(tjson);
+  assert(
+    refs.includes("openEHR-EHR-EVALUATION.problem_diagnosis.v1"),
+    `missing overlay parent: ${refs.join(", ")}`,
+  );
+  assert(
+    refs.includes("openEHR-EHR-OBSERVATION.blood_pressure.v2"),
+    `missing nested overlay parent: ${refs.join(", ")}`,
+  );
+  assertFalse(refs.some((ref) => /ovl-/i.test(ref)), `must not fetch overlay ids: ${refs}`);
+});
+
+Deno.test("GitHub differential .t.json skeleton uses overlay parent ontology names", async () => {
+  const files = await readVendoredClinicalModelFiles();
+  const loaded = await loadGitHubClinicalModel(SIMPLE_DIAGNOSE_TJSON, {
+    fetch: mockGithubFetch(files),
+  });
+  assert(
+    loaded.fileset.files.some((file) =>
+      file.path.endsWith("openEHR-EHR-EVALUATION.problem_diagnosis.v1.adl")
+    ),
+    "closure should fetch the problem_diagnosis overlay parent ADL",
+  );
+  assertFalse(
+    loaded.warnings.some((warning) => warning.includes("problem_diagnosis")),
+    `overlay parent should resolve: ${loaded.warnings.join("; ")}`,
+  );
+  const evaluation = walkSkeleton(loaded.skeleton).find((node) => node.rmType === "EVALUATION");
+  assert(evaluation, "expected an EVALUATION node in the skeleton");
+  assertEquals(evaluation.label, "Problem/Diagnosis");
+  assertFalse(/^at\d/i.test(evaluation.label), `EVALUATION label fell back to at-code: ${evaluation.label}`);
 });
 
 Deno.test("controller loadSchemaFromUrl uses GitHub clinical-model closure for schema", async () => {

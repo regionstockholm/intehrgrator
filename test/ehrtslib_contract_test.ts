@@ -5,7 +5,10 @@
  */
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
-import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
+import {
+  collectTemplateJsonExternalRefsFromText,
+  parseTemplateInput,
+} from "ehrtslib/parser/mod.ts";
 import {
   attributesFor,
   hasRmType,
@@ -44,6 +47,7 @@ const bpOpt = await Deno.readTextFile(
 Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof webTemplateToOpt, "function");
   assertEquals(typeof parseTemplateInput, "function");
+  assertEquals(typeof collectTemplateJsonExternalRefsFromText, "function");
   assertEquals(typeof attributesFor, "function");
   assertEquals(typeof hasRmType, "function");
   assertEquals(typeof isAbstractType, "function");

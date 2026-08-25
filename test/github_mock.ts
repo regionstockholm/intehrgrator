@@ -1,3 +1,7 @@
+import { join } from "@std/path";
+
+const CLINICAL_MODEL_FILE = /\.(adl|adls|opt|oet|t\.json)$/i;
+
 /** Mock GitHub API + raw.githubusercontent.com for a single-branch repository tree. */
 export function mockGithubFetch(files: Record<string, string>): typeof fetch {
   return async (input) => {
@@ -26,4 +30,26 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+/** Load vendored Ehrlibs clinical-model files keyed by repo-relative path. */
+export async function readVendoredClinicalModelFiles(
+  root = join(import.meta.dirname!, "..", "vendor", "openEHR-model-examples"),
+): Promise<Record<string, string>> {
+  const files: Record<string, string> = {};
+  async function walk(dir: string, rel: string): Promise<void> {
+    for await (const entry of Deno.readDir(dir)) {
+      if (entry.name.startsWith(".")) continue;
+      const nextRel = rel ? `${rel}/${entry.name}` : entry.name;
+      const nextAbs = join(dir, entry.name);
+      if (entry.isDirectory) {
+        await walk(nextAbs, nextRel);
+        continue;
+      }
+      if (!CLINICAL_MODEL_FILE.test(entry.name)) continue;
+      files[nextRel] = await Deno.readTextFile(nextAbs);
+    }
+  }
+  await walk(root, "");
+  return files;
 }

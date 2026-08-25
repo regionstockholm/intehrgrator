@@ -2,6 +2,7 @@ import fontoxpath from "fontoxpath";
 import type { SourceFormatId } from "../../types/mod.ts";
 import type { ExprAst } from "../expression/mod.ts";
 import { parseExpression } from "../expression/mod.ts";
+import { renderHandlebars } from "../output/handlebars_dialect.ts";
 
 export interface SourceContext {
   format: SourceFormatId;
@@ -71,6 +72,17 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           return xpathEval(String(args[0] ?? ""), ctx, "number");
         case "xpathBoolean":
           return xpathEval(String(args[0] ?? ""), ctx, "boolean");
+        case "xpathNode":
+          return evalSourceNode(String(args[0] ?? ""), ctx);
+        case "handlebars":
+          return renderHandlebars(String(args[0] ?? ""), args[1] ?? {});
+        case "map": {
+          const record: Record<string, unknown> = {};
+          for (let i = 0; i + 1 < args.length; i += 2) {
+            record[String(args[i] ?? "")] = args[i + 1];
+          }
+          return record;
+        }
         case "var":
           return ctx.vars?.[String(args[0])] ?? null;
         case "maps_get": {
@@ -225,6 +237,7 @@ function parseJsonAuthoringPath(expr: string): Array<string | number> {
 }
 
 function coerceReturn(value: unknown, returnType: string): unknown {
+  if (returnType === "node" || returnType === "source") return value;
   if (Array.isArray(value)) return value.map((item) => coerceReturn(item, returnType));
   if (value === null || value === undefined) return value;
   switch (returnType) {
@@ -235,4 +248,64 @@ function coerceReturn(value: unknown, returnType: string): unknown {
     default:
       return String(value);
   }
+}
+
+/** First node / subtree at a fontoxpath-authored path, as a Handlebars-friendly value. */
+export function evalSourceNode(expr: string, ctx: SourceContext): unknown {
+  const trimmed = expr.trim();
+  if (ctx.kind === "json") {
+    if (!trimmed || trimmed === "$" || trimmed === "." || trimmed === "/") {
+      return ctx.json;
+    }
+    const nodes = collectJsonNodes(trimmed, ctx.json);
+    return nodes.length <= 1 ? (nodes[0] ?? null) : nodes;
+  }
+  const documentNode = ctx.xmlDocument;
+  if (!documentNode) return null;
+  const path = !trimmed || trimmed === "$" || trimmed === "." ? "/" : trimmed;
+  const node = fontoxpath.evaluateXPathToFirstNode(path, documentNode);
+  return xmlNodeToJson(node as Node | null);
+}
+
+function xmlNodeToJson(node: Node | null): unknown {
+  if (!node) return null;
+  if (node.nodeType === Node.DOCUMENT_NODE) {
+    return xmlNodeToJson((node as Document).documentElement);
+  }
+  if (node.nodeType === Node.TEXT_NODE || node.nodeType === Node.CDATA_SECTION_NODE) {
+    const text = node.textContent?.trim();
+    return text || undefined;
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return undefined;
+  const el = node as Element;
+  const obj: Record<string, unknown> = {};
+  for (const attr of Array.from(el.attributes)) {
+    obj[`@${attr.name}`] = attr.value;
+  }
+  const childElements = Array.from(el.childNodes).filter(
+    (child) => child.nodeType === Node.ELEMENT_NODE,
+  ) as Element[];
+  const text = Array.from(el.childNodes)
+    .filter((child) =>
+      child.nodeType === Node.TEXT_NODE || child.nodeType === Node.CDATA_SECTION_NODE
+    )
+    .map((child) => child.textContent ?? "")
+    .join("")
+    .trim();
+  if (!childElements.length) {
+    if (!Object.keys(obj).length) return text;
+    if (text) obj["#text"] = text;
+    return obj;
+  }
+  const grouped = new Map<string, unknown[]>();
+  for (const child of childElements) {
+    const list = grouped.get(child.tagName) ?? [];
+    list.push(xmlNodeToJson(child));
+    grouped.set(child.tagName, list);
+  }
+  for (const [name, list] of grouped) {
+    obj[name] = list.length === 1 ? list[0] : list;
+  }
+  if (text) obj["#text"] = text;
+  return obj;
 }

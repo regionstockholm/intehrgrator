@@ -52,8 +52,13 @@ const VALUE_BLOCK_TYPES = new Set([
   "source_query",
   "source_query_number",
   "source_query_boolean",
+  "source_query_node",
   "variables_get",
   "text",
+  "text_code",
+  "text_handlebars",
+  "maps_create_with",
+  "maps_create_empty",
   "math_number",
   "logic_boolean",
   "text_trim",
@@ -441,7 +446,7 @@ export function explainSuggestionSchemaIssue(
   }
   if (keyword === "enum" || /does not match any of/i.test(raw)) {
     if (/\.type$/.test(path)) {
-      return `${path}: invalid block type. Use source_query, source_query_number, or source_query_boolean (not source_query_string). Loops use for_each_source only in loops[].`;
+      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, or text_handlebars (not source_query_string). Loops use for_each_source only in loops[].`;
     }
   }
   if (keyword === "const") {
@@ -816,13 +821,16 @@ function blockJsonToExpression(
   switch (block.type) {
     case "source_query":
     case "source_query_number":
-    case "source_query_boolean": {
+    case "source_query_boolean":
+    case "source_query_node": {
       let xpath = String(fields.EXPRESSION ?? "");
       if (rewriteSourcePath) xpath = rewriteSourcePath(xpath);
       const fn = block.type === "source_query_number"
         ? "xpathNumber"
         : block.type === "source_query_boolean"
         ? "xpathBoolean"
+        : block.type === "source_query_node"
+        ? "xpathNode"
         : "xpathString";
       return `${fn}(${JSON.stringify(xpath)})`;
     }
@@ -831,7 +839,31 @@ function blockJsonToExpression(
       return `var(${JSON.stringify(name)})`;
     }
     case "text":
-      return JSON.stringify(String(fields.TEXT ?? ""));
+    case "text_code":
+      return JSON.stringify(textFieldValue(fields));
+    case "text_handlebars": {
+      const script = child("SCRIPT")
+        ? blockJsonToExpression(child("SCRIPT")!, rewriteSourcePath)
+        : '""';
+      const context = child("CONTEXT")
+        ? blockJsonToExpression(child("CONTEXT")!, rewriteSourcePath)
+        : "map()";
+      return `handlebars(${script ?? '""'}, ${context ?? "map()"})`;
+    }
+    case "maps_create_empty":
+      return "map()";
+    case "maps_create_with": {
+      const itemCount = Number(
+        (block.extraState as { itemCount?: number } | undefined)?.itemCount ?? 0,
+      );
+      const parts: string[] = [];
+      for (let i = 0; i < itemCount; i++) {
+        parts.push(JSON.stringify(String(fields[`KEY${i}`] ?? "")));
+        const val = child(`VAL${i}`);
+        parts.push(val ? blockJsonToExpression(val, rewriteSourcePath) ?? "null" : "null");
+      }
+      return `map(${parts.join(", ")})`;
+    }
     case "math_number":
       return String(fields.NUM ?? 0);
     case "logic_boolean":
@@ -884,4 +916,13 @@ function blockJsonToExpression(
     default:
       return null;
   }
+}
+
+function textFieldValue(fields: Record<string, unknown>): string {
+  const text = fields.TEXT;
+  if (typeof text === "string") return text;
+  if (text && typeof text === "object" && typeof (text as { text?: unknown }).text === "string") {
+    return (text as { text: string }).text;
+  }
+  return "";
 }

@@ -180,7 +180,7 @@ export class MappingSpecWidget extends WidgetType {
 
 function sourceReturnTypeFromSummary(summary: string): SourceReturnType {
   const raw = summary.split(" · ")[0] ?? "string";
-  if (raw === "number" || raw === "boolean") return raw;
+  if (raw === "number" || raw === "boolean" || raw === "node") return raw;
   return "string";
 }
 

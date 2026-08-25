@@ -17,6 +17,7 @@
     "@codemirror/lang-javascript": "npm:@codemirror/lang-javascript@^6.2.4",
     "@codemirror/lang-json": "npm:@codemirror/lang-json@^6.0.2",
     "@codemirror/lang-xml": "npm:@codemirror/lang-xml@^6.1.0",
+    "@codemirror/lang-html": "npm:@codemirror/lang-html@^6.4.9",
     "@codemirror/language": "npm:@codemirror/language@^6.11.3",
     "@codemirror/state": "npm:@codemirror/state@^6.5.2",
     "@codemirror/view": "npm:@codemirror/view@^6.38.0",

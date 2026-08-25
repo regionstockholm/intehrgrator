@@ -167,6 +167,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
           { kind: "block", type: "source_query", gap: 8 },
           { kind: "block", type: "source_query_number", gap: 8 },
           { kind: "block", type: "source_query_boolean", gap: 8 },
+          { kind: "block", type: "source_query_node", gap: 8 },
         ],
       },
       {
@@ -293,6 +294,23 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryText" },
         contents: [
           { kind: "block", type: "text" },
+          {
+            kind: "block",
+            type: "text_code",
+            fields: { LANG: "handlebars", TEXT: "" },
+          },
+          {
+            kind: "block",
+            type: "text_handlebars",
+            inputs: {
+              SCRIPT: {
+                shadow: {
+                  type: "text_code",
+                  fields: { LANG: "handlebars", TEXT: "{{name}}" },
+                },
+              },
+            },
+          },
           { kind: "block", type: "text_join", extraState: { itemCount: 2 } },
           {
             kind: "block",

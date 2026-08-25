@@ -17,13 +17,15 @@ export function blockToExpression(block: Block | null): string | null {
   switch (block.type) {
     case "source_query":
     case "source_query_number":
-    case "source_query_boolean": {
+    case "source_query_boolean":
+    case "source_query_node": {
       const expr = block.getFieldValue("EXPRESSION");
       const fn = xpathEvaluatorForReturnType(returnTypeFromSourceBlock(block));
       return `${fn}(${JSON.stringify(expr)})`;
     }
     // Stock Blockly literals / ops
     case "text":
+    case "text_code":
       return JSON.stringify(block.getFieldValue("TEXT") ?? "");
     case "math_number":
       return String(block.getFieldValue("NUM") ?? 0);
@@ -68,6 +70,22 @@ export function blockToExpression(block: Block | null): string | null {
       const name = String(block.getFieldValue("NAME") || "defaults");
       const key = blockToExpression(block.getInputTargetBlock("KEY")) ?? '""';
       return `maps_get(${JSON.stringify(name)}, ${key})`;
+    }
+    case "maps_create_empty":
+      return "map()";
+    case "maps_create_with": {
+      const count = Number((block as Block & { itemCount_?: number }).itemCount_ ?? 0);
+      const parts: string[] = [];
+      for (let i = 0; i < count; i++) {
+        parts.push(JSON.stringify(block.getFieldValue(`KEY${i}`) ?? ""));
+        parts.push(blockToExpression(block.getInputTargetBlock(`VAL${i}`)) ?? "null");
+      }
+      return `map(${parts.join(", ")})`;
+    }
+    case "text_handlebars": {
+      const script = blockToExpression(block.getInputTargetBlock("SCRIPT")) ?? '""';
+      const context = blockToExpression(block.getInputTargetBlock("CONTEXT")) ?? "map()";
+      return `handlebars(${script}, ${context})`;
     }
     // Legacy custom block types (read-only for older workspaces)
     case "text_literal":
@@ -151,6 +169,8 @@ export function astToExpressionBlock(
         ? "number"
         : ast.name === "xpathBoolean"
         ? "boolean"
+        : ast.name === "xpathNode"
+        ? "node"
         : "string";
       return finalize(createSourceQueryBlock(workspace, xpath, ret));
     }

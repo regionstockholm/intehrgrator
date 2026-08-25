@@ -10,16 +10,18 @@ export const SOURCE_QUERY_BLOCK_TYPES = [
   "source_query",
   "source_query_number",
   "source_query_boolean",
+  "source_query_node",
 ] as const;
 
 export type SourceQueryBlockType = typeof SOURCE_QUERY_BLOCK_TYPES[number];
-export type SourceReturnType = "string" | "number" | "boolean";
+export type SourceReturnType = "string" | "number" | "boolean" | "node";
 
 /** Compact type marks used on source blocks and the Mapping Spec projection. */
 export const SOURCE_TYPE_EMOJI: Record<SourceReturnType, string> = {
   string: "🔤",
   number: "🔢",
   boolean: "☑️",
+  node: "📂",
 };
 
 export function sourceQueryFieldLabel(
@@ -36,12 +38,14 @@ export function isSourceQueryBlockType(type: string): type is SourceQueryBlockTy
 export function sourceBlockTypeForReturnType(returnType: string): SourceQueryBlockType {
   if (returnType === "number") return "source_query_number";
   if (returnType === "boolean") return "source_query_boolean";
+  if (returnType === "node" || returnType === "source") return "source_query_node";
   return "source_query";
 }
 
 export function returnTypeFromSourceBlockType(blockType: string): SourceReturnType {
   if (blockType === "source_query_number") return "number";
   if (blockType === "source_query_boolean") return "boolean";
+  if (blockType === "source_query_node") return "node";
   return "string";
 }
 
@@ -58,8 +62,9 @@ export function sourceReturnTypeFromSchemaType(
 export function returnTypeFromSourceBlock(block: Block): SourceReturnType {
   if (block.type === "source_query_number") return "number";
   if (block.type === "source_query_boolean") return "boolean";
+  if (block.type === "source_query_node") return "node";
   const ret = block.getFieldValue("RETURN_TYPE");
-  if (ret === "number" || ret === "boolean") return ret;
+  if (ret === "number" || ret === "boolean" || ret === "node") return ret;
   return "string";
 }
 
@@ -132,12 +137,14 @@ export function workspacePositionFromClient(
 export function xpathEvaluatorForReturnType(returnType: string): string {
   if (returnType === "number") return "xpathNumber";
   if (returnType === "boolean") return "xpathBoolean";
+  if (returnType === "node" || returnType === "source") return "xpathNode";
   return "xpathString";
 }
 
 export function fontoxpathFnForReturnType(returnType: string): string {
   if (returnType === "number") return "evaluateXPathToNumber";
   if (returnType === "boolean") return "evaluateXPathToBoolean";
+  if (returnType === "node" || returnType === "source") return "evaluateXPathToFirstNode";
   return "evaluateXPathToString";
 }
 

@@ -159,7 +159,7 @@ const specEditor = createMappingSpecEditor(mappingJsonHost, {
 let updatingHandlebarsEditor = false;
 const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
   if (!updatingHandlebarsEditor) controller.setHandlebarsTemplate(text);
-});
+}, "handlebars");
 let activeTextView: "mapping-json" | "handlebars" = "mapping-json";
 type HandlebarsInsertMode = "flat" | "tree";
 const handlebarsInsertToolbar = document.getElementById("handlebars-insert-toolbar");

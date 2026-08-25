@@ -30,9 +30,11 @@
 - [x] There are two similarly looking blocks for SECTION, compare, then remove one.
 - [ ] improve sorting of blocks in blockly toolbox (put common ones earlier, possibly subdivide/group, fix colour/pattern semantics)
 - [ ] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF)
+- [ ] The ITEM_STRUCTRURE class is abstract but common in slots, follow the design of the EVENT blockly block that can be morphed to PONT_EVNT and INTERVAL_EVENT without dropping already connected sub blocks. HAeving the flexivility is important e.g. in not neccesarily archetyped FEEDER_AUDIT_DETAILS
+
 
 ## Add support for Handlebars conversions
-- [ ] add blockly support for handlebars snippets inside new kind of text block based on variables/context/xpath etc
+- [x] add blockly support for handlebars snippets inside new kind of text block based on variables/context/xpath etc
 - [x] Conversion script language `handlebars` + Kintegrate helpers (`eq`/`ne`/…/`toUpperCase`)
 - [x] Handlebars Template tab; click-to-map inserts Kintegrate paths
 - [x] Target instance formats beyond openEHR: JSON Schema, XML Schema, free-form

@@ -6,6 +6,7 @@ import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, 
 import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
+import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
@@ -89,6 +90,7 @@ export function initBlocklyGenerators(): void {
   registerTargetBlocks();
   registerExpressionBlocks();
   registerMapBlocks();
+  registerTextBlocks();
   registerGenerators();
   registerTypeScriptExportAdapter();
 }
@@ -160,6 +162,29 @@ function registerGenerators(): void {
       ? `defaults[${key}]`
       : `((${JSON.stringify(name)} === "defaults" ? defaults : {})[${key}])`;
     return [code, Order.MEMBER];
+  };
+
+  javascriptGenerator.forBlock["maps_create_empty"] = () =>
+    ["({})", Order.ATOMIC] as [string, number];
+
+  javascriptGenerator.forBlock["maps_create_with"] = (block) => {
+    const count = Number((block as Blockly.Block & { itemCount_?: number }).itemCount_ ?? 0);
+    const parts: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const key = JSON.stringify(block.getFieldValue(`KEY${i}`) ?? "");
+      const val = javascriptGenerator.valueToCode(block, `VAL${i}`, Order.NONE) || "null";
+      parts.push(`${key}: ${val}`);
+    }
+    return [`({ ${parts.join(", ")} })`, Order.ATOMIC] as [string, number];
+  };
+
+  javascriptGenerator.forBlock["text_code"] = (block) =>
+    [JSON.stringify(block.getFieldValue("TEXT") ?? ""), Order.ATOMIC] as [string, number];
+
+  javascriptGenerator.forBlock["text_handlebars"] = (block) => {
+    const script = javascriptGenerator.valueToCode(block, "SCRIPT", Order.NONE) || '""';
+    const context = javascriptGenerator.valueToCode(block, "CONTEXT", Order.NONE) || "{}";
+    return [`renderHandlebars(${script}, ${context})`, Order.FUNCTION_CALL] as [string, number];
   };
 
   javascriptGenerator.forBlock["composition"] = (block) => {

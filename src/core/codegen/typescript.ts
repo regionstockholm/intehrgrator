@@ -40,7 +40,7 @@ export interface TsEmitContext {
   /** When set, relative source paths evaluate against this loop node. */
   loopVar?: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm">;
+  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars">;
 }
 
 export function createTsEmitContext(sourceVar = "sourceCtx.data"): TsEmitContext {
@@ -75,8 +75,18 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
         case "xpathBoolean":
           ctx.helpers.add("boolean");
           return emitXpathCall("xpathBoolean", ast.args[0], args[0] ?? '""', ctx);
+        case "xpathNode":
+          ctx.helpers.add("node");
+          return emitXpathCall("xpathNode", ast.args[0], args[0] ?? '""', ctx);
+        case "handlebars":
+          ctx.helpers.add("handlebars");
+          return `handlebars(${args[0] ?? '""'}, ${args[1] ?? "{}"})`;
+        case "map":
+          return emitMapLiteral(ast, args);
         case "xpath":
         case "xpathString":
+          ctx.helpers.add("string");
+          return emitXpathCall("xpathString", ast.args[0], args[0] ?? '""', ctx);
         default:
           ctx.helpers.add("string");
           return emitXpathCall("xpathString", ast.args[0], args[0] ?? '""', ctx);
@@ -92,6 +102,21 @@ function emitMapsGet(ast: Extract<ExprAst, { kind: "call" }>, args: string[]): s
     return `defaults[${key}]`;
   }
   return `((${args[0]} === "defaults" ? defaults : {})[${key}])`;
+}
+
+function emitMapLiteral(
+  ast: Extract<ExprAst, { kind: "call" }>,
+  args: string[],
+): string {
+  const parts: string[] = [];
+  for (let i = 0; i + 1 < args.length; i += 2) {
+    const keyAst = ast.args[i];
+    const key = keyAst?.kind === "literal" && typeof keyAst.value === "string"
+      ? JSON.stringify(keyAst.value)
+      : `[${args[i]}]`;
+    parts.push(`${key}: ${args[i + 1]}`);
+  }
+  return `({ ${parts.join(", ")} })`;
 }
 
 function emitXpathCall(
@@ -142,7 +167,7 @@ export interface TypeScriptModuleParts {
   templateId: string;
   body: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm">;
+  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars">;
   rootType?: string;
   /** Where the RM tree was walked from. */
   source?: "blockly" | "skeleton" | "slots";
@@ -151,13 +176,14 @@ export interface TypeScriptModuleParts {
 export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
   const types = [...parts.types].sort();
   const usesXpath = [...parts.helpers].some((h) =>
-    h === "string" || h === "number" || h === "boolean" || h === "nodes"
+    h === "string" || h === "number" || h === "boolean" || h === "nodes" || h === "node"
   );
   const fonto: string[] = [];
   if (parts.helpers.has("string")) fonto.push("evaluateXPathToString");
   if (parts.helpers.has("number")) fonto.push("evaluateXPathToNumber");
   if (parts.helpers.has("boolean")) fonto.push("evaluateXPathToBoolean");
   if (parts.helpers.has("nodes")) fonto.push("evaluateXPathToNodes");
+  if (parts.helpers.has("node")) fonto.push("evaluateXPathToFirstNode");
 
   const root = parts.rootType ?? (types.includes("COMPOSITION") ? "COMPOSITION" : "unknown");
   const lines: string[] = [
@@ -183,6 +209,10 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
     for (const fn of fonto) lines.push(`  ${fn},`);
     lines.push(`} from "fontoxpath";`);
   }
+  if (parts.helpers.has("handlebars")) {
+    if (types.length || fonto.length) lines.push("");
+    lines.push('import Handlebars from "handlebars";');
+  }
   lines.push(
     "",
     "export type SourceContext = { format: string; data: unknown };",
@@ -198,6 +228,10 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
   }
   if (parts.helpers.has("rm")) {
     lines.push(...indentLines(rmHelper(), 1));
+    lines.push("");
+  }
+  if (parts.helpers.has("handlebars")) {
+    lines.push(...indentLines(handlebarsHelper(), 1));
     lines.push("");
   }
   for (const line of parts.body.split("\n")) {
@@ -275,8 +309,34 @@ function xpathHelpers(helpers: Set<string>): string[] {
       "",
     );
   }
+  if (helpers.has("node")) {
+    lines.push(
+      "function xpathNode(path: string, node: unknown = sourceCtx.data): unknown {",
+      '  if (path.trim().startsWith("/")) return evaluateXPathToFirstNode(path, node);',
+      '  const trimmed = path.trim();',
+      '  if (!trimmed || trimmed === "$" || trimmed === ".") return node;',
+      "  return evaluateXPathToFirstNode(jsonQuery(path), null, null, { source: node });",
+      "}",
+      "",
+    );
+  }
   while (lines.at(-1) === "") lines.pop();
   return lines;
+}
+
+function handlebarsHelper(): string[] {
+  return [
+    "function handlebars(template: string, context: unknown): string {",
+    "  const engine = Handlebars.create();",
+    "  engine.registerHelper({",
+    "    eq: (a: unknown, b: unknown) => a === b,",
+    "    ne: (a: unknown, b: unknown) => a !== b,",
+    "    toLowerCase: (v: unknown) => v == null ? v : String(v).toLowerCase(),",
+    "    toUpperCase: (v: unknown) => v == null ? v : String(v).toUpperCase(),",
+    "  });",
+    "  return engine.compile(template, { noEscape: true })(context ?? {});",
+    "}",
+  ];
 }
 
 function rmHelper(): string[] {

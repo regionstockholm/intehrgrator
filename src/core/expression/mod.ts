@@ -12,7 +12,10 @@ export type ExprAst =
       | "if"
       | "switch"
       | "var"
-      | "maps_get";
+      | "maps_get"
+      | "xpathNode"
+      | "handlebars"
+      | "map";
     args: ExprAst[];
   }
   | { kind: "binary"; op: "+" | "-" | "*" | "/"; left: ExprAst; right: ExprAst };
@@ -22,12 +25,15 @@ const BUILTIN_NAMES = new Set([
   "xpathString",
   "xpathNumber",
   "xpathBoolean",
+  "xpathNode",
   "trim",
   "concat",
   "if",
   "switch",
   "var",
   "maps_get",
+  "handlebars",
+  "map",
 ]);
 
 export function parseExpression(source: string): ExprAst {
@@ -155,12 +161,15 @@ class Parser {
           | "xpathString"
           | "xpathNumber"
           | "xpathBoolean"
+          | "xpathNode"
           | "trim"
           | "concat"
           | "if"
           | "switch"
           | "var"
-          | "maps_get";
+          | "maps_get"
+          | "handlebars"
+          | "map";
         return { kind: "call", name: builtin, args };
       }
       throw new Error(`Unknown identifier: ${name}`);
@@ -233,6 +242,9 @@ export function xpathEvaluatorForReturnType(returnType: string): ExprAst["name"]
       return "xpathNumber";
     case "boolean":
       return "xpathBoolean";
+    case "node":
+    case "source":
+      return "xpathNode";
     default:
       return "xpathString";
   }

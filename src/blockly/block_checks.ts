@@ -10,6 +10,9 @@ export function blocklyCheckForReturnType(returnType: string): string | null {
       return "Number";
     case "boolean":
       return "Boolean";
+    case "node":
+    case "source":
+      return "Source";
     default:
       return null;
   }

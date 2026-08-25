@@ -517,6 +517,22 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   stroke: #E65100 !important;
   stroke-width: 1.25px !important;
 }
+
+.blockly-codemirror-host {
+  resize: both;
+  overflow: auto;
+  box-sizing: border-box;
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+}
+.blockly-codemirror-host .cm-editor {
+  height: 100%;
+}
+.blockly-codemirror-host--flyout {
+  pointer-events: none;
+  color: #5f6368;
+}
 .blockly-icon-warning .blocklyIconSymbol {
   fill: #3E2723 !important;
 }

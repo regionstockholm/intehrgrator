@@ -77,7 +77,12 @@ Deno.test("Source toolbox drawer lists string, number, and boolean source blocks
   };
   const source = toolbox.contents.find((cat) => cat.name === msg("en").CAT_SOURCE);
   const types = (source?.contents ?? []).map((block) => block.type);
-  assertEquals(types, ["source_query", "source_query_number", "source_query_boolean"]);
+      assertEquals(types, [
+        "source_query",
+        "source_query_number",
+        "source_query_boolean",
+        "source_query_node",
+      ]);
 });
 
 Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE leaves", () => {

@@ -232,6 +232,16 @@ export function emitXQueryExpr(ast: ExprAst): string {
           return emitXPathCall("number-at", ast.args[0]);
         case "xpathBoolean":
           return emitXPathCall("boolean-at", ast.args[0]);
+        case "xpathNode":
+          if (ast.args[0]?.kind === "literal" && typeof ast.args[0].value === "string") {
+            const path = ast.args[0].value.trim();
+            if (path.startsWith("/")) return `($source${path})[1]`;
+          }
+          return "$source";
+        case "handlebars":
+          return args[0] ?? '""';
+        case "map":
+          return "map {}";
         default:
           return emitXPathCall("string-at", ast.args[0]);
       }

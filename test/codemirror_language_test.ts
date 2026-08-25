@@ -14,7 +14,7 @@ Deno.test("detectEditorLanguage recognizes JSON, XML, and JS comments", () => {
   assertEquals(detectEditorLanguage('<?xml version="1.0"?><root/>'), "xml");
   assertEquals(detectEditorLanguage("<composition xmlns='http://example'/>"), "xml");
   assertEquals(detectEditorLanguage("// Test Run output"), "javascript");
-  assertEquals(detectEditorLanguage("{{path}}"), "none");
+  assertEquals(detectEditorLanguage("{{path}}"), "handlebars");
   assertEquals(detectEditorLanguage(""), "none");
 });
 

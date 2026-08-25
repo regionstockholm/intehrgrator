@@ -165,7 +165,8 @@ function classify(type: string): SpecLineKind {
   if (
     type === "source_query" ||
     type === "source_query_number" ||
-    type === "source_query_boolean"
+    type === "source_query_boolean" ||
+    type === "source_query_node"
   ) {
     return "source_query";
   }
@@ -202,7 +203,8 @@ function editableFields(
   if (
     type !== "source_query" &&
     type !== "source_query_number" &&
-    type !== "source_query_boolean"
+    type !== "source_query_boolean" &&
+    type !== "source_query_node"
   ) {
     return [];
   }
@@ -238,6 +240,8 @@ function buildSummary(
       ? "number"
       : type === "source_query_boolean"
       ? "boolean"
+      : type === "source_query_node"
+      ? "node"
       : typeof fields["RETURN_TYPE"] === "string"
       ? fields["RETURN_TYPE"]
       : "string";

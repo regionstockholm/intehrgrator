@@ -4,20 +4,66 @@ import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
+import { html } from "@codemirror/lang-html";
 import {
   bracketMatching,
   defaultHighlightStyle,
   foldGutter,
   foldKeymap,
   indentOnInput,
+  StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
 
 /** Languages we can highlight. `"none"` still gets folding chrome, but no parser. */
-export type EditorLanguage = "javascript" | "typescript" | "json" | "xml" | "none";
+export type EditorLanguage =
+  | "javascript"
+  | "typescript"
+  | "json"
+  | "xml"
+  | "html"
+  | "handlebars"
+  | "none";
+
+/** Dropdown pairs for Blockly (`[label, value]`). */
+export const EDITOR_LANGUAGE_OPTIONS: Array<[string, EditorLanguage]> = [
+  ["Plain", "none"],
+  ["Handlebars", "handlebars"],
+  ["JSON", "json"],
+  ["XML", "xml"],
+  ["HTML", "html"],
+  ["JavaScript", "javascript"],
+  ["TypeScript", "typescript"],
+];
 
 const languageOf = new WeakMap<EditorView, Compartment>();
 const currentLanguage = new WeakMap<EditorView, EditorLanguage>();
+
+const handlebarsLanguage = StreamLanguage.define({
+  name: "handlebars",
+  startState: () => ({ inMustache: false }),
+  token(stream, state: { inMustache: boolean }) {
+    if (!state.inMustache) {
+      if (stream.match("{{")) {
+        state.inMustache = true;
+        return "bracket";
+      }
+      stream.next();
+      stream.eatWhile((ch) => ch !== "{");
+      return null;
+    }
+    if (stream.match("}}")) {
+      state.inMustache = false;
+      return "bracket";
+    }
+    if (stream.match(/^[#/][\w.]+/) || stream.match(/^(else|this|as)\b/)) {
+      return "keyword";
+    }
+    if (stream.match(/^[\w.$]+/)) return "variableName";
+    stream.next();
+    return "string";
+  },
+});
 
 export function languageSupport(language: EditorLanguage): Extension {
   switch (language) {
@@ -29,6 +75,10 @@ export function languageSupport(language: EditorLanguage): Extension {
       return json();
     case "xml":
       return xml();
+    case "html":
+      return html();
+    case "handlebars":
+      return handlebarsLanguage;
     case "none":
       return [];
   }
@@ -38,8 +88,8 @@ export function languageSupport(language: EditorLanguage): Extension {
 export function detectEditorLanguage(text: string): EditorLanguage {
   const trimmed = text.trimStart();
   if (!trimmed) return "none";
-  // Handlebars `{{…}}` also starts with `{`; don't treat it as JSON.
-  if (trimmed.startsWith("{{")) return "none";
+  // Handlebars `{{…}}` also starts with `{`; highlight as Handlebars, not JSON.
+  if (trimmed.startsWith("{{")) return "handlebars";
   if (trimmed.startsWith("{") || trimmed.startsWith("[")) return "json";
   if (trimmed.startsWith("<?xml") || /^<[A-Za-z!?]/.test(trimmed)) return "xml";
   if (trimmed.startsWith("//") || trimmed.startsWith("/*")) return "javascript";
@@ -86,6 +136,46 @@ function mountEditor(
         languageConf.of(languageSupport(language)),
         editorTheme,
         ...extra,
+      ],
+    }),
+  });
+  languageOf.set(view, languageConf);
+  currentLanguage.set(view, language);
+  return view;
+}
+
+/** Compact CodeMirror for embedding inside a Blockly field (no fold gutter). */
+export function createInlineEditor(
+  parent: HTMLElement,
+  doc: string,
+  language: EditorLanguage,
+  onChange: (text: string) => void,
+): EditorView {
+  const languageConf = new Compartment();
+  const view = new EditorView({
+    parent,
+    state: EditorState.create({
+      doc,
+      extensions: [
+        lineNumbers(),
+        history(),
+        indentOnInput(),
+        bracketMatching(),
+        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        languageConf.of(languageSupport(language)),
+        EditorView.theme({
+          "&": { height: "100%", fontSize: "12px", backgroundColor: "#fff" },
+          ".cm-editor": { height: "100%" },
+          ".cm-scroller": {
+            overflow: "auto",
+            fontFamily: "ui-monospace, Consolas, monospace",
+          },
+          ".cm-gutters": { minHeight: "100%", backgroundColor: "#f6f6f6" },
+        }),
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged) onChange(update.state.doc.toString());
+        }),
       ],
     }),
   });

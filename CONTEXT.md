@@ -104,8 +104,16 @@ A Target value slot that scaffolding fills with a **Map lookup** of a **Defaults
 _Avoid_: Silent-Mandatory RM Field (that is why a mandatory slot exists), treating a `ctx/` path as a slot id, replacing the typed shell with a bare Map lookup
 
 **Source query block**:
-One of the three typed Blockly blocks that hold a **Source Path**: `source_query` (string), `source_query_number`, `source_query_boolean`. Orange Source category on the canvas and in the toolbox.
+One of the typed Blockly blocks that hold a **Source Path**: `source_query` (string), `source_query_number`, `source_query_boolean`, or `source_query_node` (JSON/XML subtree). Orange Source category on the canvas and in the toolbox. The node variant outputs a **Source** value — a root or subtree via fontoxpath — used as Handlebars context (or other Map-shaped inputs), not a scalar string/number/boolean.
 _Avoid_: generic “source block”, xpath block (the expression helpers are different)
+
+**Code text block**:
+Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, JSON, XML, HTML, JavaScript, TypeScript). Used for Handlebars snippets and other literal scripts.
+_Avoid_: stock `text` block (single-line), Mapping Editor Handlebars Template tab (workspace-level template)
+
+**Handlebars text block**:
+Text-category Blockly block (`text_handlebars`) that takes a Handlebars script (String — typically a **Code text block**) and a context (**Map** or **Source query** node) and emits rendered prose/text.
+_Avoid_: Handlebars Template tab, generated Handlebars Conversion Script
 
 **Placeholder source path**:
 The unmapped factory **Source Path** on a **Source query block**: empty, or the default field value `/path`. A real mapped path such as `$.systolic` is not a placeholder.

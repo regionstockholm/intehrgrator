@@ -71,6 +71,12 @@ Deno.test({
         const report = document.querySelector("#import-ai-report");
         return Boolean(report && !report.hasAttribute("hidden") && /1 applied/i.test(report.textContent ?? ""));
       }, { timeout: 5_000 });
+      await page.click("#import-ai-cancel");
+      await page.waitForSelector("#dialog-import-ai[open]", { state: "detached", timeout: 5_000 }).catch(async () => {
+        await page.waitForFunction(() => !document.querySelector("#dialog-import-ai")?.hasAttribute("open"), {
+          timeout: 5_000,
+        });
+      });
 
       await waitForMappedSlot(page, slotId);
       await page.waitForFunction(() => {

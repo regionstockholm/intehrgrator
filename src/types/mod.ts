@@ -1,7 +1,42 @@
 export const MODEL_VERSION = 2;
 
 /** Conversion script language. Deliberately separate from Target instance format. */
-export type ExportTarget = "typescript" | "java" | "handlebars" | "xquery";
+export type ConversionScriptLanguage = "typescript" | "java" | "handlebars" | "xquery";
+
+/** @deprecated alias — prefer ConversionScriptLanguage. */
+export type ExportTarget = ConversionScriptLanguage;
+
+export const CONVERSION_SCRIPT_LANGUAGES: readonly ConversionScriptLanguage[] = [
+  "typescript",
+  "java",
+  "handlebars",
+  "xquery",
+];
+
+/** Target & Previews header select. Mapping preview is not a script dialect. */
+export type OutputMode = "preview" | ConversionScriptLanguage;
+
+export const MAPPING_PREVIEW_SCRIPT_PLACEHOLDER =
+  "// Pick a conversion script language above to generate conversion code.\n";
+
+export function isConversionScriptLanguage(
+  value: string,
+): value is ConversionScriptLanguage {
+  return (CONVERSION_SCRIPT_LANGUAGES as readonly string[]).includes(value);
+}
+
+export function conversionScriptLanguageLabel(
+  language: ConversionScriptLanguage,
+): string {
+  if (language === "typescript") return "TypeScript";
+  if (language === "java") return "Java";
+  if (language === "handlebars") return "Handlebars";
+  return "XQuery";
+}
+
+export function unimplementedTestRunMessage(language: ConversionScriptLanguage): string {
+  return `// Conversion Test Run for ${conversionScriptLanguageLabel(language)} is not implemented yet.\n`;
+}
 
 /** Structure produced by a conversion. */
 export type TargetFormatId =
@@ -124,7 +159,8 @@ export interface ClinicalModelFileset {
 }
 
 export interface ProjectSettings {
-  exportTarget: ExportTarget;
+  /** Session Output mode. Not restored from a Project Bundle. */
+  exportTarget: OutputMode;
   theme: "karolinska";
   validationStrict: boolean;
   autoscroll: boolean;
@@ -184,6 +220,19 @@ export interface ProjectBundle {
   };
 }
 
+export interface OutputValidationMessage {
+  path: string;
+  message: string;
+  severity: "error" | "warning" | "info";
+}
+
+export interface OutputValidation {
+  /** False when Target instance format is not an openEHR template. */
+  applicable: boolean;
+  valid: boolean;
+  messages: OutputValidationMessage[];
+}
+
 export interface TestResult {
   ok: boolean;
   /** Format-neutral conversion result. */
@@ -192,6 +241,7 @@ export interface TestResult {
   composition?: unknown;
   error?: string;
   warnings: string[];
+  outputValidation?: OutputValidation;
 }
 
 /** Blockly JSON fragment allowed in AI suggestion envelopes (version 2). */
@@ -241,7 +291,7 @@ export interface ImportSuggestionsReport {
 }
 
 export const DEFAULT_SETTINGS: ProjectSettings = {
-  exportTarget: "typescript",
+  exportTarget: "preview",
   theme: "karolinska",
   validationStrict: true,
   autoscroll: true,

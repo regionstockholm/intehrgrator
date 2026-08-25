@@ -1,0 +1,3 @@
+# Mapping preview interprets the Mapping Model; TypeScript executes Generated Export
+
+Test Run used to always evaluate Mapping Model slot expressions (ADR 0001). **Output mode** now splits that: **Mapping preview** keeps the interpreter (including **Handlebars Template** rendering for free-form). TypeScript Output mode executes the generated Conversion Script with bundled ehrtslib so codegen bugs show up in Conversion Test Run(s). Java, Handlebars, and XQuery generate a script but do not execute it yet. Output mode is session-only and always Mapping preview after load; Generated Export and Test Run output are not persisted.

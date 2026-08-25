@@ -47,6 +47,8 @@ Deno.test("controller loads template/schema/example from content", async () => {
   assertEquals(controller.lookupSourceSchemaType("$.patientId"), "string");
   assertEquals(state.examples.length, 1);
   assertEquals(state.activeExample?.filename, "bp_example.json");
+  assertEquals(state.settings.exportTarget, "preview");
+  assertStringIncludes(state.generatedCode, "Pick a conversion script language");
 
   const slotId = collectValueSlots(state.skeleton).find((s) =>
     s.slotId.endsWith("items/at0004/value/value/value")
@@ -126,6 +128,7 @@ Deno.test("Import Suggestions maps systolic and regenerates TypeScript", async (
   }));
   assertEquals(report.applied, 1, report.errors.join("; "));
 
+  controller.setExportTarget("typescript");
   const after = controller.getState();
   const mapped = after.model.slots.find((s) => s.slotId === slotId);
   assert(mapped?.expression.includes("xpathNumber"), mapped?.expression);
@@ -167,7 +170,7 @@ Deno.test("free-form Handlebars target walks source like Kintegrate", () => {
     "note.hbs",
     "{{toUpperCase patient.name}}: {{patient.score}}",
   );
-  assertEquals(controller.getState().settings.exportTarget, "handlebars");
+  assertEquals(controller.getState().settings.exportTarget, "preview");
   controller.addExampleContent(
     "p.json",
     JSON.stringify({ patient: { name: "Ada", score: 9 } }),

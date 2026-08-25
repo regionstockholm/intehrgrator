@@ -47,6 +47,7 @@ export function detectEditorLanguage(text: string): EditorLanguage {
 }
 
 export function languageForExportTarget(target: string, code = ""): EditorLanguage {
+  if (target === "preview") return "javascript";
   if (target === "typescript") return "typescript";
   const detected = detectEditorLanguage(code);
   if (detected === "json" || detected === "xml") return detected;

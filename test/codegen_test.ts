@@ -9,6 +9,10 @@ import {
 } from "@intehrgrator/core/codegen/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
+import {
+  runGeneratedTypeScript,
+  serializedConversionOutput,
+} from "@intehrgrator/core/codegen/run_typescript.ts";
 import { generateSkeleton, collectValueSlots, collectAllSlotIds } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
@@ -143,6 +147,37 @@ Deno.test("Conversion Test Run JSON comes from the Target format handler, not ge
   );
   assert(systolic);
   assert(skeleton.length > 0);
+});
+
+Deno.test("TypeScript Output mode executes the generated conversion script", async () => {
+  const { model, ts } = await mappedBpTypeScript();
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const target = getTargetFormatHandler("openehr-template").load("blood_pressure.opt", opt);
+  const result = runTest(model, JSON.stringify({ systolic: 118 }), "json", {
+    target,
+    outputMode: "typescript",
+    generatedCode: ts,
+    defaults: { language: "en" },
+  });
+  assertEquals(result.error, undefined, result.error);
+  const output = result.output as Record<string, unknown>;
+  assertEquals(output._type, "COMPOSITION");
+  assertStringIncludes(JSON.stringify(output), "118");
+  const rm = runGeneratedTypeScript(ts, { format: "json", data: { systolic: 118 } }, {
+    language: "en",
+  });
+  assertEquals((rm as { constructor: { name: string } }).constructor.name, "COMPOSITION");
+  assertEquals((serializedConversionOutput(rm) as { _type?: string })._type, "COMPOSITION");
+});
+
+Deno.test("Java Output mode does not execute Conversion Test Run", () => {
+  const model = createEmptyModel("vitals");
+  const result = runTest(model, "{}", "json", { outputMode: "java" });
+  assertEquals(result.ok, false);
+  assertStringIncludes(String(result.output), "Java");
+  assertStringIncludes(String(result.output), "not implemented");
 });
 
 Deno.test("typescript codegen from Blockly canvas updates when a source query is added", async () => {

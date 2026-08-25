@@ -64,7 +64,7 @@
     class="panes"
     data-split="row"
     data-split-storage="layout-main-panes"
-    data-split-sizes="1,1.4,0.4,1"
+    data-split-sizes="1,1.6,1.2"
   >
     <section class="pane source-pane">
       <h2>Source</h2>
@@ -219,55 +219,21 @@
       </div>
     </section>
 
-    <section class="pane slots-pane">
-      <div class="pane-header">
-        <h2>Target</h2>
-        <div class="pane-header-actions">
-          <span class="info-tip info-tip--end">
-            <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats">i</button>
-            <span id="tip-open-target" class="info-tip-balloon" role="tooltip">
-              Supported: openEHR OPT/OPT2, Web Template, JSON Schema, XML Schema (XSD), ADL, free-form templates, or a GitHub .t.json (archetypes fetched from the same repo).<br>
-              Load from a local file, a URL, or ▾ → From GitHub template….
-            </span>
-          </span>
-          <div class="split-btn">
-            <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Open target schema or template">Open</button>
-            <button
-              id="btn-open-template-menu"
-              class="pane-btn pane-btn-on-dark split-btn-chevron"
-              type="button"
-              aria-haspopup="menu"
-              aria-expanded="false"
-              aria-controls="menu-open-template"
-              aria-label="More target load options"
-            >▾</button>
-            <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
-          </div>
-          <label class="pane-lang pane-lang--on-dark" id="model-language-wrap" hidden for="model-language-dropdown">
-            <span id="model-language-label">Model</span>
-            <select id="model-language-dropdown" aria-label="Target model ontology language"></select>
-          </label>
-        </div>
-      </div>
-      <div id="target-format-badge" class="target-format-badge">No target</div>
-      <div class="pane-body slot-rail">
-        <div id="skeleton-slots"></div>
-      </div>
-    </section>
-
     <section class="pane output-pane">
       <div class="pane-header">
-        <h2>Previews</h2>
+        <h2>Target &amp; Previews</h2>
         <div class="pane-header-actions">
           <span class="info-tip info-tip--end">
             <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
             <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
-              Supported conversion scripts (so far): TypeScript, Java, Handlebars, and XQuery.<br>
-              Download saves the generated script as a local file.
+              Mapping preview interprets the mapping without generating a script.
+              Conversion scripts (so far): TypeScript (also runs in Conversion Test Run), Java, Handlebars, and XQuery.<br>
+              Header Download saves the generated script. The overlay Download on Conversion Test Run saves that instance.
             </span>
           </span>
           <label class="pane-select-label" for="export-target">
             <select id="export-target">
+              <option value="preview">Mapping preview</option>
               <option value="typescript">TypeScript</option>
               <option value="java">Java</option>
               <option value="handlebars">Handlebars</option>
@@ -288,6 +254,36 @@
         data-split-storage="layout-output-sections"
       >
         <div class="pane-section">
+          <div class="pane-header target-load-header">
+            <h3>Target</h3>
+            <div class="pane-header-actions">
+              <span class="info-tip info-tip--end">
+                <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats">i</button>
+                <span id="tip-open-target" class="info-tip-balloon" role="tooltip">
+                  Supported: openEHR OPT/OPT2, Web Template, JSON Schema, XML Schema (XSD), ADL, free-form templates, or a GitHub .t.json (archetypes fetched from the same repo).<br>
+                  Load from a local file, a URL, or ▾ → From GitHub template….
+                </span>
+              </span>
+              <div class="split-btn">
+                <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Open target schema or template">Open</button>
+                <button
+                  id="btn-open-template-menu"
+                  class="pane-btn pane-btn-on-dark split-btn-chevron"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="menu-open-template"
+                  aria-label="More target load options"
+                >▾</button>
+                <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
+              </div>
+              <label class="pane-lang pane-lang--on-dark" id="model-language-wrap" hidden for="model-language-dropdown">
+                <span id="model-language-label">Model</span>
+                <select id="model-language-dropdown" aria-label="Target model ontology language"></select>
+              </label>
+            </div>
+          </div>
+          <div id="target-format-badge" class="target-format-badge">No target</div>
           <h3>Generated conversion script(s)</h3>
           <div id="export-editor" class="editor-host"></div>
         </div>
@@ -300,7 +296,20 @@
             </div>
           </div>
           <div id="test-output-tabs" class="example-tabs test-output-tabs"></div>
-          <div id="test-output" class="editor-host"></div>
+          <div class="test-output-host">
+            <button
+              id="btn-download-test-output"
+              class="pane-btn pane-btn-icon test-output-download"
+              type="button"
+              title="Download Conversion Test Run output"
+            >
+              <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
+              </svg>
+              Download
+            </button>
+            <div id="test-output" class="editor-host"></div>
+          </div>
         </div>
       </div>
     </section>

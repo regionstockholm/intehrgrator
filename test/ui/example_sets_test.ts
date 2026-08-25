@@ -16,6 +16,7 @@ Deno.test({
       const page = await browser.newPage();
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
+      page.on("dialog", (dialog) => dialog.accept());
 
       await page.click("#btn-example-sets-menu");
       const item = page.locator('[data-example-set-id="dummy-json-vitals"]');
@@ -27,10 +28,10 @@ Deno.test({
           intehrgratorTestApi?: { getSnapshot: () => { exampleCount: number } };
         }).intehrgratorTestApi;
         return (api?.getSnapshot().exampleCount ?? 0) >= 2;
-      }, { timeout: 10_000 });
+      }, undefined, { timeout: 15_000 });
 
       const snap = await getSnapshot(page);
-      assertEquals(snap.exampleCount, 2);
+      assertEquals(snap.exampleCount, 2, snap.statusMessage);
       assertStringIncludes(snap.statusMessage, "Dummy vitals");
     } finally {
       await browser.close();

@@ -2,8 +2,13 @@ import type {
   ExportTarget,
   MappingLoop,
   MappingModel,
+  OutputMode,
   SourceFormatId,
   TestResult,
+} from "../../types/mod.ts";
+import {
+  isConversionScriptLanguage,
+  unimplementedTestRunMessage,
 } from "../../types/mod.ts";
 import { getSourceFormatHandler } from "../source/format_handler.ts";
 import { collectJsonNodes, type SourceContext } from "../source/query_runtime.ts";
@@ -14,18 +19,30 @@ import {
 } from "../skeleton/generate_skeleton.ts";
 import { generateTypeScript } from "../codegen/mod.ts";
 import {
+  runGeneratedTypeScript,
+  serializedConversionOutput,
+} from "../codegen/run_typescript.ts";
+import {
   getTargetFormatHandler,
   type TargetDefinition,
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
-import { namedMapsFromBlocklyState } from "../defaults/mod.ts";
+import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
+import { validateConvertedOutput } from "../output/template_validation.ts";
 
 export interface RunTestOptions {
   target?: TargetDefinition | null;
+  /** Legacy: `handlebars` still means Mapping preview template render. */
   exportTarget?: ExportTarget;
+  /** Session Output mode. TypeScript executes Generated Export. */
+  outputMode?: OutputMode;
+  /** Generated Conversion Script text (TypeScript Output mode). */
+  generatedCode?: string;
   handlebarsTemplate?: string;
   /** Blockly workspace JSON used to materialize the Defaults Map. */
   blocklyState?: unknown;
+  /** Convert-time Defaults Map overlay (wins over Blockly named `defaults`). */
+  defaults?: Record<string, unknown>;
 }
 
 export function runTest(
@@ -35,10 +52,50 @@ export function runTest(
   options: RunTestOptions = {},
 ): TestResult {
   const warnings: string[] = [];
+  const mode = options.outputMode ?? "preview";
+  if (isConversionScriptLanguage(mode) && mode !== "typescript") {
+    const message = unimplementedTestRunMessage(mode);
+    return {
+      ok: false,
+      output: message,
+      composition: message,
+      error: message.trim(),
+      warnings,
+    };
+  }
   try {
     const handler = getSourceFormatHandler(format);
     const ctx = handler.createContext(exampleContent);
     ctx.namedMaps = namedMapsFromBlocklyState(options.blocklyState);
+    if (options.defaults) {
+      ctx.namedMaps[DEFAULTS_MAP_NAME] = {
+        ...(ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {}),
+        ...options.defaults,
+      };
+    }
+    const defaults = ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {};
+
+    if (mode === "typescript") {
+      const code = options.generatedCode ?? generateTypeScript(model, {
+        handlebarsTemplate: options.handlebarsTemplate,
+        blocklyState: options.blocklyState,
+        skeleton: options.target?.skeleton,
+      });
+      const raw = runGeneratedTypeScript(code, {
+        format,
+        data: ctx.data,
+      }, defaults);
+      const output = serializedConversionOutput(raw);
+      const outputValidation = validateConvertedOutput(output, options.target);
+      return {
+        ok: warnings.length === 0,
+        output,
+        composition: output,
+        warnings,
+        outputValidation,
+      };
+    }
+
     const slotValues = evaluateSlotValues(
       model,
       handler,
@@ -48,7 +105,9 @@ export function runTest(
     );
 
     let output: unknown;
-    if (options.exportTarget === "handlebars") {
+    const useHandlebars = options.exportTarget === "handlebars" ||
+      options.target?.format === "free-form";
+    if (useHandlebars) {
       const template = options.handlebarsTemplate ?? options.target?.content ?? "";
       output = renderHandlebars(template, ctx.data, { slots: slotValues });
     } else if (options.target) {
@@ -79,11 +138,13 @@ export function runTest(
       return { ...(output as Record<string, unknown>), slots: slotValues };
     })();
 
+    const outputValidation = validateConvertedOutput(output, options.target);
     return {
       ok: warnings.length === 0,
       output,
       composition,
       warnings,
+      outputValidation,
     };
   } catch (e) {
     return {

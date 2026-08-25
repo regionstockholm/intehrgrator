@@ -12,6 +12,10 @@ export {
   createMappingSpecEditor,
   mappingSpecDocumentText,
   setMappingSpecFromBlockly,
+  setMappingSpecChrome,
+  scrollMappingSpecToBlock,
   type MappingSpecEditorOptions,
   type SpecFieldEditHandler,
+  type SpecBlockSelectHandler,
+  type SpecChrome,
 } from "./editor.ts";

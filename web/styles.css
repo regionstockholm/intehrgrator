@@ -12,6 +12,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: var(--text); background: var(--surface-alt); }
 
 .toolbar {
@@ -245,6 +246,20 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font-family: ui-monospace, monospace;
 }
 .pane-section { padding: 8px; min-height: 0; display: flex; flex-direction: column; flex: 1; }
+.target-load-header {
+  margin: -8px -8px 0;
+  padding: 6px 8px;
+}
+.target-load-header h3 {
+  margin: 0;
+  padding: 0;
+  background: none;
+  color: #fff;
+  font-size: 13px;
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 600;
+}
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
 .tree-pane--drop-target { border-style: dashed; }
 .tree-pane--dragover {
@@ -290,6 +305,47 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .example-tab-close:hover { color: var(--error); background: rgba(0, 0, 0, 0.05); }
 .test-output-tabs:empty { display: none; margin-bottom: 0; }
+.test-output-tabs .example-tab {
+  display: inline-flex; align-items: center; gap: 4px; position: relative;
+}
+.output-tab-mark { flex-shrink: 0; font-size: 12px; line-height: 1; }
+.output-tab-mark--warn {
+  color: var(--warning); cursor: pointer; border: none; background: transparent;
+  padding: 0; font-size: 13px;
+}
+.output-tab-errors {
+  display: none;
+  position: absolute;
+  left: 0; top: calc(100% + 4px);
+  z-index: 8;
+  min-width: 220px; max-width: min(360px, 70vw);
+  max-height: 240px; overflow: auto;
+  padding: 8px 10px;
+  background: #fff8e1; color: #5c4a00;
+  border: 1px solid var(--warning); border-radius: 4px;
+  font-size: 11px; line-height: 1.45; text-align: left;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+.example-tab:hover .output-tab-errors,
+.example-tab:focus-within .output-tab-errors,
+.example-tab.output-tab-errors-open .output-tab-errors { display: block; }
+.output-tab-errors dt { font-family: ui-monospace, monospace; font-weight: 600; }
+.output-tab-errors dd { margin: 0 0 6px; }
+.test-output-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.test-output-download {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  font-size: 11px;
+  padding: 3px 8px;
+}
 
 .mapping-pane { display: flex; flex-direction: column; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
@@ -318,6 +374,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .handlebars-insert-hint { margin-left: auto; font-size: 10px; opacity: 0.85; }
 .target-format-badge {
+  margin: 0 -8px 6px;
   padding: 4px 8px; border-bottom: 1px solid var(--border); background: #eef4f2;
   color: var(--text-secondary); font-size: 10px; text-align: center;
 }
@@ -354,7 +411,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   background: #fff;
   box-sizing: border-box;
 }
-.slots-pane { display: flex; flex-direction: column; min-width: 160px; }
 
 /*
  * Blockly DevSite landing demo toolbox category accents
@@ -417,6 +473,10 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyMainBackground,
 .blockly-mount .blocklyPath {
   stroke: #fff;
+}
+.blockly-mount .blocklySelected > .blocklyPath {
+  stroke: #F9A825 !important;
+  stroke-width: 3px !important;
 }
 .blockly-mount .blocklyText {
   font: 400 12px "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif !important;
@@ -526,95 +586,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 #spec-editor .cm-widgetBuffer {
   height: 0 !important;
   line-height: 0 !important;
-}
-
-.slot-rail { padding: 8px 8px 8px 14px; overflow: auto; background: var(--surface-alt); min-width: 0; min-height: 0; flex: 1; }
-
-/* Nested skeleton tree: root left, children indented; RM type + ZipEHR emoji right-aligned */
-.skeleton-tree,
-.skeleton-tree-children {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-}
-.skeleton-tree-children {
-  padding-left: 10px;
-  border-left: 1px solid var(--border);
-  margin-left: 6px;
-}
-.skeleton-tree-node { margin: 0; }
-.skeleton-tree-row {
-  display: flex;
-  align-items: baseline;
-  justify-content: flex-start;
-  gap: 6px;
-  min-width: 0;
-  padding-top: 1px;
-  padding-bottom: 1px;
-}
-.skeleton-branch-label {
-  font-size: 10px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  color: var(--text-secondary);
-  max-width: 100%;
-}
-.slot-item {
-  border-radius: 3px;
-  cursor: pointer;
-  font-size: 11px;
-  line-height: 1.3;
-}
-.slot-item .skeleton-tree-row {
-  padding: 3px 4px;
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  background: #fff;
-}
-.slot-item:hover .skeleton-tree-row { border-color: var(--primary); }
-.slot-item.listening .skeleton-tree-row { outline: 2px solid var(--accent); outline-offset: -1px; }
-.slot-item.drop-target .skeleton-tree-row {
-  outline: 2px dashed var(--accent);
-  outline-offset: -1px;
-  background: #fff4ea;
-}
-.slot-item.unmapped-mandatory .skeleton-tree-row { border-color: var(--error); }
-.slot-item.unmapped-mandatory .slot-label { color: var(--error); }
-.slot-item.mapped .skeleton-tree-row { border-color: var(--success); }
-.slot-item.mapped .slot-label { color: var(--success); }
-.slot-label {
-  flex: 1 1 auto;
-  min-width: 0;
-  font-weight: 500;
-}
-.slot-type-meta {
-  flex: 0 0 auto;
-  margin-left: auto;
-  display: inline-flex;
-  align-items: baseline;
-  gap: 3px;
-  white-space: nowrap;
-}
-.slot-rm-emoji {
-  font-size: 11px;
-  line-height: 1;
-}
-.slot-rm-type {
-  flex: 0 0 auto;
-  font-size: 9px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  text-align: right;
-}
-.truncate-suffix {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  direction: rtl;
-  text-align: left;
-  unicode-bidi: plaintext;
 }
 
 .tree-row { padding: 2px 0; }

@@ -7,8 +7,9 @@
  * `src/blockly/typescript_codegen.ts` and replaces this adapter when a
  * workspace snapshot is available.
  *
- * Conversion Test Run(s) still evaluate Mapping Model slots through the Target
- * instance format handler (ADR 0001) — they do not execute this script.
+ * Conversion Test Run(s) in Mapping preview still evaluate Mapping Model slots
+ * through the Target instance format handler (ADR 0001 / ADR 0003). TypeScript
+ * Output mode executes this script.
  */
 
 import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
@@ -167,8 +168,8 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
       : parts.source === "skeleton"
       ? "// Source: Template Skeleton + Mapping Model expressions"
       : "// Source: Mapping Model slots (no canvas / skeleton available)",
-    "// Conversion Test Run(s) evaluate Mapping Model slots through the Target",
-    "// instance format handler (ADR 0001); they do not execute this script.",
+    "// Mapping preview Test Run evaluates Mapping Model slots through the Target",
+    "// instance format handler (ADR 0001). TypeScript Output mode executes this script.",
     "",
   ];
   if (types.length) {
@@ -227,7 +228,7 @@ function xpathHelpers(helpers: Set<string>): string[] {
     "      continue;",
     "    }",
     "    let end = i;",
-    '    while (end < body.length && !".[".includes(body[end]!)) end++;',
+    "    while (end < body.length && !\".[\".includes(body[end] ?? \"\")) end++;",
     "    segments.push(body.slice(i, end));",
     "    i = end;",
     "  }",
@@ -281,7 +282,7 @@ function xpathHelpers(helpers: Set<string>): string[] {
 function rmHelper(): string[] {
   return [
     "/** Apply an init bag on RM classes that still use a zero-arg constructor. */",
-    "function rm<T>(Type: new () => T, init: Partial<T>): T {",
+    "function rm(Type: any, init: any) {",
     "  return Object.assign(new Type(), init);",
     "}",
   ];

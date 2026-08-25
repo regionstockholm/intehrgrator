@@ -19,6 +19,8 @@ export interface BlocklyBlockSummary {
 export interface WorkbenchTestSnapshot {
   templateId: string;
   listeningSlotId: string | null;
+  listeningSourceBlockId: string | null;
+  selectedBlockId: string | null;
   exampleCount: number;
   activeExampleFilename: string | null;
   model: MappingModel;
@@ -56,6 +58,17 @@ export interface IntehrgratorTestApi {
   getMappingSpecDocument(): string;
   /** Load a Blockly workspace JSON file (same path as Mapping Spec Upload). */
   loadBlocklyJson(filename: string, content: string): void;
+  /** Client rect of a Blockly block SVG, for real UI clicks / drops. */
+  getBlockClientRect(blockId: string): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
+  /** Select a Blockly block (same path as a canvas click). */
+  clickBlock(blockId: string): void;
+  /** Pan the Blockly canvas so this block is in view. */
+  scrollBlockIntoView(blockId: string): void;
 }
 
 declare global {

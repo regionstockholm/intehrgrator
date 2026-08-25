@@ -12,7 +12,7 @@ import {
   type BlocklyJsonDocument,
   type SpecLine,
 } from "./project.ts";
-import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler } from "./widgets.ts";
+import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler } from "./widgets.ts";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
@@ -34,6 +34,36 @@ const editFacet = Facet.define<
 >({
   combine(values) {
     return values.find((value) => value !== undefined);
+  },
+});
+
+const selectFacet = Facet.define<
+  SpecBlockSelectHandler | undefined,
+  SpecBlockSelectHandler | undefined
+>({
+  combine(values) {
+    return values.find((value) => value !== undefined);
+  },
+});
+
+export interface SpecChrome {
+  warnings: Record<string, string>;
+  selectedBlockId: string | null;
+}
+
+const emptyChrome: SpecChrome = { warnings: {}, selectedBlockId: null };
+
+const setSpecChromeEffect = StateEffect.define<SpecChrome>();
+
+const specChromeField = StateField.define<SpecChrome>({
+  create() {
+    return emptyChrome;
+  },
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setSpecChromeEffect)) return effect.value;
+    }
+    return value;
   },
 });
 
@@ -61,6 +91,8 @@ class HiddenJsonWidget extends WidgetType {
 function buildDecorations(state: EditorState): DecorationSet {
   const doc = state.field(jsonDocField);
   const onEdit = state.facet(editFacet);
+  const onSelect = state.facet(selectFacet);
+  const chrome = state.field(specChromeField);
   if (!doc.widgets.length) return Decoration.none;
 
   const ranges = [];
@@ -76,9 +108,16 @@ function buildDecorations(state: EditorState): DecorationSet {
         }).range(cursor, widget.from),
       );
     }
+    const blockId = widget.line.blockId;
     ranges.push(
       Decoration.replace({
-        widget: new MappingSpecWidget(widget.line, onEdit),
+        widget: new MappingSpecWidget(
+          widget.line,
+          onEdit,
+          onSelect,
+          blockId ? chrome.warnings[blockId] ?? null : null,
+          Boolean(blockId && chrome.selectedBlockId === blockId),
+        ),
         inclusive: true,
       }).range(widget.from, widget.to),
     );
@@ -104,7 +143,7 @@ const jsonDecorations = StateField.define<DecorationSet>({
   update(value, tr) {
     if (
       tr.docChanged ||
-      tr.effects.some((effect) => effect.is(setJsonDocEffect))
+      tr.effects.some((effect) => effect.is(setJsonDocEffect) || effect.is(setSpecChromeEffect))
     ) {
       return buildDecorations(tr.state);
     }
@@ -142,6 +181,19 @@ const specTheme = EditorView.theme({
   ".cm-widgetBuffer": {
     height: "0",
     lineHeight: "0",
+  },
+  ".spec-widget--selected": {
+    background: "#fff8e1",
+    outline: "2px solid #F9A825",
+    outlineOffset: "-1px",
+    borderRadius: "2px",
+  },
+  ".spec-widget-warning": {
+    flex: "0 0 auto",
+    color: "#E65100",
+    fontSize: "12px",
+    lineHeight: "14px",
+    cursor: "help",
   },
   ".spec-widget": {
     display: "inline-flex",
@@ -229,6 +281,7 @@ const specTheme = EditorView.theme({
 
 export interface MappingSpecEditorOptions {
   onFieldEdit?: SpecFieldEditHandler;
+  onSelect?: SpecBlockSelectHandler;
 }
 
 export function createMappingSpecEditor(
@@ -244,7 +297,9 @@ export function createMappingSpecEditor(
         ...editorChromeExtensions,
         json(),
         jsonDocField.init(() => empty),
+        specChromeField.init(() => emptyChrome),
         editFacet.of(options.onFieldEdit),
+        selectFacet.of(options.onSelect),
         jsonDecorations,
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
@@ -255,13 +310,40 @@ export function createMappingSpecEditor(
 }
 
 /** Replace the Spec view from canonical Blockly workspace JSON. */
-export function setMappingSpecFromBlockly(view: EditorView, blocklyState: unknown): void {
+export function setMappingSpecFromBlockly(
+  view: EditorView,
+  blocklyState: unknown,
+  chrome: SpecChrome = emptyChrome,
+): void {
   const next = blocklyJsonDocument(blocklyState);
   const current = view.state.doc.toString();
-  if (current === next.text) return;
+  if (current === next.text) {
+    setMappingSpecChrome(view, chrome);
+    return;
+  }
   view.dispatch({
     changes: { from: 0, to: view.state.doc.length, insert: next.text },
-    effects: setJsonDocEffect.of(next),
+    effects: [setJsonDocEffect.of(next), setSpecChromeEffect.of(chrome)],
+  });
+}
+
+export function setMappingSpecChrome(view: EditorView, chrome: SpecChrome): void {
+  const prev = view.state.field(specChromeField);
+  if (
+    prev.selectedBlockId === chrome.selectedBlockId &&
+    JSON.stringify(prev.warnings) === JSON.stringify(chrome.warnings)
+  ) {
+    return;
+  }
+  view.dispatch({ effects: setSpecChromeEffect.of(chrome) });
+}
+
+export function scrollMappingSpecToBlock(view: EditorView, blockId: string): void {
+  const doc = view.state.field(jsonDocField);
+  const widget = doc.widgets.find((item) => item.line.blockId === blockId);
+  if (!widget) return;
+  view.dispatch({
+    effects: EditorView.scrollIntoView(widget.from, { y: "center" }),
   });
 }
 
@@ -270,4 +352,4 @@ export function mappingSpecDocumentText(view: EditorView): string {
   return view.state.doc.toString();
 }
 
-export type { SpecFieldEditHandler, SpecLine };
+export type { SpecFieldEditHandler, SpecBlockSelectHandler, SpecLine };

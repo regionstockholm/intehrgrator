@@ -22,7 +22,7 @@
 - [ ] Make it possible to digest FHIR terminology mappings for setting up maps/tables
 
 ## target visualisation tree
-- [ ] figure out if the extra pane for highligting missing mappings is still needed or if warning signs in blockly blocks is enough. Perhaps add warning markers in mapping codemirror pane too. Remove extra pane when no longer needed.
+- [x] figure out if the extra pane for highligting missing mappings is still needed or if warning signs in blockly blocks is enough. Perhaps add warning markers in mapping codemirror pane too. Remove extra pane when no longer needed.
 
 ## open EHR reference model classes available as blockly blocks.
 - [x] Change the CLUSTER block into the same colour as the ELEMENT block and move ELEMENT up to below CLUSTER 
@@ -38,7 +38,10 @@
 - [x] Target instance formats beyond openEHR: JSON Schema, XML Schema, free-form
 - [x] Optional Better Form Bridge + `deno task setup:better-forms`
 - [ ] Full Better form-viewer ScriptApi / formTestApi parity and Cypress generator port
-- See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md) and [ADR 0001](adr/0001-mapping-and-target-seams.md)
+- [ ] Harden **Mapping preview** Handlebars Template Test Run (helpers, nested `#with`/`#each`, FLAT paths, slot interop) — current path is shaky
+- [ ] Execute a generated Handlebars Conversion Script in Conversion Test Run(s) (today: generate only; Mapping preview still runs the authored Handlebars Template)
+- [ ] Blockly-owned Handlebars authoring that round-trips with the Handlebars Template tab
+- See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md), [ADR 0001](adr/0001-mapping-and-target-seams.md), and [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
 
 
 ## Schema specific dynamic blockly toolboxes

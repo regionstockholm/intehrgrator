@@ -19,6 +19,7 @@ Deno.test("detectEditorLanguage recognizes JSON, XML, and JS comments", () => {
 });
 
 Deno.test("languageForExportTarget uses TypeScript and falls back to JSON/XML", () => {
+  assertEquals(languageForExportTarget("preview", "// Pick a language"), "javascript");
   assertEquals(languageForExportTarget("typescript", "class Foo {}"), "typescript");
   assertEquals(languageForExportTarget("handlebars", '{"x": 1}'), "json");
   assertEquals(languageForExportTarget("handlebars", "<root>{{x}}</root>"), "xml");

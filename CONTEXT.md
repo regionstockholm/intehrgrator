@@ -17,7 +17,7 @@ A loaded source data file representing one real source record (JSON, XML, or ope
 _Avoid_: Sample file, test data
 
 **Active Example**:
-The currently selected example instance tab. Its tree appears below the tab bar; Test Run and the lower **Conversion Test Run(s)** section in **Output Previews** always execute against and display results for this tab only.
+The currently selected example instance tab. Its tree appears below the tab bar; Test Run and the lower **Conversion Test Run(s)** section in **Target & Previews** always execute against and display results for this tab only.
 _Avoid_: Current instance, selected tab
 
 **Example Set**:
@@ -33,8 +33,8 @@ Small adapter interface (`loadSchema`, `loadInstance`, `pathToExpression`, `crea
 _Avoid_: Format switch, source parser union
 
 **Target instance format**:
-Shape of produced instances, adhering to `openehr-template`, `json-schema`, `xml-schema`, or `free-form`. Loaded via **Open target Schema/Template**; drives the Target value slot tree. Separate from Conversion script language — a Handlebars script may emit non-openEHR text while slots still map into a schema target. Persisted as `targetFormat` / Project Bundle `target`.
-_Avoid_: Target Format alone, Output format (ambiguous with script language), template-only framing
+Shape of produced instances, adhering to `openehr-template`, `json-schema`, `xml-schema`, or `free-form`. Loaded via **Open target Schema/Template** in **Target & Previews**; drives the **Template Skeleton** (Blockly Target value slots). Separate from Conversion script language — a Handlebars script may emit non-openEHR text while slots still map into a schema target. Persisted as `targetFormat` / Project Bundle `target`.
+_Avoid_: Target Format alone, Output format (ambiguous with script language), template-only framing, a separate Target value slot tree pane
 
 **Target instance format handler**:
 Adapter seam (`load`, `render`) that turns a target definition into a Template Skeleton / Target value slot tree and renders slot values into the produced instance (Composition JSON, generic JSON, XML document, or free-form passthrough).
@@ -61,16 +61,25 @@ A Blockly value block that retrieves an entry from a named **Map** (including th
 _Avoid_: `defaults_get` as a separate block type, connecting a Map constructor into multiple slots
 
 **Mapping Editor**:
-The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top (with **Target value slots** rail), [CodeMirror](https://codemirror.net/) on the bottom showing the **Mapping Specification** (Blockly JSON with line numbers and Mapping Spec Widgets for density / safe field edits) and an editable **Handlebars Template** tab when Conversion script language is Handlebars. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
-_Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library)
+The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top, [CodeMirror](https://codemirror.net/) on the bottom showing the **Mapping Specification** (Blockly JSON with line numbers and Mapping Spec Widgets for density / safe field edits) and an editable **Handlebars Template** tab (Tree insert toolbar only while that tab is showing). A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
+_Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library), Target value slots rail / Slots Pane (removed)
 
-**Output Previews**:
-The right pane showing generated conversion-script code (upper) and live conversion test-run results (lower). Collapsible. v1 runs TypeScript mappings in-browser against example source data.
-_UI labels:_ pane title **Output Previews**; sections **Generated conversion script(s)** and **Conversion Test Run(s)**.
-_Avoid_: Right pane (ambiguous — could mean mapping), test pane alone
+**Target & Previews**:
+The right pane: **Output mode** in the header, **Generated conversion script(s)** above, **Conversion Test Run(s)** below. Collapsible. Both sections are views of the **Mapping Specification**, not saved artifacts.
+_UI labels:_ pane title **Target & Previews**; sections **Generated conversion script(s)** and **Conversion Test Run(s)**.
+_Avoid_: Output Previews (old pane title), Right pane (ambiguous — could mean mapping), test pane alone, Slots Pane / slot rail (removed; Target value slots live on the Blockly canvas)
+
+**Output mode**:
+The **Target & Previews** header select: **Mapping preview**, or a **Conversion script language** (TypeScript, Java, Handlebars, XQuery). Chooses what those two sections show. Mapping preview is not a script dialect. Session-only — after app start or Project Bundle load the select is Mapping preview; a Conversion script language is chosen only for the current session.
+_UI label:_ first option **Mapping preview**.
+_Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle
+
+**Mapping preview**:
+Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against the Active Example (today's Test Run), including **Handlebars Template** rendering for free-form / Kintegrate. **Generated conversion script(s)** shows a prompt to pick a Conversion script language rather than a script. Not itself a Conversion Script.
+_Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
 **Test Run**:
-Evaluating Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**), then rendering through the selected Target instance format handler (or Handlebars conversion script for free-form / Kintegrate scripts). Displays the produced instance (Composition JSON, generic JSON, XML, or text). Required in v1.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run
 
@@ -94,12 +103,24 @@ _Avoid_: Hidden mandatory, RM default
 A Target value slot that scaffolding fills with a **Map lookup** of a **Defaults Map** key. One key may bind many slots (e.g. `language` → COMPOSITION and ENTRY language; `encoding` → ENTRY encoding). The lookup plugs into the leaf (`code_string`, time string, name), not in place of the `CODE_PHRASE` / `DV_*` / `PARTY_IDENTIFIED` shell; RM `terminology_id` stays a fixed field. Optional RM attributes that are default points (e.g. EVENT_CONTEXT `health_care_facility`) are inserted so the lookup has a slot. v1 identifies points from an openEHR RM attribute table, not from JSON Schema. Hardcoding that slot is replacing the lookup with a literal on the canvas, not a generator bake mode.
 _Avoid_: Silent-Mandatory RM Field (that is why a mandatory slot exists), treating a `ctx/` path as a slot id, replacing the typed shell with a bare Map lookup
 
+**Source query block**:
+One of the three typed Blockly blocks that hold a **Source Path**: `source_query` (string), `source_query_number`, `source_query_boolean`. Orange Source category on the canvas and in the toolbox.
+_Avoid_: generic “source block”, xpath block (the expression helpers are different)
+
+**Placeholder source path**:
+The unmapped factory **Source Path** on a **Source query block**: empty, or the default field value `/path`. A real mapped path such as `$.systolic` is not a placeholder.
+_Avoid_: treating every XML `/path` in source data as unmapped (a real map to `/path` looks like the placeholder)
+
+**Selection**:
+One shared selected Blockly block, shown in two places: the matching **Mapping Spec Widget** row is marked selected (and scrolled into view), and the canvas pans to that block with a yellow border. Clicking either the widget or the block selects the same block. Selection does not enter **Listening Mode**, except when the block is a **Source query block** whose path is still a **Placeholder source path**.
+_Avoid_: Listening Mode (that is arming for Click-to-Map), Constraint warning (that is the triangle), a second highlight that is not Blockly's selected block
+
 **Listening Mode**:
-Transient state of a Blockly value slot after the user clicks it, waiting for a source tree node click to insert a `source_query` block.
-_Avoid_: Focus mode, mapping mode
+Transient state waiting for a source tree node click to write a **Source Path**. Entered by clicking an empty Target value slot on the Blockly canvas, or by **Selection** of a **Source query block** that still has a **Placeholder source path**. If that source query is plugged into a Target value slot, the next source click maps that **slot** (same as today’s Click-to-Map). If it is free-floating, only that block’s `EXPRESSION` is filled — no Mapping Model slot until it is plugged in.
+_Avoid_: Focus mode, mapping mode, arming on every spec click
 
 **Click-to-Map**:
-The primary mapping interaction: click an empty value slot (enters Listening Mode) → click a source tree node → a `source_query` block (fontoxpath XPath) is inserted with typed evaluator from the slot's `DV_*` type. Drag-and-drop from source tree onto a value slot is supported as a secondary interaction.
+The primary mapping interaction: enter **Listening Mode** → click a source tree node → the waiting Target value slot (or free-floating **Source query block**) receives a fontoxpath **Source Path**. Typed evaluator follows the slot's `DV_*` type, or the source query's string/number/boolean kind when there is no slot. Drag-and-drop from source tree onto a value slot is supported as a secondary interaction. When the Mapping Editor **Handlebars Template** tab is showing, a source click inserts a Handlebars path (`{{path}}` or nested `#with`/`#each`) instead of a Blockly block — the Tree insert toolbar applies only to that tab, not to Blockly.
 _Avoid_: Wildcard mapping (deferred — see `docs/future/wildcard-source-mapping.md`)
 
 **Optional RM Insertion**:
@@ -113,6 +134,10 @@ _Avoid_: Dynamic slot, mutating block
 **Mapping Expression**:
 Editable fragment inside a value slot in the Mapping Specification — XPath via fontoxpath builtins (`xpathNumber`, `xpathString`, …) plus JS-shaped helpers (`trim`, `concat`, `if`). Not TypeScript/Java export code.
 _Avoid_: Value mapping, get_source
+
+**Constraint warning**:
+A yellow warning triangle on a Blockly block (and the matching **Mapping Spec Widget**) when a contained constraint is unmet — unmapped mandatory value, abstract EVENT, or unmet slot cardinality. It does not light up merely because a node is template/RM-mandatory.
+_Avoid_: the former slot-rail red/green borders, treating Mapping Model `validateModel` as a second warning UI
 
 **DATA_VALUE Block**:
 A typed Blockly shell for an openEHR `DV_*` (e.g. `DV_QUANTITY`) that wraps Mapping Expressions / literals into target RM fields. Structure still comes from the Template Skeleton or Optional RM Insertion — not free-form composition building from the toolbox. v1 covers the full RM leaf set (including `DV_INTERVAL`, `DV_MULTIMEDIA`, `DV_PARSABLE`, etc.). Field layouts are driven at runtime from ehrtslib’s type registry plus attribute metadata (not a hand-maintained DV field table); gaps in ehrtslib introspection are treated as library improvements. Mandatory value slots (RM- or template/archetype-mandatory) auto-attach the matching shell in the Template Skeleton; optional slots stay empty until Click-to-Map / Listening Mode, which then inserts the typed shell around the Mapping Expression. On each shell, only mandatory attributes are shown by default; optional attributes appear via progressive disclosure (“+ fields”) on that block. Authoritative sources for RM types and attributes are the openEHR specs and ehrtslib — not `docs/OPENEHR_PRIMER.md` (illustrative only). Implementation of registry-driven shells waits on the ehrtslib RM attribute introspection API (`docs/proposals/ehrtslib-rm-attribute-introspection.md`); no interim hand-maintained meta table in intEHRgrator.
@@ -131,7 +156,7 @@ Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.b
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Mapping Spec Widget**:
-A CodeMirror decoration that collapses a common Blockly JSON construct into a compact, mostly read-only chrome row. v1 covers skeleton containers, value slots, `source_query`, and `DV_*` shells (stock logic/loop widgets later). Only **safe fields** on the widget are editable (e.g. dropdown choices, variable/expression text inputs); rearranging block structure, ids, and coordinates is not done by typing raw JSON. Layout chrome such as `x`/`y` is omitted from the Spec projection by default; an **info** control (encircled *i*) reveals those details in a tooltip-like balloon. Full Blockly JSON including coordinates remains in the Project Bundle for exact restore.
+A CodeMirror decoration that collapses a common Blockly JSON construct into a compact, mostly read-only chrome row. v1 covers skeleton containers, value slots, `source_query`, and `DV_*` shells (stock logic/loop widgets later). Only **safe fields** on the widget are editable (e.g. dropdown choices, variable/expression text inputs); rearranging block structure, ids, and coordinates is not done by typing raw JSON. Layout chrome such as `x`/`y` is omitted from the Spec projection by default; an **info** control (encircled *i*) reveals those details in a tooltip-like balloon. Full Blockly JSON including coordinates remains in the Project Bundle for exact restore. A widget whose Blockly block has a **Constraint warning** shows the same yellow warning triangle.
 _Avoid_: Free-form JSON editing of the whole workspace, custom DSL, treating the Spec view as the persistence format byte-for-byte
 
 **Mapping Model**:
@@ -139,7 +164,7 @@ Derived semantic index (`templateId`, `targetFormat`, `slotId`, `rmType`, `expre
 _Avoid_: Mapping schema, parallel IR, structural language
 
 **Generated Export**:
-Executable TypeScript, Java, or Handlebars produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in the **right pane upper** CodeMirror only — not in the center pane. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
+Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
 _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
@@ -171,35 +196,39 @@ _Avoid_: Environment abstraction layer, platform bindings
 Programmatic seam exposed as `window.intehrgratorTestApi` when the Web Shell is opened with `?testMode=1`. Loads Template Skeleton / Source Schema / Example Instance fixtures without file pickers; reports Mapping Model, Blockly block summary, and Test Run results. UI tests still click Target value slots, Example Instance tree rows, and **Run Test** so Click-to-Map is exercised through the real DOM. See `docs/UI_TESTING.md`.
 _Avoid_: formTestApi (kintegrate name), Cypress-only harness
 
-**Conversion script language** (settings key `exportTarget`; older docs said Export dialect / Export Target):
-Workspace setting choosing which script language is generated or authored for Output Previews and Export (`typescript` | `java` | `handlebars` | `xquery`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format.
-_Avoid_: Export dialect, Export Target (prefer this term), Target language alone, conflating with Target instance format
+**Conversion script language** (older docs said Export dialect / Export Target; code key `exportTarget` was a persisted setting — no longer saved):
+An **Output mode** value that generates a Conversion Script (`typescript` | `java` | `handlebars` | `xquery`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format and from Mapping preview. Not stored in the Project Bundle.
+_Avoid_: Export dialect, Export Target (prefer this term), Target language alone, conflating with Target instance format or Mapping preview
 
 **UI language**:
-The application locale for Blockly messages (toolbar setting; later full chrome i18n). ISO 639-1 codes (`en`, `sv`, `de`, `es`, `ca`, `fr`). Distinct from **model language** (ontology labels on the Target pane) and from composition `language` in a **Defaults Map** — a factory Defaults Map may copy UI language into that key once, when the factory instance is created, and does not rewrite it if the toolbar locale later changes.
+The application locale for Blockly messages (toolbar setting; later full chrome i18n). ISO 639-1 codes (`en`, `sv`, `de`, `es`, `ca`, `fr`). Distinct from **model language** (ontology labels in **Target & Previews**) and from composition `language` in a **Defaults Map** — a factory Defaults Map may copy UI language into that key once, when the factory instance is created, and does not rewrite it if the toolbar locale later changes.
 _Avoid_: Model language, conflating with Defaults Map `language`
 
 **Handlebars Template**:
-User-authored Kintegrate-compatible conversion template stored in `ProjectBundle.mapping.handlebarsTemplate`. Used when Conversion script language is `handlebars`; may walk the source tree directly and/or read Mapping Model slot values via `{{slot "…"}}`.
-_Avoid_: Mapping Specification (that term means Blockly JSON)
+User-authored Kintegrate-compatible conversion template stored in `ProjectBundle.mapping.handlebarsTemplate`. **Mapping preview** Test Run renders it for free-form / Kintegrate targets. Distinct from a generated Handlebars Conversion Script (Output mode Handlebars), which is not executed in Conversion Test Run(s) yet.
+_Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format
+
+**Output validation**:
+ehrtslib `TemplateValidator` check of a Conversion Test Run instance against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. ✅ on the Conversion Test Run tab if valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor.
+_Avoid_: copying Source Schema mismatch onto Conversion Test Run tabs, RM-only validation when an OPT is loaded
 
 **Better Form Bridge**:
 Optional seam for Push/Pull against a licensed Better Form Renderer viewer (assets from Kintegrate via `deno task setup:better-forms`, never committed). See `docs/KINTEGRATE_MIGRATION.md`.
 _Avoid_: formTestApi (kintegrate name for the form viewer API)
 
 **Project Bundle**:
-Self-contained saved workspace containing target definition (format-neutral `target` plus legacy `template` for openEHR), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file.
+Self-contained saved workspace containing target definition (format-neutral `target` plus legacy `template` for openEHR), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
 _Avoid_: Mapping file, saved state
 
 ## Example dialogue
 
 > **Informatician:** I loaded the vitals template and my HL7 JSON export. Where do I wire systolic pressure?
 >
-> **Developer:** Click the value slot on `systolic` in the Mapping Editor, then click `vitals[0].systolic` in the **active example tab** tree. Blockly JSON below is the canonical Mapping Specification; the Mapping Model slot index drives Test Run. Generated Export on the right shows the selected Conversion script language.
+> **Developer:** Click the value slot on `systolic` in the Mapping Editor, then click `vitals[0].systolic` in the **active example tab** tree. Blockly JSON below is the canonical Mapping Specification; **Mapping preview** Test Run reads the Mapping Model. Pick a Conversion script language in Output mode when you want Generated Export.
 >
 > **Informatician:** Can I test it without exporting?
 >
-> **Developer:** Yes — click **Run Test**. The lower **Conversion Test Run(s)** section evaluates your Mapping Model against the loaded example and renders through the Target instance format (Composition JSON for an OPT target). Export is only needed when you want the script in your own pipeline.
+> **Developer:** Yes — stay on **Mapping preview** and click **Run Test**. **Conversion Test Run(s)** evaluates your Mapping Model against the loaded example and renders through the Target instance format (Composition JSON for an OPT target). A Conversion Script is only needed when you want the mapping in your own pipeline.
 >
 > **Informatician:** The template doesn't include feeder audit but I need provenance. How do I add it?
 >
@@ -212,3 +241,7 @@ _Avoid_: Mapping file, saved state
 > **Informatician:** I want every composition to say St. Dummy Demo Hospital and Swedish, and I want to set that before I load the OPT.
 >
 > **Developer:** The **Defaults block** is already on the canvas. Edit the plugged-in **Defaults Map** (or **Save as** a named snapshot). `language` on a fresh factory map follows **UI language**; it is not **model language**. Open the template afterward — scaffolding **joins** and fills **Default point**s with **Map lookup**s. Generated Conversion Scripts still take that map as a convert-time argument.
+>
+> **Informatician:** The old Target slot list is gone. How do I find an unmapped field and wire it?
+>
+> **Developer:** **Constraint warning** triangles on Blockly and in the Mapping Specification mark unmet slots. Click a spec row to **Select** it — the canvas pans with a yellow border. If that row is a **Source query block** still showing `/path`, **Listening Mode** starts; then click the source tree. Open target now lives in **Target & Previews**.

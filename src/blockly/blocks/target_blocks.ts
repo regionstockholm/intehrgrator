@@ -52,6 +52,26 @@ function defineStructureBlock(
       this.setColour(colour);
       this.setTooltip(tooltip);
     },
+    /**
+     * Dynamic TARGET_* statement mouths are not in `init()`, so Blockly
+     * JSON serialization needs extraState or a minimap copy / Mapping Spec
+     * reload will throw "missing a(n) TARGET_… connection".
+     */
+    saveExtraState: function (this: Block) {
+      const childGroups = this.inputList
+        .filter((input) => input.name.startsWith(TARGET_CHILD_PREFIX))
+        .map((input) => input.name.slice(TARGET_CHILD_PREFIX.length));
+      return childGroups.length ? { childGroups } : null;
+    },
+    loadExtraState: function (this: Block, state: unknown) {
+      const raw = state && typeof state === "object"
+        ? (state as { childGroups?: unknown }).childGroups
+        : undefined;
+      const childGroups = Array.isArray(raw)
+        ? raw.filter((group): group is string => typeof group === "string" && group.length > 0)
+        : [];
+      syncTargetChildInputs(this, childGroups);
+    },
   };
 }
 

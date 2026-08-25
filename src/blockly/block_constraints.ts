@@ -132,7 +132,7 @@ function isMandatoryFlag(block: Block): boolean {
   return raw === "1" || raw === "true";
 }
 
-function isUnmappedValueBlock(block: Block): boolean {
+export function isUnmappedValueBlock(block: Block): boolean {
   if (isTermPickBlock(block)) {
     const code = block.getFieldValue("CODE");
     return !code || code === TERM_PICK_NONE;

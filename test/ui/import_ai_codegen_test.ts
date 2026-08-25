@@ -26,6 +26,7 @@ Deno.test({
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
       await loadBpFixtures(page);
+      await page.selectOption("#export-target", "typescript");
 
       const before = await getSnapshot(page);
       assertEquals(

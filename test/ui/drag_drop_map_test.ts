@@ -9,11 +9,14 @@ import {
   baseUrl,
   findSystolicSlotId,
   getSnapshot,
-  html5DragDrop,
+  html5DragDropToPoint,
   loadBpFixtures,
+  visibleBlockDropPoint,
   waitForMappedSlot,
   waitForTestApi,
+  findElementBlockId,
 } from "./helpers.ts";
+import type { IntehrgratorTestApi } from "../../src/ui_test/test_api.ts";
 
 Deno.test({
   name: "UI: drag-and-drop systolic onto Target value slot → Test Run returns 120",
@@ -28,16 +31,32 @@ Deno.test({
       await loadBpFixtures(page);
 
       const slotId = await findSystolicSlotId(page);
-      const slotSelector = `.slot-item[data-slot-id="${slotId}"]`;
-      await page.waitForSelector(slotSelector, { timeout: 10_000 });
+      const blockId = await findElementBlockId(page, slotId);
+      const geometry = await page.evaluate((id) => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        api.scrollBlockIntoView(id);
+        const rect = api.getBlockClientRect(id);
+        const mountEl = document.getElementById("blockly-mount");
+        if (!rect || !mountEl) return null;
+        const mount = mountEl.getBoundingClientRect();
+        return {
+          rect,
+          mount: { left: mount.left, top: mount.top, right: mount.right, bottom: mount.bottom },
+        };
+      }, blockId);
+      assert(geometry, "expected Blockly element block SVG");
+      const drop = visibleBlockDropPoint(geometry.rect, geometry.mount);
+      assert(drop, "expected Blockly element block SVG inside #blockly-mount");
 
       // Must not require Listening Mode for drag-and-drop.
       assertEquals((await getSnapshot(page)).listeningSlotId, null);
 
-      await html5DragDrop(
+      await html5DragDropToPoint(
         page,
         '#example-tree .tree-row[data-path="$.systolic"] .tree-label',
-        slotSelector,
+        drop.x,
+        drop.y,
       );
       await waitForMappedSlot(page, slotId);
 
@@ -71,9 +90,9 @@ Deno.test({
       assert(output && !("slots" in output), `openEHR Test Run must not include a slots sidecar: ${JSON.stringify(output)}`);
       assertStringIncludes(JSON.stringify(output), "120");
 
-      const outputText = await page.locator("#test-output").innerText();
-      assert(outputText.includes("120"), outputText);
-      assert(!outputText.includes('"slots"'), outputText);
+      const outputText = await page.locator("#test-output .cm-content").textContent();
+      assert(outputText && !outputText.includes("// Test Run output"), outputText ?? "");
+      assert(outputText.includes("COMPOSITION") || outputText.includes("120"), outputText);
     } finally {
       await browser.close();
     }

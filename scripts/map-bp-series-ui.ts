@@ -55,19 +55,17 @@ async function findSlot(page: Page, ...suffixes: string[]): Promise<string> {
   throw new Error(`No slot ending with ${suffixes.join(" | ")}`);
 }
 
-async function clickSlotRail(page: Page, slotId: string): Promise<void> {
-  const clicked = await page.evaluate((id) => {
-    const items = document.querySelectorAll<HTMLElement>(".slot-item");
-    for (const el of items) {
-      if (el.dataset.slotId === id) {
-        el.scrollIntoView({ block: "center" });
-        el.click();
-        return true;
-      }
-    }
-    return false;
+async function clickSlotBlock(page: Page, slotId: string): Promise<void> {
+  const rect = await page.evaluate((id) => {
+    const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+      .intehrgratorTestApi;
+    const match = api.getSnapshot().blocklyBlocks.find((b) =>
+      b.slotId === id && (b.type === "element" || b.type === "target_value")
+    );
+    return match ? api.getBlockClientRect(match.id) : null;
   }, slotId);
-  if (!clicked) throw new Error(`slot rail item not found: ${slotId}`);
+  if (!rect) throw new Error(`slot block not found: ${slotId}`);
+  await page.mouse.click(rect.x + Math.min(16, rect.width / 2), rect.y + rect.height / 2);
 }
 
 async function clickExamplePath(page: Page, path: string): Promise<void> {
@@ -381,7 +379,7 @@ try {
 
   for (const m of maps) {
     try {
-      await clickSlotRail(page, m.slot);
+      await clickSlotBlock(page, m.slot);
       await page.waitForFunction((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
           .intehrgratorTestApi;

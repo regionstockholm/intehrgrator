@@ -1,8 +1,9 @@
 import type {
-  ExportTarget,
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  OutputMode,
+  OutputValidation,
   ProjectBundle,
   ProjectSettings,
   SchemaIssue,
@@ -21,7 +22,12 @@ import {
   formatSaveTime,
   importBundle,
 } from "../core/persistence/mod.ts";
-import { DEFAULT_SETTINGS } from "../types/mod.ts";
+import {
+  DEFAULT_SETTINGS,
+  isConversionScriptLanguage,
+  MAPPING_PREVIEW_SCRIPT_PLACEHOLDER,
+  unimplementedTestRunMessage,
+} from "../types/mod.ts";
 import { collectValueSlots, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
 import {
   applyExpressionEdit,
@@ -86,6 +92,7 @@ import {
 export type WorkbenchListener = () => void;
 
 export const AUTOSAVE_DEBOUNCE_MS = 10_000;
+export const POST_LOAD_OUTPUT_MS = 400;
 
 export interface WorkbenchControllerOptions {
   urlStorage?: Storage;
@@ -122,7 +129,9 @@ export class WorkbenchController {
   private handlebarsTemplate = "";
   private generatedCode = "";
   private testResult: TestResult | null = null;
+  private outputValidations = new Map<string, OutputValidation>();
   private listeningSlotId: string | null = null;
+  private listeningSourceBlockId: string | null = null;
   private treeHighlight: { syncPath: string | null; origin: "schema" | "instance" | null } = {
     syncPath: null,
     origin: null,
@@ -132,6 +141,7 @@ export class WorkbenchController {
   private pendingDefaultsMap: unknown | null = null;
   private getBlocklyState: (() => unknown) | null = null;
   private debounceTimer: number | null = null;
+  private postLoadTimer: number | null = null;
   private autosaveTimer: number | null = null;
   private dirty = false;
   private lastAutosaveAt: string | null = null;
@@ -206,7 +216,9 @@ export class WorkbenchController {
       handlebarsTemplate: this.handlebarsTemplate,
       generatedCode: this.generatedCode,
       testResult: this.testResult,
+      outputValidations: Object.fromEntries(this.outputValidations),
       listeningSlotId: this.listeningSlotId,
+      listeningSourceBlockId: this.listeningSourceBlockId,
       treeHighlight: this.treeHighlight,
       statusMessage: this.statusMessage,
       saveStatus: this.getSaveStatus(),
@@ -309,7 +321,6 @@ export class WorkbenchController {
       this.settings = { ...this.settings, modelLanguage: target.language };
     }
     if (target.format === "free-form") {
-      this.settings.exportTarget = "handlebars";
       this.handlebarsTemplate = target.content;
     }
     this.blocklyState = null;
@@ -460,6 +471,7 @@ export class WorkbenchController {
         this.pendingDefaultsMap = mapBlock;
       }
       this.statusMessage = `Loaded example set "${set.title}"`;
+      this.schedulePostLoadOutput();
       this.notifyChange();
     } catch (err) {
       this.statusMessage = `Example set "${set.title}" failed: ${
@@ -533,8 +545,15 @@ export class WorkbenchController {
     this.examples.setActive(id);
     this.clearTreeHighlight();
     const cached = this.examples.getCachedResult(id);
-    this.testResult = cached
-      ? { ok: true, output: cached, composition: cached, warnings: [] }
+    const validation = this.outputValidations.get(id);
+    this.testResult = cached !== undefined
+      ? {
+        ok: true,
+        output: cached,
+        composition: cached,
+        warnings: [],
+        outputValidation: validation,
+      }
       : null;
     this.markDirty();
   }
@@ -547,8 +566,15 @@ export class WorkbenchController {
     } else {
       const active = this.examples.getActive();
       const cached = active ? this.examples.getCachedResult(active.id) : undefined;
-      this.testResult = cached
-        ? { ok: true, output: cached, composition: cached, warnings: [] }
+      const validation = active ? this.outputValidations.get(active.id) : undefined;
+      this.testResult = cached !== undefined
+        ? {
+          ok: true,
+          output: cached,
+          composition: cached,
+          warnings: [],
+          outputValidation: validation,
+        }
         : null;
     }
     this.markDirty();
@@ -556,7 +582,21 @@ export class WorkbenchController {
 
   armSlot(slotId: string): void {
     this.listeningSlotId = slotId;
+    this.listeningSourceBlockId = null;
     this.statusMessage = `Listening for source path → ${slotId}`;
+    this.notifyChange();
+  }
+
+  armSourceQueryBlock(blockId: string): void {
+    this.listeningSourceBlockId = blockId;
+    this.listeningSlotId = null;
+    this.statusMessage = "Listening for source path → source query";
+    this.notifyChange();
+  }
+
+  clearListening(): void {
+    this.listeningSlotId = null;
+    this.listeningSourceBlockId = null;
     this.notifyChange();
   }
 
@@ -604,6 +644,7 @@ export class WorkbenchController {
       mandatory: slot.mandatory,
     });
     this.listeningSlotId = null;
+    this.listeningSourceBlockId = null;
     this.refreshDerived();
     this.statusMessage = `Mapped ${slot.label}`;
     this.markDirty();
@@ -682,6 +723,19 @@ export class WorkbenchController {
   }
 
   runTestNow(): void {
+    const mode = this.settings.exportTarget;
+    if (isConversionScriptLanguage(mode) && mode !== "typescript") {
+      const message = unimplementedTestRunMessage(mode);
+      this.testResult = {
+        ok: false,
+        output: message,
+        composition: message,
+        error: message.trim(),
+        warnings: [],
+      };
+      this.notifyChange();
+      return;
+    }
     const active = this.examples.getActive();
     if (!active) {
       this.testResult = { ok: false, error: "No active example", warnings: [] };
@@ -690,19 +744,26 @@ export class WorkbenchController {
     }
     this.testResult = runTest(this.model, active.content, active.format, {
       target: this.target,
-      exportTarget: this.settings.exportTarget,
+      outputMode: mode,
+      exportTarget: this.target?.format === "free-form" ? "handlebars" : undefined,
+      generatedCode: mode === "typescript" ? this.generatedCode : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
     });
     if (this.testResult.output !== undefined) {
       this.examples.setCachedResult(active.id, this.testResult.output);
     }
+    if (this.testResult.outputValidation) {
+      this.outputValidations.set(active.id, this.testResult.outputValidation);
+    }
     this.notifyChange();
   }
 
   exportTypeScript(): void {
-    const adapter = getExportTargetAdapter(this.settings.exportTarget);
-    const code = generate(this.model, this.settings.exportTarget, {
+    const mode = this.settings.exportTarget;
+    if (!isConversionScriptLanguage(mode)) return;
+    const adapter = getExportTargetAdapter(mode);
+    const code = generate(this.model, mode, {
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       skeleton: this.skeleton,
@@ -711,6 +772,22 @@ export class WorkbenchController {
       `conversion-${safeFilename(this.templateId)}.${adapter.extension}`,
       code,
       adapter.mime,
+    );
+  }
+
+  exportTestOutput(): void {
+    const output = this.testResult?.output ?? this.testResult?.error;
+    if (output === undefined) return;
+    const active = this.examples.getActive();
+    const base = (active?.filename ?? "test-run").replace(/\.[^.]+$/, "");
+    const text = typeof output === "string" ? output : JSON.stringify(output, null, 2);
+    const ext = typeof output === "string"
+      ? (output.trimStart().startsWith("<") ? "xml" : "txt")
+      : "json";
+    void this.host.downloadText(
+      `${safeFilename(base)}-converted.${ext}`,
+      text,
+      ext === "json" ? "application/json" : "text/plain",
     );
   }
 
@@ -953,10 +1030,16 @@ export class WorkbenchController {
     return artifacts;
   }
 
-  setExportTarget(target: ExportTarget): void {
+  setExportTarget(target: OutputMode): void {
     this.settings.exportTarget = target;
+    this.examples.clearCache();
+    this.outputValidations.clear();
     this.refreshDerived();
-    this.markDirty();
+    if (this.examples.hasExamples() || (isConversionScriptLanguage(target) && target !== "typescript")) {
+      this.runTestNow();
+    } else {
+      this.notifyChange();
+    }
   }
 
   setHandlebarsTemplate(template: string): void {
@@ -1110,13 +1193,28 @@ export class WorkbenchController {
   private refreshDerived(): void {
     // Spec view is widgets over the pretty Blockly JSON document.
     this.specText = formatBlocklyState(this.getBlocklyState?.() ?? this.blocklyState);
-    this.generatedCode = this.model.templateId
-      ? generate(this.model, this.settings.exportTarget, {
+    const mode = this.settings.exportTarget;
+    if (!isConversionScriptLanguage(mode)) {
+      this.generatedCode = MAPPING_PREVIEW_SCRIPT_PLACEHOLDER;
+      return;
+    }
+    this.generatedCode = this.model.templateId || this.handlebarsTemplate
+      ? generate(this.model, mode, {
         handlebarsTemplate: this.handlebarsTemplate,
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
         skeleton: this.skeleton,
       })
       : "";
+  }
+
+  private schedulePostLoadOutput(): void {
+    if (this.postLoadTimer !== null) clearTimeout(this.postLoadTimer);
+    this.postLoadTimer = setTimeout(() => {
+      this.postLoadTimer = null;
+      this.refreshDerived();
+      if (this.examples.hasExamples()) this.runTestNow();
+      else this.notifyChange();
+    }, POST_LOAD_OUTPUT_MS) as unknown as number;
   }
 
   private scheduleAutosave(): void {
@@ -1176,7 +1274,9 @@ export class WorkbenchController {
     this.handlebarsTemplate = "";
     this.generatedCode = "";
     this.testResult = null;
+    this.outputValidations.clear();
     this.listeningSlotId = null;
+    this.listeningSourceBlockId = null;
     this.treeHighlight = { syncPath: null, origin: null };
     this.blocklyState = null;
     this.blocklyReloadToken += 1;
@@ -1186,6 +1286,10 @@ export class WorkbenchController {
     if (this.autosaveTimer !== null) {
       clearTimeout(this.autosaveTimer);
       this.autosaveTimer = null;
+    }
+    if (this.postLoadTimer !== null) {
+      clearTimeout(this.postLoadTimer);
+      this.postLoadTimer = null;
     }
   }
 
@@ -1241,14 +1345,18 @@ export class WorkbenchController {
         model: this.model,
         handlebarsTemplate: this.handlebarsTemplate,
       },
-      settings: this.settings,
+      settings: { ...this.settings, exportTarget: "typescript" },
       urlHistory: this.captureUrlHistory(),
     };
   }
 
   private loadBundle(bundle: ProjectBundle): void {
     this.projectId = bundle.projectId;
-    this.settings = { ...DEFAULT_SETTINGS, ...bundle.settings };
+    this.settings = {
+      ...DEFAULT_SETTINGS,
+      ...bundle.settings,
+      exportTarget: "preview",
+    };
     this.model = {
       ...bundle.mapping.model,
       modelVersion: bundle.mapping.model.modelVersion ?? 1,
@@ -1308,7 +1416,9 @@ export class WorkbenchController {
     for (const ex of bundle.examples) this.examples.addExample(ex);
     if (bundle.activeExampleId) this.examples.setActive(bundle.activeExampleId);
     if (this.urlStorage) restoreUrlHistory(bundle.urlHistory, this.urlStorage);
+    this.outputValidations.clear();
     this.refreshDerived();
+    this.schedulePostLoadOutput();
   }
 
   private captureUrlHistory() {

@@ -28,7 +28,21 @@ export {
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
 export { applySkeletonBlockLabels, relabelWorkspaceFromSkeleton } from "./block_labels.ts";
-export { refreshWorkspaceConstraints, ABSTRACT_EVENT_WARNING, warningTextOf } from "./block_constraints.ts";
+export {
+  refreshWorkspaceConstraints,
+  ABSTRACT_EVENT_WARNING,
+  warningTextOf,
+  isUnmappedValueBlock,
+  blockConstraintMessages,
+} from "./block_constraints.ts";
+export {
+  PLACEHOLDER_SOURCE_PATH,
+  isPlaceholderSourcePath,
+  listeningTargetFromBlock,
+  owningValueSlotId,
+  hasPlaceholderSourceQuery,
+  type ListeningTarget,
+} from "./listening.ts";
 export { blockToExpression } from "./expression_serialize.ts";
 export {
   createSourceQueryBlock,

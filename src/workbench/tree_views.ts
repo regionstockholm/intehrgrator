@@ -1,18 +1,14 @@
-import type { SchemaTreeNode, SkeletonNode, SourceFormatId } from "../types/mod.ts";
-import { isAutoFixedValueSlot } from "../core/rm_mandatory.ts";
-import { zipehrEmojiForRmType } from "../core/rm_emoji.ts";
+﻿import type { SchemaTreeNode, SourceFormatId } from "../types/mod.ts";
 import { canonicalSyncPath, isSourceFormatId } from "../core/source/mod.ts";
 
-const SKELETON_INDENT_PX = 12;
-
-/** Custom MIME for Source Pane → value-slot drag-and-drop mapping. */
+/** Custom MIME for Source Pane to value-slot drag-and-drop mapping. */
 export const SOURCE_DRAG_MIME = "application/x-intehrgrator-source";
 
 export interface SourceDragPayload {
   path: string;
   format: SourceFormatId;
   origin: "schema" | "instance";
-  /** JSON Schema / instance type name (`string`, `integer`, `boolean`, …). */
+  /** JSON Schema / instance type name (`string`, `integer`, `boolean`, â€¦). */
   schemaType?: string;
 }
 
@@ -62,7 +58,7 @@ export interface TreeHighlightState {
 
 export interface SchemaTreeRenderOptions {
   onHighlight?: (syncPath: string | null, origin: "schema" | "instance") => void;
-  /** Instance-tree path → validation message, for JSON Schema / structural mismatches. */
+  /** Instance-tree path â†’ validation message, for JSON Schema / structural mismatches. */
   invalidByPath?: Record<string, string>;
 }
 
@@ -225,145 +221,4 @@ function formatSchemaMeta(node: SchemaTreeNode): string {
 function formatValue(value: unknown): string {
   if (typeof value === "string") return JSON.stringify(value);
   return String(value);
-}
-
-export function renderSkeletonList(
-  container: HTMLElement,
-  skeleton: SkeletonNode[],
-  onArm: (slotId: string) => void,
-  listeningSlotId: string | null,
-  mappedSlots: Set<string>,
-  onDropSource?: (slotId: string, payload: SourceDragPayload) => void,
-): void {
-  container.innerHTML = "";
-  const tree = document.createElement("ul");
-  tree.className = "skeleton-tree";
-  for (const node of skeleton) {
-    const branch = buildSkeletonBranch(
-      node,
-      onArm,
-      listeningSlotId,
-      mappedSlots,
-      0,
-      onDropSource,
-    );
-    if (branch) tree.appendChild(branch);
-  }
-  if (!tree.childElementCount) {
-    container.textContent = "No value slots.";
-    return;
-  }
-  container.appendChild(tree);
-}
-
-function buildSkeletonBranch(
-  node: SkeletonNode,
-  onArm: (slotId: string) => void,
-  listeningSlotId: string | null,
-  mappedSlots: Set<string>,
-  depth: number,
-  onDropSource?: (slotId: string, payload: SourceDragPayload) => void,
-): HTMLElement | null {
-  if (node.kind === "value") {
-    if (isAutoFixedValueSlot(node)) return null;
-    return buildValueSlotItem(node, onArm, listeningSlotId, mappedSlots, depth, onDropSource);
-  }
-
-  const childBranches = node.children
-    .map((child) =>
-      buildSkeletonBranch(child, onArm, listeningSlotId, mappedSlots, depth + 1, onDropSource)
-    )
-    .filter((el): el is HTMLElement => el !== null);
-  if (childBranches.length === 0) return null;
-
-  const li = document.createElement("li");
-  li.className = "skeleton-tree-node skeleton-branch";
-
-  const row = document.createElement("div");
-  row.className = "skeleton-tree-row";
-  row.style.paddingLeft = `${depth * SKELETON_INDENT_PX}px`;
-
-  const label = document.createElement("span");
-  label.className = "skeleton-branch-label truncate-suffix";
-  label.textContent = node.label;
-  label.title = node.slotId;
-  row.appendChild(label);
-  li.appendChild(row);
-
-  const childList = document.createElement("ul");
-  childList.className = "skeleton-tree-children";
-  for (const child of childBranches) childList.appendChild(child);
-  li.appendChild(childList);
-  return li;
-}
-
-function buildValueSlotItem(
-  node: SkeletonNode,
-  onArm: (slotId: string) => void,
-  listeningSlotId: string | null,
-  mappedSlots: Set<string>,
-  depth: number,
-  onDropSource?: (slotId: string, payload: SourceDragPayload) => void,
-): HTMLElement {
-  const li = document.createElement("li");
-  li.className = "skeleton-tree-node slot-item";
-  li.dataset.slotId = node.slotId;
-  const mapped = mappedSlots.has(node.slotId);
-  if (node.mandatory && !mapped) li.classList.add("unmapped-mandatory");
-  if (mapped) li.classList.add("mapped");
-  if (listeningSlotId === node.slotId) li.classList.add("listening");
-
-  const row = document.createElement("div");
-  row.className = "skeleton-tree-row";
-  row.style.paddingLeft = `${depth * SKELETON_INDENT_PX}px`;
-
-  const label = document.createElement("span");
-  label.className = "slot-label truncate-suffix";
-  label.textContent = node.label;
-  label.title = node.slotId;
-
-  const typeMeta = document.createElement("span");
-  typeMeta.className = "slot-type-meta";
-  const emoji = zipehrEmojiForRmType(node.rmType);
-  if (emoji) {
-    const icon = document.createElement("span");
-    icon.className = "slot-rm-emoji";
-    icon.textContent = emoji;
-    icon.setAttribute("aria-hidden", "true");
-    icon.title = node.rmType;
-    typeMeta.appendChild(icon);
-  }
-  const rmType = document.createElement("span");
-  rmType.className = "slot-rm-type";
-  rmType.textContent = node.rmType;
-  rmType.title = node.slotId;
-  typeMeta.appendChild(rmType);
-
-  row.append(label, typeMeta);
-  li.appendChild(row);
-  li.addEventListener("click", () => onArm(node.slotId));
-
-  if (onDropSource) {
-    li.addEventListener("dragenter", (e) => {
-      e.preventDefault();
-      li.classList.add("drop-target");
-    });
-    li.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
-      li.classList.add("drop-target");
-    });
-    li.addEventListener("dragleave", (e) => {
-      if (e.relatedTarget instanceof Node && li.contains(e.relatedTarget)) return;
-      li.classList.remove("drop-target");
-    });
-    li.addEventListener("drop", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      li.classList.remove("drop-target");
-      const payload = parseSourceDragPayload(e.dataTransfer);
-      if (payload) onDropSource(node.slotId, payload);
-    });
-  }
-  return li;
 }

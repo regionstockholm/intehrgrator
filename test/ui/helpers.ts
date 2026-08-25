@@ -58,6 +58,27 @@ export async function getSnapshot(page: Page): Promise<WorkbenchTestSnapshot> {
   });
 }
 
+export async function clickBlocklyBlock(page: Page, blockId: string): Promise<void> {
+  await page.evaluate((id) => {
+    const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+      .intehrgratorTestApi;
+    api.clickBlock(id);
+  }, blockId);
+}
+
+export async function findElementBlockId(page: Page, slotId: string): Promise<string> {
+  const id = await page.evaluate((slot) => {
+    const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+      .intehrgratorTestApi;
+    const match = api.getSnapshot().blocklyBlocks.find((b) =>
+      b.slotId === slot && (b.type === "element" || b.type === "target_value")
+    );
+    return match?.id ?? null;
+  }, slotId);
+  if (!id) throw new Error(`element block not found for slot ${slotId}`);
+  return id;
+}
+
 export async function waitForMappedSlot(page: Page, slotId: string): Promise<void> {
   await page.waitForFunction((id) => {
     const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
@@ -108,6 +129,55 @@ export async function html5DragDrop(
     { sourceSelector, targetSelector, point },
   );
   if (!ok) throw new Error(`html5DragDrop failed: ${sourceSelector} → ${targetSelector}`);
+}
+
+/**
+ * Client point on a Blockly block that is also inside `#blockly-mount`.
+ * Parent SVG roots are often taller than the viewport; dropping at
+ * `height / 2` can miss the mount even after `scrollBlockIntoView`.
+ */
+export function visibleBlockDropPoint(
+  rect: { x: number; y: number; width: number; height: number },
+  mount: { left: number; top: number; right: number; bottom: number },
+): { x: number; y: number } | null {
+  const left = Math.max(rect.x, mount.left);
+  const right = Math.min(rect.x + rect.width, mount.right);
+  const top = Math.max(rect.y, mount.top);
+  const bottom = Math.min(rect.y + rect.height, mount.bottom);
+  if (right - left < 4 || bottom - top < 4) return null;
+  return {
+    x: left + Math.min(16, (right - left) / 2),
+    y: top + Math.min(12, (bottom - top) / 2),
+  };
+}
+
+/** Drop onto Blockly at a block's client coordinates (slot rail is gone). */
+export async function html5DragDropToPoint(
+  page: Page,
+  sourceSelector: string,
+  clientX: number,
+  clientY: number,
+): Promise<void> {
+  await page.waitForSelector(sourceSelector, { timeout: 10_000 });
+  const ok = await page.evaluate(
+    ({ sourceSelector, clientX, clientY }) => {
+      const source = document.querySelector(sourceSelector);
+      const target = document.getElementById("blockly-mount");
+      if (!(source instanceof Element) || !(target instanceof Element)) {
+        return false;
+      }
+      const dt = new DataTransfer();
+      const opts = { bubbles: true, cancelable: true, dataTransfer: dt, clientX, clientY };
+      source.dispatchEvent(new DragEvent("dragstart", opts));
+      target.dispatchEvent(new DragEvent("dragenter", opts));
+      target.dispatchEvent(new DragEvent("dragover", opts));
+      target.dispatchEvent(new DragEvent("drop", opts));
+      source.dispatchEvent(new DragEvent("dragend", opts));
+      return true;
+    },
+    { sourceSelector, clientX, clientY },
+  );
+  if (!ok) throw new Error(`html5DragDropToPoint failed: ${sourceSelector}`);
 }
 
 /** Drop a text file onto a pane (OS-file drop path used by Source Schema / Examples). */

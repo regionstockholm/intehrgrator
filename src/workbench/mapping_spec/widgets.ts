@@ -15,11 +15,16 @@ export type SpecFieldEditHandler = (
   value: string,
 ) => void;
 
+export type SpecBlockSelectHandler = (blockId: string) => void;
+
 /** Block-level widget that replaces one projected Spec line. */
 export class MappingSpecWidget extends WidgetType {
   constructor(
     readonly line: SpecLine,
     readonly onFieldEdit?: SpecFieldEditHandler,
+    readonly onSelect?: SpecBlockSelectHandler,
+    readonly warning: string | null = null,
+    readonly selected = false,
   ) {
     super();
   }
@@ -35,15 +40,31 @@ export class MappingSpecWidget extends WidgetType {
       this.line.type === other.line.type &&
       this.line.summary === other.line.summary &&
       JSON.stringify(this.line.editable) === JSON.stringify(other.line.editable) &&
-      JSON.stringify(this.line.info) === JSON.stringify(other.line.info)
+      JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
+      this.warning === other.warning &&
+      this.selected === other.selected
     );
   }
 
   override toDOM(): HTMLElement {
     const row = document.createElement("span");
     row.className = `spec-widget spec-widget--${this.line.kind}`;
+    if (this.selected) row.classList.add("spec-widget--selected");
     row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
     if (this.line.blockId) row.dataset.blockId = this.line.blockId;
+    if (this.warning) {
+      row.title = this.warning;
+      row.dataset.warning = "1";
+    }
+
+    if (this.warning) {
+      const warn = document.createElement("span");
+      warn.className = "spec-widget-warning";
+      warn.textContent = "⚠";
+      warn.setAttribute("aria-label", this.warning);
+      warn.title = this.warning;
+      row.appendChild(warn);
+    }
 
     const badge = document.createElement("span");
     badge.className = "spec-widget-badge";
@@ -121,6 +142,20 @@ export class MappingSpecWidget extends WidgetType {
     tip.append(infoBtn, balloon);
     attachInfoTip(tip);
     row.append(tip);
+
+    if (this.line.blockId) {
+      row.addEventListener("mousedown", (event) => {
+        const target = event.target;
+        if (
+          target instanceof Element &&
+          target.closest("input, select, button, .info-tip, .info-tip-balloon")
+        ) {
+          return;
+        }
+        event.preventDefault();
+        this.onSelect?.(this.line.blockId!);
+      });
+    }
     return row;
   }
 
@@ -129,12 +164,8 @@ export class MappingSpecWidget extends WidgetType {
     if (tip) detachInfoTip(tip);
   }
 
-  override ignoreEvent(event: Event): boolean {
-    const target = event.target;
-    if (!(target instanceof Element)) return false;
-    return Boolean(
-      target.closest("input, select, button, .info-tip, .info-tip-balloon"),
-    );
+  override ignoreEvent(): boolean {
+    return true;
   }
 }
 

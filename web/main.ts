@@ -4,7 +4,6 @@ import { WorkbenchController } from "../src/workbench/controller.ts";
 import {
   renderSchemaTree,
   renderInstanceTree,
-  renderSkeletonList,
   applyTreeHighlights,
   parseSourceDragPayload,
   getActiveSourceDrag,
@@ -24,6 +23,8 @@ import {
   createMappingSpecEditor,
   mappingSpecDocumentText,
   setMappingSpecFromBlockly,
+  scrollMappingSpecToBlock,
+  type SpecChrome,
 } from "../src/workbench/mapping_spec/mod.ts";
 import {
   initBlocklyGenerators,
@@ -35,6 +36,9 @@ import {
   attachOptionalRmChild,
   highlightListeningSlot,
   slotIdFromBlock,
+  listeningTargetFromBlock,
+  owningValueSlotId,
+  warningTextOf,
   createModestTheme,
   buildDemoToolbox,
   setOptionalRmPickHandler,
@@ -116,7 +120,6 @@ const exampleTabsEl = document.getElementById("example-tabs")!;
 const exampleValidationEl = document.getElementById("example-validation")!;
 const testOutputTabsEl = document.getElementById("test-output-tabs")!;
 const exampleTreeEl = document.getElementById("example-tree")!;
-const skeletonSlotsEl = document.getElementById("skeleton-slots")!;
 const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
 const statusSave = document.getElementById("status-save")!;
@@ -151,6 +154,7 @@ const specEditor = createMappingSpecEditor(mappingJsonHost, {
     block.setFieldValue(value, field);
     // Workspace change listener runs syncFromBlockly → Spec refresh.
   },
+  onSelect: (blockId) => applyBlockSelection(blockId, "spec"),
 });
 let updatingHandlebarsEditor = false;
 const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
@@ -181,6 +185,8 @@ const testOutputEditor = createReadonlyEditor(
 /** Set in boot() after locale + inject. */
 let workspace!: Blockly.WorkspaceSvg;
 let blocklyLocale = detectLocale();
+let selectedBlockId: string | null = null;
+let applyingSelection = false;
 let blocklySkeletonKey = "";
 let blocklyLabelLanguage = "";
 let blocklySlotSignature = "";
@@ -206,6 +212,7 @@ downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefiniti
 uploadSpecBtn?.addEventListener("click", () => void controller.importBlocklyDefinition());
 exportTargetSelect.addEventListener("change", () => {
   const target = exportTargetSelect.value as
+    | "preview"
     | "typescript"
     | "java"
     | "handlebars"
@@ -366,10 +373,11 @@ async function bootBlockly(): Promise<void> {
   initBlocklySourceDrop();
 
   workspace.addChangeListener((event) => {
-    if (event.type === Blockly.Events.CLICK && "blockId" in event) {
-      const blockId = typeof event.blockId === "string" ? event.blockId : null;
-      const slotId = blockId ? slotIdFromBlock(workspace.getBlockById(blockId)) : null;
-      if (slotId) controller.armSlot(slotId);
+    if (event.type === Blockly.Events.CLICK) {
+      const blockId = "blockId" in event && typeof event.blockId === "string"
+        ? event.blockId
+        : null;
+      applyBlockSelection(blockId, "blockly");
       return;
     }
     if (
@@ -438,9 +446,9 @@ function handleSourceSelection(
 ): void {
   const state = controller.getState();
   if (
-    state.settings.exportTarget === "handlebars" &&
     activeTextView === "handlebars" &&
-    !state.listeningSlotId
+    !state.listeningSlotId &&
+    !state.listeningSourceBlockId
   ) {
     let mode = currentHandlebarsInsertMode();
     if (event?.shiftKey) mode = mode === "flat" ? "tree" : "flat";
@@ -459,6 +467,10 @@ function handleSourceSelection(
     handlebarsEditor.focus();
     return;
   }
+  if (state.listeningSourceBlockId) {
+    fillListeningSourceQuery(state.listeningSourceBlockId, path, format);
+    return;
+  }
   controller.bindFromNode(path, format);
 }
 
@@ -469,6 +481,98 @@ function persistBlocklyCanvas(): void {
     derived.slots,
     derived.loops,
   );
+}
+
+function collectConstraintWarnings(): Record<string, string> {
+  const warnings: Record<string, string> = {};
+  if (!workspace) return warnings;
+  for (const block of workspace.getAllBlocks(false)) {
+    const text = warningTextOf(block);
+    if (text) warnings[block.id] = text;
+  }
+  return warnings;
+}
+
+function specChrome(): SpecChrome {
+  return {
+    warnings: collectConstraintWarnings(),
+    selectedBlockId,
+  };
+}
+
+function panToBlock(block: BlockSvg): void {
+  const ws = workspace as Blockly.WorkspaceSvg & {
+    centerOnBlock?: (id: string) => void;
+  };
+  if (typeof ws.centerOnBlock === "function" && block.id) {
+    ws.centerOnBlock(block.id);
+    return;
+  }
+  if (typeof block.getRelativeToSurfaceXY === "function" && typeof ws.scroll === "function") {
+    const xy = block.getRelativeToSurfaceXY();
+    const metrics = typeof ws.getMetrics === "function" ? ws.getMetrics() : null;
+    if (metrics) {
+      ws.scroll(
+        xy.x - metrics.viewWidth / 2 + metrics.absoluteLeft,
+        xy.y - metrics.viewHeight / 2 + metrics.absoluteTop,
+      );
+    }
+  }
+}
+
+function applyBlockSelection(blockId: string | null, origin: "blockly" | "spec"): void {
+  if (applyingSelection) return;
+  applyingSelection = true;
+  try {
+    selectedBlockId = blockId;
+    const block = blockId ? workspace.getBlockById(blockId) : null;
+    if (origin === "spec" && block) {
+      if (typeof (block as BlockSvg).select === "function") {
+        (block as BlockSvg).select();
+      }
+      panToBlock(block as BlockSvg);
+    }
+    if (origin === "blockly" && blockId) {
+      scrollMappingSpecToBlock(specEditor, blockId);
+    }
+    setMappingSpecFromBlockly(
+      specEditor,
+      Blockly.serialization.workspaces.save(workspace),
+      specChrome(),
+    );
+    if (block) {
+      const target = listeningTargetFromBlock(block);
+      if (target?.kind === "slot") controller.armSlot(target.slotId);
+      else if (target?.kind === "source_block") {
+        controller.armSourceQueryBlock(target.blockId);
+      } else if (
+        controller.getState().listeningSlotId ||
+        controller.getState().listeningSourceBlockId
+      ) {
+        controller.clearListening();
+      }
+    } else if (
+      controller.getState().listeningSlotId ||
+      controller.getState().listeningSourceBlockId
+    ) {
+      controller.clearListening();
+    }
+  } finally {
+    applyingSelection = false;
+  }
+}
+
+function fillListeningSourceQuery(blockId: string, path: string, format: string): void {
+  const block = workspace.getBlockById(blockId);
+  if (!block) {
+    controller.clearListening();
+    return;
+  }
+  const xpath = getSourceFormatHandler(format).pathToExpression(path);
+  block.setFieldValue(xpath, "EXPRESSION");
+  persistBlocklyCanvas();
+  controller.clearListening();
+  controller.setStatusMessage(`Mapped source query ${xpath}`);
 }
 
 function applyPendingDefaultsMap(): void {
@@ -580,7 +684,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
   }
 
-  highlightListeningSlot(workspace, s.listeningSlotId);
+  highlightListeningSlot(workspace, s.listeningSlotId, s.listeningSourceBlockId);
   applyPendingDefaultsMap();
 }
 
@@ -703,6 +807,7 @@ bind("btn-run-test", () => {
 });
 bind("btn-autoplay", () => controller.toggleAutoplay());
 bind("btn-export-ts", () => controller.exportTypeScript());
+bind("btn-download-test-output", () => controller.exportTestOutput());
 bind("btn-better-form", () => {
   if (!betterFormBridge?.available) {
     statusMain.textContent =
@@ -937,8 +1042,13 @@ function initBlocklySourceDrop(): void {
     clientX: number,
     clientY: number,
   ): boolean => {
-    const hit = document.elementFromPoint(clientX, clientY);
-    if (!hit || !blocklyMount.contains(hit)) return false;
+    // Prefer the mount's box over elementFromPoint: Blockly SVG / widget
+    // layers can sit outside the hit target, and synthetic Playwright drops
+    // have no real pointer.
+    const mountRect = blocklyMount.getBoundingClientRect();
+    const inMount = clientX >= mountRect.left && clientX <= mountRect.right &&
+      clientY >= mountRect.top && clientY <= mountRect.bottom;
+    if (!inMount) return false;
     const now = Date.now();
     if (payload.path === lastAppliedPath && now - lastAppliedAt < 250) return true;
     lastAppliedPath = payload.path;
@@ -998,9 +1108,6 @@ function placeSourceBlockFromDrop(
 function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
   let best: { slotId: string; area: number } | null = null;
   for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "element" && block.type !== "target_value") continue;
-    const slotId = slotIdFromBlock(block);
-    if (!slotId) continue;
     const svg = block as BlockSvg;
     const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
     if (!root) continue;
@@ -1011,8 +1118,10 @@ function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
     ) {
       continue;
     }
+    let slotId = slotIdFromBlock(block);
+    if (!slotId) slotId = owningValueSlotId(block);
+    if (!slotId) continue;
     const area = rect.width * rect.height;
-    // Prefer the smallest containing block (leaf value slot over containers).
     if (!best || area < best.area) best = { slotId, area };
   }
   return best?.slotId ?? null;
@@ -1294,7 +1403,11 @@ function render(): void {
 
   statusMain.textContent = [
     s.target ? `Target: ${s.target.targetId}` : "No target",
-    `Script: ${s.settings.exportTarget.toUpperCase()}`,
+    `Script: ${
+      s.settings.exportTarget === "preview"
+        ? "Mapping preview"
+        : s.settings.exportTarget.toUpperCase()
+    }`,
     s.activeExample ? `Example: ${s.activeExample.filename}` : "No example",
     `${s.unmappedMandatory} unmapped mandatory`,
     s.statusMessage,
@@ -1356,25 +1469,18 @@ function render(): void {
   } else {
     exampleTreeEl.textContent = s.examples.length
       ? "Select an example tab."
-      : 'Add example instance(s) to enable "Conversion Test Run(s)" in output previews pane';
+      : 'Add example instance(s) to enable "Conversion Test Run(s)" in Target & Previews';
   }
   syncBlocklyWorkspace(s);
   // Blockly apply may have refreshed generatedCode without a re-render.
   const afterCanvas = controller.getState();
-  renderSkeletonList(
-    skeletonSlotsEl,
-    s.skeleton,
-    (slotId) => controller.armSlot(slotId),
-    s.listeningSlotId,
-    new Set(s.model.slots.filter((x) => x.expression).map((x) => x.slotId)),
-    (slotId, payload) => {
-      controller.mapNodeToSlot(slotId, payload.path, payload.format);
-    },
-  );
+  refreshWorkspaceConstraints(workspace);
+  highlightListeningSlot(workspace, afterCanvas.listeningSlotId, afterCanvas.listeningSourceBlockId);
 
   setMappingSpecFromBlockly(
     specEditor,
     afterCanvas.blocklyState ?? (workspace ? Blockly.serialization.workspaces.save(workspace) : null),
+    specChrome(),
   );
   if (handlebarsEditor.state.doc.toString() !== afterCanvas.handlebarsTemplate) {
     updatingHandlebarsEditor = true;
@@ -1399,6 +1505,13 @@ function render(): void {
     ? `${s.target.format} · ${s.target.targetId}`
     : "No target";
   exportTargetSelect.value = s.settings.exportTarget;
+  const exportBtn = document.getElementById("btn-export-ts") as HTMLButtonElement | null;
+  if (exportBtn) exportBtn.disabled = s.settings.exportTarget === "preview";
+  const testDownload = document.getElementById("btn-download-test-output") as HTMLButtonElement | null;
+  if (testDownload) {
+    testDownload.disabled = afterCanvas.testResult?.output === undefined &&
+      !afterCanvas.testResult?.error;
+  }
   const autoplayBtn = document.getElementById("btn-autoplay") as HTMLButtonElement;
   autoplayBtn.disabled = !s.examples.length;
   autoplayBtn.textContent = s.settings.autoplay ? "⏸ Pause" : "▶ Autoplay";
@@ -1450,18 +1563,42 @@ function renderExampleTabs(s: ReturnType<WorkbenchController["getState"]>): void
 function renderTestOutputTabs(s: ReturnType<WorkbenchController["getState"]>): void {
   testOutputTabsEl.innerHTML = "";
   for (const ex of s.examples) {
-    const hasIssues = (s.exampleValidations[ex.id]?.length ?? 0) > 0;
+    const validation = s.outputValidations[ex.id];
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "example-tab" + (s.activeExample?.id === ex.id ? " active" : "");
-    tab.append(ex.filename);
-    if (hasIssues) {
-      const warn = document.createElement("span");
-      warn.className = "example-tab-warn";
-      warn.textContent = " ⚠";
-      warn.title = "Instance does not match schema";
-      tab.append(warn);
+    if (validation?.applicable) {
+      if (validation.valid) {
+        const mark = document.createElement("span");
+        mark.className = "output-tab-mark";
+        mark.textContent = "✅";
+        mark.title = "Passes openEHR template validation";
+        tab.append(mark);
+      } else {
+        const mark = document.createElement("button");
+        mark.type = "button";
+        mark.className = "output-tab-mark output-tab-mark--warn";
+        mark.textContent = "⚠";
+        mark.setAttribute("aria-label", `Validation errors for ${ex.filename}`);
+        mark.title = validation.messages.map((m) => `${m.path}: ${m.message}`).join("\n");
+        mark.addEventListener("click", (event) => {
+          event.stopPropagation();
+          tab.classList.toggle("output-tab-errors-open");
+        });
+        tab.append(mark);
+        const errors = document.createElement("dl");
+        errors.className = "output-tab-errors";
+        for (const msg of validation.messages) {
+          const dt = document.createElement("dt");
+          dt.textContent = msg.path;
+          const dd = document.createElement("dd");
+          dd.textContent = msg.message;
+          errors.append(dt, dd);
+        }
+        tab.append(errors);
+      }
     }
+    tab.append(ex.filename);
     tab.addEventListener("click", () => controller.setActiveExample(ex.id));
     testOutputTabsEl.appendChild(tab);
   }
@@ -1542,6 +1679,8 @@ function installWorkbenchTestApi(): void {
       return {
         templateId: s.templateId,
         listeningSlotId: s.listeningSlotId,
+        listeningSourceBlockId: s.listeningSourceBlockId,
+        selectedBlockId,
         exampleCount: s.examples.length,
         activeExampleFilename: s.activeExample?.filename ?? null,
         model: s.model,
@@ -1564,6 +1703,20 @@ function installWorkbenchTestApi(): void {
     },
     loadBlocklyJson(filename, content) {
       controller.loadBlocklyDefinition(filename, content);
+    },
+    getBlockClientRect(blockId) {
+      const block = workspace.getBlockById(blockId) as BlockSvg | null;
+      const root = block && typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
+      if (!root) return null;
+      const rect = root.getBoundingClientRect();
+      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+    },
+    clickBlock(blockId) {
+      applyBlockSelection(blockId, "blockly");
+    },
+    scrollBlockIntoView(blockId) {
+      const block = workspace.getBlockById(blockId) as BlockSvg | null;
+      if (block) panToBlock(block);
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

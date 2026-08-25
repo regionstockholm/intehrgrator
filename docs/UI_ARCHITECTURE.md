@@ -10,23 +10,23 @@ This document details the split-screen mapping interface and its architectural c
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
 │ intEHRgrator  … [Copy AI Prompt] [Import Suggestions] [New Project] [Load Project]     │
 │               [Save as] [Export Project] [Import Project]                              │
-├───────────────┬──────────────────────────────┬──────────────────┬──────────────────────┤
-│ LEFT PANE     │ CENTER PANE                  │ SLOTS PANE       │ RIGHT PANE           │
-│ Source        │ Mapping Editor               │ Target value     │ Output Previews      │
-│               │                              │ slots            │                      │
-│ Schema        │ ┌─ Blockly (top) ──────────┐ │ [Open target     │ Generated conversion │
-│ [Load Schema] │ │ nested RM blocks         │ │  Schema/Template]│ script(s) [Export TS]│
-│               │ │ toolbox: Source/Literals/│ │ RTL slot tree    │                      │
-│ Examples      │ │ Logic/Variables          │ │ click → arm slot │ Conversion Test      │
-│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──┤ │                  │ Run(s) [Run][Autoplay│
-│ [ex-a][ex-b]  │ │ DSL + expressions        │ │                  │                      │
-│ instance tree │ └──────────────────────────┘ │                  │                      │
-├───────────────┴──────────────────────────────┴──────────────────┴──────────────────────┤
+├───────────────┬──────────────────────────────────────────┬─────────────────────────────┤
+│ LEFT PANE     │ CENTER PANE                              │ RIGHT PANE                  │
+│ Source        │ Mapping Editor                           │ Target & Previews           │
+│               │                                          │                             │
+│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Open target + format badge  │
+│ [Load Schema] │ │ nested RM blocks                     │ │ Generated conversion        │
+│               │ │ toolbox: Source/Literals/            │ │ script(s) [Export]          │
+│ Examples      │ │ Logic/Variables                      │ │ Conversion Test             │
+│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──────────────┤ │ Run(s) [Run][Autoplay]      │
+│ [ex-a][ex-b]  │ │ widgets + expressions                │ │                             │
+│ instance tree │ └──────────────────────────────────────┘ │                             │
+├───────────────┴──────────────────────────────────────────┴─────────────────────────────┤
 │ #status-main: Template · Target · Example · unmapped · message │ #status-save │ build │
 └────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Resizable split dividers between all four panes (and within Source / Mapping / Output sections) persist layout sizes in `localStorage`.
+Resizable split dividers between all three panes (and within Source / Mapping / Output sections) persist layout sizes in `localStorage`.
 
 ## Pane Details
 
@@ -82,19 +82,13 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 - **Optional RM insertion:** `+` button on container blocks opens a **filtered picker** (only RM-valid types for that attachment point). Right-click → "Add RM structure…" opens the same picker. On selection, the parent block undergoes **block expansion** — it is modified to expose the new statement input before the child block is inserted. Pre-rendered empty slots are not shown by default.
 - **Technology:** [Blockly](https://developers.google.com/blockly) + [CodeMirror 6](https://codemirror.net/)
 
-### Slots Pane: Target Value Slots
-- **Purpose:** Compact navigation rail for the template skeleton — arm a slot for click-to-map without scrolling the Blockly canvas
-- **Header action:** **Open target Schema/Template** — load an OPT (or other target structure file) to generate the Template Skeleton
-- **Layout:** Right-to-left tree (root on the right, leaves on the left) listing skeleton nodes and value slots
-- **Visual states:** Unmapped mandatory (red border), mapped (green border), listening/armed (orange outline)
-- **Interaction:** Click a slot row → arms that slot in Blockly (same as clicking the slot block)
-
-### Right Pane: Output Previews
-- **Purpose:** Live preview of generated code **and** test execution results — both required in v1
-- **Header action:** **Export TS** — download the generated TypeScript mapping script
-- **Upper section:** **Generated conversion script(s)** (glossary: [Generated Export](../CONTEXT.md#generated-export)) — executable TypeScript from Blockly generators (read-only CodeMirror). **Not** the same as the center Mapping Specification.
-- **Lower section:** **Conversion Test Run(s)** (glossary: [Test Run](../CONTEXT.md#test-run)) — runs mapping against the **active example tab**; displays resulting Composition as JSON. Section header includes **Run Test** and **Autoplay / Pause**.
-- **Deferred v1:** Export Java button and TypeScript / Java target toggle (Java generator exists; UI not wired yet)
+### Right Pane: Target & Previews
+- **Purpose:** Load the target, preview generated conversion-script code, and run conversion tests
+- **Header:** pane title **Target & Previews**; conversion script language + Download
+- **Target load strip** (top of Generated conversion script(s)): **Open target Schema/Template**, model language, format badge
+- **Upper section:** **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)
+- **Lower section:** **Conversion Test Run(s)** — runs mapping against the **active example tab**; displays the produced instance. Section header includes **Run Test** and **Autoplay / Pause**.
+- Unmapped mandatory slots and unmet cardinality show as **Constraint warning** triangles on Blockly and on the matching Mapping Spec Widgets. Click a spec widget or Blockly block to **Select** (yellow border + pan); placeholder Source query blocks also enter **Listening Mode**.
 
 ## Toolbar & Pane Actions
 
@@ -119,8 +113,8 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 |--------|----------|--------|-----|
 | Load Schema | Source → Schema section | Split control: main click loads a schema file; chevron offers **From file**, **From URL**, and recent URLs | ✓ |
 | + Add Example | Source → Examples section | Split control: main click opens a JSON/XML instance; chevron offers file, URL, and recent URLs | ✓ |
-| Open target Schema/Template | Target value slots pane header | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
-| Export TS | Output Previews pane header | Download the generated TypeScript mapping script | ✓ |
+| Open target Schema/Template | Target & Previews → Generated conversion script(s) strip | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
+| Export TS | Target & Previews pane header | Download the generated TypeScript mapping script | ✓ |
 | Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
 | Autoplay / Pause | Output → Conversion Test Run(s) | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |
 

@@ -208,13 +208,15 @@ function wrapBlockWithForEachSource(
 export function highlightListeningSlot(
   workspace: Blockly.Workspace,
   listeningSlotId: string | null,
+  listeningSourceBlockId: string | null = null,
 ): void {
   for (const block of workspace.getAllBlocks(false)) {
     const slotId = block.getFieldValue("SLOT_ID");
     const svg = block as BlockSvg;
-    if (typeof svg.setHighlighted === "function") {
-      svg.setHighlighted(Boolean(listeningSlotId && slotId === listeningSlotId));
-    }
+    if (typeof svg.setHighlighted !== "function") continue;
+    const bySlot = Boolean(listeningSlotId && slotId === listeningSlotId);
+    const bySource = Boolean(listeningSourceBlockId && block.id === listeningSourceBlockId);
+    svg.setHighlighted(bySlot || bySource);
   }
 }
 

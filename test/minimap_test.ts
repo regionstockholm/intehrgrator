@@ -3,6 +3,7 @@ import { join } from "@std/path";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerRmBlocks } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
+import { registerTargetBlocks } from "@intehrgrator/blockly/blocks/target_blocks.ts";
 import { copyWorkspaceState } from "@intehrgrator/blockly/blockly_events.ts";
 import {
   ensureDefaultsBlock,
@@ -11,6 +12,7 @@ import {
 import { loadSkeletonIntoWorkspace } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { generateSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
+import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import "blockly/blocks";
 
 const opt = await Deno.readTextFile(
@@ -60,6 +62,34 @@ Deno.test("copyWorkspaceState picks up Defaults Map and template skeleton blocks
   assert(
     mini.getAllBlocks(false).some((block) => block.type === "composition"),
     "minimap copy should include the scaffolded composition",
+  );
+  primary.dispose();
+  mini.dispose();
+});
+
+Deno.test("copyWorkspaceState round-trips JSON Schema target_structure children", async () => {
+  registerTargetBlocks();
+  registerMapBlocks();
+  const schema = await Deno.readTextFile(
+    join(import.meta.dirname!, "../examples/dummy-json-vitals/target.schema.json"),
+  );
+  const target = getTargetFormatHandler("json-schema").load("target.schema.json", schema);
+  const primary = new Blockly.Workspace();
+  const mini = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(primary, target.skeleton, createEmptyModel(target.targetId));
+  assert(
+    primary.getAllBlocks(false).some((block) =>
+      block.type === "target_structure" && Boolean(block.getInput("TARGET_systolic"))
+    ),
+    "primary skeleton should expose TARGET_systolic",
+  );
+  copyWorkspaceState(primary, mini);
+  assertEquals(blockTypes(mini), blockTypes(primary));
+  assert(
+    mini.getAllBlocks(false).some((block) =>
+      block.type === "target_structure" && Boolean(block.getInput("TARGET_systolic"))
+    ),
+    "minimap copy should keep TARGET_systolic mouths",
   );
   primary.dispose();
   mini.dispose();

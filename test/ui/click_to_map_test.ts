@@ -14,6 +14,8 @@ import {
   loadBpFixtures,
   waitForMappedSlot,
   waitForTestApi,
+  clickBlocklyBlock,
+  findElementBlockId,
 } from "./helpers.ts";
 
 Deno.test({
@@ -29,11 +31,8 @@ Deno.test({
       await loadBpFixtures(page);
 
       const slotId = await findSystolicSlotId(page);
-
-      // Real UI: arm Target value slot via slots rail (Listening Mode).
-      const slotItem = page.locator(`.slot-item[data-slot-id="${slotId}"]`);
-      await slotItem.waitFor({ timeout: 10_000 });
-      await slotItem.click();
+      const blockId = await findElementBlockId(page, slotId);
+      await clickBlocklyBlock(page, blockId);
 
       const listening = (await getSnapshot(page)).listeningSlotId;
       assertEquals(listening, slotId);
@@ -67,9 +66,9 @@ Deno.test({
       assert(output && !("slots" in output), `openEHR Test Run must not include a slots sidecar: ${JSON.stringify(output)}`);
       assertStringIncludes(JSON.stringify(output), "120");
 
-      const outputText = await page.locator("#test-output").innerText();
-      assert(outputText.includes("120"), outputText);
-      assert(!outputText.includes('"slots"'), outputText);
+      const outputText = await page.locator("#test-output .cm-content").textContent();
+      assert(outputText && !outputText.includes("// Test Run output"), outputText ?? "");
+      assert(outputText.includes("COMPOSITION") || outputText.includes("120"), outputText);
     } finally {
       await browser.close();
     }

@@ -7,6 +7,7 @@ export {
 } from "./points.ts";
 export {
   DEFAULTS_MAP_NAME,
+  FACTORY_ENCODING,
   FACTORY_HEALTH_CARE_FACILITY,
   FACTORY_TERRITORY,
   factoryDefaultsEntries,

@@ -22,6 +22,7 @@ export const OPENEHR_DEFAULT_POINTS: DefaultPoint[] = [
   { mapKey: "language", parentRmType: "COMPOSITION", rmAttribute: "language", leaf: "code_string" },
   { mapKey: "language", parentRmType: "ENTRY", rmAttribute: "language", leaf: "code_string" },
   { mapKey: "territory", parentRmType: "COMPOSITION", rmAttribute: "territory", leaf: "code_string" },
+  { mapKey: "encoding", parentRmType: "ENTRY", rmAttribute: "encoding", leaf: "code_string" },
   { mapKey: "time", parentRmType: "EVENT_CONTEXT", rmAttribute: "start_time", leaf: "value" },
   { mapKey: "time", parentRmType: "HISTORY", rmAttribute: "origin", leaf: "value" },
   { mapKey: "time", parentRmType: "EVENT", rmAttribute: "time", leaf: "value" },

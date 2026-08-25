@@ -1,18 +1,32 @@
 {
   "type": "maps_create_with",
-  "extraState": { "itemCount": 5 },
+  "extraState": { "itemCount": 6 },
   "fields": {
     "KEY0": "language",
     "KEY1": "territory",
-    "KEY2": "time",
-    "KEY3": "composer_name",
-    "KEY4": "health_care_facility"
+    "KEY2": "encoding",
+    "KEY3": "time",
+    "KEY4": "composer_name",
+    "KEY5": "health_care_facility"
   },
   "inputs": {
     "VAL0": { "shadow": { "type": "text", "fields": { "TEXT": "sv" } } },
     "VAL1": { "shadow": { "type": "text", "fields": { "TEXT": "SE" } } },
-    "VAL2": { "shadow": { "type": "text", "fields": { "TEXT": "" } } },
+    "VAL2": {
+      "shadow": {
+        "type": "term_pick",
+        "fields": {
+          "NAME": "built-in",
+          "SET": "IANA_character-sets",
+          "CODE": "UTF-8",
+          "SLOT_ID": "",
+          "RM_TYPE": "CODE_PHRASE",
+          "MANDATORY": ""
+        }
+      }
+    },
     "VAL3": { "shadow": { "type": "text", "fields": { "TEXT": "" } } },
-    "VAL4": { "shadow": { "type": "text", "fields": { "TEXT": "St. Dummy Demo Hospital" } } }
+    "VAL4": { "shadow": { "type": "text", "fields": { "TEXT": "" } } },
+    "VAL5": { "shadow": { "type": "text", "fields": { "TEXT": "St. Dummy Demo Hospital" } } }
   }
 }

@@ -239,7 +239,7 @@ export function registerMapBlocks(): void {
         INFO_SVG,
         18,
         18,
-        "Defaults Map: convert-time language, territory, facility, and similar values. Folder: load, save, or download the map as JSON.",
+        "Defaults Map: convert-time language, territory, encoding, facility, and similar values. Folder: load, save, or download the map as JSON.",
         () => {
           defaultsMapInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
         },

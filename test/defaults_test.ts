@@ -4,6 +4,7 @@ import {
   bindDefaultPoints,
   createMemoryDefaultsCatalog,
   DEFAULTS_MAP_NAME,
+  FACTORY_ENCODING,
   FACTORY_HEALTH_CARE_FACILITY,
   FACTORY_TERRITORY,
   factoryDefaultsEntries,
@@ -37,6 +38,7 @@ Deno.test("factory Defaults Map seeds UI language once and dummy facility", () =
   const byKey = Object.fromEntries(entries.map((entry) => [entry.key, entry.value]));
   assertEquals(byKey.language, "sv");
   assertEquals(byKey.territory, FACTORY_TERRITORY);
+  assertEquals(byKey.encoding, FACTORY_ENCODING);
   assertEquals(byKey.time, "");
   assertEquals(byKey.composer_name, "");
   assertEquals(byKey.health_care_facility, FACTORY_HEALTH_CARE_FACILITY);
@@ -230,6 +232,7 @@ Deno.test("bindDefaultPoints matches COMPOSITION language on a BP OPT", () => {
   const bound = bindDefaultPoints(skeleton);
   assert(bound.some((item) => item.point.mapKey === "language" && item.parent.rmType === "COMPOSITION"));
   assert(bound.some((item) => item.point.mapKey === "territory"));
+  assert(bound.some((item) => item.point.mapKey === "encoding" && item.parent.rmType === "OBSERVATION"));
   assert(bound.some((item) => item.point.mapKey === "composer_name"));
 });
 
@@ -247,6 +250,7 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assertEquals(defaults.id, beforeId);
   const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.encoding, FACTORY_ENCODING);
   const factoryMap = defaults.getInputTargetBlock("MAP");
   assertEquals(factoryMap?.getFieldValue("KEY0"), "language");
   assert(!factoryMap?.getInput("KEY0"));
@@ -254,6 +258,14 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assertEquals(languageVal?.type, "term_pick");
   assertEquals(languageVal?.getFieldValue("SET"), "ISO_639-1");
   assertEquals(languageVal?.getFieldValue("CODE"), "sv");
+  const encodingIndex = [...Array(10).keys()].find((i) =>
+    factoryMap?.getFieldValue(`KEY${i}`) === "encoding"
+  );
+  assertEquals(encodingIndex, 2);
+  const encodingVal = factoryMap?.getInputTargetBlock(`VAL${encodingIndex}`);
+  assertEquals(encodingVal?.type, "term_pick");
+  assertEquals(encodingVal?.getFieldValue("SET"), "IANA_character-sets");
+  assertEquals(encodingVal?.getFieldValue("CODE"), FACTORY_ENCODING);
   const lookups = workspace.getAllBlocks(false).filter((block) => block.type === "maps_get");
   assert(lookups.length > 0, "expected Default point Map lookups on the skeleton");
   assert(
@@ -263,10 +275,21 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
     ),
     "expected a language Default point lookup",
   );
+  assert(
+    lookups.some((block) =>
+      block.getFieldValue("NAME") === "defaults" &&
+      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "encoding"
+    ),
+    "expected an encoding Default point lookup",
+  );
   const derived = workspaceToModelJson(workspace);
   assert(
     derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "language")')),
     "language lookup should appear in the Mapping Model",
+  );
+  assert(
+    derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "encoding")')),
+    "encoding lookup should appear in the Mapping Model",
   );
   workspace.dispose();
 });

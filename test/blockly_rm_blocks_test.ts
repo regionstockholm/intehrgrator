@@ -553,8 +553,12 @@ Deno.test("skeleton canvas pre-fills RM terminology on language and territory", 
   );
   assert(observation, "expected observation");
   const encoding = observation.getInputTargetBlock(rmAttributeInputName("encoding"));
-  assertEquals(encoding?.type, "term_pick");
-  assertEquals(encoding?.getFieldValue("SET"), "IANA_character-sets");
+  assertEquals(encoding?.type, "code_phrase");
+  assertEquals(
+    encoding?.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
+    "IANA_character-sets",
+  );
+  assertEquals(encoding?.getInputTargetBlock(dvFieldInputName("code_string"))?.type, "maps_get");
 
   workspace.dispose();
 });

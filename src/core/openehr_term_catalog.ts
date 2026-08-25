@@ -129,6 +129,7 @@ export function termSetForMandatedCode(
 export const DEFAULTS_KEY_TERM_SET: Record<string, string> = {
   language: "ISO_639-1",
   territory: "ISO_3166-1",
+  encoding: "IANA_character-sets",
 };
 
 export function termSetIdForDefaultsKey(key: string): string | undefined {

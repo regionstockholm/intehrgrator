@@ -2,6 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 import {
   listTermSets,
   termSetById,
+  termSetIdForDefaultsKey,
   termSetIdForRmAttribute,
 } from "@intehrgrator/core/openehr_term_catalog.ts";
 import { isRmValueAttribute } from "@intehrgrator/core/rm_meta.ts";
@@ -33,6 +34,13 @@ Deno.test("RM attributes map to the matching ehrtslib term set", () => {
   assertEquals(termSetIdForRmAttribute("COMPOSITION", "category"), "openehr:composition_category");
   assertEquals(termSetIdForRmAttribute("OBSERVATION", "encoding"), "IANA_character-sets");
   assertEquals(termSetIdForRmAttribute("EVENT_CONTEXT", "setting"), "openehr:setting");
+});
+
+Deno.test("Defaults Map keys language, territory, and encoding use built-in code sets", () => {
+  assertEquals(termSetIdForDefaultsKey("language"), "ISO_639-1");
+  assertEquals(termSetIdForDefaultsKey("territory"), "ISO_3166-1");
+  assertEquals(termSetIdForDefaultsKey("encoding"), "IANA_character-sets");
+  assertEquals(termSetIdForDefaultsKey("time"), undefined);
 });
 
 Deno.test("COMPOSITION language and territory are value attributes, not ELEMENT", () => {

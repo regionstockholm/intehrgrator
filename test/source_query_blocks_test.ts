@@ -96,7 +96,9 @@ Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE lea
   assertEquals(types.includes("instruction"), true);
   assertEquals(types.includes("action"), true);
   assertEquals(types.includes("admin_entry"), true);
+  assertEquals(types.includes("cluster"), true);
   assertEquals(types.includes("element"), true);
+  assertEquals(types.indexOf("element"), types.indexOf("cluster") + 1);
   assertEquals(types.includes("party_proxy"), true);
   assertEquals(types.includes("party_self"), true);
   assertEquals(types.includes("party_identified"), true);

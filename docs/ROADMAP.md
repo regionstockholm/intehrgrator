@@ -25,20 +25,21 @@
 - [ ] figure out if the extra pane for highligting missing mappings is still needed or if warning signs in blockly blocks is enough. Perhaps add warning markers in mapping codemirror pane too. Remove extra pane when no longer needed.
 
 ## open EHR reference model classes available as blockly blocks.
+- [x] Change the CLUSTER block into the same colour as the ELEMENT block and move ELEMENT up to below CLUSTER 
 - [ ] check if any classes are missing
 - [x] There are two similarly looking blocks for SECTION, compare, then remove one.
-- [ ] Change the CLUSTER block into the same colour as the ELEMENT block and mov 
-- [ ] improve sorting of blocks in blockly toolbox (put common ones eralier, possibly subdivide/group, fix colour/pattern semantics)
-- [ ] THe PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF)
+- [ ] improve sorting of blocks in blockly toolbox (put common ones earlier, possibly subdivide/group, fix colour/pattern semantics)
+- [ ] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF)
 
 ## Add support for Handlebars conversions
+- [ ] add blockly support for handlebars snippets inside new kind of text block based on variables/context/xpath etc
 - [x] Conversion script language `handlebars` + Kintegrate helpers (`eq`/`ne`/…/`toUpperCase`)
 - [x] Handlebars Template tab; click-to-map inserts Kintegrate paths
 - [x] Target instance formats beyond openEHR: JSON Schema, XML Schema, free-form
 - [x] Optional Better Form Bridge + `deno task setup:better-forms`
 - [ ] Full Better form-viewer ScriptApi / formTestApi parity and Cypress generator port
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md) and [ADR 0001](adr/0001-mapping-and-target-seams.md)
-- [ ] add blockly support for handlebars snippets inside new kind of text block based on variables/context/xpath etc
+
 
 ## Schema specific dynamic blockly toolboxes
 - [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins?
@@ -52,10 +53,9 @@
 # conversion script generation
 
 ## Golden examples
-- [ ] check if current typescript converter is correct, remova any bugs
+- [ ] check if current typescript converter is correct, remove any bugs
 - [ ] compare and improve other formats (Java, xquery, Handlebars etc) 
 - [ ] make cloud environments with java/xquery access test such conversion output too
-
 
 ## XQuery conversion script language
 - [x] `generate(model, 'xquery')` → Model B slot-manifest `.xq` with DV_* constructors
@@ -64,7 +64,7 @@
 - [ ] Engine-specific JSON notes + CI golden run against Saxon/BaseX
 - See [future/xquery-export-investigation.md](future/xquery-export-investigation.md)
 
- ##
+ ## Robustness/correctness hardening
  - [ ] Check versions of source & target (in ehrtslib app) before running conversions. Perhaps use hash-codes to detect changes in dependencies since last load
 
  # Demo

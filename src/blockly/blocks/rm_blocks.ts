@@ -168,7 +168,7 @@ export function registerRmBlocks(): void {
 
   defineContainerBlock("cluster", [
     { name: "items" },
-  ], STRUCTURE_COLOUR, {
+  ], ELEMENT_COLOUR, {
     expandable: true,
     rmType: "CLUSTER",
     nestCheck: ["ITEM", "CLUSTER", "ELEMENT"],

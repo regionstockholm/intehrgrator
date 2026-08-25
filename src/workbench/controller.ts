@@ -150,6 +150,16 @@ export class WorkbenchController {
     this.getBlocklyState = fn;
   }
 
+  /**
+   * Store a Blockly workspace snapshot and regenerate export previews.
+   * Does not notify listeners — the Web Shell calls this while already
+   * rendering (after applying Mapping Model expressions onto the canvas).
+   */
+  syncCanvasSnapshot(blocklyState: unknown): void {
+    this.blocklyState = blocklyState;
+    this.refreshDerived();
+  }
+
   /** Take a queued Defaults Map (`maps_create_with` JSON) for the canvas to hydrate. */
   consumePendingDefaultsMap(): unknown | null {
     const value = this.pendingDefaultsMap;
@@ -694,6 +704,8 @@ export class WorkbenchController {
     const adapter = getExportTargetAdapter(this.settings.exportTarget);
     const code = generate(this.model, this.settings.exportTarget, {
       handlebarsTemplate: this.handlebarsTemplate,
+      blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      skeleton: this.skeleton,
     });
     void this.host.downloadText(
       `conversion-${safeFilename(this.templateId)}.${adapter.extension}`,
@@ -1101,6 +1113,8 @@ export class WorkbenchController {
     this.generatedCode = this.model.templateId
       ? generate(this.model, this.settings.exportTarget, {
         handlebarsTemplate: this.handlebarsTemplate,
+        blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+        skeleton: this.skeleton,
       })
       : "";
   }

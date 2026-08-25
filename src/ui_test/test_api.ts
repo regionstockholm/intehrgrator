@@ -23,6 +23,8 @@ export interface WorkbenchTestSnapshot {
   activeExampleFilename: string | null;
   model: MappingModel;
   testResult: TestResult | null;
+  /** Current Generated conversion script(s) preview. */
+  generatedCode: string;
   statusMessage: string;
   schemaError: string | null;
   exampleIssueCount: number;

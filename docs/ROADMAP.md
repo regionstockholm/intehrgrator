@@ -1,4 +1,4 @@
-## small fixes
+## A. small fixes
 - [ ] .xml som ok filnamn i diverse file pickers
 - [x] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
 - [x] snygga till överlappande block i blockbibliotek
@@ -6,19 +6,20 @@
 - [x] add a button for loading example sets with, source, target and sometimes mappings
 - [x] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 
-## Robust good UI/UX
+## B. Robust good UI/UX
 - [ ] Aktivera Expand/collapse json etc i code mirror
 - [ ] Add undo/redo for mapping editor
 - [ ] Integrate save functions with github repo (if logged in)
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
+- [ ] add https://raspberrypifoundation.github.io/blockly-samples/plugins/toolbox-search/test/index.html
 
-## Add support for map structures
+## C. Better support for map and table data structures
 - [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist. Key/value pairs share a row (Blockly 11 `appendEndRowInput`), so the Defaults Map nested constructor stays compact.
 - [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
-- [ ] Make it possible to digest CSV tables for setting up mappings, preferably multi column to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT
-- [ ] Make it possible to digest FHIR terminology mappings for setting up mappings
+- [ ] Make it possible to digest CSV tables (including via UI cut & paste of grids from Excel and Google sheets) for setting up table structures (arbitrariy number of rows and columns). They can later via suitable blockly blocks for picking based on index and/or content be used e.g. to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT. Each row has an optional unique name (string) to the far left and, each column has an optional unique name on top. The rest of the cells do not need to be unique and can have any datatype that blockly supports including nested blocks, but it should be possible to restrict the datatype of a row or column to a certain data output type (boolean / number / string / object)
+- [ ] Make it possible to digest FHIR terminology mappings for setting up maps/tables
 
 ## target visualisation tree
 - [ ] figure out if the extra pane for highligting missing mappings is still needed or if warning signs in blockly blocks is enough. Perhaps add warning markers in mapping codemirror pane too. Remove extra pane when no longer needed.

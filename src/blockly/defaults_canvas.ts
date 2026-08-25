@@ -237,6 +237,7 @@ function attachLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: 
     const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key);
     finalize(lookup);
     connectExpressionToDataValueShell(shell, lookup);
+    finalize(lookup);
     finalize(shell);
     return;
   }
@@ -245,6 +246,8 @@ function attachLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: 
   finalize(lookup);
   if (isDataValueBlock(target) || target.type === "code_phrase") {
     connectExpressionToDataValueShell(target, lookup);
+    finalize(lookup);
+    finalize(target);
     return;
   }
   const nameInput = target.getInput(rmAttributeInputName("name"));
@@ -252,6 +255,8 @@ function attachLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: 
     const existing = nameInput.connection.targetBlock();
     if (existing && !existing.isShadow()) existing.dispose(false);
     nameInput.connection.connect(lookup.outputConnection);
+    finalize(lookup);
+    finalize(target);
     return;
   }
   lookup.dispose(false);

@@ -243,11 +243,27 @@ export function createMapsGetBlock(
   if (keyInput?.connection) {
     const existing = keyInput.connection.targetBlock();
     if (existing) existing.dispose(false);
-    const text = workspace.newBlock("text");
-    text.setFieldValue(key, "TEXT");
-    if (text.outputConnection) {
-      keyInput.connection.connect(text.outputConnection);
+    if (typeof keyInput.connection.setShadowState === "function" && Blockly.Blocks["text"]) {
+      keyInput.connection.setShadowState({
+        type: "text",
+        fields: { TEXT: key },
+      });
+    } else {
+      const text = workspace.newBlock("text");
+      text.setFieldValue(key, "TEXT");
+      if (text.outputConnection) {
+        keyInput.connection.connect(text.outputConnection);
+      }
+      initAndRender(text);
     }
   }
+  initAndRender(block);
   return block;
+}
+
+function initAndRender(block: Blockly.Block): void {
+  if (typeof document === "undefined") return;
+  const svg = block as Blockly.Block & { initSvg?: () => void; render?: () => void };
+  svg.initSvg?.();
+  svg.render?.();
 }

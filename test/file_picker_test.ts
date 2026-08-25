@@ -23,9 +23,25 @@ Deno.test("acceptToExtensions keeps dotted suffixes and skips MIME types", () =>
 Deno.test("accept helpers feed Chromium and VS Code pickers", () => {
   assertEquals(acceptToPickerTypes(".opt,.json"), [{
     description: "Supported files",
-    accept: { "application/octet-stream": [".opt", ".json"] },
+    accept: {
+      "application/xml": [".opt"],
+      "application/json": [".json"],
+    },
   }]);
   assertEquals(acceptToVscodeFilters(".opt,.json"), {
     "Supported files": ["opt", "json"],
   });
+});
+
+Deno.test("acceptToPickerTypes never uses application/octet-stream", () => {
+  const types = acceptToPickerTypes(".json,.xml,.zip,.intehrgrator,.blockly.json");
+  const accept = types?.[0]?.accept ?? {};
+  assertEquals("application/octet-stream" in accept, false);
+  assertEquals(accept["application/json"], [".json"]);
+  assertEquals(accept["application/xml"], [".xml"]);
+  assertEquals(accept["application/zip"], [".zip", ".intehrgrator"]);
+  const extensions = Object.values(accept).flat();
+  assertEquals(extensions.includes(".exe"), false);
+  assertEquals(extensions.includes(".com"), false);
+  assertEquals(extensions.includes(".bin"), false);
 });

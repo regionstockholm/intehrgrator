@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes, assert } from "@std/assert";
-import { join } from "@std/path";
+import { join, toFileUrl } from "@std/path";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   generate,
@@ -314,9 +314,4 @@ async function mappedBpTypeScript() {
   }
   const ts = generate(model, "typescript", { skeleton });
   return { model, skeleton, systolic, ts, templateId };
-}
-
-function toFileUrl(path: string): URL {
-  const abs = path.startsWith("/") ? path : join(Deno.cwd(), path);
-  return new URL("file://" + abs);
 }

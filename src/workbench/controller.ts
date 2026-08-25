@@ -694,6 +694,8 @@ export class WorkbenchController {
     const adapter = getExportTargetAdapter(this.settings.exportTarget);
     const code = generate(this.model, this.settings.exportTarget, {
       handlebarsTemplate: this.handlebarsTemplate,
+      blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      skeleton: this.skeleton,
     });
     void this.host.downloadText(
       `conversion-${safeFilename(this.templateId)}.${adapter.extension}`,
@@ -1101,6 +1103,8 @@ export class WorkbenchController {
     this.generatedCode = this.model.templateId
       ? generate(this.model, this.settings.exportTarget, {
         handlebarsTemplate: this.handlebarsTemplate,
+        blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+        skeleton: this.skeleton,
       })
       : "";
   }

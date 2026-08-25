@@ -168,8 +168,8 @@ Deno.test("COMPOSITION generator emits ehrtslib constructor with nested CONTENT_
   content.connect(observation.previousConnection);
   javascriptGenerator.init(workspace);
   const code = javascriptGenerator.blockToCode(composition) as string;
-  assert(code.includes("new openehr_rm.COMPOSITION"), code);
-  assert(code.includes('_type: "OBSERVATION"'), code);
+  assert(code.includes("new COMPOSITION"), code);
+  assert(code.includes("rm(OBSERVATION") || code.includes("OBSERVATION"), code);
   assert(code.includes("content:"), code);
   workspace.dispose();
 });

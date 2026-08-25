@@ -1,4 +1,5 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assertEquals, assertStringIncludes, assert } from "@std/assert";
+import { join } from "@std/path";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   generate,
@@ -8,6 +9,15 @@ import {
 } from "@intehrgrator/core/codegen/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
+import { generateSkeleton, collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
+import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
+import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
+import {
+  initBlocklyGenerators,
+  loadSkeletonIntoWorkspace,
+  generateTypeScriptFromWorkspace,
+  generateTypeScriptFromBlocklyState,
+} from "@intehrgrator/blockly/mod.ts";
 
 Deno.test("typescript codegen contains template id", () => {
   const model = applyExpressionEdit(createEmptyModel("vitals"), "s1", 'xpathNumber("/a")', {
@@ -18,6 +28,9 @@ Deno.test("typescript codegen contains template id", () => {
   assertEquals(ts.includes("vitals"), true);
   assertEquals(ts.includes("evaluateXPathToNumber"), true);
   assertEquals(ts.includes("defaults: Record<string, unknown> = {}"), true);
+  assertEquals(ts.includes("void evalExpr"), false);
+  assertEquals(ts.includes("__evalGenerated"), false);
+  assertEquals(ts.includes('"defaults" === "defaults"'), false);
 });
 
 Deno.test("java codegen structure", () => {
@@ -33,16 +46,11 @@ Deno.test("handlebars export target preserves a user-authored template", () => {
 });
 
 Deno.test("xquery codegen emits mapping-result module from Blockly slots", () => {
-  const model = applyExpressionEdit(
-    createEmptyModel("vitals"),
-    "s1",
-    'xpathNumber("$.systolic")',
-    {
-      rmType: "DV_QUANTITY",
-      returnType: "number",
-      label: "Systolic",
-    },
-  );
+  const model = applyExpressionEdit(createEmptyModel("vitals"), "s1", 'xpathNumber("$.systolic")', {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+    label: "Systolic",
+  });
   model.slots.push({
     slotId: "s2",
     rmType: "DV_TEXT",
@@ -94,3 +102,156 @@ Deno.test("test runner evaluates json slot", () => {
   const result = runTest(model, JSON.stringify({ systolic: 120 }), "json");
   assertEquals(result.ok || (result.composition as Record<string, unknown>)?.slots !== undefined, true);
 });
+
+Deno.test("typescript codegen from BP skeleton uses ehrtslib constructors and lookups", async () => {
+  const { model, skeleton, ts } = await mappedBpTypeScript();
+  assertStringIncludes(ts, "new COMPOSITION({");
+  assertStringIncludes(ts, 'from "ehrtslib/openehr_rm.ts"');
+  assertStringIncludes(ts, "xpathNumber");
+  assertStringIncludes(ts, "$.systolic");
+  assertStringIncludes(ts, 'defaults["language"]');
+  assertEquals(ts.includes("void evalExpr"), false);
+  assertEquals(ts.includes("TODO: wire to RM path"), false);
+  assertEquals(ts.includes("__evalGenerated"), false);
+  assertEquals(ts.includes('"defaults" === "defaults"'), false);
+  assertStringIncludes(ts, "convertSourceToComposition");
+  assertStringIncludes(ts, "ISO_639-1::");
+  assert(model.templateId.length > 0);
+  assert(skeleton.length > 0);
+});
+
+Deno.test("Conversion Test Run JSON comes from the Target format handler, not generated TypeScript", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const { model, skeleton, systolic, ts } = await mappedBpTypeScript();
+  const target = getTargetFormatHandler("openehr-template").load("blood_pressure.opt", opt);
+  const result = runTest(model, JSON.stringify({ systolic: 120 }), "json", { target });
+  assertEquals(result.ok, true);
+  const output = result.output as Record<string, unknown>;
+  assertEquals(output._type, "COMPOSITION");
+  assertEquals("slots" in output, false);
+  const rendered = JSON.stringify(output);
+  assertStringIncludes(rendered, "120");
+  assertStringIncludes(ts, "new COMPOSITION({");
+  assertEquals(typeof output.convertSourceToComposition, "undefined");
+  assert(
+    !rendered.includes("xpathNumber"),
+    "Test Run JSON is a composition instance, not the generated script",
+  );
+  assert(systolic);
+  assert(skeleton.length > 0);
+});
+
+Deno.test("typescript codegen from Blockly canvas updates when a source query is added", async () => {
+  initBlocklyGenerators();
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const { templateId, skeleton } = generateSkeleton(opt);
+  const systolic = collectValueSlots(skeleton).find((slot) =>
+    slot.slotId.endsWith("items/at0004/value/value/value")
+  );
+  assert(systolic, "expected systolic value slot");
+
+  const workspace = new Blockly.Workspace();
+  try {
+    const empty = createEmptyModel(templateId);
+    empty.targetFormat = "openehr-template";
+    loadSkeletonIntoWorkspace(workspace, skeleton, empty);
+
+    const before = generateTypeScriptFromWorkspace(workspace, empty);
+    assert(before, "expected generated TypeScript from skeleton canvas");
+    assertStringIncludes(before, "new COMPOSITION({");
+    assertEquals(before.includes("$.systolic"), false);
+    assertStringIncludes(before, "Blockly canvas");
+
+    const mapped = applyExpressionEdit(empty, systolic.slotId, 'xpathNumber("$.systolic")', {
+      rmType: systolic.rmType,
+      returnType: "number",
+      label: systolic.label,
+    });
+    loadSkeletonIntoWorkspace(workspace, skeleton, mapped);
+    const after = generateTypeScriptFromWorkspace(workspace, mapped);
+    assert(after, "expected generated TypeScript after mapping");
+    assertStringIncludes(after, "xpathNumber");
+    assertStringIncludes(after, "$.systolic");
+    assertStringIncludes(after, "DV_QUANTITY");
+    assertEquals(after.includes("void evalExpr"), false);
+
+    const saved = Blockly.serialization.workspaces.save(workspace);
+    const fromState = generateTypeScriptFromBlocklyState(saved, mapped);
+    assert(fromState, "expected TypeScript from serialized Blockly state");
+    assertStringIncludes(fromState, "$.systolic");
+
+    const viaGenerate = generate(mapped, "typescript", {
+      blocklyState: saved,
+      skeleton,
+    });
+    assertStringIncludes(viaGenerate, "$.systolic");
+    assertStringIncludes(viaGenerate, "new COMPOSITION({");
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("generated TypeScript conversion script is executable with ehrtslib", async () => {
+  const { ts } = await mappedBpTypeScript();
+  const outDir = join(import.meta.dirname!, "..", "tmp");
+  await Deno.mkdir(outDir, { recursive: true });
+  const genPath = join(outDir, `generated_convert_${crypto.randomUUID()}.ts`);
+  await Deno.writeTextFile(genPath, ts);
+  try {
+    const mod = await import(toFileUrl(genPath).href) as {
+      convertSourceToComposition: (
+        sourceCtx: { format: string; data: unknown },
+        defaults?: Record<string, unknown>,
+      ) => { language?: { code_string?: string }; content?: unknown };
+    };
+    const composition = mod.convertSourceToComposition(
+      { format: "json", data: { systolic: 118, diastolic: 76 } },
+      { language: "en", territory: "GB", time: "2026-08-25T10:00:00Z" },
+    );
+    assertEquals(composition?.constructor?.name, "COMPOSITION");
+    const languageCode = composition.language?.code_string;
+    assertEquals(languageCode, "en");
+    const tree = JSON.stringify(composition);
+    assertStringIncludes(tree, "118");
+  } finally {
+    await Deno.remove(genPath);
+  }
+});
+
+async function mappedBpTypeScript() {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const { templateId, skeleton } = generateSkeleton(opt);
+  const systolic = collectValueSlots(skeleton).find((slot) =>
+    slot.slotId.endsWith("items/at0004/value/value/value")
+  );
+  assert(systolic, "expected systolic value slot");
+  let model = createEmptyModel(templateId);
+  model.targetFormat = "openehr-template";
+  model = applyExpressionEdit(model, systolic.slotId, 'xpathNumber("$.systolic")', {
+    rmType: systolic.rmType,
+    returnType: "number",
+    label: systolic.label,
+  });
+  const language = collectValueSlots(skeleton).find((slot) =>
+    slot.rmType === "CODE_PHRASE" && slot.slotId.includes("//language/")
+  );
+  if (language) {
+    model = applyExpressionEdit(model, language.slotId, 'maps_get("defaults", "language")', {
+      rmType: language.rmType,
+      returnType: "string",
+    });
+  }
+  const ts = generate(model, "typescript", { skeleton });
+  return { model, skeleton, systolic, ts, templateId };
+}
+
+function toFileUrl(path: string): URL {
+  const abs = path.startsWith("/") ? path : join(Deno.cwd(), path);
+  return new URL("file://" + abs);
+}

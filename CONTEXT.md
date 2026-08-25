@@ -176,6 +176,10 @@ _Avoid_: Full handwritten Blockly JSON as primary editor, custom DSL as middle l
 Local-first web app (GitHub Pages) using browser file picker and IndexedDB behind `WebHostAdapter`. No in-app AI API in v1 — AI assist is copy-paste.
 _Avoid_: GH Pages app, browser version
 
+**Desktop app**:
+The same workbench, packaged with `deno desktop` as a native window (OS webview) that serves the built `dist/` on `127.0.0.1`. File pickers and IndexedDB still go through `WebHostAdapter`. Rebuild with `deno task compile:desktop`.
+_Avoid_: Electron, ehrtslib CLI release, treating the desktop binary as a different mapping engine
+
 **VS Code / Cursor Host**:
 Second Host adapter (`VsCodeWebviewHostAdapter` + `extension/`) packaging the same Mapping Editor webview bundle; workspace FS and extension storage replace IndexedDB/file picker.
 _Avoid_: Separate fork of the workbench

@@ -1,0 +1,21 @@
+{
+  "name": "intehrgrator",
+  "version": "0.2.0",
+  "exports": "./../src/desktop/main.ts",
+  "nodeModulesDir": "none",
+  "compilerOptions": {
+    "lib": ["deno.ns", "deno.unstable"],
+    "strict": true
+  },
+  "imports": {
+    "@std/http": "jsr:@std/http@1",
+    "@std/path": "jsr:@std/path@1"
+  },
+  "desktop": {
+    "app": {
+      "name": "intEHRgrator",
+      "identifier": "se.regionstockholm.intehrgrator"
+    },
+    "backend": "webview"
+  }
+}

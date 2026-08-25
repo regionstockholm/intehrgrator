@@ -5,6 +5,24 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 ## Webapp for users
 Go to https://regionstockholm.github.io/intehrgrator/ click (i) - encircled i - at various places in the interface to learn about use.
 
+## Desktop app (0.2)
+
+Download a platform build from [Releases](https://github.com/regionstockholm/intehrgrator/releases) and run it locally — no Deno install, no GitHub Pages. The same workbench opens in a native window (OS webview) and talks only to `127.0.0.1`.
+
+| Asset | Platform |
+| --- | --- |
+| `intEHRgrator-windows-x64.zip` | Windows x64 (WebView2) |
+| `intEHRgrator-linux-x64.AppImage` | Linux x64 |
+| `intEHRgrator-macos-x64.zip` | macOS Intel |
+| `intEHRgrator-macos-arm64.zip` | macOS Apple Silicon |
+
+Rebuild from source:
+
+```bash
+deno task compile:desktop   # Windows / Linux AppImage / macOS .app → dist/release/
+deno task desktop           # build + run in a native window (needs Deno 2.9+)
+```
+
 ## Quick start for developers
 
 ```bash
@@ -23,21 +41,6 @@ CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, s
 
 Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 
-### Offline ehrtslib CLI
-
-`deno task compile:ehrtslib` cross-compiles a **local-only** ehrtslib executable
-(Windows, Linux, macOS Intel, macOS ARM) to `dist/release/` using
-`scripts/ehrtslib.compile.json` (ehrtslib + std only, not the workbench
-`node_modules`). The binary parses `.opt` / `.oet` / `.t.json` / `.adl` from
-disk — no GitHub, no Deno runtime. Pre-built binaries are on the GitHub
-[Releases](https://github.com/regionstockholm/intehrgrator/releases) page.
-
-```bash
-ehrtslib info path/to/template.opt
-ehrtslib web-template path/to/template.opt -o out.wt.json
-ehrtslib flatten path/to/template.t.json --models-dir path/to/archetypes -o out.opt
-```
-
 ## Implementation layout
 
 | Path | Role |
@@ -46,6 +49,7 @@ ehrtslib flatten path/to/template.t.json --models-dir path/to/archetypes -o out.
 | `src/blockly/` | openEHR Blockly blocks + generators |
 | `src/workbench/` | UI controller, tree views, CodeMirror setup |
 | `src/host/` | `HostAdapter` + browser implementation |
+| `src/desktop/` | `deno desktop` entry: local HTTP + native window |
 | `web/` | HTML/CSS entry; bundled to `dist/bundle.js` |
 | `test/` | Deno unit tests + OPT fixtures |
 | `test/ui/` | Playwright UI tests (Workbench Test API) |

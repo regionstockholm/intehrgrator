@@ -1,5 +1,7 @@
 /**
  * Offline ehrtslib CLI — parse local clinical models with no GitHub/network.
+ * Developer helper in this repo; ship binaries from the ehrtslib GitHub, not
+ * as an intEHRgrator release.
  *
  *   ehrtslib info <file>
  *   ehrtslib web-template <file> [-o out.json]

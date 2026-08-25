@@ -34,6 +34,22 @@ function termPickShadow(setId: string, code?: string) {
   return { shadow: { type: "term_pick", fields } };
 }
 
+function mapsCreateWithToolboxBlock(itemCount: number): Record<string, unknown> {
+  const fields: Record<string, string> = {};
+  const inputs: Record<string, unknown> = {};
+  for (let i = 0; i < itemCount; i++) {
+    fields[`KEY${i}`] = "";
+    inputs[`VAL${i}`] = { shadow: { type: "text", fields: { TEXT: "" } } };
+  }
+  return {
+    kind: "block",
+    type: "maps_create_with",
+    extraState: { itemCount },
+    fields,
+    inputs,
+  };
+}
+
 function compositionToolboxBlock(): Record<string, unknown> {
   return {
     kind: "block",
@@ -382,7 +398,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryMaps" },
         contents: [
           { kind: "block", type: "maps_create_with", extraState: { itemCount: 0 } },
-          { kind: "block", type: "maps_create_with", extraState: { itemCount: 3 } },
+          mapsCreateWithToolboxBlock(3),
           { kind: "block", type: "maps_create_empty" },
           {
             kind: "block",

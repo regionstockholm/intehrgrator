@@ -81,7 +81,7 @@ import {
 } from "../src/core/example_sets/mod.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
-import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson } from "../src/core/defaults/mod.ts";
+import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson, migrateMapsCreateWithJson } from "../src/core/defaults/mod.ts";
 import {
   buildHandlebarsPath,
   buildHandlebarsTree,
@@ -292,6 +292,7 @@ async function bootBlockly(): Promise<void> {
 
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
+    migrateMapsCreateWithJson(loadOnce);
     Blockly.serialization.workspaces.load(loadOnce, workspace);
     lockWorkspaceRootsExpanded(workspace);
   }
@@ -521,6 +522,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       Blockly.Events.disable();
       try {
         workspace.clear();
+        migrateMapsCreateWithJson(s.blocklyState);
         Blockly.serialization.workspaces.load(s.blocklyState, workspace);
         if (!findDefaultsBlock(workspace)) ensureDefaultsBlock(workspace, blocklyLocale);
         applyModelLoops(workspace, s.model);

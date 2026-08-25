@@ -38,28 +38,38 @@ function inputAlignRight(): number {
   return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
 }
 
-function pairInputNames(index: number): [string, string, string] {
-  return [`KEY${index}`, `VAL${index}`, `ROW${index}`];
+function keyField(defaultText = ""): Blockly.FieldTextInput {
+  return new Blockly.FieldTextInput(defaultText, undefined, { spellcheck: false });
 }
 
-/** Keep HEADER, then each key:value pair, on their own rows (Blockly 11 EndRowInput). */
+function removePairInputs(block: MapCreateBlock, index: number): void {
+  block.removeInput(`VAL${index}`, true);
+  block.removeInput(`KEY${index}`, true);
+  block.removeInput(`ROW${index}`, true);
+}
+
+function hasPairInput(block: MapCreateBlock, index: number): boolean {
+  return !!(
+    block.getInput(`VAL${index}`) ||
+    block.getInput(`KEY${index}`) ||
+    block.getInput(`ROW${index}`)
+  );
+}
+
+/**
+ * App Inventor `dictionaries_create_with` stacks value sockets on the right
+ * (`setInputsInline` left false, `Align.RIGHT`). Blockly JSON-object members
+ * put the key in a `FieldTextInput` on that same row, with `:` before the
+ * value connector. Keys stay editable fields in a column; values are ordinary
+ * blocks (`text`, `math_number`, source queries, nested maps, …).
+ */
 function updateMapCreateShape(block: MapCreateBlock): void {
-  if (
-    !block.getInput("HEADER_END") &&
-    typeof block.appendEndRowInput === "function"
-  ) {
-    block.appendEndRowInput("HEADER_END");
-  }
+  if (block.getInput("HEADER_END")) block.removeInput("HEADER_END", true);
 
   if (block.itemCount_ === 0) {
     let i = 0;
-    while (
-      block.getInput(`KEY${i}`) || block.getInput(`VAL${i}`) ||
-      block.getInput(`ROW${i}`)
-    ) {
-      block.removeInput(`KEY${i}`, true);
-      block.removeInput(`VAL${i}`, true);
-      block.removeInput(`ROW${i}`, true);
+    while (hasPairInput(block, i)) {
+      removePairInputs(block, i);
       i++;
     }
     if (!block.getInput("EMPTY")) {
@@ -68,39 +78,29 @@ function updateMapCreateShape(block: MapCreateBlock): void {
   } else {
     if (block.getInput("EMPTY")) block.removeInput("EMPTY");
     let i = block.itemCount_;
-    while (
-      block.getInput(`KEY${i}`) || block.getInput(`VAL${i}`) ||
-      block.getInput(`ROW${i}`)
-    ) {
-      block.removeInput(`KEY${i}`, true);
-      block.removeInput(`VAL${i}`, true);
-      block.removeInput(`ROW${i}`, true);
+    while (hasPairInput(block, i)) {
+      removePairInputs(block, i);
       i++;
     }
     for (let n = 0; n < block.itemCount_; n++) {
-      const [keyName, valName, rowName] = pairInputNames(n);
-      if (!block.getInput(keyName)) {
-        block.appendValueInput(keyName)
-          .setCheck("String")
-          .setAlign(inputAlignRight())
-          .appendField("key");
-      }
-      if (!block.getInput(valName)) {
-        block.appendValueInput(valName).appendField(":");
-      }
-      if (
-        !block.getInput(rowName) &&
-        typeof block.appendEndRowInput === "function"
-      ) {
-        block.appendEndRowInput(rowName);
+      if (block.getInput(`KEY${n}`)) block.removeInput(`KEY${n}`, true);
+      if (block.getInput(`ROW${n}`)) block.removeInput(`ROW${n}`, true);
+      if (block.getInput(`VAL${n}`)) continue;
+      const input = block.appendValueInput(`VAL${n}`)
+        .setAlign(inputAlignRight())
+        .appendField(keyField(""), `KEY${n}`)
+        .appendField(":");
+      if (input.connection && typeof input.connection.setShadowState === "function") {
+        input.connection.setShadowState({
+          type: "text",
+          fields: { TEXT: "" },
+        });
       }
     }
   }
 
-  const order = ["HEADER", "HEADER_END"];
-  for (let n = 0; n < block.itemCount_; n++) {
-    order.push(...pairInputNames(n));
-  }
+  const order = ["HEADER"];
+  for (let n = 0; n < block.itemCount_; n++) order.push(`VAL${n}`);
   if (block.getInput("EMPTY")) order.push("EMPTY");
   for (const name of order) {
     if (block.getInput(name)) block.moveInputBefore(name, null);
@@ -108,8 +108,6 @@ function updateMapCreateShape(block: MapCreateBlock): void {
 }
 
 export function registerMapBlocks(): void {
-  if (Blockly.Blocks[MAPS_CREATE_WITH]) return;
-
   Blockly.Blocks[MAPS_CREATE_WITH] = {
     init: function (this: MapCreateBlock) {
       this.itemCount_ = 2;
@@ -131,7 +129,7 @@ export function registerMapBlocks(): void {
       this.setOutput(true, "Map");
       this.setColour(MAP_COLOUR);
       this.setTooltip("Create a Map of key/value pairs");
-      this.setInputsInline(true);
+      this.setInputsInline(false);
       this.updateShape_();
     },
     saveExtraState: function (this: MapCreateBlock) {
@@ -148,6 +146,8 @@ export function registerMapBlocks(): void {
       updateMapCreateShape(this);
     },
   };
+
+  if (Blockly.Blocks[MAPS_GET]) return;
 
   Blockly.Blocks["maps_create_empty"] = {
     init: function (this: Blockly.Block) {

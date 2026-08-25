@@ -1,16 +1,18 @@
 {
   "type": "maps_create_with",
   "extraState": { "itemCount": 5 },
+  "fields": {
+    "KEY0": "language",
+    "KEY1": "territory",
+    "KEY2": "time",
+    "KEY3": "composer_name",
+    "KEY4": "health_care_facility"
+  },
   "inputs": {
-    "KEY0": { "shadow": { "type": "text", "fields": { "TEXT": "language" } } },
     "VAL0": { "shadow": { "type": "text", "fields": { "TEXT": "sv" } } },
-    "KEY1": { "shadow": { "type": "text", "fields": { "TEXT": "territory" } } },
     "VAL1": { "shadow": { "type": "text", "fields": { "TEXT": "SE" } } },
-    "KEY2": { "shadow": { "type": "text", "fields": { "TEXT": "time" } } },
     "VAL2": { "shadow": { "type": "text", "fields": { "TEXT": "" } } },
-    "KEY3": { "shadow": { "type": "text", "fields": { "TEXT": "composer_name" } } },
     "VAL3": { "shadow": { "type": "text", "fields": { "TEXT": "" } } },
-    "KEY4": { "shadow": { "type": "text", "fields": { "TEXT": "health_care_facility" } } },
     "VAL4": { "shadow": { "type": "text", "fields": { "TEXT": "St. Dummy Demo Hospital" } } }
   }
 }

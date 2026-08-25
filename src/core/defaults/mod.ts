@@ -17,6 +17,7 @@ export {
   MAPS_GET,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
+  migrateMapsCreateWithJson,
   namedMapsFromBlocklyState,
   type NamedMaps,
 } from "./extract.ts";

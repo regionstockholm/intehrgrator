@@ -29,7 +29,7 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   const map = workspace.newBlock(MAPS_CREATE_WITH) as MapCreateBlock;
   map.itemCount_ = 3;
   map.updateShape_();
-  assert(map.getInput("KEY0"));
+  assert(map.getField("KEY0"));
   assert(map.getInput("VAL2"));
   const lookup = workspace.newBlock(MAPS_GET);
   lookup.setFieldValue("defaults", "NAME");
@@ -37,35 +37,47 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   workspace.dispose();
 });
 
-Deno.test("maps_create_with keeps each key:value pair on one row", () => {
+Deno.test("maps_create_with keeps keys as fields and values on the right edge", () => {
   registerMapBlocks();
   const workspace = new Blockly.Workspace();
   const map = workspace.newBlock(MAPS_CREATE_WITH) as MapCreateBlock;
   map.itemCount_ = 2;
   map.updateShape_();
-  assertEquals(map.getInputsInline(), true);
-  assertEquals(inputNames(map), [
-    "HEADER",
-    "HEADER_END",
-    "KEY0",
-    "VAL0",
-    "ROW0",
-    "KEY1",
-    "VAL1",
-    "ROW1",
-  ]);
+  assertEquals(map.getInputsInline(), false);
+  assertEquals(inputNames(map), ["HEADER", "VAL0", "VAL1"]);
   assertEquals(map.getInput("HEADER")?.type, Blockly.inputs.inputTypes.DUMMY);
-  assertEquals(
-    map.getInput("HEADER_END")?.type,
-    Blockly.inputs.inputTypes.END_ROW,
-  );
-  assertEquals(map.getInput("KEY0")?.type, Blockly.inputs.inputTypes.VALUE);
   assertEquals(map.getInput("VAL0")?.type, Blockly.inputs.inputTypes.VALUE);
-  assertEquals(map.getInput("ROW0")?.type, Blockly.inputs.inputTypes.END_ROW);
-  assertEquals(map.getInput("VAL0")?.fieldRow[0]?.getText?.() ?? ":", ":");
+  assertEquals(map.getInput("VAL0")?.align, Blockly.inputs.Align.RIGHT);
+  assertEquals(map.getFieldValue("KEY0"), "");
+  assertEquals(map.getInput("VAL0")?.fieldRow[1]?.getText?.() ?? ":", ":");
+  assert(!map.getInput("KEY0"));
+
+  map.setFieldValue("language", "KEY0");
+  assertEquals(map.getFieldValue("KEY0"), "language");
 
   map.itemCount_ = 0;
   map.updateShape_();
-  assertEquals(inputNames(map), ["HEADER", "HEADER_END", "EMPTY"]);
+  assertEquals(inputNames(map), ["HEADER", "EMPTY"]);
+  workspace.dispose();
+});
+
+Deno.test("maps_create_with serializes field keys and value sockets", () => {
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  const map = workspace.newBlock(MAPS_CREATE_WITH) as MapCreateBlock;
+  map.itemCount_ = 1;
+  map.updateShape_();
+  map.setFieldValue("territory", "KEY0");
+  const val = map.getInput("VAL0")?.connection;
+  if (val && typeof val.setShadowState === "function") {
+    val.setShadowState({ type: "text", fields: { TEXT: "SE" } });
+  }
+  const saved = Blockly.serialization.blocks.save(map) as {
+    fields?: Record<string, unknown>;
+    inputs?: Record<string, unknown>;
+  };
+  assertEquals(saved.fields?.KEY0, "territory");
+  assertEquals(saved.inputs?.KEY0, undefined);
+  assert(saved.inputs?.VAL0);
   workspace.dispose();
 });

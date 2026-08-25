@@ -8,11 +8,6 @@ import {
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
-const DEFAULTS_TOOLTIP = [
-  "Conversion-time openEHR context values for Better/EHRbase simplified formats.",
-  "Standard keys: language, territory, time, composer_name, and health_care_facility.",
-  'Use manage to load or save a set; maps_get("defaults", key) retrieves a value.',
-].join(" ");
 
 const PLUS_SVG = "data:image/svg+xml," +
   encodeURIComponent(
@@ -39,6 +34,79 @@ type MapCreateBlock = Blockly.Block & {
   updateShape_: () => void;
 };
 
+function inputAlignRight(): number {
+  return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
+}
+
+function pairInputNames(index: number): [string, string, string] {
+  return [`KEY${index}`, `VAL${index}`, `ROW${index}`];
+}
+
+/** Keep HEADER, then each key:value pair, on their own rows (Blockly 11 EndRowInput). */
+function updateMapCreateShape(block: MapCreateBlock): void {
+  if (
+    !block.getInput("HEADER_END") &&
+    typeof block.appendEndRowInput === "function"
+  ) {
+    block.appendEndRowInput("HEADER_END");
+  }
+
+  if (block.itemCount_ === 0) {
+    let i = 0;
+    while (
+      block.getInput(`KEY${i}`) || block.getInput(`VAL${i}`) ||
+      block.getInput(`ROW${i}`)
+    ) {
+      block.removeInput(`KEY${i}`, true);
+      block.removeInput(`VAL${i}`, true);
+      block.removeInput(`ROW${i}`, true);
+      i++;
+    }
+    if (!block.getInput("EMPTY")) {
+      block.appendDummyInput("EMPTY").appendField("empty");
+    }
+  } else {
+    if (block.getInput("EMPTY")) block.removeInput("EMPTY");
+    let i = block.itemCount_;
+    while (
+      block.getInput(`KEY${i}`) || block.getInput(`VAL${i}`) ||
+      block.getInput(`ROW${i}`)
+    ) {
+      block.removeInput(`KEY${i}`, true);
+      block.removeInput(`VAL${i}`, true);
+      block.removeInput(`ROW${i}`, true);
+      i++;
+    }
+    for (let n = 0; n < block.itemCount_; n++) {
+      const [keyName, valName, rowName] = pairInputNames(n);
+      if (!block.getInput(keyName)) {
+        block.appendValueInput(keyName)
+          .setCheck("String")
+          .setAlign(inputAlignRight())
+          .appendField("key");
+      }
+      if (!block.getInput(valName)) {
+        block.appendValueInput(valName).appendField(":");
+      }
+      if (
+        !block.getInput(rowName) &&
+        typeof block.appendEndRowInput === "function"
+      ) {
+        block.appendEndRowInput(rowName);
+      }
+    }
+  }
+
+  const order = ["HEADER", "HEADER_END"];
+  for (let n = 0; n < block.itemCount_; n++) {
+    order.push(...pairInputNames(n));
+  }
+  if (block.getInput("EMPTY")) order.push("EMPTY");
+  for (const name of order) {
+    if (block.getInput(name)) block.moveInputBefore(name, null);
+  }
+}
+
 export function registerMapBlocks(): void {
   if (Blockly.Blocks[MAPS_CREATE_WITH]) return;
 
@@ -63,7 +131,7 @@ export function registerMapBlocks(): void {
       this.setOutput(true, "Map");
       this.setColour(MAP_COLOUR);
       this.setTooltip("Create a Map of key/value pairs");
-      this.setInputsInline(false);
+      this.setInputsInline(true);
       this.updateShape_();
     },
     saveExtraState: function (this: MapCreateBlock) {
@@ -77,24 +145,7 @@ export function registerMapBlocks(): void {
       this.updateShape_();
     },
     updateShape_: function (this: MapCreateBlock) {
-      let i = 0;
-      while (this.getInput(`KEY${i}`) || this.getInput(`VAL${i}`)) {
-        if (i >= this.itemCount_) {
-          this.removeInput(`KEY${i}`, true);
-          this.removeInput(`VAL${i}`, true);
-        }
-        i++;
-      }
-      for (let n = 0; n < this.itemCount_; n++) {
-        if (!this.getInput(`KEY${n}`)) {
-          this.appendValueInput(`KEY${n}`)
-            .setCheck("String")
-            .appendField("key");
-        }
-        if (!this.getInput(`VAL${n}`)) {
-          this.appendValueInput(`VAL${n}`).appendField("value");
-        }
-      }
+      updateMapCreateShape(this);
     },
   };
 
@@ -158,27 +209,19 @@ export function registerMapBlocks(): void {
   Blockly.Blocks[DEFAULTS_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput("HEADER")
-        .appendField("openEHR CTX defaults", "TITLE")
+        .appendField("Defaults Map")
         .appendField(
-          new Blockly.FieldImage(
-            FOLDER_SVG,
-            18,
-            18,
-            "Load or save CTX defaults",
-            () => {
-              defaultsMapPickHandler?.();
-            },
-          ),
-          "MANAGE_ICON",
-        )
-        .appendField("manage", "MANAGE_LABEL");
-      this.appendDummyInput("CONTEXT")
-        .appendField("Better / EHRbase conversion context");
+          new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
+            defaultsMapPickHandler?.();
+          }),
+        );
       this.appendValueInput("MAP")
         .setCheck("Map")
-        .appendField("values");
+        .appendField("map");
       this.setColour(DEFAULTS_COLOUR);
-      this.setTooltip(DEFAULTS_TOOLTIP);
+      this.setTooltip(
+        "Binds a Map as the named defaults table. Lookups use maps_get by name, not a wire.",
+      );
       this.setDeletable(false);
       this.setMovable(true);
     },

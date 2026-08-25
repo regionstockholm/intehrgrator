@@ -90,7 +90,11 @@ function updateMapCreateShape(block: MapCreateBlock): void {
         .setAlign(inputAlignRight())
         .appendField(keyField(""), `KEY${n}`)
         .appendField(":");
-      if (input.connection && typeof input.connection.setShadowState === "function") {
+      if (
+        input.connection &&
+        typeof input.connection.setShadowState === "function" &&
+        Blockly.Blocks["text"]
+      ) {
         input.connection.setShadowState({
           type: "text",
           fields: { TEXT: "" },

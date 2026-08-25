@@ -1,5 +1,6 @@
 import { assert, assertEquals } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
+import "blockly/blocks";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
 import {
   MAPS_CREATE_WITH,

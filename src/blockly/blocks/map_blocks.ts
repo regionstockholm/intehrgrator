@@ -1,10 +1,12 @@
 import { Blockly } from "../blockly_core.ts";
 import {
   DEFAULTS_BLOCK_TYPE,
+  DEFAULTS_CTX_MAP,
   DEFAULTS_MAP_NAME,
   MAPS_CREATE_WITH,
   MAPS_GET,
 } from "../../core/defaults/extract.ts";
+import { CTX_DEFAULT_KEYS, CTX_DEFAULT_LABELS } from "../../core/defaults/factory.ts";
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
@@ -34,6 +36,11 @@ export function setDefaultsMapPickHandler(handler: (() => void) | null): void {
 
 type MapCreateBlock = Blockly.Block & {
   itemCount_: number;
+  updateShape_: () => void;
+};
+
+type DefaultsCtxMapBlock = Blockly.Block & {
+  extraCount_: number;
   updateShape_: () => void;
 };
 
@@ -150,21 +157,83 @@ export function registerMapBlocks(): void {
     },
   };
 
+  Blockly.Blocks[DEFAULTS_CTX_MAP] = {
+    init: function (this: DefaultsCtxMapBlock) {
+      this.extraCount_ = 0;
+      this.appendDummyInput("HEADER")
+        .appendField("ctx defaults")
+        .appendField(
+          new Blockly.FieldImage(PLUS_SVG, 18, 18, "+", () => {
+            this.extraCount_ += 1;
+            this.updateShape_();
+          }),
+        )
+        .appendField(
+          new Blockly.FieldImage(MINUS_SVG, 18, 18, "−", () => {
+            if (this.extraCount_ <= 0) return;
+            this.extraCount_ -= 1;
+            this.updateShape_();
+          }),
+        );
+      this.setOutput(true, "Map");
+      this.setColour(MAP_COLOUR);
+      this.setTooltip(
+        "Better / EhrBase conversion-time ctx defaults (language, territory, time, composer, facility)",
+      );
+      this.setInputsInline(false);
+      this.updateShape_();
+    },
+    saveExtraState: function (this: DefaultsCtxMapBlock) {
+      return { extraCount: this.extraCount_ };
+    },
+    loadExtraState: function (this: DefaultsCtxMapBlock, state: { extraCount?: number }) {
+      this.extraCount_ = Number(state?.extraCount ?? 0);
+      this.updateShape_();
+    },
+    updateShape_: function (this: DefaultsCtxMapBlock) {
+      for (const key of CTX_DEFAULT_KEYS) {
+        const inputName = `VAL_${key}`;
+        if (!this.getInput(inputName)) {
+          this.appendValueInput(inputName)
+            .setCheck("String")
+            .appendField(CTX_DEFAULT_LABELS[key]);
+        }
+      }
+      let i = 0;
+      while (this.getInput(`KEY${i}`) || this.getInput(`VAL${i}`)) {
+        if (i >= this.extraCount_) {
+          this.removeInput(`KEY${i}`, true);
+          this.removeInput(`VAL${i}`, true);
+        }
+        i++;
+      }
+      for (let n = 0; n < this.extraCount_; n++) {
+        if (!this.getInput(`KEY${n}`)) {
+          this.appendValueInput(`KEY${n}`)
+            .setCheck("String")
+            .appendField("key");
+        }
+        if (!this.getInput(`VAL${n}`)) {
+          this.appendValueInput(`VAL${n}`).appendField("value");
+        }
+      }
+    },
+  };
+
   Blockly.Blocks[DEFAULTS_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput("HEADER")
-        .appendField("Defaults Map")
+        .appendField("Conversion defaults")
         .appendField(
           new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
             defaultsMapPickHandler?.();
           }),
         );
       this.appendValueInput("MAP")
-        .setCheck("Map")
-        .appendField("map");
+        .setCheck("Map");
       this.setColour(DEFAULTS_COLOUR);
       this.setTooltip(
-        "Binds a Map as the named defaults table. Lookups use maps_get by name, not a wire.",
+        "Binds a ctx Defaults Map for Better / EhrBase conversion. Map lookups use maps_get by name.",
       );
       this.setDeletable(false);
       this.setMovable(true);

@@ -1,7 +1,7 @@
 import { assertEquals, assert } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
-import { MAPS_CREATE_WITH, MAPS_GET } from "@intehrgrator/core/defaults/extract.ts";
+import { MAPS_CREATE_WITH, MAPS_GET, DEFAULTS_CTX_MAP } from "@intehrgrator/core/defaults/extract.ts";
 
 Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () => {
   registerMapBlocks();
@@ -11,6 +11,7 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   assert(Blockly.Blocks["maps_length"]);
   assert(Blockly.Blocks["maps_isEmpty"]);
   assert(Blockly.Blocks["maps_create_empty"]);
+  assert(Blockly.Blocks[DEFAULTS_CTX_MAP]);
   assert(Blockly.Blocks["defaults_block"]);
 
   const workspace = new Blockly.Workspace();

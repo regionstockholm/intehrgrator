@@ -3,6 +3,7 @@ export { DEFAULTS_MAP_NAME };
 
 export const DEFAULTS_BLOCK_TYPE = "defaults_block";
 export const MAPS_CREATE_WITH = "maps_create_with";
+export const DEFAULTS_CTX_MAP = "defaults_ctx_map";
 export const MAPS_GET = "maps_get";
 
 export type NamedMaps = Record<string, Record<string, unknown>>;
@@ -51,7 +52,7 @@ export function mapsGetExpression(mapName: string, key: string): string {
 export function mapBlockFromDefaultsJson(parsed: unknown): unknown | null {
   if (!parsed || typeof parsed !== "object") return null;
   const rec = parsed as BlocklyBlockJson & BlocklyWorkspaceJson;
-  if (rec.type === MAPS_CREATE_WITH) return parsed;
+  if (rec.type === MAPS_CREATE_WITH || rec.type === DEFAULTS_CTX_MAP) return parsed;
   if (rec.type === DEFAULTS_BLOCK_TYPE) {
     return rec.inputs?.MAP?.block ?? rec.inputs?.MAP?.shadow ?? null;
   }
@@ -60,7 +61,9 @@ export function mapBlockFromDefaultsJson(parsed: unknown): unknown | null {
   const defaults = blocks.find((block) => block.type === DEFAULTS_BLOCK_TYPE);
   const fromDefaults = defaults?.inputs?.MAP?.block ?? defaults?.inputs?.MAP?.shadow;
   if (fromDefaults) return fromDefaults;
-  const map = blocks.find((block) => block.type === MAPS_CREATE_WITH);
+  const map = blocks.find((block) =>
+    block.type === MAPS_CREATE_WITH || block.type === DEFAULTS_CTX_MAP
+  );
   return map ?? null;
 }
 
@@ -72,7 +75,23 @@ function topBlocks(state: unknown): BlocklyBlockJson[] {
 
 function mapFromCreateWith(block: BlocklyBlockJson | undefined): Record<string, unknown> {
   const out: Record<string, unknown> = {};
-  if (!block || block.type !== MAPS_CREATE_WITH) return out;
+  if (!block) return out;
+  if (block.type === DEFAULTS_CTX_MAP) {
+    for (const [name, input] of Object.entries(block.inputs ?? {})) {
+      if (!name.startsWith("VAL_")) continue;
+      const key = name.slice(4);
+      if (!key) continue;
+      out[key] = literalFromInput(input) ?? "";
+    }
+    const extraCount = Number(block.extraState?.extraCount ?? 0);
+    for (let i = 0; i < extraCount; i++) {
+      const key = literalFromInput(block.inputs?.[`KEY${i}`]);
+      if (typeof key !== "string" || !key) continue;
+      out[key] = literalFromInput(block.inputs?.[`VAL${i}`]) ?? "";
+    }
+    return out;
+  }
+  if (block.type !== MAPS_CREATE_WITH) return out;
   const inputKeys = Object.keys(block.inputs ?? {}).filter((name) => /^KEY\d+$/.test(name));
   const count = Math.max(
     Number(block.extraState?.itemCount ?? 0),

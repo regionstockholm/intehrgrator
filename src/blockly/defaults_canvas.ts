@@ -4,6 +4,7 @@ import { Blockly } from "./blockly_core.ts";
 import {
   bindDefaultPoints,
   DEFAULTS_BLOCK_TYPE,
+  DEFAULTS_CTX_MAP,
   DEFAULTS_MAP_NAME,
   factoryDefaultsEntries,
   MAPS_CREATE_WITH,
@@ -65,15 +66,14 @@ export function createFactoryMapBlock(
 ): Blockly.Block {
   registerMapBlocks();
   const entries = factoryDefaultsEntries(uiLanguage);
-  const map = workspace.newBlock(MAPS_CREATE_WITH) as Blockly.Block & {
-    itemCount_: number;
+  const map = workspace.newBlock(DEFAULTS_CTX_MAP) as Blockly.Block & {
+    extraCount_: number;
     updateShape_: () => void;
   };
-  map.itemCount_ = entries.length;
+  map.extraCount_ = 0;
   map.updateShape_();
-  for (let i = 0; i < entries.length; i++) {
-    connectText(workspace, map, `KEY${i}`, entries[i]!.key);
-    connectText(workspace, map, `VAL${i}`, entries[i]!.value);
+  for (const entry of entries) {
+    connectText(workspace, map, `VAL_${entry.key}`, entry.value);
   }
   return finalize(map);
 }

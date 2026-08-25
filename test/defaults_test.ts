@@ -3,6 +3,7 @@ import { join } from "@std/path";
 import {
   bindDefaultPoints,
   createMemoryDefaultsCatalog,
+  DEFAULTS_CTX_MAP,
   DEFAULTS_MAP_NAME,
   FACTORY_HEALTH_CARE_FACILITY,
   FACTORY_TERRITORY,
@@ -134,6 +135,22 @@ Deno.test("memory Defaults catalog save/load", async () => {
   const listed = await catalog.list();
   assertEquals(listed[0]?.id, saved.id);
   assertEquals(await catalog.load(saved.id), { type: "maps_create_with" });
+});
+
+Deno.test("defaults_ctx_map factory block exposes ctx labels and namedMaps extraction", () => {
+  registerRmBlocks();
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  ensureDefaultsBlock(workspace, "sv");
+  const map = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP");
+  assertEquals(map?.type, DEFAULTS_CTX_MAP);
+  assert(map?.getInput("VAL_language"));
+  assert(map?.getInput("VAL_territory"));
+  assert(map?.getInput("VAL_health_care_facility"));
+  const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.health_care_facility, FACTORY_HEALTH_CARE_FACILITY);
+  workspace.dispose();
 });
 
 Deno.test("bindDefaultPoints matches COMPOSITION language on a BP OPT", () => {

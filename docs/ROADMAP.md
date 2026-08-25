@@ -14,6 +14,7 @@
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
 - [ ] add https://raspberrypifoundation.github.io/blockly-samples/plugins/toolbox-search/test/index.html
+- [ ] add markers in right scroll gutter of mapping spec codemirror so that all locations of errors can be found
 
 ## C. Better support for map and table data structures
 - [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist. Key/value pairs share a row (Blockly 11 `appendEndRowInput`), so the Defaults Map nested constructor stays compact.
@@ -44,6 +45,7 @@
 - [ ] Execute a generated Handlebars Conversion Script in Conversion Test Run(s) (today: generate only; Mapping preview still runs the authored Handlebars Template)
 - [ ] Blockly-owned Handlebars authoring that round-trips with the Handlebars Template tab
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md), [ADR 0001](adr/0001-mapping-and-target-seams.md), and [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
+- make ther recently added JSON/XML subtree source blockly block also trigger/arm click to map so that souce tree can be pointed at
 
 
 ## Schema specific dynamic blockly toolboxes

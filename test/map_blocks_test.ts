@@ -1,7 +1,10 @@
-import { assertEquals, assert } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
-import { MAPS_CREATE_WITH, MAPS_GET } from "@intehrgrator/core/defaults/extract.ts";
+import {
+  MAPS_CREATE_WITH,
+  MAPS_GET,
+} from "@intehrgrator/core/defaults/extract.ts";
 
 Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () => {
   registerMapBlocks();
@@ -25,5 +28,12 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   const lookup = workspace.newBlock(MAPS_GET);
   lookup.setFieldValue("defaults", "NAME");
   assertEquals(lookup.getFieldValue("NAME"), "defaults");
+  const defaults = workspace.newBlock("defaults_block");
+  assertEquals(defaults.getFieldValue("TITLE"), "openEHR CTX defaults");
+  assertEquals(defaults.getFieldValue("MANAGE_LABEL"), "manage");
+  assert(defaults.getInput("CONTEXT"));
+  assert(defaults.getInput("MAP"));
+  assertStringIncludes(String(defaults.getTooltip()), "composer_name");
+  assertStringIncludes(String(defaults.getTooltip()), "health_care_facility");
   workspace.dispose();
 });

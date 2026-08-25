@@ -8,19 +8,21 @@ import {
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
+const DEFAULTS_TOOLTIP = [
+  "Conversion-time openEHR context values for Better/EHRbase simplified formats.",
+  "Standard keys: language, territory, time, composer_name, and health_care_facility.",
+  'Use manage to load or save a set; maps_get("defaults", key) retrieves a value.',
+].join(" ");
 
-const PLUS_SVG =
-  "data:image/svg+xml," +
+const PLUS_SVG = "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="#fff" stroke="#5f6368"/><path d="M9 5v8M5 9h8" stroke="#5f6368" stroke-width="1.6" fill="none"/></svg>',
   );
-const MINUS_SVG =
-  "data:image/svg+xml," +
+const MINUS_SVG = "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="8" fill="#fff" stroke="#5f6368"/><path d="M5 9h8" stroke="#5f6368" stroke-width="1.6" fill="none"/></svg>',
   );
-const FOLDER_SVG =
-  "data:image/svg+xml," +
+const FOLDER_SVG = "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M2 5h5l1 1.5H16v8.5H2z" fill="#fff" stroke="#5f6368"/><path d="M2 6.5h14" stroke="#5f6368"/></svg>',
   );
@@ -67,7 +69,10 @@ export function registerMapBlocks(): void {
     saveExtraState: function (this: MapCreateBlock) {
       return { itemCount: this.itemCount_ };
     },
-    loadExtraState: function (this: MapCreateBlock, state: { itemCount?: number }) {
+    loadExtraState: function (
+      this: MapCreateBlock,
+      state: { itemCount?: number },
+    ) {
       this.itemCount_ = Number(state?.itemCount ?? 0);
       this.updateShape_();
     },
@@ -153,19 +158,27 @@ export function registerMapBlocks(): void {
   Blockly.Blocks[DEFAULTS_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput("HEADER")
-        .appendField("Defaults Map")
+        .appendField("openEHR CTX defaults", "TITLE")
         .appendField(
-          new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
-            defaultsMapPickHandler?.();
-          }),
-        );
+          new Blockly.FieldImage(
+            FOLDER_SVG,
+            18,
+            18,
+            "Load or save CTX defaults",
+            () => {
+              defaultsMapPickHandler?.();
+            },
+          ),
+          "MANAGE_ICON",
+        )
+        .appendField("manage", "MANAGE_LABEL");
+      this.appendDummyInput("CONTEXT")
+        .appendField("Better / EHRbase conversion context");
       this.appendValueInput("MAP")
         .setCheck("Map")
-        .appendField("map");
+        .appendField("values");
       this.setColour(DEFAULTS_COLOUR);
-      this.setTooltip(
-        "Binds a Map as the named defaults table. Lookups use maps_get by name, not a wire.",
-      );
+      this.setTooltip(DEFAULTS_TOOLTIP);
       this.setDeletable(false);
       this.setMovable(true);
     },
@@ -185,7 +198,9 @@ export function createMapsGetBlock(
     if (existing) existing.dispose(false);
     const text = workspace.newBlock("text");
     text.setFieldValue(key, "TEXT");
-    if (text.outputConnection) keyInput.connection.connect(text.outputConnection);
+    if (text.outputConnection) {
+      keyInput.connection.connect(text.outputConnection);
+    }
   }
   return block;
 }

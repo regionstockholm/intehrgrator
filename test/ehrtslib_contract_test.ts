@@ -5,7 +5,11 @@
  */
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
-import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
+import {
+  collectTemplateJsonExternalRefsFromText,
+  parseTemplateInput,
+  parseTemplateJson,
+} from "ehrtslib/parser/mod.ts";
 import {
   attributesFor,
   hasRmType,
@@ -40,6 +44,17 @@ import {
 const bpOpt = await Deno.readTextFile(
   join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
 );
+const differentialTemplateJson = await Deno.readTextFile(
+  join(
+    import.meta.dirname!,
+    "..",
+    "vendor",
+    "ehrtslib",
+    "test_data",
+    "tjson",
+    "Care unit v2.t.json",
+  ),
+);
 
 Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof webTemplateToOpt, "function");
@@ -66,6 +81,18 @@ Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof resolveLocatableLabel, "function");
   assertEquals(TERM_ARCHETYPE_SCOPE_KEY, "term_archetype_scope");
   assertEquals(termCodeCandidates("at0004")[0], "at0004");
+});
+
+Deno.test("differential .t.json resolves overlay parent archetypes", () => {
+  const parentId = "openEHR-EHR-CLUSTER.organisation.v1";
+  const overlayId = "openEHR-EHR-CLUSTER.ovl-organisation-000.v1";
+  const refs = collectTemplateJsonExternalRefsFromText(differentialTemplateJson);
+  assert(refs.includes(parentId), `expected overlay parent in ${refs}`);
+  assert(!refs.includes(overlayId), `inlined overlay must not be fetched: ${refs}`);
+
+  const { overlays } = parseTemplateJson(differentialTemplateJson);
+  assert(overlays.length > 0, "expected an inlined differential overlay");
+  assertEquals(overlays[0]?.parent_archetype_id?.value, parentId);
 });
 
 Deno.test("OPT XML parse keeps colliding at-codes archetype-local", () => {

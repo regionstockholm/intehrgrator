@@ -23,6 +23,18 @@ CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, s
 
 Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 
+### Offline ehrtslib CLI
+
+`deno task compile:ehrtslib` cross-compiles a **local-only** ehrtslib executable
+(Windows, Linux, macOS Intel, macOS ARM) to `dist/release/`. The binary parses
+`.opt` / `.oet` / `.t.json` / `.adl` from disk — no GitHub, no Deno runtime.
+
+```bash
+ehrtslib info path/to/template.opt
+ehrtslib web-template path/to/template.opt -o out.wt.json
+ehrtslib flatten path/to/template.t.json --models-dir path/to/archetypes -o out.opt
+```
+
 ## Implementation layout
 
 | Path | Role |

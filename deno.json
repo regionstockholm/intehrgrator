@@ -50,7 +50,8 @@
     "lint": "deno lint src test scripts",
     "check": "deno check src/**/*.ts web/main.ts scripts/*.ts",
     "build": "deno run -A scripts/build.ts",
-    "dev": "deno run -A scripts/dev-server.ts"
+    "dev": "deno run -A scripts/dev-server.ts",
+    "compile:ehrtslib": "deno run -A scripts/compile-ehrtslib.ts"
   },
   "lint": {
     "include": ["src", "test", "scripts", "web"],

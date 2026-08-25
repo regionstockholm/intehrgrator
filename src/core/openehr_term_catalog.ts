@@ -100,6 +100,41 @@ export function termSetForRmAttribute(
   return id ? termSetById(id) : undefined;
 }
 
+/**
+ * Catalog set that owns a template-mandated code. Prefer a terminology_id match
+ * so local at-codes are not mistaken for openEHR built-ins.
+ */
+export function termSetForMandatedCode(
+  terminologyId: string | undefined,
+  code: string | undefined,
+): TermSet | undefined {
+  if (!code || code === TERM_PICK_NONE) return undefined;
+  const sets = ensureSets();
+  const hasCode = (set: TermSet) => set.codes.some((item) => item.code === code);
+  const matchesTerm = (set: TermSet) => {
+    if (!terminologyId) return true;
+    return (
+      set.terminologyId === terminologyId ||
+      set.id === terminologyId ||
+      set.id === `openehr:${terminologyId}`
+    );
+  };
+  const preferred = sets.find((set) => matchesTerm(set) && hasCode(set));
+  if (preferred) return preferred;
+  if (terminologyId) return undefined;
+  return sets.find(hasCode);
+}
+
+/** Defaults Map keys whose values are built-in RM code sets. */
+export const DEFAULTS_KEY_TERM_SET: Record<string, string> = {
+  language: "ISO_639-1",
+  territory: "ISO_3166-1",
+};
+
+export function termSetIdForDefaultsKey(key: string): string | undefined {
+  return DEFAULTS_KEY_TERM_SET[key];
+}
+
 export function termPickDropdownOptions(setId: string): Array<[string, string]> {
   const set = termSetById(setId);
   const options: Array<[string, string]> = [["choose…", TERM_PICK_NONE]];

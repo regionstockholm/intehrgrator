@@ -71,6 +71,36 @@ Deno.test("namedMapsFromBlocklyState reads field keys and value sockets", () => 
   assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
 });
 
+Deno.test("namedMapsFromBlocklyState reads term_pick codes from Defaults Map values", () => {
+  const maps = namedMapsFromBlocklyState({
+    blocks: {
+      blocks: [
+        {
+          type: "defaults_block",
+          inputs: {
+            MAP: {
+              block: {
+                type: "maps_create_with",
+                extraState: { itemCount: 1 },
+                fields: { KEY0: "language" },
+                inputs: {
+                  VAL0: {
+                    shadow: {
+                      type: "term_pick",
+                      fields: { SET: "ISO_639-1", CODE: "sv" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  });
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
+});
+
 Deno.test("namedMapsFromBlocklyState still reads legacy KEY value-input JSON", () => {
   const state = {
     blocks: {
@@ -220,6 +250,10 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   const factoryMap = defaults.getInputTargetBlock("MAP");
   assertEquals(factoryMap?.getFieldValue("KEY0"), "language");
   assert(!factoryMap?.getInput("KEY0"));
+  const languageVal = factoryMap?.getInputTargetBlock("VAL0");
+  assertEquals(languageVal?.type, "term_pick");
+  assertEquals(languageVal?.getFieldValue("SET"), "ISO_639-1");
+  assertEquals(languageVal?.getFieldValue("CODE"), "sv");
   const lookups = workspace.getAllBlocks(false).filter((block) => block.type === "maps_get");
   assert(lookups.length > 0, "expected Default point Map lookups on the skeleton");
   assert(

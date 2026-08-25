@@ -26,7 +26,7 @@
 
 ## open EHR reference model classes available as blockly blocks.
 - [ ] check if any classes are missing
-- [ ] There are two similarly looking blocks for SECTION, compare, then remove one.
+- [x] There are two similarly looking blocks for SECTION, compare, then remove one.
 - [ ] Change the CLUSTER block into the same colour as the ELEMENT block and mov 
 - [ ] improve sorting of blocks in blockly toolbox (put common ones eralier, possibly subdivide/group, fix colour/pattern semantics)
 

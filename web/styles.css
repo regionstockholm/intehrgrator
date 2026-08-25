@@ -320,29 +320,29 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   background: #fff;
   position: relative;
 }
-.blockly-mount > .blockly-minimap {
-  position: absolute;
-  left: 0;
-  bottom: 0;
-  width: var(--blockly-minimap-width);
+.blockly-mount .blocklyToolboxDiv {
+  display: flex !important;
+  flex-direction: column;
+  overflow-x: visible;
+  overflow-y: hidden !important;
+  border-right: 1px solid var(--border);
+}
+.blockly-mount .blocklyToolboxContents {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+}
+.blockly-mount .blocklyToolboxDiv > .blockly-minimap {
+  flex: 0 0 var(--blockly-minimap-height);
+  margin-top: auto;
+  width: 100%;
   height: var(--blockly-minimap-height);
-  z-index: 40;
+  position: relative;
+  z-index: 1;
   box-shadow: none;
   border-top: 1px solid var(--border);
-  border-right: 1px solid var(--border);
   background: #fff;
   box-sizing: border-box;
-}
-.blockly-mount.blockly-minimap-hidden .blockly-minimap {
-  display: none;
-}
-.blockly-mount:not(.blockly-minimap-hidden) .blocklyToolboxDiv {
-  padding-bottom: var(--blockly-minimap-height);
-  box-sizing: border-box;
-}
-.blockly-mount:not(.blockly-minimap-hidden) .blocklyToolboxContents {
-  overflow-y: auto;
-  max-height: 100%;
 }
 .slots-pane { display: flex; flex-direction: column; min-width: 160px; }
 
@@ -351,9 +351,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
  * (Apache-2.0; see docs/BLOCKLY_INTEGRATION.md § Attribution).
  */
 .blockly-mount .blocklyToolbox { background-color: #fff; }
-.blockly-mount .blocklyToolboxDiv {
-  border-right: 1px solid var(--border);
-}
 .blockly-mount .blocklyFlyoutBackground {
   stroke: var(--border);
   stroke-width: 1.5;

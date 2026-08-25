@@ -2,6 +2,7 @@ import type { Block } from "blockly/core";
 import type { SkeletonNode } from "../types/mod.ts";
 import { archetypeShortName } from "../core/skeleton/template_terms.ts";
 import { isSkeletonTitleField } from "./field_skeleton_title.ts";
+import { isTermPickBlock } from "./blocks/term_pick.ts";
 
 export function skeletonBlockTooltip(node: SkeletonNode): string {
   const parts: string[] = [];
@@ -17,11 +18,13 @@ export function skeletonBlockTooltip(node: SkeletonNode): string {
 }
 
 export function applySkeletonBlockLabels(block: Block, node: SkeletonNode): void {
-  setFieldIfPresent(block, "NAME", node.label);
+  if (!isTermPickBlock(block)) {
+    setFieldIfPresent(block, "NAME", node.label);
+  }
   const nameField = block.getField("NAME");
   if (isSkeletonTitleField(nameField)) {
-    if (node.rmType) nameField.setClassName(node.rmType);
-    nameField.setAtCode(node.archetypeNodeId ?? "");
+    if (node.rmType && !isTermPickBlock(block)) nameField.setClassName(node.rmType);
+    if (!isTermPickBlock(block)) nameField.setAtCode(node.archetypeNodeId ?? "");
   } else if (node.archetypeNodeId) {
     setFieldIfPresent(block, "AT_CODE", node.archetypeNodeId);
   }

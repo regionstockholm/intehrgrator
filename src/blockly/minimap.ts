@@ -13,9 +13,10 @@ const Minimap: typeof MinimapNs.Minimap =
   minimapMod.Minimap ?? minimapMod.default?.Minimap;
 
 /**
- * Official Blockly minimap, docked to the bottom of the toolbox rail so it
- * does not cover the canvas. Hidden until workspace content overflows the
- * visible canvas at the current zoom (see UI_ARCHITECTURE.md).
+ * Official Blockly minimap, reparented into the toolbox rail as its last
+ * child so it cannot sit under `.blocklyToolboxDiv` (z-index 70) or cover
+ * the canvas. Always shown: once docked in the toolbox it does not steal
+ * workspace area.
  *
  * The plugin only mirrors BLOCK_* events. Template scaffolding and the
  * Defaults Map are created with events disabled, so we snapshot-copy the
@@ -31,6 +32,11 @@ class DockedMinimap extends Minimap {
 
   layoutInToolbox(mount: HTMLElement): void {
     const toolboxEl = mount.querySelector(".blocklyToolboxDiv") as HTMLElement | null;
+    const wrapper = this.minimapWrapper;
+    if (toolboxEl && wrapper && wrapper.parentElement !== toolboxEl) {
+      toolboxEl.appendChild(wrapper);
+    }
+
     const toolbox = this.primaryWorkspace.getToolbox?.();
     const width = Math.round(
       (typeof toolbox?.getWidth === "function" ? toolbox.getWidth() : 0) ||
@@ -68,18 +74,16 @@ export function attachWorkspaceMinimap(
   minimap.init();
   attached = { minimap, workspace, mount };
   setAfterBlocklyEventsEnabled(refreshWorkspaceMinimap);
+  mount.classList.remove("blockly-minimap-hidden");
 
-  workspace.addChangeListener(() => updateVisibility(workspace, mount));
   if (typeof ResizeObserver === "function") {
     const observer = new ResizeObserver(() => {
       minimap.layoutInToolbox(mount);
-      updateVisibility(workspace, mount);
     });
     observer.observe(mount);
   }
   minimap.syncFromPrimary();
   minimap.layoutInToolbox(mount);
-  updateVisibility(workspace, mount);
 }
 
 /** Re-copy primary blocks into the minimap and re-dock under the toolbox. */
@@ -87,23 +91,4 @@ export function refreshWorkspaceMinimap(): void {
   if (!attached) return;
   attached.minimap.syncFromPrimary();
   attached.minimap.layoutInToolbox(attached.mount);
-  updateVisibility(attached.workspace, attached.mount);
-}
-
-function updateVisibility(workspace: WorkspaceSvg, mount: HTMLElement): void {
-  const metrics = workspace.getMetrics?.();
-  if (!metrics) {
-    mount.classList.add("blockly-minimap-hidden");
-    return;
-  }
-  const wasHidden = mount.classList.contains("blockly-minimap-hidden");
-  const overflow =
-    Number(metrics.scrollWidth ?? metrics.contentWidth ?? 0) >
-      Number(metrics.viewWidth ?? 0) ||
-    Number(metrics.scrollHeight ?? metrics.contentHeight ?? 0) >
-      Number(metrics.viewHeight ?? 0);
-  mount.classList.toggle("blockly-minimap-hidden", !overflow);
-  if (wasHidden && overflow) {
-    attached?.minimap.layoutInToolbox(mount);
-  }
 }

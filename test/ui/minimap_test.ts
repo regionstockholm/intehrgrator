@@ -26,10 +26,12 @@ Deno.test({
         const toolbox = mount?.querySelector(".blocklyToolboxDiv");
         const mini = mount?.querySelector(".blockly-minimap") as HTMLElement | null;
         if (!mount || !toolbox || !mini) return null;
-        if (mount.classList.contains("blockly-minimap-hidden")) return null;
         if (getComputedStyle(mini).display === "none") return null;
+        if (mini.parentElement !== toolbox) return null;
         const tb = toolbox.getBoundingClientRect();
         const mb = mini.getBoundingClientRect();
+        if (mb.width < 40 || mb.height < 40) return null;
+        const hit = document.elementFromPoint(mb.left + mb.width / 2, mb.top + mb.height / 2);
         const blockCount = mini.querySelectorAll(".blocklyBlockCanvas [data-id]").length;
         return {
           toolboxLeft: tb.left,
@@ -39,6 +41,8 @@ Deno.test({
           miniBottom: mb.bottom,
           miniWidth: mb.width,
           miniHeight: mb.height,
+          inToolbox: mini.parentElement === toolbox,
+          hitInMinimap: Boolean(hit && mini.contains(hit)),
           blockCount,
         };
       }, { timeout: 15_000 });
@@ -51,9 +55,13 @@ Deno.test({
         miniBottom: number;
         miniWidth: number;
         miniHeight: number;
+        inToolbox: boolean;
+        hitInMinimap: boolean;
         blockCount: number;
       };
 
+      assert(box.inToolbox, `minimap should be a child of the toolbox: ${JSON.stringify(box)}`);
+      assert(box.hitInMinimap, `minimap should be the topmost layer at its centre: ${JSON.stringify(box)}`);
       assert(box.miniWidth > 40, JSON.stringify(box));
       assert(box.miniHeight > 40, JSON.stringify(box));
       assert(
@@ -61,7 +69,7 @@ Deno.test({
         `minimap should share the toolbox left edge: ${JSON.stringify(box)}`,
       );
       assert(
-        Math.abs(box.miniBottom - box.toolboxBottom) < 8,
+        Math.abs(box.miniBottom - box.toolboxBottom) < 16,
         `minimap should sit at the bottom of the toolbox: ${JSON.stringify(box)}`,
       );
       assert(

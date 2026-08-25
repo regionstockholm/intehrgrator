@@ -58,7 +58,7 @@ function compositionToolboxBlock(): Record<string, unknown> {
     inputs: {
       ATTR_language: termPickShadow("ISO_639-1"),
       ATTR_territory: termPickShadow("ISO_3166-1"),
-      ATTR_category: termPickShadow("openehr:composition_category"),
+      ATTR_category: termPickShadow("openehr:composition_category", "433"),
       ATTR_composer: { block: { type: "party_identified" } },
     },
   };
@@ -67,7 +67,6 @@ function compositionToolboxBlock(): Record<string, unknown> {
 function openEhrTypeToolboxContents(): Array<Record<string, unknown>> {
   return [
     compositionToolboxBlock(),
-    { kind: "block", type: "section", gap: 8 },
     { kind: "block", type: "section", gap: 8 },
     { kind: "block", type: "observation", gap: 8 },
     { kind: "block", type: "evaluation", gap: 8 },

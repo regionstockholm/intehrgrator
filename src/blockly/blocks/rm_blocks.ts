@@ -26,7 +26,7 @@ import {
   BLOCK_OUT_EMOJI_FIELD,
   slotRmTypeForAttr,
 } from "../rm_type_emoji.ts";
-import { FieldSkeletonTitle, isSkeletonTitleField } from "../field_skeleton_title.ts";
+import { FieldSkeletonTitle, humanizeRmType, isSkeletonTitleField } from "../field_skeleton_title.ts";
 import {
   appendSlotCardinality,
   parseSlotCardinality,
@@ -808,7 +808,7 @@ function defineDataValueBlock(rmType: string): void {
     init: function (this: Blockly.Block) {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, rmType);
-      header.appendField(rmType.replace(/^DV_/, ""));
+      header.appendField(new FieldSkeletonTitle(rmType, humanizeRmType(rmType)), "NAME");
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
@@ -886,7 +886,7 @@ function defineCodePhraseBlock(): void {
     init: function (this: Blockly.Block) {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, "CODE_PHRASE");
-      header.appendField("CODE_PHRASE");
+      header.appendField(new FieldSkeletonTitle("CODE_PHRASE", humanizeRmType("CODE_PHRASE")), "NAME");
       const code = this.appendValueInput(dvFieldInputName("code_string"))
         .setCheck("String")
         .appendField("code");

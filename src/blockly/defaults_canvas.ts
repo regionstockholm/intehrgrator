@@ -18,8 +18,8 @@ import {
   isDataValueBlock,
   rmAttributeInputName,
 } from "./blocks/rm_blocks.ts";
-import { isTermPickBlock } from "./blocks/term_pick.ts";
-import { termSetById } from "../core/openehr_term_catalog.ts";
+import { createTermPickBlock, isTermPickBlock, registerTermPickBlock } from "./blocks/term_pick.ts";
+import { termSetById, termSetIdForDefaultsKey } from "../core/openehr_term_catalog.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
@@ -60,11 +60,35 @@ function connectText(
   finalize(text);
 }
 
+function connectDefaultValue(
+  workspace: Blockly.Workspace,
+  parent: Blockly.Block,
+  inputName: string,
+  key: string,
+  value: string,
+): void {
+  const setId = termSetIdForDefaultsKey(key);
+  const set = setId ? termSetById(setId) : undefined;
+  if (set && value && set.codes.some((item) => item.code === value)) {
+    const input = parent.getInput(inputName);
+    if (!input?.connection) return;
+    const existing = input.connection.targetBlock();
+    if (existing) existing.dispose(false);
+    const pick = createTermPickBlock(workspace, set, value);
+    if (pick.outputConnection) input.connection.connect(pick.outputConnection);
+    pick.setShadow?.(true);
+    finalize(pick);
+    return;
+  }
+  connectText(workspace, parent, inputName, value);
+}
+
 export function createFactoryMapBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
 ): Blockly.Block {
   registerMapBlocks();
+  registerTermPickBlock();
   const entries = factoryDefaultsEntries(uiLanguage);
   const map = workspace.newBlock(MAPS_CREATE_WITH) as Blockly.Block & {
     itemCount_: number;
@@ -74,7 +98,7 @@ export function createFactoryMapBlock(
   map.updateShape_();
   for (let i = 0; i < entries.length; i++) {
     map.setFieldValue(entries[i]!.key, `KEY${i}`);
-    connectText(workspace, map, `VAL${i}`, entries[i]!.value);
+    connectDefaultValue(workspace, map, `VAL${i}`, entries[i]!.key, entries[i]!.value);
   }
   return finalize(map);
 }

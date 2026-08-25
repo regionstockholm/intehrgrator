@@ -89,6 +89,7 @@ Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE lea
   assertEquals(cat?.name, "openEHR types");
   const types = (cat?.contents ?? []).map((block) => block.type);
   assertEquals(types[0], "composition");
+  assertEquals(types.filter((t) => t === "section").length, 1);
   assertEquals(types.includes("section"), true);
   assertEquals(types.includes("observation"), true);
   assertEquals(types.includes("evaluation"), true);

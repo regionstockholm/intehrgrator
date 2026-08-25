@@ -24,6 +24,16 @@ export function isSkeletonTitleField(
   return Boolean(field && (field as FieldSkeletonTitle).isSkeletonTitleField);
 }
 
+/** `DV_CODED_TEXT` → `Coded Text`; `CODE_PHRASE` → `Code Phrase`. */
+export function humanizeRmType(rmType: string): string {
+  return (rmType || "")
+    .replace(/^DV_/, "")
+    .split("_")
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
+
 export class FieldSkeletonTitle extends FieldLabelBase {
   readonly isSkeletonTitleField = true;
   EDITABLE = false;

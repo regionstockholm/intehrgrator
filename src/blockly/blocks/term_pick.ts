@@ -7,7 +7,9 @@ import {
   termSetDropdownOptions,
   type TermSet,
 } from "../../core/openehr_term_catalog.ts";
-import { appendBlockOutputEmoji } from "../rm_type_emoji.ts";
+import { appendBlockOutputEmoji, BLOCK_OUT_EMOJI_FIELD, isRmTypeEmojiField } from "../rm_type_emoji.ts";
+import { FieldDropdownHug } from "../field_dropdown_hug.ts";
+import { FieldSkeletonTitle, isSkeletonTitleField } from "../field_skeleton_title.ts";
 
 export const TERM_PICK_BLOCK_TYPE = "term_pick";
 
@@ -21,9 +23,9 @@ export function registerTermPickBlock(): void {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, "CODE_PHRASE");
       header
-        .appendField("term")
+        .appendField(new FieldSkeletonTitle("CODE_PHRASE", "built-in"), "NAME")
         .appendField(
-          new Blockly.FieldDropdown(termSetDropdownOptions, function (newSet) {
+          new FieldDropdownHug(termSetDropdownOptions, function (this: Blockly.FieldDropdown, newSet: string) {
             const block = this.getSourceBlock() as Blockly.Block | null;
             block?.syncTermPick_?.(newSet);
             return newSet;
@@ -31,7 +33,7 @@ export function registerTermPickBlock(): void {
           "SET",
         )
         .appendField(
-          new Blockly.FieldDropdown(function (this: Blockly.FieldDropdown) {
+          new FieldDropdownHug(function (this: Blockly.FieldDropdown) {
             const block = this.getSourceBlock();
             const setId = block?.getFieldValue("SET") || "";
             const options = termPickDropdownOptions(setId);
@@ -58,7 +60,7 @@ export function registerTermPickBlock(): void {
 
       this.setOutput(true, ["CODE_PHRASE", "DV_CODED_TEXT"]);
       this.setColour(TERM_COLOUR);
-      this.setTooltip("Pick a code from an openEHR terminology group or RM code set");
+      this.setTooltip("Pick a built-in openEHR / RM code (CODE_PHRASE)");
       this.setInputsInline(true);
       this.syncTermPick_();
     },
@@ -66,6 +68,10 @@ export function registerTermPickBlock(): void {
       const set = termSetById(setId ?? this.getFieldValue("SET"));
       const rmType = set?.valueRmType ?? "CODE_PHRASE";
       if (this.getField("RM_TYPE")) this.setFieldValue(rmType, "RM_TYPE");
+      const title = this.getField("NAME");
+      if (isSkeletonTitleField(title)) title.setClassName(rmType);
+      const emoji = this.getField(BLOCK_OUT_EMOJI_FIELD);
+      if (isRmTypeEmojiField(emoji)) emoji.setRmType(rmType);
       const codeField = this.getField("CODE") as Blockly.FieldDropdown | null;
       const code = this.getFieldValue("CODE");
       const allowed = new Set((set?.codes ?? []).map((item) => item.code));
@@ -73,6 +79,8 @@ export function registerTermPickBlock(): void {
         this.setFieldValue(TERM_PICK_NONE, "CODE");
       }
       codeField?.getOptions?.(false);
+      codeField?.forceRerender?.();
+      this.getField("SET")?.forceRerender?.();
     },
   };
 }
@@ -82,6 +90,7 @@ function refreshCodeOptions(block: Blockly.Block): Blockly.FieldDropdown | null 
   if (!codeField) return null;
   // Blockly caches generated dropdowns; true = use cache (stale after SET changes).
   codeField.getOptions(false);
+  codeField.forceRerender?.();
   return codeField;
 }
 
@@ -97,6 +106,7 @@ export function configureTermPick(
   if (code && set.codes.some((item) => item.code === code)) {
     refreshCodeOptions(block);
     block.setFieldValue(code, "CODE");
+    block.getField("CODE")?.forceRerender?.();
   }
   if (slotId && block.getField("SLOT_ID")) block.setFieldValue(slotId, "SLOT_ID");
 }

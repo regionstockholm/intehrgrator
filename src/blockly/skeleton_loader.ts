@@ -4,7 +4,7 @@ import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
-import { termSetById, termSetForRmAttribute } from "../core/openehr_term_catalog.ts";
+import { termSetById, termSetForMandatedCode, termSetForRmAttribute } from "../core/openehr_term_catalog.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
 import "blockly/blocks";
@@ -479,7 +479,27 @@ function buildElementBlock(
   // Render the ELEMENT shell before attaching the typed DATA_VALUE child.
   finalizeBlock(block);
 
-  if ((valueMandatory || allowedValues.length > 1) && primary && isDataValueType(dvType)) {
+  const mandated = allowedValues.length === 1 ? allowedValues[0] : undefined;
+  const mandatedSet = mandated
+    ? termSetForMandatedCode(mandated.terminologyId, mandated.code)
+    : undefined;
+  if (
+    mandatedSet &&
+    mandated &&
+    (dvType === "DV_CODED_TEXT" || dvType === "CODE_PHRASE")
+  ) {
+    const pick = createTermPickBlock(
+      workspace,
+      mandatedSet,
+      mandated.code,
+      primary?.slotId ?? node.slotId,
+    );
+    const valueInput = block.getInput("VALUE");
+    if (valueInput?.connection && pick.outputConnection) {
+      valueInput.connection.connect(pick.outputConnection);
+    }
+    finalizeBlock(pick);
+  } else if ((valueMandatory || allowedValues.length > 1) && primary && isDataValueType(dvType)) {
     const shell = ensureElementDataValueShell(workspace, block, dvType);
     if (shell) {
       applyFixedFieldsToDataValueShell(
@@ -501,12 +521,13 @@ function buildTypedValueBlock(
   _isRoot: boolean,
   parentRmType?: string,
 ): BlockSvg {
-  const termSet = parentRmType && node.rmAttribute
+  const mandatedCode = node.fixedFields?.code_string ?? node.fixedFields?.defining_code;
+  const termSet = (parentRmType && node.rmAttribute
     ? termSetForRmAttribute(parentRmType, node.rmAttribute)
-    : undefined;
+    : undefined) ??
+    termSetForMandatedCode(node.fixedFields?.terminology_id, mandatedCode);
   if (termSet) {
-    const code = node.fixedFields?.code_string ?? node.fixedFields?.defining_code;
-    const block = createTermPickBlock(workspace, termSet, code, node.slotId);
+    const block = createTermPickBlock(workspace, termSet, mandatedCode, node.slotId);
     setMandatoryFlag(block, node.mandatory);
     return finalizeBlock(block);
   }

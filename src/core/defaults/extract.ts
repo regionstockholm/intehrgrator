@@ -1,4 +1,5 @@
 import { DEFAULTS_MAP_NAME } from "./factory.ts";
+import { TERM_PICK_NONE } from "../openehr_term_catalog.ts";
 export { DEFAULTS_MAP_NAME };
 
 export const DEFAULTS_BLOCK_TYPE = "defaults_block";
@@ -21,7 +22,8 @@ interface BlocklyWorkspaceJson {
 
 /**
  * Materialize named Maps from Blockly workspace JSON.
- * Literal text/number/boolean values are used as-is; other value blocks become null.
+ * Literal text/number/boolean values are used as-is; term_pick contributes
+ * its selected code; other value blocks become null.
  */
 export function namedMapsFromBlocklyState(state: unknown): NamedMaps {
   const maps: NamedMaps = {};
@@ -160,5 +162,9 @@ function literalFromInput(
   if (block.type === "text") return String(block.fields?.TEXT ?? "");
   if (block.type === "math_number") return Number(block.fields?.NUM ?? 0);
   if (block.type === "logic_boolean") return block.fields?.BOOL === "TRUE";
+  if (block.type === "term_pick") {
+    const code = String(block.fields?.CODE ?? "");
+    return !code || code === TERM_PICK_NONE ? "" : code;
+  }
   return null;
 }

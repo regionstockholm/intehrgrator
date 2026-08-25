@@ -30,7 +30,7 @@ import {
   rmTypeConnectionTooltip,
   slotEmojiFieldName,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
-import { isSkeletonTitleField } from "@intehrgrator/blockly/field_skeleton_title.ts";
+import { isSkeletonTitleField, humanizeRmType } from "@intehrgrator/blockly/field_skeleton_title.ts";
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
 import {
   ABSTRACT_EVENT_WARNING,
@@ -43,7 +43,7 @@ import {
   isSlotCardinalityField,
 } from "@intehrgrator/blockly/slot_cardinality.ts";
 import { createTermPickBlock } from "@intehrgrator/blockly/blocks/term_pick.ts";
-import { termSetById } from "@intehrgrator/core/openehr_term_catalog.ts";
+import { termSetById, termSetForMandatedCode } from "@intehrgrator/core/openehr_term_catalog.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   attributesFor,
@@ -479,7 +479,36 @@ Deno.test("term_pick can be configured to a composition category code", () => {
   assertEquals(block.getFieldValue("SET"), "openehr:composition_category");
   assertEquals(block.getFieldValue("CODE"), "433");
   assertEquals(block.getFieldValue("SLOT_ID"), "slot/category");
+  const title = block.getField("NAME");
+  assert(isSkeletonTitleField(title), "expected two-line built-in title");
+  assertEquals(title.getValue(), "built-in");
+  assertEquals(title.classNameText(), "DV_CODED_TEXT");
   workspace.dispose();
+});
+
+Deno.test("DATA_VALUE shells use two-line titles with the real RM class name", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const qty = workspace.newBlock("dv_quantity");
+  const title = qty.getField("NAME");
+  assert(isSkeletonTitleField(title));
+  assertEquals(title.classNameText(), "DV_QUANTITY");
+  assertEquals(title.getValue(), humanizeRmType("DV_QUANTITY"));
+  assertEquals(humanizeRmType("DV_QUANTITY"), "Quantity");
+  assertEquals(humanizeRmType("DV_CODED_TEXT"), "Coded Text");
+
+  const phrase = workspace.newBlock("code_phrase");
+  const phraseTitle = phrase.getField("NAME");
+  assert(isSkeletonTitleField(phraseTitle));
+  assertEquals(phraseTitle.classNameText(), "CODE_PHRASE");
+  assertEquals(phraseTitle.getValue(), "Code Phrase");
+  workspace.dispose();
+});
+
+Deno.test("termSetForMandatedCode finds built-in composition category and not local codes", () => {
+  const category = termSetForMandatedCode("openehr", "433");
+  assertEquals(category?.id, "openehr:composition_category");
+  assertEquals(termSetForMandatedCode("local", "at1000"), undefined);
 });
 
 Deno.test("skeleton canvas pre-fills RM terminology on language and territory", () => {
@@ -514,6 +543,10 @@ Deno.test("skeleton canvas pre-fills RM terminology on language and territory", 
   assertEquals(category?.type, "term_pick");
   assertEquals(category?.getFieldValue("SET"), "openehr:composition_category");
   assertEquals(category?.getFieldValue("CODE"), "433");
+  const categoryTitle = category?.getField("NAME");
+  assert(isSkeletonTitleField(categoryTitle));
+  assertEquals(categoryTitle.getValue(), "built-in");
+  assertEquals(categoryTitle.classNameText(), "DV_CODED_TEXT");
 
   const observation = workspace.getAllBlocks(false).find(
     (b) => b.getFieldValue("RM_TYPE") === "OBSERVATION",

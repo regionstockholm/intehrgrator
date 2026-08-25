@@ -9,6 +9,7 @@ import {
   factoryDefaultsEntries,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
+  migrateMapsCreateWithJson,
   namedMapsFromBlocklyState,
 } from "@intehrgrator/core/defaults/mod.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
@@ -23,6 +24,7 @@ import { loadSkeletonIntoWorkspace } from "@intehrgrator/blockly/skeleton_loader
 import {
   ensureDefaultsBlock,
   findDefaultsBlock,
+  hydrateDefaultsMapArgument,
 } from "@intehrgrator/blockly/defaults_canvas.ts";
 import { workspaceToModelJson } from "@intehrgrator/blockly/mod.ts";
 
@@ -41,7 +43,35 @@ Deno.test("factory Defaults Map seeds UI language once and dummy facility", () =
   assertEquals(factoryDefaultsEntries("de").find((e) => e.key === "language")?.value, "de");
 });
 
-Deno.test("namedMapsFromBlocklyState reads the Defaults block Map argument", () => {
+Deno.test("namedMapsFromBlocklyState reads field keys and value sockets", () => {
+  const state = {
+    blocks: {
+      blocks: [
+        {
+          type: "defaults_block",
+          inputs: {
+            MAP: {
+              block: {
+                type: "maps_create_with",
+                extraState: { itemCount: 2 },
+                fields: { KEY0: "language", KEY1: "territory" },
+                inputs: {
+                  VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
+                  VAL1: { shadow: { type: "text", fields: { TEXT: "SE" } } },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  const maps = namedMapsFromBlocklyState(state);
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
+});
+
+Deno.test("namedMapsFromBlocklyState still reads legacy KEY value-input JSON", () => {
   const state = {
     blocks: {
       blocks: [
@@ -68,6 +98,35 @@ Deno.test("namedMapsFromBlocklyState reads the Defaults block Map argument", () 
   const maps = namedMapsFromBlocklyState(state);
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
   assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
+});
+
+Deno.test("migrateMapsCreateWithJson moves KEY inputs into fields", () => {
+  const block = {
+    type: "maps_create_with",
+    extraState: { itemCount: 1 },
+    inputs: {
+      KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
+      VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
+    },
+  };
+  migrateMapsCreateWithJson(block);
+  assertEquals(block.fields?.KEY0, "language");
+  assertEquals(block.inputs?.KEY0, undefined);
+  assertEquals(
+    (block.inputs?.VAL0 as { shadow?: { fields?: { TEXT?: string } } })?.shadow
+      ?.fields?.TEXT,
+    "sv",
+  );
+  const extracted = mapBlockFromDefaultsJson({
+    type: "maps_create_with",
+    extraState: { itemCount: 1 },
+    inputs: {
+      KEY0: { shadow: { type: "text", fields: { TEXT: "territory" } } },
+      VAL0: { shadow: { type: "text", fields: { TEXT: "SE" } } },
+    },
+  }) as { fields?: Record<string, string>; inputs?: Record<string, unknown> };
+  assertEquals(extracted.fields?.KEY0, "territory");
+  assertEquals(extracted.inputs?.KEY0, undefined);
 });
 
 Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a workspace", () => {
@@ -105,8 +164,8 @@ Deno.test("Test Run resolves maps_get from Blockly Defaults Map JSON", () => {
                 block: {
                   type: "maps_create_with",
                   extraState: { itemCount: 1 },
+                  fields: { KEY0: "language" },
                   inputs: {
-                    KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
                     VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
                   },
                 },
@@ -158,6 +217,9 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assertEquals(defaults.id, beforeId);
   const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
+  const factoryMap = defaults.getInputTargetBlock("MAP");
+  assertEquals(factoryMap?.getFieldValue("KEY0"), "language");
+  assert(!factoryMap?.getInput("KEY0"));
   const lookups = workspace.getAllBlocks(false).filter((block) => block.type === "maps_get");
   assert(lookups.length > 0, "expected Default point Map lookups on the skeleton");
   assert(
@@ -172,5 +234,25 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
     derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "language")')),
     "language lookup should appear in the Mapping Model",
   );
+  workspace.dispose();
+});
+
+Deno.test("hydrateDefaultsMapArgument loads legacy KEY-input map JSON", () => {
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  ensureDefaultsBlock(workspace, "sv");
+  hydrateDefaultsMapArgument(workspace, {
+    type: "maps_create_with",
+    extraState: { itemCount: 1 },
+    inputs: {
+      KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
+      VAL0: { shadow: { type: "text", fields: { TEXT: "xx" } } },
+    },
+  }, "sv");
+  const map = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP");
+  assertEquals(map?.getFieldValue("KEY0"), "language");
+  assert(!map?.getInput("KEY0"));
+  const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "xx");
   workspace.dispose();
 });

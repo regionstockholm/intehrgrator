@@ -15,7 +15,8 @@
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
 
 ## Add support for map structures
-- [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist.
+- [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist. Key/value pairs share a row (Blockly 11 `appendEndRowInput`), so the Defaults Map nested constructor stays compact.
+- [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
 - [ ] Make it possible to digest CSV tables for setting up mappings, preferably multi column to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT
 - [ ] Make it possible to digest FHIR terminology mappings for setting up mappings
 

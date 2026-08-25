@@ -1,47 +1,11 @@
 /** Hover/focus/click balloons for pane info (i) buttons.
  * Balloons are portaled to document.body so overflow:hidden panes cannot clip them.
+ * Placement uses Floating UI so they stay inside the viewport.
  */
 
+import { anchorFloating, stopAnchoring } from "./floating.ts";
+
 const LAYER_ID = "info-tip-layer";
-const GAP = 6;
-const MARGIN = 8;
-
-export interface Box {
-  top: number;
-  left: number;
-  right: number;
-  bottom: number;
-  width: number;
-  height: number;
-}
-
-export interface BalloonPosition {
-  top: number;
-  left: number;
-}
-
-/** Viewport-clamped fixed coordinates for a balloon relative to its (i) button. */
-export function computeBalloonPosition(
-  button: Box,
-  balloon: { width: number; height: number },
-  viewport: { width: number; height: number },
-  preferEnd: boolean,
-  gap = GAP,
-  margin = MARGIN,
-): BalloonPosition {
-  const bw = Math.min(balloon.width, Math.max(0, viewport.width - margin * 2));
-  const bh = balloon.height;
-  let left = preferEnd ? button.right - bw : button.left;
-  left = Math.min(Math.max(margin, left), viewport.width - bw - margin);
-
-  const below = button.bottom + gap;
-  const above = button.top - gap - bh;
-  const fitsBelow = below + bh <= viewport.height - margin;
-  const fitsAbove = above >= margin;
-  const top = !fitsBelow && fitsAbove ? above : Math.max(margin, below);
-
-  return { top, left };
-}
 
 function setOpen(tip: Element, open: boolean): void {
   tip.classList.toggle("is-open", open);
@@ -86,30 +50,25 @@ function place(tip: HTMLElement): void {
 
   balloon.hidden = false;
   balloon.style.display = "block";
-  balloon.style.position = "fixed";
-  balloon.style.visibility = "hidden";
-  balloon.style.left = "0px";
-  balloon.style.top = "0px";
-
-  const pos = computeBalloonPosition(
-    btn.getBoundingClientRect(),
-    { width: balloon.offsetWidth, height: balloon.offsetHeight },
-    { width: globalThis.innerWidth, height: globalThis.innerHeight },
-    tip.classList.contains("info-tip--end"),
-  );
-  balloon.style.left = `${pos.left}px`;
-  balloon.style.top = `${pos.top}px`;
-  balloon.style.visibility = "visible";
+  const preferEnd = tip.classList.contains("info-tip--end");
+  anchorFloating(btn, balloon, {
+    placement: preferEnd ? "bottom-end" : "bottom-start",
+    offset: 6,
+    fitSize: true,
+  });
 }
 
 function restore(tip: HTMLElement): void {
   const balloon = balloonFor(tip);
   if (!balloon) return;
+  stopAnchoring(balloon);
   balloon.style.display = "";
   balloon.style.visibility = "";
   balloon.style.position = "";
   balloon.style.left = "";
   balloon.style.top = "";
+  balloon.style.maxWidth = "";
+  balloon.style.maxHeight = "";
   balloon.hidden = true;
   if (balloon.parentElement !== tip) tip.appendChild(balloon);
 }
@@ -210,13 +169,6 @@ function ensureGlobals(): void {
       sync(tip);
     });
   });
-  const reposition = () => {
-    document.querySelectorAll<HTMLElement>(".info-tip").forEach((tip) => {
-      if (isShown(tip)) place(tip);
-    });
-  };
-  globalThis.addEventListener("resize", reposition);
-  globalThis.addEventListener("scroll", reposition, true);
 }
 
 export function installInfoTips(root: ParentNode = document): void {

@@ -65,12 +65,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .toolbar-split-btn .split-btn-chevron:hover {
   background: #00786b;
 }
-.toolbar-split-btn .split-btn-menu {
-  right: 0;
-  left: auto;
-  min-width: 220px;
-  z-index: 40;
-}
 
 .panes {
   padding: 8px; height: calc(100vh - 88px); min-height: 0;
@@ -164,6 +158,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   background: #003b49; color: #f5f5f0;
   font: 11px/1.4 system-ui, sans-serif; white-space: normal;
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  overflow: auto;
 }
 .info-tip-balloon.info-tip-balloon--code {
   margin: 0;
@@ -198,7 +193,10 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   min-width: 22px;
 }
 .split-btn-menu {
-  z-index: 40;
+  z-index: 10050;
+  position: fixed;
+  top: 0;
+  left: 0;
   min-width: 220px;
   max-width: min(420px, calc(100vw - 16px));
   max-height: min(320px, 50vh);
@@ -254,6 +252,10 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .example-validation {
   margin: 0 0 6px; padding: 6px 8px; font-size: 11px; line-height: 1.4;
   color: #8a6d00; background: #fff8e1; border: 1px solid var(--warning); border-radius: 4px;
+  flex: 0 1 auto;
+  max-height: 30%;
+  min-height: 0;
+  overflow: auto;
 }
 .example-validation ul { margin: 4px 0 0; padding-left: 16px; }
 .example-validation li { margin: 2px 0; }
@@ -474,13 +476,22 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 
 .blocklyTooltipDiv {
   white-space: pre-line;
-  max-width: 22rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  overflow: auto;
+}
+
+.blocklyDropDownDiv {
+  max-width: calc(100vw - 16px);
+}
+.blocklyDropDownContent {
+  overflow-y: auto;
 }
 
 .blockly-rm-emoji-tip {
   position: fixed;
   z-index: 10000;
-  max-width: 22rem;
+  max-width: min(22rem, calc(100vw - 16px));
+  overflow: auto;
   padding: 8px 10px;
   border-radius: 6px;
   background: #202124;
@@ -495,7 +506,8 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 #spec-editor .cm-content,
 #spec-editor .cm-line,
 #spec-editor .cm-gutters,
-#spec-editor .cm-lineNumbers .cm-gutterElement {
+#spec-editor .cm-lineNumbers .cm-gutterElement,
+#spec-editor .cm-foldGutter .cm-gutterElement {
   line-height: 18px;
 }
 #spec-editor .cm-line {

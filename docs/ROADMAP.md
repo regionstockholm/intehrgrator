@@ -7,7 +7,7 @@
 - [x] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 
 ## B. Robust good UI/UX
-- [ ] Aktivera Expand/collapse json etc i code mirror
+- [x] Aktivera Expand/collapse json etc i code mirror
 - [ ] Add undo/redo for mapping editor
 - [ ] Integrate save functions with github repo (if logged in)
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
@@ -29,6 +29,7 @@
 - [x] There are two similarly looking blocks for SECTION, compare, then remove one.
 - [ ] Change the CLUSTER block into the same colour as the ELEMENT block and mov 
 - [ ] improve sorting of blocks in blockly toolbox (put common ones eralier, possibly subdivide/group, fix colour/pattern semantics)
+- [ ] THe PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF)
 
 ## Add support for Handlebars conversions
 - [x] Conversion script language `handlebars` + Kintegrate helpers (`eq`/`ne`/…/`toUpperCase`)
@@ -41,11 +42,12 @@
 
 ## Schema specific dynamic blockly toolboxes
 - [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins?
-- [ ] add special support for TakeCare term id (moltiple systems, e.g. both test and prod )
+- [ ] add special support for TakeCare term id (multiple systems, e.g. both test and prod )
 
 ## AI Assistance
 - [ ] validate that AI assistance (initial cut & paste variant) works, improve if needed.
 - [ ] Add hints in prompt/instruction-file regarding openehr-assistant (possibly with deepwiki link)
+- [ ] Clairfy button lable inport AI suggestion
 
 # conversion script generation
 

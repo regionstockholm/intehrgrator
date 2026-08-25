@@ -16,6 +16,8 @@ import { getSourceFormatHandler } from "../src/core/source/mod.ts";
 import {
   createReadonlyEditor,
   createTextEditor,
+  detectEditorLanguage,
+  languageForExportTarget,
   setEditorDoc,
 } from "../src/workbench/codemirror_setup.ts";
 import {
@@ -52,6 +54,8 @@ import {
   setDefaultsMapPickHandler,
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
+import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
+import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
 import { runWithoutBlocklyEvents } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
@@ -162,8 +166,16 @@ function currentHandlebarsInsertMode(): HandlebarsInsertMode {
   return selected?.value === "tree" ? "tree" : "flat";
 }
 
-const exportEditor = createReadonlyEditor(document.getElementById("export-editor")!);
-const testOutputEditor = createReadonlyEditor(document.getElementById("test-output")!);
+const exportEditor = createReadonlyEditor(
+  document.getElementById("export-editor")!,
+  "",
+  "typescript",
+);
+const testOutputEditor = createReadonlyEditor(
+  document.getElementById("test-output")!,
+  "",
+  "json",
+);
 
 /** Set in boot() after locale + inject. */
 let workspace!: Blockly.WorkspaceSvg;
@@ -290,6 +302,7 @@ async function bootBlockly(): Promise<void> {
     trashcan: false,
     renderer: registerCompactThrasosRenderer(),
   });
+  installBlocklyFloatingOverlays();
 
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
@@ -723,39 +736,12 @@ function installCopyAiMenu(): void {
   const menu = document.getElementById("menu-copy-ai");
   if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) return;
 
-  // Match pane split menus: portaled to body + fixed under the chevron (not in-flow in the toolbar flex).
-  document.body.append(menu);
-
-  const close = () => {
-    menu.hidden = true;
-    chevron.setAttribute("aria-expanded", "false");
-  };
-
-  const positionMenu = () => {
-    const rect = chevron.getBoundingClientRect();
-    const leftEdge = main.getBoundingClientRect().left;
-    menu.style.position = "fixed";
-    menu.style.left = "auto";
-    menu.style.right = `${Math.max(8, globalThis.innerWidth - rect.right)}px`;
-    menu.style.minWidth = `${Math.max(220, rect.right - leftEdge)}px`;
-    menu.hidden = false;
-    const menuHeight = menu.getBoundingClientRect().height;
-    const openUp = rect.bottom + 2 + menuHeight > globalThis.innerHeight && rect.top > menuHeight + 8;
-    menu.style.top = openUp ? `${rect.top - menuHeight - 2}px` : `${rect.bottom + 2}px`;
-  };
-
-  const open = () => {
-    chevron.setAttribute("aria-expanded", "true");
-    positionMenu();
-  };
-
-  chevron.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (!menu.hidden) {
-      close();
-      return;
-    }
-    open();
+  const handle = installAnchoredMenu({
+    menu,
+    trigger: chevron,
+    roots: [main],
+    referenceEls: [main, chevron],
+    minWidth: main.parentElement ?? chevron,
   });
 
   menu.querySelectorAll<HTMLButtonElement>("[data-ai-delivery]").forEach((btn) => {
@@ -763,20 +749,9 @@ function installCopyAiMenu(): void {
       const delivery = btn.dataset.aiDelivery;
       if (delivery !== "inline" && delivery !== "attach" && delivery !== "uri") return;
       localStorage.setItem("intehrgrator.aiDelivery", delivery);
-      close();
+      handle.close();
       void controller.copyAiPrompt(delivery);
     });
-  });
-
-  document.addEventListener("click", (event) => {
-    if (menu.hidden) return;
-    const t = event.target as Node | null;
-    if (t && (menu.contains(t) || chevron.contains(t) || main.contains(t))) return;
-    close();
-  });
-
-  globalThis.addEventListener("resize", () => {
-    if (!menu.hidden) positionMenu();
   });
 }
 
@@ -788,29 +763,10 @@ function installExampleSetsMenu(): void {
     return;
   }
 
-  document.body.append(menu);
-
   let catalog: ExampleSetCatalog | null = null;
   let catalogUrl: string | null = null;
   let loading = false;
-
-  const close = () => {
-    menu.hidden = true;
-    chevron.setAttribute("aria-expanded", "false");
-  };
-
-  const positionMenu = () => {
-    const rect = chevron.getBoundingClientRect();
-    const leftEdge = main.getBoundingClientRect().left;
-    menu.style.position = "fixed";
-    menu.style.left = "auto";
-    menu.style.right = `${Math.max(8, globalThis.innerWidth - rect.right)}px`;
-    menu.style.minWidth = `${Math.max(240, rect.right - leftEdge)}px`;
-    menu.hidden = false;
-    const menuHeight = menu.getBoundingClientRect().height;
-    const openUp = rect.bottom + 2 + menuHeight > globalThis.innerHeight && rect.top > menuHeight + 8;
-    menu.style.top = openUp ? `${rect.top - menuHeight - 2}px` : `${rect.bottom + 2}px`;
-  };
+  let handle: ReturnType<typeof installAnchoredMenu> | null = null;
 
   const appendItem = (
     label: string,
@@ -826,7 +782,7 @@ function installExampleSetsMenu(): void {
     btn.disabled = disabled;
     if (!disabled) {
       btn.addEventListener("click", () => {
-        close();
+        handle?.close();
         onClick();
       });
     }
@@ -889,6 +845,7 @@ function installExampleSetsMenu(): void {
       if (!next?.trim()) return;
       void fetchCatalog(next.trim());
     });
+    handle?.refresh();
   };
 
   const fetchCatalog = async (url?: string) => {
@@ -901,46 +858,26 @@ function installExampleSetsMenu(): void {
       // Keep the previous catalog, if any; status bar already has the error.
     } finally {
       loading = false;
-      if (!menu.hidden) renderMenu();
+      if (handle?.isOpen()) renderMenu();
     }
   };
 
-  const open = () => {
-    chevron.setAttribute("aria-expanded", "true");
-    renderMenu();
-    positionMenu();
-    if (!catalog && !loading) void fetchCatalog();
-  };
+  handle = installAnchoredMenu({
+    menu,
+    trigger: chevron,
+    roots: [main],
+    referenceEls: [main, chevron],
+    minWidth: main.parentElement ?? chevron,
+    onBeforeOpen: () => {
+      renderMenu();
+      if (!catalog && !loading) void fetchCatalog();
+    },
+  });
 
   main.addEventListener("click", (event) => {
     event.stopPropagation();
-    if (!menu.hidden) {
-      close();
-      return;
-    }
-    open();
-  });
-
-  chevron.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (!menu.hidden) {
-      close();
-      return;
-    }
-    open();
-  });
-
-  menu.addEventListener("click", (event) => event.stopPropagation());
-
-  document.addEventListener("click", (event) => {
-    if (menu.hidden) return;
-    const t = event.target as Node | null;
-    if (t && (menu.contains(t) || chevron.contains(t) || main.contains(t))) return;
-    close();
-  });
-
-  globalThis.addEventListener("resize", () => {
-    if (!menu.hidden) positionMenu();
+    if (handle?.isOpen()) handle.close();
+    else handle?.open();
   });
 }
 
@@ -1415,16 +1352,19 @@ function render(): void {
   );
   if (handlebarsEditor.state.doc.toString() !== s.handlebarsTemplate) {
     updatingHandlebarsEditor = true;
-    setEditorDoc(handlebarsEditor, s.handlebarsTemplate);
+    setEditorDoc(
+      handlebarsEditor,
+      s.handlebarsTemplate,
+      detectEditorLanguage(s.handlebarsTemplate),
+    );
     updatingHandlebarsEditor = false;
   }
-  setEditorDoc(exportEditor, s.generatedCode || "// Generated Export");
-  setEditorDoc(
-    testOutputEditor,
-    s.testResult
-      ? formatTestOutput(s.testResult.output ?? s.testResult.composition ?? { error: s.testResult.error })
-      : "// Test Run output",
-  );
+  const generated = s.generatedCode || "// Generated Export";
+  setEditorDoc(exportEditor, generated, languageForExportTarget(s.settings.exportTarget, generated));
+  const testOutput = s.testResult
+    ? formatTestOutput(s.testResult.output ?? s.testResult.composition ?? { error: s.testResult.error })
+    : "// Test Run output";
+  setEditorDoc(testOutputEditor, testOutput, detectEditorLanguage(testOutput));
 
   targetFormatBadge.textContent = s.target
     ? `${s.target.format} · ${s.target.targetId}`

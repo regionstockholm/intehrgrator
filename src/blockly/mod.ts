@@ -62,6 +62,7 @@ export {
   serializeDefaultsMapArgument,
 } from "./defaults_canvas.ts";
 export { setDefaultsMapPickHandler } from "./blocks/map_blocks.ts";
+export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();

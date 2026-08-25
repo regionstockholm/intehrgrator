@@ -7,6 +7,7 @@ import {
   type UrlHistoryKind,
 } from "../host/url_history.ts";
 import { isGitHubExamplesDirectoryUrl } from "../core/source/github_examples.ts";
+import { closeAllAnchoredMenus, installAnchoredMenu } from "./anchored_menu.ts";
 
 export type { UrlHistoryKind };
 
@@ -61,30 +62,7 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   let activeKind: UrlHistoryKind = "schema";
   let activePreset: "url" | "github" | "githubDir" = "url";
 
-  for (const config of Object.values(kinds)) {
-    document.body.append(config.menu);
-  }
-
-  const closeMenus = () => {
-    for (const config of Object.values(kinds)) {
-      config.menu.hidden = true;
-      config.chevron.setAttribute("aria-expanded", "false");
-    }
-  };
-
-  const positionMenu = (kind: UrlHistoryKind) => {
-    const { chevron, main, menu } = kinds[kind];
-    const rect = chevron.getBoundingClientRect();
-    const leftEdge = main.getBoundingClientRect().left;
-    menu.style.position = "fixed";
-    menu.style.left = "auto";
-    menu.style.right = `${Math.max(8, globalThis.innerWidth - rect.right)}px`;
-    menu.style.minWidth = `${Math.max(220, rect.right - leftEdge)}px`;
-    menu.hidden = false;
-    const menuHeight = menu.getBoundingClientRect().height;
-    const openUp = rect.bottom + 2 + menuHeight > globalThis.innerHeight && rect.top > menuHeight + 8;
-    menu.style.top = openUp ? `${rect.top - menuHeight - 2}px` : `${rect.bottom + 2}px`;
-  };
+  const closeMenus = () => closeAllAnchoredMenus();
 
   const populateMenu = (kind: UrlHistoryKind) => {
     const config = kinds[kind];
@@ -127,15 +105,6 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
         void loadUrl(kind, url).catch(() => {});
       }, "split-btn-menu-url");
     }
-  };
-
-  const openMenu = (kind: UrlHistoryKind) => {
-    const alreadyOpen = !kinds[kind].menu.hidden;
-    closeMenus();
-    if (alreadyOpen) return;
-    populateMenu(kind);
-    kinds[kind].chevron.setAttribute("aria-expanded", "true");
-    positionMenu(kind);
   };
 
   const showError = (message: string) => {
@@ -228,19 +197,16 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   };
 
   for (const [kind, config] of Object.entries(kinds) as [UrlHistoryKind, SplitLoadKindConfig][]) {
-    config.main.addEventListener("click", () => void config.fromFile());
-    config.chevron.addEventListener("click", (event) => {
-      event.stopPropagation();
-      openMenu(kind);
+    installAnchoredMenu({
+      menu: config.menu,
+      trigger: config.chevron,
+      roots: [config.main],
+      referenceEls: [config.main, config.chevron],
+      minWidth: config.main.parentElement ?? config.chevron,
+      onBeforeOpen: () => populateMenu(kind),
     });
-    config.menu.addEventListener("click", (event) => event.stopPropagation());
+    config.main.addEventListener("click", () => void config.fromFile());
   }
-
-  document.addEventListener("click", closeMenus);
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") closeMenus();
-  });
-  globalThis.addEventListener("resize", closeMenus);
 
   cancel.addEventListener("click", () => dialog.close());
   dialog.querySelector("form")?.addEventListener("submit", (event) => {

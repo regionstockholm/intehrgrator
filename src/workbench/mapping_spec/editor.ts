@@ -1,13 +1,12 @@
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
   WidgetType,
-  keymap,
-  lineNumbers,
   type DecorationSet,
 } from "@codemirror/view";
+import { json } from "@codemirror/lang-json";
+import { editorChromeExtensions } from "../codemirror_setup.ts";
 import {
   blocklyJsonDocument,
   type BlocklyJsonDocument,
@@ -136,6 +135,10 @@ const specTheme = EditorView.theme({
     lineHeight: `${SPEC_LINE_HEIGHT}px`,
     fontSize: "10px",
   },
+  ".cm-foldGutter .cm-gutterElement": {
+    minHeight: `${SPEC_LINE_HEIGHT}px`,
+    lineHeight: `${SPEC_LINE_HEIGHT}px`,
+  },
   ".cm-widgetBuffer": {
     height: "0",
     lineHeight: "0",
@@ -238,9 +241,8 @@ export function createMappingSpecEditor(
     state: EditorState.create({
       doc: empty.text,
       extensions: [
-        lineNumbers(),
-        history(),
-        keymap.of([...defaultKeymap, ...historyKeymap]),
+        ...editorChromeExtensions,
+        json(),
         jsonDocField.init(() => empty),
         editFacet.of(options.onFieldEdit),
         jsonDecorations,

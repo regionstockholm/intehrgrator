@@ -7,6 +7,7 @@
  */
 import type { Field, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
+import { anchorFloating, stopAnchoring } from "../ui/floating.ts";
 import { zipehrEmojiForRmType } from "../core/rm_emoji.ts";
 import {
   attributesFor,
@@ -389,31 +390,29 @@ function pinRmTypeEmojiTip(field: FieldRmTypeEmoji): void {
 
   let tip = document.getElementById(PIN_ID);
   if (tip && tip.dataset.anchor === field.pinId) {
+    stopAnchoring(tip);
     tip.remove();
     return;
   }
-  tip?.remove();
+  if (tip) {
+    stopAnchoring(tip);
+    tip.remove();
+  }
   tip = document.createElement("div");
   tip.id = PIN_ID;
   tip.className = "blockly-rm-emoji-tip";
   tip.dataset.anchor = field.pinId;
   tip.textContent = text;
   document.body.appendChild(tip);
-
-  const rect = (target as Element).getBoundingClientRect();
-  const pad = 8;
-  const tw = Math.min(tip.offsetWidth, globalThis.innerWidth - pad * 2);
-  let left = rect.left;
-  left = Math.min(Math.max(pad, left), globalThis.innerWidth - tw - pad);
-  let top = rect.bottom + 6;
-  if (top + tip.offsetHeight > globalThis.innerHeight - pad) {
-    top = Math.max(pad, rect.top - tip.offsetHeight - 6);
-  }
-  tip.style.left = `${left}px`;
-  tip.style.top = `${top}px`;
+  anchorFloating(target as Element, tip, {
+    placement: "bottom-start",
+    offset: 6,
+    fitSize: true,
+  });
 
   const dismiss = (event: Event) => {
     if (event.target instanceof Node && tip?.contains(event.target)) return;
+    if (tip) stopAnchoring(tip);
     tip?.remove();
     document.removeEventListener("pointerdown", dismiss, true);
     document.removeEventListener("keydown", onKey, true);

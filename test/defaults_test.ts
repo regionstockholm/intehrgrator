@@ -9,6 +9,7 @@ import {
   factoryDefaultsEntries,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
+  migrateBlocklyMapsJson,
   namedMapsFromBlocklyState,
 } from "@intehrgrator/core/defaults/mod.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
@@ -70,13 +71,71 @@ Deno.test("namedMapsFromBlocklyState reads the Defaults block Map argument", () 
   assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
 });
 
+Deno.test("namedMapsFromBlocklyState reads compact KEY fields on maps_create_with", () => {
+  const state = {
+    blocks: {
+      blocks: [
+        {
+          type: "defaults_block",
+          inputs: {
+            MAP: {
+              block: {
+                type: "maps_create_with",
+                extraState: { itemCount: 1, keys: ["language"] },
+                fields: { KEY0: "language" },
+                inputs: {
+                  VAL0: { shadow: { type: "text", fields: { TEXT: "de" } } },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  assertEquals(namedMapsFromBlocklyState(state)[DEFAULTS_MAP_NAME]?.language, "de");
+});
+
+Deno.test("migrateBlocklyMapsJson turns stacked KEY sockets into fields", () => {
+  const old = {
+    type: "maps_create_with",
+    extraState: { itemCount: 1 },
+    inputs: {
+      KEY0: { shadow: { type: "text", fields: { TEXT: "territory" } } },
+      VAL0: { shadow: { type: "text", fields: { TEXT: "SE" } } },
+    },
+  };
+  const migrated = migrateBlocklyMapsJson(old) as {
+    fields?: Record<string, string>;
+    extraState?: { keys?: string[] };
+    inputs?: Record<string, unknown>;
+  };
+  assertEquals(migrated.fields?.KEY0, "territory");
+  assertEquals(migrated.extraState?.keys, ["territory"]);
+  assertEquals(migrated.inputs?.KEY0, undefined);
+  assertEquals(old.inputs.KEY0.shadow.fields.TEXT, "territory");
+  const lookup = migrateBlocklyMapsJson({
+    type: "maps_get",
+    fields: { NAME: "defaults" },
+    inputs: { KEY: { shadow: { type: "text", fields: { TEXT: "language" } } } },
+  }) as { fields?: Record<string, string>; inputs?: Record<string, unknown> };
+  assertEquals(lookup.fields?.KEY, "language");
+  assertEquals(lookup.inputs?.KEY, undefined);
+});
+
 Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a workspace", () => {
   const block = { type: "maps_create_with", extraState: { itemCount: 0 } };
-  assertEquals(mapBlockFromDefaultsJson(block), block);
+  assertEquals(
+    mapBlockFromDefaultsJson(block),
+    { type: "maps_create_with", extraState: { itemCount: 0, keys: [] } },
+  );
   const wrapped = {
     blocks: { blocks: [{ type: "defaults_block", inputs: { MAP: { block } } }] },
   };
-  assertEquals(mapBlockFromDefaultsJson(wrapped), block);
+  assertEquals(
+    (mapBlockFromDefaultsJson(wrapped) as { type?: string }).type,
+    "maps_create_with",
+  );
   assertEquals(mapBlockFromDefaultsJson({ nope: true }), null);
 });
 
@@ -163,7 +222,7 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assert(
     lookups.some((block) =>
       block.getFieldValue("NAME") === "defaults" &&
-      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "language"
+      block.getFieldValue("KEY") === "language"
     ),
     "expected a language Default point lookup",
   );

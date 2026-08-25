@@ -8,6 +8,7 @@ import {
   factoryDefaultsEntries,
   MAPS_CREATE_WITH,
   mapsGetExpression,
+  migrateBlocklyMapsJson,
 } from "../core/defaults/mod.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
 import {
@@ -72,7 +73,7 @@ export function createFactoryMapBlock(
   map.itemCount_ = entries.length;
   map.updateShape_();
   for (let i = 0; i < entries.length; i++) {
-    connectText(workspace, map, `KEY${i}`, entries[i]!.key);
+    map.setFieldValue(entries[i]!.key, `KEY${i}`);
     connectText(workspace, map, `VAL${i}`, entries[i]!.value);
   }
   return finalize(map);
@@ -133,7 +134,7 @@ export function restoreDefaultsBlockState(
 ): void {
   if (state && typeof Blockly.serialization?.blocks?.append === "function") {
     try {
-      Blockly.serialization.blocks.append(state, workspace);
+      Blockly.serialization.blocks.append(migrateBlocklyMapsJson(state), workspace);
       const block = findDefaultsBlock(workspace);
       block?.setDeletable(false);
       dropDuplicateDefaults(workspace, block ?? findDefaultsBlock(workspace)!);
@@ -301,7 +302,7 @@ export function hydrateDefaultsMapArgument(
     return;
   }
   const appended = Blockly.serialization.blocks.append(
-    mapBlockState as Record<string, unknown>,
+    migrateBlocklyMapsJson(mapBlockState) as Record<string, unknown>,
     workspace,
   ) as Blockly.Block | undefined;
   if (appended?.outputConnection && input?.connection) {

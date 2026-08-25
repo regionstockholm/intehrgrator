@@ -20,10 +20,13 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   };
   map.itemCount_ = 3;
   map.updateShape_();
-  assert(map.getInput("KEY0"));
+  assert(map.getField("KEY0"));
   assert(map.getInput("VAL2"));
+  assertEquals(map.getInput("KEY0"), null);
   const lookup = workspace.newBlock(MAPS_GET);
   lookup.setFieldValue("defaults", "NAME");
+  lookup.setFieldValue("territory", "KEY");
   assertEquals(lookup.getFieldValue("NAME"), "defaults");
+  assertEquals(lookup.getFieldValue("KEY"), "territory");
   workspace.dispose();
 });

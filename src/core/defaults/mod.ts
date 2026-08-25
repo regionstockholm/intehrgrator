@@ -7,6 +7,7 @@ export {
 } from "./points.ts";
 export {
   DEFAULTS_MAP_NAME,
+  FACTORY_CTX_KEYS,
   FACTORY_HEALTH_CARE_FACILITY,
   FACTORY_TERRITORY,
   factoryDefaultsEntries,
@@ -17,6 +18,7 @@ export {
   MAPS_GET,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
+  migrateBlocklyMapsJson,
   namedMapsFromBlocklyState,
   type NamedMaps,
 } from "./extract.ts";

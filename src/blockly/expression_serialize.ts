@@ -66,7 +66,10 @@ export function blockToExpression(block: Block | null): string | null {
     }
     case "maps_get": {
       const name = String(block.getFieldValue("NAME") || "defaults");
-      const key = blockToExpression(block.getInputTargetBlock("KEY")) ?? '""';
+      const keyField = block.getField("KEY");
+      const key = keyField
+        ? JSON.stringify(String(block.getFieldValue("KEY") ?? ""))
+        : (blockToExpression(block.getInputTargetBlock("KEY")) ?? '""');
       return `maps_get(${JSON.stringify(name)}, ${key})`;
     }
     // Legacy custom block types (read-only for older workspaces)

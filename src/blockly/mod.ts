@@ -133,7 +133,10 @@ function registerGenerators(): void {
 
   javascriptGenerator.forBlock["maps_get"] = (block) => {
     const name = JSON.stringify(block.getFieldValue("NAME") || "defaults");
-    const key = javascriptGenerator.valueToCode(block, "KEY", Order.NONE) || '""';
+    const keyField = block.getField("KEY");
+    const key = keyField
+      ? JSON.stringify(String(block.getFieldValue("KEY") ?? ""))
+      : (javascriptGenerator.valueToCode(block, "KEY", Order.NONE) || '""');
     return [
       `(${name} === "defaults" ? defaults : {})[${key}]`,
       Order.MEMBER,

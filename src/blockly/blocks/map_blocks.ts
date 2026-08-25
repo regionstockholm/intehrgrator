@@ -5,6 +5,7 @@ import {
   MAPS_CREATE_WITH,
   MAPS_GET,
 } from "../../core/defaults/extract.ts";
+import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
@@ -65,11 +66,23 @@ export function registerMapBlocks(): void {
       this.updateShape_();
     },
     saveExtraState: function (this: MapCreateBlock) {
-      return { itemCount: this.itemCount_ };
+      const keys: string[] = [];
+      for (let i = 0; i < this.itemCount_; i++) {
+        keys.push(String(this.getFieldValue(`KEY${i}`) ?? ""));
+      }
+      return { itemCount: this.itemCount_, keys };
     },
-    loadExtraState: function (this: MapCreateBlock, state: { itemCount?: number }) {
+    loadExtraState: function (
+      this: MapCreateBlock,
+      state: { itemCount?: number; keys?: string[] },
+    ) {
       this.itemCount_ = Number(state?.itemCount ?? 0);
       this.updateShape_();
+      if (Array.isArray(state?.keys)) {
+        for (let i = 0; i < state.keys.length && i < this.itemCount_; i++) {
+          this.setFieldValue(String(state.keys[i] ?? ""), `KEY${i}`);
+        }
+      }
     },
     updateShape_: function (this: MapCreateBlock) {
       let i = 0;
@@ -81,13 +94,11 @@ export function registerMapBlocks(): void {
         i++;
       }
       for (let n = 0; n < this.itemCount_; n++) {
-        if (!this.getInput(`KEY${n}`)) {
-          this.appendValueInput(`KEY${n}`)
-            .setCheck("String")
-            .appendField("key");
-        }
+        if (this.getInput(`KEY${n}`)) this.removeInput(`KEY${n}`, true);
         if (!this.getInput(`VAL${n}`)) {
-          this.appendValueInput(`VAL${n}`).appendField("value");
+          this.appendValueInput(`VAL${n}`)
+            .appendField(new Blockly.FieldTextInput(""), `KEY${n}`)
+            .appendField("=");
         }
       }
     },
@@ -106,13 +117,12 @@ export function registerMapBlocks(): void {
     init: function (this: Blockly.Block) {
       this.appendDummyInput()
         .appendField("get")
-        .appendField(new Blockly.FieldTextInput(DEFAULTS_MAP_NAME), "NAME");
-      this.appendValueInput("KEY")
-        .setCheck("String")
-        .appendField("key");
+        .appendField(new Blockly.FieldTextInput(DEFAULTS_MAP_NAME), "NAME")
+        .appendField(".")
+        .appendField(new Blockly.FieldTextInput("language"), "KEY");
       this.setOutput(true, "String");
       this.setColour(MAP_COLOUR);
-      this.setTooltip("Look up a value in a named Map");
+      this.setTooltip("Look up a value in a named Map (defaults.language, …)");
       this.setInputsInline(true);
     },
   };
@@ -153,18 +163,16 @@ export function registerMapBlocks(): void {
   Blockly.Blocks[DEFAULTS_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput("HEADER")
-        .appendField("Defaults Map")
+        .appendField(new FieldSkeletonTitle("CTX", "Defaults", ""))
         .appendField(
           new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
             defaultsMapPickHandler?.();
           }),
         );
-      this.appendValueInput("MAP")
-        .setCheck("Map")
-        .appendField("map");
+      this.appendValueInput("MAP").setCheck("Map");
       this.setColour(DEFAULTS_COLOUR);
       this.setTooltip(
-        "Binds a Map as the named defaults table. Lookups use maps_get by name, not a wire.",
+        "Conversion-time CTX defaults (language, territory, composer_name, …). Map lookups use the name defaults, not a wire.",
       );
       this.setDeletable(false);
       this.setMovable(true);
@@ -179,13 +187,6 @@ export function createMapsGetBlock(
 ): Blockly.Block {
   const block = workspace.newBlock(MAPS_GET);
   block.setFieldValue(mapName, "NAME");
-  const keyInput = block.getInput("KEY");
-  if (keyInput?.connection) {
-    const existing = keyInput.connection.targetBlock();
-    if (existing) existing.dispose(false);
-    const text = workspace.newBlock("text");
-    text.setFieldValue(key, "TEXT");
-    if (text.outputConnection) keyInput.connection.connect(text.outputConnection);
-  }
+  block.setFieldValue(key, "KEY");
   return block;
 }

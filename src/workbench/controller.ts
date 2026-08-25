@@ -74,7 +74,7 @@ import {
   type ExampleSet,
   type ExampleSetCatalog,
 } from "../core/example_sets/mod.ts";
-import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
+import { mapBlockFromDefaultsJson, migrateBlocklyMapsJson } from "../core/defaults/mod.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import {
   snapshotUrlHistory,
@@ -736,7 +736,7 @@ export class WorkbenchController {
       this.notifyChange();
       return;
     }
-    this.blocklyState = parsed;
+    this.blocklyState = migrateBlocklyMapsJson(parsed);
     this.blocklyReloadToken += 1;
     this.statusMessage = `Loaded Blockly mapping ${filename}`;
     this.markDirty();
@@ -1239,7 +1239,7 @@ export class WorkbenchController {
       ...bundle.mapping.model,
       modelVersion: bundle.mapping.model.modelVersion ?? 1,
     };
-    this.blocklyState = bundle.mapping.blocklyState;
+    this.blocklyState = migrateBlocklyMapsJson(bundle.mapping.blocklyState);
     this.handlebarsTemplate = bundle.mapping.handlebarsTemplate ?? "";
     this.templateFilename = "";
     this.templateContent = "";

@@ -1,5 +1,5 @@
 ## A. small fixes
-- [ ] .xml som ok filnamn i diverse file pickers
+- [x] .xml som ok filnamn i diverse file pickers
 - [x] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
 - [x] snygga till överlappande block i blockbibliotek
 - [x] Get allowed occurences visible on blockly slots
@@ -21,6 +21,11 @@
 - [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
 - [ ] Make it possible to digest CSV tables (including via UI cut & paste of grids from Excel and Google sheets) for setting up table structures (arbitrariy number of rows and columns). They can later via suitable blockly blocks for picking based on index and/or content be used e.g. to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT. Each row has an optional unique name (string) to the far left and, each column has an optional unique name on top. The rest of the cells do not need to be unique and can have any datatype that blockly supports including nested blocks, but it should be possible to restrict the datatype of a row or column to a certain data output type (boolean / number / string / object)
 - [ ] Make it possible to digest FHIR terminology mappings for setting up maps/tables
+
+## Local (offline) version
+- [ ] test and describe how the local app can run in parallel with a normal IDE working on same files amd how the IDE's AI can help (possibly w/ skeill se beloew)
+- [ ] make an "installable" AI skill that can produce mapping suggestions in correct format
+i
 
 ## target visualisation tree
 - [x] figure out if the extra pane for highligting missing mappings is still needed or if warning signs in blockly blocks is enough. Perhaps add warning markers in mapping codemirror pane too. Remove extra pane when no longer needed.

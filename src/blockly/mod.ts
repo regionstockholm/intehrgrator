@@ -63,7 +63,13 @@ export {
   openWorkspaceSnapshotWindow,
   workspaceToStandaloneSvg,
 } from "./workspace_snapshot.ts";
-export { setOptionalRmPickHandler, applyEventRmType, isEventFamilyType } from "./blocks/rm_blocks.ts";
+export {
+  openBlockMutator,
+  setOptionalRmMutatorChangeHandler,
+  setOptionalRmPickHandler,
+  applyEventRmType,
+  isEventFamilyType,
+} from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";
 export { buildDemoToolbox, type ToolboxContext } from "./toolbox_demo.ts";

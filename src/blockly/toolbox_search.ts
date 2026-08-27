@@ -3,20 +3,29 @@
  * may include `{ kind: "search" }`. Custom drawers are indexed because they
  * are ordinary `kind: "block"` entries.
  *
- * The plugin puts a search `<input>` inside the category row, then the
- * category's click handler `preventDefault`s — so we stop pointer events
- * on the input from bubbling to the row.
+ * The plugin renders the search `<input>` inside the category row. That row
+ * would otherwise intercept pointer events, so CSS lets the input receive
+ * clicks and this helper selects the Search category when the field is focused.
  */
 import "@blockly/toolbox-search";
+import type { WorkspaceSvg } from "blockly/core";
 
-export function installToolboxSearchInputFix(mount: HTMLElement): void {
-  const stopIfSearch = (event: Event) => {
+export function installToolboxSearchInputFix(
+  mount: HTMLElement,
+  getWorkspace: () => WorkspaceSvg,
+): void {
+  mount.addEventListener("focusin", (event) => {
     const target = event.target;
-    if (target instanceof HTMLInputElement && target.type === "search") {
-      event.stopPropagation();
+    if (!(target instanceof HTMLInputElement) || target.type !== "search") return;
+    const toolbox = getWorkspace().getToolbox?.();
+    if (!toolbox || typeof toolbox.getToolboxItems !== "function") return;
+    const items = toolbox.getToolboxItems();
+    const search = items.find((item) => {
+      const div = typeof item.getDiv === "function" ? item.getDiv() : null;
+      return div instanceof HTMLElement && div.contains(target);
+    });
+    if (search && typeof toolbox.setSelectedItem === "function") {
+      toolbox.setSelectedItem(search);
     }
-  };
-  for (const type of ["pointerdown", "mousedown", "click"] as const) {
-    mount.addEventListener(type, stopIfSearch, true);
-  }
+  });
 }

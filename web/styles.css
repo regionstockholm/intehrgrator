@@ -437,8 +437,12 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   min-height: 36px !important;
   line-height: 36px !important;
   border-left: 15px solid #5f6368 !important;
+  pointer-events: none;
 }
 .blockly-mount .blocklyToolboxDiv input[type="search"] {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
   width: calc(100% - 12px);
   height: 24px;
   margin: 6px;

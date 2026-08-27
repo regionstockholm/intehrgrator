@@ -346,7 +346,7 @@ async function bootBlockly(): Promise<void> {
   });
 
   attachWorkspaceMinimap(workspace, blocklyMount);
-  installToolboxSearchInputFix(blocklyMount);
+  installToolboxSearchInputFix(blocklyMount, () => workspace);
 
   setAfterCanvasSwapRun(() => {
     persistBlocklyCanvas();

@@ -281,9 +281,9 @@ const specTheme = EditorView.theme({
   },
   ".cm-spec-overview-tick": {
     position: "absolute",
-    left: "2px",
-    right: "2px",
-    height: "4px",
+    left: "1px",
+    right: "1px",
+    height: "6px",
     padding: "0",
     border: "0",
     borderRadius: "1px",

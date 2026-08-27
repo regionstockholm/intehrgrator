@@ -43,6 +43,7 @@ import {
   buildDemoToolbox,
   setOptionalRmMutatorChangeHandler,
   openBlockMutator,
+  composeOptionalRmExtras,
   workspaceToModelJson,
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
@@ -1698,6 +1699,18 @@ function installWorkbenchTestApi(): void {
     scrollBlockIntoView(blockId) {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
       if (block) panToBlock(block);
+    },
+    listBlockInputs(blockId) {
+      const block = workspace.getBlockById(blockId);
+      return block ? block.inputList.map((input) => input.name) : [];
+    },
+    openMutator(blockId) {
+      const block = workspace.getBlockById(blockId);
+      if (block) openBlockMutator(block);
+    },
+    setOptionalRmExtras(blockId, names) {
+      const block = workspace.getBlockById(blockId);
+      if (block) composeOptionalRmExtras(block, names);
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

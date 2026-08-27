@@ -65,6 +65,7 @@ export {
 } from "./workspace_snapshot.ts";
 export {
   openBlockMutator,
+  composeOptionalRmExtras,
   setOptionalRmMutatorChangeHandler,
   setOptionalRmPickHandler,
   applyEventRmType,

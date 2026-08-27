@@ -880,6 +880,35 @@ export function openBlockMutator(block: Blockly.Block): void {
   }
 }
 
+/** Apply a mutator stack of optional RM extras (used by tests and the workbench seam). */
+export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): void {
+  if (!block.decompose || !block.compose) return;
+  const bubble = new Blockly.Workspace();
+  try {
+    const container = block.decompose(bubble);
+    let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+    while (item) {
+      const next = item.getNextBlock();
+      item.dispose(false);
+      item = next;
+    }
+    let connection = container.getInput("STACK")?.connection ?? null;
+    for (const name of names) {
+      const quark = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
+      initSvgIfPresent(quark);
+      if (name) quark.setFieldValue(name, "ATTR");
+      if (connection && quark.previousConnection) {
+        connection.connect(quark.previousConnection);
+        connection = quark.nextConnection;
+      }
+    }
+    block.saveConnections?.(container);
+    block.compose(container);
+  } finally {
+    bubble.dispose();
+  }
+}
+
 function defineCodePhraseBlock(): void {
   if (Blockly.Blocks["code_phrase"]) return;
   Blockly.Blocks["code_phrase"] = {
@@ -1345,6 +1374,7 @@ declare module "blockly/core" {
     updateDvFields_?: () => void;
     decompose?: (workspace: Blockly.Workspace) => Blockly.Block;
     compose?: (container: Blockly.Block) => void;
+    saveConnections?: (container: Blockly.Block) => void;
   }
 }
 

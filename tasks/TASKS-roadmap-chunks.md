@@ -87,7 +87,13 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 1.4 Auto-attach typed child for newly added empty structural mouths; orphan on remove; sync `optionalRm[]`
   - [x] 1.5 Tests: add/remove extra via compose without dropping remaining children; DV optional field; no PLUS input
   - [x] 1.6 Update CONTEXT.md, BLOCKLY_INTEGRATION.md, ROADMAP.md
-- [ ] 2.0 Chunk 2 — Mapping Editor chrome (undo/redo, toolbox-search, spec gutter markers)
+- [x] 2.0 Chunk 2 — Mapping Editor chrome (undo/redo, toolbox-search, spec gutter markers)
+  - [x] 2.1 Fix GitHub CI/Pages Test Run locatable identity (string `archetype_node_id`)
+  - [x] 2.2 Canvas is source of truth: spec widget edits, Click-to-Map, and cogwheel extras stay in Blockly undo
+  - [x] 2.3 Undo/Redo buttons; group user-perceived actions; Open template / Example Sets / Load Project are undoable; saves/exports are not
+  - [x] 2.4 `@blockly/toolbox-search` indexes all `kind: "block"` toolbox drawers including Source, openEHR types, and Maps
+  - [x] 2.5 Mapping Spec right-hand overview ticks from the same constraint warnings as Blockly triangles; click selects/pans
+  - [x] 2.6 Docs: ROADMAP, CONTEXT, MAPPING_SPECIFICATION
 - [ ] 3.0 Chunk 3 — RM Blockly completeness (PARTY_IDENTIFIED, ITEM_STRUCTURE morph, toolbox)
 - [ ] 4.0 Chunk 4 — AI copy-paste polish
 - [ ] 5.0 Chunk 5 — Colourblind language + sync highlight

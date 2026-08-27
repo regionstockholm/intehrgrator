@@ -75,6 +75,11 @@ export interface IntehrgratorTestApi {
   openMutator(blockId: string): void;
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
+  undo(): void;
+  redo(): void;
+  undoCount(): number;
+  redoCount(): number;
+  undoEventTypes(): string[];
 }
 
 declare global {

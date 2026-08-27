@@ -181,7 +181,7 @@ _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
 **Sync Scope**:
-Blockly workspace JSON (canonical structure) ⇄ Mapping Spec widgets for safe field edits only → Mapping Model slots[] (derived index) → codegen / Test Run. Widget edits patch the corresponding Blockly fields and regenerate the Model; canvas / Click-to-Map / AI structural changes rewrite the Spec view. v1 safe edits: Mapping Expression text on `source_query` (and equivalent expression blocks). Structure, Optional RM Insertion, ids, and coordinates are Blockly-only. Raw free-typing of block tree JSON is not the intended authoring path. Center CodeMirror is **not** Generated Export.
+Blockly workspace JSON (canonical structure) ⇄ Mapping Spec widgets for safe field edits only → Mapping Model slots[] (derived index) → codegen / Test Run. Widget edits patch the corresponding Blockly fields and regenerate the Model; canvas / Click-to-Map / AI structural changes rewrite the Spec view. Canvas undo/redo is the single history: spec widget edits, Click-to-Map, and cogwheel add/remove are Blockly events (grouped per user action). Open template / Example Sets / Load Project / New project restore a document snapshot; Save / Export do not push undo steps. v1 safe edits: Mapping Expression text on `source_query` (and equivalent expression blocks). Structure, Optional RM Insertion, ids, and coordinates are Blockly-only. Raw free-typing of block tree JSON is not the intended authoring path. Center CodeMirror is **not** Generated Export.
 _Avoid_: Full handwritten Blockly JSON as primary editor, custom DSL as middle language
 
 **Web Shell**:

@@ -20,6 +20,7 @@ import {
 import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
+import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
 
 export interface TargetDefinition {
   format: TargetFormatId;
@@ -425,6 +426,8 @@ function renderOpenEhrNodeOnce(
   }
   const grouped = new Map<string, unknown[]>();
   for (const child of node.children) {
+    // LOCATABLE identity is copied from the skeleton node, not mapped as DV_TEXT.
+    if (isAutoFixedValueSlot(child)) continue;
     const value = renderOpenEhrNode(child, values);
     if (value === undefined) continue;
     const attribute = child.rmAttribute ?? child.label;

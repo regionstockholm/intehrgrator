@@ -112,8 +112,9 @@ export function setAllBlocksCollapsed(
 export function applyModelExpressions(
   workspace: Blockly.Workspace,
   model: MappingModel,
+  options: { recordUndo?: boolean } = {},
 ): void {
-  runWithoutBlocklyEvents(() => {
+  const apply = () => {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
       const slotId = block.getFieldValue("SLOT_ID");
@@ -129,7 +130,9 @@ export function applyModelExpressions(
       }
     }
     applyModelLoops(workspace, model);
-  });
+  };
+  if (options.recordUndo) apply();
+  else runWithoutBlocklyEvents(apply);
 }
 
 /** Wrap each repeating container with `for_each_source` when the model has loops. */

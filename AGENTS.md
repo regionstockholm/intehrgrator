@@ -72,3 +72,35 @@ If running in interactive mode (e.g. Gemini CLI) then stop after each parent tas
 - Once implementation begins and a `deno.json`/`deno.jsonc` (or `package.json`)
   appears, the startup update script already runs `deno install` to fetch
   dependencies. Until then it is a no-op.
+
+## Agent skills
+
+Matt Pocock engineering skills (`grill-with-docs`, `grilling`, `domain-modeling`,
+`implement`, `tdd`, `triage`, …) ship in this repo so Cloud Agents see the same
+set as a laptop Cursor install. Canonical copies live in `.cursor/skills/`
+(Cursor discovery) and `.agents/skills/` (`npx skills` / skills.sh lockfile).
+Refresh with:
+
+`npx skills@latest add mattpocock/skills --agent cursor --skill '*' --yes --copy`
+
+Use lowercase `--agent cursor`. Comma-separated `--skill` lists are not
+supported; use `--skill '*'` or repeat `--skill <name>`.
+
+A Cloud Agent VM can also hold a **global** copy under `~/.agents/skills` and
+`~/.cursor/skills`. That copy dies with the pod and is **not** shared with other
+GitHub repos. Other Cursor Cloud projects need the same repo files, or a saved
+environment snapshot of a VM that already ran the global install.
+
+### Issue tracker
+
+GitHub Issues via `gh` (PRs are not a triage request surface). See
+`docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default role labels: `needs-triage`, `needs-info`, `ready-for-agent`,
+`ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: root `CONTEXT.md` plus `docs/adr/`. See `docs/agents/domain.md`.

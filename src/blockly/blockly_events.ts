@@ -60,6 +60,15 @@ export const CANVAS_SWAP_EVENT_TYPE = "intehr_canvas_swap";
 
 type AbstractEvent = InstanceType<typeof Blockly.Events.Abstract>;
 
+let afterCanvasSwapRun: ((workspace: Workspace) => void) | null = null;
+
+/** Called after undo/redo loads a canvas snapshot (not on the initial fire). */
+export function setAfterCanvasSwapRun(
+  handler: ((workspace: Workspace) => void) | null,
+): void {
+  afterCanvasSwapRun = handler;
+}
+
 /** One undo step that replaces the whole canvas JSON (Click-to-Map, AI import). */
 export class CanvasSwapEvent extends Blockly.Events.Abstract {
   override isBlank = false;
@@ -86,6 +95,7 @@ export class CanvasSwapEvent extends Blockly.Events.Abstract {
     runWithoutBlocklyEvents(() => {
       Blockly.serialization.workspaces.load(state as Record<string, unknown>, ws);
     });
+    afterCanvasSwapRun?.(ws);
   }
 }
 

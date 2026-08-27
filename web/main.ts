@@ -62,7 +62,7 @@ import {
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
-import "../src/blockly/toolbox_search.ts";
+import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
 import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
 import { runWithoutBlocklyEvents, withBlocklyUndoGroup, replaceCanvasUndoable, CANVAS_SWAP_EVENT_TYPE, setAfterCanvasSwapRun } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
@@ -346,6 +346,7 @@ async function bootBlockly(): Promise<void> {
   });
 
   attachWorkspaceMinimap(workspace, blocklyMount);
+  installToolboxSearchInputFix(blocklyMount);
 
   setAfterCanvasSwapRun(() => {
     persistBlocklyCanvas();

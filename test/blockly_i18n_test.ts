@@ -12,7 +12,8 @@ Deno.test("supported locales include en sv de es ca fr", () => {
 });
 
 Deno.test("custom messages localize Source and for_each_source", () => {
-  assertEquals(msg("en").CAT_SOURCE, "Source");
+  assertEquals(msg("en").CAT_SEARCH, "Search");
+  assertEquals(msg("sv").CAT_SEARCH, "Sök");
   assertEquals(msg("sv").CAT_SOURCE, "Källa");
   assertEquals(msg("de").FOR_EACH_SOURCE_PREFIX, "für jedes");
   assertEquals(msg("es").CAT_OPENEHR_TYPES, "openEHR types");

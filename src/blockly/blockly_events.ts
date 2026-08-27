@@ -34,3 +34,24 @@ export function runWithoutBlocklyEvents(fn: () => void): void {
     }
   }
 }
+
+/**
+ * Treat `fn` as one undo step. Joins an existing Blockly event group
+ * (mutator compose, drop) instead of nesting a second group id.
+ */
+export function withBlocklyUndoGroup(fn: () => void): void {
+  const existing = typeof Blockly.Events.getGroup === "function"
+    ? Blockly.Events.getGroup()
+    : "";
+  const started = !existing;
+  if (started && typeof Blockly.Events.setGroup === "function") {
+    Blockly.Events.setGroup(true);
+  }
+  try {
+    fn();
+  } finally {
+    if (started && typeof Blockly.Events.setGroup === "function") {
+      Blockly.Events.setGroup(false);
+    }
+  }
+}

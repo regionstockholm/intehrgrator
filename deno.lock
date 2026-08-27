@@ -25,6 +25,7 @@
     "jsr:@std/path@^1.1.6": "1.1.6",
     "jsr:@std/streams@^1.1.1": "1.1.1",
     "jsr:@std/testing@1": "1.0.19",
+    "npm:@blockly/toolbox-search@2.0.16": "2.0.16_blockly@11.2.2",
     "npm:@blockly/workspace-minimap@0.2.16": "0.2.16_blockly@11.2.2",
     "npm:@cfworker/json-schema@^4.1.1": "4.1.1",
     "npm:@codemirror/commands@^6.8.1": "6.10.4",
@@ -150,6 +151,12 @@
         "@csstools/css-parser-algorithms",
         "@csstools/css-tokenizer",
         "lru-cache"
+      ]
+    },
+    "@blockly/toolbox-search@2.0.16_blockly@11.2.2": {
+      "integrity": "sha512-pg49w17DjV+BmjjRveMww1pGFm3ZKs6tX5oRnK0Uj5rCJIEWWIHsRpipcgZQ7U75vD2jFmvCVMzz0PZsPlhYvA==",
+      "dependencies": [
+        "blockly"
       ]
     },
     "@blockly/workspace-minimap@0.2.16_blockly@11.2.2": {
@@ -1313,6 +1320,7 @@
       "jsr:@std/http@1",
       "jsr:@std/path@1",
       "jsr:@std/testing@1",
+      "npm:@blockly/toolbox-search@2.0.16",
       "npm:@blockly/workspace-minimap@0.2.16",
       "npm:@cfworker/json-schema@^4.1.1",
       "npm:@codemirror/commands@^6.8.1",

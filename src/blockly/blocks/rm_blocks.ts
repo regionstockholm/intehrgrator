@@ -104,6 +104,11 @@ export function optionalRmInputName(attr: string): string {
   return `${OPTIONAL_INPUT_PREFIX}${attr}`;
 }
 
+export function optionalRmExtrasOf(block: Blockly.Block): string[] {
+  const extras = (block as Blockly.Block & { extraInputs_?: string[] }).extraInputs_;
+  return extras?.length ? [...extras] : [];
+}
+
 export function registerRmBlocks(): void {
   defineContainerBlock("composition", [
     { name: "language" },

@@ -692,11 +692,12 @@ export class WorkbenchController {
     blocklyState: unknown,
     slots: Array<{ slotId: string; rmType: string; expression: string }>,
     loops: MappingLoop[] = [],
+    optionalRm?: MappingModel["optionalRm"],
   ): void {
     if (!this.templateId) return;
     let next = createEmptyModel(this.templateId);
     next.targetFormat = this.target?.format;
-    next.optionalRm = [...this.model.optionalRm];
+    next.optionalRm = optionalRm ? [...optionalRm] : [...this.model.optionalRm];
     next.loops = loops.length ? loops : [...(this.model.loops ?? [])];
     const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
     for (const item of slots) {
@@ -713,6 +714,20 @@ export class WorkbenchController {
     this.refreshDerived();
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
+  }
+
+  /** Snapshot the current project (including live Blockly JSON) for undoable loads. */
+  exportDocumentSnapshot(): ProjectBundle {
+    return structuredClone(this.toBundle());
+  }
+
+  /** Restore a document snapshot without treating it as a user load (undo/redo). */
+  restoreDocumentSnapshot(bundle: ProjectBundle): void {
+    this.resetWorkspaceState();
+    this.loadBundle(structuredClone(bundle));
+    this.dirty = true;
+    this.statusMessage = "Restored previous mapping";
+    this.notifyChange();
   }
 
   toggleAutoplay(): void {

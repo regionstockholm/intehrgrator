@@ -428,6 +428,21 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyToolboxCategoryLabel {
   font-family: "Google Sans", "Segoe UI", sans-serif !important;
 }
+.blockly-mount .blocklyToolboxCategorySearch {
+  height: auto;
+  min-height: 28px;
+  line-height: 28px;
+  border-left: 15px solid #5f6368 !important;
+}
+.blockly-mount .blocklyToolboxDiv input[type="search"] {
+  width: calc(100% - 12px);
+  margin: 4px 6px;
+  box-sizing: border-box;
+  font: 12px/1.3 "Google Sans", "Segoe UI", sans-serif;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
 .blockly-mount .blocklyToolboxCategorySource {
   border-left: 15px solid #e87722 !important;
 }
@@ -587,6 +602,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 
 /* Mapping Spec: inline widgets must not inflate CodeMirror's line box. */
+#spec-editor .cm-editor {
+  position: relative;
+}
 #spec-editor .cm-content,
 #spec-editor .cm-line,
 #spec-editor .cm-gutters,

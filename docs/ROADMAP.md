@@ -9,13 +9,13 @@
 ## B. Robust good UI/UX
 - [x] Change the way optional attributes are manually added to a block. Now we have an encircled plus sign that acts like a button opening a popup where fields can be added. CHange that to the more native blockly syle of block modification (that is used e.g for adding more "else if" and "else" statments to an "if" block) by clicking a cogwheel. THat way non-mandatory attirbutes can also be removed manually.
 - [x] Activate Expand/collapse json etc i code mirror gutter
-- [ ] Add undo/redo for mapping editor
+- [x] Add undo/redo for mapping editor
 - [ ] Integrate save functions with github repo (if logged in)
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
-- [ ] add https://raspberrypifoundation.github.io/blockly-samples/plugins/toolbox-search/test/index.html
-- [ ] add markers in right scroll gutter of mapping spec codemirror so that all locations of errors can be found
+- [x] add https://raspberrypifoundation.github.io/blockly-samples/plugins/toolbox-search/test/index.html
+- [x] add markers in right scroll gutter of mapping spec codemirror so that all locations of errors can be found
 
 ## C. Better support for map and table data structures
 - [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist. Key/value pairs share a row (Blockly 11 `appendEndRowInput`), so the Defaults Map nested constructor stays compact.

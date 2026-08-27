@@ -32,22 +32,52 @@ Deno.test({
       await clickBlocklyBlock(page, blockId);
       await page.click('#example-tree .tree-row[data-path="$.systolic"] .tree-label');
       await waitForMappedSlot(page, slotId);
-
-      const undoEnabled = await page.evaluate(() => {
-        const btn = document.getElementById("btn-undo") as HTMLButtonElement | null;
-        return Boolean(btn && !btn.disabled);
+      const beforeUndo = await page.evaluate(() => {
+        const api = (globalThis as unknown as {
+          intehrgratorTestApi: {
+            undoCount(): number;
+            redoCount(): number;
+            undoEventTypes(): string[];
+          };
+        }).intehrgratorTestApi;
+        const undoBtn = document.getElementById("btn-undo") as HTMLButtonElement | null;
+        return {
+          undo: api.undoCount(),
+          redo: api.redoCount(),
+          types: api.undoEventTypes(),
+          undoDisabled: Boolean(undoBtn?.disabled),
+        };
       });
-      assert(undoEnabled, "Undo should enable after Click-to-Map");
+      if (beforeUndo.undoDisabled || beforeUndo.undo === 0) {
+        throw new Error(`Undo not recorded after Click-to-Map: ${JSON.stringify(beforeUndo)}`);
+      }
+      const canvasSwaps = beforeUndo.types.filter((t) => t === "intehr_canvas_swap");
+      assertEquals(
+        canvasSwaps.length,
+        1,
+        `Click-to-Map should be one undo step, got ${JSON.stringify(beforeUndo)}`,
+      );
 
-      await page.click("#btn-undo");
+      await page.evaluate(() => {
+        (globalThis as unknown as { intehrgratorTestApi: { undo(): void } })
+          .intehrgratorTestApi.undo();
+      });
       await page.waitForFunction((id) => {
         const api = (globalThis as unknown as {
-          intehrgratorTestApi: { getSnapshot(): { model: { slots: Array<{ slotId: string; expression?: string }> } } };
+          intehrgratorTestApi: {
+            getSnapshot(): { model: { slots: Array<{ slotId: string; expression?: string }> } };
+          };
         }).intehrgratorTestApi;
         const slot = api.getSnapshot().model.slots.find((s) => s.slotId === id);
         return !slot?.expression?.includes("systolic");
-      }, slotId, { timeout: 10_000 });
+      }, slotId, { timeout: 10_000 }).catch(() => {
+        throw new Error(`Undo did not clear mapping; before ${JSON.stringify(beforeUndo)}`);
+      });
 
+      await page.waitForFunction(() => {
+        const btn = document.getElementById("btn-redo");
+        return btn instanceof HTMLButtonElement && !btn.disabled;
+      }, { timeout: 5_000 });
       await page.click("#btn-redo");
       await waitForMappedSlot(page, slotId);
       const afterRedo = await getSnapshot(page);

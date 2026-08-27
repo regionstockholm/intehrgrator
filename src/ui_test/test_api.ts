@@ -79,6 +79,7 @@ export interface IntehrgratorTestApi {
   redo(): void;
   undoCount(): number;
   redoCount(): number;
+  undoEventTypes(): string[];
 }
 
 declare global {

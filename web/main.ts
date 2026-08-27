@@ -64,7 +64,7 @@ import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
 import "../src/blockly/toolbox_search.ts";
 import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
-import { runWithoutBlocklyEvents, withBlocklyUndoGroup } from "../src/blockly/blockly_events.ts";
+import { runWithoutBlocklyEvents, withBlocklyUndoGroup, replaceCanvasUndoable, CANVAS_SWAP_EVENT_TYPE } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
   DOCUMENT_SWAP_EVENT_TYPE,
@@ -396,6 +396,12 @@ async function bootBlockly(): Promise<void> {
   workspace.addChangeListener((event) => {
     refreshUndoButtons();
     if (event.type === DOCUMENT_SWAP_EVENT_TYPE) return;
+    if (event.type === CANVAS_SWAP_EVENT_TYPE) {
+      // Initial fire already applied the canvas; only sync the model on undo/redo.
+      if (!event.recordUndo) persistBlocklyCanvas();
+      refreshUndoButtons();
+      return;
+    }
     if (event.type === Blockly.Events.CLICK) {
       const blockId = "blockId" in event && typeof event.blockId === "string"
         ? event.blockId
@@ -493,15 +499,19 @@ function handleSourceSelection(
   controller.bindFromNode(path, format);
 }
 
-function persistBlocklyCanvas(): void {
+function persistBlocklyCanvas(options?: { notify?: boolean }): void {
   const derived = workspaceToModelJson(workspace);
   controller.syncFromBlockly(
     Blockly.serialization.workspaces.save(workspace),
     derived.slots,
     derived.loops,
     derived.optionalRm,
+    { notify: options?.notify },
   );
-  blocklySlotSignature = slotSignatureFrom(derived.slots, derived.loops);
+  // Track the post-sync model, not the raw canvas extract — applyExpressionEdit
+  // can normalize strings, and the next render compares against model.slots.
+  const s = controller.getState();
+  blocklySlotSignature = slotSignatureFrom(s.model.slots, s.model.loops ?? []);
   refreshUndoButtons();
 }
 
@@ -771,19 +781,18 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   }
 
   if (slotSignature !== blocklySlotSignature) {
-    suppressBlocklyModelSync = true;
-    try {
-      withBlocklyUndoGroup(() => {
-        applyModelExpressions(workspace, s.model, { recordUndo: true });
+    const derived = workspaceToModelJson(workspace);
+    const canvasSig = slotSignatureFrom(derived.slots, derived.loops);
+    if (canvasSig !== slotSignature) {
+      replaceCanvasUndoable(workspace, () => {
+        applyModelExpressions(workspace, s.model);
       });
-    } finally {
-      suppressBlocklyModelSync = false;
+      // Align model ← canvas without a nested render (that would fire a second swap).
+      persistBlocklyCanvas({ notify: false });
+    } else {
+      blocklySlotSignature = slotSignature;
+      controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
     }
-    blocklySlotSignature = slotSignature;
-    // applyModelExpressions with recordUndo does not run the change-listener
-    // sync path; snapshot the canvas so Generated conversion script(s) picks
-    // up Import Suggestions / model-first Click-to-Map.
-    controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
     refreshUndoButtons();
   }
 
@@ -1560,11 +1569,18 @@ function render(): void {
       ? "Select an example tab."
       : 'Add example instance(s) to enable "Conversion Test Run(s)" in Target & Previews';
   }
-  syncBlocklyWorkspace(s);
+  // Constraint warning-text events must not persist/re-render during this
+  // pass — that used to stack a second canvas-swap on Click-to-Map.
+  suppressBlocklyModelSync = true;
+  try {
+    syncBlocklyWorkspace(s);
+    refreshWorkspaceConstraints(workspace);
+    highlightListeningSlot(workspace, controller.getState().listeningSlotId, controller.getState().listeningSourceBlockId);
+  } finally {
+    suppressBlocklyModelSync = false;
+  }
   // Blockly apply may have refreshed generatedCode without a re-render.
   const afterCanvas = controller.getState();
-  refreshWorkspaceConstraints(workspace);
-  highlightListeningSlot(workspace, afterCanvas.listeningSlotId, afterCanvas.listeningSourceBlockId);
 
   setMappingSpecFromBlockly(
     specEditor,
@@ -1718,7 +1734,7 @@ function installWorkbenchTestApi(): void {
   const api: IntehrgratorTestApi = {
     ready: () => workbenchReady,
     loadTemplate(filename, content) {
-      void withUndoableDocumentReplace(() => controller.loadTemplateContent(filename, content));
+      controller.loadTemplateContent(filename, content);
     },
     loadSchema(filename, content) {
       controller.loadSchemaContent(filename, content);
@@ -1792,7 +1808,7 @@ function installWorkbenchTestApi(): void {
       return mappingSpecDocumentText(specEditor);
     },
     loadBlocklyJson(filename, content) {
-      void withUndoableDocumentReplace(() => controller.loadBlocklyDefinition(filename, content));
+      controller.loadBlocklyDefinition(filename, content);
     },
     getBlockClientRect(blockId) {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
@@ -1833,6 +1849,9 @@ function installWorkbenchTestApi(): void {
     },
     redoCount() {
       return workspace.getRedoStack?.()?.length ?? 0;
+    },
+    undoEventTypes() {
+      return (workspace.getUndoStack?.() ?? []).map((event) => String(event.type ?? ""));
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

@@ -55,3 +55,46 @@ export function withBlocklyUndoGroup(fn: () => void): void {
     }
   }
 }
+
+export const CANVAS_SWAP_EVENT_TYPE = "intehr_canvas_swap";
+
+type AbstractEvent = InstanceType<typeof Blockly.Events.Abstract>;
+
+/** One undo step that replaces the whole canvas JSON (Click-to-Map, AI import). */
+export class CanvasSwapEvent extends Blockly.Events.Abstract {
+  override isBlank = false;
+  override type = CANVAS_SWAP_EVENT_TYPE;
+  override recordUndo = true;
+  override isUiEvent = false;
+  before: unknown;
+  after: unknown;
+
+  constructor(workspace: Workspace, before: unknown, after: unknown) {
+    super();
+    this.workspaceId = workspace.id;
+    this.before = before;
+    this.after = after;
+  }
+
+  override isNull(): boolean {
+    return JSON.stringify(this.before) === JSON.stringify(this.after);
+  }
+
+  override run(forward: boolean): void {
+    const ws = this.getEventWorkspace_();
+    const state = forward ? this.after : this.before;
+    runWithoutBlocklyEvents(() => {
+      Blockly.serialization.workspaces.load(state as Record<string, unknown>, ws);
+    });
+  }
+}
+
+/** Apply a bulk canvas mutation as a single undoable workspace snapshot. */
+export function replaceCanvasUndoable(workspace: Workspace, apply: () => void): void {
+  const before = structuredClone(Blockly.serialization.workspaces.save(workspace));
+  apply();
+  const after = structuredClone(Blockly.serialization.workspaces.save(workspace));
+  const event = new CanvasSwapEvent(workspace, before, after);
+  if (event.isNull()) return;
+  Blockly.Events.fire(event as AbstractEvent);
+}

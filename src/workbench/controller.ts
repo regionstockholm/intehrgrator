@@ -693,12 +693,14 @@ export class WorkbenchController {
     slots: Array<{ slotId: string; rmType: string; expression: string }>,
     loops: MappingLoop[] = [],
     optionalRm?: MappingModel["optionalRm"],
+    options?: { notify?: boolean },
   ): void {
     if (!this.templateId) return;
     let next = createEmptyModel(this.templateId);
     next.targetFormat = this.target?.format;
     next.optionalRm = optionalRm ? [...optionalRm] : [...this.model.optionalRm];
-    next.loops = loops.length ? loops : [...(this.model.loops ?? [])];
+    // Canvas is source of truth: empty `loops` means the loops were undone, not "keep previous".
+    next.loops = [...loops];
     const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
     for (const item of slots) {
       const targetSlot = targetSlots.get(item.slotId);
@@ -712,7 +714,9 @@ export class WorkbenchController {
     this.blocklyState = blocklyState;
     this.model = next;
     this.refreshDerived();
-    this.markDirty();
+    this.dirty = true;
+    this.scheduleAutosave();
+    if (options?.notify !== false) this.notifyChange();
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 

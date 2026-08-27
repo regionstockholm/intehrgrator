@@ -32,11 +32,23 @@ export const ABSTRACT_EVENT_WARNING =
 const STATEMENT_INPUT_TYPE = 3;
 
 export function refreshWorkspaceConstraints(workspace: Workspace): void {
-  for (const block of workspace.getAllBlocks(false)) {
-    if (typeof block.isShadow === "function" && block.isShadow()) continue;
-    refreshSlotCardinalityState(block);
-    const messages = blockConstraintMessages(block);
-    block.setWarningText(messages.length ? messages.join("\n") : null);
+  const record = typeof Blockly.Events.getRecordUndo === "function"
+    ? Blockly.Events.getRecordUndo()
+    : true;
+  if (typeof Blockly.Events.setRecordUndo === "function") {
+    Blockly.Events.setRecordUndo(false);
+  }
+  try {
+    for (const block of workspace.getAllBlocks(false)) {
+      if (typeof block.isShadow === "function" && block.isShadow()) continue;
+      refreshSlotCardinalityState(block);
+      const messages = blockConstraintMessages(block);
+      block.setWarningText(messages.length ? messages.join("\n") : null);
+    }
+  } finally {
+    if (typeof Blockly.Events.setRecordUndo === "function") {
+      Blockly.Events.setRecordUndo(record);
+    }
   }
 }
 

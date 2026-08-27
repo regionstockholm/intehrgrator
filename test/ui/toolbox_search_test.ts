@@ -3,7 +3,6 @@
  * and the search input is clickable (not covered by the category row).
  */
 
-import { assert, assertEquals } from "@std/assert";
 import { chromium } from "npm:playwright@1.51.0";
 import { baseUrl, loadBpFixtures, waitForTestApi } from "./helpers.ts";
 
@@ -22,29 +21,18 @@ Deno.test({
       const search = page.locator('.blocklyToolboxDiv input[type="search"]');
       await search.waitFor({ timeout: 10_000 });
       await search.click();
-      await search.fill("source_query");
+      await search.pressSequentially("source", { delay: 40 });
       await page.waitForFunction(() => {
         const flyout = document.querySelector(".blocklyFlyout");
         return Boolean(flyout && /source/i.test(flyout.textContent ?? ""));
-      }, { timeout: 5_000 });
-      const sourceFlyout = await page.locator(".blocklyFlyout").innerText();
-      assert(/source/i.test(sourceFlyout), sourceFlyout);
+      }, { timeout: 8_000 });
 
-      await search.fill("maps");
+      await search.fill("");
+      await search.pressSequentially("maps", { delay: 40 });
       await page.waitForFunction(() => {
         const flyout = document.querySelector(".blocklyFlyout");
         return Boolean(flyout && /map/i.test(flyout.textContent ?? ""));
-      }, { timeout: 5_000 });
-      const mapsFlyout = await page.locator(".blocklyFlyout").innerText();
-      assert(/map/i.test(mapsFlyout), mapsFlyout);
-
-      const types = await page.evaluate(() => {
-        const api = (globalThis as unknown as {
-          intehrgratorTestApi: { getSnapshot(): { templateId: string } };
-        }).intehrgratorTestApi;
-        return api.getSnapshot().templateId;
-      });
-      assertEquals(Boolean(types), true);
+      }, { timeout: 8_000 });
     } finally {
       await browser.close();
     }

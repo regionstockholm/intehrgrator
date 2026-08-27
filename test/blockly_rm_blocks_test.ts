@@ -15,6 +15,10 @@ import {
   registerRmBlocks,
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
+  optionalRmInputName,
+  OPTIONAL_RM_MUTATOR_CONTAINER,
+  OPTIONAL_RM_MUTATOR_ITEM,
+  DV_FIELDS_MUTATOR_ITEM,
   syncRmAttributeInputs,
   applyEventRmType,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
@@ -785,4 +789,66 @@ Deno.test("Blockly JSON extraState restores dynamic ATTR_ sockets including EVEN
   assert(ev2?.getInput(rmAttributeInputName("width")), "INTERVAL width must round-trip");
   assertEquals(ev2?.getInputTargetBlock(rmAttributeInputName("data"))?.type, "item_tree");
   loaded.dispose();
+});
+
+Deno.test("optional RM mutator cogwheel adds extras and orphans on remove", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  assertEquals(composition.getInput("PLUS"), null);
+  assertEquals(typeof composition.decompose, "function");
+  assertEquals(typeof composition.compose, "function");
+
+  const bubble = new Blockly.Workspace();
+  const container = composition.decompose!(bubble);
+  const item = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
+  item.setFieldValue("feeder_audit", "ATTR");
+  container.getInput("STACK")!.connection!.connect(item.previousConnection!);
+  composition.compose!(container);
+  assert(composition.getInput(optionalRmInputName("feeder_audit")));
+
+  const audit = workspace.newBlock("feeder_audit");
+  composition.getInput(optionalRmInputName("feeder_audit"))!.connection!
+    .connect(audit.previousConnection!);
+  const auditId = audit.id;
+
+  composition.saveConnections?.(container);
+  composition.compose!(container);
+  assertEquals(
+    composition.getInput(optionalRmInputName("feeder_audit"))?.connection
+      ?.targetBlock()?.id,
+    auditId,
+  );
+
+  const emptyWs = new Blockly.Workspace();
+  const empty = emptyWs.newBlock(OPTIONAL_RM_MUTATOR_CONTAINER);
+  composition.compose!(empty);
+  assertEquals(composition.getInput(optionalRmInputName("feeder_audit")), null);
+  assertEquals(workspace.getBlockById(auditId)?.id, auditId);
+
+  workspace.dispose();
+  bubble.dispose();
+  emptyWs.dispose();
+});
+
+Deno.test("DATA_VALUE mutator adds optional fields and has no plus-fields button", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const qty = workspace.newBlock("dv_quantity");
+  assertEquals(qty.getInput("PLUS_FIELDS"), null);
+  assertEquals(typeof qty.decompose, "function");
+
+  const bubble = new Blockly.Workspace();
+  const container = qty.decompose!(bubble);
+  const item = bubble.newBlock(DV_FIELDS_MUTATOR_ITEM);
+  const fieldName = item.getFieldValue("ATTR") || "normal_status";
+  item.setFieldValue(fieldName, "ATTR");
+  container.getInput("STACK")!.connection!.connect(item.previousConnection!);
+  qty.compose!(container);
+  assert(
+    qty.inputList.some((input) => input.name.startsWith("OPTFLD_")),
+    `expected optional DV field, inputs=${qty.inputList.map((i) => i.name).join(",")}`,
+  );
+  workspace.dispose();
+  bubble.dispose();
 });

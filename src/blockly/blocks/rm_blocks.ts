@@ -8,6 +8,7 @@ import {
   blocklyCheckForPrimitiveType,
   blockTypeForRm,
   dataValueLeafTypes,
+  getValidAttachments,
   isDataValueType,
   isPrimitiveRmType,
   isRmValueAttribute,
@@ -307,7 +308,6 @@ export function syncRmAttributeInputs(
     );
   }
   restoreAttributeConnections(block, saved);
-  ensurePlusButton(block);
 }
 
 /**
@@ -716,9 +716,6 @@ function defineContainerBlock(
         this.setFieldValue(options.rmType, "RM_TYPE");
       }
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
-      if (options.expandable) {
-        appendPlusField(this);
-      }
       if (options.specializationCheck) {
         const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT);
         kind.setCheck(options.specializationCheck);
@@ -765,7 +762,6 @@ function defineValueElementBlock(): void {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, "ELEMENT");
       header.appendField(new FieldSkeletonTitle("ELEMENT"), "NAME");
-      appendPlusField(this);
       const value = this.appendValueInput("VALUE")
         .setCheck(null)
         .appendField("value");
@@ -825,9 +821,7 @@ function defineDataValueBlock(rmType: string): void {
       }
 
       if (optionalAttributes(rmType).some((a) => isMappableField(a))) {
-        appendPlusFieldsButton(this);
         Blockly.Extensions.apply("dv_fields_mutator", this, true);
-        this.firePlusFieldsClick = () => revealNextOptionalDvField(this);
       }
 
       this.setOutput(true, blocklyCheckForDv(rmType));
@@ -838,46 +832,81 @@ function defineDataValueBlock(rmType: string): void {
   };
 }
 
-function revealNextOptionalDvField(block: Blockly.Block): void {
-  const rmType = block.getFieldValue("RM_TYPE");
-  const visible = new Set([
-    ...block.inputList
-      .filter((i) => i.name.startsWith(DV_FIELD_PREFIX) || i.name.startsWith(OPTIONAL_DV_FIELD_PREFIX))
-      .map((i) => i.name.replace(DV_FIELD_PREFIX, "").replace(OPTIONAL_DV_FIELD_PREFIX, "")),
-  ]);
-  const next = optionalAttributes(rmType).find((a) =>
-    isMappableField(a) && !visible.has(a.name)
-  );
-  if (!next) return;
-  block.extraDvFields_ = block.extraDvFields_ ?? [];
-  if (!block.extraDvFields_.includes(next.name)) {
-    block.extraDvFields_.push(next.name);
-    block.updateDvFields_?.();
+export const OPTIONAL_RM_MUTATOR_CONTAINER = "optional_rm_mutator_container";
+export const OPTIONAL_RM_MUTATOR_ITEM = "optional_rm_mutator_item";
+export const DV_FIELDS_MUTATOR_CONTAINER = "dv_fields_mutator_container";
+export const DV_FIELDS_MUTATOR_ITEM = "dv_fields_mutator_item";
+
+export type OptionalRmMutatorChange = {
+  parent: Blockly.Block;
+  added: string[];
+  removed: string[];
+};
+
+let optionalRmMutatorChangeHandler: ((change: OptionalRmMutatorChange) => void) | null =
+  null;
+
+/** Workbench syncs Mapping Model + auto-attaches typed children after compose. */
+export function setOptionalRmMutatorChangeHandler(
+  handler: ((change: OptionalRmMutatorChange) => void) | null,
+): void {
+  optionalRmMutatorChangeHandler = handler;
+}
+
+/** @deprecated Cogwheel mutator replaced the + picker; opens the mutator bubble. */
+export function setOptionalRmPickHandler(
+  _handler: ((block: Blockly.Block) => void) | null,
+): void {
+  // Cogwheel mutator replaced the + picker.
+}
+
+/** Open the native Blockly mutator bubble (cogwheel) when the icon exists. */
+export function openBlockMutator(block: Blockly.Block): void {
+  const icons = Blockly.icons as {
+    MutatorIcon?: { TYPE?: unknown };
+  };
+  const type = icons.MutatorIcon?.TYPE;
+  const svg = block as Blockly.Block & {
+    getIcon?: (iconType: unknown) => { setBubbleVisible?: (visible: boolean) => void } | null;
+    getIcons?: () => Array<{ setBubbleVisible?: (visible: boolean) => void }>;
+  };
+  const named = type != null ? svg.getIcon?.(type) : null;
+  if (named?.setBubbleVisible) {
+    named.setBubbleVisible(true);
+    return;
+  }
+  for (const icon of svg.getIcons?.() ?? []) {
+    icon.setBubbleVisible?.(true);
   }
 }
 
-let optionalRmPickHandler: ((block: Blockly.Block) => void) | null = null;
-
-/** Host UI registers a picker for Optional RM Insertion (`+` on containers). */
-export function setOptionalRmPickHandler(
-  handler: ((block: Blockly.Block) => void) | null,
-): void {
-  optionalRmPickHandler = handler;
-}
-
-function wirePlusClick(block: Blockly.Block): void {
-  block.firePlusClick = () => optionalRmPickHandler?.(block);
-}
-
-function appendClickableImage(
-  _block: Blockly.Block,
-  src: string,
-  alt: string,
-  onClick: () => void,
-) {
-  const field = new Blockly.FieldImage(src, 18, 18, alt, () => onClick());
-  field.setOnClickHandler(() => onClick());
-  return field;
+/** Apply a mutator stack of optional RM extras (used by tests and the workbench seam). */
+export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): void {
+  if (!block.decompose || !block.compose) return;
+  const bubble = new Blockly.Workspace();
+  try {
+    const container = block.decompose(bubble);
+    let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+    while (item) {
+      const next = item.getNextBlock();
+      item.dispose(false);
+      item = next;
+    }
+    let connection = container.getInput("STACK")?.connection ?? null;
+    for (const name of names) {
+      const quark = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
+      initSvgIfPresent(quark);
+      if (name) quark.setFieldValue(name, "ATTR");
+      if (connection && quark.previousConnection) {
+        connection.connect(quark.previousConnection);
+        connection = quark.nextConnection;
+      }
+    }
+    block.saveConnections?.(container);
+    block.compose(container);
+  } finally {
+    bubble.dispose();
+  }
 }
 
 function defineCodePhraseBlock(): void {
@@ -948,38 +977,6 @@ function ensureDvFieldVisible(block: Blockly.Block, attrName: string): void {
   }
 }
 
-function appendPlusField(block: Blockly.Block): void {
-  if (block.getInput("PLUS")) return;
-  wirePlusClick(block);
-  block.appendDummyInput("PLUS")
-    .appendField(appendClickableImage(
-      block,
-      "data:image/svg+xml," + encodeURIComponent(plusSvg()),
-      "Add optional RM",
-      () => block.firePlusClick?.(),
-    ));
-}
-
-function ensurePlusButton(block: Blockly.Block): void {
-  appendPlusField(block);
-  try {
-    Blockly.Extensions.apply("optional_rm_mutator", block, true);
-  } catch {
-    // already applied
-  }
-}
-
-function appendPlusFieldsButton(block: Blockly.Block): void {
-  if (block.getInput("PLUS_FIELDS")) return;
-  block.appendDummyInput("PLUS_FIELDS")
-    .appendField(appendClickableImage(
-      block,
-      "data:image/svg+xml," + encodeURIComponent(plusFieldsSvg()),
-      "Add optional field",
-      () => block.firePlusFieldsClick?.(),
-    ));
-}
-
 function parseMutatorExtraState(
   state: { extras?: string[]; attrs?: string[] } | string | null,
 ): { extras: string[]; attrs: string[] } {
@@ -1010,18 +1007,173 @@ function restoreMutatorAttributes(
   block.updateShape_?.();
 }
 
+function optionalRmMutatorChoices(block: Blockly.Block): Array<[string, string]> {
+  const rmType = rmTypeOfBlock(block);
+  const locked = new Set(
+    presentAttributeNames(block).filter((name) =>
+      Boolean(block.getInput(rmAttributeInputName(name)))
+    ),
+  );
+  const labels = new Map<string, string>();
+  for (const opt of getValidAttachments(rmType, {
+    presentAttributes: locked,
+    templateConstrained: locked,
+  })) {
+    labels.set(opt.attributeName, `${opt.label} (${opt.attributeName})`);
+  }
+  for (const name of block.extraInputs_ ?? []) {
+    if (!labels.has(name)) labels.set(name, name);
+  }
+  const rows = [...labels.entries()].map(([name, label]) => [label, name] as [string, string]);
+  return rows.length ? rows : [["(none)", ""]];
+}
+
+function optionalDvFieldChoices(block: Blockly.Block): Array<[string, string]> {
+  const rmType = block.getFieldValue("RM_TYPE");
+  const rows = optionalAttributes(rmType)
+    .filter((a) => isMappableField(a))
+    .map((a) => [a.name, a.name] as [string, string]);
+  return rows.length ? rows : [["(none)", ""]];
+}
+
+function mutatorWorkspacesOf(item: Blockly.Block): Blockly.Workspace[] {
+  const seen: Blockly.Workspace[] = [];
+  let workspace: Blockly.Workspace | null | undefined = item.workspace;
+  while (workspace && !seen.includes(workspace)) {
+    seen.push(workspace);
+    workspace = (workspace as Blockly.WorkspaceSvg).targetWorkspace ?? null;
+  }
+  return seen;
+}
+
+function mutatorWorkspaceChoices(
+  item: Blockly.Block | null,
+  containerType: string,
+): Array<[string, string]> {
+  if (!item) return [["(none)", ""]];
+  for (const workspace of mutatorWorkspacesOf(item)) {
+    for (const top of workspace.getTopBlocks(false)) {
+      if (top.type === containerType && top.mutatorChoices_?.length) {
+        return top.mutatorChoices_;
+      }
+    }
+  }
+  return [["(none)", ""]];
+}
+
+function initSvgIfPresent(block: Blockly.Block): void {
+  const svg = block as Blockly.Block & { initSvg?: () => void };
+  svg.initSvg?.();
+}
+
+function bindMutatorOpener(this: Blockly.Block): void {
+  this.firePlusClick = () => openBlockMutator(this);
+}
+
+function extraInputName(attr: string): string {
+  return `${OPTIONAL_INPUT_PREFIX}${attr}`;
+}
+
+function defineOptionalMutatorQuarks(): void {
+  if (!Blockly.Blocks[OPTIONAL_RM_MUTATOR_CONTAINER]) {
+    Blockly.Blocks[OPTIONAL_RM_MUTATOR_CONTAINER] = {
+      init: function (this: Blockly.Block) {
+        this.appendDummyInput().appendField("optional RM");
+        this.appendStatementInput("STACK");
+        this.setColour(CONTAINER_COLOUR);
+        this.contextMenu = false;
+      },
+    };
+  }
+  if (!Blockly.Blocks[OPTIONAL_RM_MUTATOR_ITEM]) {
+    Blockly.Blocks[OPTIONAL_RM_MUTATOR_ITEM] = {
+      init: function (this: Blockly.Block) {
+        const menu = new Blockly.FieldDropdown(() =>
+          mutatorWorkspaceChoices(this, OPTIONAL_RM_MUTATOR_CONTAINER)
+        );
+        this.appendDummyInput().appendField(menu, "ATTR");
+        this.setPreviousStatement(true);
+        this.setNextStatement(true);
+        this.setColour(CONTAINER_COLOUR);
+        this.contextMenu = false;
+      },
+    };
+  }
+  if (!Blockly.Blocks[DV_FIELDS_MUTATOR_CONTAINER]) {
+    Blockly.Blocks[DV_FIELDS_MUTATOR_CONTAINER] = {
+      init: function (this: Blockly.Block) {
+        this.appendDummyInput().appendField("optional fields");
+        this.appendStatementInput("STACK");
+        this.setColour(DV_COLOUR);
+        this.contextMenu = false;
+      },
+    };
+  }
+  if (!Blockly.Blocks[DV_FIELDS_MUTATOR_ITEM]) {
+    Blockly.Blocks[DV_FIELDS_MUTATOR_ITEM] = {
+      init: function (this: Blockly.Block) {
+        const menu = new Blockly.FieldDropdown(() =>
+          mutatorWorkspaceChoices(this, DV_FIELDS_MUTATOR_CONTAINER)
+        );
+        this.appendDummyInput().appendField(menu, "ATTR");
+        this.setPreviousStatement(true);
+        this.setNextStatement(true);
+        this.setColour(DV_COLOUR);
+        this.contextMenu = false;
+      },
+    };
+  }
+}
+
+function stackMutatorItems(
+  workspace: Blockly.Workspace,
+  containerType: string,
+  itemType: string,
+  names: string[],
+  choices: Array<[string, string]>,
+): Blockly.Block {
+  const container = workspace.newBlock(containerType);
+  container.mutatorChoices_ = choices;
+  initSvgIfPresent(container);
+  let connection = container.getInput("STACK")?.connection ?? null;
+  for (const name of names) {
+    const item = workspace.newBlock(itemType);
+    initSvgIfPresent(item);
+    if (name) item.setFieldValue(name, "ATTR");
+    if (connection && item.previousConnection) {
+      connection.connect(item.previousConnection);
+      connection = item.nextConnection;
+    }
+  }
+  return container;
+}
+
+function namesFromMutatorStack(container: Blockly.Block): string[] {
+  const names: string[] = [];
+  let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+  while (item) {
+    if (!item.isInsertionMarker()) {
+      const name = String(item.getFieldValue("ATTR") || "");
+      if (name && name !== "(none)" && !names.includes(name)) names.push(name);
+    }
+    item = item.getNextBlock();
+  }
+  return names;
+}
+
 let optionalRmMutatorRegistered = false;
 
 function registerOptionalRmMutator(): void {
   if (optionalRmMutatorRegistered) return;
   optionalRmMutatorRegistered = true;
+  defineOptionalMutatorQuarks();
   Blockly.Extensions.registerMutator("optional_rm_mutator", {
     mutationToDom: function (this: Blockly.Block) {
-      const container = Blockly.utils.xml.createElement("mutation");
+      const xml = Blockly.utils.xml.createElement("mutation");
       const extras = this.extraInputs_ ?? [];
-      container.setAttribute("extras", JSON.stringify(extras));
-      container.setAttribute("attrs", JSON.stringify(presentAttributeNames(this)));
-      return container;
+      xml.setAttribute("extras", JSON.stringify(extras));
+      xml.setAttribute("attrs", JSON.stringify(presentAttributeNames(this)));
+      return xml;
     },
     domToMutation: function (this: Blockly.Block, xmlElement: Element) {
       const extras = JSON.parse(xmlElement.getAttribute("extras") || "[]") as string[];
@@ -1042,6 +1194,49 @@ function registerOptionalRmMutator(): void {
       const parsed = parseMutatorExtraState(state);
       this.extraInputs_ = parsed.extras;
       restoreMutatorAttributes(this, parsed.extras, parsed.attrs);
+    },
+    decompose: function (this: Blockly.Block, workspace: Blockly.Workspace) {
+      return stackMutatorItems(
+        workspace,
+        OPTIONAL_RM_MUTATOR_CONTAINER,
+        OPTIONAL_RM_MUTATOR_ITEM,
+        this.extraInputs_ ?? [],
+        optionalRmMutatorChoices(this),
+      );
+    },
+    compose: function (this: Blockly.Block, container: Blockly.Block) {
+      const next = namesFromMutatorStack(container);
+      const prev = [...(this.extraInputs_ ?? [])];
+      const connections = new Map<string, Blockly.Connection | null>();
+      let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+      while (item) {
+        if (!item.isInsertionMarker()) {
+          const name = String(item.getFieldValue("ATTR") || "");
+          if (name) connections.set(name, item.savedConnection_ ?? null);
+        }
+        item = item.getNextBlock();
+      }
+      this.extraInputs_ = next;
+      this.updateShape_?.();
+      for (const name of next) {
+        connections.get(name)?.reconnect(this, extraInputName(name));
+      }
+      const added = next.filter((name) => !prev.includes(name));
+      const removed = prev.filter((name) => !next.includes(name));
+      if (added.length || removed.length) {
+        optionalRmMutatorChangeHandler?.({ parent: this, added, removed });
+      }
+    },
+    saveConnections: function (this: Blockly.Block, container: Blockly.Block) {
+      let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+      while (item) {
+        if (!item.isInsertionMarker()) {
+          const name = String(item.getFieldValue("ATTR") || "");
+          const input = this.getInput(extraInputName(name));
+          item.savedConnection_ = input?.connection?.targetConnection ?? null;
+        }
+        item = item.getNextBlock();
+      }
     },
     addInput_: function (this: Blockly.Block, name: string) {
       this.extraInputs_ = this.extraInputs_ ?? [];
@@ -1082,12 +1277,7 @@ function registerOptionalRmMutator(): void {
         appendSlotTypeEmoji(stmt, slotType);
       }
     },
-  } as Blockly.Mutator & {
-    addInput_?: (name: string) => void;
-    updateShape_?: () => void;
-    saveExtraState?: () => { extras: string[]; attrs: string[] };
-    loadExtraState?: (state: { extras?: string[]; attrs?: string[] } | string | null) => void;
-  });
+  } as Blockly.Mutator & Record<string, unknown>, bindMutatorOpener, [OPTIONAL_RM_MUTATOR_ITEM]);
 }
 
 let dvFieldsMutatorRegistered = false;
@@ -1095,15 +1285,66 @@ let dvFieldsMutatorRegistered = false;
 function registerDvFieldsMutator(): void {
   if (dvFieldsMutatorRegistered) return;
   dvFieldsMutatorRegistered = true;
+  defineOptionalMutatorQuarks();
   Blockly.Extensions.registerMutator("dv_fields_mutator", {
     mutationToDom: function (this: Blockly.Block) {
-      const container = Blockly.utils.xml.createElement("mutation");
-      container.setAttribute("fields", JSON.stringify(this.extraDvFields_ ?? []));
-      return container;
+      const xml = Blockly.utils.xml.createElement("mutation");
+      xml.setAttribute("fields", JSON.stringify(this.extraDvFields_ ?? []));
+      return xml;
     },
     domToMutation: function (this: Blockly.Block, xmlElement: Element) {
       this.extraDvFields_ = JSON.parse(xmlElement.getAttribute("fields") || "[]") as string[];
       this.updateDvFields_?.();
+    },
+    saveExtraState: function (this: Blockly.Block) {
+      return { fields: this.extraDvFields_ ?? [] };
+    },
+    loadExtraState: function (this: Blockly.Block, state: { fields?: string[] } | string | null) {
+      if (state == null || state === "") {
+        this.extraDvFields_ = [];
+      } else if (typeof state === "string") {
+        this.extraDvFields_ = JSON.parse(state) as string[];
+      } else {
+        this.extraDvFields_ = Array.isArray(state.fields) ? state.fields : [];
+      }
+      this.updateDvFields_?.();
+    },
+    decompose: function (this: Blockly.Block, workspace: Blockly.Workspace) {
+      return stackMutatorItems(
+        workspace,
+        DV_FIELDS_MUTATOR_CONTAINER,
+        DV_FIELDS_MUTATOR_ITEM,
+        this.extraDvFields_ ?? [],
+        optionalDvFieldChoices(this),
+      );
+    },
+    compose: function (this: Blockly.Block, container: Blockly.Block) {
+      const next = namesFromMutatorStack(container);
+      const connections = new Map<string, Blockly.Connection | null>();
+      let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+      while (item) {
+        if (!item.isInsertionMarker()) {
+          const name = String(item.getFieldValue("ATTR") || "");
+          if (name) connections.set(name, item.savedConnection_ ?? null);
+        }
+        item = item.getNextBlock();
+      }
+      this.extraDvFields_ = next;
+      this.updateDvFields_?.();
+      for (const name of next) {
+        connections.get(name)?.reconnect(this, `${OPTIONAL_DV_FIELD_PREFIX}${name}`);
+      }
+    },
+    saveConnections: function (this: Blockly.Block, container: Blockly.Block) {
+      let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+      while (item) {
+        if (!item.isInsertionMarker()) {
+          const name = String(item.getFieldValue("ATTR") || "");
+          const input = this.getInput(`${OPTIONAL_DV_FIELD_PREFIX}${name}`);
+          item.savedConnection_ = input?.connection?.targetConnection ?? null;
+        }
+        item = item.getNextBlock();
+      }
     },
     updateDvFields_: function (this: Blockly.Block) {
       for (const input of [...this.inputList]) {
@@ -1117,9 +1358,7 @@ function registerDvFieldsMutator(): void {
         if (attr) appendDvFieldInput(this, attr, true);
       }
     },
-  } as Blockly.Mutator & {
-    updateDvFields_?: () => void;
-  });
+  } as Blockly.Mutator & Record<string, unknown>, bindMutatorOpener, [DV_FIELDS_MUTATOR_ITEM]);
 }
 
 declare module "blockly/core" {
@@ -1127,11 +1366,15 @@ declare module "blockly/core" {
     extraInputs_?: string[];
     extraDvFields_?: string[];
     slotCardinalities_?: Record<string, SlotCardinality>;
+    mutatorChoices_?: Array<[string, string]>;
+    savedConnection_?: Blockly.Connection | null;
     firePlusClick?: () => void;
-    firePlusFieldsClick?: () => void;
     addInput_?: (name: string) => void;
     updateShape_?: () => void;
     updateDvFields_?: () => void;
+    decompose?: (workspace: Blockly.Workspace) => Blockly.Block;
+    compose?: (container: Blockly.Block) => void;
+    saveConnections?: (container: Blockly.Block) => void;
   }
 }
 
@@ -1140,12 +1383,4 @@ function appendHiddenLabel(block: Blockly.Block, name: string, value: string): v
   block.appendDummyInput()
     .appendField(new Blockly.FieldLabelSerializable(value), name);
   block.getField(name)?.setVisible(false);
-}
-
-function plusSvg(): string {
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="11" fill="#E87722"/><path fill="#fff" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>';
-}
-
-function plusFieldsSvg(): string {
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#8FA8C8" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/><circle cx="18" cy="6" r="3" fill="#4A6FA5"/></svg>';
 }

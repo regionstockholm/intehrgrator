@@ -7,7 +7,7 @@
 - [x] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 
 ## B. Robust good UI/UX
-- [ ] Change the way optional attributes are manually added to a block. Now we have an encircled plus sign that acts like a button opening a popup where fields can be added. CHange that to the more native blockly syle of block modification (that is used e.g for adding more "else if" and "else" statments to an "if" block) by clicking a cogwheel. THat way non-mandatory attirbutes can also be removed manually.
+- [x] Change the way optional attributes are manually added to a block. Now we have an encircled plus sign that acts like a button opening a popup where fields can be added. CHange that to the more native blockly syle of block modification (that is used e.g for adding more "else if" and "else" statments to an "if" block) by clicking a cogwheel. THat way non-mandatory attirbutes can also be removed manually.
 - [x] Activate Expand/collapse json etc i code mirror gutter
 - [ ] Add undo/redo for mapping editor
 - [ ] Integrate save functions with github repo (if logged in)

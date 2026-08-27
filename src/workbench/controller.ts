@@ -1095,6 +1095,17 @@ export class WorkbenchController {
     this.markDirty();
   }
 
+  removeOptionalRm(parentSlotId: string, attributeName: string): void {
+    this.model = {
+      ...this.model,
+      optionalRm: this.model.optionalRm.filter((row) =>
+        !(row.attachmentSlotId === parentSlotId && row.attributeName === attributeName)
+      ),
+    };
+    this.refreshDerived();
+    this.markDirty();
+  }
+
   getSaveStatus(): { dirty: boolean; label: string } {
     if (this.dirty) return { dirty: true, label: "unsaved changes" };
     if (this.lastAutosaveAt) {

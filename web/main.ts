@@ -41,7 +41,9 @@ import {
   warningTextOf,
   createModestTheme,
   buildDemoToolbox,
-  setOptionalRmPickHandler,
+  setOptionalRmMutatorChangeHandler,
+  openBlockMutator,
+  composeOptionalRmExtras,
   workspaceToModelJson,
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
@@ -64,10 +66,12 @@ import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
 import { runWithoutBlocklyEvents } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
+  optionalRmInputName,
   presentAttributeNames,
+  rmAttributeInputName,
   rmTypeOfBlock,
 } from "../src/blockly/blocks/rm_blocks.ts";
-import type { AttachmentOption } from "../src/types/mod.ts";
+import { slotRmTypeForAttr } from "../src/blockly/rm_type_emoji.ts";
 import {
   changeLocaleAndReload,
   detectLocale,
@@ -137,9 +141,6 @@ const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElem
 const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
 const dialogLoadProject = document.getElementById("dialog-load-project") as HTMLDialogElement;
 const loadProjectList = document.getElementById("load-project-list")!;
-const dialogOptionalRm = document.getElementById("dialog-optional-rm") as HTMLDialogElement;
-const optionalRmList = document.getElementById("optional-rm-list")!;
-const optionalRmTitle = document.getElementById("optional-rm-title")!;
 const dialogDefaultsMap = document.getElementById("dialog-defaults-map") as HTMLDialogElement;
 const defaultsMapList = document.getElementById("defaults-map-list")!;
 const dialogDefaultsSaveAs = document.getElementById("dialog-defaults-save-as") as HTMLDialogElement;
@@ -333,32 +334,37 @@ async function bootBlockly(): Promise<void> {
 
   attachWorkspaceMinimap(workspace, blocklyMount);
 
-  setOptionalRmPickHandler((block) => {
-    const rmType = rmTypeOfBlock(block);
-    const slotId = block.getFieldValue("SLOT_ID") || "";
-    const options = controller.getOptionalAttachmentsFor(
-      rmType,
-      slotId,
-      presentAttributeNames(block),
-    );
-    if (!options.length) {
-      statusMain.textContent = `No optional RM structures left on ${rmType}.`;
-      return;
+  setOptionalRmMutatorChangeHandler((change) => {
+    const slotId = change.parent.getFieldValue("SLOT_ID") || "";
+    const rmType = rmTypeOfBlock(change.parent);
+    for (const name of change.removed) {
+      if (slotId) controller.removeOptionalRm(slotId, name);
     }
-    openOptionalRmPicker(rmType, options, (picked) => {
-      if (slotId) controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
-      attachOptionalRmChild(workspace, block, picked);
-      statusMain.textContent = `Added ${picked.label} (${picked.attributeName}: ${picked.rmType})`;
-    });
+    for (const name of change.added) {
+      const present = presentAttributeNames(change.parent).filter((attr) => attr !== name);
+      const options = controller.getOptionalAttachmentsFor(rmType, slotId, present);
+      const picked = options.find((option) => option.attributeName === name) ?? {
+        attributeName: name,
+        rmType: slotRmTypeForAttr(rmType, name) || name,
+        label: name,
+        cardinality: { min: 0, max: 1 },
+      };
+      if (slotId) controller.addOptionalRm(slotId, picked.rmType, name);
+      const input = change.parent.getInput(optionalRmInputName(name)) ??
+        change.parent.getInput(rmAttributeInputName(name));
+      if (!input?.connection?.targetBlock()) {
+        attachOptionalRmChild(workspace, change.parent, picked);
+      }
+    }
   });
 
   workspace.configureContextMenu = (options) => {
     const selected = Blockly.getSelected?.() as { firePlusClick?: () => void } | null;
     if (selected?.firePlusClick) {
       options.push({
-        text: "Add optional RM…",
+        text: "Optional attributes…",
         enabled: true,
-        callback: () => selected.firePlusClick?.(),
+        callback: () => openBlockMutator(selected as Blockly.Block),
       });
     }
     options.push({
@@ -1008,30 +1014,6 @@ void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) =>
 });
 
 initFileDropTargets();
-
-function openOptionalRmPicker(
-  rmType: string,
-  options: AttachmentOption[],
-  onPick: (option: AttachmentOption) => void,
-): void {
-  optionalRmTitle.textContent = `Add optional RM on ${rmType}`;
-  optionalRmList.replaceChildren();
-  for (const option of options) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "load-project-item";
-    btn.textContent = `${option.label}  ·  ${option.attributeName}: ${option.rmType}`;
-    btn.addEventListener("click", () => {
-      dialogOptionalRm.close();
-      onPick(option);
-    });
-    optionalRmList.appendChild(btn);
-  }
-  dialogOptionalRm.showModal();
-}
-document.getElementById("optional-rm-cancel")?.addEventListener("click", () => {
-  dialogOptionalRm.close();
-});
 
 /** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
 function initBlocklySourceDrop(): void {
@@ -1717,6 +1699,18 @@ function installWorkbenchTestApi(): void {
     scrollBlockIntoView(blockId) {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
       if (block) panToBlock(block);
+    },
+    listBlockInputs(blockId) {
+      const block = workspace.getBlockById(blockId);
+      return block ? block.inputList.map((input) => input.name) : [];
+    },
+    openMutator(blockId) {
+      const block = workspace.getBlockById(blockId);
+      if (block) openBlockMutator(block);
+    },
+    setOptionalRmExtras(blockId, names) {
+      const block = workspace.getBlockById(blockId);
+      if (block) composeOptionalRmExtras(block, names);
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

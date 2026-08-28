@@ -536,6 +536,17 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font-weight: 700 !important;
 }
 
+.blockly-mount .blocklyImage.blocklyMutatorCog,
+.blockly-mount img[alt="Optional attributes…"] {
+  margin-left: 4px;
+  opacity: 0.85;
+}
+
+/* Default Blockly mutator icon is replaced by header cogwheel on RM blocks */
+.blockly-mount .blocklyDraggable:has(img[alt="Optional attributes…"]) > .blocklyIconGroup.blockly-icon-mutator {
+  display: none !important;
+}
+
 .blockly-icon-warning .blocklyIconShape {
   fill: #F9A825 !important;
   stroke: #E65100 !important;

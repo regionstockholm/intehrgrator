@@ -35,6 +35,15 @@ import {
   type SlotCardinality,
 } from "../slot_cardinality.ts";
 import { registerTermPickBlock } from "./term_pick.ts";
+import {
+  appendMutatorCogwheel,
+  namesFromMutatorStack,
+  openBlockMutator,
+  registerDynamicFlyoutMutator,
+  type MutatorFlyoutBlock,
+} from "../dynamic_mutator.ts";
+
+export { openBlockMutator };
 
 export const EVENT_KIND_OPTIONS: Array<[string, string]> = [
   ["EVENT", "EVENT"],
@@ -721,6 +730,7 @@ function defineContainerBlock(
         this.setFieldValue(options.rmType, "RM_TYPE");
       }
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
+      if (options.expandable) appendMutatorCogwheel(header);
       if (options.specializationCheck) {
         const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT);
         kind.setCheck(options.specializationCheck);
@@ -767,6 +777,7 @@ function defineValueElementBlock(): void {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, "ELEMENT");
       header.appendField(new FieldSkeletonTitle("ELEMENT"), "NAME");
+      appendMutatorCogwheel(header);
       const value = this.appendValueInput("VALUE")
         .setCheck(null)
         .appendField("value");
@@ -810,6 +821,9 @@ function defineDataValueBlock(rmType: string): void {
       const header = this.appendDummyInput("HEADER");
       appendBlockOutputEmoji(header, rmType);
       header.appendField(new FieldSkeletonTitle(rmType, humanizeRmType(rmType)), "NAME");
+      if (optionalAttributes(rmType).some((a) => isMappableField(a))) {
+        appendMutatorCogwheel(header);
+      }
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
@@ -865,26 +879,6 @@ export function setOptionalRmPickHandler(
   // Cogwheel mutator replaced the + picker.
 }
 
-/** Open the native Blockly mutator bubble (cogwheel) when the icon exists. */
-export function openBlockMutator(block: Blockly.Block): void {
-  const icons = Blockly.icons as {
-    MutatorIcon?: { TYPE?: unknown };
-  };
-  const type = icons.MutatorIcon?.TYPE;
-  const svg = block as Blockly.Block & {
-    getIcon?: (iconType: unknown) => { setBubbleVisible?: (visible: boolean) => void } | null;
-    getIcons?: () => Array<{ setBubbleVisible?: (visible: boolean) => void }>;
-  };
-  const named = type != null ? svg.getIcon?.(type) : null;
-  if (named?.setBubbleVisible) {
-    named.setBubbleVisible(true);
-    return;
-  }
-  for (const icon of svg.getIcons?.() ?? []) {
-    icon.setBubbleVisible?.(true);
-  }
-}
-
 /** Apply a mutator stack of optional RM extras (used by tests and the workbench seam). */
 export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): void {
   if (!block.decompose || !block.compose) return;
@@ -901,7 +895,7 @@ export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): 
     for (const name of names) {
       const quark = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
       initSvgIfPresent(quark);
-      if (name) quark.setFieldValue(name, "ATTR");
+      if (name) applyMutatorItemLabel(quark, name, name);
       if (connection && quark.previousConnection) {
         connection.connect(quark.previousConnection);
         connection = quark.nextConnection;
@@ -1033,37 +1027,90 @@ function optionalRmMutatorChoices(block: Blockly.Block): Array<[string, string]>
   return rows.length ? rows : [["(none)", ""]];
 }
 
+function humanizeAttrName(name: string): string {
+  return name
+    .split("_")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
 function optionalDvFieldChoices(block: Blockly.Block): Array<[string, string]> {
   const rmType = block.getFieldValue("RM_TYPE");
   const rows = optionalAttributes(rmType)
     .filter((a) => isMappableField(a))
-    .map((a) => [a.name, a.name] as [string, string]);
+    .map((a) => [humanizeAttrName(a.name), a.name] as [string, string]);
   return rows.length ? rows : [["(none)", ""]];
 }
 
-function mutatorWorkspacesOf(item: Blockly.Block): Blockly.Workspace[] {
-  const seen: Blockly.Workspace[] = [];
-  let workspace: Blockly.Workspace | null | undefined = item.workspace;
-  while (workspace && !seen.includes(workspace)) {
-    seen.push(workspace);
-    workspace = (workspace as Blockly.WorkspaceSvg).targetWorkspace ?? null;
-  }
-  return seen;
+export function applyMutatorItemLabel(
+  item: Blockly.Block,
+  attr: string,
+  label: string,
+): void {
+  item.setFieldValue(label, "LABEL");
+  item.setFieldValue(attr, "ATTR");
 }
 
-function mutatorWorkspaceChoices(
-  item: Blockly.Block | null,
-  containerType: string,
-): Array<[string, string]> {
-  if (!item) return [["(none)", ""]];
-  for (const workspace of mutatorWorkspacesOf(item)) {
-    for (const top of workspace.getTopBlocks(false)) {
-      if (top.type === containerType && top.mutatorChoices_?.length) {
-        return top.mutatorChoices_;
-      }
-    }
-  }
-  return [["(none)", ""]];
+export function buildOptionalRmFlyoutContents(
+  block: Blockly.Block,
+  stackNames: string[],
+): MutatorFlyoutBlock[] {
+  return optionalRmMutatorChoices(block)
+    .filter(([, name]) => name && name !== "(none)")
+    .filter(([, name]) => !stackNames.includes(name))
+    .map(([label, name]) => ({
+      kind: "block" as const,
+      type: OPTIONAL_RM_MUTATOR_ITEM,
+      extraState: { attr: name, label },
+    }));
+}
+
+function buildOptionalDvFlyoutContents(
+  block: Blockly.Block,
+  stackNames: string[],
+): MutatorFlyoutBlock[] {
+  return optionalDvFieldChoices(block)
+    .filter(([, name]) => name && name !== "(none)")
+    .filter(([, name]) => !stackNames.includes(name))
+    .map(([label, name]) => ({
+      kind: "block" as const,
+      type: DV_FIELDS_MUTATOR_ITEM,
+      extraState: { attr: name, label },
+    }));
+}
+
+function defineMutatorItemBlock(type: string, colour: string): void {
+  if (Blockly.Blocks[type]) return;
+  Blockly.Blocks[type] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField(
+        new Blockly.FieldLabelSerializable(""),
+        "LABEL",
+      );
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldLabelSerializable(""), "ATTR");
+      this.getField("ATTR")!.setVisible(false);
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(colour);
+      this.contextMenu = false;
+    },
+    loadExtraState: function (
+      this: Blockly.Block,
+      state: { attr?: string; label?: string },
+    ) {
+      const attr = state?.attr ?? "";
+      const label = state?.label ?? attr;
+      this.setFieldValue(label, "LABEL");
+      this.setFieldValue(attr, "ATTR");
+    },
+    saveExtraState: function (this: Blockly.Block) {
+      return {
+        attr: String(this.getFieldValue("ATTR") || ""),
+        label: String(this.getFieldValue("LABEL") || ""),
+      };
+    },
+  };
 }
 
 function initSvgIfPresent(block: Blockly.Block): void {
@@ -1090,20 +1137,7 @@ function defineOptionalMutatorQuarks(): void {
       },
     };
   }
-  if (!Blockly.Blocks[OPTIONAL_RM_MUTATOR_ITEM]) {
-    Blockly.Blocks[OPTIONAL_RM_MUTATOR_ITEM] = {
-      init: function (this: Blockly.Block) {
-        const menu = new Blockly.FieldDropdown(() =>
-          mutatorWorkspaceChoices(this, OPTIONAL_RM_MUTATOR_CONTAINER)
-        );
-        this.appendDummyInput().appendField(menu, "ATTR");
-        this.setPreviousStatement(true);
-        this.setNextStatement(true);
-        this.setColour(CONTAINER_COLOUR);
-        this.contextMenu = false;
-      },
-    };
-  }
+  defineMutatorItemBlock(OPTIONAL_RM_MUTATOR_ITEM, CONTAINER_COLOUR);
   if (!Blockly.Blocks[DV_FIELDS_MUTATOR_CONTAINER]) {
     Blockly.Blocks[DV_FIELDS_MUTATOR_CONTAINER] = {
       init: function (this: Blockly.Block) {
@@ -1114,20 +1148,7 @@ function defineOptionalMutatorQuarks(): void {
       },
     };
   }
-  if (!Blockly.Blocks[DV_FIELDS_MUTATOR_ITEM]) {
-    Blockly.Blocks[DV_FIELDS_MUTATOR_ITEM] = {
-      init: function (this: Blockly.Block) {
-        const menu = new Blockly.FieldDropdown(() =>
-          mutatorWorkspaceChoices(this, DV_FIELDS_MUTATOR_CONTAINER)
-        );
-        this.appendDummyInput().appendField(menu, "ATTR");
-        this.setPreviousStatement(true);
-        this.setNextStatement(true);
-        this.setColour(DV_COLOUR);
-        this.contextMenu = false;
-      },
-    };
-  }
+  defineMutatorItemBlock(DV_FIELDS_MUTATOR_ITEM, DV_COLOUR);
 }
 
 function stackMutatorItems(
@@ -1135,16 +1156,15 @@ function stackMutatorItems(
   containerType: string,
   itemType: string,
   names: string[],
-  choices: Array<[string, string]>,
+  labels: Map<string, string>,
 ): Blockly.Block {
   const container = workspace.newBlock(containerType);
-  container.mutatorChoices_ = choices;
   initSvgIfPresent(container);
   let connection = container.getInput("STACK")?.connection ?? null;
   for (const name of names) {
     const item = workspace.newBlock(itemType);
     initSvgIfPresent(item);
-    if (name) item.setFieldValue(name, "ATTR");
+    if (name) applyMutatorItemLabel(item, name, labels.get(name) ?? name);
     if (connection && item.previousConnection) {
       connection.connect(item.previousConnection);
       connection = item.nextConnection;
@@ -1153,26 +1173,15 @@ function stackMutatorItems(
   return container;
 }
 
-function namesFromMutatorStack(container: Blockly.Block): string[] {
-  const names: string[] = [];
-  let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
-  while (item) {
-    if (!item.isInsertionMarker()) {
-      const name = String(item.getFieldValue("ATTR") || "");
-      if (name && name !== "(none)" && !names.includes(name)) names.push(name);
-    }
-    item = item.getNextBlock();
-  }
-  return names;
-}
-
 let optionalRmMutatorRegistered = false;
 
 function registerOptionalRmMutator(): void {
   if (optionalRmMutatorRegistered) return;
   optionalRmMutatorRegistered = true;
   defineOptionalMutatorQuarks();
-  Blockly.Extensions.registerMutator("optional_rm_mutator", {
+  registerDynamicFlyoutMutator(
+    "optional_rm_mutator",
+    {
     mutationToDom: function (this: Blockly.Block) {
       const xml = Blockly.utils.xml.createElement("mutation");
       const extras = this.extraInputs_ ?? [];
@@ -1201,12 +1210,13 @@ function registerOptionalRmMutator(): void {
       restoreMutatorAttributes(this, parsed.extras, parsed.attrs);
     },
     decompose: function (this: Blockly.Block, workspace: Blockly.Workspace) {
+      const labels = new Map(optionalRmMutatorChoices(this));
       return stackMutatorItems(
         workspace,
         OPTIONAL_RM_MUTATOR_CONTAINER,
         OPTIONAL_RM_MUTATOR_ITEM,
         this.extraInputs_ ?? [],
-        optionalRmMutatorChoices(this),
+        labels,
       );
     },
     compose: function (this: Blockly.Block, container: Blockly.Block) {
@@ -1282,7 +1292,11 @@ function registerOptionalRmMutator(): void {
         appendSlotTypeEmoji(stmt, slotType);
       }
     },
-  } as Blockly.Mutator & Record<string, unknown>, bindMutatorOpener, [OPTIONAL_RM_MUTATOR_ITEM]);
+    },
+    bindMutatorOpener,
+    buildOptionalRmFlyoutContents,
+    (block) => block.extraInputs_ ?? [],
+  );
 }
 
 let dvFieldsMutatorRegistered = false;
@@ -1291,7 +1305,9 @@ function registerDvFieldsMutator(): void {
   if (dvFieldsMutatorRegistered) return;
   dvFieldsMutatorRegistered = true;
   defineOptionalMutatorQuarks();
-  Blockly.Extensions.registerMutator("dv_fields_mutator", {
+  registerDynamicFlyoutMutator(
+    "dv_fields_mutator",
+    {
     mutationToDom: function (this: Blockly.Block) {
       const xml = Blockly.utils.xml.createElement("mutation");
       xml.setAttribute("fields", JSON.stringify(this.extraDvFields_ ?? []));
@@ -1315,12 +1331,13 @@ function registerDvFieldsMutator(): void {
       this.updateDvFields_?.();
     },
     decompose: function (this: Blockly.Block, workspace: Blockly.Workspace) {
+      const labels = new Map(optionalDvFieldChoices(this));
       return stackMutatorItems(
         workspace,
         DV_FIELDS_MUTATOR_CONTAINER,
         DV_FIELDS_MUTATOR_ITEM,
         this.extraDvFields_ ?? [],
-        optionalDvFieldChoices(this),
+        labels,
       );
     },
     compose: function (this: Blockly.Block, container: Blockly.Block) {
@@ -1363,7 +1380,11 @@ function registerDvFieldsMutator(): void {
         if (attr) appendDvFieldInput(this, attr, true);
       }
     },
-  } as Blockly.Mutator & Record<string, unknown>, bindMutatorOpener, [DV_FIELDS_MUTATOR_ITEM]);
+    },
+    bindMutatorOpener,
+    buildOptionalDvFlyoutContents,
+    (block) => block.extraDvFields_ ?? [],
+  );
 }
 
 declare module "blockly/core" {
@@ -1371,7 +1392,6 @@ declare module "blockly/core" {
     extraInputs_?: string[];
     extraDvFields_?: string[];
     slotCardinalities_?: Record<string, SlotCardinality>;
-    mutatorChoices_?: Array<[string, string]>;
     savedConnection_?: Blockly.Connection | null;
     firePlusClick?: () => void;
     addInput_?: (name: string) => void;

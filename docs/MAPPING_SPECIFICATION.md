@@ -38,8 +38,12 @@ Mapping Model slots[] (derived semantic index)
 - Project Bundles persist both. On load, Blockly JSON restores the workspace;
   subsequent changes regenerate the Mapping Model.
 - Click-to-Map updates the Mapping Model and the corresponding Blockly
-  expression block. The next workspace change reasserts Blockly JSON as the
-  authority.
+  expression block as one undoable canvas action. The next workspace change
+  reasserts Blockly JSON as the authority.
+- Constraint warnings (yellow triangles) appear on Blockly blocks and matching
+  Mapping Spec widgets. The Spec pane also draws orange ticks on the right-hand
+  overview ruler so every warning can be found without scrolling; clicking a
+  tick selects that block (same as clicking the spec row).
 
 ## Target instance format versus conversion script language
 

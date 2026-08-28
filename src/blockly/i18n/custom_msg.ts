@@ -15,6 +15,7 @@ export const SUPPORTED_LOCALES: Array<{ code: IntehrLocale; name: string }> = [
 ];
 
 export interface IntehrMessages {
+  CAT_SEARCH: string;
   CAT_SOURCE: string;
   CAT_OPENEHR_TYPES: string;
   CAT_JSON: string;
@@ -48,6 +49,7 @@ export interface IntehrMessages {
 
 const TABLE: Record<IntehrLocale, IntehrMessages> = {
   en: {
+    CAT_SEARCH: "Search",
     CAT_SOURCE: "Source",
     CAT_OPENEHR_TYPES: "openEHR types",
     CAT_JSON: "JSON",
@@ -83,6 +85,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     MODEL_LANGUAGE_LABEL: "Model",
   },
   sv: {
+    CAT_SEARCH: "Sök",
     CAT_SOURCE: "Källa",
     CAT_OPENEHR_TYPES: "openEHR types",
     CAT_JSON: "JSON",
@@ -118,6 +121,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     MODEL_LANGUAGE_LABEL: "Modell",
   },
   de: {
+    CAT_SEARCH: "Suche",
     CAT_SOURCE: "Quelle",
     CAT_OPENEHR_TYPES: "openEHR types",
     CAT_JSON: "JSON",
@@ -153,6 +157,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     MODEL_LANGUAGE_LABEL: "Modell",
   },
   es: {
+    CAT_SEARCH: "Buscar",
     CAT_SOURCE: "Origen",
     CAT_OPENEHR_TYPES: "openEHR types",
     CAT_JSON: "JSON",
@@ -188,6 +193,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     MODEL_LANGUAGE_LABEL: "Modelo",
   },
   ca: {
+    CAT_SEARCH: "Cerca",
     CAT_SOURCE: "Origen",
     CAT_OPENEHR_TYPES: "openEHR types",
     CAT_JSON: "JSON",
@@ -223,6 +229,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     MODEL_LANGUAGE_LABEL: "Model",
   },
   fr: {
+    CAT_SEARCH: "Rechercher",
     CAT_SOURCE: "Source",
     CAT_OPENEHR_TYPES: "openEHR types",
     CAT_JSON: "JSON",

@@ -69,6 +69,17 @@ export interface IntehrgratorTestApi {
   clickBlock(blockId: string): void;
   /** Pan the Blockly canvas so this block is in view. */
   scrollBlockIntoView(blockId: string): void;
+  /** Input names currently on a Blockly block (empty when the id is unknown). */
+  listBlockInputs(blockId: string): string[];
+  /** Open the native mutator bubble (cogwheel) on a block. */
+  openMutator(blockId: string): void;
+  /** Set optional RM extras on a container via the mutator compose path. */
+  setOptionalRmExtras(blockId: string, names: string[]): void;
+  undo(): void;
+  redo(): void;
+  undoCount(): number;
+  redoCount(): number;
+  undoEventTypes(): string[];
 }
 
 declare global {

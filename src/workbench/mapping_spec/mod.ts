@@ -20,3 +20,5 @@ export {
   type SpecBlockSelectHandler,
   type SpecChrome,
 } from "./editor.ts";
+
+export { specWarningMarkers, type SpecWarningMarker } from "./overview.ts";

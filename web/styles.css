@@ -101,13 +101,16 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .pane-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 8px 12px; background: var(--primary); color: #fff; flex-shrink: 0;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
 .pane-header h2 {
   margin: 0; padding: 0; background: none; font-size: 14px; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.pane-header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.pane-header-actions {
+  display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap;
+  max-width: 100%;
+}
 .pane-select-label {
   display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
   color: rgba(255, 255, 255, 0.9); white-space: nowrap;
@@ -428,6 +431,27 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .blockly-mount .blocklyToolboxCategoryLabel {
   font-family: "Google Sans", "Segoe UI", sans-serif !important;
 }
+.blockly-mount .blocklyToolboxCategorySearch,
+.blockly-mount .blocklyToolboxCategory:has(input[type="search"]) {
+  height: auto !important;
+  min-height: 36px !important;
+  line-height: 36px !important;
+  border-left: 15px solid #5f6368 !important;
+  pointer-events: none;
+}
+.blockly-mount .blocklyToolboxDiv input[type="search"] {
+  pointer-events: auto;
+  position: relative;
+  z-index: 2;
+  width: calc(100% - 12px);
+  height: 24px;
+  margin: 6px;
+  box-sizing: border-box;
+  font: 12px/1.3 "Google Sans", "Segoe UI", sans-serif;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
 .blockly-mount .blocklyToolboxCategorySource {
   border-left: 15px solid #e87722 !important;
 }
@@ -587,6 +611,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 
 /* Mapping Spec: inline widgets must not inflate CodeMirror's line box. */
+#spec-editor .cm-editor {
+  position: relative;
+}
 #spec-editor .cm-content,
 #spec-editor .cm-line,
 #spec-editor .cm-gutters,

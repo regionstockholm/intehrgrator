@@ -34,6 +34,7 @@
     "blockly/msg/ca": "npm:blockly@^11.2.2/msg/ca",
     "blockly/msg/fr": "npm:blockly@^11.2.2/msg/fr",
     "@blockly/workspace-minimap": "npm:@blockly/workspace-minimap@0.2.16",
+    "@blockly/toolbox-search": "npm:@blockly/toolbox-search@2.0.16",
     "fflate": "npm:fflate@^0.8.2",
     "fast-xml-parser": "npm:fast-xml-parser@^4.5.6",
     "handlebars": "npm:handlebars@^4.7.9",

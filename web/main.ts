@@ -41,7 +41,9 @@ import {
   warningTextOf,
   createModestTheme,
   buildDemoToolbox,
-  setOptionalRmPickHandler,
+  setOptionalRmMutatorChangeHandler,
+  openBlockMutator,
+  composeOptionalRmExtras,
   workspaceToModelJson,
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
@@ -60,14 +62,24 @@ import {
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
+import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
 import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
-import { runWithoutBlocklyEvents } from "../src/blockly/blockly_events.ts";
+import { runWithoutBlocklyEvents, withBlocklyUndoGroup, replaceCanvasUndoable, CANVAS_SWAP_EVENT_TYPE, setAfterCanvasSwapRun } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
+  DOCUMENT_SWAP_EVENT_TYPE,
+  fireDocumentSwap,
+  workspaceCanRedo,
+  workspaceCanUndo,
+  type DocumentSnapshot,
+} from "../src/workbench/document_undo.ts";
+import {
+  optionalRmInputName,
   presentAttributeNames,
+  rmAttributeInputName,
   rmTypeOfBlock,
 } from "../src/blockly/blocks/rm_blocks.ts";
-import type { AttachmentOption } from "../src/types/mod.ts";
+import { slotRmTypeForAttr } from "../src/blockly/rm_type_emoji.ts";
 import {
   changeLocaleAndReload,
   detectLocale,
@@ -137,9 +149,6 @@ const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElem
 const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
 const dialogLoadProject = document.getElementById("dialog-load-project") as HTMLDialogElement;
 const loadProjectList = document.getElementById("load-project-list")!;
-const dialogOptionalRm = document.getElementById("dialog-optional-rm") as HTMLDialogElement;
-const optionalRmList = document.getElementById("optional-rm-list")!;
-const optionalRmTitle = document.getElementById("optional-rm-title")!;
 const dialogDefaultsMap = document.getElementById("dialog-defaults-map") as HTMLDialogElement;
 const defaultsMapList = document.getElementById("defaults-map-list")!;
 const dialogDefaultsSaveAs = document.getElementById("dialog-defaults-save-as") as HTMLDialogElement;
@@ -193,6 +202,9 @@ let blocklySlotSignature = "";
 let toolboxKey = "";
 let ephemeralTreeHighlight: TreeHighlightState | null = null;
 let lastActiveExampleId: string | null = null;
+let suppressBlocklyModelSync = false;
+let applyingDocumentUndo = false;
+let documentReplaceDepth = 0;
 
 function showTextView(view: "mapping-json" | "handlebars"): void {
   activeTextView = view;
@@ -209,7 +221,9 @@ function showTextView(view: "mapping-json" | "handlebars"): void {
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
 downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
-uploadSpecBtn?.addEventListener("click", () => void controller.importBlocklyDefinition());
+uploadSpecBtn?.addEventListener("click", () =>
+  void withUndoableDocumentReplace(() => controller.importBlocklyDefinition())
+);
 exportTargetSelect.addEventListener("change", () => {
   const target = exportTargetSelect.value as
     | "preview"
@@ -332,23 +346,35 @@ async function bootBlockly(): Promise<void> {
   });
 
   attachWorkspaceMinimap(workspace, blocklyMount);
+  installToolboxSearchInputFix(blocklyMount, () => workspace);
 
-  setOptionalRmPickHandler((block) => {
-    const rmType = rmTypeOfBlock(block);
-    const slotId = block.getFieldValue("SLOT_ID") || "";
-    const options = controller.getOptionalAttachmentsFor(
-      rmType,
-      slotId,
-      presentAttributeNames(block),
-    );
-    if (!options.length) {
-      statusMain.textContent = `No optional RM structures left on ${rmType}.`;
-      return;
-    }
-    openOptionalRmPicker(rmType, options, (picked) => {
-      if (slotId) controller.addOptionalRm(slotId, picked.rmType, picked.attributeName);
-      attachOptionalRmChild(workspace, block, picked);
-      statusMain.textContent = `Added ${picked.label} (${picked.attributeName}: ${picked.rmType})`;
+  setAfterCanvasSwapRun(() => {
+    persistBlocklyCanvas();
+  });
+
+  setOptionalRmMutatorChangeHandler((change) => {
+    withBlocklyUndoGroup(() => {
+      const slotId = change.parent.getFieldValue("SLOT_ID") || "";
+      const rmType = rmTypeOfBlock(change.parent);
+      for (const name of change.removed) {
+        if (slotId) controller.removeOptionalRm(slotId, name);
+      }
+      for (const name of change.added) {
+        const present = presentAttributeNames(change.parent).filter((attr) => attr !== name);
+        const options = controller.getOptionalAttachmentsFor(rmType, slotId, present);
+        const picked = options.find((option) => option.attributeName === name) ?? {
+          attributeName: name,
+          rmType: slotRmTypeForAttr(rmType, name) || name,
+          label: name,
+          cardinality: { min: 0, max: 1 },
+        };
+        if (slotId) controller.addOptionalRm(slotId, picked.rmType, name);
+        const input = change.parent.getInput(optionalRmInputName(name)) ??
+          change.parent.getInput(rmAttributeInputName(name));
+        if (!input?.connection?.targetBlock()) {
+          attachOptionalRmChild(workspace, change.parent, picked);
+        }
+      }
     });
   });
 
@@ -356,9 +382,9 @@ async function bootBlockly(): Promise<void> {
     const selected = Blockly.getSelected?.() as { firePlusClick?: () => void } | null;
     if (selected?.firePlusClick) {
       options.push({
-        text: "Add optional RM…",
+        text: "Optional attributes…",
         enabled: true,
-        callback: () => selected.firePlusClick?.(),
+        callback: () => openBlockMutator(selected as Blockly.Block),
       });
     }
     options.push({
@@ -373,6 +399,12 @@ async function bootBlockly(): Promise<void> {
   initBlocklySourceDrop();
 
   workspace.addChangeListener((event) => {
+    refreshUndoButtons();
+    if (event.type === DOCUMENT_SWAP_EVENT_TYPE) return;
+    if (event.type === CANVAS_SWAP_EVENT_TYPE) {
+      refreshUndoButtons();
+      return;
+    }
     if (event.type === Blockly.Events.CLICK) {
       const blockId = "blockId" in event && typeof event.blockId === "string"
         ? event.blockId
@@ -390,19 +422,15 @@ async function bootBlockly(): Promise<void> {
       const block = workspace.getBlockById(event.blockId);
       const next = String((event as { newValue?: unknown }).newValue ?? "");
       if (block && (isEventFamilyType(next) || next === "EVENT")) {
-        applyEventRmType(block, next);
+        withBlocklyUndoGroup(() => applyEventRmType(block, next));
       }
     }
     if (event.type !== Blockly.Events.FINISHED_LOADING && !event.isUiEvent) {
       refreshWorkspaceConstraints(workspace);
     }
     if (event.type === Blockly.Events.FINISHED_LOADING || event.isUiEvent) return;
-    const derived = workspaceToModelJson(workspace);
-    controller.syncFromBlockly(
-      Blockly.serialization.workspaces.save(workspace),
-      derived.slots,
-      derived.loops,
-    );
+    if (suppressBlocklyModelSync || applyingDocumentUndo) return;
+    persistBlocklyCanvas();
   });
 }
 
@@ -474,13 +502,99 @@ function handleSourceSelection(
   controller.bindFromNode(path, format);
 }
 
-function persistBlocklyCanvas(): void {
+function persistBlocklyCanvas(options?: { notify?: boolean }): void {
   const derived = workspaceToModelJson(workspace);
   controller.syncFromBlockly(
     Blockly.serialization.workspaces.save(workspace),
     derived.slots,
     derived.loops,
+    derived.optionalRm,
+    { notify: false },
   );
+  // Track the post-sync model, not the raw canvas extract — applyExpressionEdit
+  // can normalize strings, and the next render compares against model.slots.
+  const s = controller.getState();
+  blocklySlotSignature = slotSignatureFrom(s.model.slots, s.model.loops ?? []);
+  refreshUndoButtons();
+  if (options?.notify !== false) controller.notifyChange();
+}
+
+function slotSignatureFrom(
+  slots: Array<{ slotId: string; expression: string }>,
+  loops: Array<{ attachSlotId: string; varName: string; path: string }>,
+): string {
+  return [
+    ...slots.map((slot) => `${slot.slotId}=${slot.expression}`),
+    ...loops.map((loop) => `loop:${loop.attachSlotId}=${loop.varName}@${loop.path}`),
+  ].join("|");
+}
+
+function refreshUndoButtons(): void {
+  const undoBtn = document.getElementById("btn-undo") as HTMLButtonElement | null;
+  const redoBtn = document.getElementById("btn-redo") as HTMLButtonElement | null;
+  if (!workspace || !undoBtn || !redoBtn) return;
+  undoBtn.disabled = !workspaceCanUndo(workspace);
+  redoBtn.disabled = !workspaceCanRedo(workspace);
+}
+
+function restoreDocumentFromUndo(snapshot: DocumentSnapshot): void {
+  applyingDocumentUndo = true;
+  try {
+    controller.restoreDocumentSnapshot(snapshot);
+  } finally {
+    applyingDocumentUndo = false;
+    refreshUndoButtons();
+  }
+}
+
+function withUndoableDocumentReplace<T>(fn: () => T | Promise<T>): Promise<T> {
+  const run = (): T | Promise<T> => fn();
+  if (applyingDocumentUndo || !workspace) {
+    try {
+      return Promise.resolve(run() as T);
+    } catch (err) {
+      return Promise.reject(err);
+    }
+  }
+  const nested = documentReplaceDepth > 0;
+  documentReplaceDepth++;
+  const before = nested ? null : controller.exportDocumentSnapshot();
+  const finish = () => {
+    documentReplaceDepth--;
+    if (!nested && before) {
+      fireDocumentSwap(
+        workspace,
+        before,
+        controller.exportDocumentSnapshot(),
+        restoreDocumentFromUndo,
+      );
+      refreshUndoButtons();
+    }
+  };
+  try {
+    const result = run();
+    if (isThenable(result)) {
+      return Promise.resolve(result).then(
+        (value) => {
+          finish();
+          return value as T;
+        },
+        (err) => {
+          finish();
+          throw err;
+        },
+      );
+    }
+    finish();
+    return Promise.resolve(result);
+  } catch (err) {
+    finish();
+    return Promise.reject(err);
+  }
+}
+
+function isThenable(value: unknown): value is Promise<unknown> {
+  return Boolean(value) && typeof (value as { then?: unknown }).then === "function";
 }
 
 function collectConstraintWarnings(): Record<string, string> {
@@ -621,12 +735,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   }
 
   const skeletonKey = `${s.projectId}|${s.templateId}|${s.skeleton.length}|${s.blocklyReloadToken}`;
-  const slotSignature = [
-    ...s.model.slots.map((slot) => `${slot.slotId}=${slot.expression}`),
-    ...(s.model.loops ?? []).map((loop) =>
-      `loop:${loop.attachSlotId}=${loop.varName}@${loop.path}`
-    ),
-  ].join("|");
+  const slotSignature = slotSignatureFrom(s.model.slots, s.model.loops ?? []);
   const labelLanguage = s.modelLanguage ?? "";
 
   if (skeletonKey !== blocklySkeletonKey) {
@@ -651,6 +760,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           Blockly.serialization.workspaces.save(workspace),
           derived.slots,
           derived.loops,
+          derived.optionalRm,
         );
       }
       applyPendingDefaultsMap();
@@ -675,13 +785,16 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
   }
 
   if (slotSignature !== blocklySlotSignature) {
-    applyModelExpressions(workspace, s.model);
+    const derived = workspaceToModelJson(workspace);
+    const canvasSig = slotSignatureFrom(derived.slots, derived.loops);
+    if (canvasSig !== slotSignature) {
+      replaceCanvasUndoable(workspace, () => {
+        applyModelExpressions(workspace, s.model);
+      });
+    }
     blocklySlotSignature = slotSignature;
-    // applyModelExpressions suppresses Blockly events, so the usual
-    // change-listener → syncFromBlockly → refreshDerived path never runs.
-    // Snapshot the updated canvas so Generated conversion script(s) picks
-    // up Import Suggestions / Spec edits that only changed the Mapping Model.
     controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
+    refreshUndoButtons();
   }
 
   highlightListeningSlot(workspace, s.listeningSlotId, s.listeningSourceBlockId);
@@ -753,8 +866,8 @@ installUrlLoadUi({
       main: requireEl<HTMLButtonElement>("btn-open-template"),
       chevron: requireEl<HTMLButtonElement>("btn-open-template-menu"),
       menu: requireEl("menu-open-template"),
-      fromFile: () => controller.openTemplate(),
-      fromUrl: (url) => controller.openTemplateFromUrl(url),
+      fromFile: () => withUndoableDocumentReplace(() => controller.openTemplate()),
+      fromUrl: (url) => withUndoableDocumentReplace(() => controller.openTemplateFromUrl(url)),
       title: "Open target from URL",
       hint: "OPT, Web Template, JSON Schema, or a GitHub .t.json. GitHub file pages are converted to raw content.",
       placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
@@ -769,6 +882,14 @@ installUrlLoadUi({
   },
 });
 
+bind("btn-undo", () => {
+  workspace.undo(false);
+  refreshUndoButtons();
+});
+bind("btn-redo", () => {
+  workspace.undo(true);
+  refreshUndoButtons();
+});
 bind("btn-expand-all", () => {
   setAllBlocksCollapsed(workspace, false);
   Blockly.svgResize(workspace);
@@ -822,7 +943,7 @@ bind("btn-new-project", () => void handleNewProject());
 bind("btn-load-project", () => void openLoadProjectDialog());
 bind("btn-save-project", () => openSaveAsDialog());
 bind("btn-export-project", () => controller.exportProject());
-bind("btn-import-project", () => controller.importProject());
+bind("btn-import-project", () => void withUndoableDocumentReplace(() => controller.importProject()));
 bind("btn-copy-ai", () => controller.copyAiPrompt(lastAiDelivery()));
 installImportAiDialog({
   dialog: requireEl<HTMLDialogElement>("dialog-import-ai"),
@@ -917,7 +1038,7 @@ function installExampleSetsMenu(): void {
     if (!confirmReplace()) return;
     void (async () => {
       try {
-        await controller.loadExampleSet(set);
+        await withUndoableDocumentReplace(() => controller.loadExampleSet(set));
       } catch {
         // Status bar already has the error.
       }
@@ -1008,30 +1129,6 @@ void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) =>
 });
 
 initFileDropTargets();
-
-function openOptionalRmPicker(
-  rmType: string,
-  options: AttachmentOption[],
-  onPick: (option: AttachmentOption) => void,
-): void {
-  optionalRmTitle.textContent = `Add optional RM on ${rmType}`;
-  optionalRmList.replaceChildren();
-  for (const option of options) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "load-project-item";
-    btn.textContent = `${option.label}  ·  ${option.attributeName}: ${option.rmType}`;
-    btn.addEventListener("click", () => {
-      dialogOptionalRm.close();
-      onPick(option);
-    });
-    optionalRmList.appendChild(btn);
-  }
-  dialogOptionalRm.showModal();
-}
-document.getElementById("optional-rm-cancel")?.addEventListener("click", () => {
-  dialogOptionalRm.close();
-});
 
 /** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
 function initBlocklySourceDrop(): void {
@@ -1338,10 +1435,12 @@ function handleNewProject(): void {
     ? "Start a new project? The current workspace will be cleared. Unsaved changes may be lost."
     : "Start a new empty project?";
   if (!confirm(message)) return;
-  controller.newProject();
-  resetBlocklyView();
-  ephemeralTreeHighlight = null;
-  lastActiveExampleId = null;
+  void withUndoableDocumentReplace(() => {
+    controller.newProject();
+    resetBlocklyView();
+    ephemeralTreeHighlight = null;
+    lastActiveExampleId = null;
+  });
 }
 
 function openSaveAsDialog(): void {
@@ -1382,7 +1481,7 @@ async function openLoadProjectDialog(): Promise<void> {
           ) {
             return;
           }
-          await controller.loadStoredProject(entry.storageKey);
+          await withUndoableDocumentReplace(() => controller.loadStoredProject(entry.storageKey));
           resetBlocklyView();
           ephemeralTreeHighlight = null;
         })();
@@ -1471,11 +1570,18 @@ function render(): void {
       ? "Select an example tab."
       : 'Add example instance(s) to enable "Conversion Test Run(s)" in Target & Previews';
   }
-  syncBlocklyWorkspace(s);
+  // Constraint warning-text events must not persist/re-render during this
+  // pass — that used to stack a second canvas-swap on Click-to-Map.
+  suppressBlocklyModelSync = true;
+  try {
+    syncBlocklyWorkspace(s);
+    refreshWorkspaceConstraints(workspace);
+    highlightListeningSlot(workspace, controller.getState().listeningSlotId, controller.getState().listeningSourceBlockId);
+  } finally {
+    suppressBlocklyModelSync = false;
+  }
   // Blockly apply may have refreshed generatedCode without a re-render.
   const afterCanvas = controller.getState();
-  refreshWorkspaceConstraints(workspace);
-  highlightListeningSlot(workspace, afterCanvas.listeningSlotId, afterCanvas.listeningSourceBlockId);
 
   setMappingSpecFromBlockly(
     specEditor,
@@ -1515,6 +1621,7 @@ function render(): void {
   const autoplayBtn = document.getElementById("btn-autoplay") as HTMLButtonElement;
   autoplayBtn.disabled = !s.examples.length;
   autoplayBtn.textContent = s.settings.autoplay ? "⏸ Pause" : "▶ Autoplay";
+  refreshUndoButtons();
 }
 
 function formatTestOutput(output: unknown): string {
@@ -1717,6 +1824,35 @@ function installWorkbenchTestApi(): void {
     scrollBlockIntoView(blockId) {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
       if (block) panToBlock(block);
+    },
+    listBlockInputs(blockId) {
+      const block = workspace.getBlockById(blockId);
+      return block ? block.inputList.map((input) => input.name) : [];
+    },
+    openMutator(blockId) {
+      const block = workspace.getBlockById(blockId);
+      if (block) openBlockMutator(block);
+    },
+    setOptionalRmExtras(blockId, names) {
+      const block = workspace.getBlockById(blockId);
+      if (block) composeOptionalRmExtras(block, names);
+    },
+    undo() {
+      workspace.undo(false);
+      refreshUndoButtons();
+    },
+    redo() {
+      workspace.undo(true);
+      refreshUndoButtons();
+    },
+    undoCount() {
+      return workspace.getUndoStack?.()?.length ?? 0;
+    },
+    redoCount() {
+      return workspace.getRedoStack?.()?.length ?? 0;
+    },
+    undoEventTypes() {
+      return (workspace.getUndoStack?.() ?? []).map((event) => String(event.type ?? ""));
     },
   };
   // Some test helpers look for `globalThis.intehrgratorTestApi` rather than

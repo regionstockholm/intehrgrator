@@ -1,4 +1,5 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assert, assertEquals, assertStringIncludes } from "@std/assert";
+import { join } from "@std/path";
 import {
   detectTargetFormat,
   getTargetFormatHandler,
@@ -132,6 +133,40 @@ Deno.test("Kintegrate Handlebars helpers and openEHR keys remain compatible", ()
     '"Ada"',
   );
 });
+
+Deno.test("openEHR Test Run emits string locatable identity, not silent-mandatory DV_TEXT", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const target = getTargetFormatHandler("openehr-template").load("blood_pressure.opt", opt);
+  const model = createEmptyModel(target.targetId);
+  model.targetFormat = "openehr-template";
+  const result = runTest(model, "{}", "json", { target });
+  assertEquals(result.ok, true, (result.warnings ?? []).join("; "));
+  const ids: unknown[] = [];
+  walkRecords(result.output, (rec) => {
+    if ("archetype_node_id" in rec) ids.push(rec.archetype_node_id);
+  });
+  assert(ids.length > 0, "expected locatable nodes in Test Run output");
+  for (const id of ids) {
+    assertEquals(
+      typeof id,
+      "string",
+      `archetype_node_id must stay a string, got ${JSON.stringify(id)}`,
+    );
+  }
+});
+
+function walkRecords(node: unknown, visit: (rec: Record<string, unknown>) => void): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) walkRecords(item, visit);
+    return;
+  }
+  const rec = node as Record<string, unknown>;
+  visit(rec);
+  for (const value of Object.values(rec)) walkRecords(value, visit);
+}
 
 Deno.test("Handlebars Test Run can walk source without a structured target", () => {
   const model = createEmptyModel("narrative");

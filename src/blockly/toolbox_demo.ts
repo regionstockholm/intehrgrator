@@ -159,6 +159,12 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
     kind: "categoryToolbox",
     contents: [
       {
+        kind: "search",
+        name: m.CAT_SEARCH,
+        contents: [],
+        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategorySearch" },
+      },
+      {
         kind: "category",
         name: m.CAT_SOURCE,
         colour: 28,
@@ -447,4 +453,21 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       },
     ],
   };
+}
+
+/** Flatten `kind: "block"` types so toolbox-search can index custom drawers. */
+export function toolboxBlockTypes(toolbox: ToolboxJson): string[] {
+  const types: string[] = [];
+  const walk = (item: unknown) => {
+    if (!item || typeof item !== "object") return;
+    const rec = item as { kind?: string; type?: string; contents?: unknown[] };
+    if (String(rec.kind ?? "").toLowerCase() === "block" && rec.type) {
+      types.push(rec.type);
+    }
+    if (Array.isArray(rec.contents)) {
+      for (const child of rec.contents) walk(child);
+    }
+  };
+  walk(toolbox);
+  return types;
 }

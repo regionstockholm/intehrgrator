@@ -35,7 +35,7 @@ These represent the RM containment hierarchy:
 Typed shells for every concrete `DATA_VALUE` leaf from ehrtslib
 `subtypesOf("DATA_VALUE")` (`enhanced/meta`). Field layouts come from
 `attributesFor(rmType)`: mandatory attributes shown inline; optional attributes
-via progressive disclosure (`+ fields` on the shell).
+via the cogwheel mutator on the shell.
 
 | Role | Behavior |
 |------|----------|
@@ -50,19 +50,22 @@ Authoritative RM facts: ehrtslib `docs/RM_ATTRIBUTES.md`. Attachment picker poli
 ### 3. Cross-Reference / Optional RM Blocks
 | Block | Inputs | Description |
 |-------|--------|-------------|
-| `feeder_audit` | via `+` picker / statement expansion | Provenance trail |
-| `participation` | via `+` picker | Additional participant |
-| `party_identified` | via `+` picker | Actor identity |
-| `link` | via `+` picker | Cross-reference |
+| `feeder_audit` | via cogwheel mutator / statement expansion | Provenance trail |
+| `participation` | via cogwheel mutator | Additional participant |
+| `party_identified` | via cogwheel mutator | Actor identity |
+| `link` | via cogwheel mutator | Cross-reference |
 
 Optional RM Insertion uses ehrtslib attribute meta filtered by OPT/present context
-(`src/core/rm_meta.ts` → `getValidAttachments`).
+(`src/core/rm_meta.ts` → `getValidAttachments`). The UI is Blockly’s native
+cogwheel mutator (`optional_rm_mutator` / `dv_fields_mutator`), not a custom `+` popup.
 
 ### 4. Control Flow & Utility Blocks
 
 Toolbox layout and stock categories follow the Blockly DevSite landing demo
 (Logic, Loops, Math, Text, Lists, Variables, Functions) plus intEHRgrator
-categories **Source** and **Data values**. See [Attribution](#attribution).
+categories **Source** and **Data values**, with `@blockly/toolbox-search`
+(`kind: "search"`) at the top so Search covers every `kind: "block"` drawer
+including custom Source, openEHR types, and Maps. See [Attribution](#attribution).
 
 - **Stock Blockly:** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
   `math_arithmetic`, `text_join`, `text_trim`, `logic_ternary`, variables, procedures, …
@@ -153,7 +156,7 @@ When a user loads an openEHR template (OPT), the system:
 **Not used for skeleton shape:** `RMInstanceGenerator` (`minimal` / `example` / `maximal`) — that produces instance data, not mapping structure. It may be used elsewhere (e.g. validation cross-check, example fixtures).
 
 5. **Silent-mandatory RM fields** — required by RM but not in OPT — included visibly in the skeleton
-6. **Optional RM attributes** — not in OPT, not RM-mandatory — **not** pre-rendered; added via `+` picker + block expansion
+6. **Optional RM attributes** — not in OPT, not RM-mandatory — **not** pre-rendered; added via cogwheel mutator + block expansion
 
 ## Silent-Mandatory vs Optional RM
 
@@ -161,14 +164,14 @@ When a user loads an openEHR template (OPT), the system:
 |------|---------|--------------|-------------------|
 | Template field | Yes | per OPT | Always visible |
 | Silent-mandatory | No | Yes | Always visible |
-| Optional RM | No | No (but valid) | `+` picker + block expansion |
+| Optional RM | No | No (but valid) | cogwheel mutator + block expansion |
 
 ## Optional RM Block Expansion
 
 RM container blocks (e.g. `observation`, `composition`) are defined with a dynamic input model:
 - Initial skeleton includes OPT-required inputs **and** silent-mandatory RM inputs (always visible)
-- When the user inserts an optional structure via the picker, `Blockly.Block` mutators or equivalent logic add the corresponding named statement input to the parent, then attach the new child block
-- The picker options are computed from RM type metadata (valid child types, cardinality) at the selected attachment point
+- When the user inserts an optional structure via the cogwheel mutator, `Blockly.Block` mutators add the corresponding named statement input to the parent, then attach the new child block if the mouth is empty. Removing the extra from the mutator disconnects the child onto the canvas.
+- The mutator flyout lists optional attributes from RM type metadata (valid child types, cardinality) at the selected attachment point
 
 ## References
 - [Blockly Guides](https://developers.google.com/blockly/guides/overview)

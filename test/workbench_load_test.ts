@@ -318,6 +318,27 @@ Deno.test("mapNodeToSlot promotes indexed JSON paths onto repeating EVENT slots"
   assertEquals(controller.getState().model.loops?.[0]?.path, "$.measurements");
 });
 
+Deno.test("syncFromBlockly empty loops clears previous loops (canvas undo)", async () => {
+  const wt = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "../vendor/openEHR-model-examples/local/theme-packs/sport-event-details/templates/Accident report including vital signs.wt.json",
+    ),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);
+  const rate = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.slotId.includes("OBSERVATION.pulse.v2") &&
+    s.slotId.includes("items/at0004/") &&
+    s.rmType === "DV_QUANTITY"
+  );
+  assert(rate);
+  controller.mapNodeToSlot(rate.slotId, "$.measurements[1].pulse", "json");
+  assertEquals(controller.getState().model.loops?.[0]?.path, "$.measurements");
+  controller.syncFromBlockly({}, [], [], undefined, { notify: false });
+  assertEquals(controller.getState().model.loops ?? [], []);
+});
+
 Deno.test("controller switches multilingual target ontology language without dropping mappings", async () => {
   const wt = await Deno.readTextFile(
     join(

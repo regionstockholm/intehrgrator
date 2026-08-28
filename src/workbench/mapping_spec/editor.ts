@@ -2,6 +2,7 @@ import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
+  ViewPlugin,
   WidgetType,
   type DecorationSet,
 } from "@codemirror/view";
@@ -13,6 +14,7 @@ import {
   type SpecLine,
 } from "./project.ts";
 import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler } from "./widgets.ts";
+import { specWarningMarkers } from "./overview.ts";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
@@ -268,6 +270,27 @@ const specTheme = EditorView.theme({
     fontSize: "12px",
     lineHeight: "14px",
   },
+  ".cm-spec-overview": {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: "12px",
+    zIndex: "6",
+    pointerEvents: "none",
+  },
+  ".cm-spec-overview-tick": {
+    position: "absolute",
+    left: "1px",
+    right: "1px",
+    height: "6px",
+    padding: "0",
+    border: "0",
+    borderRadius: "1px",
+    background: "#E65100",
+    cursor: "pointer",
+    pointerEvents: "auto",
+  },
   ".spec-widget .info-tip": {
     flex: "0 0 auto",
   },
@@ -290,6 +313,56 @@ export interface MappingSpecEditorOptions {
   onSelect?: SpecBlockSelectHandler;
 }
 
+function specOverview(onSelect?: SpecBlockSelectHandler) {
+  return ViewPlugin.fromClass(class {
+    readonly dom: HTMLElement;
+
+    constructor(readonly view: EditorView) {
+      this.dom = document.createElement("div");
+      this.dom.className = "cm-spec-overview";
+      this.dom.setAttribute("aria-label", "Constraint warning locations");
+      view.dom.appendChild(this.dom);
+      this.rebuild();
+    }
+
+    update(): void {
+      this.rebuild();
+    }
+
+    destroy(): void {
+      this.dom.remove();
+    }
+
+    private rebuild(): void {
+      const doc = this.view.state.field(jsonDocField);
+      const chrome = this.view.state.field(specChromeField);
+      const markers = specWarningMarkers(doc, chrome.warnings, this.view.state.doc.length);
+      this.dom.replaceChildren();
+      for (const marker of markers) {
+        const tick = document.createElement("button");
+        tick.type = "button";
+        tick.className = "cm-spec-overview-tick";
+        tick.style.top = `${Math.min(98, Math.max(0, marker.ratio * 100))}%`;
+        tick.title = marker.message;
+        tick.setAttribute("aria-label", marker.message);
+        tick.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+        });
+        tick.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.view.dispatch({
+            effects: EditorView.scrollIntoView(marker.from, { y: "center" }),
+          });
+          onSelect?.(marker.blockId);
+        });
+        this.dom.appendChild(tick);
+      }
+    }
+  });
+}
+
 export function createMappingSpecEditor(
   parent: HTMLElement,
   options: MappingSpecEditorOptions = {},
@@ -307,6 +380,7 @@ export function createMappingSpecEditor(
         editFacet.of(options.onFieldEdit),
         selectFacet.of(options.onSelect),
         jsonDecorations,
+        specOverview(options.onSelect),
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
         specTheme,

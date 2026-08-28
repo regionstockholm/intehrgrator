@@ -99,8 +99,14 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 2.4 `@blockly/toolbox-search` indexes all `kind: "block"` toolbox drawers including Source, openEHR types, and Maps
   - [x] 2.5 Mapping Spec right-hand overview ticks from the same constraint warnings as Blockly triangles; click selects/pans
   - [x] 2.6 Docs: ROADMAP, CONTEXT, MAPPING_SPECIFICATION
-- [ ] 3.0 Chunk 3 — RM Blockly completeness (PARTY_IDENTIFIED, ITEM_STRUCTURE morph, toolbox)
-- [ ] 4.0 Chunk 4 — AI copy-paste polish
+- [x] 3.0 Chunk 3 — RM Blockly completeness (PARTY identity, ITEM_STRUCTURE morph, toolbox)
+  - [x] 3.1 `PARTY_IDENTIFIED` / `PARTY_RELATED`: `name`, `identifiers`, `external_ref` slots
+  - [x] 3.2 `party_ref` block + `dv_identifier` in Party toolbox drawer
+  - [x] 3.3 Abstract `item_structure` morph + abstract warning
+  - [x] 3.4 Nested openEHR toolbox drawers; missing RM blocks in flyout
+  - [x] 3.5 TypeScript codegen for `PARTY_REF`, list-valued `identifiers`
+  - [x] 3.6 Tests + README note (full Demographics compositions still future)
+- [ ] 4.0 Chunk 4 — AI copy-paste polish (roadmap I) — **grill round 3 pending user answers**
 - [ ] 5.0 Chunk 5 — Colourblind language + sync highlight
 - [ ] 6.0 Chunk 6 — Handlebars Test Run + round-trip
 - [ ] 7.0 Chunk 7 — CSV / FHIR tables

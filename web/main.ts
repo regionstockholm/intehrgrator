@@ -48,7 +48,9 @@ import {
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
   applyEventRmType,
+  applyItemStructureRmType,
   isEventFamilyType,
+  isItemStructureFamilyType,
   workspacePositionFromClient,
   registerCompactThrasosRenderer,
   openWorkspaceSnapshotWindow,
@@ -423,6 +425,8 @@ async function bootBlockly(): Promise<void> {
       const next = String((event as { newValue?: unknown }).newValue ?? "");
       if (block && (isEventFamilyType(next) || next === "EVENT")) {
         withBlocklyUndoGroup(() => applyEventRmType(block, next));
+      } else if (block && (isItemStructureFamilyType(next) || next === "ITEM_STRUCTURE")) {
+        withBlocklyUndoGroup(() => applyItemStructureRmType(block, next));
       }
     }
     if (event.type !== Blockly.Events.FINISHED_LOADING && !event.isUiEvent) {

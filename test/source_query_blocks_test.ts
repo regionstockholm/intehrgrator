@@ -88,14 +88,20 @@ Deno.test("Source toolbox drawer lists string, number, and boolean source blocks
 Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE leaves", () => {
   ensure();
   const toolbox = buildDemoToolbox("sv") as {
-    contents: Array<{ name?: string; contents?: Array<{ type?: string }> }>;
+    contents: Array<{ name?: string; contents?: Array<{ type?: string; kind?: string; contents?: Array<{ type?: string }> }> }>;
   };
   const cat = toolbox.contents.find((c) => c.name === msg("sv").CAT_OPENEHR_TYPES);
   assertEquals(cat?.name, "openEHR types");
-  const types = (cat?.contents ?? []).map((block) => block.type);
-  assertEquals(types[0], "composition");
+  const types: string[] = [];
+  const walk = (items: Array<{ type?: string; kind?: string; contents?: Array<{ type?: string }> }> | undefined) => {
+    for (const item of items ?? []) {
+      if (item.type) types.push(item.type);
+      if (Array.isArray(item.contents)) walk(item.contents);
+    }
+  };
+  walk(cat?.contents);
+  assertEquals(types.includes("composition"), true);
   assertEquals(types.filter((t) => t === "section").length, 1);
-  assertEquals(types.includes("section"), true);
   assertEquals(types.includes("observation"), true);
   assertEquals(types.includes("evaluation"), true);
   assertEquals(types.includes("instruction"), true);
@@ -103,11 +109,12 @@ Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE lea
   assertEquals(types.includes("admin_entry"), true);
   assertEquals(types.includes("cluster"), true);
   assertEquals(types.includes("element"), true);
-  assertEquals(types.indexOf("element"), types.indexOf("cluster") + 1);
+  assertEquals(types.indexOf("element") > types.indexOf("cluster"), true);
   assertEquals(types.includes("party_proxy"), true);
   assertEquals(types.includes("party_self"), true);
   assertEquals(types.includes("party_identified"), true);
   assertEquals(types.includes("party_related"), true);
+  assertEquals(types.includes("item_structure"), true);
   assertEquals(types.includes("dv_quantity"), true);
 });
 

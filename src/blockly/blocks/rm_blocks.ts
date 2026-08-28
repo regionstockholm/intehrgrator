@@ -51,6 +51,14 @@ export const EVENT_KIND_OPTIONS: Array<[string, string]> = [
   ["INTERVAL_EVENT", "INTERVAL_EVENT"],
 ];
 
+export const ITEM_STRUCTURE_KIND_OPTIONS: Array<[string, string]> = [
+  ["ITEM_STRUCTURE", "ITEM_STRUCTURE"],
+  ["ITEM_TREE", "ITEM_TREE"],
+  ["ITEM_LIST", "ITEM_LIST"],
+  ["ITEM_TABLE", "ITEM_TABLE"],
+  ["ITEM_SINGLE", "ITEM_SINGLE"],
+];
+
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
 export const RM_ATTR_INPUT_PREFIX = "ATTR_";
@@ -71,6 +79,7 @@ const EXTRA_RM_CONTAINERS = [
   "POINT_EVENT",
   "INTERVAL_EVENT",
   "EVENT_CONTEXT",
+  "ITEM_STRUCTURE",
   "ITEM_TREE",
   "ITEM_LIST",
   "ITEM_TABLE",
@@ -92,6 +101,29 @@ const EXTRA_RM_CONTAINERS = [
 export function isEventFamilyType(rmType: string): boolean {
   const name = (rmType || "").toUpperCase();
   return name === "EVENT" || isSubtypeOf(name, "EVENT");
+}
+
+export function isItemStructureFamilyType(rmType: string): boolean {
+  const name = (rmType || "").toUpperCase();
+  return name === "ITEM_STRUCTURE" || isSubtypeOf(name, "ITEM_STRUCTURE");
+}
+
+function isPartyIdentityType(rmType: string): boolean {
+  const name = (rmType || "").toUpperCase();
+  return name === "PARTY_IDENTIFIED" || name === "PARTY_RELATED";
+}
+
+/** Default-visible identity attrs on PARTY_* blocks (not full Demographics product scope). */
+function partyIdentityAttributes(): string[] {
+  return ["name", "identifiers", "external_ref"];
+}
+
+function attributeTypeName(parentRmType: string, attr: string): string | undefined {
+  return attributesFor(parentRmType).find((a) => a.name === attr)?.typeName;
+}
+
+function isListAttributeTypeName(typeName: string): boolean {
+  return typeName.startsWith("List<");
 }
 
 export function isRmContainerBlockType(type: string): boolean {
@@ -191,6 +223,7 @@ export function registerRmBlocks(): void {
 
   defineValueElementBlock();
   definePartyProxyBlock();
+  definePartyRefBlock();
   for (const rmType of EXTRA_RM_CONTAINERS) {
     ensureRmContainerBlock(rmType);
   }
@@ -263,6 +296,36 @@ function definePartyProxyBlock(): void {
     nestCheck: nestCheckFor("PARTY_PROXY"),
     specializationCheck: partyProxySpecializationCheck(),
   });
+}
+
+/** PARTY_REF shell: external reference by id / namespace / type (OBJECT_ID.value flattened to id). */
+function definePartyRefBlock(): void {
+  const type = "party_ref";
+  RM_CONTAINER_TYPES.add(type);
+  Blockly.Blocks[type] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputEmoji(header, "PARTY_REF");
+      header.appendField(new FieldSkeletonTitle("PARTY_REF"), "NAME");
+      for (const attr of ["id", "namespace", "type"] as const) {
+        const input = this.appendValueInput(rmAttributeInputName(attr))
+          .appendField(attr);
+        input.setCheck("String");
+        appendSlotCardinality(
+          input,
+          rmAttributeCardinality("PARTY_REF", attr) ?? { min: 1, max: 1 },
+        );
+        appendSlotTypeEmoji(input, "String");
+      }
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldLabelSerializable("PARTY_REF"), "RM_TYPE");
+      this.getField("RM_TYPE")!.setVisible(false);
+      this.setOutput(true, "PARTY_REF");
+      this.setColour(STRUCTURE_COLOUR);
+      this.setTooltip("openEHR RM PARTY_REF — external party reference");
+      this.setInputsInline(true);
+    },
+  };
 }
 
 /** Blockly type for a DATA_VALUE leaf, ensuring the def exists. */
@@ -368,6 +431,48 @@ function eventAttributesToShow(rmType: string, connected: string[]): string[] {
   return [...names];
 }
 
+/**
+ * Switch an ITEM_STRUCTURE-family block between abstract ITEM_STRUCTURE and
+ * concrete subtypes without dropping already-attached children.
+ */
+export function applyItemStructureRmType(block: Blockly.Block, newType: string): void {
+  const next = (newType || "").toUpperCase();
+  if (!isItemStructureFamilyType(next)) return;
+
+  const current = String(block.getFieldValue("RM_TYPE") || "").toUpperCase();
+  if (current !== next && block.getField("RM_TYPE")) {
+    block.setFieldValue(next, "RM_TYPE");
+  }
+
+  const emoji = block.getField(BLOCK_OUT_EMOJI_FIELD);
+  if (isRmTypeEmojiField(emoji)) emoji.setRmType(next);
+  const title = block.getField("NAME");
+  if (isSkeletonTitleField(title)) title.setClassName(next);
+
+  const connected = presentAttributeNames(block).filter((name) =>
+    Boolean(
+      block.getInput(rmAttributeInputName(name))?.connection?.targetBlock() ||
+        block.getInput(optionalRmInputName(name))?.connection?.targetBlock(),
+    )
+  );
+  const show = itemStructureAttributesToShow(next, connected);
+  const cards = { ...(block.slotCardinalities_ ?? {}) };
+  syncRmAttributeInputs(block, next, show, cards);
+  if (typeof block.render === "function" && typeof document !== "undefined") {
+    block.render();
+  }
+}
+
+function itemStructureAttributesToShow(rmType: string, connected: string[]): string[] {
+  const names = new Set<string>(connected);
+  names.add("name");
+  const t = rmType.toUpperCase();
+  if (t === "ITEM_SINGLE") names.add("item");
+  else if (t === "ITEM_TABLE") names.add("rows");
+  else names.add("items");
+  return [...names];
+}
+
 function slotCardinalityFor(
   block: Blockly.Block,
   rmType: string,
@@ -470,7 +575,31 @@ function appendRmAttributeInput(
   cardinality?: SlotCardinality,
 ): void {
   const slotType = slotRmTypeForAttr(rmType, attr);
+  const typeName = attributeTypeName(rmType, attr) ?? "";
+  const listElement = isListAttributeTypeName(typeName)
+    ? baseRmTypeName(typeName)
+    : null;
   const card = cardinality ?? slotCardinalityFor(block, rmType, attr);
+
+  if (slotType === "PARTY_REF" || typeName === "PARTY_REF") {
+    const input = block.appendValueInput(rmAttributeInputName(attr))
+      .appendField(attr);
+    input.setCheck(checkOverride ?? "party_ref");
+    appendSlotCardinality(input, card);
+    appendSlotTypeEmoji(input, "PARTY_REF");
+    return;
+  }
+
+  if (listElement && isDataValueType(listElement)) {
+    const input = block.appendValueInput(rmAttributeInputName(attr))
+      .appendField(attr);
+    const dvCheck = blocklyCheckForDv(listElement);
+    input.setCheck(checkOverride ?? (dvCheck ? [dvCheck, "lists_create_with"] : "lists_create_with"));
+    appendSlotCardinality(input, card);
+    appendSlotTypeEmoji(input, listElement);
+    return;
+  }
+
   if (isRmValueAttribute(rmType, attr) || isPartyProxyType(slotType)) {
     const input = block.appendValueInput(rmAttributeInputName(attr))
       .appendField(attr);
@@ -728,6 +857,9 @@ function defineContainerBlock(
       if (isEventFamilyType(options.rmType)) {
         header.appendField(new Blockly.FieldDropdown(EVENT_KIND_OPTIONS), "RM_TYPE");
         this.setFieldValue(options.rmType, "RM_TYPE");
+      } else if (isItemStructureFamilyType(options.rmType)) {
+        header.appendField(new Blockly.FieldDropdown(ITEM_STRUCTURE_KIND_OPTIONS), "RM_TYPE");
+        this.setFieldValue(options.rmType, "RM_TYPE");
       }
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
       if (options.expandable) appendMutatorCogwheel(header);
@@ -739,10 +871,17 @@ function defineContainerBlock(
       for (const input of inputs) {
         appendRmAttributeInput(this, options.rmType, input.name, input.check);
       }
+      if (isPartyIdentityType(options.rmType)) {
+        for (const attr of partyIdentityAttributes()) {
+          if (!this.getInput(rmAttributeInputName(attr))) {
+            appendRmAttributeInput(this, options.rmType, attr);
+          }
+        }
+      }
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
-      if (!isEventFamilyType(options.rmType)) {
+      if (!isEventFamilyType(options.rmType) && !isItemStructureFamilyType(options.rmType)) {
         this.appendDummyInput()
           .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
         this.getField("RM_TYPE")!.setVisible(false);

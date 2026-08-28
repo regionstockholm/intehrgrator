@@ -18,6 +18,11 @@ export interface IntehrMessages {
   CAT_SEARCH: string;
   CAT_SOURCE: string;
   CAT_OPENEHR_TYPES: string;
+  CAT_OPENEHR_ENTRIES: string;
+  CAT_OPENEHR_ITEMS: string;
+  CAT_OPENEHR_PARTY: string;
+  CAT_OPENEHR_DV: string;
+  CAT_OPENEHR_TERMS: string;
   CAT_JSON: string;
   CAT_XML: string;
   CAT_TARGET_SCHEMA: string;
@@ -52,6 +57,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_SEARCH: "Search",
     CAT_SOURCE: "Source",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_ENTRIES: "Compositions & entries",
+    CAT_OPENEHR_ITEMS: "Items & events",
+    CAT_OPENEHR_PARTY: "Party",
+    CAT_OPENEHR_DV: "Data values",
+    CAT_OPENEHR_TERMS: "Terminology",
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Target schema",
@@ -88,6 +98,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_SEARCH: "Sök",
     CAT_SOURCE: "Källa",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_ENTRIES: "Compositions & entries",
+    CAT_OPENEHR_ITEMS: "Items & events",
+    CAT_OPENEHR_PARTY: "Party",
+    CAT_OPENEHR_DV: "Data values",
+    CAT_OPENEHR_TERMS: "Terminology",
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Målschema",
@@ -124,6 +139,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_SEARCH: "Suche",
     CAT_SOURCE: "Quelle",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_ENTRIES: "Compositions & entries",
+    CAT_OPENEHR_ITEMS: "Items & events",
+    CAT_OPENEHR_PARTY: "Party",
+    CAT_OPENEHR_DV: "Data values",
+    CAT_OPENEHR_TERMS: "Terminology",
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Zielschema",
@@ -160,6 +180,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_SEARCH: "Buscar",
     CAT_SOURCE: "Origen",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_ENTRIES: "Compositions & entries",
+    CAT_OPENEHR_ITEMS: "Items & events",
+    CAT_OPENEHR_PARTY: "Party",
+    CAT_OPENEHR_DV: "Data values",
+    CAT_OPENEHR_TERMS: "Terminology",
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Esquema destino",
@@ -196,6 +221,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_SEARCH: "Cerca",
     CAT_SOURCE: "Origen",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_ENTRIES: "Compositions & entries",
+    CAT_OPENEHR_ITEMS: "Items & events",
+    CAT_OPENEHR_PARTY: "Party",
+    CAT_OPENEHR_DV: "Data values",
+    CAT_OPENEHR_TERMS: "Terminology",
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Esquema de destinació",
@@ -232,6 +262,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_SEARCH: "Rechercher",
     CAT_SOURCE: "Source",
     CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_ENTRIES: "Compositions & entries",
+    CAT_OPENEHR_ITEMS: "Items & events",
+    CAT_OPENEHR_PARTY: "Party",
+    CAT_OPENEHR_DV: "Data values",
+    CAT_OPENEHR_TERMS: "Terminology",
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Schéma cible",

@@ -7,6 +7,7 @@ Based on [docs/ROADMAP.md](../docs/ROADMAP.md) (current `main`, including 2026-0
 **IMPORTANT:** As you complete each task, you must check it off in this markdown file by changing `- [ ]` to `- [x]`. This helps track progress and ensures you don't skip any steps.
 
 Example:
+
 - `- [ ] 1.1 Read file` → `- [x] 1.1 Read file` (after completing)
 
 Update the file after completing each sub-task, not just after completing an entire parent task. If implementation steps happen to fulfil several things at once then ticking off several boxes is OK.
@@ -19,13 +20,13 @@ Asked after this plan was written, before coding Chunk 1. Recommended answers **
 
 ❓ **Q1** - **Cogwheel scope**: The new B item replaces the encircled **+** popup with Blockly’s native cogwheel mutator (same family as `controls_if` elseif/else). Does that cover only container **Optional RM Insertion**, also DATA_VALUE **+ fields**, or template-optional skeleton slots too?
 
-➡️ **Adopted: containers + DATA_VALUE shells.** Template-mandatory and silent-mandatory `ATTR_*` / `FLD_*` slots stay locked (not in the mutator stack). Optional RM extras (`OPT_*`) and optional DV fields (`OPTFLD_*`) are add/remove via the cogwheel. Skeleton `ATTR_*` mouths are not removed from the mutator.
+➡️ **Adopted: containers + DATA_VALUE shells.** Template-mandatory and silent-mandatory `ATTR_`* / `FLD_*` slots stay locked (not in the mutator stack). Optional RM extras (`OPT_*`) and optional DV fields (`OPTFLD_*`) are add/remove via the cogwheel. Skeleton `ATTR_*` mouths are not removed from the mutator.
 
 ---
 
 ❓ **Q2** - **Mutator UI**: Mini-workspace of stackable attribute blocks (true `MutatorIcon`, like if/elseif), or a cog that still opens a checkbox popup?
 
-➡️ **Adopted: native `MutatorIcon` mini-workspace.** Flyout quark `optional_rm_mutator_item` / `dv_fields_mutator_item` with an attribute dropdown; container quark holds the STACK. HTML `#dialog-optional-rm` goes away.
+➡️ **Adopted: native** `MutatorIcon` **mini-workspace.** Flyout quark `optional_rm_mutator_item` / `dv_fields_mutator_item` with an attribute dropdown; container quark holds the STACK. HTML `#dialog-optional-rm` goes away.
 
 ---
 
@@ -56,23 +57,27 @@ Asked after this plan was written, before coding Chunk 1. Recommended answers **
 - `test/blockly_rm_blocks_test.ts`
 - `CONTEXT.md`, `docs/BLOCKLY_INTEGRATION.md`, `docs/ROADMAP.md`
 
+
+
 ## Priority-ordered chunks
 
-| Prio | Chunk | Roadmap items | Why this grouping |
-|------|-------|----------------|-------------------|
-| 1 | Native cogwheel for optional attributes | B: replace + popup with cogwheel; non-mandatory can be removed | First unfinished item; Blockly-native mutator; unblocks honest optional RM/DV editing |
-| 2 | Mapping Editor chrome | B: undo/redo; toolbox-search plugin; Mapping Spec gutter error markers | Shared editor surface; independent of RM class work |
-| 3 | RM Blockly completeness | F: missing classes; toolbox sort/groups/colour; PARTY_IDENTIFIED `name`/`identifiers`; ITEM_STRUCTURE morph like EVENT | Uses cogwheel once it exists; `openehr://spec/type/RM/PARTY_IDENTIFIED` + `ITEM_STRUCTURE` |
-| 4 | AI copy-paste polish | I: validate assist; openehr-assistant prompt hint; clarify Import Suggestions label | Small, isolated toolbar/prompt work |
-| 5 | Cross-pane a11y | B: colourblind in→conv→out; sync highlight mapping ↔ Conversion Test Run | Visual language; after editor mechanics settle |
-| 6 | Handlebars correctness | G: harden Mapping preview Test Run; execute generated Handlebars script; Blockly ↔ Handlebars Template round-trip; arm Click-to-Map on source-node block | Documented as shaky; ADR 0001 / 0003 |
-| 7 | Maps/tables | C: CSV/Excel paste tables; FHIR terminology maps | Needs solid map blocks (already done) + lookup blocks |
-| 8 | Conversion scripts | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI | After mapping/RM is trustworthy |
-| 9 | Persistence, i18n, versioning | B: GitHub save if logged in; full UI i18n; L: source/target version hashes | Platform, not mapping semantics |
-| 10 | Dynamic schema toolboxes | H: JSON/XSD target drawers from schema; TakeCare test + term ids | Productized schema-specific Blockly |
-| 11 | Better Form parity | G: ScriptApi / formTestApi / Cypress port | Licensed optional path |
-| 12 | Later hosts | v1 follow-ups: Java Export UI; VS Code host; Autoplay E2E | Explicitly post-v1 |
-| 13 | Local/offline AI skill | D: parallel IDE + local app; installable AI skill for suggestion format | Docs + skill packaging |
+
+| Prio | Chunk                                   | Roadmap items                                                                                                                                            | Why this grouping                                                                          |
+| ---- | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 1    | Native cogwheel for optional attributes | B: replace + popup with cogwheel; non-mandatory can be removed                                                                                           | First unfinished item; Blockly-native mutator; unblocks honest optional RM/DV editing      |
+| 2    | Mapping Editor chrome                   | B: undo/redo; toolbox-search plugin; Mapping Spec gutter error markers                                                                                   | Shared editor surface; independent of RM class work                                        |
+| 3    | RM Blockly completeness                 | F: missing classes; toolbox sort/groups/colour; PARTY_IDENTIFIED `name`/`identifiers`; ITEM_STRUCTURE morph like EVENT                                   | Uses cogwheel once it exists; `openehr://spec/type/RM/PARTY_IDENTIFIED` + `ITEM_STRUCTURE` |
+| 4    | AI copy-paste polish                    | I: validate assist; openehr-assistant prompt hint; clarify Import Suggestions label                                                                      | Small, isolated toolbar/prompt work                                                        |
+| 5    | Cross-pane a11y                         | B: colourblind in→conv→out; sync highlight mapping ↔ Conversion Test Run                                                                                 | Visual language; after editor mechanics settle                                             |
+| 6    | Handlebars correctness                  | G: harden Mapping preview Test Run; execute generated Handlebars script; Blockly ↔ Handlebars Template round-trip; arm Click-to-Map on source-node block | Documented as shaky; ADR 0001 / 0003                                                       |
+| 7    | Maps/tables                             | C: CSV/Excel paste tables; FHIR terminology maps                                                                                                         | Needs solid map blocks (already done) + lookup blocks                                      |
+| 8    | Conversion scripts                      | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI                                                                         | After mapping/RM is trustworthy                                                            |
+| 9    | Persistence, i18n, versioning           | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
+| 10   | Dynamic schema toolboxes                | H: JSON/XSD target drawers from schema; TakeCare test + term ids                                                                                         | Productized schema-specific Blockly                                                        |
+| 11   | Better Form parity                      | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
+| 12   | Later hosts                             | v1 follow-ups: Java Export UI; VS Code host; Autoplay E2E                                                                                                | Explicitly post-v1                                                                         |
+| 13   | Local/offline AI skill                  | D: parallel IDE + local app; installable AI skill for suggestion format                                                                                  | Docs + skill packaging                                                                     |
+
 
 Already done (do not re-open unless regression): A small fixes (including `.xml` pickers), maps de-uglify, target visualisation pane removal, CLUSTER/SECTION colour/cleanup, Handlebars language + template tab, XQuery Model B emit.
 
@@ -94,8 +99,14 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 2.4 `@blockly/toolbox-search` indexes all `kind: "block"` toolbox drawers including Source, openEHR types, and Maps
   - [x] 2.5 Mapping Spec right-hand overview ticks from the same constraint warnings as Blockly triangles; click selects/pans
   - [x] 2.6 Docs: ROADMAP, CONTEXT, MAPPING_SPECIFICATION
-- [ ] 3.0 Chunk 3 — RM Blockly completeness (PARTY_IDENTIFIED, ITEM_STRUCTURE morph, toolbox)
-- [ ] 4.0 Chunk 4 — AI copy-paste polish
+- [x] 3.0 Chunk 3 — RM Blockly completeness (PARTY identity, ITEM_STRUCTURE morph, toolbox)
+  - [x] 3.1 `PARTY_IDENTIFIED` / `PARTY_RELATED`: `name`, `identifiers`, `external_ref` slots
+  - [x] 3.2 `party_ref` block + `dv_identifier` in Party toolbox drawer
+  - [x] 3.3 Abstract `item_structure` morph + abstract warning
+  - [x] 3.4 Nested openEHR toolbox drawers; missing RM blocks in flyout
+  - [x] 3.5 TypeScript codegen for `PARTY_REF`, list-valued `identifiers`
+  - [x] 3.6 Tests + README note (full Demographics compositions still future)
+- [ ] 4.0 Chunk 4 — AI copy-paste polish (roadmap I) — **grill round 3 pending user answers**
 - [ ] 5.0 Chunk 5 — Colourblind language + sync highlight
 - [ ] 6.0 Chunk 6 — Handlebars Test Run + round-trip
 - [ ] 7.0 Chunk 7 — CSV / FHIR tables

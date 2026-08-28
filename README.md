@@ -74,6 +74,8 @@ Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 | **Deferred** | [docs/future/](docs/future/) |
 | **Agents** | [AGENTS.md](AGENTS.md) |
 
+**RM Blockly coverage:** Party identity slots on `PARTY_IDENTIFIED` / `PARTY_RELATED` include `name`, `identifiers` (`List<DV_IDENTIFIER>` via `dv_identifier` / `lists_create_with`), and `external_ref` (`PARTY_REF` shell). Full Demographics product scope (e.g. standalone demographic compositions, `PARTY` records beyond these RM shells) is **not yet implemented**.
+
 > [old-clippings.md](old-clippings.md) is superseded by INITIAL_PROMPT.md and the docs above.
 
 ## Libraries

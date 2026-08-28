@@ -7,7 +7,8 @@
 - [x] add a defaults panel for providing things corresponding to Betters/Ehrbases CTX object (language, territory,  etc) Allow load and save of defaults. Add a map block for retreieving one of the defaults and using in a blockly slot.
 
 ## B. Robust good UI/UX
-- [ ] Change the way optional attributes are manually added to a block. Now we have an encircled plus sign that acts like a button opening a popup where fields can be added. CHange that to the more native blockly syle of block modification (that is used e.g for adding more "else if" and "else" statments to an "if" block) by clicking a cogwheel. THat way non-mandatory attirbutes can also be removed manually.
+- [x] Change the way optional attributes are manually added to a block. Now we have an encircled plus sign that acts like a button opening a popup where fields can be added. CHange that to the more native blockly syle of block modification (that is used e.g for adding more "else if" and "else" statments to an "if" block) by clicking a cogwheel. THat way non-mandatory attirbutes can also be removed manually.
+- [ ] Improve the avove cogwheeel configuration approach: 1.  Now in the popup's editor ther is often just a single block with a dropdown thet can be pulled into the "optional fields" or "optional RM" etc. Thet is unpedagogical with low discoverability of options and unneccesary clicks since you first need to expand the dropdown to see what is available. Instead show one block for each option, and if it is only supposed to be one of that option then make sure it can only be added once. 2. having the cogwheel to the left of the openehr zipehr symbol reduces the pedagogical matchup instead put it to the tigt of the dual label Name/datatype
 - [x] Activate Expand/collapse json etc i code mirror gutter
 - [ ] Add undo/redo for mapping editor
 - [ ] Integrate save functions with github repo (if logged in)
@@ -23,9 +24,13 @@
 - [ ] Make it possible to digest CSV tables (including via UI cut & paste of grids from Excel and Google sheets) for setting up table structures (arbitrariy number of rows and columns). They can later via suitable blockly blocks for picking based on index and/or content be used e.g. to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT. Each row has an optional unique name (string) to the far left and, each column has an optional unique name on top. The rest of the cells do not need to be unique and can have any datatype that blockly supports including nested blocks, but it should be possible to restrict the datatype of a row or column to a certain data output type (boolean / number / string / object)
 - [ ] Make it possible to digest FHIR terminology mappings for setting up maps/tables
 
-## D. Local (offline) version
-- [ ] test and describe how the local app can run in parallel with a normal IDE working on same files amd how the IDE's AI can help (possibly w/ skeill se beloew)
+## D. Local (offline) version with AI agent/CLI/IDE integration
+- [ ] Optimize the local (os native) version intehrgrator to work together with the AI enabled IDE or AI CLI of choise. This can likely be done by primarily working with local files (should be doable when running as executable packaged by deno in our binary releases) -
+(Web based Intehrgrator likely still needs to be primarily cut&paste integration.)
+- [ ] test and describe how the local app can run in parallel with a normal IDE working on same files and how the IDE's AI can help, at least write an installabel skill (ande possibly and MCP, see below)
 - [ ] make an "installable" AI skill that explains intehrgrator to the AI so that the AI can produce mapping suggestions in correct format
+- [ ] If the user turns it on and allows running a server, then expose an MCP API to a running instance of the executable (os native) version of intehrgrator. It could work in a way similar to how the Pencil/PEN (https://www.pen.dev/) MCP works. I believe it exposes operations that do work on the internal model of the pen/pencil editor so that the changes become visible as thery are performed by the agents. Same for intehrgrator would be to via MCP/API manipulate the blockly model and have the canvas update meanwhile. It would be good if the MCP (unless intehrgrator runs in a future headless mode) actually scrolls to and highlights the blocks it is editing. 
+- [ ] Preferably the MCP-mediated edits should be atomic and free of race conditions so that several agents could work towards the same model simultaneousley, e.g. one teminology mapping agent and another source system mapping agent. Would exposing the undo/redo log via the MCP make it possible for agents to detect stuff done since they last looked?  Perhaps return a timestamp (or other identifier) for the last action done by the (atomic) MCP call would help the calling agents determine if the model has changed since thay started thinking (and thus may need reevaluation/rethinking depending on what changed). IN the long run, perhaps a CRDT or operational transformation could be considered for multi agent and multi user simultaneous editing - but i hope blocklys built in undo/redo stack is enough to start with.
 
 
 ## E. target visualisation tree
@@ -59,10 +64,11 @@
 - [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins?
 - [ ] add special support for TakeCare term id (multiple systems, e.g. both test and prod )
 
-## I. AI Assistance
+## I. Initial AI Assistance
 - [ ] validate that AI assistance (initial cut & paste variant) works, improve if needed.
 - [ ] Add hints in prompt/instruction-file regarding openehr-assistant (possibly with deepwiki link)
 - [ ] Clairfy button lable inport AI suggestion
+
 
 # conversion script generation
 

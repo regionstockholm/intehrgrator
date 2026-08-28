@@ -41,7 +41,7 @@
 - [ ] check if any classes are missing
 - [x] There are two similarly looking blocks for SECTION, compare, then remove one.
 - [x] improve sorting of blocks in blockly toolbox (put common ones earlier, possibly subdivide/group, fix colour/pattern semantics)
-- [ ] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF) — `name` is now default-visible; demographics (`identifiers`, `PARTY_REF`) deferred (see README)
+- [x] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF) — `name`, `identifiers`, and `external_ref` (`party_ref`) are now on PARTY_* blocks; full Demographics compositions remain future work
 - [x] The ITEM_STRUCTRURE class is abstract but common in slots, follow the design of the EVENT blockly block that can be morphed to PONT_EVNT and INTERVAL_EVENT without dropping already connected sub blocks. HAeving the flexivility is important e.g. in not neccesarily archetyped FEEDER_AUDIT_DETAILS
 
 

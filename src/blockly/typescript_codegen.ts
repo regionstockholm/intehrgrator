@@ -138,8 +138,9 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
   if (block.type === "for_each_source") return emitForEach(block, ctx, indent);
   if (block.type === TERM_PICK_BLOCK_TYPE) return emitTermPick(block, ctx);
   if (block.type === "code_phrase") return emitCodePhrase(block, ctx, indent);
+  if (block.type === "party_ref") return emitPartyRef(block, ctx, indent);
   if (block.type === "party_identified" || block.type === "party_related") {
-    return emitPartyIdentified(block, ctx, indent);
+    return emitRmContainer(block, ctx, indent);
   }
   if (block.type === "party_self") {
     ctx.types.add("PARTY_SELF");
@@ -241,6 +242,14 @@ function emitAttribute(
   }
   const target = block.getInputTargetBlock(inputName);
   if (!target || target.isShadow()) return null;
+  if (target.type === "lists_create_with") {
+    return emitListsCreate(target, ctx);
+  }
+  if (isListAttribute(parentRmType, attr)) {
+    const code = emitBlock(target, ctx, indent + 1);
+    if (!code || isBlankGeneratedExpr(code)) return null;
+    return `[${code}]`;
+  }
   const simplified = emitSimplifiedParty(attr, target, ctx, indent);
   if (simplified) return simplified;
   const code = emitBlock(target, ctx, indent + 1);
@@ -404,25 +413,27 @@ function shouldEmitLocatableName(rmType: string, name: string): boolean {
   return generic !== rmType && generic.replace(/\s+/g, "_") !== rmType;
 }
 
-function emitPartyIdentified(block: Block, ctx: TsEmitContext, indent: number): string {
-  const nameBlock = block.getInputTargetBlock(rmAttributeInputName("name"));
-  const name = nameBlock && !nameBlock.isShadow()
-    ? emitBlock(nameBlock, ctx, indent + 1)
-    : "";
-  if (!name || isBlankGeneratedExpr(name)) {
-    if (block.type === "party_self") {
-      ctx.types.add("PARTY_SELF");
-      return "new PARTY_SELF()";
-    }
-    return "";
+function emitPartyRef(block: Block, ctx: TsEmitContext, indent: number): string {
+  ctx.types.add("PARTY_REF");
+  ctx.types.add("OBJECT_ID");
+  const props: Array<[string, string]> = [];
+  const idBlock = block.getInputTargetBlock(rmAttributeInputName("id"));
+  const nsBlock = block.getInputTargetBlock(rmAttributeInputName("namespace"));
+  const typeBlock = block.getInputTargetBlock(rmAttributeInputName("type"));
+  const id = idBlock && !idBlock.isShadow() ? emitBlock(idBlock, ctx, indent + 1) : "";
+  const namespace = nsBlock && !nsBlock.isShadow() ? emitBlock(nsBlock, ctx, indent + 1) : "";
+  const refType = typeBlock && !typeBlock.isShadow() ? emitBlock(typeBlock, ctx, indent + 1) : "";
+  if (id && !isBlankGeneratedExpr(id)) {
+    props.push(["id", formatRmConstruct("OBJECT_ID", [["value", asStringExpr(id)]], indent + 1, ctx)]);
   }
-  ctx.types.add(block.type === "party_related" ? "PARTY_RELATED" : "PARTY_IDENTIFIED");
-  return formatRmConstruct(
-    block.type === "party_related" ? "PARTY_RELATED" : "PARTY_IDENTIFIED",
-    [["name", asStringExpr(name)]],
-    indent,
-    ctx,
-  );
+  if (namespace && !isBlankGeneratedExpr(namespace)) {
+    props.push(["namespace", asStringExpr(namespace)]);
+  }
+  if (refType && !isBlankGeneratedExpr(refType)) {
+    props.push(["type", asStringExpr(refType)]);
+  }
+  if (!props.length) return "";
+  return formatRmConstruct("PARTY_REF", props, indent, ctx);
 }
 
 function emitListsGetIndex(block: Block, ctx: TsEmitContext): string {

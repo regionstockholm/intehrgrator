@@ -119,6 +119,8 @@ function openEhrTypeToolboxContents(m: ReturnType<typeof msg>): Array<Record<str
         { kind: "block", type: "party_self", gap: 8 },
         { kind: "block", type: "party_identified", gap: 8 },
         { kind: "block", type: "party_related", gap: 8 },
+        { kind: "block", type: "party_ref", gap: 8 },
+        { kind: "block", type: "dv_identifier", gap: 8 },
       ],
     },
     {

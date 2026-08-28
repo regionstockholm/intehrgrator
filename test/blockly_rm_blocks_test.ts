@@ -795,11 +795,37 @@ Deno.test("Blockly JSON extraState restores dynamic ATTR_ sockets including EVEN
   loaded.dispose();
 });
 
-Deno.test("PARTY_IDENTIFIED exposes name slot for defaults and mapping", () => {
+Deno.test("PARTY_IDENTIFIED exposes identity slots for compositions", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
   const party = workspace.newBlock("party_identified");
-  assert(party.getInput(rmAttributeInputName("name")), "party_identified should expose a name value slot");
+  assert(party.getInput(rmAttributeInputName("name")), "party_identified should expose name");
+  assert(party.getInput(rmAttributeInputName("identifiers")), "party_identified should expose identifiers");
+  assert(party.getInput(rmAttributeInputName("external_ref")), "party_identified should expose external_ref");
+  const idInput = party.getInput(rmAttributeInputName("identifiers"));
+  const idCheck = idInput?.connection?.getCheck() ?? [];
+  assert(
+    Array.isArray(idCheck) && idCheck.includes("lists_create_with"),
+    "identifiers accepts lists_create_with for List<DV_IDENTIFIER>",
+  );
+  const refInput = party.getInput(rmAttributeInputName("external_ref"));
+  const refCheck = refInput?.connection?.getCheck();
+  assert(
+    refCheck === "party_ref" || (Array.isArray(refCheck) && refCheck.includes("party_ref")),
+    `external_ref should accept party_ref, got ${JSON.stringify(refCheck)}`,
+  );
+  workspace.dispose();
+});
+
+Deno.test("party_ref and dv_identifier blocks are registered", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const ref = workspace.newBlock("party_ref");
+  assert(ref.getInput(rmAttributeInputName("id")));
+  assert(ref.getInput(rmAttributeInputName("namespace")));
+  assert(ref.getInput(rmAttributeInputName("type")));
+  const ident = workspace.newBlock("dv_identifier");
+  assert(ident.getInput(dvFieldInputName("id")));
   workspace.dispose();
 });
 

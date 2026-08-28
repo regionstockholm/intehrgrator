@@ -16,6 +16,8 @@ import {
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
   optionalRmInputName,
+  applyMutatorItemLabel,
+  buildOptionalRmFlyoutContents,
   OPTIONAL_RM_MUTATOR_CONTAINER,
   OPTIONAL_RM_MUTATOR_ITEM,
   DV_FIELDS_MUTATOR_ITEM,
@@ -791,6 +793,33 @@ Deno.test("Blockly JSON extraState restores dynamic ATTR_ sockets including EVEN
   loaded.dispose();
 });
 
+Deno.test("optional RM mutator flyout lists one labeled block per option", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  assert(composition.getField("MUTATOR_COG"), "cogwheel belongs after skeleton title");
+  const flyout = buildOptionalRmFlyoutContents(composition, []);
+  assert(flyout.length > 1, `expected multiple flyout options, got ${flyout.length}`);
+  assert(
+    flyout.every((entry) => entry.extraState?.attr && entry.extraState?.label),
+    "each flyout block carries attr + human label",
+  );
+  const withoutFeeder = buildOptionalRmFlyoutContents(composition, ["feeder_audit"]);
+  assertEquals(
+    withoutFeeder.some((entry) => entry.extraState?.attr === "feeder_audit"),
+    false,
+    "already-added options disappear from the flyout",
+  );
+
+  const bubble = new Blockly.Workspace();
+  const item = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
+  applyMutatorItemLabel(item, "feeder_audit", "Feeder audit (feeder_audit)");
+  assertEquals(item.getFieldValue("ATTR"), "feeder_audit");
+  assertEquals(item.getFieldValue("LABEL"), "Feeder audit (feeder_audit)");
+  workspace.dispose();
+  bubble.dispose();
+});
+
 Deno.test("optional RM mutator cogwheel adds extras and orphans on remove", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
@@ -802,7 +831,7 @@ Deno.test("optional RM mutator cogwheel adds extras and orphans on remove", () =
   const bubble = new Blockly.Workspace();
   const container = composition.decompose!(bubble);
   const item = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
-  item.setFieldValue("feeder_audit", "ATTR");
+  applyMutatorItemLabel(item, "feeder_audit", "Feeder audit (feeder_audit)");
   container.getInput("STACK")!.connection!.connect(item.previousConnection!);
   composition.compose!(container);
   assert(composition.getInput(optionalRmInputName("feeder_audit")));
@@ -842,7 +871,7 @@ Deno.test("DATA_VALUE mutator adds optional fields and has no plus-fields button
   const container = qty.decompose!(bubble);
   const item = bubble.newBlock(DV_FIELDS_MUTATOR_ITEM);
   const fieldName = item.getFieldValue("ATTR") || "normal_status";
-  item.setFieldValue(fieldName, "ATTR");
+  applyMutatorItemLabel(item, fieldName, fieldName);
   container.getInput("STACK")!.connection!.connect(item.previousConnection!);
   qty.compose!(container);
   assert(

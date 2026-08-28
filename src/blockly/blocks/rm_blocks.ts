@@ -51,6 +51,14 @@ export const EVENT_KIND_OPTIONS: Array<[string, string]> = [
   ["INTERVAL_EVENT", "INTERVAL_EVENT"],
 ];
 
+export const ITEM_STRUCTURE_KIND_OPTIONS: Array<[string, string]> = [
+  ["ITEM_STRUCTURE", "ITEM_STRUCTURE"],
+  ["ITEM_TREE", "ITEM_TREE"],
+  ["ITEM_LIST", "ITEM_LIST"],
+  ["ITEM_TABLE", "ITEM_TABLE"],
+  ["ITEM_SINGLE", "ITEM_SINGLE"],
+];
+
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
 export const RM_ATTR_INPUT_PREFIX = "ATTR_";
@@ -71,6 +79,7 @@ const EXTRA_RM_CONTAINERS = [
   "POINT_EVENT",
   "INTERVAL_EVENT",
   "EVENT_CONTEXT",
+  "ITEM_STRUCTURE",
   "ITEM_TREE",
   "ITEM_LIST",
   "ITEM_TABLE",
@@ -92,6 +101,16 @@ const EXTRA_RM_CONTAINERS = [
 export function isEventFamilyType(rmType: string): boolean {
   const name = (rmType || "").toUpperCase();
   return name === "EVENT" || isSubtypeOf(name, "EVENT");
+}
+
+export function isItemStructureFamilyType(rmType: string): boolean {
+  const name = (rmType || "").toUpperCase();
+  return name === "ITEM_STRUCTURE" || isSubtypeOf(name, "ITEM_STRUCTURE");
+}
+
+function isPartyIdentityType(rmType: string): boolean {
+  const name = (rmType || "").toUpperCase();
+  return name === "PARTY_IDENTIFIED" || name === "PARTY_RELATED";
 }
 
 export function isRmContainerBlockType(type: string): boolean {
@@ -365,6 +384,48 @@ function eventAttributesToShow(rmType: string, connected: string[]): string[] {
     names.add("math_function");
     names.add("sample_count");
   }
+  return [...names];
+}
+
+/**
+ * Switch an ITEM_STRUCTURE-family block between abstract ITEM_STRUCTURE and
+ * concrete subtypes without dropping already-attached children.
+ */
+export function applyItemStructureRmType(block: Blockly.Block, newType: string): void {
+  const next = (newType || "").toUpperCase();
+  if (!isItemStructureFamilyType(next)) return;
+
+  const current = String(block.getFieldValue("RM_TYPE") || "").toUpperCase();
+  if (current !== next && block.getField("RM_TYPE")) {
+    block.setFieldValue(next, "RM_TYPE");
+  }
+
+  const emoji = block.getField(BLOCK_OUT_EMOJI_FIELD);
+  if (isRmTypeEmojiField(emoji)) emoji.setRmType(next);
+  const title = block.getField("NAME");
+  if (isSkeletonTitleField(title)) title.setClassName(next);
+
+  const connected = presentAttributeNames(block).filter((name) =>
+    Boolean(
+      block.getInput(rmAttributeInputName(name))?.connection?.targetBlock() ||
+        block.getInput(optionalRmInputName(name))?.connection?.targetBlock(),
+    )
+  );
+  const show = itemStructureAttributesToShow(next, connected);
+  const cards = { ...(block.slotCardinalities_ ?? {}) };
+  syncRmAttributeInputs(block, next, show, cards);
+  if (typeof block.render === "function" && typeof document !== "undefined") {
+    block.render();
+  }
+}
+
+function itemStructureAttributesToShow(rmType: string, connected: string[]): string[] {
+  const names = new Set<string>(connected);
+  names.add("name");
+  const t = rmType.toUpperCase();
+  if (t === "ITEM_SINGLE") names.add("item");
+  else if (t === "ITEM_TABLE") names.add("rows");
+  else names.add("items");
   return [...names];
 }
 
@@ -728,6 +789,9 @@ function defineContainerBlock(
       if (isEventFamilyType(options.rmType)) {
         header.appendField(new Blockly.FieldDropdown(EVENT_KIND_OPTIONS), "RM_TYPE");
         this.setFieldValue(options.rmType, "RM_TYPE");
+      } else if (isItemStructureFamilyType(options.rmType)) {
+        header.appendField(new Blockly.FieldDropdown(ITEM_STRUCTURE_KIND_OPTIONS), "RM_TYPE");
+        this.setFieldValue(options.rmType, "RM_TYPE");
       }
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
       if (options.expandable) appendMutatorCogwheel(header);
@@ -739,10 +803,13 @@ function defineContainerBlock(
       for (const input of inputs) {
         appendRmAttributeInput(this, options.rmType, input.name, input.check);
       }
+      if (isPartyIdentityType(options.rmType) && !this.getInput(rmAttributeInputName("name"))) {
+        appendRmAttributeInput(this, options.rmType, "name");
+      }
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
       this.getField("SLOT_ID")!.setVisible(false);
-      if (!isEventFamilyType(options.rmType)) {
+      if (!isEventFamilyType(options.rmType) && !isItemStructureFamilyType(options.rmType)) {
         this.appendDummyInput()
           .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
         this.getField("RM_TYPE")!.setVisible(false);

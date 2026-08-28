@@ -14,6 +14,7 @@ import {
   expressionBlockFromDataValueShell,
   isDataValueBlock,
   isEventFamilyType,
+  isItemStructureFamilyType,
   presentAttributeNames,
   RM_ATTR_INPUT_PREFIX,
   OPTIONAL_INPUT_PREFIX,
@@ -28,6 +29,9 @@ import {
 
 export const ABSTRACT_EVENT_WARNING =
   "EVENT is abstract. Choose POINT_EVENT or INTERVAL_EVENT — runtime instances cannot be the abstract EVENT class.";
+
+export const ABSTRACT_ITEM_STRUCTURE_WARNING =
+  "ITEM_STRUCTURE is abstract. Choose ITEM_TREE, ITEM_LIST, ITEM_TABLE, or ITEM_SINGLE — runtime instances cannot be the abstract ITEM_STRUCTURE class.";
 
 const STATEMENT_INPUT_TYPE = 3;
 
@@ -57,6 +61,9 @@ export function blockConstraintMessages(block: Block): string[] {
   const rmType = (block.getFieldValue("RM_TYPE") || "").toUpperCase();
   if (rmType === "EVENT") {
     messages.push(ABSTRACT_EVENT_WARNING);
+  }
+  if (rmType === "ITEM_STRUCTURE") {
+    messages.push(ABSTRACT_ITEM_STRUCTURE_WARNING);
   }
 
   if (isMandatoryFlag(block) && isUnmappedValueBlock(block)) {

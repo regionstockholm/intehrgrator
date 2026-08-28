@@ -16,6 +16,7 @@ import {
   RM_ATTR_INPUT_PREFIX,
   RM_SPECIALIZATION_INPUT,
   isEventFamilyType,
+  isItemStructureFamilyType,
 } from "./blocks/rm_blocks.ts";
 import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
@@ -468,6 +469,9 @@ function rmTypeOf(block: Block): string {
   if (isRmContainerBlockType(block.type)) {
     const field = String(block.getFieldValue("RM_TYPE") ?? "").trim();
     if (field && (isEventFamilyType(field) || isEventFamilyType(fromType))) {
+      return field.toUpperCase();
+    }
+    if (field && (isItemStructureFamilyType(field) || isItemStructureFamilyType(fromType))) {
       return field.toUpperCase();
     }
     return fromType;

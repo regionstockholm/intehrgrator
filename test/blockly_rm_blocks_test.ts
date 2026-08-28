@@ -23,6 +23,7 @@ import {
   DV_FIELDS_MUTATOR_ITEM,
   syncRmAttributeInputs,
   applyEventRmType,
+  applyItemStructureRmType,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
@@ -40,6 +41,7 @@ import { isSkeletonTitleField, humanizeRmType } from "@intehrgrator/blockly/fiel
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
 import {
   ABSTRACT_EVENT_WARNING,
+  ABSTRACT_ITEM_STRUCTURE_WARNING,
   blockConstraintMessages,
   refreshWorkspaceConstraints,
   warningTextOf,
@@ -791,6 +793,40 @@ Deno.test("Blockly JSON extraState restores dynamic ATTR_ sockets including EVEN
   assert(ev2?.getInput(rmAttributeInputName("width")), "INTERVAL width must round-trip");
   assertEquals(ev2?.getInputTargetBlock(rmAttributeInputName("data"))?.type, "item_tree");
   loaded.dispose();
+});
+
+Deno.test("PARTY_IDENTIFIED exposes name slot for defaults and mapping", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const party = workspace.newBlock("party_identified");
+  assert(party.getInput(rmAttributeInputName("name")), "party_identified should expose a name value slot");
+  workspace.dispose();
+});
+
+Deno.test("ITEM_STRUCTURE block warns while abstract and morphs without dropping children", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const structure = workspace.newBlock("item_structure");
+  structure.setFieldValue("ITEM_STRUCTURE", "RM_TYPE");
+  syncRmAttributeInputs(structure, "ITEM_STRUCTURE", ["name", "items"]);
+  const tree = workspace.newBlock("cluster");
+  const itemsInput = structure.getInput(rmAttributeInputName("items"));
+  assert(itemsInput?.connection && tree.previousConnection);
+  itemsInput.connection.connect(tree.previousConnection);
+  refreshWorkspaceConstraints(workspace);
+  assertEquals(blockConstraintMessages(structure).includes(ABSTRACT_ITEM_STRUCTURE_WARNING), true);
+
+  applyItemStructureRmType(structure, "ITEM_TREE");
+  refreshWorkspaceConstraints(workspace);
+  assertEquals(structure.getFieldValue("RM_TYPE"), "ITEM_TREE");
+  assertEquals(structure.getInputTargetBlock(rmAttributeInputName("items"))?.id, tree.id);
+  assertEquals(blockConstraintMessages(structure).includes(ABSTRACT_ITEM_STRUCTURE_WARNING), false);
+
+  applyItemStructureRmType(structure, "ITEM_TABLE");
+  assertEquals(structure.getFieldValue("RM_TYPE"), "ITEM_TABLE");
+  assertEquals(structure.getInputTargetBlock(rmAttributeInputName("items"))?.id, tree.id);
+  assert(structure.getInput(rmAttributeInputName("rows")), "ITEM_TABLE.rows should appear");
+  workspace.dispose();
 });
 
 Deno.test("optional RM mutator flyout lists one labeled block per option", () => {

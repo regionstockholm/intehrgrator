@@ -32,6 +32,7 @@ export { applySkeletonBlockLabels, relabelWorkspaceFromSkeleton } from "./block_
 export {
   refreshWorkspaceConstraints,
   ABSTRACT_EVENT_WARNING,
+  ABSTRACT_ITEM_STRUCTURE_WARNING,
   warningTextOf,
   isUnmappedValueBlock,
   blockConstraintMessages,
@@ -69,7 +70,9 @@ export {
   setOptionalRmMutatorChangeHandler,
   setOptionalRmPickHandler,
   applyEventRmType,
+  applyItemStructureRmType,
   isEventFamilyType,
+  isItemStructureFamilyType,
 } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";

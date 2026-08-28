@@ -8,7 +8,7 @@
 
 ## B. Robust good UI/UX
 - [x] Change the way optional attributes are manually added to a block. Now we have an encircled plus sign that acts like a button opening a popup where fields can be added. CHange that to the more native blockly syle of block modification (that is used e.g for adding more "else if" and "else" statments to an "if" block) by clicking a cogwheel. THat way non-mandatory attirbutes can also be removed manually.
-- [ ] Improve the avove cogwheeel configuration approach: 1.  Now in the popup's editor ther is often just a single block with a dropdown thet can be pulled into the "optional fields" or "optional RM" etc. Thet is unpedagogical with low discoverability of options and unneccesary clicks since you first need to expand the dropdown to see what is available. Instead show one block for each option, and if it is only supposed to be one of that option then make sure it can only be added once. 2. having the cogwheel to the left of the openehr zipehr symbol reduces the pedagogical matchup instead put it to the tigt of the dual label Name/datatype
+- [x] Improve the avove cogwheeel configuration approach: 1.  Now in the popup's editor ther is often just a single block with a dropdown thet can be pulled into the "optional fields" or "optional RM" etc. Thet is unpedagogical with low discoverability of options and unneccesary clicks since you first need to expand the dropdown to see what is available. Instead show one block for each option, and if it is only supposed to be one of that option then make sure it can only be added once. 2. having the cogwheel to the left of the openehr zipehr symbol reduces the pedagogical matchup instead put it to the tigt of the dual label Name/datatype
 - [x] Activate Expand/collapse json etc i code mirror gutter
 - [x] Add undo/redo for mapping editor
 - [ ] Integrate save functions with github repo (if logged in)
@@ -40,9 +40,9 @@
 - [x] Change the CLUSTER block into the same colour as the ELEMENT block and move ELEMENT up to below CLUSTER 
 - [ ] check if any classes are missing
 - [x] There are two similarly looking blocks for SECTION, compare, then remove one.
-- [ ] improve sorting of blocks in blockly toolbox (put common ones earlier, possibly subdivide/group, fix colour/pattern semantics)
-- [ ] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF)
-- [ ] The ITEM_STRUCTRURE class is abstract but common in slots, follow the design of the EVENT blockly block that can be morphed to PONT_EVNT and INTERVAL_EVENT without dropping already connected sub blocks. HAeving the flexivility is important e.g. in not neccesarily archetyped FEEDER_AUDIT_DETAILS
+- [x] improve sorting of blocks in blockly toolbox (put common ones earlier, possibly subdivide/group, fix colour/pattern semantics)
+- [ ] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF) — `name` is now default-visible; demographics (`identifiers`, `PARTY_REF`) deferred (see README)
+- [x] The ITEM_STRUCTRURE class is abstract but common in slots, follow the design of the EVENT blockly block that can be morphed to PONT_EVNT and INTERVAL_EVENT without dropping already connected sub blocks. HAeving the flexivility is important e.g. in not neccesarily archetyped FEEDER_AUDIT_DETAILS
 
 
 ## G. Add support for Handlebars conversions

@@ -59,6 +59,7 @@ const VALUE_BLOCK_TYPES = new Set([
   "text_handlebars",
   "maps_create_with",
   "maps_create_empty",
+  "maps_get",
   "math_number",
   "logic_boolean",
   "text_trim",
@@ -137,6 +138,13 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "Use version `\"2\"` with Blockly `block` fragments (not JS-shaped xpath wrappers).",
     `The JSON must validate against: ${schemaUrlFromFormatDoc(options.formatDocUrl)}`,
     "",
+  );
+
+  if (options.targetFormat === "openehr-template") {
+    sections.push(...openEhrReferenceSections(options.formatDocUrl));
+  }
+
+  sections.push(
     "## Slot manifest",
     "```json",
     JSON.stringify(manifest, null, 2),
@@ -163,6 +171,36 @@ export function buildPrompt(options: BuildPromptOptions): string {
 
   sections.push(...deliverySections(options.delivery, options.artifacts));
   sections.push(
+    "",
+    "## Block examples",
+    "Value slots only — no RM containers or DV shells in suggestions. Examples:",
+    "",
+    "**Defaults lookup** (`maps_get` against the Defaults Map):",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}{path/to/language/value}",
+      block: {
+        type: "maps_get",
+        fields: { NAME: "defaults" },
+        inputs: {
+          KEY: { block: { type: "text", fields: { TEXT: "language" } } },
+        },
+      },
+    }, null, 2),
+    "```",
+    "",
+    "**Party identity `name` slot** (map source string onto a DV_TEXT value leaf):",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}{path/to/composer/name/value}",
+      block: {
+        type: "source_query",
+        fields: { EXPRESSION: "$.patient.name" },
+      },
+    }, null, 2),
+    "```",
+    "",
+    "**Repeating container** — put `for_each_source` in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list).",
     "",
     "## Instruction",
     "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). The app wraps the repeating container with `for_each_source` and evaluates each source node. Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
@@ -191,6 +229,26 @@ function formatTargetTask(format: string): string {
     default:
       return `instances of target format \`${format}\``;
   }
+}
+
+function docUrlFromFormatDoc(formatDocUrl: string, filename: string): string {
+  const base = formatDocUrl.replace(/\/[^/]*$/, "/");
+  return `${base}${filename}`;
+}
+
+function openEhrReferenceSections(formatDocUrl: string): string[] {
+  const primerUrl = docUrlFromFormatDoc(formatDocUrl, "OPENEHR_PRIMER.md");
+  return [
+    "## openEHR references",
+    "When the target is an openEHR template, use authoritative sources — do not invent RM paths, archetype ids, or terminology codes.",
+    "",
+    "- **openehr-assistant MCP** (if available): use for archetype/template lookup, terminology resolution, spec digests, and ADL/AQL guidance before guessing.",
+    `- **Primer**: ${primerUrl}`,
+    "- **ehrtslib (DeepWiki)**: https://deepwiki.com/ErikSundvall/ehrtslib",
+    "- **ehrtslib (GitHub)**: https://github.com/ErikSundvall/ehrtslib",
+    "- **openEHR specifications**: https://specifications.openehr.org/",
+    "",
+  ];
 }
 
 function deliverySections(
@@ -446,7 +504,7 @@ export function explainSuggestionSchemaIssue(
   }
   if (keyword === "enum" || /does not match any of/i.test(raw)) {
     if (/\.type$/.test(path)) {
-      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, or text_handlebars (not source_query_string). Loops use for_each_source only in loops[].`;
+      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, or maps_create_* (not source_query_string). Loops use for_each_source only in loops[].`;
     }
   }
   if (keyword === "const") {
@@ -863,6 +921,13 @@ function blockJsonToExpression(
         parts.push(val ? blockJsonToExpression(val, rewriteSourcePath) ?? "null" : "null");
       }
       return `map(${parts.join(", ")})`;
+    }
+    case "maps_get": {
+      const name = String(fields.NAME ?? "defaults");
+      const key = child("KEY")
+        ? blockJsonToExpression(child("KEY")!, rewriteSourcePath)
+        : '""';
+      return `maps_get(${JSON.stringify(name)}, ${key ?? '""'})`;
     }
     case "math_number":
       return String(fields.NUM ?? 0);

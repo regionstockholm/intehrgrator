@@ -138,12 +138,12 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 3.4 Nested openEHR toolbox drawers; missing RM blocks in flyout
   - [x] 3.5 TypeScript codegen for `PARTY_REF`, list-valued `identifiers`
   - [x] 3.6 Tests + README note (full Demographics compositions still future)
-- [ ] 4.0 Chunk 4 — AI copy-paste polish (roadmap I)
-  - [ ] 4.1 `buildPrompt`: openEHR references section (openehr-assistant MCP hint + doc links) when target is openEHR
-  - [ ] 4.2 Expand suggestion envelope: `maps_get` in schema, docs, import codegen; prompt examples for loops / defaults / party `name`
-  - [ ] 4.3 Import dialog: apply-valid-only with clear applied / skipped / schema counts (Q5)
-  - [ ] 4.4 Fixture + round-trip tests only (no live LLM in CI)
-  - [ ] 4.5 ROADMAP I items ticked; Q2 label already on `main`
+- [x] 4.0 Chunk 4 — AI copy-paste polish (roadmap I)
+  - [x] 4.1 `buildPrompt`: openEHR references section (openehr-assistant MCP hint + doc links) when target is openEHR
+  - [x] 4.2 Expand suggestion envelope: `maps_get` in schema, docs, import codegen; prompt examples for loops / defaults / party `name`
+  - [x] 4.3 Import dialog: apply-valid-only with clear applied / skipped / schema counts (Q5)
+  - [x] 4.4 Fixture + round-trip tests only (no live LLM in CI)
+  - [x] 4.5 ROADMAP I items ticked; Q2 label already on `main`
 - [ ] 5.0 Chunk 5 — Local app + installable AI skill (roadmap D)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)

@@ -54,6 +54,8 @@ Deno.test({
       );
       assertStringIncludes(prompt, "## Slot manifest");
       assertStringIncludes(prompt, "intehrgrator-suggestions");
+      assertStringIncludes(prompt, "## openEHR references");
+      assertStringIncludes(prompt, "openehr-assistant MCP");
 
       const { slotId, targetId, envelope } = suggestionsFromPrompt(prompt);
       assert(slotId.endsWith(systolicSuffix), slotId);

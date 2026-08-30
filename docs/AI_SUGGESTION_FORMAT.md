@@ -83,6 +83,7 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Source | `source_query`, `source_query_number`, `source_query_boolean` | `EXPRESSION` (fontoxpath). Pick by `valueType`: number→`_number`, boolean→`_boolean`, else plain. |
 | Loop | `for_each_source` | `VAR`, `PATH` (absolute multi-node path). Statement block — **only** in `loops[]`, not as a value `suggestions[].block`. Leave `DO` empty. |
 | Var | `variables_get` | `VAR` = loop variable name (whole node as value; rare). |
+| Map lookup | `maps_get` | `NAME` = map name (usually `"defaults"`); input `KEY` = key expression (often nested `text`). |
 | Literal | `text`, `math_number`, `logic_boolean` | `TEXT` / `NUM` / `BOOL` (`TRUE`\|`FALSE`) |
 | Text | `text_trim`, `text_join` | `MODE`; `text_join` may need `extraState.itemCount` + `ADD0`… |
 | Math | `math_arithmetic` | `OP`: `ADD`\|`MINUS`\|`MULTIPLY`\|`DIVIDE`; inputs `A`,`B` |
@@ -110,7 +111,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 4. Link to this doc
 5. Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …)
 6. Artifact delivery (below)
-7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating. Repeatable containers are listed separately for `attachSlotId`. Do not map source quantities onto ordinal/score fields unless the source is already that score.
+7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating. Repeatable containers are listed separately for `attachSlotId`. Use `maps_get` for Defaults Map keys (language, territory, encoding). Party identity value slots (e.g. composer `name`) map via `source_query` / `text` on the manifest leaf — not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score.
 
 ### Artifact delivery
 
@@ -131,7 +132,7 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 1. Extract fence (or raw JSON). `format` and `target` may be omitted; the loaded target is used.
 2. Require `version` `"2"`; match `target` when present
 3. Nested `attachSlotId` / `for_each_source` groups inside `suggestions[]` are flattened into `loops[]`. Validate `for_each_source`; keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container with `for_each_source` on the canvas
-4. Apply each suggestion `block` → value slot; report applied / skipped / errors
+4. Apply each valid suggestion `block` → value slot; skip invalid entries; report applied / skipped / errors
 5. User **Test Run**
 
 ## Examples
@@ -156,6 +157,28 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
               "fields": { "EXPRESSION": "$.name.family", "RETURN_TYPE": "string" }
             }
           }
+        }
+      }
+    }
+  ]
+}
+```
+
+**Defaults lookup (language)**
+
+```intehrgrator-suggestions
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": { "format": "openehr-template", "targetId": "vitals_encounter_v1" },
+  "suggestions": [
+    {
+      "slotId": "vitals_encounter_v1/language/value",
+      "block": {
+        "type": "maps_get",
+        "fields": { "NAME": "defaults" },
+        "inputs": {
+          "KEY": { "block": { "type": "text", "fields": { "TEXT": "language" } } }
         }
       }
     }

@@ -137,6 +137,7 @@
             "text_handlebars",
             "maps_create_with",
             "maps_create_empty",
+            "maps_get",
             "math_number",
             "logic_boolean",
             "text_trim",

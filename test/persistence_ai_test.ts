@@ -99,6 +99,67 @@ Deno.test("AI import keeps loopVar relative paths", () => {
   assertEquals(next.loops, [{ attachSlotId: "t1/events", varName: "vital", path: "$.vitals" }]);
 });
 
+Deno.test("AI import applies maps_get suggestion", () => {
+  const model = createEmptyModel("t1");
+  model.targetFormat = "openehr-template";
+  const { model: next, report } = importSuggestions(model, {
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "openehr-template", targetId: "t1" },
+    suggestions: [{
+      slotId: "t1/language/value",
+      block: {
+        type: "maps_get",
+        fields: { NAME: "defaults" },
+        inputs: {
+          KEY: { block: { type: "text", fields: { TEXT: "language" } } },
+        },
+      },
+    }],
+  }, new Set(["t1/language/value"]));
+  assertEquals(report.applied, 1);
+  assertEquals(next.slots[0].expression, 'maps_get("defaults", "language")');
+});
+
+Deno.test("AI import applies valid entries when envelope has schema issues", () => {
+  const model = createEmptyModel("t1");
+  model.targetFormat = "json-schema";
+  const payload = parseSuggestionsPayload(`{
+    "format": "intehrgrator-suggestions",
+    "version": "2",
+    "target": { "format": "json-schema", "targetId": "t1" },
+    "suggestions": [
+      {
+        "slotId": "t1:$.good",
+        "block": { "type": "source_query", "fields": { "EXPRESSION": "$.name" } }
+      },
+      {
+        "slotId": "t1:$.bad",
+        "block": { "type": "not_a_real_block", "fields": {} }
+      }
+    ]
+  }`);
+  const schemaIssues = validateSuggestionEnvelope(JSON.parse(`{
+    "format": "intehrgrator-suggestions",
+    "version": "2",
+    "target": { "format": "json-schema", "targetId": "t1" },
+    "suggestions": [
+      { "slotId": "t1:$.good", "block": { "type": "source_query", "fields": { "EXPRESSION": "$.name" } } },
+      { "slotId": "t1:$.bad", "block": { "type": "not_a_real_block", "fields": {} } }
+    ]
+  }`));
+  const { model: next, report } = importSuggestions(
+    model,
+    payload,
+    new Set(["t1:$.good", "t1:$.bad"]),
+  );
+  report.schemaIssues = schemaIssues;
+  assertEquals(report.applied, 1);
+  assertEquals(report.skipped, 1);
+  assertEquals(schemaIssues.length > 0, true);
+  assertEquals(next.slots[0].expression, 'xpathString("$.name")');
+});
+
 Deno.test("joinLoopPath", () => {
   assertEquals(joinLoopPath("$.vitals", "systolic"), "$.vitals[*].systolic");
   assertEquals(joinLoopPath("$.vitals[*]", "systolic"), "$.vitals[*].systolic");
@@ -164,6 +225,28 @@ Deno.test("buildPrompt inline embeds multipart body", () => {
   assertEquals(prompt.includes('X-Intehrgrator-Role: source-schema'), true);
   assertEquals(prompt.includes('{"type":"object"}'), true);
   assertEquals(prompt.includes("AI_SUGGESTION_FORMAT.schema.json"), true);
+});
+
+Deno.test("buildPrompt openEHR target includes references and block examples", () => {
+  const model = createEmptyModel("t1");
+  model.targetFormat = "openehr-template";
+  const prompt = buildPrompt({
+    scope: "full",
+    targetId: "t1",
+    targetFormat: "openehr-template",
+    targetFilename: "bp.opt",
+    skeleton: [],
+    model,
+    formatDocUrl: "https://example.test/docs/AI_SUGGESTION_FORMAT.md",
+    delivery: "attach",
+    artifacts: [],
+  });
+  assertEquals(prompt.includes("## openEHR references"), true);
+  assertEquals(prompt.includes("openehr-assistant MCP"), true);
+  assertEquals(prompt.includes("OPENEHR_PRIMER.md"), true);
+  assertEquals(prompt.includes("deepwiki.com/ErikSundvall/ehrtslib"), true);
+  assertEquals(prompt.includes("## Block examples"), true);
+  assertEquals(prompt.includes("maps_get"), true);
 });
 
 Deno.test("buildPrompt uri lists browseable URLs", () => {
@@ -352,6 +435,25 @@ Deno.test("suggestion JSON Schema accepts the documented repeating-vitals exampl
       block: {
         type: "source_query_number",
         fields: { EXPRESSION: "systolic" },
+      },
+    }],
+  });
+  assertEquals(issues, []);
+});
+
+Deno.test("suggestion JSON Schema accepts maps_get", () => {
+  const issues = validateSuggestionEnvelope({
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "openehr-template", targetId: "t1" },
+    suggestions: [{
+      slotId: "t1/language/value",
+      block: {
+        type: "maps_get",
+        fields: { NAME: "defaults" },
+        inputs: {
+          KEY: { block: { type: "text", fields: { TEXT: "language" } } },
+        },
       },
     }],
   });

@@ -35,6 +35,7 @@ Deno.test("formatImportReport is partial when mappings applied with schema issue
   });
   assertEquals(kind, "partial");
   assertEquals(summary.includes("1 schema"), true);
+  assertEquals(summary.includes("valid entries only"), true);
 });
 
 Deno.test("locateIssueInText highlights an invalid block type", () => {

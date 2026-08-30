@@ -65,9 +65,9 @@
 - [ ] add special support for TakeCare term id (multiple systems, e.g. both test and prod )
 
 ## I. Initial AI Assistance
-- [ ] validate that AI assistance (initial cut & paste variant) works, improve if needed.
-- [ ] Add hints in prompt/instruction-file regarding openehr-assistant (possibly with deepwiki link)
-- [ ] Clairfy button lable inport AI suggestion
+- [x] validate that AI assistance (initial cut & paste variant) works, improve if needed.
+- [x] Add hints in prompt/instruction-file regarding openehr-assistant (possibly with deepwiki link)
+- [x] Clarify button label Import AI suggestions
 
 
 # conversion script generation

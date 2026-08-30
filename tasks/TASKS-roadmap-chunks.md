@@ -46,6 +46,38 @@ Asked after this plan was written, before coding Chunk 1. Recommended answers **
 
 ➡️ **Adopted: Chunk 2 = remaining B UX that shares Blockly editor surface (undo/redo, toolbox-search, Mapping Spec gutter markers); Chunk 3 = F RM completeness.** Handlebars and tables stay later (higher risk, less blocking).
 
+## Grill round 3 (Chunk 4 frontier)
+
+Asked before coding Chunk 4 (AI copy-paste polish). Recommended answers **adopted**.
+
+❓ **Q1** - **openEHR references in prompt**: Should Copy AI Prompt mention the openehr-assistant MCP, link to docs, or both?
+
+➡️ **Adopted: both.** Add an **openEHR references** section when the target is an openEHR template: hint to use the openehr-assistant MCP for spec/archetype lookup, plus links to `docs/OPENEHR_PRIMER.md`, `docs/AI_SUGGESTION_FORMAT.md`, and DeepWiki/ehrtslib.
+
+---
+
+❓ **Q2** - **Import button label**: Toolbar still says “Import Suggestions”; rename to “Import AI suggestions”?
+
+➡️ **Adopted: already fixed on `main`.** No further work.
+
+---
+
+❓ **Q3** - **CI validation depth**: Should recurring CI call a live LLM, or only fixture/round-trip tests?
+
+➡️ **Adopted: fixture/round-trip only; no live LLM in recurring CI.**
+
+---
+
+❓ **Q4** - **Suggestion envelope breadth**: Expand allowed value `block.type` list and prompt examples (e.g. `maps_get`, loops, party `name` slots)?
+
+➡️ **Adopted: yes.** Add `maps_get` to schema + import codegen; document examples for defaults lookup, repeating containers, and party identity value slots (`name` via `source_query` / `text`).
+
+---
+
+❓ **Q5** - **Partial import**: On schema/apply errors, import valid entries only and report counts?
+
+➡️ **Adopted: yes.** Keep apply-valid-only behaviour; surface applied / loops / skipped / errors / schema counts in the import dialog summary.
+
 ## Relevant Files
 
 - `src/blockly/blocks/rm_blocks.ts` — `optional_rm_mutator` / `dv_fields_mutator`, + image fields, compose/decompose
@@ -67,16 +99,16 @@ Asked after this plan was written, before coding Chunk 1. Recommended answers **
 | 1    | Native cogwheel for optional attributes | B: replace + popup with cogwheel; non-mandatory can be removed                                                                                           | First unfinished item; Blockly-native mutator; unblocks honest optional RM/DV editing      |
 | 2    | Mapping Editor chrome                   | B: undo/redo; toolbox-search plugin; Mapping Spec gutter error markers                                                                                   | Shared editor surface; independent of RM class work                                        |
 | 3    | RM Blockly completeness                 | F: missing classes; toolbox sort/groups/colour; PARTY_IDENTIFIED `name`/`identifiers`; ITEM_STRUCTURE morph like EVENT                                   | Uses cogwheel once it exists; `openehr://spec/type/RM/PARTY_IDENTIFIED` + `ITEM_STRUCTURE` |
-| 4    | AI copy-paste polish                    | I: validate assist; openehr-assistant prompt hint; clarify Import Suggestions label                                                                      | Small, isolated toolbar/prompt work                                                        |
-| 5    | Cross-pane a11y                         | B: colourblind in→conv→out; sync highlight mapping ↔ Conversion Test Run                                                                                 | Visual language; after editor mechanics settle                                             |
-| 6    | Handlebars correctness                  | G: harden Mapping preview Test Run; execute generated Handlebars script; Blockly ↔ Handlebars Template round-trip; arm Click-to-Map on source-node block | Documented as shaky; ADR 0001 / 0003                                                       |
-| 7    | Maps/tables                             | C: CSV/Excel paste tables; FHIR terminology maps                                                                                                         | Needs solid map blocks (already done) + lookup blocks                                      |
-| 8    | Conversion scripts                      | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI                                                                         | After mapping/RM is trustworthy                                                            |
-| 9    | Persistence, i18n, versioning           | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
-| 10   | Dynamic schema toolboxes                | H: JSON/XSD target drawers from schema; TakeCare test + term ids                                                                                         | Productized schema-specific Blockly                                                        |
+| 4    | AI copy-paste polish                    | I: validate assist; openehr-assistant prompt hint; clarify Import AI suggestions label                                                                   | Small, isolated toolbar/prompt work                                                        |
+| 5    | Local/offline AI skill                  | D: parallel IDE + local app; installable AI skill for suggestion format                                                                                  | Docs + skill packaging                                                                     |
+| 6    | Dynamic schema toolboxes                | H: JSON/XSD target drawers from schema; TakeCare test + term ids                                                                                         | Productized schema-specific Blockly                                                        |
+| 7    | Handlebars correctness                  | G: harden Mapping preview Test Run; execute generated Handlebars script; Blockly ↔ Handlebars Template round-trip; arm Click-to-Map on source-node block | Documented as shaky; ADR 0001 / 0003                                                       |
+| 8    | Maps/tables                             | C: CSV/Excel paste tables; FHIR terminology maps                                                                                                         | Needs solid map blocks (already done) + lookup blocks                                      |
+| 9    | Conversion scripts                      | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI                                                                         | After mapping/RM is trustworthy                                                            |
+| 10   | Persistence, i18n, versioning           | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
 | 11   | Better Form parity                      | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
 | 12   | Later hosts                             | v1 follow-ups: Java Export UI; VS Code host; Autoplay E2E                                                                                                | Explicitly post-v1                                                                         |
-| 13   | Local/offline AI skill                  | D: parallel IDE + local app; installable AI skill for suggestion format                                                                                  | Docs + skill packaging                                                                     |
+| 13   | Cross-pane a11y                         | B: colourblind in→conv→out; sync highlight mapping ↔ Conversion Test Run                                                                                 | Visual language; after editor mechanics settle                                             |
 
 
 Already done (do not re-open unless regression): A small fixes (including `.xml` pickers), maps de-uglify, target visualisation pane removal, CLUSTER/SECTION colour/cleanup, Handlebars language + template tab, XQuery Model B emit.
@@ -106,13 +138,18 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 3.4 Nested openEHR toolbox drawers; missing RM blocks in flyout
   - [x] 3.5 TypeScript codegen for `PARTY_REF`, list-valued `identifiers`
   - [x] 3.6 Tests + README note (full Demographics compositions still future)
-- [ ] 4.0 Chunk 4 — AI copy-paste polish (roadmap I) — **grill round 3 pending user answers**
-- [ ] 5.0 Chunk 5 — Colourblind language + sync highlight
-- [ ] 6.0 Chunk 6 — Handlebars Test Run + round-trip
-- [ ] 7.0 Chunk 7 — CSV / FHIR tables
-- [ ] 8.0 Chunk 8 — Conversion script goldens + XQuery Model A/C
-- [ ] 9.0 Chunk 9 — GitHub save, UI i18n, dependency hashes
-- [ ] 10.0 Chunk 10 — Schema-driven dynamic toolboxes
-- [ ] 11.0 Chunk 11 — Better Form parity
+- [ ] 4.0 Chunk 4 — AI copy-paste polish (roadmap I)
+  - [ ] 4.1 `buildPrompt`: openEHR references section (openehr-assistant MCP hint + doc links) when target is openEHR
+  - [ ] 4.2 Expand suggestion envelope: `maps_get` in schema, docs, import codegen; prompt examples for loops / defaults / party `name`
+  - [ ] 4.3 Import dialog: apply-valid-only with clear applied / skipped / schema counts (Q5)
+  - [ ] 4.4 Fixture + round-trip tests only (no live LLM in CI)
+  - [ ] 4.5 ROADMAP I items ticked; Q2 label already on `main`
+- [ ] 5.0 Chunk 5 — Local app + installable AI skill (roadmap D)
+- [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
+- [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
+- [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
+- [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)
+- [ ] 10.0 Chunk 10 — GitHub save, UI i18n, dependency hashes (roadmap B/L)
+- [ ] 11.0 Chunk 11 — Better Form parity (roadmap G)
 - [ ] 12.0 Chunk 12 — Java Export UI / VS Code host / Autoplay E2E
-- [ ] 13.0 Chunk 13 — Local app + installable AI skill
+- [ ] 13.0 Chunk 13 — Colourblind language + sync highlight (roadmap B)

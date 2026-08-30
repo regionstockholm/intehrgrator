@@ -133,13 +133,17 @@ const schemaTreeEl = document.getElementById("schema-tree")!;
 const exampleTabsEl = document.getElementById("example-tabs")!;
 const exampleValidationEl = document.getElementById("example-validation")!;
 const testOutputTabsEl = document.getElementById("test-output-tabs")!;
+const testOutputValidationEl = document.getElementById("test-output-validation")!;
 const exampleTreeEl = document.getElementById("example-tree")!;
 const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
 const statusSave = document.getElementById("status-save")!;
 const statusBuild = document.getElementById("status-build")!;
-const targetFormatBadge = document.getElementById("target-format-badge")!;
 const exportTargetSelect = document.getElementById("export-target") as HTMLSelectElement;
+const validationDeserializeSelect = document.getElementById(
+  "validation-deserialize-mode",
+) as HTMLSelectElement;
+const validationModeWrap = document.getElementById("validation-mode-wrap")!;
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
 const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
 const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
@@ -235,6 +239,11 @@ exportTargetSelect.addEventListener("change", () => {
     | "xquery";
   controller.setExportTarget(target);
   if (target === "handlebars") showTextView("handlebars");
+});
+validationDeserializeSelect.addEventListener("change", () => {
+  controller.setOpenEhrJsonDeserializeMode(
+    validationDeserializeSelect.value as import("@intehrgrator/types/mod.ts").OpenEhrJsonDeserializeMode,
+  );
 });
 
 function setupUiLanguageMenu(locale: IntehrLocale): void {
@@ -1549,6 +1558,7 @@ function render(): void {
 
   renderExampleTabs(s);
   renderTestOutputTabs(s);
+  renderTestOutputValidation(s);
   renderExampleValidation(s);
 
   if (s.exampleTree && s.activeExample) {
@@ -1603,18 +1613,15 @@ function render(): void {
   }
   const generated = afterCanvas.generatedCode || "// Generated Export";
   setEditorDoc(exportEditor, generated, languageForExportTarget(s.settings.exportTarget, generated));
-  const testOutput = afterCanvas.testResult
-    ? formatTestOutput(
-      afterCanvas.testResult.output ?? afterCanvas.testResult.composition ??
-        { error: afterCanvas.testResult.error },
-    )
+  const testOutput = afterCanvas.testResult?.output ?? afterCanvas.testResult?.composition;
+  const testOutputText = testOutput !== undefined
+    ? formatTestOutput(testOutput)
     : "// Test Run output";
-  setEditorDoc(testOutputEditor, testOutput, detectEditorLanguage(testOutput));
+  setEditorDoc(testOutputEditor, testOutputText, detectEditorLanguage(testOutputText));
 
-  targetFormatBadge.textContent = s.target
-    ? `${s.target.format} · ${s.target.targetId}`
-    : "No target";
   exportTargetSelect.value = s.settings.exportTarget;
+  validationDeserializeSelect.value = s.settings.openEhrJsonDeserializeMode;
+  validationModeWrap.hidden = s.target?.format !== "openehr-template";
   const exportBtn = document.getElementById("btn-export-ts") as HTMLButtonElement | null;
   if (exportBtn) exportBtn.disabled = s.settings.exportTarget === "preview";
   const testDownload = document.getElementById("btn-download-test-output") as HTMLButtonElement | null;
@@ -1675,44 +1682,72 @@ function renderTestOutputTabs(s: ReturnType<WorkbenchController["getState"]>): v
   testOutputTabsEl.innerHTML = "";
   for (const ex of s.examples) {
     const validation = s.outputValidations[ex.id];
+    const hasIssues = Boolean(
+      validation?.applicable && !validation.valid && validation.messages.length,
+    );
     const tab = document.createElement("button");
     tab.type = "button";
     tab.className = "example-tab" + (s.activeExample?.id === ex.id ? " active" : "");
-    if (validation?.applicable) {
-      if (validation.valid) {
-        const mark = document.createElement("span");
-        mark.className = "output-tab-mark";
-        mark.textContent = "✅";
-        mark.title = "Passes openEHR template validation";
-        tab.append(mark);
-      } else {
-        const mark = document.createElement("button");
-        mark.type = "button";
-        mark.className = "output-tab-mark output-tab-mark--warn";
-        mark.textContent = "⚠";
-        mark.setAttribute("aria-label", `Validation errors for ${ex.filename}`);
-        mark.title = validation.messages.map((m) => `${m.path}: ${m.message}`).join("\n");
-        mark.addEventListener("click", (event) => {
-          event.stopPropagation();
-          tab.classList.toggle("output-tab-errors-open");
-        });
-        tab.append(mark);
-        const errors = document.createElement("dl");
-        errors.className = "output-tab-errors";
-        for (const msg of validation.messages) {
-          const dt = document.createElement("dt");
-          dt.textContent = msg.path;
-          const dd = document.createElement("dd");
-          dd.textContent = msg.message;
-          errors.append(dt, dd);
-        }
-        tab.append(errors);
-      }
+    if (validation?.applicable && validation.valid) {
+      const mark = document.createElement("span");
+      mark.className = "output-tab-mark";
+      mark.textContent = "✅";
+      mark.title = "Passes openEHR template validation";
+      tab.append(mark);
+    } else if (hasIssues) {
+      const warn = document.createElement("span");
+      warn.className = "example-tab-warn";
+      warn.textContent = "⚠";
+      warn.title = "Conversion output does not match target template";
+      tab.append(warn);
     }
     tab.append(ex.filename);
     tab.addEventListener("click", () => controller.setActiveExample(ex.id));
     testOutputTabsEl.appendChild(tab);
   }
+}
+
+function formatValidationListItem(
+  path: string,
+  message: string,
+  line?: number,
+): string {
+  const where = line ? `line ${line}: ${path}` : path;
+  return `${where}: ${message}`;
+}
+
+function renderTestOutputValidation(s: ReturnType<WorkbenchController["getState"]>): void {
+  const items: string[] = [];
+  const result = s.testResult;
+  const validation = s.activeExample
+    ? s.outputValidations[s.activeExample.id]
+    : undefined;
+
+  if (validation?.applicable && !validation.valid) {
+    for (const msg of validation.messages) {
+      items.push(formatValidationListItem(msg.path, msg.message, msg.line));
+    }
+  } else if (result?.error) {
+    const line = validation?.messages[0]?.line;
+    items.push(formatValidationListItem("/", result.error, line));
+  }
+  for (const warning of result?.warnings ?? []) items.push(warning);
+  if (!items.length) {
+    testOutputValidationEl.hidden = true;
+    testOutputValidationEl.replaceChildren();
+    return;
+  }
+  testOutputValidationEl.hidden = false;
+  testOutputValidationEl.replaceChildren();
+  const title = document.createElement("strong");
+  title.textContent = result?.error ? "Conversion failed:" : "Template validation:";
+  const list = document.createElement("ul");
+  for (const text of items) {
+    const item = document.createElement("li");
+    item.textContent = text;
+    list.appendChild(item);
+  }
+  testOutputValidationEl.append(title, list);
 }
 
 function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>): void {

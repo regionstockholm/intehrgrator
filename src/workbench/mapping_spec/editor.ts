@@ -5,6 +5,7 @@ import {
   ViewPlugin,
   WidgetType,
   type DecorationSet,
+  type ViewUpdate,
 } from "@codemirror/view";
 import { json } from "@codemirror/lang-json";
 import { editorChromeExtensions } from "../codemirror_setup.ts";
@@ -14,7 +15,7 @@ import {
   type SpecLine,
 } from "./project.ts";
 import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler } from "./widgets.ts";
-import { specWarningMarkers } from "./overview.ts";
+import { specOverviewTickTopPx, specWarningMarkers } from "./overview.ts";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
@@ -325,8 +326,17 @@ function specOverview(onSelect?: SpecBlockSelectHandler) {
       this.rebuild();
     }
 
-    update(): void {
-      this.rebuild();
+    update(update: ViewUpdate): void {
+      if (
+        update.docChanged ||
+        update.geometryChanged ||
+        update.viewportChanged ||
+        update.transactions.some((tr) =>
+          tr.effects.some((effect) => effect.is(setJsonDocEffect) || effect.is(setSpecChromeEffect))
+        )
+      ) {
+        this.rebuild();
+      }
     }
 
     destroy(): void {
@@ -336,13 +346,25 @@ function specOverview(onSelect?: SpecBlockSelectHandler) {
     private rebuild(): void {
       const doc = this.view.state.field(jsonDocField);
       const chrome = this.view.state.field(specChromeField);
-      const markers = specWarningMarkers(doc, chrome.warnings, this.view.state.doc.length);
+      const markers = specWarningMarkers(doc, chrome.warnings);
+      const scrollHeight = this.view.scrollDOM.scrollHeight;
+      const trackHeight = this.dom.clientHeight;
       this.dom.replaceChildren();
+      if (!scrollHeight || !trackHeight || !markers.length) return;
+
       for (const marker of markers) {
+        const lineBlock = this.view.lineBlockAt(marker.from);
         const tick = document.createElement("button");
         tick.type = "button";
         tick.className = "cm-spec-overview-tick";
-        tick.style.top = `${Math.min(98, Math.max(0, marker.ratio * 100))}%`;
+        tick.style.top = `${
+          specOverviewTickTopPx(
+            lineBlock.top,
+            lineBlock.height,
+            scrollHeight,
+            trackHeight,
+          )
+        }px`;
         tick.title = marker.message;
         tick.setAttribute("aria-label", marker.message);
         tick.addEventListener("mousedown", (event) => {

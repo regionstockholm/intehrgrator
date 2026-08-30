@@ -2,6 +2,7 @@ import type {
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  OpenEhrJsonDeserializeMode,
   OutputMode,
   OutputValidation,
   ProjectBundle,
@@ -129,6 +130,7 @@ export class WorkbenchController {
   private handlebarsTemplate = "";
   private generatedCode = "";
   private testResult: TestResult | null = null;
+  private exampleTestResults = new Map<string, TestResult>();
   private outputValidations = new Map<string, OutputValidation>();
   private listeningSlotId: string | null = null;
   private listeningSourceBlockId: string | null = null;
@@ -544,38 +546,20 @@ export class WorkbenchController {
   setActiveExample(id: string): void {
     this.examples.setActive(id);
     this.clearTreeHighlight();
-    const cached = this.examples.getCachedResult(id);
-    const validation = this.outputValidations.get(id);
-    this.testResult = cached !== undefined
-      ? {
-        ok: true,
-        output: cached,
-        composition: cached,
-        warnings: [],
-        outputValidation: validation,
-      }
-      : null;
+    this.testResult = this.exampleTestResults.get(id) ?? null;
     this.markDirty();
   }
 
   removeExample(id: string): void {
     this.examples.removeExample(id);
+    this.exampleTestResults.delete(id);
+    this.outputValidations.delete(id);
     if (!this.examples.hasExamples()) {
       this.settings.autoplay = false;
       this.testResult = null;
     } else {
       const active = this.examples.getActive();
-      const cached = active ? this.examples.getCachedResult(active.id) : undefined;
-      const validation = active ? this.outputValidations.get(active.id) : undefined;
-      this.testResult = cached !== undefined
-        ? {
-          ok: true,
-          output: cached,
-          composition: cached,
-          warnings: [],
-          outputValidation: validation,
-        }
-        : null;
+      this.testResult = active ? this.exampleTestResults.get(active.id) ?? null : null;
     }
     this.markDirty();
   }
@@ -742,38 +726,34 @@ export class WorkbenchController {
   }
 
   runTestNow(): void {
-    const mode = this.settings.exportTarget;
-    if (isConversionScriptLanguage(mode) && mode !== "typescript") {
-      const message = unimplementedTestRunMessage(mode);
-      this.testResult = {
-        ok: false,
-        output: message,
-        composition: message,
-        error: message.trim(),
-        warnings: [],
-      };
-      this.notifyChange();
-      return;
-    }
     const active = this.examples.getActive();
     if (!active) {
       this.testResult = { ok: false, error: "No active example", warnings: [] };
       this.notifyChange();
       return;
     }
-    this.testResult = runTest(this.model, active.content, active.format, {
-      target: this.target,
-      outputMode: mode,
-      exportTarget: this.target?.format === "free-form" ? "handlebars" : undefined,
-      generatedCode: mode === "typescript" ? this.generatedCode : undefined,
-      handlebarsTemplate: this.handlebarsTemplate,
-      blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
-    });
-    if (this.testResult.output !== undefined) {
-      this.examples.setCachedResult(active.id, this.testResult.output);
+    this.testResult = this.executeTestForExample(active);
+    this.storeExampleTestResult(active.id, this.testResult);
+    this.notifyChange();
+  }
+
+  /** Run Conversion Test for every example (active first), updating per-tab validation marks. */
+  runAllTests(): void {
+    const examples = this.examples.list();
+    if (!examples.length) {
+      this.runTestNow();
+      return;
     }
-    if (this.testResult.outputValidation) {
-      this.outputValidations.set(active.id, this.testResult.outputValidation);
+    const active = this.examples.getActive();
+    const ordered = active
+      ? [active, ...examples.filter((ex) => ex.id !== active.id)]
+      : examples;
+    for (const ex of ordered) {
+      const result = this.executeTestForExample(ex);
+      this.storeExampleTestResult(ex.id, result);
+      if (ex.id === active?.id || (!active && ex === ordered[0])) {
+        this.testResult = result;
+      }
     }
     this.notifyChange();
   }
@@ -1053,9 +1033,20 @@ export class WorkbenchController {
     this.settings.exportTarget = target;
     this.examples.clearCache();
     this.outputValidations.clear();
+    this.exampleTestResults.clear();
     this.refreshDerived();
     if (this.examples.hasExamples() || (isConversionScriptLanguage(target) && target !== "typescript")) {
       this.runTestNow();
+    } else {
+      this.notifyChange();
+    }
+  }
+
+  setOpenEhrJsonDeserializeMode(mode: OpenEhrJsonDeserializeMode): void {
+    if (this.settings.openEhrJsonDeserializeMode === mode) return;
+    this.settings.openEhrJsonDeserializeMode = mode;
+    if (this.examples.hasExamples()) {
+      this.runAllTests();
     } else {
       this.notifyChange();
     }
@@ -1214,9 +1205,13 @@ export class WorkbenchController {
   }
 
   private applyExampleFile(filename: string, content: string): string {
+    const enableAutoplay = !this.examples.hasExamples();
     const format = detectSourceFormat(filename, content);
     const id = crypto.randomUUID();
     this.examples.addExample({ id, filename, format, content });
+    if (enableAutoplay) {
+      this.settings.autoplay = true;
+    }
     return id;
   }
 
@@ -1242,7 +1237,7 @@ export class WorkbenchController {
     this.postLoadTimer = setTimeout(() => {
       this.postLoadTimer = null;
       this.refreshDerived();
-      if (this.examples.hasExamples()) this.runTestNow();
+      if (this.examples.hasExamples()) this.runAllTests();
       else this.notifyChange();
     }, POST_LOAD_OUTPUT_MS) as unknown as number;
   }
@@ -1305,6 +1300,7 @@ export class WorkbenchController {
     this.generatedCode = "";
     this.testResult = null;
     this.outputValidations.clear();
+    this.exampleTestResults.clear();
     this.listeningSlotId = null;
     this.listeningSourceBlockId = null;
     this.treeHighlight = { syncPath: null, origin: null };
@@ -1326,9 +1322,44 @@ export class WorkbenchController {
   private scheduleTestRun(): void {
     if (this.debounceTimer !== null) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
-      this.runTestNow();
+      this.runAllTests();
       this.debounceTimer = null;
     }, 500) as unknown as number;
+  }
+
+  private executeTestForExample(
+    example: { content: string; format: SourceFormatId },
+  ): TestResult {
+    const mode = this.settings.exportTarget;
+    if (isConversionScriptLanguage(mode) && mode !== "typescript") {
+      const message = unimplementedTestRunMessage(mode);
+      return {
+        ok: false,
+        output: message,
+        composition: message,
+        error: message.trim(),
+        warnings: [],
+      };
+    }
+    return runTest(this.model, example.content, example.format, {
+      target: this.target,
+      outputMode: mode,
+      exportTarget: this.target?.format === "free-form" ? "handlebars" : undefined,
+      generatedCode: mode === "typescript" ? this.generatedCode : undefined,
+      handlebarsTemplate: this.handlebarsTemplate,
+      blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      openEhrJsonDeserializeMode: this.settings.openEhrJsonDeserializeMode,
+    });
+  }
+
+  private storeExampleTestResult(id: string, result: TestResult): void {
+    this.exampleTestResults.set(id, result);
+    if (result.output !== undefined) {
+      this.examples.setCachedResult(id, result.output);
+    }
+    if (result.outputValidation) {
+      this.outputValidations.set(id, result.outputValidation);
+    }
   }
 
   private toBundle(): ProjectBundle {
@@ -1382,11 +1413,17 @@ export class WorkbenchController {
 
   private loadBundle(bundle: ProjectBundle): void {
     this.projectId = bundle.projectId;
+    const rawSettings = bundle.settings as ProjectSettings & { validationStrict?: boolean };
     this.settings = {
       ...DEFAULT_SETTINGS,
-      ...bundle.settings,
+      ...rawSettings,
       exportTarget: "preview",
     };
+    if (!rawSettings.openEhrJsonDeserializeMode && typeof rawSettings.validationStrict === "boolean") {
+      this.settings.openEhrJsonDeserializeMode = rawSettings.validationStrict
+        ? "canonical-strict"
+        : "hybrid";
+    }
     this.model = {
       ...bundle.mapping.model,
       modelVersion: bundle.mapping.model.modelVersion ?? 1,
@@ -1447,6 +1484,7 @@ export class WorkbenchController {
     if (bundle.activeExampleId) this.examples.setActive(bundle.activeExampleId);
     if (this.urlStorage) restoreUrlHistory(bundle.urlHistory, this.urlStorage);
     this.outputValidations.clear();
+    this.exampleTestResults.clear();
     this.refreshDerived();
     this.schedulePostLoadOutput();
   }

@@ -249,19 +249,15 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font-family: ui-monospace, monospace;
 }
 .pane-section { padding: 8px; min-height: 0; display: flex; flex-direction: column; flex: 1; }
-.target-load-header {
+.pane-target-label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.9);
+  white-space: nowrap;
+}
+.script-format-header {
   margin: -8px -8px 0;
   padding: 6px 8px;
-}
-.target-load-header h3 {
-  margin: 0;
-  padding: 0;
-  background: none;
-  color: #fff;
-  font-size: 13px;
-  text-transform: none;
-  letter-spacing: 0;
-  font-weight: 600;
+  justify-content: flex-end;
 }
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
 .tree-pane--drop-target { border-style: dashed; }
@@ -312,28 +308,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   display: inline-flex; align-items: center; gap: 4px; position: relative;
 }
 .output-tab-mark { flex-shrink: 0; font-size: 12px; line-height: 1; }
-.output-tab-mark--warn {
-  color: var(--warning); cursor: pointer; border: none; background: transparent;
-  padding: 0; font-size: 13px;
-}
-.output-tab-errors {
-  display: none;
-  position: absolute;
-  left: 0; top: calc(100% + 4px);
-  z-index: 8;
-  min-width: 220px; max-width: min(360px, 70vw);
-  max-height: 240px; overflow: auto;
-  padding: 8px 10px;
-  background: #fff8e1; color: #5c4a00;
-  border: 1px solid var(--warning); border-radius: 4px;
-  font-size: 11px; line-height: 1.45; text-align: left;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-}
-.example-tab:hover .output-tab-errors,
-.example-tab:focus-within .output-tab-errors,
-.example-tab.output-tab-errors-open .output-tab-errors { display: block; }
-.output-tab-errors dt { font-family: ui-monospace, monospace; font-weight: 600; }
-.output-tab-errors dd { margin: 0 0 6px; }
 .test-output-host {
   position: relative;
   flex: 1;
@@ -341,13 +315,21 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   display: flex;
   flex-direction: column;
 }
-.test-output-download {
+.test-output-download,
+.export-download {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 3;
   font-size: 11px;
   padding: 3px 8px;
+}
+.export-editor-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .mapping-pane { display: flex; flex-direction: column; }
@@ -376,11 +358,6 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-radius: 3px; padding: 0 3px;
 }
 .handlebars-insert-hint { margin-left: auto; font-size: 10px; opacity: 0.85; }
-.target-format-badge {
-  margin: 0 -8px 6px;
-  padding: 4px 8px; border-bottom: 1px solid var(--border); background: #eef4f2;
-  color: var(--text-secondary); font-size: 10px; text-align: center;
-}
 .blockly-mount {
   --blockly-minimap-width: 147px;
   --blockly-minimap-height: 147px;

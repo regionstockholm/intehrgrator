@@ -2,6 +2,7 @@ import type {
   ExportTarget,
   MappingLoop,
   MappingModel,
+  OpenEhrJsonDeserializeMode,
   OutputMode,
   SourceFormatId,
   TestResult,
@@ -43,6 +44,8 @@ export interface RunTestOptions {
   blocklyState?: unknown;
   /** Convert-time Defaults Map overlay (wins over Blockly named `defaults`). */
   defaults?: Record<string, unknown>;
+  /** ehrtslib JSON deserializer preset for openEHR template validation. */
+  openEhrJsonDeserializeMode?: OpenEhrJsonDeserializeMode;
 }
 
 export function runTest(
@@ -86,7 +89,9 @@ export function runTest(
         data: ctx.data,
       }, defaults);
       const output = serializedConversionOutput(raw);
-      const outputValidation = validateConvertedOutput(output, options.target);
+      const outputValidation = validateConvertedOutput(output, options.target, {
+      deserializeMode: options.openEhrJsonDeserializeMode,
+    });
       return {
         ok: warnings.length === 0,
         output,
@@ -138,7 +143,9 @@ export function runTest(
       return { ...(output as Record<string, unknown>), slots: slotValues };
     })();
 
-    const outputValidation = validateConvertedOutput(output, options.target);
+    const outputValidation = validateConvertedOutput(output, options.target, {
+      deserializeMode: options.openEhrJsonDeserializeMode,
+    });
     return {
       ok: warnings.length === 0,
       output,

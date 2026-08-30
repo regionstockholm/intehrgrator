@@ -34,7 +34,7 @@
         </button>
       </div>
     </div>
-    <button id="btn-import-ai" type="button">Import Suggestions</button>
+    <button id="btn-import-ai" type="button">Import AI suggestions</button>
     <div class="split-btn toolbar-split-btn">
       <button id="btn-example-sets" class="split-btn-main" type="button" title="Load a complete example set (source, target, optional mapping) from catalog URIs">Example Sets</button>
       <button
@@ -225,29 +225,31 @@
       <div class="pane-header">
         <h2>Target &amp; Previews</h2>
         <div class="pane-header-actions">
+          <span class="pane-target-label">Target:</span>
           <span class="info-tip info-tip--end">
-            <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
-            <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
-              Mapping preview interprets the mapping without generating a script.
-              Conversion scripts (so far): TypeScript (also runs in Conversion Test Run), Java, Handlebars, and XQuery.<br>
-              Header Download saves the generated script. The overlay Download on Conversion Test Run saves that instance.
+            <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats">i</button>
+            <span id="tip-open-target" class="info-tip-balloon" role="tooltip">
+              Supported: openEHR OPT/OPT2, Web Template, JSON Schema, XML Schema (XSD), ADL, free-form templates, or a GitHub .t.json (archetypes fetched from the same repo).<br>
+              Load from a local file, a URL, or ▾ → From GitHub template….
             </span>
           </span>
-          <label class="pane-select-label" for="export-target">
-            <select id="export-target">
-              <option value="preview">Mapping preview</option>
-              <option value="typescript">TypeScript</option>
-              <option value="java">Java</option>
-              <option value="handlebars">Handlebars</option>
-              <option value="xquery">XQuery</option>
-            </select>
+          <div class="split-btn">
+            <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Open target schema or template">Open</button>
+            <button
+              id="btn-open-template-menu"
+              class="pane-btn pane-btn-on-dark split-btn-chevron"
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded="false"
+              aria-controls="menu-open-template"
+              aria-label="More target load options"
+            >▾</button>
+            <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
+          </div>
+          <label class="pane-lang pane-lang--on-dark" id="model-language-wrap" hidden for="model-language-dropdown">
+            <span id="model-language-label">Model</span>
+            <select id="model-language-dropdown" aria-label="Target model ontology language"></select>
           </label>
-          <button id="btn-export-ts" class="pane-btn pane-btn-on-dark pane-btn-icon" type="button" title="Download conversion script">
-            <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
-            </svg>
-            Download
-          </button>
         </div>
       </div>
       <div
@@ -256,48 +258,65 @@
         data-split-storage="layout-output-sections"
       >
         <div class="pane-section">
-          <div class="pane-header target-load-header">
-            <h3>Target</h3>
+          <div class="pane-header script-format-header">
             <div class="pane-header-actions">
               <span class="info-tip info-tip--end">
-                <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats">i</button>
-                <span id="tip-open-target" class="info-tip-balloon" role="tooltip">
-                  Supported: openEHR OPT/OPT2, Web Template, JSON Schema, XML Schema (XSD), ADL, free-form templates, or a GitHub .t.json (archetypes fetched from the same repo).<br>
-                  Load from a local file, a URL, or ▾ → From GitHub template….
+                <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
+                <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
+                  Mapping preview interprets the mapping without generating a script.
+                  Conversion scripts (so far): TypeScript (also runs in Conversion Test Run), Java, Handlebars, and XQuery.<br>
+                  Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.
                 </span>
               </span>
-              <div class="split-btn">
-                <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Open target schema or template">Open</button>
-                <button
-                  id="btn-open-template-menu"
-                  class="pane-btn pane-btn-on-dark split-btn-chevron"
-                  type="button"
-                  aria-haspopup="menu"
-                  aria-expanded="false"
-                  aria-controls="menu-open-template"
-                  aria-label="More target load options"
-                >▾</button>
-                <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
-              </div>
-              <label class="pane-lang pane-lang--on-dark" id="model-language-wrap" hidden for="model-language-dropdown">
-                <span id="model-language-label">Model</span>
-                <select id="model-language-dropdown" aria-label="Target model ontology language"></select>
+              <label class="pane-select-label" for="export-target">
+                <select id="export-target">
+                  <option value="preview">Mapping preview</option>
+                  <option value="typescript">TypeScript</option>
+                  <option value="java">Java</option>
+                  <option value="handlebars">Handlebars</option>
+                  <option value="xquery">XQuery</option>
+                </select>
               </label>
             </div>
           </div>
-          <div id="target-format-badge" class="target-format-badge">No target</div>
           <h3>Generated conversion script(s)</h3>
-          <div id="export-editor" class="editor-host"></div>
+          <div class="export-editor-host">
+            <button
+              id="btn-export-ts"
+              class="pane-btn pane-btn-icon export-download"
+              type="button"
+              title="Download conversion script"
+            >
+              <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
+              </svg>
+              Download
+            </button>
+            <div id="export-editor" class="editor-host"></div>
+          </div>
         </div>
         <div class="pane-section">
           <div class="section-header">
             <h3>Conversion Test Run(s)</h3>
-            <div class="pane-btn-group">
-              <button id="btn-run-test" class="pane-btn" type="button">Run Test</button>
-              <button id="btn-autoplay" class="pane-btn" type="button" disabled>▶ Autoplay</button>
+            <div class="section-header-actions">
+              <label class="pane-select-label validation-mode-label" id="validation-mode-wrap" hidden for="validation-deserialize-mode">
+                Validate as
+                <select id="validation-deserialize-mode" title="ehrtslib JSON deserializer preset for template validation">
+                  <option value="hybrid">Hybrid (lenient)</option>
+                  <option value="default">Default</option>
+                  <option value="compact">Compact</option>
+                  <option value="canonical-strict">Canonical strict</option>
+                  <option value="terse">Terse</option>
+                </select>
+              </label>
+              <div class="pane-btn-group">
+                <button id="btn-run-test" class="pane-btn" type="button">Run Test</button>
+                <button id="btn-autoplay" class="pane-btn" type="button" disabled>▶ Autoplay</button>
+              </div>
             </div>
           </div>
           <div id="test-output-tabs" class="example-tabs test-output-tabs"></div>
+          <div id="test-output-validation" class="example-validation" hidden></div>
           <div class="test-output-host">
             <button
               id="btn-download-test-output"

@@ -158,11 +158,19 @@ export interface ClinicalModelFileset {
   files: Array<{ path: string; content: string }>;
 }
 
+export type OpenEhrJsonDeserializeMode =
+  | "canonical-strict"
+  | "default"
+  | "compact"
+  | "hybrid"
+  | "terse";
+
 export interface ProjectSettings {
   /** Session Output mode. Not restored from a Project Bundle. */
   exportTarget: OutputMode;
   theme: "karolinska";
-  validationStrict: boolean;
+  /** ehrtslib JSON deserializer preset when validating openEHR Conversion Test Run output. */
+  openEhrJsonDeserializeMode: OpenEhrJsonDeserializeMode;
   autoscroll: boolean;
   autoplay: boolean;
   /** Ontology / localizedNames language for the loaded multilingual target. */
@@ -224,6 +232,8 @@ export interface OutputValidationMessage {
   path: string;
   message: string;
   severity: "error" | "warning" | "info";
+  /** Best-effort line in the Conversion Test Run JSON (not from ehrtslib). */
+  line?: number;
 }
 
 export interface OutputValidation {
@@ -293,7 +303,7 @@ export interface ImportSuggestionsReport {
 export const DEFAULT_SETTINGS: ProjectSettings = {
   exportTarget: "preview",
   theme: "karolinska",
-  validationStrict: true,
+  openEhrJsonDeserializeMode: "hybrid",
   autoscroll: true,
   autoplay: false,
 };

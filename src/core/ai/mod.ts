@@ -173,23 +173,31 @@ export function buildPrompt(options: BuildPromptOptions): string {
   sections.push(
     "",
     "## Block examples",
-    "Value slots only — no RM containers or DV shells in suggestions. Examples:",
+    "Value slots only — no RM containers or DV shells in suggestions. Prefer maps for code/terminology translation.",
     "",
-    "**Defaults lookup** (`maps_get` against the Defaults Map):",
+    "**Terminology translation (ICD-10 → SNOMED CT)** — `maps_get` with dynamic key from source (named map on canvas, e.g. `icd10_snomed`):",
     "```json",
     JSON.stringify({
-      slotId: "{targetId}{path/to/language/value}",
+      slotId: "{targetId}{path/to/code_string/value}",
       block: {
         type: "maps_get",
-        fields: { NAME: "defaults" },
+        fields: { NAME: "icd10_snomed" },
         inputs: {
-          KEY: { block: { type: "text", fields: { TEXT: "language" } } },
+          KEY: {
+            block: {
+              type: "source_query",
+              fields: { EXPRESSION: "$.diagnosis.icd10" },
+            },
+          },
         },
       },
+      note: "I10→38341003, E11→44054006, …",
     }, null, 2),
     "```",
     "",
-    "**Party identity `name` slot** (map source string onto a DV_TEXT value leaf):",
+    "**Defaults** — target scaffold often pre-wires `maps_get(\"defaults\", …)` for language/territory; omit unless the user asked to override.",
+    "",
+    "**Party identity `name` slot** (DV_TEXT value leaf):",
     "```json",
     JSON.stringify({
       slotId: "{targetId}{path/to/composer/name/value}",
@@ -203,7 +211,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "**Repeating container** — put `for_each_source` in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list).",
     "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). The app wraps the repeating container with `for_each_source` and evaluates each source node. Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `maps_get` / `maps_create_with` for terminology and code translation. Scaffold generation often wires Defaults Map slots already — skip them unless the user requested different defaults. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {
@@ -231,22 +239,16 @@ function formatTargetTask(format: string): string {
   }
 }
 
-function docUrlFromFormatDoc(formatDocUrl: string, filename: string): string {
-  const base = formatDocUrl.replace(/\/[^/]*$/, "/");
-  return `${base}${filename}`;
-}
-
-function openEhrReferenceSections(formatDocUrl: string): string[] {
-  const primerUrl = docUrlFromFormatDoc(formatDocUrl, "OPENEHR_PRIMER.md");
+function openEhrReferenceSections(_formatDocUrl: string): string[] {
   return [
     "## openEHR references",
     "When the target is an openEHR template, use authoritative sources — do not invent RM paths, archetype ids, or terminology codes.",
     "",
-    "- **openehr-assistant MCP** (if available): use for archetype/template lookup, terminology resolution, spec digests, and ADL/AQL guidance before guessing.",
-    `- **Primer**: ${primerUrl}`,
+    "- **openehr-assistant MCP** (recommended): archetype/template lookup, terminology resolution, spec digests, and ADL/AQL guidance. Install the [openEHR Assistant Plugin](https://github.com/cadasto/openehr-assistant-plugin) in your AI environment when possible.",
     "- **ehrtslib (DeepWiki)**: https://deepwiki.com/ErikSundvall/ehrtslib",
     "- **ehrtslib (GitHub)**: https://github.com/ErikSundvall/ehrtslib",
     "- **openEHR specifications**: https://specifications.openehr.org/",
+    "- **openEHR specs (AI index)**: https://specifications.openehr.org/llms.txt",
     "",
   ];
 }

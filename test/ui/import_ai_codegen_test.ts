@@ -56,6 +56,8 @@ Deno.test({
       assertStringIncludes(prompt, "intehrgrator-suggestions");
       assertStringIncludes(prompt, "## openEHR references");
       assertStringIncludes(prompt, "openehr-assistant MCP");
+      assertStringIncludes(prompt, "cadasto/openehr-assistant-plugin");
+      assertStringIncludes(prompt, "icd10_snomed");
 
       const { slotId, targetId, envelope } = suggestionsFromPrompt(prompt);
       assert(slotId.endsWith(systolicSuffix), slotId);

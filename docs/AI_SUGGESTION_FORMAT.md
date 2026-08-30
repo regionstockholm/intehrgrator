@@ -83,13 +83,16 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Source | `source_query`, `source_query_number`, `source_query_boolean` | `EXPRESSION` (fontoxpath). Pick by `valueType`: number→`_number`, boolean→`_boolean`, else plain. |
 | Loop | `for_each_source` | `VAR`, `PATH` (absolute multi-node path). Statement block — **only** in `loops[]`, not as a value `suggestions[].block`. Leave `DO` empty. |
 | Var | `variables_get` | `VAR` = loop variable name (whole node as value; rare). |
-| Map lookup | `maps_get` | `NAME` = map name (usually `"defaults"`); input `KEY` = key expression (often nested `text`). |
+| Map lookup | `maps_get` | `NAME` = map name; input `KEY` = key expression (literal `text` or dynamic `source_query`). |
+| Map literal | `maps_create_with`, `maps_create_empty` | Inline key/value table: `KEY0`… + `VAL0`… inputs; `extraState.itemCount`. Emits `map("k1", v1, …)`. |
 | Literal | `text`, `math_number`, `logic_boolean` | `TEXT` / `NUM` / `BOOL` (`TRUE`\|`FALSE`) |
 | Text | `text_trim`, `text_join` | `MODE`; `text_join` may need `extraState.itemCount` + `ADD0`… |
 | Math | `math_arithmetic` | `OP`: `ADD`\|`MINUS`\|`MULTIPLY`\|`DIVIDE`; inputs `A`,`B` |
 | Logic | `logic_ternary` | inputs `IF`,`THEN`,`ELSE` |
 
-No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional RM, or Handlebars text in this envelope.
+No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional RM, Handlebars text, or list-construction blocks (`lists_*`) in this envelope — list-valued RM slots stay structural on the canvas.
+
+**Maps vs lists:** Use `maps_get` / `maps_create_with` for code translations, terminology tables, and lookups. List blocks are for authoring RM list structure on the canvas, not for AI-filled value expressions.
 
 ### Loops (source ↔ target repetition)
 
@@ -111,7 +114,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 4. Link to this doc
 5. Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …)
 6. Artifact delivery (below)
-7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating. Repeatable containers are listed separately for `attachSlotId`. Use `maps_get` for Defaults Map keys (language, territory, encoding). Party identity value slots (e.g. composer `name`) map via `source_query` / `text` on the manifest leaf — not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score.
+7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer **`maps_get` / `maps_create_with`** for terminology and code translation (e.g. ICD-10 → SNOMED CT) — more common than defaults. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt; **omit those slots** unless the user asked for different defaults — then your suggestion replaces the existing mapping. Party identity value slots (e.g. composer `name`) map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score.
 
 ### Artifact delivery
 
@@ -164,7 +167,40 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 }
 ```
 
-**Defaults lookup (language)**
+**Terminology translation (ICD-10 → SNOMED CT)**
+
+User prompt: *“Map diagnosis ICD-10 codes to SNOMED CT using a lookup table.”*  
+Assume a named map `icd10_snomed` on the canvas (or describe keys in `note`). Lookup with dynamic key from source:
+
+```intehrgrator-suggestions
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": { "format": "openehr-template", "targetId": "problem_list_v1" },
+  "suggestions": [
+    {
+      "slotId": "problem_list_v1/content/data/items/at0002/value/value/defining_code/code_string/value",
+      "block": {
+        "type": "maps_get",
+        "fields": { "NAME": "icd10_snomed" },
+        "inputs": {
+          "KEY": {
+            "block": {
+              "type": "source_query",
+              "fields": { "EXPRESSION": "$.diagnosis.icd10" }
+            }
+          }
+        }
+      },
+      "note": "Map icd10_snomed: I10→38341003, E11→44054006, … (user may load table on canvas)"
+    }
+  ]
+}
+```
+
+For a **small inline table** without a named map, nest `maps_create_with` inside `logic_ternary` branches (one branch per known code).
+
+**Defaults lookup (language)** — often pre-wired by scaffold; suggest only when user overrides:
 
 ```intehrgrator-suggestions
 {
@@ -180,7 +216,8 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
         "inputs": {
           "KEY": { "block": { "type": "text", "fields": { "TEXT": "language" } } }
         }
-      }
+      },
+      "note": "Only when user asked to change language default"
     }
   ]
 }

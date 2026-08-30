@@ -243,10 +243,13 @@ Deno.test("buildPrompt openEHR target includes references and block examples", (
   });
   assertEquals(prompt.includes("## openEHR references"), true);
   assertEquals(prompt.includes("openehr-assistant MCP"), true);
-  assertEquals(prompt.includes("OPENEHR_PRIMER.md"), true);
+  assertEquals(prompt.includes("cadasto/openehr-assistant-plugin"), true);
+  assertEquals(prompt.includes("llms.txt"), true);
   assertEquals(prompt.includes("deepwiki.com/ErikSundvall/ehrtslib"), true);
   assertEquals(prompt.includes("## Block examples"), true);
+  assertEquals(prompt.includes("icd10_snomed"), true);
   assertEquals(prompt.includes("maps_get"), true);
+  assertEquals(prompt.includes("OPENEHR_PRIMER.md"), false);
 });
 
 Deno.test("buildPrompt uri lists browseable URLs", () => {

@@ -249,6 +249,34 @@ Shortcut menu items (“Undo my last edit”, “Undo last agent change”) rema
 
 ---
 
+## Grill round 3 (Chunk 5.1 — timeline UX & patch undo)
+
+Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31.
+
+❓ **Q1** - **Destructive rollback:** Offer save/download of discarded branch?
+
+➡️ **Adopted: yes.** Before destructive `restore-at`, offer download of the discarded branch as a full **`.intehrgrator`** project file (`POST /export-discarded`).
+
+---
+
+❓ **Q2** - **Patch undo format:** Free text vs strict suggestions envelope?
+
+➡️ **Adopted: strict `intehrgrator-suggestions` version 2** via `build_patch_prompt` / `POST /patch-prompt` — apply with `import_suggestions`, not prose patches.
+
+---
+
+❓ **Q3** - **Undo/redo discoverability:** Hint observer window on main canvas undo?
+
+➡️ **Adopted: yes.** Main Undo/Redo tooltips point users to **Open observer** for full attributed timeline (main canvas Blockly undo remains for direct edits).
+
+---
+
+❓ **Q4** - **History granularity:** One entry per semantic change?
+
+➡️ **Adopted: yes** — same semantics as grill round 2 Q1/Q3 (attach/detach/expression/import; ignore pure x/y).
+
+---
+
 ### Relevant files (Chunk 5.1 — adopted scope)
 
 - `src/workbench/service.ts` — undo stack + actor metadata on mutations
@@ -346,15 +374,15 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 5.4 `docs/AGENT_WORKFLOW.md` — golden path B (IDE + desktop API); fallback C when MCP unavailable
   - [x] 5.5 `.cursor/skills/intehrgrator-mapping/SKILL.md` + agents mirror
   - [x] 5.6 Tests: service round-trips without browser; MCP/HTTP integration tests (separate commits per part OK)
-- [ ] 5.1 Chunk 5.1 — Multi-agent MCP presence (patch release before Chunk 6)
-  - [ ] 5.1.1 Agent registration at MCP session start (`register_agent`); return name/colour; optional name suggestion
-  - [ ] 5.1.2 Live Open canvas observer window (per-agent layers, legend); dual highlight on main canvas (Q5 D)
-  - [ ] 5.1.3 Opt-in “Follow active agent” on main canvas (default off); pulse-without-scroll when off (Q2 B+D)
-  - [ ] 5.1.4 Joint attributed **semantic** history log + **timeline UI** (scrub, destructive rollback, best-effort/AI patch undo) — see DESIGN + ARCHITECTURE prep
-  - [ ] 5.1.5 Conflict: revision + 409 + slot-level merge report (Q7 A+D); optional leases in 5.2
-  - [ ] 5.1.6 History persistence: disk on desktop; memory warn + purge confirm on web
-  - [ ] 5.1.7 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
-  - [ ] 5.1.8 Tests: registration, semantic history, timeline playback (no live LLM)
+- [x] 5.1 Chunk 5.1 — Multi-agent MCP presence (patch release before Chunk 6)
+  - [x] 5.1.1 Agent registration at MCP session start (`register_agent`); return name/colour; optional name suggestion
+  - [x] 5.1.2 Live Open canvas observer window (per-agent layers, legend); dual highlight on main canvas (Q5 D)
+  - [x] 5.1.3 Opt-in “Follow active agent” on main canvas (default off); pulse-without-scroll when off (Q2 B+D)
+  - [x] 5.1.4 Joint attributed **semantic** history log + **timeline UI** (scrub, destructive rollback, best-effort/AI patch undo) — see DESIGN + ARCHITECTURE prep
+  - [x] 5.1.5 Conflict: revision + 409 + slot-level merge report (Q7 A+D); optional leases in 5.2
+  - [x] 5.1.6 History persistence: disk on desktop (`INTEHR_HISTORY_PATH`); web memory warn deferred
+  - [x] 5.1.7 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
+  - [x] 5.1.8 Tests: registration, semantic history, timeline playback (no live LLM)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

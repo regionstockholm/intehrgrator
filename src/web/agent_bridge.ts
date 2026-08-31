@@ -1,17 +1,36 @@
 /**
- * Poll desktop Agent API and sync ProjectBundle into the open UI session.
+ * Poll desktop Agent API, sync bundle, push UI semantic commits, activity highlights.
  */
 
 import type { WorkbenchController } from "../workbench/controller.ts";
 import type { ProjectBundle } from "../types/mod.ts";
 
-export function installAgentBridge(controller: WorkbenchController): void {
+export interface AgentBridgeOptions {
+  controller: WorkbenchController;
+  exportBundle: () => ProjectBundle;
+  onActivity?: (activity: AgentActivityPayload | null) => void;
+  slotSignature: () => string;
+}
+
+export interface AgentActivityPayload {
+  agentId: string;
+  displayName: string;
+  color: string;
+  summary: string;
+  affectedSlotIds: string[];
+}
+
+let lastCommittedSignature = "";
+
+export function installAgentBridge(options: AgentBridgeOptions): void {
   if (typeof globalThis.fetch !== "function") return;
   const host = globalThis.location?.hostname ?? "";
   if (host !== "127.0.0.1" && host !== "localhost") return;
 
+  const { controller, exportBundle, onActivity, slotSignature } = options;
   let lastRevision = "";
   let syncing = false;
+  let lastActivityAt = "";
 
   const poll = async () => {
     if (syncing) return;
@@ -24,16 +43,28 @@ export function installAgentBridge(controller: WorkbenchController): void {
       const agentHasProject = Boolean(snap.templateId);
       const uiEmpty = !controller.getState().templateId;
       const shouldSync = revisionChanged || (isFirstPoll && agentHasProject && uiEmpty);
-      if (!shouldSync) {
-        if (isFirstPoll) lastRevision = snap.revision;
-        return;
+      if (shouldSync) {
+        syncing = true;
+        const bundleRes = await fetch("/api/v1/bundle");
+        if (bundleRes.ok) {
+          const payload = await bundleRes.json() as { revision: string; bundle: ProjectBundle };
+          controller.restoreDocumentSnapshot(payload.bundle);
+          lastRevision = payload.revision;
+          lastCommittedSignature = slotSignature();
+        }
+        syncing = false;
+      } else if (isFirstPoll) {
+        lastRevision = snap.revision;
       }
-      syncing = true;
-      const bundleRes = await fetch("/api/v1/bundle");
-      if (!bundleRes.ok) return;
-      const payload = await bundleRes.json() as { revision: string; bundle: ProjectBundle };
-      controller.restoreDocumentSnapshot(payload.bundle);
-      lastRevision = payload.revision;
+
+      const actRes = await fetch("/api/v1/activity");
+      if (actRes.ok) {
+        const { activity } = await actRes.json() as { activity: AgentActivityPayload & { at?: string } | null };
+        if (activity && activity.at !== lastActivityAt) {
+          lastActivityAt = activity.at ?? "";
+          onActivity?.(activity);
+        }
+      }
     } catch {
       // Agent API not enabled
     } finally {
@@ -42,4 +73,32 @@ export function installAgentBridge(controller: WorkbenchController): void {
   };
 
   globalThis.setInterval(() => void poll(), 1500);
+}
+
+/** Push semantic UI edit to shared Agent API history. */
+export async function commitUiSemanticChange(
+  bundle: ProjectBundle,
+  summary: string,
+  kind: "expression" | "block_graph" = "expression",
+): Promise<boolean> {
+  try {
+    const res = await fetch("/api/v1/ui-commit", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ bundle, summary, kind }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+export function shouldCommitSemanticChange(signature: string): boolean {
+  if (signature === lastCommittedSignature) return false;
+  lastCommittedSignature = signature;
+  return true;
+}
+
+export function resetCommittedSignature(signature: string): void {
+  lastCommittedSignature = signature;
 }

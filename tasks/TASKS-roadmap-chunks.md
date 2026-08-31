@@ -124,7 +124,7 @@ Asked before coding Chunk 5 (local app + installable AI skill + agent/MCP drivin
 
 ## Grill round 1 (Chunk 5 follow-up — multi-agent MCP presence & attribution)
 
-Asked after Chunk 5 shipped (0.3 desktop: Agent API + MCP + skill). Deferred from 5.3: scroll/highlight, multi-agent visibility, actor-attributed undo. **Not adopted yet** — awaiting answers.
+Asked after Chunk 5 shipped (0.3 desktop: Agent API + MCP + skill). Deferred from 5.3: scroll/highlight, multi-agent visibility, actor-attributed undo. User answers **adopted** 2026-08-31 (Q7 resolved via design investigation).
 
 Context from product direction:
 
@@ -140,7 +140,7 @@ Context from product direction:
 **C** — Fold into Chunk 6 schema toolboxes (same PR).  
 **D** — Split: **6a** actor/undo attribution only; **6b** observer UI / colours later.
 
-➡️ **Recommended: A.** Natural completion of deferred 5.3; schema toolboxes (H) are unrelated and should not block PEN-style agent visibility.
+➡️ **Adopted: B.** Chunk **5.1** patch release before schema toolboxes (Chunk 6).
 
 ---
 
@@ -151,7 +151,7 @@ Context from product direction:
 **C** — Scroll/pan **only** in the observer window (see Q3), never the main canvas.  
 **D** — Brief in-canvas flash/highlight on touched blocks **without** changing scroll position.
 
-➡️ **Recommended: A + D.** No viewport hijacking; at most a subtle, non-scrolling pulse on affected blocks in the main editor. Full “where are they working?” view belongs elsewhere.
+➡️ **Adopted: B + D.** Opt-in **Follow active agent** (default off). When off, at most subtle pulse/highlight on touched blocks **without** scroll. Observer window handles spatial tracking.
 
 ---
 
@@ -162,7 +162,7 @@ Context from product direction:
 **C** — Docked **pane inside** the main window (split view below or beside Mapping Editor).  
 **D** — No live UI — agents only; user reads MCP logs / IDE chat.
 
-➡️ **Recommended: A.** Reuses `openWorkspaceSnapshotWindow` / `workspace_snapshot.ts` and the existing toolbar affordance; popup is already “out of the way” of the main canvas. Optional auto-open when first agent connects.
+➡️ **Adopted: A.** Live observer via extended Open canvas popup; print/save retained.
 
 ---
 
@@ -173,7 +173,7 @@ Context from product direction:
 **C** — Desktop **UI registry** — user names/colours agents before IDE connects.  
 **D** — Anonymous sessions; colour by MCP connection order only.
 
-➡️ **Recommended: B (+ palette from agentId).** Matches “terminology agent + source-mapping agent” running in parallel from different IDE sessions; no extra connect handshake required if each mutation carries identity. Optional explicit registration later.
+➡️ **Adopted: B + A combined.** MCP session **registers** at start (`register_agent` or extended `initialize`): `{ agentId, displayName?, color? }` — name persists for the session. Mutations carry identity for attribution. Desktop returns assigned **name + colour** to the agent (agent may **suggest** a name from user prompt). Optional user override in desktop UI later.
 
 ---
 
@@ -184,7 +184,7 @@ Context from product direction:
 **C** — **Observer window only** — full per-agent layers; main canvas shows only neutral bundle sync (no colours).  
 **D** — **Dual**: subtle badge/pulse on main canvas + full colour-coded overlay in observer window.
 
-➡️ **Recommended: D.** Main editor stays calm; observer window is the PEN-style “mission control” with stacked or toggled agent layers and a legend.
+➡️ **Adopted: D.** Subtle main-canvas signal; full per-agent layers in observer.
 
 ---
 
@@ -195,7 +195,7 @@ Context from product direction:
 **C** — **Separate stacks** — “Undo my edit” (Blockly) vs “Undo last agent change” (API).  
 **D** — Extend **Blockly custom events** (`DocumentSwapEvent`, future slot events) with an `actor` field so one stack serves both.
 
-➡️ **Recommended: A first, D later.** Agent mutations already flow through `WorkbenchService.withUndo`; add actor metadata there and expose via `GET /api/v1/history` + desktop undo menu labels (“Undo **TerminologyAgent**: map ICD→SNOMED”). Bridging Blockly micro-edits into the same timeline is a second phase.
+➡️ **Adopted direction:** **Joint undo/redo history** with actor on every entry, plus **UI affordances like C** (“Undo my edit” / “Undo last agent change” / walk full timeline). **Feasible without CRDT in Phase 1** — see design investigation [`tasks/DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md). Phase 1: append-only attributed history log + unify UI/service session + debounced Blockly commits into same log. Phase 2+: CRDT on **Mapping Model slots** (Automerge / Yjs / Loro — do not reinvent) when human multi-user live co-editing is required.
 
 ---
 
@@ -206,11 +206,45 @@ Context from product direction:
 **C** — **Serial queue** per project — one mutation at a time globally.  
 **D** — **Merge report** — apply non-conflicting slot updates; return conflicts for human/agent retry (like partial import).
 
-➡️ **Recommended: A for v1; B optional for v2.** Terminology agent on Maps + mapping agent on value slots rarely collide on the same slotId; revision tokens already shipped. Leases help if two agents target the same subtree.
+➡️ **Adopted (from design investigation):** **Phase 5.1: A + D** — revision + 409; slot-level **merge report** for batch agent writes (reuse partial-import pattern). **Phase 5.2 optional: + B** slot leases. **Phase 6+ multi-user humans: + CRDT on model.** Avoid global serial queue (C). Details: [`tasks/DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md#q7-recommendation-after-analysis).
 
 ---
 
-### Relevant files (Chunk 5 follow-up — when adopted)
+## Grill round 2 (Chunk 5.1 — undo/history semantics)
+
+Open after [`DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md). **Not adopted yet.**
+
+❓ **Q1** - **Session unification:** Should every UI canvas edit bump the service revision immediately, or batch debounced commits (stale revision window for agents)?
+
+➡️ **Recommended: debounced commits (500–1500ms)** — one history entry per debounce window; agents already use `If-Match` and retry on 409.
+
+---
+
+❓ **Q2** - **Selective undo semantics:** After “Undo last agent change”, preserve intervening user edits (compensating merge) or rewind to agent `beforeBundle` (snapshot replace)?
+
+➡️ **Recommended: snapshot replace for v1** (simpler); document destructive behaviour; compensating merge as Phase 2 if users reject it.
+
+---
+
+❓ **Q3** - **Blockly history granularity:** One entry per debounce window, or one per semantic `slotId` expression change only (ignore layout drags)?
+
+➡️ **Recommended: semantic slot/loop/optionalRm changes only** — ignore pure block moves unless user opts “track layout”.
+
+---
+
+❓ **Q4** - **History retention:** Cap entries (50? 200?) or memory-bounded mapping-only snapshots?
+
+➡️ **Recommended: cap ~100 entries**; store full bundle for macro edits, slot-diff summary for micro.
+
+---
+
+❓ **Q5** - **Phase 2 trigger:** Is human multi-user a committed roadmap item, or “prepare architecture only” for 5.1?
+
+➡️ **Recommended: prepare architecture only in 5.1** — no sync server; CRDT spike deferred until explicit multi-user milestone.
+
+---
+
+### Relevant files (Chunk 5.1 — adopted scope)
 
 - `src/workbench/service.ts` — undo stack + actor metadata on mutations
 - `src/agent/http.ts` / `src/agent/mcp_stdio.ts` — `agentId` / `agentName` on tools; `GET /history`

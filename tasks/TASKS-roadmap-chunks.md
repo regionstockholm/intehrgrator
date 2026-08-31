@@ -387,81 +387,101 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
 
 ## Grill round 1 (Chunk 6 frontier — dynamic schema toolboxes)
 
-Asked after **0.4** desktop release (Chunk 5.1 shipped: multi-agent observer, attributed history). Recommended answers **not yet adopted** — resolve before coding Chunk 6.
+Asked after **0.4** desktop release (Chunk 5.1 shipped: multi-agent observer, attributed history). User answers **adopted** 2026-08-31.
 
 Context from current code:
 
 - JSON Schema / XML Schema targets already load via **Target Format Handler** → `SkeletonNode[]` → generic `target_structure` / `target_value` canvas blocks.
 - `buildDemoToolbox` adds a **Target schema** flyout (prefilled generic blocks, **max 40**, flat list) when a JSON/XSD target is loaded — not per-type Blockly definitions.
 - openEHR targets use typed RM blocks + cogwheel optional-field mutators; JSON/XSD has **no equivalent mutator** for optional properties.
-- **TakeCare** appears only in roadmap text — no fixture, term-id blocks, or test/prod system switch in code.
+- **Generic JSON** and **Generic XML** drawers already exist (`json_object` / `json_array` / `json_value`, `xml_element` / `xml_text`) and must **stay always visible** for ad-hoc structure authoring.
 - PRD Q7 (JSON/XSD) answered **B**: generic output blocks **and** dynamically generated blocks from the selected schema — only the generic half exists today.
 
-❓ **Q1** - **Block vocabulary:** For JSON/XSD targets, should the dynamic drawer use only generic `target_structure` / `target_value` blocks (current), or register **schema-named block types** at load time (e.g. after XSD complexType / JSON `$defs` name)?
+❓ **Q1** - **Block vocabulary + toolbox layering:** Generic JSON/XML vs schema-specific drawers?
 
-**A** — Keep **generic blocks only**; improve flyout labels and search.  
-**B** — **Dynamic `Blockly.Blocks[schemaTypeName]`** registration when target loads (unregister on target swap).  
-**C** — **Hybrid:** canvas stays generic; toolbox flyout uses typed shortcut blocks that expand to generic subtrees on drop.
+➡️ **Adopted (user composite — supersedes A/B/C):**
+
+1. **Always visible:** generic **JSON-structure** and **XML-structure** toolboxes so users can build **any** JSON or XML structure/instance (free-form, not tied to loaded target).
+2. **On target load:** automatically plug in **schema-specific toolbox drawer(s)** for the loaded JSON Schema / XML Schema target.
+3. **Schema-specific drawer behaviour ≈ openEHR:** mandatory attributes/fields visible; optional ones add/remove via **cogwheel mutator**; **canvas scaffold** instantiated from **mandatory** fields only.
+4. **Defaults Map:** an **empty** Defaults Map block may be placed on canvas for JSON/XSD targets, but **must not** participate in scaffolding (schema unknown until runtime load — no pre-wired default points like openEHR OPT).
 
 ---
 
 ❓ **Q2** - **Optional property UX (JSON/XSD):** How should users add/remove non-mandatory schema fields?
 
-**A** — **Generalize cogwheel mutator** from RM containers to `target_structure` (attachment catalog from skeleton metadata).  
-**B** — **Scaffold all optional nodes** on canvas (collapsed) at load — no mutator.  
-**C** — **Toolbox-only optional nodes** — user drags from Target schema drawer; remove = delete block (Blockly default orphan).
+➡️ **Adopted: A (generalize cogwheel mutator)** — same family as RM `optional_rm_mutator` / `dv_fields_mutator`, driven by skeleton optional-field catalog for schema structure blocks. See Q1.
 
 ---
 
-❓ **Q3** - **Target schema drawer shape:** How to organize the dynamic drawer for large schemas (TakeCare-scale)?
+❓ **Q3** - **Target schema drawer shape:** How to organize the dynamic drawer for large schemas?
 
-**A** — **Flat flyout** with raised cap + search (current pattern, higher limit).  
-**B** — **Nested categories** mirroring schema tree (sections / complexTypes / `$defs`).  
-**C** — **No dedicated drawer** — rely on toolbox-search + Target tree rail / Mapping Spec only.
+➡️ **Adopted: B — nested categories** mirroring the schema tree (complexTypes / `$defs` / XSD sections), similar to how openEHR nests Entries / Items / Party / DV drawers — not a flat 40-block cap.
 
 ---
 
-❓ **Q4** - **TakeCare integration mode:** How should TakeCare be validated in Chunk 6?
+❓ **Q4** - **TakeCare integration mode**
 
-**A** — **Bundled fixture** in repo (XSD/JSON + golden toolbox snapshot tests in CI).  
-**B** — **Runtime load only** — user supplies schema; TakeCare is manual QA, not committed.  
-**C** — **Optional plugin / extension pack** separate from core (new packaging seam).
+➡️ **Deferred** — TakeCare-specific fixture/validation to **later roadmap** (not Chunk 6). Chunk 6 proves **arbitrary** JSON/XSD schema load; TakeCare becomes a manual or late golden when schema toolbox is stable.
 
 ---
 
-❓ **Q5** - **TakeCare term identifiers (test vs prod):** How to author coded values bound to TakeCare term systems?
+❓ **Q5** - **TakeCare term identifiers (test vs prod)**
 
-**A** — Extend **`term_pick`** with a **system selector** (openEHR + TakeCare test/prod URIs).  
-**B** — **`maps_get` / Defaults Map** code tables only — no inline slot block.  
-**C** — New **`term_id` block** (system + code fields) with target-format-specific codegen.
+➡️ **Deferred** with Q4 — term-id blocks / test-prod system switch **not in Chunk 6**.
 
 ---
 
-❓ **Q6** - **Canvas vs toolbox parity:** Should the **scaffolded canvas** use the same block types as the dynamic toolbox shortcuts?
+❓ **Q6** - **Canvas vs toolbox parity** *(reframed — original wording was unclear)*
 
-**A** — **Canvas generic, toolbox typed shortcuts** (minimal `skeleton_loader` change).  
-**B** — **Both canvas and toolbox schema-typed** (major loader + codegen refactor).  
-**C** — **Toolbox-only authoring** for JSON/XSD — no canvas scaffold (breaks Click-to-Map parity).
+**What this meant:** When you load a JSON/XSD target, should the **canvas auto-scaffold** (mandatory tree on load) use the **same block “shapes”** as the schema-specific toolbox drawer — or stay generic while only the toolbox is schema-aware?
 
----
+**openEHR reference today:** loading an OPT scaffolds typed RM blocks on canvas **and** the toolbox offers matching typed blocks + cogwheel optional fields.
 
-❓ **Q7** - **Toolbox refresh + Agent API:** When target/schema changes, how do IDE agents discover new slotIds?
-
-**A** — **`updateToolbox` on target load only** + hash skeleton in `build_prompt` manifest (current direction).  
-**B** — Expose **`GET /api/v1/schema-toolbox`** listing drawer entries + slotIds for agents.  
-**C** — Agents use **`get_snapshot` + `/bundle`** only; no schema-toolbox endpoint (document slotId paths in prompt).
+➡️ **Adopted (from Q1 — openEHR parity):** **Both** canvas scaffold and schema-specific toolbox use **schema-aware structure blocks** (named after schema types / elements). Mandatory nodes appear on canvas at load; optional via cogwheel. **Generic JSON/XML drawers remain separate** and always available for ad-hoc editing outside the schema scaffold — they do not replace the schema-specific vocabulary.
 
 ---
 
-### Relevant files (Chunk 6 — proposed scope)
+❓ **Q7** - **Toolbox refresh + Agent API** *(reframed — original wording was unclear)*
 
-- `src/blockly/toolbox_demo.ts` — `buildDemoToolbox`, `schemaFlyoutContents`, drawer caps
-- `src/blockly/blocks/target_blocks.ts` — generic JSON/XML structure blocks; optional mutator seam
-- `src/core/target/format_handler.ts` — JSON/XSD skeleton generation, `$ref` / XSD fidelity
-- `src/blockly/skeleton_loader.ts` — canvas scaffold from `SkeletonNode[]`
-- `web/main.ts` — `syncToolbox` invalidation key
-- `docs/ROADMAP.md` §H — TakeCare, term ids
+**What this meant:** When the user (or agent) loads a new target schema, how should **IDE agents** learn the new **slotIds** and toolbox structure?
+
+| Option | Meaning |
+| --- | --- |
+| **A** | Refresh toolbox on target load; **`build_prompt` / Copy AI Prompt manifest** lists slotIds (current Agent API path). |
+| **B** | New dedicated **`GET /api/v1/schema-toolbox`** returning drawer tree + slotIds for MCP agents. |
+| **C** | Agents read **`/bundle` only**; no toolbox metadata API. |
+
+➡️ **Adopted: A.** Refresh toolbox when target loads; slotIds stay in **`build_prompt` manifest** and bundle skeleton (existing golden path). No new schema-toolbox HTTP endpoint in Chunk 6 unless a follow-up need appears.
+
+---
+
+### Chunk 6 implementation notes (from adoption)
+
+- **Audit generic JSON/XML blocks** (`json_object`, `json_array`, `json_value`, `xml_element`, `xml_text`) for formalism gaps (attributes, namespaces, mixed content, JSON null/boolean, etc.) and usability; extend drawers before or alongside schema-specific work.
+- Replace flat `schemaFlyoutContents` (40-cap) with **nested category builder** from `SkeletonNode[]`.
+- Generalize **cogwheel mutator** to schema structure blocks; wire optional catalog from target format handler.
+- **`skeleton_loader`**: scaffold mandatory schema tree on canvas (openEHR-like policy).
+- **`syncToolbox`**: invalidate on target load + skeleton structure hash (not just length).
+- TakeCare / vendor-specific term ids → late roadmap (after CSV/FHIR tables or dedicated vendor chunk).
+
+### Relevant files (Chunk 6 — adopted scope)
+
+- `src/blockly/toolbox_demo.ts` — always-visible JSON/XML + dynamic nested schema drawer
+- `src/blockly/blocks/target_blocks.ts` — generic + schema structure blocks; cogwheel mutator seam
+- `src/core/target/format_handler.ts` — JSON/XSD skeleton, optional/mandatory metadata, `$ref` fidelity
+- `src/blockly/skeleton_loader.ts` — mandatory-only canvas scaffold
+- `web/main.ts` — `syncToolbox` invalidation
+- `docs/ROADMAP.md` §H — TakeCare deferred note
 - `test/target_format_handler_test.ts`, new schema-toolbox golden tests
+
+- [ ] 6.1 Audit & extend generic JSON/XML Blockly drawers (always visible)
+- [ ] 6.2 Schema-specific nested toolbox drawer(s) on target load
+- [ ] 6.3 Cogwheel optional-field mutator for schema structure blocks
+- [ ] 6.4 Mandatory-only canvas scaffold (openEHR-like) + empty Defaults Map (non-scaffolding)
+- [ ] 6.5 Toolbox sync hash + Agent prompt manifest slotIds (Q7 A)
+- [ ] 6.6 Tests: nested drawer, mutator, scaffold round-trip (generic JSON Schema + XSD fixtures; no TakeCare)
+- [ ] 6.7 Docs: ROADMAP H, BLOCKLY_INTEGRATION, CONTEXT
 
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

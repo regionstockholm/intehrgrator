@@ -63,8 +63,9 @@
 
 ## H. Schema specific dynamic blockly toolboxes
 - [ ] It should be possible to load any valid XML or JSON schema in a way similarly to how an openEHR template can be loaded and scaffolded as target, and have intehrgrator dynamically add a new drawer filled with blockly blocks representing that schema with blocks named after the schema's types and with mandatory attribute slots visible and a possibility for end user to add the non-mandatory slots. 
+- [ ] **Always-visible generic JSON/XML drawers** remain for free-form structure authoring (Chunk 6 adopted grill).
 - [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins?
-- [ ] add special support for TakeCare term id (multiple systems, e.g. both test and prod )
+- [ ] add special support for TakeCare term id (multiple systems, e.g. both test and prod ) — **deferred** (late roadmap; not Chunk 6)
 
 ## I. Initial AI Assistance
 - [x] validate that AI assistance (initial cut & paste variant) works, improve if needed.

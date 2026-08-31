@@ -898,10 +898,21 @@ export class WorkbenchController {
     scope: "full" | "slot" = "full",
     slotId?: string,
   ): Promise<void> {
+    const prompt = this.buildAiPromptText(delivery, scope, slotId);
+    await this.host.copyToClipboard(prompt);
+    this.statusMessage = `AI prompt copied (${delivery})`;
+    this.notifyChange();
+  }
+
+  buildAiPromptText(
+    delivery: AiArtifactDelivery = "inline",
+    scope: "full" | "slot" = "full",
+    slotId?: string,
+  ): string {
     const resolvedSlotId = scope === "slot"
       ? (slotId ?? this.listeningSlotId ?? undefined)
       : slotId;
-    const prompt = buildPrompt({
+    return buildPrompt({
       scope,
       slotId: resolvedSlotId,
       targetId: this.templateId,
@@ -915,9 +926,6 @@ export class WorkbenchController {
       delivery,
       artifacts: this.collectAiArtifacts(),
     });
-    await this.host.copyToClipboard(prompt);
-    this.statusMessage = `AI prompt copied (${delivery})`;
-    this.notifyChange();
   }
 
   async readClipboardText(): Promise<string> {

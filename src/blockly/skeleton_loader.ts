@@ -34,6 +34,9 @@ import {
   syncTargetChildInputs,
   targetChildInputName,
 } from "./blocks/target_blocks.ts";
+import { schemaOptionalInputName, composeSchemaOptionalFields } from "./blocks/schema_mutator.ts";
+import { findSkeletonNode, setSchemaCatalog } from "./schema_catalog.ts";
+import type { TargetFormatId } from "../types/mod.ts";
 import { refreshWorkspaceConstraints } from "./block_constraints.ts";
 import {
   parseSlotCardinality,
@@ -48,9 +51,12 @@ export function loadSkeletonIntoWorkspace(
   model: MappingModel,
   listeningSlotId: string | null = null,
   uiLanguage = "en",
+  targetFormat?: TargetFormatId,
 ): void {
+  setSchemaCatalog(skeleton);
+  const schemaTarget = targetFormat === "json-schema" || targetFormat === "xml-schema";
   runWithoutBlocklyEvents(() => {
-    const savedDefaults = captureDefaultsBlockState(workspace);
+    const savedDefaults = schemaTarget ? null : captureDefaultsBlockState(workspace);
     workspace.clear();
     let y = 20;
     for (const root of skeleton) {
@@ -63,11 +69,14 @@ export function loadSkeletonIntoWorkspace(
       y += height + 24;
     }
     applyModelExpressions(workspace, model);
-    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage);
+    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat);
     placeDefaultsBesideSkeleton(workspace);
-    attachDefaultPointLookups(workspace, skeleton, (parent, insertion) =>
-      attachOptionalRmChild(workspace, parent, insertion)
-    );
+    if (!schemaTarget) {
+      attachDefaultPointLookups(workspace, skeleton, (parent, insertion) =>
+        attachOptionalRmChild(workspace, parent, insertion)
+      );
+    }
+    applyModelOptionalSchemaFields(workspace, model);
     setAllBlocksCollapsed(workspace, false);
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);
@@ -229,6 +238,64 @@ export function slotIdFromBlock(block: Blockly.Block | null): string | null {
   return slotId || null;
 }
 
+/** Insert an optional schema field child on a live target_structure block. */
+export function attachOptionalSchemaChild(
+  workspace: WorkspaceSvg,
+  parent: Blockly.Block,
+  attributeName: string,
+): BlockSvg | null {
+  const parentSlotId = parent.getFieldValue("SLOT_ID") || "";
+  const parentNode = findSkeletonNode(parentSlotId);
+  if (!parentNode) return null;
+  const childNode = parentNode.children.find(
+    (child) => (child.rmAttribute ?? child.label) === attributeName,
+  );
+  if (!childNode) return null;
+  const child = buildBlockFromNode(workspace, childNode, false, 1);
+  if (!child) return null;
+  const inputName = parent.getInput(schemaOptionalInputName(attributeName))
+    ? schemaOptionalInputName(attributeName)
+    : targetChildInputName(attributeName);
+  connectAttributeChildren(parent, inputName, [child]);
+  refreshBlockLayout(parent as BlockSvg);
+  refreshWorkspaceConstraints(workspace);
+  return child;
+}
+
+function applyModelOptionalSchemaFields(
+  workspace: WorkspaceSvg,
+  model: MappingModel,
+): void {
+  const byParent = new Map<string, string[]>();
+  for (const extra of model.optionalRm) {
+    const parent = findBlockBySlotId(workspace, extra.attachmentSlotId);
+    if (!parent || parent.type !== "target_structure") continue;
+    const list = byParent.get(extra.attachmentSlotId) ?? [];
+    list.push(extra.attributeName);
+    byParent.set(extra.attachmentSlotId, list);
+  }
+  for (const [parentSlotId, names] of byParent) {
+    const parent = findBlockBySlotId(workspace, parentSlotId);
+    if (!parent) continue;
+    composeSchemaOptionalFields(parent, names);
+    for (const name of names) {
+      const input = parent.getInput(schemaOptionalInputName(name));
+      if (input?.connection?.targetBlock()) continue;
+      attachOptionalSchemaChild(workspace, parent, name);
+    }
+  }
+}
+
+function findBlockBySlotId(
+  workspace: Blockly.Workspace,
+  slotId: string,
+): Blockly.Block | null {
+  for (const block of workspace.getAllBlocks(false)) {
+    if (block.getFieldValue("SLOT_ID") === slotId) return block;
+  }
+  return null;
+}
+
 /** Insert an Optional RM child on a live container without rebuilding the canvas. */
 export function attachOptionalRmChild(
   workspace: WorkspaceSvg,
@@ -316,7 +383,8 @@ function buildTargetStructureBlock(
   block.setFieldValue(node.label, "NAME");
   block.setFieldValue(node.rmType, "TARGET_TYPE");
   block.setFieldValue(node.slotId, "SLOT_ID");
-  const groups = [...new Set(node.children.map((child) => child.rmAttribute ?? child.label))];
+  const visibleChildren = node.children.filter((child) => child.mandatory === true);
+  const groups = [...new Set(visibleChildren.map((child) => child.rmAttribute ?? child.label))];
   syncTargetChildInputs(block, groups);
   if (!isRoot) {
     block.setPreviousStatement(true);
@@ -324,7 +392,7 @@ function buildTargetStructureBlock(
   }
   finalizeBlock(block);
   for (const group of groups) {
-    const children = node.children
+    const children = visibleChildren
       .filter((child) => (child.rmAttribute ?? child.label) === group)
       .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
       .filter((child): child is BlockSvg => child !== null);

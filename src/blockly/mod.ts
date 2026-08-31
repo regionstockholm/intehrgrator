@@ -4,6 +4,12 @@ import { javascriptGenerator, Order } from "blockly/javascript";
 import type { MappingLoop, OptionalRmInsertion, SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName, optionalRmExtrasOf, optionalRmInputName } from "./blocks/rm_blocks.ts";
 import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
+import {
+  composeSchemaOptionalFields,
+  schemaOptionalExtrasOf,
+  schemaOptionalInputName,
+  setSchemaFieldsMutatorChangeHandler,
+} from "./blocks/schema_mutator.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
@@ -22,6 +28,7 @@ export {
   applyModelExpressions,
   applyModelLoops,
   attachOptionalRmChild,
+  attachOptionalSchemaChild,
   highlightListeningSlot,
   loadSkeletonIntoWorkspace,
   lockWorkspaceRootsExpanded,
@@ -76,6 +83,12 @@ export {
 } from "./blocks/rm_blocks.ts";
 export { dataValueLeafTypes, blockTypeForRm, getValidAttachments } from "../core/rm_meta.ts";
 export { isRmContainerBlockType } from "./blocks/rm_blocks.ts";
+export {
+  composeSchemaOptionalFields,
+  schemaOptionalExtrasOf,
+  setSchemaFieldsMutatorChangeHandler,
+} from "./blocks/schema_mutator.ts";
+export { setSchemaCatalog, skeletonToolboxSignature, findSkeletonNode } from "./schema_catalog.ts";
 export { buildDemoToolbox, toolboxBlockTypes, type ToolboxContext } from "./toolbox_demo.ts";
 export {
   attachDefaultPointLookups,
@@ -329,14 +342,20 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
 function optionalRmFromWorkspace(workspace: Blockly.Workspace): OptionalRmInsertion[] {
   const out: OptionalRmInsertion[] = [];
   for (const block of workspace.getAllBlocks(false)) {
-    const extras = optionalRmExtrasOf(block);
     const slotId = block.getFieldValue("SLOT_ID");
-    if (!slotId || !extras.length) continue;
+    if (!slotId) continue;
+    const extras = block.type === "target_structure"
+      ? schemaOptionalExtrasOf(block)
+      : optionalRmExtrasOf(block);
+    if (!extras.length) continue;
     for (const name of extras) {
-      const input = block.getInput(optionalRmInputName(name)) ??
-        block.getInput(rmAttributeInputName(name));
+      const input = block.type === "target_structure"
+        ? block.getInput(schemaOptionalInputName(name))
+        : block.getInput(optionalRmInputName(name)) ??
+          block.getInput(rmAttributeInputName(name));
       const child = input?.connection?.targetBlock();
       const rmType = child?.getFieldValue("RM_TYPE") ||
+        child?.getFieldValue("TARGET_TYPE") ||
         (child ? String(child.type).toUpperCase() : name);
       out.push({ attachmentSlotId: slotId, rmType, attributeName: name });
     }

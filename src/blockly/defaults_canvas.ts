@@ -1,5 +1,5 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
-import type { SkeletonNode } from "../types/mod.ts";
+import type { SkeletonNode, TargetFormatId } from "../types/mod.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
   bindDefaultPoints,
@@ -83,6 +83,17 @@ function connectDefaultValue(
   connectText(workspace, parent, inputName, value);
 }
 
+export function createEmptyMapBlock(workspace: Blockly.Workspace): Blockly.Block {
+  registerMapBlocks();
+  const map = workspace.newBlock(MAPS_CREATE_WITH) as Blockly.Block & {
+    itemCount_: number;
+    updateShape_: () => void;
+  };
+  map.itemCount_ = 0;
+  map.updateShape_();
+  return finalize(map);
+}
+
 export function createFactoryMapBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
@@ -107,19 +118,25 @@ export function createFactoryMapBlock(
 export function ensureDefaultsBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
+  targetFormat?: TargetFormatId,
 ): Blockly.Block {
   registerMapBlocks();
+  const useEmptyMap = targetFormat === "json-schema" || targetFormat === "xml-schema";
   const existing = findDefaultsBlock(workspace);
   if (existing) {
     if (!existing.getInputTargetBlock("MAP")) {
-      const map = createFactoryMapBlock(workspace, uiLanguage);
+      const map = useEmptyMap
+        ? createEmptyMapBlock(workspace)
+        : createFactoryMapBlock(workspace, uiLanguage);
       existing.getInput("MAP")?.connection?.connect(map.outputConnection!);
     }
     existing.setDeletable(false);
     return existing;
   }
   const block = workspace.newBlock(DEFAULTS_BLOCK_TYPE);
-  const map = createFactoryMapBlock(workspace, uiLanguage);
+  const map = useEmptyMap
+    ? createEmptyMapBlock(workspace)
+    : createFactoryMapBlock(workspace, uiLanguage);
   block.getInput("MAP")?.connection?.connect(map.outputConnection!);
   if (typeof (block as BlockSvg).moveBy === "function") {
     (block as BlockSvg).moveBy(DEFAULTS_X, DEFAULTS_Y);
@@ -155,6 +172,7 @@ export function restoreDefaultsBlockState(
   workspace: Blockly.Workspace,
   state: unknown,
   uiLanguage: string,
+  targetFormat?: TargetFormatId,
 ): void {
   if (state && typeof Blockly.serialization?.blocks?.append === "function") {
     try {
@@ -168,7 +186,7 @@ export function restoreDefaultsBlockState(
       // fall through to factory
     }
   }
-  ensureDefaultsBlock(workspace, uiLanguage);
+  ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
 }
 
 /** Place the Defaults stack at top-left; shift Template Skeleton to the right of it. */
@@ -321,13 +339,17 @@ export function hydrateDefaultsMapArgument(
   workspace: Blockly.Workspace,
   mapBlockState: unknown,
   uiLanguage: string,
+  targetFormat?: TargetFormatId,
 ): void {
-  const defaults = ensureDefaultsBlock(workspace, uiLanguage);
+  const defaults = ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
   const input = defaults.getInput("MAP");
   const existing = input?.connection?.targetBlock();
   if (existing) existing.dispose(false);
   if (!mapBlockState || typeof Blockly.serialization?.blocks?.append !== "function") {
-    const map = createFactoryMapBlock(workspace, uiLanguage);
+    const useEmptyMap = targetFormat === "json-schema" || targetFormat === "xml-schema";
+    const map = useEmptyMap
+      ? createEmptyMapBlock(workspace)
+      : createFactoryMapBlock(workspace, uiLanguage);
     input?.connection?.connect(map.outputConnection!);
     return;
   }

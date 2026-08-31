@@ -79,6 +79,24 @@ including custom Source, openEHR types, and Maps. See [Attribution](#attribution
   A kintegrate-style Source Pane “context root” is not required — see
   [future/source-context-root.md](future/source-context-root.md).
 
+### JSON Schema / XML Schema targets
+
+When the loaded target is `json-schema` or `xml-schema`:
+
+- **Always-visible drawers:** **JSON** (`json_object`, `json_array`, `json_value`,
+  `json_boolean`, `json_null`) and **XML** (`xml_element`, `xml_text`, `xml_attribute`)
+  for ad-hoc structure editing outside the loaded schema.
+- **Target schema drawer:** nested categories mirroring the skeleton tree; prefilled
+  `target_structure` / `target_value` blocks carry `SLOT_ID`, label, and schema type.
+- **Canvas scaffold:** mandatory schema fields only at load; optional fields via the
+  `schema_fields_mutator` cogwheel on `target_structure` (same UX family as openEHR
+  optional RM mutators). Mapping Model `optionalRm[]` records added optional fields.
+- **Defaults Map:** an empty `maps_create_with` is placed for JSON/XSD targets — no
+  openEHR default-point scaffolding.
+
+Relevant files: `src/blockly/toolbox_demo.ts`, `src/blockly/blocks/schema_mutator.ts`,
+`src/blockly/schema_catalog.ts`, `src/blockly/skeleton_loader.ts`.
+
 ## Attribution
 
 Toolbox category set, modest theme colours, thrasos renderer styling, and

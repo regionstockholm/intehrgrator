@@ -78,7 +78,62 @@ Asked before coding Chunk 4 (AI copy-paste polish). Recommended answers **adopte
 
 ➡️ **Adopted: yes.** Keep apply-valid-only behaviour; surface applied / loops / skipped / errors / schema counts in the import dialog summary.
 
-## Relevant Files
+## Grill round 1 (Chunk 5 frontier)
+
+Asked before coding Chunk 5 (local app + installable AI skill + agent/MCP driving). User answers **adopted** 2026-08-31.
+
+❓ **Q1** - **Chunk 5 boundary**: Docs/skill only, thin Agent API, or full MCP server in this chunk?
+
+➡️ **Adopted: C (MCP server in Chunk 5).** Include PEN-style MCP on the running desktop app. OK to **split implementation into separate commits/parts** (e.g. core service → HTTP API → MCP tools → docs/skill) for easier review and testing.
+
+---
+
+❓ **Q2** - **Primary agent workflow**: Files on disk, live session, copy-paste only, or combined?
+
+➡️ **Adopted: D.** File-first baseline (`.intehrgrator` / project folder) **plus** live session when desktop is open. Web shell stays copy-paste primary.
+
+---
+
+❓ **Q3** - **API layer**: Extend test API, core service, HTTP wrapper, or phased extraction?
+
+➡️ **Adopted: D (phased).** Extract **`WorkbenchService`** in core operating on **`ProjectBundle` / Blockly JSON / Mapping Model** — **no HTML DOM manipulation**. Desktop exposes localhost HTTP; MCP calls the same service. `intehrgratorTestApi` becomes a thin UI/test client where possible.
+
+---
+
+❓ **Q4** - **Write granularity**: Import-only, single-slot map, loops/optional RM/defaults, full workspace replace?
+
+➡️ **Adopted: C + D.** Agent API must support **`importSuggestions`**, **loops**, **optional RM extras**, and **defaults map** edits. **`loadBlocklyJson` / full workspace replace** remains an escape hatch. Loops are first-class for mapping.
+
+---
+
+❓ **Q5** - **Concurrency & revision**: Defer, revision token only, undo exposure, or both?
+
+➡️ **Adopted: D.** Mutating calls return a **revision token** (optimistic concurrency) **and** expose **undo / redo** on the Agent API.
+
+---
+
+❓ **Q6** - **Installable skill packaging**
+
+➡️ **Adopted: A.** In-repo `.cursor/skills/intehrgrator-mapping/SKILL.md` (and agents mirror) **plus** `docs/AGENT_WORKFLOW.md`.
+
+---
+
+❓ **Q7** - **Golden path documentation**
+
+➡️ **Adopted: B primary** — IDE + **desktop app side-by-side**; agent calls **localhost API** while user watches the canvas update. **Fallback (C-like):** when MCP/API is unavailable, document read-only / downstream export of mapping spec or generated conversion script (not round-trip authoring).
+
+## Relevant Files (Chunk 5)
+
+- `src/workbench/controller.ts` — extract `WorkbenchService` seam
+- `src/core/persistence/mod.ts` — `ProjectBundle` load/save
+- `src/core/ai/mod.ts` — `buildPrompt`, `importSuggestions`
+- `src/ui_test/test_api.ts` — thin client over service (not DOM-first agent API)
+- `src/desktop/` — localhost Agent API + MCP server (opt-in)
+- `docs/AGENT_WORKFLOW.md` — golden path (B) + fallback (C)
+- `.cursor/skills/intehrgrator-mapping/SKILL.md` — installable agent SOP
+- `CONTEXT.md` — Workbench Agent API, session revision (when implemented)
+
+## Relevant Files (Chunks 1–4)
 
 - `src/blockly/blocks/rm_blocks.ts` — `optional_rm_mutator` / `dv_fields_mutator`, + image fields, compose/decompose
 - `web/main.ts` — Optional RM HTML picker + context menu
@@ -144,7 +199,13 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 4.3 Import dialog: apply-valid-only with clear applied / skipped / schema counts (Q5)
   - [x] 4.4 Fixture + round-trip tests only (no live LLM in CI)
   - [x] 4.5 ROADMAP I items ticked; Q2 label already on `main`
-- [ ] 5.0 Chunk 5 — Local app + installable AI skill (roadmap D)
+- [ ] 5.0 Chunk 5 — Local app + installable AI skill + MCP (roadmap D)
+  - [ ] 5.1 Extract `WorkbenchService` (bundle I/O, prompt, import, loops, test, slot map) on Blockly JSON / model — no DOM
+  - [ ] 5.2 Desktop localhost Agent API (opt-in): revision + undo/redo; UI subscribes to service
+  - [ ] 5.3 MCP server (PEN-style) over same service; scroll/highlight blocks on edit when UI present
+  - [ ] 5.4 `docs/AGENT_WORKFLOW.md` — golden path B (IDE + desktop API); fallback C when MCP unavailable
+  - [ ] 5.5 `.cursor/skills/intehrgrator-mapping/SKILL.md` + agents mirror
+  - [ ] 5.6 Tests: service round-trips without browser; MCP/HTTP integration tests (separate commits per part OK)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

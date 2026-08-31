@@ -13,14 +13,21 @@ description: Guide AI agents mapping source data to openEHR (or other targets) v
 
 ## Golden path
 
-1. Confirm desktop Agent API: `GET http://127.0.0.1:<port>/api/v1/snapshot`
-2. Read revision from snapshot; pass **`If-Match`** / `revision` on mutations
-3. `POST /api/v1/build-prompt` or MCP `build_prompt` → paste into LLM **or** generate suggestions yourself
-4. `POST /api/v1/import-suggestions` or MCP `import_suggestions` with fenced JSON
-5. `POST /api/v1/run-test` — verify `testOk`
-6. Use **`undo`** if the user rejects a change
+1. MCP **`register_agent`** (or `POST /api/v1/register-agent`) — note returned **agentId**, **displayName**, **color**
+2. Confirm desktop Agent API: `GET http://127.0.0.1:<port>/api/v1/snapshot`
+3. Read revision from snapshot; pass **`If-Match`** / `revision` on mutations; include agent headers on writes
+4. `POST /api/v1/build-prompt` or MCP `build_prompt` → paste into LLM **or** generate suggestions yourself
+5. `POST /api/v1/import-suggestions` or MCP `import_suggestions` with fenced JSON
+6. `POST /api/v1/run-test` — verify `testOk`
+7. Use **`undo`** (scope `agent` / `user` / `global`) or **`get_history`** + **`restore_at`** if the user rejects a change
 
 Full HTTP table: [docs/AGENT_WORKFLOW.md](../docs/AGENT_WORKFLOW.md)
+
+## Multi-agent etiquette
+
+- Register once per MCP session; mutations are attributed in **joint history**
+- User watches via **Open observer** (timeline + agent legend) — do not assume main canvas auto-scrolls
+- For partial revert of one history row, use **`build_patch_prompt`** → LLM → **`import_suggestions`** (strict v2 JSON only)
 
 ## Suggestion rules (do not paraphrase)
 

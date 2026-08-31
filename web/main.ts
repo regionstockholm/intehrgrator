@@ -95,7 +95,13 @@ import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { installInfoTips, openInfoTipAt } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
-import { installAgentBridge } from "../src/web/agent_bridge.ts";
+import {
+  commitUiSemanticChange,
+  installAgentBridge,
+  resetCommittedSignature,
+} from "../src/web/agent_bridge.ts";
+import { openAgentObserver, updateAgentObserverActivity } from "../src/web/agent_observer.ts";
+import { isSemanticBlocklyEvent, summarizeBlocklyEvent } from "../src/workbench/semantic_events.ts";
 import { installImportAiDialog } from "../src/ui/import_ai.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
@@ -124,7 +130,6 @@ import {
 
 const host = createHostAdapter();
 const controller = new WorkbenchController(host, { urlStorage: localStorage });
-installAgentBridge(controller);
 const testMode = isTestMode();
 let workbenchReadyResolve!: () => void;
 const workbenchReady = new Promise<void>((resolve) => {
@@ -207,6 +212,8 @@ let applyingSelection = false;
 let blocklySkeletonKey = "";
 let blocklyLabelLanguage = "";
 let blocklySlotSignature = "";
+let followActiveAgent = localStorage.getItem("intehr-follow-agent") === "1";
+let lastSemanticEventSummary = "Edit mapping canvas";
 let toolboxKey = "";
 let ephemeralTreeHighlight: TreeHighlightState | null = null;
 let lastActiveExampleId: string | null = null;
@@ -401,7 +408,7 @@ async function bootBlockly(): Promise<void> {
       });
     }
     options.push({
-      text: "Open canvas snapshot…",
+      text: "Open observer snapshot…",
       enabled: workspace.getTopBlocks(false).length > 0,
       callback: () => openCanvasSnapshot(),
     });
@@ -445,8 +452,31 @@ async function bootBlockly(): Promise<void> {
     }
     if (event.type === Blockly.Events.FINISHED_LOADING || event.isUiEvent) return;
     if (suppressBlocklyModelSync || applyingDocumentUndo) return;
-    persistBlocklyCanvas();
+    if (!isSemanticBlocklyEvent(event)) return;
+    lastSemanticEventSummary = summarizeBlocklyEvent(event);
+    persistBlocklyCanvas({ summary: lastSemanticEventSummary });
   });
+
+  installAgentBridge({
+    controller,
+    exportBundle: () => controller.exportDocumentSnapshot(),
+    slotSignature: () => blocklySlotSignature,
+    onActivity: (activity) => {
+      if (!activity) return;
+      updateAgentObserverActivity(activity);
+      pulseAgentActivity(activity);
+    },
+  });
+  resetCommittedSignature(blocklySlotSignature);
+
+  const followCheckbox = document.getElementById("chk-follow-agent") as HTMLInputElement | null;
+  if (followCheckbox) {
+    followCheckbox.checked = followActiveAgent;
+    followCheckbox.addEventListener("change", () => {
+      followActiveAgent = followCheckbox.checked;
+      localStorage.setItem("intehr-follow-agent", followActiveAgent ? "1" : "0");
+    });
+  }
 }
 
 function activeTreeHighlight(s: ReturnType<WorkbenchController["getState"]>): TreeHighlightState {
@@ -517,7 +547,8 @@ function handleSourceSelection(
   controller.bindFromNode(path, format);
 }
 
-function persistBlocklyCanvas(options?: { notify?: boolean }): void {
+function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }): void {
+  const signatureBefore = blocklySlotSignature;
   const derived = workspaceToModelJson(workspace);
   controller.syncFromBlockly(
     Blockly.serialization.workspaces.save(workspace),
@@ -526,11 +557,17 @@ function persistBlocklyCanvas(options?: { notify?: boolean }): void {
     derived.optionalRm,
     { notify: false },
   );
-  // Track the post-sync model, not the raw canvas extract — applyExpressionEdit
-  // can normalize strings, and the next render compares against model.slots.
   const s = controller.getState();
-  blocklySlotSignature = slotSignatureFrom(s.model.slots, s.model.loops ?? []);
+  const signatureAfter = slotSignatureFrom(s.model.slots, s.model.loops ?? []);
+  blocklySlotSignature = signatureAfter;
   refreshUndoButtons();
+  if (signatureBefore !== signatureAfter) {
+    void commitUiSemanticChange(
+      controller.exportDocumentSnapshot(),
+      options?.summary ?? "Edit mapping",
+    );
+    resetCommittedSignature(signatureAfter);
+  }
   if (options?.notify !== false) controller.notifyChange();
 }
 
@@ -550,6 +587,27 @@ function refreshUndoButtons(): void {
   if (!workspace || !undoBtn || !redoBtn) return;
   undoBtn.disabled = !workspaceCanUndo(workspace);
   redoBtn.disabled = !workspaceCanRedo(workspace);
+  const hint = "Tip: Open canvas (observer) for the full agent timeline and attributed history.";
+  undoBtn.title = undoBtn.disabled ? hint : `${hint} Undo last canvas edit.`;
+  redoBtn.title = redoBtn.disabled ? hint : `${hint} Redo canvas edit.`;
+}
+
+function pulseAgentActivity(activity: {
+  affectedSlotIds: string[];
+  displayName: string;
+  color: string;
+}): void {
+  for (const block of workspace.getAllBlocks(false)) {
+    const slotId = slotIdFromBlock(block);
+    if (slotId && activity.affectedSlotIds.includes(slotId)) {
+      block.getSvgRoot()?.style.setProperty("outline", `2px solid ${activity.color}`);
+      globalThis.setTimeout(() => block.getSvgRoot()?.style.removeProperty("outline"), 2500);
+      if (followActiveAgent) {
+        workspace.centerOnBlock(block.id);
+      }
+    }
+  }
+  statusMain.textContent = `${activity.displayName}: ${controller.getState().statusMessage}`;
 }
 
 function restoreDocumentFromUndo(snapshot: DocumentSnapshot): void {
@@ -922,17 +980,20 @@ function openCanvasSnapshot(): void {
   const title = state.templateId
     ? `intEHRgrator — ${state.templateId}`
     : "intEHRgrator — Mapping canvas";
-  const popup = openWorkspaceSnapshotWindow(workspace, {
-    title,
-    filenameBase,
-    onBlocked: (svgXml, base) => {
-      if (svgXml) void host.downloadText(`${base}.svg`, svgXml, "image/svg+xml");
-      statusMain.textContent = svgXml
-        ? "Popup blocked — downloaded SVG instead."
-        : "Popup blocked and the canvas is empty.";
-    },
-  });
-  if (popup) statusMain.textContent = "Opened mapping canvas snapshot.";
+  const popup = openAgentObserver(workspace, { title, filenameBase })
+    ?? openWorkspaceSnapshotWindow(workspace, {
+      title,
+      filenameBase,
+      onBlocked: (svgXml, base) => {
+        if (svgXml) void host.downloadText(`${base}.svg`, svgXml, "image/svg+xml");
+        statusMain.textContent = svgXml
+          ? "Popup blocked — downloaded SVG instead."
+          : "Popup blocked and the canvas is empty.";
+      },
+    });
+  if (popup) {
+    statusMain.textContent = "Opened agent observer / canvas snapshot.";
+  }
 }
 bind("btn-run-test", () => {
   controller.runTestNow();

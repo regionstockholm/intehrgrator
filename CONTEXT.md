@@ -217,8 +217,16 @@ Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by 
 _Avoid_: conflating with Workbench Test API, treating the GitHub Pages web shell as the Agent API host
 
 **Session revision**:
-FNV-style hash of Mapping Model + Blockly workspace JSON (+ Handlebars template) returned as `revision` / `r<hex>` on Agent API reads and after each mutation. Agents pass **`If-Match: <revision>`** (or MCP `revision`) for optimistic concurrency; **`undo` / `redo`** walk a service-level stack independent of Blockly canvas undo.
+FNV-style hash of Mapping Model + Blockly workspace JSON (+ Handlebars template) returned as `revision` / `r<hex>` on Agent API reads and after each mutation. Agents pass **`If-Match: <revision>`** (or MCP `revision`) for optimistic concurrency; **`undo` / `redo`** walk a joint **attributed semantic history** (user + registered agents). Blockly canvas undo remains for direct block edits; service history merges UI semantic commits via `/ui-commit`. Open **observer** for timeline scrub, destructive rollback, and patch-undo prompts.
 _Avoid_: wall-clock timestamps, assuming revision survives a full browser reload without re-fetching snapshot
+
+**Agent actor**:
+Registered MCP session identity `{ agentId, displayName, color }` returned from **`register_agent`**. Mutations carry **`X-Agent-Id` / `X-Agent-Name`** headers; history entries record actor + summary. Desktop assigns colour from id hash when omitted.
+_Avoid_: anonymous agent rows when registration is available
+
+**Agent observer**:
+**Open observer** extends the Open canvas popup: live Blockly snapshot, per-agent legend, and **history timeline** (scrub preview, destructive rollback with optional **discarded-branch** `.intehrgrator` download, copy patch-undo prompt). Main canvas shows subtle pulse on agent-touched slots; **Follow agent** (opt-in) pans the main workspace.
+_Avoid_: auto-scrolling the main canvas by default while a human is editing elsewhere
 
 **Conversion script language** (older docs said Export dialect / Export Target; code key `exportTarget` was a persisted setting — no longer saved):
 An **Output mode** value that generates a Conversion Script (`typescript` | `java` | `handlebars` | `xquery`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format and from Mapping preview. Not stored in the Project Bundle.

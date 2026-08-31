@@ -9,6 +9,7 @@ export interface AgentSnapshot {
   unmappedMandatory: number;
   statusMessage: string;
   testOk: boolean | null;
+  activeAgents?: number;
 }
 
 export interface AgentMutationResult {

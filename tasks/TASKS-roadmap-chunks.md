@@ -384,6 +384,85 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 5.1.7 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
   - [x] 5.1.8 Tests: registration, semantic history, timeline playback (no live LLM)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
+
+## Grill round 1 (Chunk 6 frontier — dynamic schema toolboxes)
+
+Asked after **0.4** desktop release (Chunk 5.1 shipped: multi-agent observer, attributed history). Recommended answers **not yet adopted** — resolve before coding Chunk 6.
+
+Context from current code:
+
+- JSON Schema / XML Schema targets already load via **Target Format Handler** → `SkeletonNode[]` → generic `target_structure` / `target_value` canvas blocks.
+- `buildDemoToolbox` adds a **Target schema** flyout (prefilled generic blocks, **max 40**, flat list) when a JSON/XSD target is loaded — not per-type Blockly definitions.
+- openEHR targets use typed RM blocks + cogwheel optional-field mutators; JSON/XSD has **no equivalent mutator** for optional properties.
+- **TakeCare** appears only in roadmap text — no fixture, term-id blocks, or test/prod system switch in code.
+- PRD Q7 (JSON/XSD) answered **B**: generic output blocks **and** dynamically generated blocks from the selected schema — only the generic half exists today.
+
+❓ **Q1** - **Block vocabulary:** For JSON/XSD targets, should the dynamic drawer use only generic `target_structure` / `target_value` blocks (current), or register **schema-named block types** at load time (e.g. after XSD complexType / JSON `$defs` name)?
+
+**A** — Keep **generic blocks only**; improve flyout labels and search.  
+**B** — **Dynamic `Blockly.Blocks[schemaTypeName]`** registration when target loads (unregister on target swap).  
+**C** — **Hybrid:** canvas stays generic; toolbox flyout uses typed shortcut blocks that expand to generic subtrees on drop.
+
+---
+
+❓ **Q2** - **Optional property UX (JSON/XSD):** How should users add/remove non-mandatory schema fields?
+
+**A** — **Generalize cogwheel mutator** from RM containers to `target_structure` (attachment catalog from skeleton metadata).  
+**B** — **Scaffold all optional nodes** on canvas (collapsed) at load — no mutator.  
+**C** — **Toolbox-only optional nodes** — user drags from Target schema drawer; remove = delete block (Blockly default orphan).
+
+---
+
+❓ **Q3** - **Target schema drawer shape:** How to organize the dynamic drawer for large schemas (TakeCare-scale)?
+
+**A** — **Flat flyout** with raised cap + search (current pattern, higher limit).  
+**B** — **Nested categories** mirroring schema tree (sections / complexTypes / `$defs`).  
+**C** — **No dedicated drawer** — rely on toolbox-search + Target tree rail / Mapping Spec only.
+
+---
+
+❓ **Q4** - **TakeCare integration mode:** How should TakeCare be validated in Chunk 6?
+
+**A** — **Bundled fixture** in repo (XSD/JSON + golden toolbox snapshot tests in CI).  
+**B** — **Runtime load only** — user supplies schema; TakeCare is manual QA, not committed.  
+**C** — **Optional plugin / extension pack** separate from core (new packaging seam).
+
+---
+
+❓ **Q5** - **TakeCare term identifiers (test vs prod):** How to author coded values bound to TakeCare term systems?
+
+**A** — Extend **`term_pick`** with a **system selector** (openEHR + TakeCare test/prod URIs).  
+**B** — **`maps_get` / Defaults Map** code tables only — no inline slot block.  
+**C** — New **`term_id` block** (system + code fields) with target-format-specific codegen.
+
+---
+
+❓ **Q6** - **Canvas vs toolbox parity:** Should the **scaffolded canvas** use the same block types as the dynamic toolbox shortcuts?
+
+**A** — **Canvas generic, toolbox typed shortcuts** (minimal `skeleton_loader` change).  
+**B** — **Both canvas and toolbox schema-typed** (major loader + codegen refactor).  
+**C** — **Toolbox-only authoring** for JSON/XSD — no canvas scaffold (breaks Click-to-Map parity).
+
+---
+
+❓ **Q7** - **Toolbox refresh + Agent API:** When target/schema changes, how do IDE agents discover new slotIds?
+
+**A** — **`updateToolbox` on target load only** + hash skeleton in `build_prompt` manifest (current direction).  
+**B** — Expose **`GET /api/v1/schema-toolbox`** listing drawer entries + slotIds for agents.  
+**C** — Agents use **`get_snapshot` + `/bundle`** only; no schema-toolbox endpoint (document slotId paths in prompt).
+
+---
+
+### Relevant files (Chunk 6 — proposed scope)
+
+- `src/blockly/toolbox_demo.ts` — `buildDemoToolbox`, `schemaFlyoutContents`, drawer caps
+- `src/blockly/blocks/target_blocks.ts` — generic JSON/XML structure blocks; optional mutator seam
+- `src/core/target/format_handler.ts` — JSON/XSD skeleton generation, `$ref` / XSD fidelity
+- `src/blockly/skeleton_loader.ts` — canvas scaffold from `SkeletonNode[]`
+- `web/main.ts` — `syncToolbox` invalidation key
+- `docs/ROADMAP.md` §H — TakeCare, term ids
+- `test/target_format_handler_test.ts`, new schema-toolbox golden tests
+
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
 - [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)

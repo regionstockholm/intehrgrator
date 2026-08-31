@@ -296,7 +296,7 @@ async function handleRequest(req: JsonRpcRequest, client: AgentClient): Promise<
       reply({
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "intehrgrator", version: "0.3.1" },
+        serverInfo: { name: "intehrgrator", version: "0.4.0" },
       });
       return;
     }

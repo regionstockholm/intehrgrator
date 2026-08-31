@@ -114,7 +114,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 4. Link to this doc
 5. Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …)
 6. Artifact delivery (below)
-7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer **`maps_get` / `maps_create_with`** for terminology and code translation (e.g. ICD-10 → SNOMED CT) — more common than defaults. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt; **omit those slots** unless the user asked for different defaults — then your suggestion replaces the existing mapping. Party identity value slots (e.g. composer `name`) map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score.
+7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer **`maps_get` / `maps_create_with`** for terminology and code translation (e.g. ICD-10 → SNOMED CT) — more common than bare defaults. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score.
 
 ### Artifact delivery
 
@@ -200,7 +200,33 @@ Assume a named map `icd10_snomed` on the canvas (or describe keys in `note`). Lo
 
 For a **small inline table** without a named map, nest `maps_create_with` inside `logic_ternary` branches (one branch per known code).
 
-**Defaults lookup (language)** — often pre-wired by scaffold; suggest only when user overrides:
+**Source over defaults (composer, time, facility)** — scaffold may already use `maps_get("defaults", …)`; when the source has values, map from source:
+
+```intehrgrator-suggestions
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": { "format": "openehr-template", "targetId": "vitals_encounter_v1" },
+  "suggestions": [
+    {
+      "slotId": "vitals_encounter_v1/context/start_time/value",
+      "block": {
+        "type": "source_query",
+        "fields": { "EXPRESSION": "$.encounter.startTime" }
+      }
+    },
+    {
+      "slotId": "vitals_encounter_v1/composer/name/value",
+      "block": {
+        "type": "source_query",
+        "fields": { "EXPRESSION": "$.author.displayName" }
+      }
+    }
+  ]
+}
+```
+
+**Defaults lookup (language)** — scaffold fallback only when source has no value and user did not override:
 
 ```intehrgrator-suggestions
 {
@@ -217,7 +243,7 @@ For a **small inline table** without a named map, nest `maps_create_with` inside
           "KEY": { "block": { "type": "text", "fields": { "TEXT": "language" } } }
         }
       },
-      "note": "Only when user asked to change language default"
+      "note": "Only when source has no language and user did not specify otherwise"
     }
   ]
 }

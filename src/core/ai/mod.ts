@@ -195,9 +195,20 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
-    "**Defaults** — target scaffold often pre-wires `maps_get(\"defaults\", …)` for language/territory; omit unless the user asked to override.",
+    "**Defaults vs source** — scaffold often pre-wires `maps_get(\"defaults\", …)` for language/territory/facility/time/composer. **Source wins:** when the source has data for such a slot, map with `source_query` (e.g. context start time, healthcare facility, composer name). Omit defaults-only slots only when the source has no value.",
     "",
-    "**Party identity `name` slot** (DV_TEXT value leaf):",
+    "**Source over defaults (time / composer)** — map from source when present:",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}/context/start_time/value",
+      block: {
+        type: "source_query",
+        fields: { EXPRESSION: "$.encounter.startTime" },
+      },
+    }, null, 2),
+    "```",
+    "",
+    "**Party identity `name` slot** (DV_TEXT value leaf; source over defaults):",
     "```json",
     JSON.stringify({
       slotId: "{targetId}{path/to/composer/name/value}",
@@ -211,7 +222,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "**Repeating container** — put `for_each_source` in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list).",
     "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `maps_get` / `maps_create_with` for terminology and code translation. Scaffold generation often wires Defaults Map slots already — skip them unless the user requested different defaults. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `maps_get` / `maps_create_with` for terminology and code translation. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {

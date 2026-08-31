@@ -15,6 +15,7 @@
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
+- [ ] **Human multi-user collaboration** (late): live co-editing, CRDT/sync — Chunk 14; architecture prep in [`tasks/ARCHITECTURE-multi-user-collab-prep.md`](../tasks/ARCHITECTURE-multi-user-collab-prep.md)
 - [x] add https://raspberrypifoundation.github.io/blockly-samples/plugins/toolbox-search/test/index.html
 - [x] add markers in right scroll gutter of mapping spec codemirror so that all locations of errors can be found
 

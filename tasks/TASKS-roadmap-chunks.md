@@ -212,35 +212,40 @@ Context from product direction:
 
 ## Grill round 2 (Chunk 5.1 — undo/history semantics)
 
-Open after [`DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md). **Not adopted yet.**
+Asked after [`DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md). User answers **adopted** 2026-08-31.
 
-❓ **Q1** - **Session unification:** Should every UI canvas edit bump the service revision immediately, or batch debounced commits (stale revision window for agents)?
+❓ **Q1** - **Session unification / history commits:** Immediate revision bump per canvas edit, or batched commits?
 
-➡️ **Recommended: debounced commits (500–1500ms)** — one history entry per debounce window; agents already use `If-Match` and retry on 409.
-
----
-
-❓ **Q2** - **Selective undo semantics:** After “Undo last agent change”, preserve intervening user edits (compensating merge) or rewind to agent `beforeBundle` (snapshot replace)?
-
-➡️ **Recommended: snapshot replace for v1** (simpler); document destructive behaviour; compensating merge as Phase 2 if users reject it.
+➡️ **Adopted: semantics-based, not time-based.** Record history when **mapping semantics** change: block **attached / detached / added / removed**, slot **expression** change, **loop** / **optionalRm** / **import** mutations. **Ignore** pure x/y layout moves until something structural changes. Coalesce multiple semantic events in one “transaction burst” if they share one user gesture (e.g. mutator compose). Agents bump revision on each API mutation (already atomic).
 
 ---
 
-❓ **Q3** - **Blockly history granularity:** One entry per debounce window, or one per semantic `slotId` expression change only (ignore layout drags)?
+❓ **Q2** - **Selective undo semantics:** Snapshot replace vs compensating merge?
 
-➡️ **Recommended: semantic slot/loop/optionalRm changes only** — ignore pure block moves unless user opts “track layout”.
+➡️ **Adopted: both, user-chosen + timeline.** Provide:
+1. **Timeline scrubber** — run forward/backward for **viewing** (read-only playback at each `seq`).
+2. **Destructive rollback** — jump to history point `seq` after **warning/confirmation** (replaces document state; truncates or forks redo — TBD in implementation).
+3. **Compensating patch (best-effort)** — attempt to remove effects of a **single** history entry while keeping later work; may fail on conflicts. Offer **AI-assisted patch**: generate a small prompt + metadata for an external agent with MCP access to history/undo; result appended as **new timeline entry** (undoable if it messes up).
+
+Shortcut menu items (“Undo my last edit”, “Undo last agent change”) remain filters on the same timeline.
 
 ---
 
-❓ **Q4** - **History retention:** Cap entries (50? 200?) or memory-bounded mapping-only snapshots?
+❓ **Q3** - **Blockly history granularity:**
 
-➡️ **Recommended: cap ~100 entries**; store full bundle for macro edits, slot-diff summary for micro.
+➡️ **Adopted: same as Q1** — semantic attach/detach/add/remove and mapping-field changes only; not x/y.
 
 ---
 
-❓ **Q5** - **Phase 2 trigger:** Is human multi-user a committed roadmap item, or “prepare architecture only” for 5.1?
+❓ **Q4** - **History retention:**
 
-➡️ **Recommended: prepare architecture only in 5.1** — no sync server; CRDT spike deferred until explicit multi-user milestone.
+➡️ **Adopted: no arbitrary cap** unless memory risk. **Web:** warn user before purging oldest entries if approaching memory limit. **Desktop/local:** persist history **on disk** (append log / sidecar with project); load recent window into memory as needed.
+
+---
+
+❓ **Q5** - **Human multi-user roadmap:**
+
+➡️ **Adopted: yes, near end of roadmap.** Chunk 5.1 = **architecture-only prep** in [`tasks/ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md). Full CRDT/sync deferred to **Chunk 14**.
 
 ---
 
@@ -251,6 +256,8 @@ Open after [`DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md
 - `src/web/agent_bridge.ts` — push agent highlight events to UI without scrolling main workspace
 - `src/blockly/workspace_snapshot.ts` — live observer window (multi-agent SVG layers)
 - `web/main.ts` — Open canvas → observer mode; undo menu shows actor
+- `tasks/DESIGN-multi-agent-undo-crdt.md` — undo/history feasibility, library evaluation
+- `tasks/ARCHITECTURE-multi-user-collab-prep.md` — Chunk 14 prep (5.1 lays seams only)
 - `docs/AGENT_WORKFLOW.md` — multi-agent setup, colours, observer window
 - `CONTEXT.md` — Agent actor, observer canvas, attributed undo
 
@@ -296,6 +303,7 @@ Open after [`DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md
 | 11   | Better Form parity                      | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
 | 12   | Later hosts                             | v1 follow-ups: Java Export UI; VS Code host; Autoplay E2E                                                                                                | Explicitly post-v1                                                                         |
 | 13   | Cross-pane a11y                         | B: colourblind in→conv→out; sync highlight mapping ↔ Conversion Test Run                                                                                 | Visual language; after editor mechanics settle                                             |
+| 14   | Human multi-user collaboration          | D follow-up + DESIGN/ARCHITECTURE docs: CRDT/sync, shared rooms, live co-editing                                                                         | Late; 5.1 lays history/actor/timeline seams only — see ARCHITECTURE-multi-user-collab-prep |
 
 
 Already done (do not re-open unless regression): A small fixes (including `.xml` pickers), maps de-uglify, target visualisation pane removal, CLUSTER/SECTION colour/cleanup, Handlebars language + template tab, XQuery Model B emit.
@@ -342,10 +350,11 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [ ] 5.1.1 Agent registration at MCP session start (`register_agent`); return name/colour; optional name suggestion
   - [ ] 5.1.2 Live Open canvas observer window (per-agent layers, legend); dual highlight on main canvas (Q5 D)
   - [ ] 5.1.3 Opt-in “Follow active agent” on main canvas (default off); pulse-without-scroll when off (Q2 B+D)
-  - [ ] 5.1.4 Joint attributed history log + selective undo UI (Q6); unify UI/service session — see DESIGN doc
+  - [ ] 5.1.4 Joint attributed **semantic** history log + **timeline UI** (scrub, destructive rollback, best-effort/AI patch undo) — see DESIGN + ARCHITECTURE prep
   - [ ] 5.1.5 Conflict: revision + 409 + slot-level merge report (Q7 A+D); optional leases in 5.2
-  - [ ] 5.1.6 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
-  - [ ] 5.1.7 Tests: registration, history attribution, observer window (no live LLM)
+  - [ ] 5.1.6 History persistence: disk on desktop; memory warn + purge confirm on web
+  - [ ] 5.1.7 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
+  - [ ] 5.1.8 Tests: registration, semantic history, timeline playback (no live LLM)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
@@ -354,3 +363,4 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
 - [ ] 11.0 Chunk 11 — Better Form parity (roadmap G)
 - [ ] 12.0 Chunk 12 — Java Export UI / VS Code host / Autoplay E2E
 - [ ] 13.0 Chunk 13 — Colourblind language + sync highlight (roadmap B)
+- [ ] 14.0 Chunk 14 — Human multi-user collaboration (architecture in [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md); CRDT/sync spike)

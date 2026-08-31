@@ -431,19 +431,25 @@ intEHRgrator already leans **model-authoritative for agents** (`map-slot`, `impo
    - Single document owner: route UI mutations through shared `WorkbenchService` (or sync UI → service on every `persistBlocklyCanvas` with revision bump).
    - Agent bridge becomes event-driven (revision push) rather than blind poll+replace.
 
-2. **History log with actors**
-   - Extend `withUndo` → `recordHistory({ actor, summary, beforeBundle })`.
+2. **History log with actors (semantic commits)**
+   - Extend `withUndo` → `recordHistory({ actor, summary, kind, beforeBundle })`.
+   - **Semantic kinds** (grill round 2): record on attach/detach/add/remove, expression/loop/optionalRm/import changes — **not** pure x/y block moves.
+   - Coalesce events from one gesture (e.g. mutator compose) into one entry.
    - Accept `X-Agent-Id`, `X-Agent-Name` headers (grill Q4 option B) on mutating API calls.
-   - User edits: debounced history commits from `persistBlocklyCanvas`.
+   - User canvas edits: commit to history on semantic Blockly events (filter move-only).
 
 3. **API surface**
-   - `GET /api/v1/history` — list entries (seq, actor, summary, revisionAfter, affectedSlotIds).
-   - `POST /api/v1/undo` — optional `{ scope: "global" | "actor", actorId? }`.
+   - `GET /api/v1/history` — list entries (seq, actor, summary, kind, revisionAfter, affectedSlotIds).
+   - `GET /api/v1/history/{seq}/preview` — optional bundle at point (timeline scrub).
+   - `POST /api/v1/restore-at { seq, mode: "view" | "destructive" }` — view = temporary; destructive = confirm + rollback.
+   - `POST /api/v1/undo` — optional `{ scope: "global" | "actor" | "entry", actorId?, seq? }`.
+   - `POST /api/v1/patch-undo { targetSeq }` — best-effort compensating patch; may return conflicts; AI-assisted variant via MCP prompt metadata.
    - Keep `POST /undo` / `POST /redo` as global linear shortcuts.
 
 4. **UI**
-   - Undo menu: “Undo **{displayName}**: {summary}” from history tail.
-   - Separate actions: “Undo my last edit”, “Undo last agent change” (filter scan).
+   - **Timeline panel**: scrub forward/back; destructive rollback to seq (with confirmation).
+   - Undo menu: “Undo **{displayName}**: {summary}”; “Undo my last edit”; “Undo last agent change”.
+   - Optional: “Remove effects of this step…” → best-effort patch or copy AI prompt for MCP agent.
    - Disable or subordinate Blockly native undo when joint history is active (config flag during transition).
 
 5. **Q7 conflict handling (Phase 1)**
@@ -453,9 +459,15 @@ intEHRgrator already leans **model-authoritative for agents** (`map-slot`, `impo
 
 6. **Observer / highlight** (grill Q2–Q5): orthogonal; use `affectedSlotIds` / block IDs from history for pulse highlights.
 
-**Explicitly defer:** CRDT library integration, slot leases, human multi-user WebSocket room.
+**Explicitly defer:** CRDT library integration, slot leases, human multi-user WebSocket room. **Prep only:** see [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md).
 
-### Phase 2 — CRDT introduction (if product requires live human co-editing)
+### History retention (grill round 2)
+
+- **Desktop:** append history to disk (sidecar / SQLite); no arbitrary entry cap.
+- **Web:** unbounded until memory pressure; then **warn** and let user approve purge of oldest entries.
+- Store full `ProjectBundle` snapshot per semantic entry (macro) or slot-diff metadata where possible to save space later.
+
+### Phase 2 — CRDT introduction (Chunk 14 — human multi-user)
 
 **Entry criteria (any one triggers evaluation spike):**
 
@@ -500,23 +512,33 @@ ProjectBundle
 
 ---
 
-## Open questions for grill round 2
+## Open questions for grill round 3
 
-1. **Session unification:** Should every UI canvas edit bump the service revision immediately (true single source), or batch debounced commits (stale revision window for agents)?
+1. **Destructive rollback vs timeline fork:** After rollback to seq *N*, discard entries *N+1…* or keep them in a “discarded branch” for recovery?
 
-2. **Selective undo vs redo:** After “Undo last agent change”, should intervening user edits be preserved (compensating merge) or rewound to the agent’s `beforeBundle` (snapshot replace—simpler but destructive)?
+2. **AI patch prompt schema:** Fixed MCP tool that returns `intehrgrator-suggestions` diff, or free-form agent reasoning?
 
-3. **Blockly micro-edit granularity:** One history entry per debounce window, or one per semantic `slotSignature` change only (ignoring layout drags)?
+3. **View mode during scrub:** Temporary overlay on canvas vs split observer window only?
 
-4. **History retention:** Cap entries (50? 200?) or memory-bounded mapping-only snapshots?
+4. **Semantic coalescing window:** Max events merged per gesture (mutator compose = 1 entry always)?
 
-5. **Headless MCP:** Embedded `WorkbenchService` shares history semantics with desktop, or file-export-only without joint undo?
+---
 
-6. **Phase 2 trigger:** Is **human** multi-user a committed roadmap item, or “prepare architecture only” for 5.1?
+## Grill round 2 — adopted summary (2026-08-31)
 
-7. **Model vs canvas authority:** If agent and user disagree, is derived model from canvas always wins, or can agent model edits override in-flight canvas field edits?
+| Topic | Decision |
+|-------|----------|
+| History commits | **Semantic** (attach/detach/add/remove, mapping fields) — not time debounce, not x/y |
+| Undo modes | Timeline scrub + **destructive rollback** (confirm) + **best-effort patch** (+ optional AI via MCP) |
+| Retention | No cap; disk on desktop; web warns before purge |
+| Human multi-user | **Chunk 14**; prep in [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md) |
 
-8. **CRDT library down-select:** When Phase 2 spikes, prioritize **Automerge (model JSON)** vs **Yjs (ecosystem)** vs **Loro (block tree)**—need product call on canvas co-editing priority.
+---
+
+## Open questions for grill round 2 (superseded — see above)
+
+<details>
+<summary>Original round 2 questions (pre-adoption)</summary>
 
 ---
 

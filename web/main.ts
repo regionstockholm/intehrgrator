@@ -34,6 +34,7 @@ import {
   applyModelExpressions,
   applyModelLoops,
   attachOptionalRmChild,
+  attachOptionalSchemaChild,
   highlightListeningSlot,
   slotIdFromBlock,
   listeningTargetFromBlock,
@@ -42,6 +43,9 @@ import {
   createModestTheme,
   buildDemoToolbox,
   setOptionalRmMutatorChangeHandler,
+  setSchemaFieldsMutatorChangeHandler,
+  findSkeletonNode,
+  skeletonToolboxSignature,
   openBlockMutator,
   composeOptionalRmExtras,
   workspaceToModelJson,
@@ -81,6 +85,7 @@ import {
   rmAttributeInputName,
   rmTypeOfBlock,
 } from "../src/blockly/blocks/rm_blocks.ts";
+import { schemaOptionalInputName } from "../src/blockly/blocks/schema_mutator.ts";
 import { slotRmTypeForAttr } from "../src/blockly/rm_type_emoji.ts";
 import {
   changeLocaleAndReload,
@@ -393,6 +398,27 @@ async function bootBlockly(): Promise<void> {
           change.parent.getInput(rmAttributeInputName(name));
         if (!input?.connection?.targetBlock()) {
           attachOptionalRmChild(workspace, change.parent, picked);
+        }
+      }
+    });
+  });
+
+  setSchemaFieldsMutatorChangeHandler((change) => {
+    withBlocklyUndoGroup(() => {
+      const slotId = change.parent.getFieldValue("SLOT_ID") || "";
+      for (const name of change.removed) {
+        if (slotId) controller.removeOptionalRm(slotId, name);
+      }
+      for (const name of change.added) {
+        const parentNode = slotId ? findSkeletonNode(slotId) : undefined;
+        const childNode = parentNode?.children.find(
+          (child) => (child.rmAttribute ?? child.label) === name,
+        );
+        const rmType = childNode?.rmType ?? name;
+        if (slotId) controller.addOptionalRm(slotId, rmType, name);
+        const input = change.parent.getInput(schemaOptionalInputName(name));
+        if (!input?.connection?.targetBlock()) {
+          attachOptionalSchemaChild(workspace, change.parent, name);
         }
       }
     });
@@ -766,19 +792,24 @@ function applyPendingDefaultsMap(): void {
   const pending = controller.consumePendingDefaultsMap();
   if (!pending) return;
   runWithoutBlocklyEvents(() => {
-    hydrateDefaultsMapArgument(workspace, pending, blocklyLocale);
+    hydrateDefaultsMapArgument(workspace, pending, blocklyLocale, targetFormatOf(controller.getState()));
   });
   persistBlocklyCanvas();
 }
 
 function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
-  const key = `${s.target?.format ?? ""}|${s.templateId}|${s.skeleton.length}|${s.modelLanguage ?? ""}`;
+  const sig = s.skeleton.length ? skeletonToolboxSignature(s.skeleton) : "";
+  const key = `${s.target?.format ?? ""}|${s.templateId}|${sig}|${s.modelLanguage ?? ""}`;
   if (key === toolboxKey) return;
   toolboxKey = key;
   workspace.updateToolbox(buildDemoToolbox(blocklyLocale, {
     targetFormat: s.target?.format,
     skeleton: s.skeleton,
   }));
+}
+
+function targetFormatOf(s: ReturnType<WorkbenchController["getState"]>) {
+  return s.target?.format ?? s.model.targetFormat;
 }
 
 function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): void {
@@ -789,7 +820,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklyLabelLanguage = "";
     blocklySlotSignature = "";
     runWithoutBlocklyEvents(() => {
-      ensureDefaultsBlock(workspace, blocklyLocale);
+      ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
     });
     applyPendingDefaultsMap();
     return;
@@ -800,7 +831,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklyLabelLanguage = "";
       blocklySlotSignature = "";
       runWithoutBlocklyEvents(() => {
-        ensureDefaultsBlock(workspace, blocklyLocale);
+        ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
       });
       applyPendingDefaultsMap();
       return;
@@ -818,7 +849,9 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         workspace.clear();
         migrateMapsCreateWithJson(savedState);
         Blockly.serialization.workspaces.load(savedState, workspace);
-        if (!findDefaultsBlock(workspace)) ensureDefaultsBlock(workspace, blocklyLocale);
+        if (!findDefaultsBlock(workspace)) {
+          ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+        }
         applyModelLoops(workspace, s.model);
         refreshWorkspaceConstraints(workspace);
         relabelWorkspaceFromSkeleton(workspace, s.skeleton);
@@ -839,7 +872,14 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       applyPendingDefaultsMap();
       return;
     } else {
-      loadSkeletonIntoWorkspace(workspace, s.skeleton, s.model, s.listeningSlotId, blocklyLocale);
+      loadSkeletonIntoWorkspace(
+        workspace,
+        s.skeleton,
+        s.model,
+        s.listeningSlotId,
+        blocklyLocale,
+        targetFormatOf(s),
+      );
     }
     blocklySkeletonKey = skeletonKey;
     blocklyLabelLanguage = labelLanguage;
@@ -1426,7 +1466,7 @@ async function openDefaultsMapDialog(): Promise<void> {
       void (async () => {
         const mapBlock = await defaultsCatalog.load(entry.id);
         if (!mapBlock) return;
-        hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale);
+        hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale, targetFormatOf(controller.getState()));
         persistBlocklyCanvas();
       })();
     });
@@ -1439,7 +1479,7 @@ function applyDefaultsMapJson(text: string): void {
   const parsed = JSON.parse(text) as unknown;
   const mapBlock = mapBlockFromDefaultsJson(parsed);
   if (!mapBlock) throw new Error("JSON must be a maps_create_with block or workspace");
-  hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale);
+  hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale, targetFormatOf(controller.getState()));
   persistBlocklyCanvas();
 }
 

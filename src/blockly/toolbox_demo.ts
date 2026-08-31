@@ -143,28 +143,32 @@ function openEhrTypeToolboxContents(m: ReturnType<typeof msg>): Array<Record<str
   ];
 }
 
-function schemaFlyoutContents(
-  skeleton: SkeletonNode[],
-): Array<{ kind: string; type: string; fields?: Record<string, string>; gap?: number }> {
-  const out: Array<{ kind: string; type: string; fields?: Record<string, string>; gap?: number }> = [];
-  const walk = (node: SkeletonNode) => {
-    const type = node.blockType === "target_value" || node.kind === "value"
-      ? "target_value"
-      : "target_structure";
-    out.push({
-      kind: "block",
-      type,
-      gap: 4,
-      fields: {
-        NAME: node.label,
-        TARGET_TYPE: node.rmType,
-        SLOT_ID: node.slotId,
-      },
-    });
-    for (const child of node.children) walk(child);
+function schemaToolboxNode(node: SkeletonNode): Record<string, unknown> {
+  const blockType = node.blockType === "target_value" || node.kind === "value"
+    ? "target_value"
+    : "target_structure";
+  const blockEntry: Record<string, unknown> = {
+    kind: "block",
+    type: blockType,
+    gap: 4,
+    fields: {
+      NAME: node.label,
+      TARGET_TYPE: node.rmType,
+      SLOT_ID: node.slotId,
+    },
   };
-  for (const root of skeleton) walk(root);
-  return out.slice(0, 40);
+  if (!node.children.length) return blockEntry;
+  return {
+    kind: "category",
+    name: node.label,
+    colour: 0,
+    contents: [blockEntry, ...node.children.map(schemaToolboxNode)],
+  };
+}
+
+/** Nested schema drawer mirroring the skeleton tree (no flat cap). */
+function schemaToolboxContents(skeleton: SkeletonNode[]): Array<Record<string, unknown>> {
+  return skeleton.map(schemaToolboxNode);
 }
 
 /** Build the workspace toolbox (Blockly demo + Source / openEHR types / JSON / XML). */
@@ -180,6 +184,8 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         { kind: "block", type: "json_object", gap: 8 },
         { kind: "block", type: "json_array", gap: 8 },
         { kind: "block", type: "json_value", gap: 8 },
+        { kind: "block", type: "json_boolean", gap: 8 },
+        { kind: "block", type: "json_null", gap: 8 },
         { kind: "block", type: "target_structure", gap: 8 },
         { kind: "block", type: "target_value" },
       ],
@@ -192,6 +198,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       contents: [
         { kind: "block", type: "xml_element", gap: 8 },
         { kind: "block", type: "xml_text", gap: 8 },
+        { kind: "block", type: "xml_attribute", gap: 8 },
         { kind: "block", type: "target_structure", gap: 8 },
         { kind: "block", type: "target_value" },
       ],
@@ -206,7 +213,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       name: m.CAT_TARGET_SCHEMA,
       colour: 0,
       cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryTargetSchema" },
-      contents: schemaFlyoutContents(context.skeleton),
+      contents: schemaToolboxContents(context.skeleton),
     });
   }
   return {

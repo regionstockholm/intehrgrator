@@ -383,7 +383,7 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 5.1.6 History persistence: disk on desktop (`INTEHR_HISTORY_PATH`); web memory warn deferred
   - [x] 5.1.7 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
   - [x] 5.1.8 Tests: registration, semantic history, timeline playback (no live LLM)
-- [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
+- [x] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 
 ## Grill round 1 (Chunk 6 frontier — dynamic schema toolboxes)
 
@@ -475,13 +475,13 @@ Context from current code:
 - `docs/ROADMAP.md` §H — TakeCare deferred note
 - `test/target_format_handler_test.ts`, new schema-toolbox golden tests
 
-- [ ] 6.1 Audit & extend generic JSON/XML Blockly drawers (always visible)
-- [ ] 6.2 Schema-specific nested toolbox drawer(s) on target load
-- [ ] 6.3 Cogwheel optional-field mutator for schema structure blocks
-- [ ] 6.4 Mandatory-only canvas scaffold (openEHR-like) + empty Defaults Map (non-scaffolding)
-- [ ] 6.5 Toolbox sync hash + Agent prompt manifest slotIds (Q7 A)
-- [ ] 6.6 Tests: nested drawer, mutator, scaffold round-trip (generic JSON Schema + XSD fixtures; no TakeCare)
-- [ ] 6.7 Docs: ROADMAP H, BLOCKLY_INTEGRATION, CONTEXT
+- [x] 6.1 Audit & extend generic JSON/XML Blockly drawers (always visible)
+- [x] 6.2 Schema-specific nested toolbox drawer(s) on target load
+- [x] 6.3 Cogwheel optional-field mutator for schema structure blocks
+- [x] 6.4 Mandatory-only canvas scaffold (openEHR-like) + empty Defaults Map (non-scaffolding)
+- [x] 6.5 Toolbox sync hash + Agent prompt manifest slotIds (Q7 A)
+- [x] 6.6 Tests: nested drawer, mutator, scaffold round-trip (generic JSON Schema + XSD fixtures; no TakeCare)
+- [x] 6.7 Docs: ROADMAP H, BLOCKLY_INTEGRATION, CONTEXT
 
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

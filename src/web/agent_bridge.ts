@@ -18,12 +18,16 @@ export function installAgentBridge(controller: WorkbenchController): void {
     try {
       const snapRes = await fetch("/api/v1/snapshot");
       if (!snapRes.ok) return;
-      const snap = await snapRes.json() as { revision: string };
-      if (!lastRevision) {
-        lastRevision = snap.revision;
+      const snap = await snapRes.json() as { revision: string; templateId?: string };
+      const isFirstPoll = !lastRevision;
+      const revisionChanged = !isFirstPoll && snap.revision !== lastRevision;
+      const agentHasProject = Boolean(snap.templateId);
+      const uiEmpty = !controller.getState().templateId;
+      const shouldSync = revisionChanged || (isFirstPoll && agentHasProject && uiEmpty);
+      if (!shouldSync) {
+        if (isFirstPoll) lastRevision = snap.revision;
         return;
       }
-      if (snap.revision === lastRevision) return;
       syncing = true;
       const bundleRes = await fetch("/api/v1/bundle");
       if (!bundleRes.ok) return;

@@ -212,6 +212,14 @@ _Avoid_: Environment abstraction layer, platform bindings
 Programmatic seam exposed as `window.intehrgratorTestApi` when the Web Shell is opened with `?testMode=1`. Loads Template Skeleton / Source Schema / Example Instance fixtures without file pickers; reports Mapping Model, Blockly block summary, and Test Run results. UI tests still click Target value slots, Example Instance tree rows, and **Run Test** so Click-to-Map is exercised through the real DOM. See `docs/UI_TESTING.md`.
 _Avoid_: formTestApi (kintegrate name), Cypress-only harness
 
+**Workbench Agent API**:
+Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). IDE agents and the stdio **MCP** server call import, map-slot, build-prompt, run-test, undo/redo, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
+_Avoid_: conflating with Workbench Test API, treating the GitHub Pages web shell as the Agent API host
+
+**Session revision**:
+FNV-style hash of Mapping Model + Blockly workspace JSON (+ Handlebars template) returned as `revision` / `r<hex>` on Agent API reads and after each mutation. Agents pass **`If-Match: <revision>`** (or MCP `revision`) for optimistic concurrency; **`undo` / `redo`** walk a service-level stack independent of Blockly canvas undo.
+_Avoid_: wall-clock timestamps, assuming revision survives a full browser reload without re-fetching snapshot
+
 **Conversion script language** (older docs said Export dialect / Export Target; code key `exportTarget` was a persisted setting — no longer saved):
 An **Output mode** value that generates a Conversion Script (`typescript` | `java` | `handlebars` | `xquery`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format and from Mapping preview. Not stored in the Project Bundle.
 _Avoid_: Export dialect, Export Target (prefer this term), Target language alone, conflating with Target instance format or Mapping preview

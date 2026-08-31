@@ -55,7 +55,8 @@
     "dev": "deno run -A scripts/dev-server.ts",
     "desktop": "deno task build && deno desktop -A --no-check --no-npm --config scripts/desktop.compile.json --backend webview --hmr src/desktop/main.ts",
     "compile:desktop": "deno run -A scripts/compile-desktop.ts",
-    "compile:ehrtslib": "deno run -A scripts/compile-ehrtslib.ts"
+    "compile:ehrtslib": "deno run -A scripts/compile-ehrtslib.ts",
+    "mcp": "deno run -A src/agent/mcp_stdio.ts"
   },
   "lint": {
     "include": ["src", "test", "scripts", "web"],

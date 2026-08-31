@@ -199,13 +199,13 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 4.3 Import dialog: apply-valid-only with clear applied / skipped / schema counts (Q5)
   - [x] 4.4 Fixture + round-trip tests only (no live LLM in CI)
   - [x] 4.5 ROADMAP I items ticked; Q2 label already on `main`
-- [ ] 5.0 Chunk 5 — Local app + installable AI skill + MCP (roadmap D)
-  - [ ] 5.1 Extract `WorkbenchService` (bundle I/O, prompt, import, loops, test, slot map) on Blockly JSON / model — no DOM
-  - [ ] 5.2 Desktop localhost Agent API (opt-in): revision + undo/redo; UI subscribes to service
-  - [ ] 5.3 MCP server (PEN-style) over same service; scroll/highlight blocks on edit when UI present
-  - [ ] 5.4 `docs/AGENT_WORKFLOW.md` — golden path B (IDE + desktop API); fallback C when MCP unavailable
-  - [ ] 5.5 `.cursor/skills/intehrgrator-mapping/SKILL.md` + agents mirror
-  - [ ] 5.6 Tests: service round-trips without browser; MCP/HTTP integration tests (separate commits per part OK)
+- [x] 5.0 Chunk 5 — Local app + installable AI skill + MCP (roadmap D)
+  - [x] 5.1 Extract `WorkbenchService` (bundle I/O, prompt, import, loops, test, slot map) on Blockly JSON / model — no DOM
+  - [x] 5.2 Desktop localhost Agent API (opt-in): revision + undo/redo; UI subscribes to service
+  - [x] 5.3 MCP stdio server over same service (scroll/highlight on edit deferred to follow-up)
+  - [x] 5.4 `docs/AGENT_WORKFLOW.md` — golden path B (IDE + desktop API); fallback C when MCP unavailable
+  - [x] 5.5 `.cursor/skills/intehrgrator-mapping/SKILL.md` + agents mirror
+  - [x] 5.6 Tests: service round-trips without browser; MCP/HTTP integration tests (separate commits per part OK)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

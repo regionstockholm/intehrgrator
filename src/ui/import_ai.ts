@@ -30,8 +30,11 @@ export function formatImportReport(report: ImportSuggestionsReport): {
   kind: "ok" | "partial" | "error";
 } {
   const schemaCount = report.schemaIssues?.length ?? 0;
+  const validNote = schemaCount > 0 && report.applied + report.loopsAccepted > 0
+    ? " · valid entries only"
+    : "";
   const summary =
-    `${report.applied} applied · ${report.loopsAccepted} loops · ${report.skipped} skipped · ${report.errors.length} errors · ${schemaCount} schema`;
+    `${report.applied} applied · ${report.loopsAccepted} loops · ${report.skipped} skipped · ${report.errors.length} errors · ${schemaCount} schema${validNote}`;
   const hasProblems = report.errors.length > 0 || schemaCount > 0;
   if (!hasProblems && report.applied + report.loopsAccepted > 0) {
     return { summary, kind: "ok" };

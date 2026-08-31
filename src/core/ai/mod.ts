@@ -59,6 +59,7 @@ const VALUE_BLOCK_TYPES = new Set([
   "text_handlebars",
   "maps_create_with",
   "maps_create_empty",
+  "maps_get",
   "math_number",
   "logic_boolean",
   "text_trim",
@@ -137,6 +138,13 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "Use version `\"2\"` with Blockly `block` fragments (not JS-shaped xpath wrappers).",
     `The JSON must validate against: ${schemaUrlFromFormatDoc(options.formatDocUrl)}`,
     "",
+  );
+
+  if (options.targetFormat === "openehr-template") {
+    sections.push(...openEhrReferenceSections(options.formatDocUrl));
+  }
+
+  sections.push(
     "## Slot manifest",
     "```json",
     JSON.stringify(manifest, null, 2),
@@ -164,8 +172,57 @@ export function buildPrompt(options: BuildPromptOptions): string {
   sections.push(...deliverySections(options.delivery, options.artifacts));
   sections.push(
     "",
+    "## Block examples",
+    "Value slots only — no RM containers or DV shells in suggestions. Prefer maps for code/terminology translation.",
+    "",
+    "**Terminology translation (ICD-10 → SNOMED CT)** — `maps_get` with dynamic key from source (named map on canvas, e.g. `icd10_snomed`):",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}{path/to/code_string/value}",
+      block: {
+        type: "maps_get",
+        fields: { NAME: "icd10_snomed" },
+        inputs: {
+          KEY: {
+            block: {
+              type: "source_query",
+              fields: { EXPRESSION: "$.diagnosis.icd10" },
+            },
+          },
+        },
+      },
+      note: "I10→38341003, E11→44054006, …",
+    }, null, 2),
+    "```",
+    "",
+    "**Defaults vs source** — scaffold often pre-wires `maps_get(\"defaults\", …)` for language/territory/facility/time/composer. **Source wins:** when the source has data for such a slot, map with `source_query` (e.g. context start time, healthcare facility, composer name). Omit defaults-only slots only when the source has no value.",
+    "",
+    "**Source over defaults (time / composer)** — map from source when present:",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}/context/start_time/value",
+      block: {
+        type: "source_query",
+        fields: { EXPRESSION: "$.encounter.startTime" },
+      },
+    }, null, 2),
+    "```",
+    "",
+    "**Party identity `name` slot** (DV_TEXT value leaf; source over defaults):",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}{path/to/composer/name/value}",
+      block: {
+        type: "source_query",
+        fields: { EXPRESSION: "$.patient.name" },
+      },
+    }, null, 2),
+    "```",
+    "",
+    "**Repeating container** — put `for_each_source` in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list).",
+    "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). The app wraps the repeating container with `for_each_source` and evaluates each source node. Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `maps_get` / `maps_create_with` for terminology and code translation. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {
@@ -191,6 +248,20 @@ function formatTargetTask(format: string): string {
     default:
       return `instances of target format \`${format}\``;
   }
+}
+
+function openEhrReferenceSections(_formatDocUrl: string): string[] {
+  return [
+    "## openEHR references",
+    "When the target is an openEHR template, use authoritative sources — do not invent RM paths, archetype ids, or terminology codes.",
+    "",
+    "- **openehr-assistant MCP** (recommended): archetype/template lookup, terminology resolution, spec digests, and ADL/AQL guidance. Install the [openEHR Assistant Plugin](https://github.com/cadasto/openehr-assistant-plugin) in your AI environment when possible.",
+    "- **ehrtslib (DeepWiki)**: https://deepwiki.com/ErikSundvall/ehrtslib",
+    "- **ehrtslib (GitHub)**: https://github.com/ErikSundvall/ehrtslib",
+    "- **openEHR specifications**: https://specifications.openehr.org/",
+    "- **openEHR specs (AI index)**: https://specifications.openehr.org/llms.txt",
+    "",
+  ];
 }
 
 function deliverySections(
@@ -446,7 +517,7 @@ export function explainSuggestionSchemaIssue(
   }
   if (keyword === "enum" || /does not match any of/i.test(raw)) {
     if (/\.type$/.test(path)) {
-      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, or text_handlebars (not source_query_string). Loops use for_each_source only in loops[].`;
+      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, or maps_create_* (not source_query_string). Loops use for_each_source only in loops[].`;
     }
   }
   if (keyword === "const") {
@@ -863,6 +934,13 @@ function blockJsonToExpression(
         parts.push(val ? blockJsonToExpression(val, rewriteSourcePath) ?? "null" : "null");
       }
       return `map(${parts.join(", ")})`;
+    }
+    case "maps_get": {
+      const name = String(fields.NAME ?? "defaults");
+      const key = child("KEY")
+        ? blockJsonToExpression(child("KEY")!, rewriteSourcePath)
+        : '""';
+      return `maps_get(${JSON.stringify(name)}, ${key ?? '""'})`;
     }
     case "math_number":
       return String(fields.NUM ?? 0);

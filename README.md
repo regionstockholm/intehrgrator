@@ -5,9 +5,11 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 ## Webapp for users
 Go to https://regionstockholm.github.io/intehrgrator/ click (i) - encircled i - at various places in the interface to learn about use.
 
-## Desktop app (0.2.1)
+## Desktop app (0.3)
 
 Download a platform build from [Releases](https://github.com/regionstockholm/intehrgrator/releases) and run it locally — no Deno install, no GitHub Pages. The same workbench opens in a native window (OS webview) and talks only to `127.0.0.1`.
+
+**New in 0.3:** localhost **Agent API** and stdio **MCP** server for IDE/AI agents, plus an installable mapping skill. See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) and [.cursor/skills/intehrgrator-mapping/SKILL.md](.cursor/skills/intehrgrator-mapping/SKILL.md).
 
 | Asset | Platform |
 | --- | --- |
@@ -71,6 +73,7 @@ Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
 | **Source data** | [docs/SOURCE_FORMATS.md](docs/SOURCE_FORMATS.md) · [docs/SOURCE_QUERY.md](docs/SOURCE_QUERY.md) |
 | **Persistence** | [docs/PROJECT_PERSISTENCE.md](docs/PROJECT_PERSISTENCE.md) |
 | **AI assist** | [docs/AI_SUGGESTION_FORMAT.md](docs/AI_SUGGESTION_FORMAT.md) |
+| **Agent / MCP** | [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) · [.cursor/skills/intehrgrator-mapping/SKILL.md](.cursor/skills/intehrgrator-mapping/SKILL.md) |
 | **Deferred** | [docs/future/](docs/future/) |
 | **Agents** | [AGENTS.md](AGENTS.md) |
 

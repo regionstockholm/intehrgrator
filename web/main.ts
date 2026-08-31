@@ -408,7 +408,7 @@ async function bootBlockly(): Promise<void> {
       });
     }
     options.push({
-      text: "Open canvas snapshot…",
+      text: "Open observer snapshot…",
       enabled: workspace.getTopBlocks(false).length > 0,
       callback: () => openCanvasSnapshot(),
     });

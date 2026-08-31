@@ -51,7 +51,7 @@
     "test:ui": "deno run -A scripts/ui-test.ts",
     "lint": "deno lint src test scripts",
     "check": "deno check src/**/*.ts web/main.ts scripts/*.ts",
-    "build": "deno run -A scripts/build.ts",
+    "build": "deno run -A scripts/build.ts && deno run -A scripts/stage-desktop-www.ts",
     "dev": "deno run -A scripts/dev-server.ts",
     "desktop": "deno task build && deno desktop -A --no-check --config deno.json --backend webview --hmr src/desktop/main.ts",
     "compile:desktop": "deno run -A scripts/compile-desktop.ts",

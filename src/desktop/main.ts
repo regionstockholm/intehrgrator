@@ -9,6 +9,7 @@
  */
 import { resolveWebRoot } from "./web_root.ts";
 import { errorPageHandler, workbenchHandler } from "./serve.ts";
+import { composeWorkbenchHandler } from "../agent/http.ts";
 
 const USAGE = `intEHRgrator — local Integration Workbench
 
@@ -37,12 +38,15 @@ async function openBrowser(url: string): Promise<void> {
 export function workbenchOrErrorHandler(
   metaDirname: string | undefined,
   metaUrl: string,
+  enableAgentApi = Deno.env.get("INTEHR_AGENT_API") !== "0",
 ): (req: Request) => Promise<Response> {
   try {
-    return workbenchHandler(resolveWebRoot(metaDirname ?? ".", metaUrl));
+    const staticHandler = workbenchHandler(resolveWebRoot(metaDirname ?? ".", metaUrl));
+    return composeWorkbenchHandler(staticHandler, enableAgentApi);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    return errorPageHandler(message);
+    const errHandler = errorPageHandler(message);
+    return (req: Request) => errHandler(req);
   }
 }
 

@@ -95,6 +95,7 @@ import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import { installInfoTips, openInfoTipAt } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
+import { installAgentBridge } from "../src/web/agent_bridge.ts";
 import { installImportAiDialog } from "../src/ui/import_ai.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
@@ -123,6 +124,7 @@ import {
 
 const host = createHostAdapter();
 const controller = new WorkbenchController(host, { urlStorage: localStorage });
+installAgentBridge(controller);
 const testMode = isTestMode();
 let workbenchReadyResolve!: () => void;
 const workbenchReady = new Promise<void>((resolve) => {

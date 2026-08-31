@@ -338,7 +338,14 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 5.4 `docs/AGENT_WORKFLOW.md` — golden path B (IDE + desktop API); fallback C when MCP unavailable
   - [x] 5.5 `.cursor/skills/intehrgrator-mapping/SKILL.md` + agents mirror
   - [x] 5.6 Tests: service round-trips without browser; MCP/HTTP integration tests (separate commits per part OK)
-- [ ] 5.1 Chunk 5 follow-up — Multi-agent MCP presence (grill round 1 above; deferred from 5.3)
+- [ ] 5.1 Chunk 5.1 — Multi-agent MCP presence (patch release before Chunk 6)
+  - [ ] 5.1.1 Agent registration at MCP session start (`register_agent`); return name/colour; optional name suggestion
+  - [ ] 5.1.2 Live Open canvas observer window (per-agent layers, legend); dual highlight on main canvas (Q5 D)
+  - [ ] 5.1.3 Opt-in “Follow active agent” on main canvas (default off); pulse-without-scroll when off (Q2 B+D)
+  - [ ] 5.1.4 Joint attributed history log + selective undo UI (Q6); unify UI/service session — see DESIGN doc
+  - [ ] 5.1.5 Conflict: revision + 409 + slot-level merge report (Q7 A+D); optional leases in 5.2
+  - [ ] 5.1.6 Docs: AGENT_WORKFLOW multi-agent, CONTEXT glossary, skill update
+  - [ ] 5.1.7 Tests: registration, history attribution, observer window (no live LLM)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

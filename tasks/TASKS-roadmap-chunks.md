@@ -122,6 +122,104 @@ Asked before coding Chunk 5 (local app + installable AI skill + agent/MCP drivin
 
 ➡️ **Adopted: B primary** — IDE + **desktop app side-by-side**; agent calls **localhost API** while user watches the canvas update. **Fallback (C-like):** when MCP/API is unavailable, document read-only / downstream export of mapping spec or generated conversion script (not round-trip authoring).
 
+## Grill round 1 (Chunk 5 follow-up — multi-agent MCP presence & attribution)
+
+Asked after Chunk 5 shipped (0.3 desktop: Agent API + MCP + skill). Deferred from 5.3: scroll/highlight, multi-agent visibility, actor-attributed undo. **Not adopted yet** — awaiting answers.
+
+Context from product direction:
+
+- Scrolling the **main** Mapping Editor canvas to follow an agent likely **disrupts** a human who is editing or reviewing elsewhere on the canvas.
+- The existing **Open canvas** button (`openCanvasSnapshot` / `workspace_snapshot.ts`) opens a **separate popup** with a standalone Blockly SVG (print/save today). That window could become a **live observer** for agent activity — PEN-style — without moving the user's viewport.
+- Chunk 5 already has **revision tokens + undo/redo** on `WorkbenchService` / Agent API, but undo entries carry **no actor** (user vs named agent). Blockly's native undo stack is separate and also actor-less.
+- Roadmap D still has an open item: MCP scroll/highlight (currently unchecked).
+
+❓ **Q1** - **Chunk placement**: Where does multi-agent MCP presence land relative to schema toolboxes (current Chunk 6)?
+
+**A** — New **Chunk 6** (multi-agent MCP UX + attribution); push dynamic schema toolboxes to Chunk 7+.  
+**B** — Small **Chunk 5.1** patch release before any Chunk 6 work.  
+**C** — Fold into Chunk 6 schema toolboxes (same PR).  
+**D** — Split: **6a** actor/undo attribution only; **6b** observer UI / colours later.
+
+➡️ **Recommended: A.** Natural completion of deferred 5.3; schema toolboxes (H) are unrelated and should not block PEN-style agent visibility.
+
+---
+
+❓ **Q2** - **Main canvas behaviour on agent edits**: Should MCP/API mutations ever scroll or pan the primary Mapping Editor?
+
+**A** — **Never** auto-scroll/pan the main canvas on agent edits (user keeps full viewport control).  
+**B** — Opt-in toolbar setting: “Follow active agent”.  
+**C** — Scroll/pan **only** in the observer window (see Q3), never the main canvas.  
+**D** — Brief in-canvas flash/highlight on touched blocks **without** changing scroll position.
+
+➡️ **Recommended: A + D.** No viewport hijacking; at most a subtle, non-scrolling pulse on affected blocks in the main editor. Full “where are they working?” view belongs elsewhere.
+
+---
+
+❓ **Q3** - **Observer surface**: How should users *watch* multiple simultaneous agents (PEN.dev-like)?
+
+**A** — Extend **Open canvas** popup into a **live multi-agent observer** (layered SVG, per-agent colour, legend with agent names). Static print/save remains available.  
+**B** — New dedicated **“Agent activity”** top-level window (separate from Open canvas).  
+**C** — Docked **pane inside** the main window (split view below or beside Mapping Editor).  
+**D** — No live UI — agents only; user reads MCP logs / IDE chat.
+
+➡️ **Recommended: A.** Reuses `openWorkspaceSnapshotWindow` / `workspace_snapshot.ts` and the existing toolbar affordance; popup is already “out of the way” of the main canvas. Optional auto-open when first agent connects.
+
+---
+
+❓ **Q4** - **Agent identity (name, id, colour)**: How are concurrent agents distinguished?
+
+**A** — **Register on connect** (MCP `initialize` or new `register_agent` tool): `{ agentId, displayName, color? }`.  
+**B** — Pass **`agentName` / `agentId` on every mutating API call** (header or JSON field); desktop assigns colour from id hash if omitted.  
+**C** — Desktop **UI registry** — user names/colours agents before IDE connects.  
+**D** — Anonymous sessions; colour by MCP connection order only.
+
+➡️ **Recommended: B (+ palette from agentId).** Matches “terminology agent + source-mapping agent” running in parallel from different IDE sessions; no extra connect handshake required if each mutation carries identity. Optional explicit registration later.
+
+---
+
+❓ **Q5** - **Highlight semantics**: What does each agent’s colour mean, and for how long?
+
+**A** — **Transient** outline on blocks/slots touched by last mutation; fade after N seconds.  
+**B** — **Persistent** tint on all blocks last edited by that agent until someone else edits them.  
+**C** — **Observer window only** — full per-agent layers; main canvas shows only neutral bundle sync (no colours).  
+**D** — **Dual**: subtle badge/pulse on main canvas + full colour-coded overlay in observer window.
+
+➡️ **Recommended: D.** Main editor stays calm; observer window is the PEN-style “mission control” with stacked or toggled agent layers and a legend.
+
+---
+
+❓ **Q6** - **Undo/redo attribution**: Who gets credit in history — and where is it stored?
+
+**A** — **`WorkbenchService` / Agent API undo stack only** — each entry `{ actor: user | agent, id, displayName, revision, summary }`; Blockly native undo unchanged for direct user block edits.  
+**B** — **Unified history** — merge Blockly events + service snapshots into one timeline with actor on every row.  
+**C** — **Separate stacks** — “Undo my edit” (Blockly) vs “Undo last agent change” (API).  
+**D** — Extend **Blockly custom events** (`DocumentSwapEvent`, future slot events) with an `actor` field so one stack serves both.
+
+➡️ **Recommended: A first, D later.** Agent mutations already flow through `WorkbenchService.withUndo`; add actor metadata there and expose via `GET /api/v1/history` + desktop undo menu labels (“Undo **TerminologyAgent**: map ICD→SNOMED”). Bridging Blockly micro-edits into the same timeline is a second phase.
+
+---
+
+❓ **Q7** - **Simultaneous writes & conflicts**: Two agents edit different slots at once — what happens?
+
+**A** — **Revision + 409** (current): second writer refreshes snapshot and retries; no slot-level locking.  
+**B** — **Slot leases**: optional `POST /api/v1/lease-slot` so an agent holds a slotId while thinking.  
+**C** — **Serial queue** per project — one mutation at a time globally.  
+**D** — **Merge report** — apply non-conflicting slot updates; return conflicts for human/agent retry (like partial import).
+
+➡️ **Recommended: A for v1; B optional for v2.** Terminology agent on Maps + mapping agent on value slots rarely collide on the same slotId; revision tokens already shipped. Leases help if two agents target the same subtree.
+
+---
+
+### Relevant files (Chunk 5 follow-up — when adopted)
+
+- `src/workbench/service.ts` — undo stack + actor metadata on mutations
+- `src/agent/http.ts` / `src/agent/mcp_stdio.ts` — `agentId` / `agentName` on tools; `GET /history`
+- `src/web/agent_bridge.ts` — push agent highlight events to UI without scrolling main workspace
+- `src/blockly/workspace_snapshot.ts` — live observer window (multi-agent SVG layers)
+- `web/main.ts` — Open canvas → observer mode; undo menu shows actor
+- `docs/AGENT_WORKFLOW.md` — multi-agent setup, colours, observer window
+- `CONTEXT.md` — Agent actor, observer canvas, attributed undo
+
 ## Relevant Files (Chunk 5)
 
 - `src/workbench/controller.ts` — extract `WorkbenchService` seam
@@ -206,6 +304,7 @@ Already done (do not re-open unless regression): A small fixes (including `.xml`
   - [x] 5.4 `docs/AGENT_WORKFLOW.md` — golden path B (IDE + desktop API); fallback C when MCP unavailable
   - [x] 5.5 `.cursor/skills/intehrgrator-mapping/SKILL.md` + agents mirror
   - [x] 5.6 Tests: service round-trips without browser; MCP/HTTP integration tests (separate commits per part OK)
+- [ ] 5.1 Chunk 5 follow-up — Multi-agent MCP presence (grill round 1 above; deferred from 5.3)
 - [ ] 6.0 Chunk 6 — Schema-driven dynamic toolboxes (roadmap H)
 - [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)

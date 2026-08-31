@@ -26,6 +26,14 @@ const TARGETS = [
   },
 ] as const;
 
+const vendor = await new Deno.Command("deno", {
+  args: ["task", "vendor"],
+  cwd: root,
+  stdout: "inherit",
+  stderr: "inherit",
+}).output();
+if (!vendor.success) Deno.exit(vendor.code);
+
 const stage = await new Deno.Command("deno", {
   args: ["run", "-A", "scripts/stage-desktop-www.ts"],
   cwd: root,
@@ -45,9 +53,8 @@ for (const { target, output } of TARGETS) {
     "desktop",
     "-A",
     "--no-check",
-    "--no-npm",
     "--config",
-    "scripts/desktop.compile.json",
+    "deno.json",
     "--backend",
     "webview",
     "--target",

@@ -53,7 +53,7 @@
     "check": "deno check src/**/*.ts web/main.ts scripts/*.ts",
     "build": "deno run -A scripts/build.ts",
     "dev": "deno run -A scripts/dev-server.ts",
-    "desktop": "deno task build && deno desktop -A --no-check --no-npm --config scripts/desktop.compile.json --backend webview --hmr src/desktop/main.ts",
+    "desktop": "deno task build && deno desktop -A --no-check --config deno.json --backend webview --hmr src/desktop/main.ts",
     "compile:desktop": "deno run -A scripts/compile-desktop.ts",
     "compile:ehrtslib": "deno run -A scripts/compile-ehrtslib.ts",
     "mcp": "deno run -A src/agent/mcp_stdio.ts"
@@ -64,5 +64,12 @@
       "exclude": ["no-sloppy-imports"]
     }
   },
-  "exclude": ["vendor", "dist", "docs/demo"]
+  "exclude": ["vendor", "dist", "docs/demo"],
+  "desktop": {
+    "app": {
+      "name": "intEHRgrator",
+      "identifier": "se.regionstockholm.intehrgrator"
+    },
+    "backend": "webview"
+  }
 }

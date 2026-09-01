@@ -14,4 +14,4 @@ try {
 const port = Number(Deno.env.get("PORT") ?? 5173);
 console.log(`Serving http://localhost:${port}`);
 
-Deno.serve({ port }, (req) => serveDir(req, { fsRoot: dist, showDirListing: true, enableCors: true }));
+Deno.serve({ port }, (req) => serveDir(req, { fsRoot: dist, showDirListing: true, enableCors: true, quiet: true }));

@@ -3,6 +3,8 @@ import { join } from "@std/path";
 
 export function workbenchHandler(webRoot: string): (req: Request) => Promise<Response> {
   return async (req) => {
+    const html = await tryIndexHtml(webRoot, req);
+    if (html) return html;
     const dat = await tryDatAsset(webRoot, req);
     if (dat) return dat;
     return await serveDir(req, {
@@ -11,6 +13,24 @@ export function workbenchHandler(webRoot: string): (req: Request) => Promise<Res
       showDirListing: false,
     });
   };
+}
+
+async function tryIndexHtml(webRoot: string, req: Request): Promise<Response | null> {
+  const url = new URL(req.url);
+  const rel = decodeURIComponent(url.pathname).replace(/^\/+/, "");
+  if (rel === "" || rel === "index.html") {
+    try {
+      const html = await Deno.readTextFile(join(webRoot, "index.html"));
+      const script = "<script>window.__INTEHR_DESKTOP__=true;</script>";
+      const injected = /<head[^>]*>/i.test(html)
+        ? html.replace(/<head[^>]*>/i, (match) => `${match}${script}`)
+        : `${script}${html}`;
+      return new Response(injected, { headers: { "content-type": "text/html; charset=utf-8" } });
+    } catch {
+      return null;
+    }
+  }
+  return null;
 }
 
 /** JS is staged as `*.js.dat` so `deno desktop --include` will not execute it. */

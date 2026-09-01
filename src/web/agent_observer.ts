@@ -7,7 +7,7 @@ import {
   openWorkspaceSnapshotWindow,
   type WorkspaceSvgLike,
 } from "../blockly/workspace_snapshot.ts";
-import type { AgentActivityPayload } from "./agent_bridge.ts";
+import { type AgentActivityPayload, isDesktopEnvironment } from "./agent_bridge.ts";
 
 const OBSERVER_WINDOW_NAME = "intehrgrator-agent-observer";
 
@@ -104,6 +104,11 @@ function installTimelinePanel(win: Window): void {
   rollbackBtn.addEventListener("click", () => void destructiveRollback(selectedSeq));
   patchBtn.addEventListener("click", () => void copyPatchPrompt(selectedSeq));
 
+  if (!isDesktopEnvironment()) {
+    setTimelineStatus("Agent API timeline is only available in the desktop app.");
+    return;
+  }
+
   void refreshTimeline();
   if (timelinePollTimer) globalThis.clearInterval(timelinePollTimer);
   timelinePollTimer = globalThis.setInterval(() => void refreshTimeline(), 3000);
@@ -116,8 +121,20 @@ let cachedHistory: HistoryRow[] = [];
 
 async function refreshTimeline(): Promise<void> {
   if (!observerWindow || observerWindow.closed) return;
+  if (!isDesktopEnvironment()) {
+    setTimelineStatus("Agent API timeline is only available in the desktop app.");
+    return;
+  }
   try {
     const res = await fetch("/api/v1/history");
+    if (res.status === 404) {
+      if (timelinePollTimer) {
+        globalThis.clearInterval(timelinePollTimer);
+        timelinePollTimer = undefined;
+      }
+      setTimelineStatus("Agent API unavailable — timeline idle.");
+      return;
+    }
     if (!res.ok) return;
     const payload = await res.json() as { entries: HistoryRow[] };
     cachedHistory = payload.entries ?? [];

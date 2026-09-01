@@ -80,14 +80,34 @@ Deno.test("workbenchHandler serves staged *.js.dat as the original .js URL", asy
   }
 });
 
-Deno.test("workbenchHandler serves index.html from the web root", async () => {
+Deno.test("workbenchHandler serves index.html with desktop marker injected", async () => {
   const dir = await Deno.makeTempDir();
   try {
-    await Deno.writeTextFile(join(dir, "index.html"), "<html>workbench</html>");
+    await Deno.writeTextFile(join(dir, "index.html"), "<!doctype html><html><head><title>Test</title></head><body>workbench</body></html>");
     const res = await workbenchHandler(dir)(new Request("http://127.0.0.1/"));
     assertEquals(res.status, 200);
-    assertEquals(await res.text(), "<html>workbench</html>");
+    const html = await res.text();
+    assertEquals(html.includes("<script>window.__INTEHR_DESKTOP__=true;</script>"), true);
+    assertEquals(html.includes("workbench"), true);
   } finally {
     await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("isDesktopEnvironment accurately checks desktop global", async () => {
+  const { isDesktopEnvironment } = await import("../src/web/agent_bridge.ts");
+  const g = globalThis as unknown as { __INTEHR_DESKTOP__?: boolean };
+  const prev = g.__INTEHR_DESKTOP__;
+  try {
+    delete g.__INTEHR_DESKTOP__;
+    assertEquals(isDesktopEnvironment(), false);
+    g.__INTEHR_DESKTOP__ = true;
+    assertEquals(isDesktopEnvironment(), true);
+  } finally {
+    if (prev !== undefined) {
+      g.__INTEHR_DESKTOP__ = prev;
+    } else {
+      delete g.__INTEHR_DESKTOP__;
+    }
   }
 });

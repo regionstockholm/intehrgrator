@@ -407,7 +407,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   stroke-width: 1.5;
 }
 .blockly-mount .blocklyToolboxCategory {
-  height: 15px;
+  min-height: 15px;
   line-height: 15px;
 }
 .blockly-mount .blocklyToolboxCategoryLabel {

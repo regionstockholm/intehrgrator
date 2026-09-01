@@ -22,20 +22,33 @@ export interface AgentActivityPayload {
 
 let lastCommittedSignature = "";
 
+export function isDesktopEnvironment(): boolean {
+  return Boolean(
+    (globalThis as unknown as { __INTEHR_DESKTOP__?: boolean }).__INTEHR_DESKTOP__,
+  );
+}
+
 export function installAgentBridge(options: AgentBridgeOptions): void {
   if (typeof globalThis.fetch !== "function") return;
-  const host = globalThis.location?.hostname ?? "";
-  if (host !== "127.0.0.1" && host !== "localhost") return;
+  if (!isDesktopEnvironment()) return;
 
   const { controller, exportBundle, onActivity, slotSignature } = options;
   let lastRevision = "";
   let syncing = false;
   let lastActivityAt = "";
+  let pollTimer: number | null = null;
 
   const poll = async () => {
     if (syncing) return;
     try {
       const snapRes = await fetch("/api/v1/snapshot");
+      if (snapRes.status === 404) {
+        if (pollTimer !== null) {
+          globalThis.clearInterval(pollTimer);
+          pollTimer = null;
+        }
+        return;
+      }
       if (!snapRes.ok) return;
       const snap = await snapRes.json() as { revision: string; templateId?: string };
       const isFirstPoll = !lastRevision;
@@ -72,7 +85,7 @@ export function installAgentBridge(options: AgentBridgeOptions): void {
     }
   };
 
-  globalThis.setInterval(() => void poll(), 1500);
+  pollTimer = globalThis.setInterval(() => void poll(), 1500);
 }
 
 /** Push semantic UI edit to shared Agent API history. */
@@ -81,6 +94,7 @@ export async function commitUiSemanticChange(
   summary: string,
   kind: "expression" | "block_graph" = "expression",
 ): Promise<boolean> {
+  if (!isDesktopEnvironment()) return false;
   try {
     const res = await fetch("/api/v1/ui-commit", {
       method: "POST",

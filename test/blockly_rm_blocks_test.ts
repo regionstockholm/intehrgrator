@@ -626,7 +626,7 @@ Deno.test("applyFixedFieldsToDataValueShell fills CODE_PHRASE terminology", () =
   workspace.dispose();
 });
 
-Deno.test("skeleton canvas wraps Position value set in lists_getIndex of lists_create_with", () => {
+Deno.test("skeleton canvas picks Position from a list of complete DV_CODED_TEXT objects", () => {
   ensureBlocks();
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
@@ -636,28 +636,66 @@ Deno.test("skeleton canvas wraps Position value set in lists_getIndex of lists_c
     (b) => b.type === "element" && b.getFieldValue("NAME") === "Position",
   );
   assert(position, "expected Position ELEMENT on the canvas");
-  const shell = position.getInputTargetBlock("VALUE");
-  assert(shell && isDataValueBlock(shell), "expected DV_CODED_TEXT shell");
-  assertEquals(shell.getFieldValue("RM_TYPE"), "DV_CODED_TEXT");
-
-  const selector = shell.getInputTargetBlock(dvFieldInputName("value"));
+  const selector = position.getInputTargetBlock("VALUE");
   assertEquals(selector?.type, "lists_getIndex");
   assertEquals(selector?.getFieldValue("MODE"), "GET");
-  assertEquals(selector?.getFieldValue("WHERE"), "FIRST");
+  // Template assumed_value is Sitting (at1001), the second list item (1-based index 2).
+  assertEquals(selector?.getFieldValue("WHERE"), "FROM_START");
+  assertEquals(selector?.getInputTargetBlock("AT")?.getFieldValue("NUM"), 2);
 
   const list = selector?.getInputTargetBlock("VALUE");
   assertEquals(list?.type, "lists_create_with");
   assertEquals((list as { itemCount_?: number } | null)?.itemCount_, 6);
-  assertEquals(list?.getInputTargetBlock("ADD0")?.getFieldValue("TEXT"), "Standing");
-  assertEquals(list?.getInputTargetBlock("ADD1")?.getFieldValue("TEXT"), "Sitting");
-  assertEquals(list?.getInputTargetBlock("ADD2")?.getFieldValue("TEXT"), "Reclining");
-  assertEquals(list?.getInputTargetBlock("ADD3")?.getFieldValue("TEXT"), "Lying");
 
-  const phrase = shell.getInputTargetBlock(dvFieldInputName("defining_code"));
-  assertEquals(phrase?.type, "code_phrase");
+  const standing = list?.getInputTargetBlock("ADD0");
+  assert(standing && isDataValueBlock(standing), "expected a DV_CODED_TEXT list item");
+  assertEquals(standing.getFieldValue("RM_TYPE"), "DV_CODED_TEXT");
   assertEquals(
-    phrase?.getInputTargetBlock(dvFieldInputName("code_string"))?.getFieldValue("TEXT"),
+    standing.getInputTargetBlock(dvFieldInputName("value"))?.getFieldValue("TEXT"),
+    "Standing",
+  );
+  const standingCode = standing.getInputTargetBlock(dvFieldInputName("defining_code"));
+  assertEquals(standingCode?.type, "code_phrase");
+  assertEquals(
+    standingCode?.getInputTargetBlock(dvFieldInputName("code_string"))?.getFieldValue("TEXT"),
     "at1000",
+  );
+  assertEquals(
+    standingCode?.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
+    "local",
+  );
+
+  const sitting = list?.getInputTargetBlock("ADD1");
+  assertEquals(
+    sitting?.getInputTargetBlock(dvFieldInputName("value"))?.getFieldValue("TEXT"),
+    "Sitting",
+  );
+  assertEquals(
+    sitting?.getInputTargetBlock(dvFieldInputName("defining_code"))
+      ?.getInputTargetBlock(dvFieldInputName("code_string"))
+      ?.getFieldValue("TEXT"),
+    "at1001",
+  );
+
+  workspace.dispose();
+});
+
+Deno.test("skeleton canvas fills DV_QUANTITY units from the template", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(fixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const systolic = workspace.getAllBlocks(false).find(
+    (b) => b.type === "element" && b.getFieldValue("NAME") === "Systolic",
+  );
+  assert(systolic, "expected Systolic ELEMENT");
+  const shell = systolic.getInputTargetBlock("VALUE");
+  assert(shell && isDataValueBlock(shell), "expected DV_QUANTITY shell");
+  assertEquals(shell.getFieldValue("RM_TYPE"), "DV_QUANTITY");
+  assertEquals(
+    shell.getInputTargetBlock(dvFieldInputName("units"))?.getFieldValue("TEXT"),
+    "mm[Hg]",
   );
 
   workspace.dispose();

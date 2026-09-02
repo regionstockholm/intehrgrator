@@ -375,6 +375,8 @@ Deno.test("Position DV_CODED_TEXT carries the template local value set", () => {
   assertEquals(dv.allowedValues?.[3]?.label, "Lying");
   assertEquals(dv.allowedValues?.[0]?.terminologyId, "local");
   assertEquals(dv.fixedFields?.defining_code, undefined);
+  assertEquals(dv.allowedValues?.[1]?.assumed, true);
+  assertEquals(dv.allowedValues?.[1]?.code, "at1001");
 
   const cuff = flattenSkeleton(skeleton).find((n) =>
     n.rmType === "ELEMENT" && n.label === "Cuff size"
@@ -382,6 +384,63 @@ Deno.test("Position DV_CODED_TEXT carries the template local value set", () => {
   const cuffDv = cuff?.children.find((c) => c.rmType === "DV_CODED_TEXT");
   assert(cuffDv?.allowedValues && cuffDv.allowedValues.length > 1, "expected Cuff size value set");
   assertEquals(cuffDv.allowedValues[0]?.label, "Adult");
+});
+
+Deno.test("DV_QUANTITY skeleton copies constrained units from the template", () => {
+  const { skeleton } = generateSkeleton(fixture);
+  const nodes = flattenSkeleton(skeleton);
+  const systolic = nodes.find((n) =>
+    n.rmType === "DV_QUANTITY" && n.slotId.includes("items/at0004/")
+  );
+  assert(systolic, "expected Systolic DV_QUANTITY");
+  assertEquals(systolic.fixedFields?.units, "mm[Hg]");
+  assertEquals(systolic.allowedUnits, undefined);
+
+  const diastolic = nodes.find((n) =>
+    n.rmType === "DV_QUANTITY" && n.slotId.includes("items/at0005/")
+  );
+  assertEquals(diastolic?.fixedFields?.units, "mm[Hg]");
+
+  const tilt = nodes.find((n) =>
+    n.rmType === "DV_QUANTITY" && n.slotId.includes("items/at1005/")
+  );
+  assertEquals(tilt?.fixedFields?.units, "°");
+});
+
+Deno.test("web template unit input list becomes DV_QUANTITY fixed units", () => {
+  const wt = {
+    templateId: "qty-units",
+    defaultLanguage: "en",
+    tree: {
+      id: "composition",
+      name: "Encounter",
+      rmType: "COMPOSITION",
+      nodeId: "openEHR-EHR-COMPOSITION.encounter.v1",
+      children: [
+        {
+          id: "systolic",
+          name: "Systolic",
+          rmType: "DV_QUANTITY",
+          nodeId: "at0004",
+          aqlPath: "/content/items/at0004/value",
+          min: 1,
+          max: 1,
+          inputs: [
+            { suffix: "magnitude", type: "DECIMAL" },
+            {
+              suffix: "unit",
+              type: "CODED_TEXT",
+              list: [{ value: "mm[Hg]", label: "mm[Hg]" }],
+            },
+          ],
+        },
+      ],
+    },
+  };
+  const { skeleton } = generateSkeletonFromWebTemplate(JSON.stringify(wt));
+  const qty = flattenSkeleton(skeleton).find((n) => n.rmType === "DV_QUANTITY");
+  assertEquals(qty?.fixedFields?.units, "mm[Hg]");
+  assertEquals(qty?.fixedFields?.defining_code, undefined);
 });
 
 Deno.test("web template AQL-style node ids are sanitized and EVENT multiplicity is preserved", async () => {

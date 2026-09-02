@@ -85,6 +85,8 @@ export interface AllowedValue {
   code: string;
   label: string;
   terminologyId?: string;
+  /** True when this choice is the template/AOM `assumed_value`. */
+  assumed?: boolean;
 }
 
 export interface SkeletonNode {
@@ -108,10 +110,16 @@ export interface SkeletonNode {
   fixedFields?: Record<string, string>;
   /**
    * Template-constrained value set (C_CODE_PHRASE `code_list`, C_STRING list, …)
-   * when more than one code/string is allowed. Scaffolded as a Blockly list
-   * wrapped in `lists_getIndex` (get first).
+   * when more than one code/string is allowed. Scaffolded as a Blockly list of
+   * complete `DV_CODED_TEXT` / `CODE_PHRASE` objects wrapped in `lists_getIndex`.
    */
   allowedValues?: AllowedValue[];
+  /**
+   * Template-constrained quantity units (`C_QUANTITY` / `C_DV_QUANTITY` list)
+   * when more than one unit is allowed. A single constrained unit is stored in
+   * `fixedFields.units` instead.
+   */
+  allowedUnits?: string[];
   /** Format-native target path (JSON Pointer, XML path, or openEHR slot path). */
   targetPath?: string;
   /** Compact target cardinality, e.g. `1`, `0..1`, `0..*`, `1..*`. */

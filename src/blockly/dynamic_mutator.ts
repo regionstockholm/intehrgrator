@@ -67,13 +67,46 @@ export function openBlockMutator(block: Blockly.Block): void {
   const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
   const svg = block as BlockSvg;
   const icon = MutatorIconType ? svg.getIcon?.(MutatorIconType) : null;
-  if (icon?.setBubbleVisible) {
-    void icon.setBubbleVisible(true);
+  if (icon) {
+    const isVisible = typeof icon.bubbleIsVisible === "function"
+      ? icon.bubbleIsVisible()
+      : Boolean((icon as unknown as { miniWorkspaceBubble?: unknown; bubble?: unknown }).miniWorkspaceBubble ?? (icon as unknown as { bubble?: unknown }).bubble);
+    void icon.setBubbleVisible(!isVisible);
     return;
   }
   for (const candidate of svg.getIcons?.() ?? []) {
-    candidate.setBubbleVisible?.(true);
+    const isVisible = typeof candidate.bubbleIsVisible === "function"
+      ? candidate.bubbleIsVisible()
+      : Boolean((candidate as unknown as { miniWorkspaceBubble?: unknown; bubble?: unknown }).miniWorkspaceBubble ?? (candidate as unknown as { bubble?: unknown }).bubble);
+    candidate.setBubbleVisible?.(!isVisible);
   }
+}
+
+export function getCogwheelAnchorLocation(sourceBlock: BlockSvg): Blockly.utils.Coordinate {
+  const blockOrigin = sourceBlock.getRelativeToSurfaceXY();
+  const cogField = sourceBlock.getField("MUTATOR_COG") as Blockly.FieldImage | null;
+  if (cogField) {
+    const svgRoot = cogField.getSvgRoot();
+    if (svgRoot && Blockly.utils?.svgMath?.getRelativeXY) {
+      try {
+        const fieldRel = Blockly.utils.svgMath.getRelativeXY(svgRoot);
+        return new Blockly.utils.Coordinate(
+          blockOrigin.x + fieldRel.x + 8,
+          blockOrigin.y + fieldRel.y + 8,
+        );
+      } catch {
+        // fallback if getRelativeXY throws
+      }
+    }
+    const dimensions = sourceBlock.getHeightWidth?.();
+    if (dimensions) {
+      return new Blockly.utils.Coordinate(
+        blockOrigin.x + dimensions.width - 24,
+        blockOrigin.y + 12,
+      );
+    }
+  }
+  return blockOrigin;
 }
 
 type FlyoutProvider = (
@@ -119,8 +152,87 @@ function refreshMutatorFlyout(
   flyout.show(contents);
 }
 
+export function autoSizeMutatorBubble(
+  bubble: {
+    getWorkspace?: () => import("blockly/core").WorkspaceSvg;
+    miniWorkspace?: import("blockly/core").WorkspaceSvg;
+    setSize?: (size: Blockly.utils.Size, relayout?: boolean) => void;
+    setBubbleSize?: (width: number, height: number) => void;
+    getSize?: () => { width: number; height: number };
+  },
+  sourceBlock?: BlockSvg,
+): void {
+  const mini = bubble.getWorkspace?.() ?? bubble.miniWorkspace;
+  if (!mini) return;
+
+  const flyout = mini.getFlyout?.();
+  let flyoutWidth = 0;
+  let flyoutHeight = 0;
+
+  if (flyout) {
+    flyoutWidth = flyout.getWidth?.() ?? 0;
+    const flyoutWs = (flyout as unknown as { workspace_?: import("blockly/core").WorkspaceSvg }).workspace_;
+    if (flyoutWs) {
+      const box = flyoutWs.getBlocksBoundingBox?.();
+      if (box && Number.isFinite(box.bottom) && Number.isFinite(box.top)) {
+        flyoutHeight = Math.max(flyoutHeight, box.bottom - box.top + 36);
+        flyoutWidth = Math.max(flyoutWidth, box.right - box.left + 24);
+      }
+      const blocks = flyoutWs.getTopBlocks?.(false) ?? [];
+      let calculatedFlyoutHeight = 24;
+      for (const b of blocks) {
+        const hw = b.getHeightWidth?.();
+        if (hw) {
+          calculatedFlyoutHeight += hw.height + 12;
+          flyoutWidth = Math.max(flyoutWidth, hw.width + 36);
+        }
+      }
+      flyoutHeight = Math.max(flyoutHeight, calculatedFlyoutHeight);
+    }
+  }
+
+  let wsWidth = 160;
+  let wsHeight = 120;
+  const wsBox = mini.getBlocksBoundingBox?.();
+  if (wsBox && Number.isFinite(wsBox.bottom) && Number.isFinite(wsBox.top)) {
+    wsWidth = Math.max(wsWidth, wsBox.right - wsBox.left + 40);
+    wsHeight = Math.max(wsHeight, wsBox.bottom - wsBox.top + 40);
+  }
+  const topBlocks = mini.getTopBlocks?.(false) ?? [];
+  for (const b of topBlocks) {
+    const hw = b.getHeightWidth?.();
+    if (hw) {
+      wsWidth = Math.max(wsWidth, hw.width + 48);
+      wsHeight = Math.max(wsHeight, hw.height + 48);
+    }
+  }
+
+  const desiredWidth = Math.max(380, flyoutWidth + wsWidth + 60);
+  const desiredHeight = Math.max(240, Math.max(flyoutHeight, wsHeight) + 40);
+
+  const parentSvg = sourceBlock?.workspace ? (sourceBlock.workspace as import("blockly/core").WorkspaceSvg).getParentSvg?.() : null;
+  const maxAvailableWidth = parentSvg?.clientWidth ? parentSvg.clientWidth - 40 : 1600;
+  const maxAvailableHeight = parentSvg?.clientHeight ? parentSvg.clientHeight - 40 : 1000;
+
+  const targetWidth = Math.round(Math.min(desiredWidth, maxAvailableWidth));
+  const targetHeight = Math.round(Math.min(desiredHeight, maxAvailableHeight));
+
+  const SizeClass = Blockly.utils?.Size ?? class { constructor(public width: number, public height: number) {} };
+  const targetSize = new SizeClass(targetWidth, targetHeight);
+
+  if (typeof bubble.setSize === "function") {
+    bubble.setSize(targetSize as unknown as Blockly.utils.Size, true);
+  }
+  if (typeof bubble.setBubbleSize === "function") {
+    bubble.setBubbleSize(targetWidth, targetHeight);
+  }
+}
+
 export class DynamicFlyoutMutatorIcon extends MutatorIcon {
   private flyoutRefreshListener: ((event: unknown) => void) | null = null;
+  private outsideClickListener: ((event: PointerEvent) => void) | null = null;
+  private closeButtonSvg: SVGGElement | null = null;
+  private closeButtonResizeListener: (() => void) | null = null;
 
   constructor(
     sourceBlock: BlockSvg,
@@ -128,6 +240,14 @@ export class DynamicFlyoutMutatorIcon extends MutatorIcon {
     private readonly stackFallback: () => string[],
   ) {
     super([], sourceBlock);
+    (this as unknown as Record<string, unknown>).getAnchorLocation = () => {
+      return getCogwheelAnchorLocation(this.sourceBlock as BlockSvg);
+    };
+  }
+
+  // @ts-ignore override private method
+  override getAnchorLocation(): Blockly.utils.Coordinate {
+    return getCogwheelAnchorLocation(this.sourceBlock as BlockSvg);
   }
 
   override setBubbleVisible(visible: boolean): Promise<void> {
@@ -149,17 +269,186 @@ export class DynamicFlyoutMutatorIcon extends MutatorIcon {
     };
     return super.setBubbleVisible(visible).then(() => {
       const mini = this.getWorkspace?.();
-      if (visible && mini) {
+      const bubble = (this as unknown as {
+        miniWorkspaceBubble?: {
+          getSvgRoot?: () => SVGGElement;
+          svgRoot?: SVGGElement;
+          getSize?: () => { width: number; height: number };
+          setSize?: (size: Blockly.utils.Size, relayout?: boolean) => void;
+          setBubbleSize?: (width: number, height: number) => void;
+          getWorkspace?: () => import("blockly/core").WorkspaceSvg;
+          miniWorkspace?: import("blockly/core").WorkspaceSvg;
+        };
+        bubble?: {
+          getSvgRoot?: () => SVGGElement;
+          svgRoot?: SVGGElement;
+          getSize?: () => { width: number; height: number };
+          setSize?: (size: Blockly.utils.Size, relayout?: boolean) => void;
+          setBubbleSize?: (width: number, height: number) => void;
+          getWorkspace?: () => import("blockly/core").WorkspaceSvg;
+          miniWorkspace?: import("blockly/core").WorkspaceSvg;
+        };
+      }).miniWorkspaceBubble ?? (this as unknown as {
+        bubble?: {
+          getSvgRoot?: () => SVGGElement;
+          svgRoot?: SVGGElement;
+          getSize?: () => { width: number; height: number };
+          setSize?: (size: Blockly.utils.Size, relayout?: boolean) => void;
+          setBubbleSize?: (width: number, height: number) => void;
+          getWorkspace?: () => import("blockly/core").WorkspaceSvg;
+          miniWorkspace?: import("blockly/core").WorkspaceSvg;
+        };
+      }).bubble;
+
+      if (visible && mini && bubble) {
         this.flyoutRefreshListener = () => {
           refreshMutatorFlyout(this, this.contentsFor);
+          autoSizeMutatorBubble(bubble, block);
         };
         mini.addChangeListener(this.flyoutRefreshListener);
         refreshMutatorFlyout(this, this.contentsFor);
-      } else if (this.flyoutRefreshListener && mini) {
-        mini.removeChangeListener(this.flyoutRefreshListener);
-        this.flyoutRefreshListener = null;
+
+        autoSizeMutatorBubble(bubble, block);
+        setTimeout(() => autoSizeMutatorBubble(bubble, block), 50);
+
+        this.installCloseButton(bubble);
+        this.installOutsideClickListener(bubble);
+      } else {
+        if (this.flyoutRefreshListener && mini) {
+          mini.removeChangeListener(this.flyoutRefreshListener);
+          this.flyoutRefreshListener = null;
+        }
+        this.cleanupCloseButton();
+        this.cleanupOutsideClickListener();
       }
     });
+  }
+
+  private installCloseButton(bubble: {
+    getSvgRoot?: () => SVGGElement;
+    svgRoot?: SVGGElement;
+    getSize?: () => { width: number; height: number };
+    setSize?: (size: Blockly.utils.Size, relayout?: boolean) => void;
+    setBubbleSize?: (width: number, height: number) => void;
+    getWorkspace?: () => import("blockly/core").WorkspaceSvg;
+    miniWorkspace?: import("blockly/core").WorkspaceSvg;
+  }): void {
+    this.cleanupCloseButton();
+    const bubbleSvg = bubble.getSvgRoot?.() ?? bubble.svgRoot;
+    if (!bubbleSvg || typeof document === "undefined") return;
+
+    const btn = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    btn.setAttribute("class", "intehrgrator-bubble-close-btn");
+    btn.style.cursor = "pointer";
+    btn.setAttribute("role", "button");
+    btn.setAttribute("aria-label", "Close");
+
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("cx", "0");
+    circle.setAttribute("cy", "0");
+    circle.setAttribute("r", "10");
+    circle.setAttribute("fill", "#ffffff");
+    circle.setAttribute("stroke", "#dadce0");
+    circle.setAttribute("stroke-width", "1.5");
+
+    const cross = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    cross.setAttribute("d", "M -4 -4 L 4 4 M -4 4 L 4 -4");
+    cross.setAttribute("stroke", "#5f6368");
+    cross.setAttribute("stroke-width", "1.8");
+    cross.setAttribute("stroke-linecap", "round");
+
+    btn.appendChild(circle);
+    btn.appendChild(cross);
+
+    const updatePosition = () => {
+      const size = bubble.getSize?.() ?? { width: 300, height: 200 };
+      btn.setAttribute("transform", `translate(${size.width - 16}, 16)`);
+    };
+
+    updatePosition();
+
+    btn.addEventListener("pointerdown", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      void this.setBubbleVisible(false);
+    });
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      void this.setBubbleVisible(false);
+    });
+
+    bubbleSvg.appendChild(btn);
+    this.closeButtonSvg = btn;
+
+    const mini = this.getWorkspace?.();
+    if (mini) {
+      this.closeButtonResizeListener = () => {
+        autoSizeMutatorBubble(bubble, this.sourceBlock as BlockSvg);
+        updatePosition();
+      };
+      mini.addChangeListener(this.closeButtonResizeListener);
+    }
+  }
+
+  private cleanupCloseButton(): void {
+    if (this.closeButtonSvg) {
+      this.closeButtonSvg.remove();
+      this.closeButtonSvg = null;
+    }
+    if (this.closeButtonResizeListener) {
+      const mini = this.getWorkspace?.();
+      if (mini) {
+        mini.removeChangeListener(this.closeButtonResizeListener);
+      }
+      this.closeButtonResizeListener = null;
+    }
+  }
+
+  private installOutsideClickListener(bubble: {
+    getSvgRoot?: () => SVGGElement;
+    svgRoot?: SVGGElement;
+  }): void {
+    this.cleanupOutsideClickListener();
+    if (typeof document === "undefined") return;
+
+    const block = this.sourceBlock as BlockSvg;
+    this.outsideClickListener = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (!target) return;
+
+      const bubbleSvg = bubble.getSvgRoot?.() ?? bubble.svgRoot;
+      if (bubbleSvg && bubbleSvg.contains(target)) return;
+
+      const cogField = block.getField("MUTATOR_COG") as Blockly.FieldImage | null;
+      const cogSvg = cogField?.getSvgRoot?.();
+      if (cogSvg && cogSvg.contains(target)) return;
+
+      if (target instanceof Element && target.closest(".blocklyDropDownDiv, .blocklyWidgetDiv, .blocklyFlyout")) {
+        return;
+      }
+
+      void this.setBubbleVisible(false);
+    };
+
+    setTimeout(() => {
+      if (this.outsideClickListener && this.bubbleIsVisible()) {
+        document.addEventListener("pointerdown", this.outsideClickListener, true);
+      }
+    }, 0);
+  }
+
+  private cleanupOutsideClickListener(): void {
+    if (this.outsideClickListener && typeof document !== "undefined") {
+      document.removeEventListener("pointerdown", this.outsideClickListener, true);
+      this.outsideClickListener = null;
+    }
+  }
+
+  override dispose(): void {
+    this.cleanupCloseButton();
+    this.cleanupOutsideClickListener();
+    super.dispose();
   }
 }
 

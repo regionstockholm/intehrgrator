@@ -529,6 +529,20 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   display: none !important;
 }
 
+.intehrgrator-bubble-close-btn circle {
+  transition: fill 0.15s ease, stroke 0.15s ease;
+}
+.intehrgrator-bubble-close-btn:hover circle {
+  fill: #fee2e2;
+  stroke: #ef4444;
+}
+.intehrgrator-bubble-close-btn path {
+  transition: stroke 0.15s ease;
+}
+.intehrgrator-bubble-close-btn:hover path {
+  stroke: #dc2626;
+}
+
 .blockly-icon-warning .blocklyIconShape {
   fill: #F9A825 !important;
   stroke: #E65100 !important;

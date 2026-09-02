@@ -943,3 +943,56 @@ Deno.test("DATA_VALUE mutator adds optional fields and has no plus-fields button
   workspace.dispose();
   bubble.dispose();
 });
+
+Deno.test("mutator cogwheel anchor is positioned on MUTATOR_COG field and toggles", async () => {
+  ensureBlocks();
+  const { openBlockMutator, getCogwheelAnchorLocation } = await import(
+    "@intehrgrator/blockly/dynamic_mutator.ts"
+  );
+  const workspace = new Blockly.Workspace();
+  const composition = workspace.newBlock("composition");
+  const field = composition.getField("MUTATOR_COG");
+  assert(field, "MUTATOR_COG field exists");
+
+  const anchor = getCogwheelAnchorLocation(composition as unknown as import("blockly/core").BlockSvg);
+  assert(anchor, "anchor coordinate returned");
+
+  let visible = false;
+  const fakeIcon = {
+    bubbleIsVisible: () => visible,
+    setBubbleVisible: (v: boolean) => {
+      visible = v;
+      return Promise.resolve();
+    },
+  };
+  (composition as unknown as { getIcons: () => unknown[] }).getIcons = () => [fakeIcon];
+
+  openBlockMutator(composition);
+  assertEquals(visible, true, "openBlockMutator opens when closed");
+  openBlockMutator(composition);
+  assertEquals(visible, false, "openBlockMutator closes when already open");
+
+  workspace.dispose();
+});
+
+Deno.test("autoSizeMutatorBubble calculates content bounds and enlarges bubble", async () => {
+  ensureBlocks();
+  const { autoSizeMutatorBubble } = await import(
+    "@intehrgrator/blockly/dynamic_mutator.ts"
+  );
+  const miniWs = new Blockly.Workspace();
+  let appliedSize: { width: number; height: number } | null = null;
+  const fakeBubble = {
+    getWorkspace: () => miniWs as unknown as import("blockly/core").WorkspaceSvg,
+    setSize: (size: { width: number; height: number }) => {
+      appliedSize = size;
+    },
+    getSize: () => appliedSize ?? { width: 300, height: 200 },
+  };
+
+  autoSizeMutatorBubble(fakeBubble);
+  assert(appliedSize, "applied size to bubble");
+  assert((appliedSize as { width: number }).width >= 380, "width at least 380");
+  assert((appliedSize as { height: number }).height >= 240, "height at least 240");
+  miniWs.dispose();
+});

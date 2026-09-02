@@ -191,12 +191,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
     kind: "categoryToolbox",
     contents: [
       {
-        kind: "search",
-        name: m.CAT_SEARCH,
-        contents: [],
-        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategorySearch" },
-      },
-      {
         kind: "category",
         name: m.CAT_SOURCE,
         colour: 28,
@@ -482,6 +476,13 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         name: m.CAT_PROCEDURES,
         colour: 16,
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryProcedures" },
+      },
+      { kind: "sep" },
+      {
+        kind: "search",
+        name: m.CAT_SEARCH,
+        contents: [],
+        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategorySearch" },
       },
     ],
   };

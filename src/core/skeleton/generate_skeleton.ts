@@ -185,7 +185,6 @@ function walkComplex(
   const mandatory = isMandatory(cObj);
 
   if (isDataValueType(rmType)) {
-    const allowedValues = extractAllowedValues(cObj, terms);
     return {
       slotId: `${templateId}${slotPath}/value`,
       blockType: blockTypeForRm(rmType),
@@ -198,8 +197,7 @@ function walkComplex(
       mandatory,
       multiplicity,
       children: [],
-      fixedFields: extractFixedFields(cObj),
-      ...(allowedValues.length ? { allowedValues } : {}),
+      ...valueConstraintFields(cObj, terms),
     };
   }
 
@@ -305,7 +303,6 @@ function walkAttribute(
         }
         : {};
       const terms = termsForArchetype(childArchetypeRef, fallbackTerms, archetypeTerms);
-      const allowedValues = extractAllowedValues(child, terms);
       nodes.push({
         slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
@@ -327,8 +324,7 @@ function walkAttribute(
         mandatory: isMandatory(child),
         multiplicity: multiplicityOfAm(child),
         children: [],
-        fixedFields: extractFixedFields(child),
-        ...(allowedValues.length ? { allowedValues } : {}),
+        ...valueConstraintFields(child, terms),
       });
     }
   }
@@ -635,10 +631,22 @@ function applyRmConstrainedFields(node: SkeletonNode, parentRmType: string): voi
   );
 }
 
+type WebTemplateInputListItem = { value?: string; label?: string };
+type WebTemplateInput = {
+  suffix?: string;
+  terminology?: string;
+  defaultValue?: unknown;
+  list?: WebTemplateInputListItem[];
+};
+
 /**
- * Better/EHRbase Web Template `inputs[].list` (e.g. COMPOSITION.category → 433)
- * is dropped by `webTemplateToOpt`. Copy a single constrained code onto the
- * matching skeleton value slot so term_pick can auto-select it.
+ * Better/EHRbase Web Template `inputs[]` are dropped by `webTemplateToOpt`.
+ * Copy suffix-aware constraints onto matching skeleton leaves:
+ * - `code` → defining_code / allowedValues (COMPOSITION.category → 433)
+ * - `unit`/`units` → DV_QUANTITY.units / allowedUnits (`mm[Hg]`)
+ *
+ * @see openehr://guides/templates/web-template
+ * @see openehr://guides/simplified_formats/idioms-cheatsheet
  */
 function applyWebTemplateInputConstraints(
   tree: unknown,
@@ -650,44 +658,26 @@ function applyWebTemplateInputConstraints(
     const rec = node as {
       aqlPath?: string;
       id?: string;
-      inputs?: Array<{
-        terminology?: string;
-        list?: Array<{ value?: string; label?: string }>;
-      }>;
+      nodeId?: string;
+      rmType?: string;
+      inputs?: WebTemplateInput[];
       children?: unknown[];
     };
-    const codes = (rec.inputs ?? []).flatMap((input) =>
-      (input.list ?? [])
-        .map((item) => item.value)
-        .filter((value): value is string => Boolean(value))
-    );
-    const terminology = (rec.inputs ?? []).find((input) => input.terminology)
-      ?.terminology;
-    const attr = (rec.aqlPath ?? rec.id ?? "").split("/").filter(Boolean).pop();
-    if (attr && codes.length) {
-      const matches = nodes.filter((sk) =>
-        sk.rmAttribute === attr ||
-        sk.slotId.endsWith(`/${attr}`) ||
-        sk.slotId.endsWith(`/${attr}/value`)
+    const matches = skeletonNodesForWebTemplateNode(nodes, rec);
+    for (const input of rec.inputs ?? []) {
+      const suffix = (input.suffix ?? "").toLowerCase();
+      const items = (input.list ?? []).filter((item): item is WebTemplateInputListItem & { value: string } =>
+        Boolean(item.value)
       );
-      for (const sk of matches) {
-        if (codes.length === 1) {
-          const code = codes[0]!;
-          if (!sk.fixedFields?.code_string) {
-            sk.fixedFields = {
-              ...sk.fixedFields,
-              ...(terminology ? { terminology_id: terminology } : {}),
-              defining_code: code,
-              code_string: code,
-            };
-          }
-        } else if (!sk.allowedValues?.length) {
-          sk.allowedValues = codes.map((code) => ({
-            code,
-            label: code,
-            terminologyId: terminology,
-          }));
-        }
+      if (!items.length) continue;
+      const values = items.map((item) => item.value);
+      if (suffix === "unit" || suffix === "units") {
+        applyWebTemplateUnits(matches, values);
+        continue;
+      }
+      if (NON_CODE_INPUT_SUFFIXES.has(suffix)) continue;
+      if (suffix === "code" || suffix === "defining_code" || suffix === "") {
+        applyWebTemplateCodes(matches, items, input.terminology);
       }
     }
     for (const child of rec.children ?? []) walk(child);
@@ -695,8 +685,115 @@ function applyWebTemplateInputConstraints(
   walk(tree);
 }
 
+const NON_CODE_INPUT_SUFFIXES = new Set([
+  "magnitude",
+  "precision",
+  "numerator",
+  "denominator",
+  "type",
+  "value",
+  "ordinal",
+  "normal_status",
+]);
+
+function skeletonNodesForWebTemplateNode(
+  nodes: SkeletonNode[],
+  rec: { aqlPath?: string; id?: string; nodeId?: string; rmType?: string },
+): SkeletonNode[] {
+  const nodeId = rec.nodeId;
+  const rmType = rec.rmType;
+  const attr = (rec.aqlPath ?? rec.id ?? "").split("/").filter(Boolean).pop();
+
+  if (nodeId) {
+    const byId = nodes.filter((sk) => {
+      if (rmType && sk.rmType !== rmType) return false;
+      return sk.archetypeNodeId === nodeId ||
+        sk.slotId.includes(`/${nodeId}/`) ||
+        sk.slotId.endsWith(`/${nodeId}`) ||
+        sk.slotId.endsWith(`/${nodeId}/value`);
+    });
+    if (byId.length) return byId;
+  }
+
+  if (rmType && attr) {
+    const byType = nodes.filter((sk) =>
+      sk.rmType === rmType && (
+        sk.rmAttribute === attr ||
+        sk.slotId.endsWith(`/${attr}`) ||
+        sk.slotId.endsWith(`/${attr}/value`)
+      )
+    );
+    if (byType.length) return byType;
+  }
+
+  if (!attr) return [];
+  return nodes.filter((sk) =>
+    sk.rmAttribute === attr ||
+    sk.slotId.endsWith(`/${attr}`) ||
+    sk.slotId.endsWith(`/${attr}/value`)
+  );
+}
+
+function applyWebTemplateUnits(matches: SkeletonNode[], units: string[]): void {
+  const unique = [...new Set(units.filter(Boolean))];
+  if (!unique.length) return;
+  for (const sk of matches) {
+    if (sk.rmType !== "DV_QUANTITY") continue;
+    if (unique.length === 1) {
+      if (!sk.fixedFields?.units) {
+        sk.fixedFields = { ...sk.fixedFields, units: unique[0]! };
+      }
+    } else if (!sk.allowedUnits?.length) {
+      sk.allowedUnits = unique;
+    }
+  }
+}
+
+function applyWebTemplateCodes(
+  matches: SkeletonNode[],
+  items: Array<{ value: string; label?: string }>,
+  terminology: string | undefined,
+): void {
+  const codes = items.map((item) => item.value);
+  if (!codes.length) return;
+  for (const sk of matches) {
+    if (sk.rmType === "DV_QUANTITY") continue;
+    if (codes.length === 1) {
+      const code = codes[0]!;
+      if (!sk.fixedFields?.code_string) {
+        sk.fixedFields = {
+          ...sk.fixedFields,
+          ...(terminology ? { terminology_id: terminology } : {}),
+          defining_code: code,
+          code_string: code,
+        };
+      }
+    } else if (!sk.allowedValues?.length) {
+      sk.allowedValues = items.map((item) => ({
+        code: item.value,
+        label: item.label || item.value,
+        terminologyId: terminology,
+      }));
+    }
+  }
+}
+
 function flattenSkeletonNodes(nodes: SkeletonNode[]): SkeletonNode[] {
   return nodes.flatMap((node) => [node, ...flattenSkeletonNodes(node.children)]);
+}
+
+function valueConstraintFields(
+  cObj: AmObject,
+  terms: TermBag,
+): Pick<SkeletonNode, "fixedFields" | "allowedValues" | "allowedUnits"> {
+  const allowedValues = extractAllowedValues(cObj, terms);
+  const allowedUnits = extractAllowedUnits(cObj);
+  const fixedFields = extractFixedFields(cObj);
+  return {
+    ...(fixedFields ? { fixedFields } : {}),
+    ...(allowedValues.length ? { allowedValues } : {}),
+    ...(allowedUnits.length > 1 ? { allowedUnits } : {}),
+  };
 }
 
 function extractFixedFields(cObj: AmObject): Record<string, string> | undefined {
@@ -713,8 +810,17 @@ function extractFixedFields(cObj: AmObject): Record<string, string> | undefined 
     fields.code_string = specified;
   }
 
-  const list = cObj.list as string[] | undefined;
-  if (list?.length === 1) fields.value = list[0]!;
+  const list = cObj.list as unknown[] | undefined;
+  if (
+    Array.isArray(list) &&
+    list.length === 1 &&
+    (typeof list[0] === "string" || typeof list[0] === "number")
+  ) {
+    fields.value = String(list[0]);
+  }
+
+  const units = extractAllowedUnits(cObj);
+  if (units.length === 1) fields.units = units[0]!;
 
   for (const attr of (cObj.attributes ?? []) as AmObject[]) {
     const attrName = attr.rm_attribute_name as string | undefined;
@@ -724,6 +830,7 @@ function extractFixedFields(cObj: AmObject): Record<string, string> | undefined 
     if (!nested) continue;
     if (attrName === "defining_code") Object.assign(fields, nested);
     else if (attrName === "value" && nested.value) fields.value = nested.value;
+    else if (attrName === "units" && nested.value) fields.units = nested.value;
     else if (attrName === "terminology_id" && nested.value) {
       fields.terminology_id = nested.value;
     }
@@ -760,11 +867,13 @@ function codeListFromAm(cObj: AmObject): string[] {
 function extractAllowedValues(cObj: AmObject, terms: TermBag): AllowedValue[] {
   const terminology = terminologyIdFromAm(cObj);
   const codes = codeListFromAm(cObj);
+  const assumedCode = assumedCodeFromAm(cObj);
   if (codes.length > 1) {
     return codes.map((code) => ({
       code,
       label: lookupTermText(terms, code) ?? code,
       terminologyId: terminology,
+      ...(assumedCode === code ? { assumed: true as const } : {}),
     }));
   }
 
@@ -776,6 +885,7 @@ function extractAllowedValues(cObj: AmObject, terms: TermBag): AllowedValue[] {
     return nested.map((item) => ({
       ...item,
       terminologyId: item.terminologyId ?? terminology,
+      ...(item.assumed || assumedCode === item.code ? { assumed: true as const } : {}),
     }));
   }
 
@@ -789,6 +899,51 @@ function extractAllowedValues(cObj: AmObject, terms: TermBag): AllowedValue[] {
   }
 
   return [];
+}
+
+/**
+ * Unique UCUM units from AM 1.4 `C_QUANTITY` / `C_DV_QUANTITY` `list[].units`
+ * (and nested `units` C_STRING lists). A single unit is copied to
+ * `fixedFields.units`; several become `allowedUnits`.
+ *
+ * @see openehr://spec/type/AM/C_QUANTITY
+ * @see openehr://spec/type/RM/DV_QUANTITY
+ */
+function extractAllowedUnits(cObj: AmObject): string[] {
+  const seen = new Set<string>();
+  const units: string[] = [];
+  const add = (value: unknown) => {
+    if (typeof value !== "string") return;
+    const unit = value.trim();
+    if (!unit || unit === "[object Object]" || seen.has(unit)) return;
+    seen.add(unit);
+    units.push(unit);
+  };
+
+  if (Array.isArray(cObj.list)) {
+    for (const item of cObj.list) {
+      if (item && typeof item === "object" && !Array.isArray(item)) {
+        add((item as { units?: unknown }).units);
+      }
+    }
+  }
+
+  for (const attr of (cObj.attributes ?? []) as AmObject[]) {
+    if (attr.rm_attribute_name !== "units") continue;
+    const nested = (attr.children ?? [])[0] as AmObject | undefined;
+    if (!nested) continue;
+    if (Array.isArray(nested.list)) {
+      for (const item of nested.list) add(item);
+    }
+    for (const unit of extractAllowedUnits(nested)) add(unit);
+  }
+
+  if (units.length === 0) {
+    const assumed = cObj.assumed_value as { units?: unknown } | undefined;
+    if (assumed && typeof assumed === "object") add(assumed.units);
+  }
+
+  return units;
 }
 
 function stringListFromAm(cObj: AmObject): string[] {

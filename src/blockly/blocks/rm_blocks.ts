@@ -740,6 +740,11 @@ export function applyFixedFieldsToDataValueShell(
     connectLiteralText(workspace, shell, dvFieldInputName("value"), fields.value);
   }
 
+  if (fields.units) {
+    ensureDvFieldVisible(shell, "units");
+    connectLiteralText(workspace, shell, dvFieldInputName("units"), fields.units);
+  }
+
   if (fields.terminology_id || fields.defining_code || fields.code_string) {
     ensureDvFieldVisible(shell, "defining_code");
     const phrase = ensureNestedCodePhrase(workspace, shell, dvFieldInputName("defining_code"));

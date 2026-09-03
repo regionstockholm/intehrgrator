@@ -28,6 +28,7 @@ import {
   type TargetDefinition,
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
+import { executeGoTemplate } from "../output/go_template_runtime.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
 import { validateConvertedOutput } from "../output/template_validation.ts";
 
@@ -56,7 +57,7 @@ export function runTest(
 ): TestResult {
   const warnings: string[] = [];
   const mode = options.outputMode ?? "preview";
-  if (isConversionScriptLanguage(mode) && mode !== "typescript") {
+  if (isConversionScriptLanguage(mode) && mode !== "typescript" && mode !== "handlebars" && mode !== "go-template") {
     const message = unimplementedTestRunMessage(mode);
     return {
       ok: false,
@@ -99,6 +100,54 @@ export function runTest(
         warnings,
         outputValidation,
       };
+    }
+
+    if (mode === "handlebars") {
+      const template = options.handlebarsTemplate ?? options.target?.content ?? "";
+      if (!template.trim()) {
+        return {
+          ok: false,
+          output: "// No Handlebars template provided.\n",
+          error: "No Handlebars template provided.",
+          warnings,
+        };
+      }
+      const slotValues = evaluateSlotValues(model, handler, ctx, warnings, options.target?.skeleton ?? []);
+      const output = renderHandlebars(template, ctx.data, { slots: slotValues });
+      const outputValidation = validateConvertedOutput(output, options.target, {
+        deserializeMode: options.openEhrJsonDeserializeMode,
+      });
+      return {
+        ok: warnings.length === 0,
+        output,
+        composition: output,
+        warnings,
+        outputValidation,
+      };
+    }
+
+    if (mode === "go-template") {
+      const code = options.generatedCode ?? "";
+      if (!code.trim()) {
+        return {
+          ok: false,
+          output: "// No Go template code generated. Add blocks to the Blockly canvas.\n",
+          error: "No Go template code generated.",
+          warnings,
+        };
+      }
+      const envelope = {
+        Parameters: defaults,
+        Data: ctx.data,
+      };
+      try {
+        const output = executeGoTemplate(code, envelope);
+        return { ok: true, output, composition: output, warnings };
+      } catch (e) {
+        const output = `// Go template execution error: ${e instanceof Error ? e.message : String(e)}\n` +
+          `// Generated script:\n${code}`;
+        return { ok: false, output, error: e instanceof Error ? e.message : String(e), warnings };
+      }
     }
 
     const slotValues = evaluateSlotValues(

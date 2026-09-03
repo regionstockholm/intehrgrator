@@ -1,6 +1,7 @@
 import { assertEquals, assert } from "@std/assert";
 import { generate, generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
+import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
 
 function modelWithSlots(slots: Array<{ slotId: string; expression: string; label?: string }>): MappingModel {
@@ -116,4 +117,46 @@ Deno.test("go-template codegen maps_get defaults → .Parameters", () => {
   };
   const output = generateGoTemplate(model, { blocklyState });
   assert(output.includes(".Parameters.Time"), "defaults key → .Parameters.Time");
+});
+
+Deno.test("Handlebars Output mode executes the authored template in Conversion Test Run", () => {
+  const model = createEmptyModel("test");
+  const result = runTest(model, '{"name": "Ada"}', "json", {
+    outputMode: "handlebars",
+    handlebarsTemplate: "Hello {{name}}!",
+  });
+  assertEquals(result.ok, true);
+  assertEquals(result.output, "Hello Ada!");
+});
+
+Deno.test("Handlebars Output mode with slot references in authored template", () => {
+  let model = createEmptyModel("test");
+  model = applyExpressionEdit(model, "greeting", 'xpathString("$.name")', {
+    rmType: "DV_TEXT", returnType: "string", label: "Greeting",
+  });
+  const result = runTest(model, '{"name": "Ada"}', "json", {
+    outputMode: "handlebars",
+    handlebarsTemplate: 'Greeting: {{slot "greeting"}}',
+  });
+  assertEquals(result.ok, true);
+  assert(String(result.output).includes("Ada"), "slot value should be resolved");
+});
+
+Deno.test("Go template Output mode returns error when WASM is not loaded", () => {
+  const model = createEmptyModel("test");
+  const result = runTest(model, '{"x": 1}', "json", {
+    outputMode: "go-template",
+    generatedCode: '{{ index .Data "x" }}',
+  });
+  assertEquals(result.ok, false);
+  assert(String(result.error).includes("WASM"), "should mention WASM");
+});
+
+Deno.test("Go template Output mode with empty code returns error", () => {
+  const model = createEmptyModel("test");
+  const result = runTest(model, '{"x": 1}', "json", {
+    outputMode: "go-template",
+  });
+  assertEquals(result.ok, false);
+  assert(String(result.output).includes("No Go template code"), "should explain missing code");
 });

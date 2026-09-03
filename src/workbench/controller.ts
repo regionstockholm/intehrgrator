@@ -447,8 +447,8 @@ export class WorkbenchController {
   async loadExampleSet(set: ExampleSet): Promise<void> {
     this.resetWorkspaceState();
     try {
-      await this.openTemplateFromUrl(set.target);
-      await this.loadSchemaFromUrl(set.source.schema);
+      if (set.target) await this.openTemplateFromUrl(set.target);
+      if (set.source.schema) await this.loadSchemaFromUrl(set.source.schema);
       for (const instanceUrl of set.source.instances) {
         await this.addExampleFromUrl(instanceUrl);
       }
@@ -1231,7 +1231,7 @@ export class WorkbenchController {
       this.generatedCode = MAPPING_PREVIEW_SCRIPT_PLACEHOLDER;
       return;
     }
-    this.generatedCode = this.model.templateId || this.handlebarsTemplate
+    this.generatedCode = mode === "go-template" || this.model.templateId || this.handlebarsTemplate
       ? generate(this.model, mode, {
         handlebarsTemplate: this.handlebarsTemplate,
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
@@ -1339,7 +1339,7 @@ export class WorkbenchController {
     example: { content: string; format: SourceFormatId },
   ): TestResult {
     const mode = this.settings.exportTarget;
-    if (isConversionScriptLanguage(mode) && mode !== "typescript") {
+    if (isConversionScriptLanguage(mode) && mode !== "typescript" && mode !== "handlebars" && mode !== "go-template") {
       const message = unimplementedTestRunMessage(mode);
       return {
         ok: false,
@@ -1353,7 +1353,7 @@ export class WorkbenchController {
       target: this.target,
       outputMode: mode,
       exportTarget: this.target?.format === "free-form" ? "handlebars" : undefined,
-      generatedCode: mode === "typescript" ? this.generatedCode : undefined,
+      generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       openEhrJsonDeserializeMode: this.settings.openEhrJsonDeserializeMode,

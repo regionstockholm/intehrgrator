@@ -33,10 +33,10 @@ export function extractHandlebarsPaths(template: string): HandlebarsPathRef[] {
     found.push({ kind, path });
   };
 
-  for (const match of withoutComments.matchAll(/\{\{#(with|each)\s+([^}]+)\}\}/g)) {
+  for (const match of withoutComments.matchAll(/\{\{~?#(with|each)\s+([^}]+)\}\}/g)) {
     push(match[1] === "each" ? "each" : "with", match[2]!.trim());
   }
-  for (const match of withoutComments.matchAll(/\{\{(?:~)?(?!#|\/|else|!--)([^}]+)\}\}/g)) {
+  for (const match of withoutComments.matchAll(/\{\{~?(?!#|\/|else|!--)([^}]+)\}\}/g)) {
     const body = match[1]!.trim();
     if (body.startsWith("#") || body.startsWith("/") || body.startsWith("else")) continue;
     // Skip helper calls like (gte x 70) / and ...

@@ -42,6 +42,22 @@
         ]
       },
       "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt"
+    },
+    {
+      "id": "chemo-symptoms-flat-to-tc-xml",
+      "title": "Patient-reported chemotherapy symptoms (FLAT → TakeCare XML)",
+      "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using Blockly XML blocks. Select Go Template output mode to see generated Go text/template code. Reference hand-authored Go template scripts are in the mapping/ folder. Parameters come from the Defaults Map.",
+      "source": {
+        "instances": [
+          "./patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
+          "./patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
+          "./patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
+          "./patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
+          "./patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt"
+        ]
+      },
+      "mapping": "./patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+      "defaults": "./patient-reported-chemotherapy-symptoms/defaults.map.json"
     }
   ]
 }

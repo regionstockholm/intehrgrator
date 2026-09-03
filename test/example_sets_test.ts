@@ -49,9 +49,16 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
     "dummy-json-vitals/target.schema.json",
     "dummy-json-vitals/mapping.blockly.json",
     "dummy-json-vitals/defaults.map.json",
+    "patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+    "patient-reported-chemotherapy-symptoms/defaults.map.json",
+    "patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
+    "patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
+    "patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
+    "patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
+    "patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt",
   ];
   for (const part of parts) {
-    const url = `https://app.test/examples/${part}`;
+    const url = new URL(part, "https://app.test/examples/").href;
     files[url] = { name: part.split("/").pop()!, text: await readExample(part) };
   }
   return files;
@@ -60,7 +67,7 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
 Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL", async () => {
   const text = await readExample("example-sets.json");
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 3);
+  assertEquals(catalog.sets.length, 4);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
@@ -78,6 +85,15 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
   assertEquals(
     mapped.defaults,
     "https://app.test/examples/dummy-json-vitals/defaults.map.json",
+  );
+  const chemo = catalog.sets.find((set) => set.id === "chemo-symptoms-flat-to-tc-xml");
+  if (!chemo) throw new Error("expected chemo example set");
+  assertEquals(chemo.source.schema, undefined);
+  assertEquals(chemo.target, undefined);
+  assertEquals(chemo.source.instances.length, 5);
+  assertEquals(
+    chemo.mapping,
+    "https://app.test/examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
   );
 });
 
@@ -142,6 +158,27 @@ Deno.test("controller loads optional Blockly mapping from the catalog", async ()
   const queued = controller.consumePendingDefaultsMap();
   assertEquals(queued && typeof queued, "object");
   assertEquals((queued as { type?: string }).type, "maps_create_with");
+});
+
+Deno.test("controller loads chemo FLAT example set without schema or target", async () => {
+  const files = await dummyFiles();
+  const controller = new WorkbenchController(stubHost({
+    fetchTextUrl: (url) => {
+      const file = files[url];
+      if (!file) return Promise.reject(new Error(`unexpected url ${url}`));
+      return Promise.resolve(file);
+    },
+  }));
+
+  const catalog = await controller.loadExampleSetCatalog(catalogBase);
+  const chemo = catalog.sets.find((set) => set.id === "chemo-symptoms-flat-to-tc-xml");
+  if (!chemo) throw new Error("expected chemo example set");
+  await controller.loadExampleSet(chemo);
+  const state = controller.getState();
+  assertEquals(state.examples.length, 5);
+  assertEquals(state.blocklyState && typeof state.blocklyState, "object");
+  const queued = controller.consumePendingDefaultsMap();
+  assertEquals(queued && typeof queued, "object");
 });
 
 Deno.test("controller surfaces catalog fetch failure", async () => {

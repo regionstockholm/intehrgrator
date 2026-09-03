@@ -16,6 +16,7 @@ import {
   loadXmlSchemaFromInstance,
   pathToFontoxpath,
 } from "./schema_loader.ts";
+import { parseJsonDocument, unwrapExecuteEnvelope } from "./json_document.ts";
 import {
   createSourceContext,
   evaluate,
@@ -133,7 +134,7 @@ export function detectSourceFormat(filename: string, content?: string): SourceFo
   if (lower.endsWith(".xml") || lower.endsWith(".xsd")) return "xml";
   if (content) {
     try {
-      const data = JSON.parse(content) as unknown;
+      const data = unwrapExecuteEnvelope(parseJsonDocument(content)) as unknown;
       if (isRecord(data)) {
         if (typeof data.templateId === "string" && isRecord(data.tree)) {
           return "openehr-web-template";

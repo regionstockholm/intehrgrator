@@ -268,7 +268,8 @@
                 <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
                 <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
                   Mapping preview interprets the mapping without generating a script.
-                  Conversion scripts (so far): TypeScript (also runs in Conversion Test Run), Java, Handlebars, and XQuery.<br>
+                  Conversion scripts (so far): TypeScript, Java, Handlebars, XQuery, and Go Template.
+                  TypeScript, Handlebars, and Go Template also run in Conversion Test Run.<br>
                   Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.
                 </span>
               </span>
@@ -279,6 +280,7 @@
                   <option value="java">Java</option>
                   <option value="handlebars">Handlebars</option>
                   <option value="xquery">XQuery</option>
+                  <option value="go-template">Go Template</option>
                 </select>
               </label>
             </div>
@@ -458,6 +460,7 @@
       The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
     </span>
   </span>
+  <script src="./wasm/wasm_exec.js"></script>
   <script type="module" src="./bundle.js"></script>
 </body>
 </html>

@@ -175,3 +175,18 @@ Deno.test("Workbench-style Test Run: emergency-ward free-form Handlebars", async
   assertEquals(result.ok, true);
   assertStringIncludes(String(result.output), "Syresättning 98");
 });
+
+Deno.test("extractHandlebarsPaths handles {{~#with and {{~#each (whitespace trim markers)", () => {
+  const template = `{{~#with granskning}}
+  {{~#each bakgrund}}
+    {{namn}}
+  {{/each}}
+{{/with}}`;
+  const paths = extractHandlebarsPaths(template);
+  const kinds = paths.map((p) => p.kind);
+  assert(kinds.includes("with"), "should extract {{~#with as a with path");
+  assert(kinds.includes("each"), "should extract {{~#each as an each path");
+  const pathStrings = paths.map((p) => p.path);
+  assert(pathStrings.includes("granskning"), "with path should be granskning");
+  assert(pathStrings.includes("bakgrund"), "each path should be bakgrund");
+});

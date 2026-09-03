@@ -138,3 +138,20 @@ Deno.test("Test Run goes through Source Format Handler", () => {
   const composition = result.composition as { slots: Record<string, unknown> };
   assertEquals(composition.slots["slot/systolic"], 118);
 });
+
+Deno.test("prose-prefixed FLAT execute envelope unwraps Data keys", () => {
+  const content = Deno.readTextFileSync(
+    new URL("../examples/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt", import.meta.url),
+  );
+  assertEquals(detectSourceFormat("1. Ex.composition.txt", content), "openehr-flat-json");
+  const handler = getSourceFormatHandler("openehr-flat-json");
+  const ctx = handler.createContext(content);
+  const data = ctx.data as Record<string, unknown>;
+  assertEquals(
+    typeof data[
+      "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/_uid"
+    ],
+    "string",
+  );
+  assertEquals(ctx.namedMaps?.defaults?.PatientId, "194002287086");
+});

@@ -1,6 +1,7 @@
 import * as Blockly from "blockly/core";
 import { createHostAdapter } from "../src/host/create_host.ts";
 import { WorkbenchController } from "../src/workbench/controller.ts";
+import { ensureGoTemplateWasm } from "../src/core/output/go_template_runtime.ts";
 import {
   renderSchemaTree,
   renderInstanceTree,
@@ -250,7 +251,8 @@ exportTargetSelect.addEventListener("change", () => {
     | "typescript"
     | "java"
     | "handlebars"
-    | "xquery";
+    | "xquery"
+    | "go-template";
   controller.setExportTarget(target);
   if (target === "handlebars") showTextView("handlebars");
 });
@@ -2009,7 +2011,11 @@ async function main(): Promise<void> {
   // the `?testMode=1` branch to be dropped, which breaks Playwright tests.
   // Installing this lightweight seam unconditionally keeps the E2E harness stable.
   installWorkbenchTestApi();
+  const wasmReady = ensureGoTemplateWasm().catch((err) => {
+    console.warn("Go template WASM not loaded:", err);
+  });
   await bootBlockly();
+  await wasmReady;
   controller.subscribe(render);
   render();
   workbenchReadyResolve();

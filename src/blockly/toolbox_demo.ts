@@ -167,9 +167,23 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       colour: 200,
       cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryXml" },
       contents: [
-        { kind: "block", type: "xml_element", gap: 8 },
+        {
+          kind: "block",
+          type: "xml_element",
+          gap: 8,
+          extraState: { childGroups: ["children"] },
+          fields: { NAME: "element" },
+        },
         { kind: "block", type: "xml_text", gap: 8 },
-        { kind: "block", type: "xml_attribute", gap: 8 },
+        {
+          kind: "block",
+          type: "xml_attribute",
+          gap: 8,
+          fields: { NAME: "attr" },
+          inputs: {
+            VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
+          },
+        },
         { kind: "block", type: "target_structure", gap: 8 },
         { kind: "block", type: "target_value" },
       ],
@@ -330,6 +344,11 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
             kind: "block",
             type: "text_code",
             fields: { LANG: "handlebars", TEXT: "" },
+          },
+          {
+            kind: "block",
+            type: "text_code",
+            fields: { LANG: "go-template", TEXT: "{{ index .Data \"path\" }}" },
           },
           {
             kind: "block",

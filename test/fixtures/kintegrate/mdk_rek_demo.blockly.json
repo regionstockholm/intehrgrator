@@ -88,7 +88,7 @@
         "x": 20,
         "y": 404,
         "fields": {
-          "EXPRESSION": "$.granskning.bakgrund[1].sjukdomshistoria[1].ospecificerad_händelse[1].anamnes[1][\"|value\"]",
+          "EXPRESSION": "$.granskning.bedömning[1].behållare[1][\"klinisk_tnm-klassificering\"][1]",
           "RETURN_TYPE": "string"
         }
       },
@@ -98,7 +98,7 @@
         "x": 20,
         "y": 452,
         "fields": {
-          "EXPRESSION": "$.namn[1][\"|value\"]",
+          "EXPRESSION": "$.granskning.rubrik[1].behållare[1].deltagare[1]",
           "RETURN_TYPE": "string"
         }
       },
@@ -108,7 +108,7 @@
         "x": 20,
         "y": 500,
         "fields": {
-          "EXPRESSION": "$.vårdgivarroll[1].specialitet[1][\"|value\"]",
+          "EXPRESSION": "$.granskning.bakgrund[1].sjukdomshistoria[1].ospecificerad_händelse[1].anamnes[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -118,7 +118,7 @@
         "x": 20,
         "y": 548,
         "fields": {
-          "EXPRESSION": "$.aktuellt[1][\"|value\"]",
+          "EXPRESSION": "$.namn[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -128,7 +128,7 @@
         "x": 20,
         "y": 596,
         "fields": {
-          "EXPRESSION": "$.anamnes[1][\"|value\"]",
+          "EXPRESSION": "$.vårdgivarroll[1].specialitet[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -138,7 +138,7 @@
         "x": 20,
         "y": 644,
         "fields": {
-          "EXPRESSION": "$.komorbiditet[1][\"|value\"]",
+          "EXPRESSION": "$.aktuellt[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -148,7 +148,7 @@
         "x": 20,
         "y": 692,
         "fields": {
-          "EXPRESSION": "$[\"|numerator\"]",
+          "EXPRESSION": "$.anamnes[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -158,7 +158,7 @@
         "x": 20,
         "y": 740,
         "fields": {
-          "EXPRESSION": "$[\"~#with granskning\"].bedömning[1].behållare[1][\"klinisk_tnm-klassificering\"][1]",
+          "EXPRESSION": "$.komorbiditet[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -168,7 +168,7 @@
         "x": 20,
         "y": 788,
         "fields": {
-          "EXPRESSION": "$[\"tnm-version\"][1][\"|value\"]",
+          "EXPRESSION": "$[\"|numerator\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -178,7 +178,7 @@
         "x": 20,
         "y": 836,
         "fields": {
-          "EXPRESSION": "$.primärtumör_t[1][\"|value\"]",
+          "EXPRESSION": "$[\"~#with granskning\"].bedömning[1].behållare[1][\"klinisk_tnm-klassificering\"][1]",
           "RETURN_TYPE": "string"
         }
       },
@@ -188,7 +188,7 @@
         "x": 20,
         "y": 884,
         "fields": {
-          "EXPRESSION": "$.regional_lymfkörtlar_n[1][\"|value\"]",
+          "EXPRESSION": "$[\"tnm-version\"][1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -198,7 +198,7 @@
         "x": 20,
         "y": 932,
         "fields": {
-          "EXPRESSION": "$.fjärrmetastaser_m[1][\"|value\"]",
+          "EXPRESSION": "$.primärtumör_t[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -208,7 +208,7 @@
         "x": 20,
         "y": 980,
         "fields": {
-          "EXPRESSION": "$.stadieindelning[1][\"|value\"]",
+          "EXPRESSION": "$.regional_lymfkörtlar_n[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -218,7 +218,7 @@
         "x": 20,
         "y": 1028,
         "fields": {
-          "EXPRESSION": "$[\"~#with granskning\"].rubrik[1].behållare[1].deltagare[1]",
+          "EXPRESSION": "$.fjärrmetastaser_m[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -228,7 +228,7 @@
         "x": 20,
         "y": 1076,
         "fields": {
-          "EXPRESSION": "$[\"~#if @first\"]",
+          "EXPRESSION": "$.stadieindelning[1][\"|value\"]",
           "RETURN_TYPE": "string"
         }
       },
@@ -237,6 +237,26 @@
         "id": "hbs_path_23",
         "x": 20,
         "y": 1124,
+        "fields": {
+          "EXPRESSION": "$[\"~#with granskning\"].rubrik[1].behållare[1].deltagare[1]",
+          "RETURN_TYPE": "string"
+        }
+      },
+      {
+        "type": "source_query",
+        "id": "hbs_path_24",
+        "x": 20,
+        "y": 1172,
+        "fields": {
+          "EXPRESSION": "$[\"~#if @first\"]",
+          "RETURN_TYPE": "string"
+        }
+      },
+      {
+        "type": "source_query",
+        "id": "hbs_path_25",
+        "x": 20,
+        "y": 1220,
         "fields": {
           "EXPRESSION": "$[\"~else if @last\"]",
           "RETURN_TYPE": "string"

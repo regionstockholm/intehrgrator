@@ -168,7 +168,16 @@ Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a worksp
     blocks: { blocks: [{ type: "defaults_block", inputs: { MAP: { block } } }] },
   };
   assertEquals(mapBlockFromDefaultsJson(wrapped), block);
-  assertEquals(mapBlockFromDefaultsJson({ nope: true }), null);
+  assertEquals(mapBlockFromDefaultsJson({ nested: { x: 1 } }), null);
+  const fromPlain = mapBlockFromDefaultsJson({ Time: "20250101000000", PatientId: "194002287086" }) as {
+    type?: string;
+    extraState?: { itemCount?: number };
+    fields?: Record<string, string>;
+  };
+  assertEquals(fromPlain?.type, "maps_create_with");
+  assertEquals(fromPlain?.extraState?.itemCount, 2);
+  assertEquals(fromPlain?.fields?.KEY0, "Time");
+  assertEquals(fromPlain?.fields?.KEY1, "PatientId");
 });
 
 Deno.test("maps_get evaluates against namedMaps on SourceContext", () => {

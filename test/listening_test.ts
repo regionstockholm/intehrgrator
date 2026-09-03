@@ -54,3 +54,23 @@ Deno.test("listeningTargetFromBlock: mapped source query is selection only", () 
   assertEquals(listeningTargetFromBlock(query), null);
   workspace.dispose();
 });
+
+Deno.test("listeningTargetFromBlock: source_query_node with placeholder arms the block", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const query = workspace.newBlock("source_query_node");
+  query.setFieldValue(PLACEHOLDER_SOURCE_PATH, "EXPRESSION");
+  const target = listeningTargetFromBlock(query);
+  assertEquals(target?.kind, "source_block");
+  assertEquals(target && target.kind === "source_block" ? target.blockId : null, query.id);
+  workspace.dispose();
+});
+
+Deno.test("listeningTargetFromBlock: source_query_node with mapped path is selection only", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const query = workspace.newBlock("source_query_node");
+  query.setFieldValue("$.patient", "EXPRESSION");
+  assertEquals(listeningTargetFromBlock(query), null);
+  workspace.dispose();
+});

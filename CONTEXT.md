@@ -108,7 +108,7 @@ One of the typed Blockly blocks that hold a **Source Path**: `source_query` (str
 _Avoid_: generic “source block”, xpath block (the expression helpers are different)
 
 **Code text block**:
-Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, JSON, XML, HTML, JavaScript, TypeScript). Used for Handlebars snippets and other literal scripts.
+Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, Go Template, JSON, XML, HTML, JavaScript, TypeScript). Used for Handlebars or Go `text/template` snippets nested in XML/text slots, and other literal scripts.
 _Avoid_: stock `text` block (single-line), Mapping Editor Handlebars Template tab (workspace-level template)
 
 **Handlebars text block**:

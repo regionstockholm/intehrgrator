@@ -187,7 +187,7 @@ function classify(type: string): SpecLineKind {
 }
 
 function pickLabel(type: string, fields: Record<string, unknown>): string {
-  for (const key of ["NAME", "LABEL", "VAR", "TEXT"]) {
+  for (const key of ["NAME", "LABEL", "VAR", "TEXT", "TAG"]) {
     const value = fields[key];
     if (typeof value === "string" && value.trim()) return value;
   }

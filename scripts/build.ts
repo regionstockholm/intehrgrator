@@ -93,6 +93,7 @@ await esbuild.build({
 
 await copy(join(root, "web", "index.html"), join(outDir, "index.html"), { overwrite: true });
 await copy(join(root, "web", "styles.css"), join(outDir, "styles.css"), { overwrite: true });
+await copy(join(root, "web", "wasm"), join(outDir, "wasm"), { overwrite: true });
 await copy(
   join(root, "web", "better-form-viewer.html"),
   join(outDir, "better-form-viewer.html"),

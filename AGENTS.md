@@ -72,6 +72,11 @@ If running in interactive mode (e.g. Gemini CLI) then stop after each parent tas
 - Once implementation begins and a `deno.json`/`deno.jsonc` (or `package.json`)
   appears, the startup update script already runs `deno install` to fetch
   dependencies. Until then it is a no-op.
+- Go 1.22+ is on PATH in this Cloud Agent image. It is only needed to rebuild
+  the vendored Go `text/template` WASM (`deno task wasm:go-template` writes
+  `web/wasm/go_texttemplate.wasm` and `wasm_exec.js`). The Web Shell loads
+  those files at runtime; ordinary lint/test/run does not need a Go toolchain.
+  Rebuild only when `go/texttemplate` changes.
 
 ## Agent skills
 

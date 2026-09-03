@@ -1,0 +1,984 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "xml_element",
+        "id": "blk_0",
+        "x": 20,
+        "y": 20,
+        "fields": {
+          "NAME": "ProfdocHISMessage"
+        },
+        "extraState": {
+          "childGroups": [
+            "children"
+          ]
+        },
+        "inputs": {
+          "TARGET_children": {
+            "block": {
+              "type": "xml_attribute",
+              "id": "blk_x1019",
+              "fields": {
+                "NAME": "MsgType"
+              },
+              "inputs": {
+                "VALUE": {
+                  "block": {
+                    "type": "text",
+                    "id": "blk_x1020",
+                    "fields": {
+                      "TEXT": "Request"
+                    }
+                  }
+                }
+              },
+              "next": {
+                "block": {
+                  "type": "xml_element",
+                  "id": "blk_2",
+                  "fields": {
+                    "NAME": "MsgType"
+                  },
+                  "extraState": {
+                    "childGroups": [
+                      "children"
+                    ]
+                  },
+                  "inputs": {
+                    "TARGET_children": {
+                      "block": {
+                        "type": "xml_text",
+                        "id": "blk_x1000",
+                        "inputs": {
+                          "VALUE": {
+                            "block": {
+                              "type": "text",
+                              "id": "blk_3",
+                              "fields": {
+                                "TEXT": "Request"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "xml_element",
+                      "id": "blk_4",
+                      "fields": {
+                        "NAME": "Time"
+                      },
+                      "extraState": {
+                        "childGroups": [
+                          "children"
+                        ]
+                      },
+                      "inputs": {
+                        "TARGET_children": {
+                          "block": {
+                            "type": "xml_text",
+                            "id": "blk_x1001",
+                            "inputs": {
+                              "VALUE": {
+                                "block": {
+                                  "type": "maps_get",
+                                  "id": "blk_5",
+                                  "fields": {
+                                    "NAME": "defaults"
+                                  },
+                                  "inputs": {
+                                    "KEY": {
+                                      "block": {
+                                        "type": "text",
+                                        "id": "blk_6",
+                                        "fields": {
+                                          "TEXT": "Time"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "xml_element",
+                          "id": "blk_7",
+                          "fields": {
+                            "NAME": "InvokingSystem"
+                          },
+                          "extraState": {
+                            "childGroups": [
+                              "children"
+                            ]
+                          },
+                          "inputs": {
+                            "TARGET_children": {
+                              "block": {
+                                "type": "xml_text",
+                                "id": "blk_x1002",
+                                "inputs": {
+                                  "VALUE": {
+                                    "block": {
+                                      "type": "maps_get",
+                                      "id": "blk_8",
+                                      "fields": {
+                                        "NAME": "defaults"
+                                      },
+                                      "inputs": {
+                                        "KEY": {
+                                          "block": {
+                                            "type": "text",
+                                            "id": "blk_9",
+                                            "fields": {
+                                              "TEXT": "InvokingSystem"
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          "next": {
+                            "block": {
+                              "type": "xml_element",
+                              "id": "blk_10",
+                              "fields": {
+                                "NAME": "PatId"
+                              },
+                              "extraState": {
+                                "childGroups": [
+                                  "children"
+                                ]
+                              },
+                              "inputs": {
+                                "TARGET_children": {
+                                  "block": {
+                                    "type": "xml_text",
+                                    "id": "blk_x1003",
+                                    "inputs": {
+                                      "VALUE": {
+                                        "block": {
+                                          "type": "maps_get",
+                                          "id": "blk_11",
+                                          "fields": {
+                                            "NAME": "defaults"
+                                          },
+                                          "inputs": {
+                                            "KEY": {
+                                              "block": {
+                                                "type": "text",
+                                                "id": "blk_12",
+                                                "fields": {
+                                                  "TEXT": "PatientId"
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "xml_element",
+                                  "id": "blk_13",
+                                  "fields": {
+                                    "NAME": "UserId"
+                                  },
+                                  "extraState": {
+                                    "childGroups": [
+                                      "children"
+                                    ]
+                                  },
+                                  "inputs": {
+                                    "TARGET_children": {
+                                      "block": {
+                                        "type": "xml_text",
+                                        "id": "blk_x1004",
+                                        "inputs": {
+                                          "VALUE": {
+                                            "block": {
+                                              "type": "maps_get",
+                                              "id": "blk_14",
+                                              "fields": {
+                                                "NAME": "defaults"
+                                              },
+                                              "inputs": {
+                                                "KEY": {
+                                                  "block": {
+                                                    "type": "text",
+                                                    "id": "blk_15",
+                                                    "fields": {
+                                                      "TEXT": "UserId"
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "xml_element",
+                                      "id": "blk_16",
+                                      "fields": {
+                                        "NAME": "EventTime"
+                                      },
+                                      "extraState": {
+                                        "childGroups": [
+                                          "children"
+                                        ]
+                                      },
+                                      "inputs": {
+                                        "TARGET_children": {
+                                          "block": {
+                                            "type": "xml_text",
+                                            "id": "blk_x1005",
+                                            "inputs": {
+                                              "VALUE": {
+                                                "block": {
+                                                  "type": "maps_get",
+                                                  "id": "blk_17",
+                                                  "fields": {
+                                                    "NAME": "defaults"
+                                                  },
+                                                  "inputs": {
+                                                    "KEY": {
+                                                      "block": {
+                                                        "type": "text",
+                                                        "id": "blk_18",
+                                                        "fields": {
+                                                          "TEXT": "Time"
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "xml_element",
+                                          "id": "blk_19",
+                                          "fields": {
+                                            "NAME": "Signer"
+                                          },
+                                          "extraState": {
+                                            "childGroups": [
+                                              "children"
+                                            ]
+                                          },
+                                          "inputs": {
+                                            "TARGET_children": {
+                                              "block": {
+                                                "type": "xml_text",
+                                                "id": "blk_x1006",
+                                                "inputs": {
+                                                  "VALUE": {
+                                                    "block": {
+                                                      "type": "maps_get",
+                                                      "id": "blk_20",
+                                                      "fields": {
+                                                        "NAME": "defaults"
+                                                      },
+                                                      "inputs": {
+                                                        "KEY": {
+                                                          "block": {
+                                                            "type": "text",
+                                                            "id": "blk_21",
+                                                            "fields": {
+                                                              "TEXT": "Signer"
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "xml_element",
+                                              "id": "blk_22",
+                                              "fields": {
+                                                "NAME": "Signed"
+                                              },
+                                              "extraState": {
+                                                "childGroups": [
+                                                  "children"
+                                                ]
+                                              },
+                                              "inputs": {
+                                                "TARGET_children": {
+                                                  "block": {
+                                                    "type": "xml_text",
+                                                    "id": "blk_x1007",
+                                                    "inputs": {
+                                                      "VALUE": {
+                                                        "block": {
+                                                          "type": "text",
+                                                          "id": "blk_23",
+                                                          "fields": {
+                                                            "TEXT": "0"
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              },
+                                              "next": {
+                                                "block": {
+                                                  "type": "xml_element",
+                                                  "id": "blk_24",
+                                                  "fields": {
+                                                    "NAME": "TemplateId"
+                                                  },
+                                                  "extraState": {
+                                                    "childGroups": [
+                                                      "children"
+                                                    ]
+                                                  },
+                                                  "inputs": {
+                                                    "TARGET_children": {
+                                                      "block": {
+                                                        "type": "xml_text",
+                                                        "id": "blk_x1008",
+                                                        "inputs": {
+                                                          "VALUE": {
+                                                            "block": {
+                                                              "type": "maps_get",
+                                                              "id": "blk_25",
+                                                              "fields": {
+                                                                "NAME": "defaults"
+                                                              },
+                                                              "inputs": {
+                                                                "KEY": {
+                                                                  "block": {
+                                                                    "type": "text",
+                                                                    "id": "blk_26",
+                                                                    "fields": {
+                                                                      "TEXT": "TemplateId"
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "next": {
+                                                    "block": {
+                                                      "type": "xml_element",
+                                                      "id": "blk_27",
+                                                      "fields": {
+                                                        "NAME": "TemplateType"
+                                                      },
+                                                      "extraState": {
+                                                        "childGroups": [
+                                                          "children"
+                                                        ]
+                                                      },
+                                                      "inputs": {
+                                                        "TARGET_children": {
+                                                          "block": {
+                                                            "type": "xml_text",
+                                                            "id": "blk_x1009",
+                                                            "inputs": {
+                                                              "VALUE": {
+                                                                "block": {
+                                                                  "type": "text",
+                                                                  "id": "blk_28",
+                                                                  "fields": {
+                                                                    "TEXT": "1"
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      },
+                                                      "next": {
+                                                        "block": {
+                                                          "type": "xml_element",
+                                                          "id": "blk_29",
+                                                          "fields": {
+                                                            "NAME": "UUID"
+                                                          },
+                                                          "extraState": {
+                                                            "childGroups": [
+                                                              "children"
+                                                            ]
+                                                          },
+                                                          "inputs": {
+                                                            "TARGET_children": {
+                                                              "block": {
+                                                                "type": "xml_text",
+                                                                "id": "blk_x1010",
+                                                                "inputs": {
+                                                                  "VALUE": {
+                                                                    "block": {
+                                                                      "type": "maps_get",
+                                                                      "id": "blk_30",
+                                                                      "fields": {
+                                                                        "NAME": "defaults"
+                                                                      },
+                                                                      "inputs": {
+                                                                        "KEY": {
+                                                                          "block": {
+                                                                            "type": "text",
+                                                                            "id": "blk_31",
+                                                                            "fields": {
+                                                                              "TEXT": "UUID"
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "next": {
+                                                            "block": {
+                                                              "type": "xml_element",
+                                                              "id": "blk_32",
+                                                              "fields": {
+                                                                "NAME": "Keywords"
+                                                              },
+                                                              "extraState": {
+                                                                "childGroups": [
+                                                                  "children"
+                                                                ]
+                                                              },
+                                                              "inputs": {
+                                                                "TARGET_children": {
+                                                                  "block": {
+                                                                    "type": "xml_element",
+                                                                    "id": "blk_33",
+                                                                    "fields": {
+                                                                      "NAME": "TextKeywords"
+                                                                    },
+                                                                    "extraState": {
+                                                                      "childGroups": [
+                                                                        "children"
+                                                                      ]
+                                                                    },
+                                                                    "inputs": {
+                                                                      "TARGET_children": {
+                                                                        "block": {
+                                                                          "type": "controls_if",
+                                                                          "id": "blk_35",
+                                                                          "extraState": {
+                                                                            "elseIfCount": 0,
+                                                                            "hasElse": false
+                                                                          },
+                                                                          "inputs": {
+                                                                            "IF0": {
+                                                                              "block": {
+                                                                                "type": "logic_compare",
+                                                                                "id": "blk_36",
+                                                                                "fields": {
+                                                                                  "OP": "NEQ"
+                                                                                },
+                                                                                "inputs": {
+                                                                                  "A": {
+                                                                                    "block": {
+                                                                                      "type": "source_query",
+                                                                                      "id": "blk_37",
+                                                                                      "fields": {
+                                                                                        "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value",
+                                                                                        "RETURN_TYPE": "string"
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "B": {
+                                                                                    "block": {
+                                                                                      "type": "text",
+                                                                                      "id": "blk_38",
+                                                                                      "fields": {
+                                                                                        "TEXT": "Nej"
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            },
+                                                                            "DO0": {
+                                                                              "block": {
+                                                                                "type": "xml_element",
+                                                                                "id": "blk_39",
+                                                                                "fields": {
+                                                                                  "NAME": "TextKeyWord"
+                                                                                },
+                                                                                "extraState": {
+                                                                                  "childGroups": [
+                                                                                    "children"
+                                                                                  ]
+                                                                                },
+                                                                                "inputs": {
+                                                                                  "TARGET_children": {
+                                                                                    "block": {
+                                                                                      "type": "xml_element",
+                                                                                      "id": "blk_40",
+                                                                                      "fields": {
+                                                                                        "NAME": "TermId"
+                                                                                      },
+                                                                                      "extraState": {
+                                                                                        "childGroups": [
+                                                                                          "children"
+                                                                                        ]
+                                                                                      },
+                                                                                      "inputs": {
+                                                                                        "TARGET_children": {
+                                                                                          "block": {
+                                                                                            "type": "xml_text",
+                                                                                            "id": "blk_x1011",
+                                                                                            "inputs": {
+                                                                                              "VALUE": {
+                                                                                                "block": {
+                                                                                                  "type": "text",
+                                                                                                  "id": "blk_41",
+                                                                                                  "fields": {
+                                                                                                    "TEXT": "2811"
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      },
+                                                                                      "next": {
+                                                                                        "block": {
+                                                                                          "type": "xml_element",
+                                                                                          "id": "blk_42",
+                                                                                          "fields": {
+                                                                                            "NAME": "Note"
+                                                                                          },
+                                                                                          "extraState": {
+                                                                                            "childGroups": [
+                                                                                              "children"
+                                                                                            ]
+                                                                                          },
+                                                                                          "inputs": {
+                                                                                            "TARGET_children": {
+                                                                                              "block": {
+                                                                                                "type": "xml_text",
+                                                                                                "id": "blk_x1012",
+                                                                                                "inputs": {
+                                                                                                  "VALUE": {
+                                                                                                    "block": {
+                                                                                                      "type": "source_query",
+                                                                                                      "id": "blk_43",
+                                                                                                      "fields": {
+                                                                                                        "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value",
+                                                                                                        "RETURN_TYPE": "string"
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          },
+                                                                          "next": {
+                                                                            "block": {
+                                                                              "type": "controls_if",
+                                                                              "id": "blk_45",
+                                                                              "extraState": {
+                                                                                "elseIfCount": 0,
+                                                                                "hasElse": false
+                                                                              },
+                                                                              "inputs": {
+                                                                                "IF0": {
+                                                                                  "block": {
+                                                                                    "type": "logic_compare",
+                                                                                    "id": "blk_46",
+                                                                                    "fields": {
+                                                                                      "OP": "NEQ"
+                                                                                    },
+                                                                                    "inputs": {
+                                                                                      "A": {
+                                                                                        "block": {
+                                                                                          "type": "source_query",
+                                                                                          "id": "blk_47",
+                                                                                          "fields": {
+                                                                                            "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/andning/upplever_du_andnöd_vid_ansträngning_eller_i_vila|value",
+                                                                                            "RETURN_TYPE": "string"
+                                                                                          }
+                                                                                        }
+                                                                                      },
+                                                                                      "B": {
+                                                                                        "block": {
+                                                                                          "type": "text",
+                                                                                          "id": "blk_48",
+                                                                                          "fields": {
+                                                                                            "TEXT": "Nej"
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "DO0": {
+                                                                                  "block": {
+                                                                                    "type": "xml_element",
+                                                                                    "id": "blk_49",
+                                                                                    "fields": {
+                                                                                      "NAME": "TextKeyWord"
+                                                                                    },
+                                                                                    "extraState": {
+                                                                                      "childGroups": [
+                                                                                        "children"
+                                                                                      ]
+                                                                                    },
+                                                                                    "inputs": {
+                                                                                      "TARGET_children": {
+                                                                                        "block": {
+                                                                                          "type": "xml_element",
+                                                                                          "id": "blk_50",
+                                                                                          "fields": {
+                                                                                            "NAME": "TermId"
+                                                                                          },
+                                                                                          "extraState": {
+                                                                                            "childGroups": [
+                                                                                              "children"
+                                                                                            ]
+                                                                                          },
+                                                                                          "inputs": {
+                                                                                            "TARGET_children": {
+                                                                                              "block": {
+                                                                                                "type": "xml_text",
+                                                                                                "id": "blk_x1013",
+                                                                                                "inputs": {
+                                                                                                  "VALUE": {
+                                                                                                    "block": {
+                                                                                                      "type": "text",
+                                                                                                      "id": "blk_51",
+                                                                                                      "fields": {
+                                                                                                        "TEXT": "1830"
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          },
+                                                                                          "next": {
+                                                                                            "block": {
+                                                                                              "type": "xml_element",
+                                                                                              "id": "blk_52",
+                                                                                              "fields": {
+                                                                                                "NAME": "Note"
+                                                                                              },
+                                                                                              "extraState": {
+                                                                                                "childGroups": [
+                                                                                                  "children"
+                                                                                                ]
+                                                                                              },
+                                                                                              "inputs": {
+                                                                                                "TARGET_children": {
+                                                                                                  "block": {
+                                                                                                    "type": "xml_text",
+                                                                                                    "id": "blk_x1014",
+                                                                                                    "inputs": {
+                                                                                                      "VALUE": {
+                                                                                                        "block": {
+                                                                                                          "type": "source_query",
+                                                                                                          "id": "blk_53",
+                                                                                                          "fields": {
+                                                                                                            "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/andning/upplever_du_andnöd_vid_ansträngning_eller_i_vila|value",
+                                                                                                            "RETURN_TYPE": "string"
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              },
+                                                                              "next": {
+                                                                                "block": {
+                                                                                  "type": "controls_if",
+                                                                                  "id": "blk_55",
+                                                                                  "extraState": {
+                                                                                    "elseIfCount": 0,
+                                                                                    "hasElse": false
+                                                                                  },
+                                                                                  "inputs": {
+                                                                                    "IF0": {
+                                                                                      "block": {
+                                                                                        "type": "logic_compare",
+                                                                                        "id": "blk_56",
+                                                                                        "fields": {
+                                                                                          "OP": "NEQ"
+                                                                                        },
+                                                                                        "inputs": {
+                                                                                          "A": {
+                                                                                            "block": {
+                                                                                              "type": "source_query",
+                                                                                              "id": "blk_57",
+                                                                                              "fields": {
+                                                                                                "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/hjärta-kärl/upplever_du_bröstsmärtor_hjärtklappning_eller_svullna_ben|value",
+                                                                                                "RETURN_TYPE": "string"
+                                                                                              }
+                                                                                            }
+                                                                                          },
+                                                                                          "B": {
+                                                                                            "block": {
+                                                                                              "type": "text",
+                                                                                              "id": "blk_58",
+                                                                                              "fields": {
+                                                                                                "TEXT": "Nej"
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    },
+                                                                                    "DO0": {
+                                                                                      "block": {
+                                                                                        "type": "xml_element",
+                                                                                        "id": "blk_59",
+                                                                                        "fields": {
+                                                                                          "NAME": "TextKeyWord"
+                                                                                        },
+                                                                                        "extraState": {
+                                                                                          "childGroups": [
+                                                                                            "children"
+                                                                                          ]
+                                                                                        },
+                                                                                        "inputs": {
+                                                                                          "TARGET_children": {
+                                                                                            "block": {
+                                                                                              "type": "xml_element",
+                                                                                              "id": "blk_60",
+                                                                                              "fields": {
+                                                                                                "NAME": "TermId"
+                                                                                              },
+                                                                                              "extraState": {
+                                                                                                "childGroups": [
+                                                                                                  "children"
+                                                                                                ]
+                                                                                              },
+                                                                                              "inputs": {
+                                                                                                "TARGET_children": {
+                                                                                                  "block": {
+                                                                                                    "type": "xml_text",
+                                                                                                    "id": "blk_x1015",
+                                                                                                    "inputs": {
+                                                                                                      "VALUE": {
+                                                                                                        "block": {
+                                                                                                          "type": "text",
+                                                                                                          "id": "blk_61",
+                                                                                                          "fields": {
+                                                                                                            "TEXT": "6298"
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              },
+                                                                                              "next": {
+                                                                                                "block": {
+                                                                                                  "type": "xml_element",
+                                                                                                  "id": "blk_62",
+                                                                                                  "fields": {
+                                                                                                    "NAME": "Note"
+                                                                                                  },
+                                                                                                  "extraState": {
+                                                                                                    "childGroups": [
+                                                                                                      "children"
+                                                                                                    ]
+                                                                                                  },
+                                                                                                  "inputs": {
+                                                                                                    "TARGET_children": {
+                                                                                                      "block": {
+                                                                                                        "type": "xml_text",
+                                                                                                        "id": "blk_x1016",
+                                                                                                        "inputs": {
+                                                                                                          "VALUE": {
+                                                                                                            "block": {
+                                                                                                              "type": "source_query",
+                                                                                                              "id": "blk_63",
+                                                                                                              "fields": {
+                                                                                                                "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/hjärta-kärl/upplever_du_bröstsmärtor_hjärtklappning_eller_svullna_ben|value",
+                                                                                                                "RETURN_TYPE": "string"
+                                                                                                              }
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  },
+                                                                                  "next": {
+                                                                                    "block": {
+                                                                                      "type": "xml_element",
+                                                                                      "id": "blk_65",
+                                                                                      "fields": {
+                                                                                        "NAME": "TextKeyWord"
+                                                                                      },
+                                                                                      "extraState": {
+                                                                                        "childGroups": [
+                                                                                          "children"
+                                                                                        ]
+                                                                                      },
+                                                                                      "inputs": {
+                                                                                        "TARGET_children": {
+                                                                                          "block": {
+                                                                                            "type": "xml_element",
+                                                                                            "id": "blk_66",
+                                                                                            "fields": {
+                                                                                              "NAME": "TermId"
+                                                                                            },
+                                                                                            "extraState": {
+                                                                                              "childGroups": [
+                                                                                                "children"
+                                                                                              ]
+                                                                                            },
+                                                                                            "inputs": {
+                                                                                              "TARGET_children": {
+                                                                                                "block": {
+                                                                                                  "type": "xml_text",
+                                                                                                  "id": "blk_x1017",
+                                                                                                  "inputs": {
+                                                                                                    "VALUE": {
+                                                                                                      "block": {
+                                                                                                        "type": "text",
+                                                                                                        "id": "blk_67",
+                                                                                                        "fields": {
+                                                                                                          "TEXT": "13700"
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            },
+                                                                                            "next": {
+                                                                                              "block": {
+                                                                                                "type": "xml_element",
+                                                                                                "id": "blk_68",
+                                                                                                "fields": {
+                                                                                                  "NAME": "Note"
+                                                                                                },
+                                                                                                "extraState": {
+                                                                                                  "childGroups": [
+                                                                                                    "children"
+                                                                                                  ]
+                                                                                                },
+                                                                                                "inputs": {
+                                                                                                  "TARGET_children": {
+                                                                                                    "block": {
+                                                                                                      "type": "xml_text",
+                                                                                                      "id": "blk_x1018",
+                                                                                                      "inputs": {
+                                                                                                        "VALUE": {
+                                                                                                          "block": {
+                                                                                                            "type": "source_query",
+                                                                                                            "id": "blk_69",
+                                                                                                            "fields": {
+                                                                                                              "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/_uid|value",
+                                                                                                              "RETURN_TYPE": "string"
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

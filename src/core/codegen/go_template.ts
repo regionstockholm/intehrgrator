@@ -56,6 +56,7 @@ interface BlockNode {
   fields?: Record<string, unknown>;
   inputs?: Record<string, { block?: BlockNode }>;
   next?: { block?: BlockNode };
+  extraState?: { attributes?: Array<{ name: string; value: string }> };
 }
 
 function emitBlockTree(blocks: unknown[]): string[] {
@@ -71,19 +72,9 @@ function emitBlock(block: BlockNode): string[] {
   if (!block) return lines;
 
   switch (block.type) {
+    case "go_xml_element":
     case "xml_element": {
-      const tag = String(block.fields?.TAG ?? "element");
-      const attrs = emitXmlAttributes(block);
-      const children = block.inputs?.CHILDREN?.block;
-      const text = block.inputs?.TEXT?.block;
-      if (children || text) {
-        lines.push(`<${tag}${attrs}>`);
-        if (text) lines.push(...emitBlock(text));
-        if (children) lines.push(...emitStatementChain(children));
-        lines.push(`</${tag}>`);
-      } else {
-        lines.push(`<${tag}${attrs} />`);
-      }
+      lines.push(...emitGoXmlElement(block));
       break;
     }
     case "xml_text": {
@@ -96,6 +87,7 @@ function emitBlock(block: BlockNode): string[] {
       }
       break;
     }
+    case "go_xml_comment":
     case "xml_comment": {
       const text = String(block.fields?.TEXT ?? "");
       lines.push(`<!-- ${text} -->`);
@@ -291,8 +283,29 @@ function emitInlineValue(block: BlockNode): string {
   }
 }
 
+function emitGoXmlElement(block: BlockNode): string[] {
+  const tag = String(block.fields?.TAG ?? "element");
+  const attrs = emitXmlAttributes(block);
+  const children = block.inputs?.CHILDREN?.block;
+  const text = block.inputs?.TEXT?.block;
+  if (children || text) {
+    return [
+      `<${tag}${attrs}>`,
+      ...(text ? emitBlock(text) : []),
+      ...(children ? emitStatementChain(children) : []),
+      `</${tag}>`,
+    ];
+  }
+  return [`<${tag}${attrs} />`];
+}
+
 function emitXmlAttributes(block: BlockNode): string {
   const attrs: string[] = [];
+  for (const attr of block.extraState?.attributes ?? []) {
+    const name = String(attr.name ?? "").trim();
+    if (!name) continue;
+    attrs.push(` ${name}="${String(attr.value ?? "")}"`);
+  }
   let i = 0;
   while (block.fields?.[`ATTR_NAME${i}`] !== undefined) {
     const name = String(block.fields[`ATTR_NAME${i}`]);

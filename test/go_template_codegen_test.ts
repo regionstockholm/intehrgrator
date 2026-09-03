@@ -1,8 +1,13 @@
 import { assertEquals, assert } from "@std/assert";
+import { dirname, fromFileUrl, join } from "@std/path";
 import { generate, generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
+import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
+import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
+
+const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 
 function modelWithSlots(slots: Array<{ slotId: string; expression: string; label?: string }>): MappingModel {
   let model = createEmptyModel("test-template");
@@ -159,4 +164,39 @@ Deno.test("Go template Output mode with empty code returns error", () => {
   });
   assertEquals(result.ok, false);
   assert(String(result.output).includes("No Go template code"), "should explain missing code");
+});
+
+Deno.test("chemo symptoms Blockly loads in headless workspace", () => {
+  initBlocklyGenerators();
+  const text = Deno.readTextFileSync(
+    join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+  );
+  const state = JSON.parse(text);
+  const ws = new Blockly.Workspace();
+  try {
+    Blockly.serialization.workspaces.load(state, ws);
+    const types = new Set(ws.getAllBlocks(false).map((b) => b.type));
+    assert(types.has("go_xml_element"), "should contain go_xml_element blocks");
+    assert(types.has("go_xml_comment"), "should contain go_xml_comment blocks");
+    assert(types.has("controls_if"), "should contain conditional blocks");
+    assert(ws.getAllBlocks(false).length >= 40, "should load the full example tree");
+  } finally {
+    ws.dispose();
+  }
+});
+
+Deno.test("chemo symptoms Blockly generates TakeCare XML Go template", () => {
+  const text = Deno.readTextFileSync(
+    join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+  );
+  const blocklyState = JSON.parse(text);
+  const model = createEmptyModel("chemo-symptoms");
+  const output = generateGoTemplate(model, { blocklyState });
+  assert(output.includes("<ProfdocHISMessage MsgType=\"Request\">"), "root message with attribute");
+  assert(output.includes(".Parameters.Time"), "header defaults from Parameters");
+  assert(output.includes("<TextKeyWord>"), "symptom keyword elements");
+  assert(output.includes('index .Data "patientrapporterade_symptom'), "FLAT source paths");
+  assert(output.includes("2811"), "fatigue TermId");
+  assert(output.includes("13700"), "document UID TermId");
+  assert(output.includes("if ne"), "conditional symptom sections");
 });

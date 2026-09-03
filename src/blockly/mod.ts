@@ -13,6 +13,7 @@ import {
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
+import { registerGoTemplateBlocks } from "./blocks/go_template_blocks.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
@@ -114,6 +115,7 @@ export function initBlocklyGenerators(): void {
   registerExpressionBlocks();
   registerMapBlocks();
   registerTextBlocks();
+  registerGoTemplateBlocks();
   registerGenerators();
   registerTypeScriptExportAdapter();
 }

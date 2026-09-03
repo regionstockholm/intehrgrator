@@ -3,7 +3,7 @@
     "languageVersion": 0,
     "blocks": [
       {
-        "type": "xml_element",
+        "type": "go_xml_element",
         "id": "blk_0",
         "x": 20,
         "y": 20,
@@ -16,12 +16,12 @@
         "inputs": {
           "CHILDREN": {
             "block": {
-              "type": "xml_comment",
+              "type": "go_xml_comment",
               "id": "blk_1",
               "fields": { "TEXT": "Header fields from Parameters (Defaults Map)" },
               "next": {
                 "block": {
-                  "type": "xml_element",
+                  "type": "go_xml_element",
                   "id": "blk_2",
                   "fields": { "TAG": "MsgType" },
                   "inputs": {
@@ -29,7 +29,7 @@
                   },
                   "next": {
                     "block": {
-                      "type": "xml_element",
+                      "type": "go_xml_element",
                       "id": "blk_4",
                       "fields": { "TAG": "Time" },
                       "inputs": {
@@ -46,7 +46,7 @@
                       },
                       "next": {
                         "block": {
-                          "type": "xml_element",
+                          "type": "go_xml_element",
                           "id": "blk_7",
                           "fields": { "TAG": "InvokingSystem" },
                           "inputs": {
@@ -63,7 +63,7 @@
                           },
                           "next": {
                             "block": {
-                              "type": "xml_element",
+                              "type": "go_xml_element",
                               "id": "blk_10",
                               "fields": { "TAG": "PatId" },
                               "inputs": {
@@ -80,7 +80,7 @@
                               },
                               "next": {
                                 "block": {
-                                  "type": "xml_element",
+                                  "type": "go_xml_element",
                                   "id": "blk_13",
                                   "fields": { "TAG": "UserId" },
                                   "inputs": {
@@ -97,7 +97,7 @@
                                   },
                                   "next": {
                                     "block": {
-                                      "type": "xml_element",
+                                      "type": "go_xml_element",
                                       "id": "blk_16",
                                       "fields": { "TAG": "EventTime" },
                                       "inputs": {
@@ -114,7 +114,7 @@
                                       },
                                       "next": {
                                         "block": {
-                                          "type": "xml_element",
+                                          "type": "go_xml_element",
                                           "id": "blk_19",
                                           "fields": { "TAG": "Signer" },
                                           "inputs": {
@@ -131,7 +131,7 @@
                                           },
                                           "next": {
                                             "block": {
-                                              "type": "xml_element",
+                                              "type": "go_xml_element",
                                               "id": "blk_22",
                                               "fields": { "TAG": "Signed" },
                                               "inputs": {
@@ -139,7 +139,7 @@
                                               },
                                               "next": {
                                                 "block": {
-                                                  "type": "xml_element",
+                                                  "type": "go_xml_element",
                                                   "id": "blk_24",
                                                   "fields": { "TAG": "TemplateId" },
                                                   "inputs": {
@@ -156,7 +156,7 @@
                                                   },
                                                   "next": {
                                                     "block": {
-                                                      "type": "xml_element",
+                                                      "type": "go_xml_element",
                                                       "id": "blk_27",
                                                       "fields": { "TAG": "TemplateType" },
                                                       "inputs": {
@@ -164,7 +164,7 @@
                                                       },
                                                       "next": {
                                                         "block": {
-                                                          "type": "xml_element",
+                                                          "type": "go_xml_element",
                                                           "id": "blk_29",
                                                           "fields": { "TAG": "UUID" },
                                                           "inputs": {
@@ -181,19 +181,19 @@
                                                           },
                                                           "next": {
                                                             "block": {
-                                                              "type": "xml_element",
+                                                              "type": "go_xml_element",
                                                               "id": "blk_32",
                                                               "fields": { "TAG": "Keywords" },
                                                               "inputs": {
                                                                 "CHILDREN": {
                                                                   "block": {
-                                                                    "type": "xml_element",
+                                                                    "type": "go_xml_element",
                                                                     "id": "blk_33",
                                                                     "fields": { "TAG": "TextKeywords" },
                                                                     "inputs": {
                                                                       "CHILDREN": {
                                                                         "block": {
-                                                                          "type": "xml_comment",
+                                                                          "type": "go_xml_comment",
                                                                           "id": "blk_34",
                                                                           "fields": { "TEXT": "Symptom: Trötthet (Fatigue) — TermId 2811" },
                                                                           "next": {
@@ -224,13 +224,13 @@
                                                                                 },
                                                                                 "DO0": {
                                                                                   "block": {
-                                                                                    "type": "xml_element",
+                                                                                    "type": "go_xml_element",
                                                                                     "id": "blk_39",
                                                                                     "fields": { "TAG": "TextKeyWord" },
                                                                                     "inputs": {
                                                                                       "CHILDREN": {
                                                                                         "block": {
-                                                                                          "type": "xml_element",
+                                                                                          "type": "go_xml_element",
                                                                                           "id": "blk_40",
                                                                                           "fields": { "TAG": "TermId" },
                                                                                           "inputs": {
@@ -238,7 +238,7 @@
                                                                                           },
                                                                                           "next": {
                                                                                             "block": {
-                                                                                              "type": "xml_element",
+                                                                                              "type": "go_xml_element",
                                                                                               "id": "blk_42",
                                                                                               "fields": { "TAG": "Note" },
                                                                                               "inputs": {
@@ -263,7 +263,7 @@
                                                                               },
                                                                               "next": {
                                                                                 "block": {
-                                                                                  "type": "xml_comment",
+                                                                                  "type": "go_xml_comment",
                                                                                   "id": "blk_44",
                                                                                   "fields": { "TEXT": "Symptom: Andning (Breathing) — TermId 1830" },
                                                                                   "next": {
@@ -294,13 +294,13 @@
                                                                                         },
                                                                                         "DO0": {
                                                                                           "block": {
-                                                                                            "type": "xml_element",
+                                                                                            "type": "go_xml_element",
                                                                                             "id": "blk_49",
                                                                                             "fields": { "TAG": "TextKeyWord" },
                                                                                             "inputs": {
                                                                                               "CHILDREN": {
                                                                                                 "block": {
-                                                                                                  "type": "xml_element",
+                                                                                                  "type": "go_xml_element",
                                                                                                   "id": "blk_50",
                                                                                                   "fields": { "TAG": "TermId" },
                                                                                                   "inputs": {
@@ -308,7 +308,7 @@
                                                                                                   },
                                                                                                   "next": {
                                                                                                     "block": {
-                                                                                                      "type": "xml_element",
+                                                                                                      "type": "go_xml_element",
                                                                                                       "id": "blk_52",
                                                                                                       "fields": { "TAG": "Note" },
                                                                                                       "inputs": {
@@ -333,7 +333,7 @@
                                                                                       },
                                                                                       "next": {
                                                                                         "block": {
-                                                                                          "type": "xml_comment",
+                                                                                          "type": "go_xml_comment",
                                                                                           "id": "blk_54",
                                                                                           "fields": { "TEXT": "Symptom: Hjärta-kärl (Cardiovascular) — TermId 6298" },
                                                                                           "next": {
@@ -364,13 +364,13 @@
                                                                                                 },
                                                                                                 "DO0": {
                                                                                                   "block": {
-                                                                                                    "type": "xml_element",
+                                                                                                    "type": "go_xml_element",
                                                                                                     "id": "blk_59",
                                                                                                     "fields": { "TAG": "TextKeyWord" },
                                                                                                     "inputs": {
                                                                                                       "CHILDREN": {
                                                                                                         "block": {
-                                                                                                          "type": "xml_element",
+                                                                                                          "type": "go_xml_element",
                                                                                                           "id": "blk_60",
                                                                                                           "fields": { "TAG": "TermId" },
                                                                                                           "inputs": {
@@ -378,7 +378,7 @@
                                                                                                           },
                                                                                                           "next": {
                                                                                                             "block": {
-                                                                                                              "type": "xml_element",
+                                                                                                              "type": "go_xml_element",
                                                                                                               "id": "blk_62",
                                                                                                               "fields": { "TAG": "Note" },
                                                                                                               "inputs": {
@@ -403,18 +403,18 @@
                                                                                               },
                                                                                               "next": {
                                                                                                 "block": {
-                                                                                                  "type": "xml_comment",
+                                                                                                  "type": "go_xml_comment",
                                                                                                   "id": "blk_64",
                                                                                                   "fields": { "TEXT": "Always-present: Document UID — TermId 13700" },
                                                                                                   "next": {
                                                                                                     "block": {
-                                                                                                      "type": "xml_element",
+                                                                                                      "type": "go_xml_element",
                                                                                                       "id": "blk_65",
                                                                                                       "fields": { "TAG": "TextKeyWord" },
                                                                                                       "inputs": {
                                                                                                         "CHILDREN": {
                                                                                                           "block": {
-                                                                                                            "type": "xml_element",
+                                                                                                            "type": "go_xml_element",
                                                                                                             "id": "blk_66",
                                                                                                             "fields": { "TAG": "TermId" },
                                                                                                             "inputs": {
@@ -422,7 +422,7 @@
                                                                                                             },
                                                                                                             "next": {
                                                                                                               "block": {
-                                                                                                                "type": "xml_element",
+                                                                                                                "type": "go_xml_element",
                                                                                                                 "id": "blk_68",
                                                                                                                 "fields": { "TAG": "Note" },
                                                                                                                 "inputs": {

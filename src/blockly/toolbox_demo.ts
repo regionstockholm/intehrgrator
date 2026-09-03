@@ -167,6 +167,8 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       colour: 200,
       cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryXml" },
       contents: [
+        { kind: "block", type: "go_xml_element", gap: 8 },
+        { kind: "block", type: "go_xml_comment", gap: 8 },
         { kind: "block", type: "xml_element", gap: 8 },
         { kind: "block", type: "xml_text", gap: 8 },
         { kind: "block", type: "xml_attribute", gap: 8 },

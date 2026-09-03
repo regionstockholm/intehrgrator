@@ -31,8 +31,8 @@ excessive size.
 
 ## Block types used
 
-- `xml_element` — XML output nodes
-- `xml_comment` — inline documentation
+- `go_xml_element` — XML output nodes (Go template)
+- `go_xml_comment` — inline documentation
 - `source_query` — FLAT path lookups against openEHR data
 - `maps_get` — retrieval from the Defaults Map (maps to `{{ .Parameters.X }}`)
 - `controls_if` — conditional emission

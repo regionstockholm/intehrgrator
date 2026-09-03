@@ -79,6 +79,15 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
     mapped.defaults,
     "https://app.test/examples/dummy-json-vitals/defaults.map.json",
   );
+  const chemo = catalog.sets.find((set) => set.id === "chemo-symptoms-flat-to-tc-xml");
+  if (!chemo) throw new Error("expected chemo example set");
+  assertEquals(chemo.source.schema, undefined);
+  assertEquals(chemo.target, undefined);
+  assertEquals(chemo.source.instances.length, 5);
+  assertEquals(
+    chemo.mapping,
+    "https://app.test/examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+  );
 });
 
 Deno.test("parseExampleSetCatalog rejects a missing sets array", () => {

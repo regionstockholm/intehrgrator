@@ -1,0 +1,495 @@
+{
+  "blocks": {
+    "languageVersion": 0,
+    "blocks": [
+      {
+        "type": "xml_element",
+        "id": "blk_0",
+        "x": 20,
+        "y": 20,
+        "fields": { "TAG": "ProfdocHISMessage" },
+        "extraState": {
+          "attributes": [
+            { "name": "MsgType", "value": "Request" }
+          ]
+        },
+        "inputs": {
+          "CHILDREN": {
+            "block": {
+              "type": "xml_comment",
+              "id": "blk_1",
+              "fields": { "TEXT": "Header fields from Parameters (Defaults Map)" },
+              "next": {
+                "block": {
+                  "type": "xml_element",
+                  "id": "blk_2",
+                  "fields": { "TAG": "MsgType" },
+                  "inputs": {
+                    "TEXT": { "block": { "type": "text", "id": "blk_3", "fields": { "TEXT": "Request" } } }
+                  },
+                  "next": {
+                    "block": {
+                      "type": "xml_element",
+                      "id": "blk_4",
+                      "fields": { "TAG": "Time" },
+                      "inputs": {
+                        "TEXT": {
+                          "block": {
+                            "type": "maps_get",
+                            "id": "blk_5",
+                            "fields": { "NAME": "defaults" },
+                            "inputs": {
+                              "KEY": { "block": { "type": "text", "id": "blk_6", "fields": { "TEXT": "Time" } } }
+                            }
+                          }
+                        }
+                      },
+                      "next": {
+                        "block": {
+                          "type": "xml_element",
+                          "id": "blk_7",
+                          "fields": { "TAG": "InvokingSystem" },
+                          "inputs": {
+                            "TEXT": {
+                              "block": {
+                                "type": "maps_get",
+                                "id": "blk_8",
+                                "fields": { "NAME": "defaults" },
+                                "inputs": {
+                                  "KEY": { "block": { "type": "text", "id": "blk_9", "fields": { "TEXT": "InvokingSystem" } } }
+                                }
+                              }
+                            }
+                          },
+                          "next": {
+                            "block": {
+                              "type": "xml_element",
+                              "id": "blk_10",
+                              "fields": { "TAG": "PatId" },
+                              "inputs": {
+                                "TEXT": {
+                                  "block": {
+                                    "type": "maps_get",
+                                    "id": "blk_11",
+                                    "fields": { "NAME": "defaults" },
+                                    "inputs": {
+                                      "KEY": { "block": { "type": "text", "id": "blk_12", "fields": { "TEXT": "PatId" } } }
+                                    }
+                                  }
+                                }
+                              },
+                              "next": {
+                                "block": {
+                                  "type": "xml_element",
+                                  "id": "blk_13",
+                                  "fields": { "TAG": "UserId" },
+                                  "inputs": {
+                                    "TEXT": {
+                                      "block": {
+                                        "type": "maps_get",
+                                        "id": "blk_14",
+                                        "fields": { "NAME": "defaults" },
+                                        "inputs": {
+                                          "KEY": { "block": { "type": "text", "id": "blk_15", "fields": { "TEXT": "UserId" } } }
+                                        }
+                                      }
+                                    }
+                                  },
+                                  "next": {
+                                    "block": {
+                                      "type": "xml_element",
+                                      "id": "blk_16",
+                                      "fields": { "TAG": "EventTime" },
+                                      "inputs": {
+                                        "TEXT": {
+                                          "block": {
+                                            "type": "maps_get",
+                                            "id": "blk_17",
+                                            "fields": { "NAME": "defaults" },
+                                            "inputs": {
+                                              "KEY": { "block": { "type": "text", "id": "blk_18", "fields": { "TEXT": "EventTime" } } }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      "next": {
+                                        "block": {
+                                          "type": "xml_element",
+                                          "id": "blk_19",
+                                          "fields": { "TAG": "Signer" },
+                                          "inputs": {
+                                            "TEXT": {
+                                              "block": {
+                                                "type": "maps_get",
+                                                "id": "blk_20",
+                                                "fields": { "NAME": "defaults" },
+                                                "inputs": {
+                                                  "KEY": { "block": { "type": "text", "id": "blk_21", "fields": { "TEXT": "Signer" } } }
+                                                }
+                                              }
+                                            }
+                                          },
+                                          "next": {
+                                            "block": {
+                                              "type": "xml_element",
+                                              "id": "blk_22",
+                                              "fields": { "TAG": "Signed" },
+                                              "inputs": {
+                                                "TEXT": { "block": { "type": "text", "id": "blk_23", "fields": { "TEXT": "0" } } }
+                                              },
+                                              "next": {
+                                                "block": {
+                                                  "type": "xml_element",
+                                                  "id": "blk_24",
+                                                  "fields": { "TAG": "TemplateId" },
+                                                  "inputs": {
+                                                    "TEXT": {
+                                                      "block": {
+                                                        "type": "maps_get",
+                                                        "id": "blk_25",
+                                                        "fields": { "NAME": "defaults" },
+                                                        "inputs": {
+                                                          "KEY": { "block": { "type": "text", "id": "blk_26", "fields": { "TEXT": "TemplateId" } } }
+                                                        }
+                                                      }
+                                                    }
+                                                  },
+                                                  "next": {
+                                                    "block": {
+                                                      "type": "xml_element",
+                                                      "id": "blk_27",
+                                                      "fields": { "TAG": "TemplateType" },
+                                                      "inputs": {
+                                                        "TEXT": { "block": { "type": "text", "id": "blk_28", "fields": { "TEXT": "1" } } }
+                                                      },
+                                                      "next": {
+                                                        "block": {
+                                                          "type": "xml_element",
+                                                          "id": "blk_29",
+                                                          "fields": { "TAG": "UUID" },
+                                                          "inputs": {
+                                                            "TEXT": {
+                                                              "block": {
+                                                                "type": "maps_get",
+                                                                "id": "blk_30",
+                                                                "fields": { "NAME": "defaults" },
+                                                                "inputs": {
+                                                                  "KEY": { "block": { "type": "text", "id": "blk_31", "fields": { "TEXT": "UUID" } } }
+                                                                }
+                                                              }
+                                                            }
+                                                          },
+                                                          "next": {
+                                                            "block": {
+                                                              "type": "xml_element",
+                                                              "id": "blk_32",
+                                                              "fields": { "TAG": "Keywords" },
+                                                              "inputs": {
+                                                                "CHILDREN": {
+                                                                  "block": {
+                                                                    "type": "xml_element",
+                                                                    "id": "blk_33",
+                                                                    "fields": { "TAG": "TextKeywords" },
+                                                                    "inputs": {
+                                                                      "CHILDREN": {
+                                                                        "block": {
+                                                                          "type": "xml_comment",
+                                                                          "id": "blk_34",
+                                                                          "fields": { "TEXT": "Symptom: Trötthet (Fatigue) — TermId 2811" },
+                                                                          "next": {
+                                                                            "block": {
+                                                                              "type": "controls_if",
+                                                                              "id": "blk_35",
+                                                                              "extraState": { "elseIfCount": 0, "hasElse": false },
+                                                                              "inputs": {
+                                                                                "IF0": {
+                                                                                  "block": {
+                                                                                    "type": "logic_compare",
+                                                                                    "id": "blk_36",
+                                                                                    "fields": { "OP": "NEQ" },
+                                                                                    "inputs": {
+                                                                                      "A": {
+                                                                                        "block": {
+                                                                                          "type": "source_query",
+                                                                                          "id": "blk_37",
+                                                                                          "fields": {
+                                                                                            "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value",
+                                                                                            "RETURN_TYPE": "string"
+                                                                                          }
+                                                                                        }
+                                                                                      },
+                                                                                      "B": { "block": { "type": "text", "id": "blk_38", "fields": { "TEXT": "Nej" } } }
+                                                                                    }
+                                                                                  }
+                                                                                },
+                                                                                "DO0": {
+                                                                                  "block": {
+                                                                                    "type": "xml_element",
+                                                                                    "id": "blk_39",
+                                                                                    "fields": { "TAG": "TextKeyWord" },
+                                                                                    "inputs": {
+                                                                                      "CHILDREN": {
+                                                                                        "block": {
+                                                                                          "type": "xml_element",
+                                                                                          "id": "blk_40",
+                                                                                          "fields": { "TAG": "TermId" },
+                                                                                          "inputs": {
+                                                                                            "TEXT": { "block": { "type": "text", "id": "blk_41", "fields": { "TEXT": "2811" } } }
+                                                                                          },
+                                                                                          "next": {
+                                                                                            "block": {
+                                                                                              "type": "xml_element",
+                                                                                              "id": "blk_42",
+                                                                                              "fields": { "TAG": "Note" },
+                                                                                              "inputs": {
+                                                                                                "TEXT": {
+                                                                                                  "block": {
+                                                                                                    "type": "source_query",
+                                                                                                    "id": "blk_43",
+                                                                                                    "fields": {
+                                                                                                      "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value",
+                                                                                                      "RETURN_TYPE": "string"
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              },
+                                                                              "next": {
+                                                                                "block": {
+                                                                                  "type": "xml_comment",
+                                                                                  "id": "blk_44",
+                                                                                  "fields": { "TEXT": "Symptom: Andning (Breathing) — TermId 1830" },
+                                                                                  "next": {
+                                                                                    "block": {
+                                                                                      "type": "controls_if",
+                                                                                      "id": "blk_45",
+                                                                                      "extraState": { "elseIfCount": 0, "hasElse": false },
+                                                                                      "inputs": {
+                                                                                        "IF0": {
+                                                                                          "block": {
+                                                                                            "type": "logic_compare",
+                                                                                            "id": "blk_46",
+                                                                                            "fields": { "OP": "NEQ" },
+                                                                                            "inputs": {
+                                                                                              "A": {
+                                                                                                "block": {
+                                                                                                  "type": "source_query",
+                                                                                                  "id": "blk_47",
+                                                                                                  "fields": {
+                                                                                                    "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/andning/upplever_du_andnöd_vid_ansträngning_eller_i_vila|value",
+                                                                                                    "RETURN_TYPE": "string"
+                                                                                                  }
+                                                                                                }
+                                                                                              },
+                                                                                              "B": { "block": { "type": "text", "id": "blk_48", "fields": { "TEXT": "Nej" } } }
+                                                                                            }
+                                                                                          }
+                                                                                        },
+                                                                                        "DO0": {
+                                                                                          "block": {
+                                                                                            "type": "xml_element",
+                                                                                            "id": "blk_49",
+                                                                                            "fields": { "TAG": "TextKeyWord" },
+                                                                                            "inputs": {
+                                                                                              "CHILDREN": {
+                                                                                                "block": {
+                                                                                                  "type": "xml_element",
+                                                                                                  "id": "blk_50",
+                                                                                                  "fields": { "TAG": "TermId" },
+                                                                                                  "inputs": {
+                                                                                                    "TEXT": { "block": { "type": "text", "id": "blk_51", "fields": { "TEXT": "1830" } } }
+                                                                                                  },
+                                                                                                  "next": {
+                                                                                                    "block": {
+                                                                                                      "type": "xml_element",
+                                                                                                      "id": "blk_52",
+                                                                                                      "fields": { "TAG": "Note" },
+                                                                                                      "inputs": {
+                                                                                                        "TEXT": {
+                                                                                                          "block": {
+                                                                                                            "type": "source_query",
+                                                                                                            "id": "blk_53",
+                                                                                                            "fields": {
+                                                                                                              "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/andning/upplever_du_andnöd_vid_ansträngning_eller_i_vila|value",
+                                                                                                              "RETURN_TYPE": "string"
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      },
+                                                                                      "next": {
+                                                                                        "block": {
+                                                                                          "type": "xml_comment",
+                                                                                          "id": "blk_54",
+                                                                                          "fields": { "TEXT": "Symptom: Hjärta-kärl (Cardiovascular) — TermId 6298" },
+                                                                                          "next": {
+                                                                                            "block": {
+                                                                                              "type": "controls_if",
+                                                                                              "id": "blk_55",
+                                                                                              "extraState": { "elseIfCount": 0, "hasElse": false },
+                                                                                              "inputs": {
+                                                                                                "IF0": {
+                                                                                                  "block": {
+                                                                                                    "type": "logic_compare",
+                                                                                                    "id": "blk_56",
+                                                                                                    "fields": { "OP": "NEQ" },
+                                                                                                    "inputs": {
+                                                                                                      "A": {
+                                                                                                        "block": {
+                                                                                                          "type": "source_query",
+                                                                                                          "id": "blk_57",
+                                                                                                          "fields": {
+                                                                                                            "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/hjärta-kärl/upplever_du_bröstsmärtor_hjärtklappning_eller_svullna_ben|value",
+                                                                                                            "RETURN_TYPE": "string"
+                                                                                                          }
+                                                                                                        }
+                                                                                                      },
+                                                                                                      "B": { "block": { "type": "text", "id": "blk_58", "fields": { "TEXT": "Nej" } } }
+                                                                                                    }
+                                                                                                  }
+                                                                                                },
+                                                                                                "DO0": {
+                                                                                                  "block": {
+                                                                                                    "type": "xml_element",
+                                                                                                    "id": "blk_59",
+                                                                                                    "fields": { "TAG": "TextKeyWord" },
+                                                                                                    "inputs": {
+                                                                                                      "CHILDREN": {
+                                                                                                        "block": {
+                                                                                                          "type": "xml_element",
+                                                                                                          "id": "blk_60",
+                                                                                                          "fields": { "TAG": "TermId" },
+                                                                                                          "inputs": {
+                                                                                                            "TEXT": { "block": { "type": "text", "id": "blk_61", "fields": { "TEXT": "6298" } } }
+                                                                                                          },
+                                                                                                          "next": {
+                                                                                                            "block": {
+                                                                                                              "type": "xml_element",
+                                                                                                              "id": "blk_62",
+                                                                                                              "fields": { "TAG": "Note" },
+                                                                                                              "inputs": {
+                                                                                                                "TEXT": {
+                                                                                                                  "block": {
+                                                                                                                    "type": "source_query",
+                                                                                                                    "id": "blk_63",
+                                                                                                                    "fields": {
+                                                                                                                      "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0/hjärta-kärl/upplever_du_bröstsmärtor_hjärtklappning_eller_svullna_ben|value",
+                                                                                                                      "RETURN_TYPE": "string"
+                                                                                                                    }
+                                                                                                                  }
+                                                                                                                }
+                                                                                                              }
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              },
+                                                                                              "next": {
+                                                                                                "block": {
+                                                                                                  "type": "xml_comment",
+                                                                                                  "id": "blk_64",
+                                                                                                  "fields": { "TEXT": "Always-present: Document UID — TermId 13700" },
+                                                                                                  "next": {
+                                                                                                    "block": {
+                                                                                                      "type": "xml_element",
+                                                                                                      "id": "blk_65",
+                                                                                                      "fields": { "TAG": "TextKeyWord" },
+                                                                                                      "inputs": {
+                                                                                                        "CHILDREN": {
+                                                                                                          "block": {
+                                                                                                            "type": "xml_element",
+                                                                                                            "id": "blk_66",
+                                                                                                            "fields": { "TAG": "TermId" },
+                                                                                                            "inputs": {
+                                                                                                              "TEXT": { "block": { "type": "text", "id": "blk_67", "fields": { "TEXT": "13700" } } }
+                                                                                                            },
+                                                                                                            "next": {
+                                                                                                              "block": {
+                                                                                                                "type": "xml_element",
+                                                                                                                "id": "blk_68",
+                                                                                                                "fields": { "TAG": "Note" },
+                                                                                                                "inputs": {
+                                                                                                                  "TEXT": {
+                                                                                                                    "block": {
+                                                                                                                      "type": "source_query",
+                                                                                                                      "id": "blk_69",
+                                                                                                                      "fields": {
+                                                                                                                        "EXPRESSION": "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/_uid|value",
+                                                                                                                        "RETURN_TYPE": "string"
+                                                                                                                      }
+                                                                                                                    }
+                                                                                                                  }
+                                                                                                                }
+                                                                                                              }
+                                                                                                            }
+                                                                                                          }
+                                                                                                        }
+                                                                                                      }
+                                                                                                    }
+                                                                                                  }
+                                                                                                }
+                                                                                              }
+                                                                                            }
+                                                                                          }
+                                                                                        }
+                                                                                      }
+                                                                                    }
+                                                                                  }
+                                                                                }
+                                                                              }
+                                                                            }
+                                                                          }
+                                                                        }
+                                                                      }
+                                                                    }
+                                                                  }
+                                                                }
+                                                              }
+                                                            }
+                                                          }
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
+}

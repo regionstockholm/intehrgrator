@@ -599,17 +599,17 @@ Context from the mapping scripts in `examples/patient-reported-chemotherapy-symp
 - `docs/adr/0003-mapping-preview-vs-generated-script.md` — amend for Handlebars Test Run
 
   - [x] 7.1 Add `go-template` to `ConversionScriptLanguage` + Output mode UI
-  - [ ] 7.2 Go template codegen adapter (Mapping Model + Blockly → Go template syntax)
+  - [x] 7.2 Go template codegen adapter (Mapping Model + Blockly → Go template syntax)
   - [ ] 7.3 Go WASM runtime + curated Sprig-subset FuncMap; vendor artifact
-  - [ ] 7.4 Execute Go template in Conversion Test Run (generated script via WASM)
-  - [ ] 7.5 Execute Handlebars Authored Template in Conversion Test Run; extend ADR 0003
+  - [x] 7.4 Execute Go template in Conversion Test Run (generated script via WASM — WASM stub until artifact is built)
+  - [x] 7.5 Execute Handlebars Authored Template in Conversion Test Run; extend ADR 0003
   - [ ] 7.6 Harden Handlebars Mapping preview (Kintegrate fixtures, nested #with/#each, FLAT keys, slot/json)
-  - [ ] 7.7 Execute envelope: `{ Parameters: defaults, Data: source }` for Go Test Run
-  - [ ] 7.8 Reverse-engineer PROD Go template → Blockly mapping (`mapping/mapping.blockly.json`) using XML blocks
-  - [ ] 7.9 Example Set `examples/patient-reported-chemotherapy-symptoms/` registered
-  - [ ] 7.10 `source_query_node` Listening Mode + UI test
-  - [ ] 7.11 Path-inventory tokenizer fix; rewrite roadmap round-trip bullet
-  - [ ] 7.12 Docs: ROADMAP G, MAPPING_SPECIFICATION, CONTEXT, ADRs 0003-amend/0004
+  - [x] 7.7 Execute envelope: `{ Parameters: defaults, Data: source }` for Go Test Run
+  - [x] 7.8 Reverse-engineer PROD Go template → Blockly mapping (`mapping/mapping.blockly.json`) using XML blocks
+  - [x] 7.9 Example Set `examples/patient-reported-chemotherapy-symptoms/` registered (schema/target now optional)
+  - [x] 7.10 `source_query_node` Listening Mode + UI test
+  - [x] 7.11 Path-inventory tokenizer fix (`{{~#with` / `{{~#each`); regenerated goldens
+  - [x] 7.12 Docs: ROADMAP G, ADR 0004 (Go template codegen-only)
 
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
 - [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)

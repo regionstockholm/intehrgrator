@@ -407,6 +407,38 @@ Deno.test("DV_QUANTITY skeleton copies constrained units from the template", () 
   assertEquals(tilt?.fixedFields?.units, "°");
 });
 
+const ordinalFixture = await Deno.readTextFile(
+  join(
+    import.meta.dirname!,
+    "..",
+    "vendor",
+    "ehrtslib",
+    "test_data",
+    "opt14",
+    "constrain_test.opt",
+  ),
+);
+
+Deno.test("DV_ORDINAL skeleton carries template ordinal value set", () => {
+  const { skeleton } = generateSkeleton(ordinalFixture);
+  const vocalization = flattenSkeleton(skeleton).find((n) =>
+    n.rmType === "ELEMENT" && n.label === "Vocalization"
+  );
+  assert(vocalization, "expected Vocalization ELEMENT");
+  const dv = vocalization.children.find((c) => c.rmType === "DV_ORDINAL");
+  assert(dv, "expected DV_ORDINAL under Vocalization");
+  assertEquals(dv.allowedOrdinals?.map((v) => v.value), [0, 1, 2, 3]);
+  assertEquals(dv.allowedOrdinals?.map((v) => v.code), [
+    "at0010",
+    "at0011",
+    "at0012",
+    "at0013",
+  ]);
+  assertEquals(dv.allowedOrdinals?.[0]?.label, "Absent");
+  assertEquals(dv.allowedOrdinals?.[1]?.label, "Mild");
+  assertEquals(dv.allowedOrdinals?.[0]?.terminologyId, "local");
+});
+
 Deno.test("web template unit input list becomes DV_QUANTITY fixed units", () => {
   const wt = {
     templateId: "qty-units",

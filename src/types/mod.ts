@@ -89,6 +89,16 @@ export interface AllowedValue {
   assumed?: boolean;
 }
 
+/** One member of a template-constrained `DV_ORDINAL` / `DV_SCALE` value set. */
+export interface AllowedOrdinal {
+  value: number;
+  code: string;
+  label: string;
+  terminologyId?: string;
+  /** True when this choice is the template/AOM `assumed_value`. */
+  assumed?: boolean;
+}
+
 export interface SkeletonNode {
   slotId: string;
   blockType: string;
@@ -114,6 +124,12 @@ export interface SkeletonNode {
    * complete `DV_CODED_TEXT` / `CODE_PHRASE` objects wrapped in `lists_getIndex`.
    */
   allowedValues?: AllowedValue[];
+  /**
+   * Template-constrained ordinal/scale choices (`C_ORDINAL` / `C_DV_ORDINAL` list)
+   * when more than one value is allowed. Scaffolded as a Blockly list of complete
+   * `DV_ORDINAL` / `DV_SCALE` objects wrapped in `lists_getIndex`.
+   */
+  allowedOrdinals?: AllowedOrdinal[];
   /**
    * Template-constrained quantity units (`C_QUANTITY` / `C_DV_QUANTITY` list)
    * when more than one unit is allowed. A single constrained unit is stored in

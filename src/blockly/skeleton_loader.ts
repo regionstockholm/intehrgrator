@@ -1,5 +1,5 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
-import type { MappingLoop, MappingModel, SkeletonNode, AllowedValue } from "../types/mod.ts";
+import type { AllowedOrdinal, AllowedValue, MappingLoop, MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
@@ -11,6 +11,7 @@ import "blockly/blocks";
 import * as enMsg from "blockly/msg/en";
 import {
   applyFixedFieldsToDataValueShell,
+  applyOrdinalFieldsToDataValueShell,
   configureElementValueSlot,
   connectExpressionToDataValueShell,
   dvFieldInputName,
@@ -556,6 +557,7 @@ function buildElementBlock(
     (primary?.mandatory ?? false) || Boolean(node.mandatory && primary),
   );
   const allowedValues = primary?.allowedValues ?? node.allowedValues ?? [];
+  const allowedOrdinals = primary?.allowedOrdinals ?? node.allowedOrdinals ?? [];
   setMandatoryFlag(block, valueMandatory);
 
   // Render the ELEMENT shell before attaching the typed DATA_VALUE child.
@@ -582,8 +584,12 @@ function buildElementBlock(
   } else if (allowedValues.length > 1 && isCodedChoiceRmType(dvType)) {
     const selector = createCodedValueSetSelector(workspace, dvType, allowedValues);
     connectBlockToInput(block.getInput("VALUE"), selector);
+  } else if (allowedOrdinals.length > 1 && isOrdinalChoiceRmType(dvType)) {
+    const selector = createOrdinalValueSetSelector(workspace, dvType, allowedOrdinals);
+    connectBlockToInput(block.getInput("VALUE"), selector);
   } else if (
-    (valueMandatory || allowedValues.length > 1 || allowedUnits.length > 1 ||
+    (valueMandatory || allowedValues.length > 1 || allowedOrdinals.length > 1 ||
+      allowedUnits.length > 1 ||
       Boolean(primary?.fixedFields?.units ?? node.fixedFields?.units)) &&
     primary &&
     isDataValueType(dvType)
@@ -596,6 +602,7 @@ function buildElementBlock(
         primary.fixedFields ?? node.fixedFields,
       );
       attachValueSetSelector(workspace, shell, allowedValues);
+      attachOrdinalSelector(workspace, shell, allowedOrdinals);
       attachUnitSelector(workspace, shell, allowedUnits);
     }
   }
@@ -622,6 +629,21 @@ function buildTypedValueBlock(
   }
 
   if (
+    node.allowedOrdinals &&
+    node.allowedOrdinals.length > 1 &&
+    isOrdinalChoiceRmType(node.rmType)
+  ) {
+    const selector = createOrdinalValueSetSelector(
+      workspace,
+      node.rmType,
+      node.allowedOrdinals,
+    );
+    setMandatoryFlag(selector, node.mandatory);
+    refreshBlockLayout(selector);
+    return selector;
+  }
+
+  if (
     node.allowedValues &&
     node.allowedValues.length > 1 &&
     isCodedChoiceRmType(node.rmType)
@@ -644,6 +666,7 @@ function buildTypedValueBlock(
   finalizeBlock(block);
   applyFixedFieldsToDataValueShell(workspace, block, node.fixedFields);
   attachValueSetSelector(workspace, block, node.allowedValues);
+  attachOrdinalSelector(workspace, block, node.allowedOrdinals);
   attachUnitSelector(workspace, block, node.allowedUnits);
   refreshBlockLayout(block);
   return block;
@@ -656,6 +679,18 @@ function buildTypedValueBlock(
  *
  * @see openehr://spec/type/RM/DV_CODED_TEXT
  */
+function attachOrdinalSelector(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  values: AllowedOrdinal[] | undefined,
+): void {
+  if (!values || values.length < 2) return;
+  const rmType = (shell.getFieldValue("RM_TYPE") || "").toUpperCase();
+  if (!isOrdinalChoiceRmType(rmType)) return;
+  const selector = createOrdinalValueSetSelector(workspace, rmType, values);
+  connectExpressionToDataValueShell(shell, selector);
+}
+
 function attachValueSetSelector(
   workspace: Blockly.Workspace,
   shell: Blockly.Block,
@@ -684,6 +719,10 @@ function attachUnitSelector(
 
 function isCodedChoiceRmType(rmType: string): boolean {
   return rmType === "DV_CODED_TEXT" || rmType === "CODE_PHRASE";
+}
+
+function isOrdinalChoiceRmType(rmType: string): boolean {
+  return rmType === "DV_ORDINAL" || rmType === "DV_SCALE";
 }
 
 type ListCreateBlock = BlockSvg & {
@@ -746,6 +785,48 @@ function fieldsForAllowedValue(
     defining_code: value.code,
     code_string: value.code,
   };
+}
+
+function fieldsForAllowedOrdinal(value: AllowedOrdinal): Record<string, string> {
+  return {
+    value: String(value.value),
+    symbol_value: value.label,
+    terminology_id: value.terminologyId ?? "local",
+    defining_code: value.code,
+    code_string: value.code,
+  };
+}
+
+function createOrdinalValueSetSelector(
+  workspace: Blockly.Workspace,
+  rmType: string,
+  values: AllowedOrdinal[],
+): BlockSvg {
+  ensureStockListMessages();
+  const blockType = blockTypeForRm(rmType);
+  ensureRmBlockType(blockType, rmType);
+  const list = workspace.newBlock("lists_create_with") as ListCreateBlock;
+  list.itemCount_ = values.length;
+  list.updateShape_();
+  for (let i = 0; i < values.length; i++) {
+    const choice = workspace.newBlock(blockType) as BlockSvg;
+    if (choice.getField("RM_TYPE")) choice.setFieldValue(rmType, "RM_TYPE");
+    applyOrdinalFieldsToDataValueShell(
+      workspace,
+      choice,
+      fieldsForAllowedOrdinal(values[i]!),
+    );
+    list.getInput(`ADD${i}`)?.connection?.connect(choice.outputConnection!);
+    finalizeBlock(choice);
+  }
+  finalizeBlock(list);
+  const assumedIdx = values.findIndex((value) => value.assumed);
+  return createListGetIndex(
+    workspace,
+    list,
+    assumedIdx >= 0 ? assumedIdx : 0,
+    blocklyCheckForDv(rmType),
+  );
 }
 
 function createStringListSelector(

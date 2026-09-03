@@ -7,7 +7,7 @@ import {
   applyOperationalTemplateTermScopes,
   type TermScopeMeta,
 } from "ehrtslib/generation/term_scope.ts";
-import type { AllowedValue, SkeletonNode } from "../../types/mod.ts";
+import type { AllowedOrdinal, AllowedValue, SkeletonNode } from "../../types/mod.ts";
 import {
   blockTypeForRm,
   isAutoFixedValueSlot,
@@ -785,18 +785,30 @@ function flattenSkeletonNodes(nodes: SkeletonNode[]): SkeletonNode[] {
 function valueConstraintFields(
   cObj: AmObject,
   terms: TermBag,
-): Pick<SkeletonNode, "fixedFields" | "allowedValues" | "allowedUnits"> {
+): Pick<SkeletonNode, "fixedFields" | "allowedValues" | "allowedUnits" | "allowedOrdinals"> {
+  const rmType = String(cObj.rm_type_name ?? "");
   const allowedValues = extractAllowedValues(cObj, terms);
   const allowedUnits = extractAllowedUnits(cObj);
-  const fixedFields = extractFixedFields(cObj);
+  const allowedOrdinals = isOrdinalRmType(rmType)
+    ? extractAllowedOrdinals(cObj, terms)
+    : [];
+  const fixedFields = extractFixedFields(cObj, terms);
   return {
     ...(fixedFields ? { fixedFields } : {}),
     ...(allowedValues.length ? { allowedValues } : {}),
     ...(allowedUnits.length > 1 ? { allowedUnits } : {}),
+    ...(allowedOrdinals.length > 1 ? { allowedOrdinals } : {}),
   };
 }
 
-function extractFixedFields(cObj: AmObject): Record<string, string> | undefined {
+function isOrdinalRmType(rmType: string): boolean {
+  return rmType === "DV_ORDINAL" || rmType === "DV_SCALE";
+}
+
+function extractFixedFields(
+  cObj: AmObject,
+  terms: TermBag = {},
+): Record<string, string> | undefined {
   const fields: Record<string, string> = {};
   const terminology = terminologyIdFromAm(cObj);
   if (terminology) fields.terminology_id = terminology;
@@ -822,11 +834,21 @@ function extractFixedFields(cObj: AmObject): Record<string, string> | undefined 
   const units = extractAllowedUnits(cObj);
   if (units.length === 1) fields.units = units[0]!;
 
+  const ordinals = extractAllowedOrdinals(cObj, terms);
+  if (ordinals.length === 1) {
+    const only = ordinals[0]!;
+    fields.value = String(only.value);
+    fields.defining_code = only.code;
+    fields.code_string = only.code;
+    if (only.label) fields.symbol_value = only.label;
+    if (only.terminologyId) fields.terminology_id = only.terminologyId;
+  }
+
   for (const attr of (cObj.attributes ?? []) as AmObject[]) {
     const attrName = attr.rm_attribute_name as string | undefined;
     const nestedChild = (attr.children ?? [])[0] as AmObject | undefined;
     if (!nestedChild) continue;
-    const nested = extractFixedFields(nestedChild);
+    const nested = extractFixedFields(nestedChild, terms);
     if (!nested) continue;
     if (attrName === "defining_code") Object.assign(fields, nested);
     else if (attrName === "value" && nested.value) fields.value = nested.value;
@@ -944,6 +966,71 @@ function extractAllowedUnits(cObj: AmObject): string[] {
   }
 
   return units;
+}
+
+type OrdinalListItem = {
+  value?: number | string;
+  symbol?: {
+    code_string?: string;
+    terminology_id?: string;
+    defining_code?: { code_string?: string; terminology_id?: string };
+  };
+};
+
+/**
+ * Allowed ordinal/scale values from AM `C_ORDINAL` / `C_DV_ORDINAL` `list[]`
+ * (`value` + `symbol.defining_code`). A single choice is copied to
+ * `fixedFields`; several become `allowedOrdinals`.
+ *
+ * @see openehr://spec/type/AM/C_ORDINAL
+ * @see openehr://spec/type/RM/DV_ORDINAL
+ * @see openehr://spec/type/RM/DV_SCALE
+ */
+function extractAllowedOrdinals(cObj: AmObject, terms: TermBag): AllowedOrdinal[] {
+  const list = cObj.list as unknown[] | undefined;
+  if (!Array.isArray(list) || list.length < 2) return [];
+
+  const assumed = ordinalAssumedFromAm(cObj);
+  const items: AllowedOrdinal[] = [];
+  for (const entry of list) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) continue;
+    const rec = entry as OrdinalListItem;
+    const value = Number(rec.value);
+    if (!Number.isFinite(value)) continue;
+    const sym = rec.symbol ?? {};
+    const code = sym.code_string ??
+      sym.defining_code?.code_string ??
+      amCodeString(sym);
+    if (!code) continue;
+    const terminologyId = sym.terminology_id ??
+      sym.defining_code?.terminology_id ??
+      terminologyIdFromAm(sym);
+    const label = lookupTermText(terms, code) ?? code;
+    items.push({
+      value,
+      code,
+      label,
+      ...(terminologyId ? { terminologyId } : {}),
+      ...(assumed && (assumed.value === value || assumed.code === code)
+        ? { assumed: true as const }
+        : {}),
+    });
+  }
+  return items;
+}
+
+function ordinalAssumedFromAm(
+  cObj: AmObject,
+): { value?: number; code?: string } | undefined {
+  const assumed = cObj.assumed_value as OrdinalListItem | undefined;
+  if (!assumed || typeof assumed !== "object") return undefined;
+  const value = assumed.value === undefined || assumed.value === null
+    ? undefined
+    : Number(assumed.value);
+  const code = assumed.symbol?.code_string ??
+    assumed.symbol?.defining_code?.code_string;
+  if (value === undefined && !code) return undefined;
+  return { value: Number.isFinite(value) ? value : undefined, code };
 }
 
 function stringListFromAm(cObj: AmObject): string[] {

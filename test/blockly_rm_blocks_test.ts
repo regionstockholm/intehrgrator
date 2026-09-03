@@ -680,6 +680,89 @@ Deno.test("skeleton canvas picks Position from a list of complete DV_CODED_TEXT 
   workspace.dispose();
 });
 
+const ordinalFixture = await Deno.readTextFile(
+  new URL(
+    "../vendor/ehrtslib/test_data/opt14/constrain_test.opt",
+    import.meta.url,
+  ),
+);
+
+Deno.test("skeleton canvas picks Vocalization from a list of complete DV_ORDINAL objects", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(ordinalFixture);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const vocalization = workspace.getAllBlocks(false).find(
+    (b) => b.type === "element" && b.getFieldValue("NAME") === "Vocalization",
+  );
+  assert(vocalization, "expected Vocalization ELEMENT on the canvas");
+  const selector = vocalization.getInputTargetBlock("VALUE");
+  assertEquals(selector?.type, "lists_getIndex");
+  const list = selector?.getInputTargetBlock("VALUE");
+  assertEquals(list?.type, "lists_create_with");
+  assertEquals((list as { itemCount_?: number } | null)?.itemCount_, 4);
+
+  const absent = list?.getInputTargetBlock("ADD0");
+  assert(absent && isDataValueBlock(absent), "expected a DV_ORDINAL list item");
+  assertEquals(absent.getFieldValue("RM_TYPE"), "DV_ORDINAL");
+  assertEquals(
+    absent.getInputTargetBlock(dvFieldInputName("value"))?.getFieldValue("NUM"),
+    0,
+  );
+  const absentSymbol = absent.getInputTargetBlock(dvFieldInputName("symbol"));
+  assert(absentSymbol && isDataValueBlock(absentSymbol));
+  assertEquals(absentSymbol.getFieldValue("RM_TYPE"), "DV_CODED_TEXT");
+  assertEquals(
+    absentSymbol.getInputTargetBlock(dvFieldInputName("value"))?.getFieldValue("TEXT"),
+    "Absent",
+  );
+  assertEquals(
+    absentSymbol.getInputTargetBlock(dvFieldInputName("defining_code"))
+      ?.getInputTargetBlock(dvFieldInputName("code_string"))
+      ?.getFieldValue("TEXT"),
+    "at0010",
+  );
+
+  workspace.dispose();
+});
+
+Deno.test("skeleton canvas scaffolds DV_SCALE choices as complete objects", () => {
+  ensureBlocks();
+  const skeleton: SkeletonNode[] = [{
+    slotId: "borg/content/breathlessness/value",
+    blockType: "dv_scale",
+    rmType: "DV_SCALE",
+    label: "Breathlessness",
+    kind: "value",
+    mandatory: true,
+    children: [],
+    allowedOrdinals: [
+      { value: 0, code: "at0001", label: "No breathlessness", terminologyId: "local" },
+      { value: 0.5, code: "at0002", label: "Very slight", terminologyId: "local", assumed: true },
+      { value: 1, code: "at0003", label: "Slight", terminologyId: "local" },
+    ],
+  }];
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("borg"), null);
+
+  const selector = workspace.getAllBlocks(false).find((b) => b.type === "lists_getIndex");
+  assert(selector, "expected lists_getIndex for DV_SCALE choices");
+  assertEquals(selector.getFieldValue("WHERE"), "FROM_START");
+  assertEquals(selector.getInputTargetBlock("AT")?.getFieldValue("NUM"), 2);
+
+  const list = selector.getInputTargetBlock("VALUE");
+  const slight = list?.getInputTargetBlock("ADD2");
+  assert(slight && isDataValueBlock(slight));
+  assertEquals(slight.getFieldValue("RM_TYPE"), "DV_SCALE");
+  assertEquals(
+    slight.getInputTargetBlock(dvFieldInputName("value"))?.getFieldValue("NUM"),
+    1,
+  );
+
+  workspace.dispose();
+});
+
 Deno.test("skeleton canvas fills DV_QUANTITY units from the template", () => {
   ensureBlocks();
   const { skeleton } = generateSkeleton(fixture);

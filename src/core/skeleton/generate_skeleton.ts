@@ -881,7 +881,7 @@ function codeListFromAm(cObj: AmObject): string[] {
 /**
  * Constrained coded/string choices from C_CODE_PHRASE `code_list` (including
  * nested `defining_code`) or a C_STRING `list` of more than one value.
- * Relies on `deno task vendor` keeping OPT `code_list` on C_TERMINOLOGY_CODE.
+ * OPT `code_list` / `assumed_value` come from ehrtslib (upstream since #73).
  *
  * @see openehr://guides/archetypes/terminology — value sets on DV_CODED_TEXT
  * @see openehr://guides/archetypes/adl-idioms-cheatsheet — coded leaf

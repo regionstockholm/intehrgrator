@@ -9,8 +9,9 @@ type VendorSpec = {
 const repos: VendorSpec[] = [
   {
     dir: "ehrtslib",
-    // origin/main includes the scoped at-code / C_ARCHETYPE_ROOT fix
-    // (ErikSundvall/ehrtslib@ac845d6, 2026-08-20).
+    // origin/main includes OPT code_list / assumed_value / quantity units
+    // through Web Template (ErikSundvall/ehrtslib#73, 2026-09-03).
+    // C_ORDINAL list[] parsing is still vendor-patched below.
     url: "https://github.com/ErikSundvall/ehrtslib.git",
   },
   {
@@ -18,42 +19,6 @@ const repos: VendorSpec[] = [
     url: "https://github.com/Ehrlibs/openEHR-model-examples.git",
   },
 ];
-
-const VANILLA_TERMINOLOGY_CODES = `  const fromList = asArray(n.code_list).map(String);
-  const fromConstraint = asArray(n.constraint).filter((x) =>
-    typeof x === "string"
-  ).map(String);
-  const codes = fromList.length ? fromList : fromConstraint;
-  if (codes.length === 1) t.constraint = codes[0];
-
-  if (!t.constraint) {`;
-
-const PATCHED_TERMINOLOGY_CODES = `  const fromList = asArray(n.code_list).map(String).filter((c) => c && c !== "undefined");
-  const fromConstraint = asArray(n.constraint).filter((x) =>
-    typeof x === "string"
-  ).map(String);
-  const codes = fromList.length ? fromList : fromConstraint;
-  // AOM2 \`constraint\` is a single at/ac-code. ADL 1.4 OPT \`code_list\` is the
-  // expanded local value set — keep it so consumers can scaffold all choices.
-  if (codes.length === 1) t.constraint = codes[0];
-  if (codes.length) (t as { code_list?: string[] }).code_list = codes;
-
-  if (n.assumed_value && typeof n.assumed_value === "object") {
-    const assumed = n.assumed_value as Record<string, unknown>;
-    const code = textValue(assumed.code_string) ?? textValue(assumed);
-    if (code) {
-      (t as { assumed_value?: { code_string: string; terminology_id?: string } })
-        .assumed_value = {
-          code_string: code,
-          terminology_id: textValue(
-            (assumed.terminology_id as Record<string, unknown> | undefined)
-              ?.value ?? assumed.terminology_id,
-          ),
-        };
-    }
-  }
-
-  if (!t.constraint && !codes.length) {`;
 
 const VANILLA_ORDINAL_HANDLER = `  if (mapped === "C_QUANTITY") return parseCQuantity(n);
   if (mapped === "C_TERMINOLOGY_CODE") return parseCTerminologyCode(n);`;
@@ -156,39 +121,14 @@ async function vendorRepo(spec: VendorSpec): Promise<void> {
   console.log(`${dir} at ${sha} (origin/main)`);
 
   if (dir === "ehrtslib") {
-    await preserveOptCodeLists(vendorDir);
     await preserveOptOrdinalLists(vendorDir);
   }
 }
 
 /**
- * Vanilla ehrtslib `parseCTerminologyCode` keeps a single `constraint` and
- * drops ADL 1.4 OPT `code_list` when it has more than one code. Skeleton
- * scaffolding needs the full local value set (Position, Cuff size, …).
- * Skip when origin/main already preserves `code_list`.
- */
-async function preserveOptCodeLists(vendorDir: string): Promise<void> {
-  const path = join(vendorDir, "parser/legacy/xml_aom_mapper.ts");
-  const raw = await Deno.readTextFile(path);
-  if (raw.includes("(t as { code_list?: string[] }).code_list = codes")) {
-    console.log("ehrtslib already preserves C_TERMINOLOGY_CODE.code_list");
-    return;
-  }
-  const crlf = raw.includes("\r\n");
-  const src = raw.replaceAll("\r\n", "\n");
-  const next = src.replace(VANILLA_TERMINOLOGY_CODES, PATCHED_TERMINOLOGY_CODES);
-  if (next === src) {
-    throw new Error(
-      "ehrtslib xml_aom_mapper.ts no longer matches the code_list patch; update scripts/vendor-ehrtslib.ts",
-    );
-  }
-  await Deno.writeTextFile(path, crlf ? next.replaceAll("\n", "\r\n") : next);
-  console.log("ehrtslib: preserved OPT code_list on C_TERMINOLOGY_CODE");
-}
-
-/**
  * Vanilla ehrtslib maps C_DV_ORDINAL to C_ORDINAL but falls through to
  * C_PRIMITIVE_OBJECT without parsing list[] — scaffold needs value + symbol.
+ * (code_list / assumed_value / quantity units are upstream since #73.)
  */
 async function preserveOptOrdinalLists(vendorDir: string): Promise<void> {
   const path = join(vendorDir, "parser/legacy/xml_aom_mapper.ts");

@@ -11,6 +11,7 @@
 - [x] Improve the avove cogwheeel configuration approach: 1.  Now in the popup's editor ther is often just a single block with a dropdown thet can be pulled into the "optional fields" or "optional RM" etc. Thet is unpedagogical with low discoverability of options and unneccesary clicks since you first need to expand the dropdown to see what is available. Instead show one block for each option, and if it is only supposed to be one of that option then make sure it can only be added once. 2. having the cogwheel to the left of the openehr zipehr symbol reduces the pedagogical matchup instead put it to the tigt of the dual label Name/datatype
 - [x] Activate Expand/collapse json etc i code mirror gutter
 - [x] Add undo/redo for mapping editor
+- [ ] Add a way to convert a dynamic defaults (or perhaps any table/map) lookup to inlined hardcoded block- perhaps as a right click menu item
 - [ ] Integrate save functions with github repo (if logged in)
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
@@ -24,6 +25,7 @@
 - [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
 - [ ] Make it possible to digest CSV tables (including via UI cut & paste of grids from Excel and Google sheets) for setting up table structures (arbitrariy number of rows and columns). They can later via suitable blockly blocks for picking based on index and/or content be used e.g. to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT. Each row has an optional unique name (string) to the far left and, each column has an optional unique name on top. The rest of the cells do not need to be unique and can have any datatype that blockly supports including nested blocks, but it should be possible to restrict the datatype of a row or column to a certain data output type (boolean / number / string / object)
 - [ ] Make it possible to digest FHIR terminology mappings for setting up maps/tables
+
 
 ## D. Local (offline) version with AI agent/CLI/IDE integration
 - [x] Optimize the local (os native) version intehrgrator to work together with the AI enabled IDE or AI CLI of choise. This can likely be done by primarily working with local files (should be doable when running as executable packaged by deno in our binary releases) -

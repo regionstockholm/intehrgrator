@@ -483,7 +483,134 @@ Context from current code:
 - [x] 6.6 Tests: nested drawer, mutator, scaffold round-trip (generic JSON Schema + XSD fixtures; no TakeCare)
 - [x] 6.7 Docs: ROADMAP H, BLOCKLY_INTEGRATION, CONTEXT
 
-- [ ] 7.0 Chunk 7 — Handlebars Test Run + round-trip (roadmap G)
+- [ ] 7.0 Chunk 7 — Template languages: Kintegrate Handlebars + Go text/template codegen (roadmap G)
+
+## Grill round 1 (Chunk 7 frontier — template languages)
+
+Asked before coding Chunk 7. User answers **adopted** 2026-09-03.
+
+Context from the mapping scripts in `examples/patient-reported-chemotherapy-symptoms/mapping/`:
+
+- Go `text/template` scripts converting openEHR FLAT → TakeCare ProfdocHISMessage XML (legacy EHR narrative).
+- Execute context: `{ Parameters: {Time, PatientId, …}, Data: {"flat/path|value": "Nej", …} }`.
+- Templates use `{{ index .Data "long/path" }}`, `{{ eq … }}`, `{{ if and … }}`, `{{ define "cleanAndQuoteFreeTextInput" }}…{{ end }}`, and Sprig helpers: `replace`, `regexReplaceAll`, `trim`, `quote`, `lower`, `substr`, `int`, `ge`.
+- Target is XML (free-form), not openEHR.
+- No `range`/`with` iteration — single-event questionnaire at fixed `:0` positions.
+
+❓ **Q1** - **Chunk 7 boundary**: One chunk or split?
+
+➡️ **Adopted: one chunk.** Split PRs/commits inside.
+
+---
+
+❓ **Q2** - **Go template surfaces**: Tab + codegen, snippet block only, or both?
+
+➡️ **Adopted: codegen-only.** Go template has **no Authored Template tab** — it is purely a Conversion script language with Blockly codegen (like TypeScript). Handlebars keeps its Template tab (Kintegrate compatibility).
+
+---
+
+❓ **Q3** - **Execute envelope**: Where does `Parameters` come from in Test Run?
+
+➡️ **Adopted: Defaults Map → Parameters.** Execute builds `{ Parameters: defaults, Data: flatInstance }`. The Go service pipeline injects Parameters externally.
+
+---
+
+❓ **Q4** - **FuncMap / Sprig subset**: Full Sprig or curated?
+
+➡️ **Adopted: curated 8 + seam.** `replace`, `regexReplaceAll`, `trim`, `quote`, `lower`, `substr`, `int`, `ge`. FuncMap as adapter for future full Sprig.
+
+---
+
+❓ **Q5** - **Bundle persistence**: New field or reuse existing?
+
+➡️ **Adopted: no new field.** Add `go-template` to `ConversionScriptLanguage`. Blockly mapping is already persisted as `blocklyState`. Generated Go template is derived (not stored).
+
+---
+
+❓ **Q6** - **Handlebars Authored Template: execute in Conversion Test Run?**
+
+➡️ **Adopted: yes.** Execute Authored Handlebars Template in Conversion Test Run when Handlebars is the selected Output mode. Extends ADR 0003.
+
+---
+
+❓ **Q7** - **Handlebars Blockly→codegen (parallel to Go template codegen)?**
+
+➡️ **Adopted: defer.** Harden Handlebars Authored Template path in this chunk. Blockly→Handlebars codegen is a future chunk.
+
+---
+
+❓ **Q8** - **Example Set**: The reverse-engineered Blockly mapping uses XML blocks for the ProfdocHISMessage structure. The hand-authored PROD Go template lives alongside as reference.
+
+➡️ **Adopted: register in `example-sets.json`.** A future roadmap item adds a similar reverse-engineered Handlebars example set plus non-Blockly editing support so the Handlebars test harness works with example files and expected output.
+
+---
+
+❓ **Q9** - **In-app Go runtime**: WASM for Web Shell + desktop.
+
+➡️ **Adopted: WASM.** Vendor prebuilt `.wasm` + `wasm_exec.js` with curated FuncMap. TinyGo if size is an issue.
+
+---
+
+❓ **Q10** - **Go template codegen**: `generate(model, "go-template")` walks Mapping Model + Blockly state, emits Go template syntax.
+
+➡️ **Adopted.** Source queries → `{{ index .Data "path" }}`; conditionals → `{{ if eq … }}`; XML blocks → literal XML; Defaults Map → `{{ .Parameters.Key }}`.
+
+---
+
+❓ **Q11** - **Click-to-Map for Go template**: Output-mode-agnostic. Inserts Blockly blocks; codegen handles the rest.
+
+➡️ **Adopted.**
+
+---
+
+❓ **Q12** - **`source_query_node` Listening Mode**: Treat like other source query blocks.
+
+➡️ **Adopted.**
+
+---
+
+❓ **Q13** - **Harden Handlebars preview**: Fixture-first, independent of Go.
+
+➡️ **Adopted.**
+
+---
+
+### Chunk 7 implementation notes (from adoption)
+
+- **Go template is codegen-only** — no Authored Template tab. Handlebars keeps its tab.
+- **Execute envelope** `{ Parameters: defaults, Data: source }` for Go Test Run.
+- **WASM runtime** with curated Sprig-subset FuncMap baked in.
+- **Reverse-engineered Blockly example** uses `xml_element`/`xml_text` blocks for ProfdocHISMessage structure, `controls_if` for conditional symptom emission, `source_query` for FLAT paths, `maps_get` for Parameters.
+- **Future:** reverse-engineered Handlebars example set + non-Blockly editing for Handlebars test harness (added to roadmap).
+
+### Relevant files (Chunk 7 — adopted scope)
+
+- `src/types/mod.ts` — `ConversionScriptLanguage` type: add `go-template`
+- `src/core/codegen/mod.ts` — codegen adapter registry: add Go template adapter
+- `src/core/codegen/go_template.ts` — new: Go template codegen from Mapping Model + Blockly
+- `src/core/test_runner/mod.ts` — execute Go template + Handlebars in Conversion Test Run
+- `src/core/output/go_template_runtime.ts` — new: WASM runtime + FuncMap
+- `web/main.ts` — Output mode UI: add Go template option
+- `examples/patient-reported-chemotherapy-symptoms/` — Example Set + Blockly mapping
+- `examples/example-sets.json` — register chemo example
+- `test/go_template_codegen_test.ts` — new: codegen golden tests
+- `docs/ROADMAP.md` §G — Go template + future Handlebars example note
+- `docs/adr/0004-go-template-codegen-only.md` — new ADR
+- `docs/adr/0003-mapping-preview-vs-generated-script.md` — amend for Handlebars Test Run
+
+  - [x] 7.1 Add `go-template` to `ConversionScriptLanguage` + Output mode UI
+  - [ ] 7.2 Go template codegen adapter (Mapping Model + Blockly → Go template syntax)
+  - [ ] 7.3 Go WASM runtime + curated Sprig-subset FuncMap; vendor artifact
+  - [ ] 7.4 Execute Go template in Conversion Test Run (generated script via WASM)
+  - [ ] 7.5 Execute Handlebars Authored Template in Conversion Test Run; extend ADR 0003
+  - [ ] 7.6 Harden Handlebars Mapping preview (Kintegrate fixtures, nested #with/#each, FLAT keys, slot/json)
+  - [ ] 7.7 Execute envelope: `{ Parameters: defaults, Data: source }` for Go Test Run
+  - [ ] 7.8 Reverse-engineer PROD Go template → Blockly mapping (`mapping/mapping.blockly.json`) using XML blocks
+  - [ ] 7.9 Example Set `examples/patient-reported-chemotherapy-symptoms/` registered
+  - [ ] 7.10 `source_query_node` Listening Mode + UI test
+  - [ ] 7.11 Path-inventory tokenizer fix; rewrite roadmap round-trip bullet
+  - [ ] 7.12 Docs: ROADMAP G, MAPPING_SPECIFICATION, CONTEXT, ADRs 0003-amend/0004
+
 - [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
 - [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)
 - [ ] 10.0 Chunk 10 — GitHub save, UI i18n, dependency hashes (roadmap B/L)

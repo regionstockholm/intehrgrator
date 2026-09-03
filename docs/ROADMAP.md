@@ -49,7 +49,9 @@
 - [x] The ITEM_STRUCTRURE class is abstract but common in slots, follow the design of the EVENT blockly block that can be morphed to PONT_EVNT and INTERVAL_EVENT without dropping already connected sub blocks. HAeving the flexivility is important e.g. in not neccesarily archetyped FEEDER_AUDIT_DETAILS
 
 
-## G. Add support for Handlebars conversions
+## G. Template-language Conversion scripts (Handlebars + Go text/template)
+
+### Handlebars (Kintegrate compatibility)
 - [x] add blockly support for handlebars snippets inside new kind of text block based on variables/context/xpath etc
 - [x] Conversion script language `handlebars` + Kintegrate helpers (`eq`/`ne`/…/`toUpperCase`)
 - [x] Handlebars Template tab; click-to-map inserts Kintegrate paths
@@ -57,10 +59,20 @@
 - [x] Optional Better Form Bridge + `deno task setup:better-forms`
 - [ ] Full Better form-viewer ScriptApi / formTestApi parity and Cypress generator port
 - [ ] Harden **Mapping preview** Handlebars Template Test Run (helpers, nested `#with`/`#each`, FLAT paths, slot interop) — current path is shaky
-- [ ] Execute a generated Handlebars Conversion Script in Conversion Test Run(s) (today: generate only; Mapping preview still runs the authored Handlebars Template)
-- [ ] Blockly-owned Handlebars authoring that round-trips with the Handlebars Template tab
+- [ ] Execute Authored Handlebars Template in Conversion Test Run(s) (today: generate only; Mapping preview still runs the authored Handlebars Template) — Chunk 7 extends [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
+- [ ] Blockly→Handlebars codegen (deferred — harden Authored Template path first)
+- [ ] Reverse-engineered Handlebars Blockly example set + non-Blockly test harness support for Handlebars example files and expected output (future, after Go template example set)
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md), [ADR 0001](adr/0001-mapping-and-target-seams.md), and [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
-- make the recently added JSON/XML subtree "source" blockly block also trigger/arm click to map so that souce tree can be pointed at
+- make the recently added JSON/XML subtree "source" blockly block also trigger/arm click to map so that source tree can be pointed at
+
+### Go text/template (Chunk 7 — FLAT→legacy narrative codegen)
+- [ ] Conversion script language `go-template` — **codegen-only** (no Authored Template tab; Blockly mapping is the source of truth)
+- [ ] Go template codegen adapter: Mapping Model + Blockly → Go `text/template` syntax with curated Sprig-subset FuncMap (`replace`/`regexReplaceAll`/`trim`/`quote`/`lower`/`substr`/`int`/`ge`)
+- [ ] In-browser WASM runtime for Go `text/template` execution in Conversion Test Run (Web Shell + desktop)
+- [ ] Execute envelope `{ Parameters: defaults, Data: source }` — Defaults Map provides the Parameters bag
+- [ ] Example Set: `examples/patient-reported-chemotherapy-symptoms/` — reverse-engineered Blockly mapping using `xml_element`/`xml_text` blocks for ProfdocHISMessage XML + reference hand-authored PROD Go template script
+- [ ] FLAT as source is less than ideal (STRUCTURED would be one notch up) but must be supported for existing pipeline use cases; ehrtslib can convert other openEHR formats to FLAT
+- See [ADR 0004](adr/0004-go-template-codegen-only.md) (pending adoption)
 
 
 ## H. Schema specific dynamic blockly toolboxes

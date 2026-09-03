@@ -1,5 +1,5 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
-import type { MappingLoop, MappingModel, SkeletonNode, AllowedValue } from "../types/mod.ts";
+import type { AllowedOrdinal, AllowedValue, MappingLoop, MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
@@ -11,8 +11,10 @@ import "blockly/blocks";
 import * as enMsg from "blockly/msg/en";
 import {
   applyFixedFieldsToDataValueShell,
+  applyOrdinalFieldsToDataValueShell,
   configureElementValueSlot,
   connectExpressionToDataValueShell,
+  dvFieldInputName,
   ensureElementDataValueShell,
   ensureRmBlockType,
   isDataValueBlock,
@@ -44,6 +46,7 @@ import {
   type SlotCardinality,
 } from "./slot_cardinality.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
+import { blocklyCheckForDv } from "./block_checks.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -554,6 +557,7 @@ function buildElementBlock(
     (primary?.mandatory ?? false) || Boolean(node.mandatory && primary),
   );
   const allowedValues = primary?.allowedValues ?? node.allowedValues ?? [];
+  const allowedOrdinals = primary?.allowedOrdinals ?? node.allowedOrdinals ?? [];
   setMandatoryFlag(block, valueMandatory);
 
   // Render the ELEMENT shell before attaching the typed DATA_VALUE child.
@@ -563,6 +567,7 @@ function buildElementBlock(
   const mandatedSet = mandated
     ? termSetForMandatedCode(mandated.terminologyId, mandated.code)
     : undefined;
+  const allowedUnits = primary?.allowedUnits ?? node.allowedUnits ?? [];
   if (
     mandatedSet &&
     mandated &&
@@ -574,20 +579,31 @@ function buildElementBlock(
       mandated.code,
       primary?.slotId ?? node.slotId,
     );
-    const valueInput = block.getInput("VALUE");
-    if (valueInput?.connection && pick.outputConnection) {
-      valueInput.connection.connect(pick.outputConnection);
-    }
+    connectBlockToInput(block.getInput("VALUE"), pick);
     finalizeBlock(pick);
-  } else if ((valueMandatory || allowedValues.length > 1) && primary && isDataValueType(dvType)) {
+  } else if (allowedValues.length > 1 && isCodedChoiceRmType(dvType)) {
+    const selector = createCodedValueSetSelector(workspace, dvType, allowedValues);
+    connectBlockToInput(block.getInput("VALUE"), selector);
+  } else if (allowedOrdinals.length > 1 && isOrdinalChoiceRmType(dvType)) {
+    const selector = createOrdinalValueSetSelector(workspace, dvType, allowedOrdinals);
+    connectBlockToInput(block.getInput("VALUE"), selector);
+  } else if (
+    (valueMandatory || allowedValues.length > 1 || allowedOrdinals.length > 1 ||
+      allowedUnits.length > 1 ||
+      Boolean(primary?.fixedFields?.units ?? node.fixedFields?.units)) &&
+    primary &&
+    isDataValueType(dvType)
+  ) {
     const shell = ensureElementDataValueShell(workspace, block, dvType);
     if (shell) {
       applyFixedFieldsToDataValueShell(
         workspace,
         shell,
-        fixedFieldsForAllowedValues(primary.fixedFields ?? node.fixedFields, allowedValues),
+        primary.fixedFields ?? node.fixedFields,
       );
       attachValueSetSelector(workspace, shell, allowedValues);
+      attachOrdinalSelector(workspace, shell, allowedOrdinals);
+      attachUnitSelector(workspace, shell, allowedUnits);
     }
   }
 
@@ -612,6 +628,32 @@ function buildTypedValueBlock(
     return finalizeBlock(block);
   }
 
+  if (
+    node.allowedOrdinals &&
+    node.allowedOrdinals.length > 1 &&
+    isOrdinalChoiceRmType(node.rmType)
+  ) {
+    const selector = createOrdinalValueSetSelector(
+      workspace,
+      node.rmType,
+      node.allowedOrdinals,
+    );
+    setMandatoryFlag(selector, node.mandatory);
+    refreshBlockLayout(selector);
+    return selector;
+  }
+
+  if (
+    node.allowedValues &&
+    node.allowedValues.length > 1 &&
+    isCodedChoiceRmType(node.rmType)
+  ) {
+    const selector = createCodedValueSetSelector(workspace, node.rmType, node.allowedValues);
+    setMandatoryFlag(selector, node.mandatory);
+    refreshBlockLayout(selector);
+    return selector;
+  }
+
   const blockType = node.blockType && node.blockType !== "rm_structure" && node.blockType !== "element"
     ? node.blockType
     : blockTypeForRm(node.rmType);
@@ -622,42 +664,65 @@ function buildTypedValueBlock(
   applySkeletonBlockLabels(block, node);
   setMandatoryFlag(block, node.mandatory);
   finalizeBlock(block);
-  applyFixedFieldsToDataValueShell(
-    workspace,
-    block,
-    fixedFieldsForAllowedValues(node.fixedFields, node.allowedValues),
-  );
+  applyFixedFieldsToDataValueShell(workspace, block, node.fixedFields);
   attachValueSetSelector(workspace, block, node.allowedValues);
+  attachOrdinalSelector(workspace, block, node.allowedOrdinals);
+  attachUnitSelector(workspace, block, node.allowedUnits);
   refreshBlockLayout(block);
   return block;
 }
 
 /**
- * Stock Blockly `lists_getIndex` (get first) wrapping `lists_create_with`
- * of the template's allowed labels. Default pick is the first list item.
+ * Stock Blockly `lists_getIndex` wrapping `lists_create_with` of template
+ * choices. Coded leaves use complete DV objects (rubric + defining_code);
+ * string/unit lists stay as text items.
+ *
+ * @see openehr://spec/type/RM/DV_CODED_TEXT
  */
+function attachOrdinalSelector(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  values: AllowedOrdinal[] | undefined,
+): void {
+  if (!values || values.length < 2) return;
+  const rmType = (shell.getFieldValue("RM_TYPE") || "").toUpperCase();
+  if (!isOrdinalChoiceRmType(rmType)) return;
+  const selector = createOrdinalValueSetSelector(workspace, rmType, values);
+  connectExpressionToDataValueShell(shell, selector);
+}
+
 function attachValueSetSelector(
   workspace: Blockly.Workspace,
   shell: Blockly.Block,
   values: AllowedValue[] | undefined,
 ): void {
   if (!values || values.length < 2) return;
-  const selector = createValueSetSelector(workspace, values);
+  const rmType = (shell.getFieldValue("RM_TYPE") || "").toUpperCase();
+  if (isCodedChoiceRmType(rmType)) return;
+  const selector = createStringListSelector(workspace, values.map((v) => v.label || v.code));
   connectExpressionToDataValueShell(shell, selector);
 }
 
-function fixedFieldsForAllowedValues(
-  fields: Record<string, string> | undefined,
-  values: AllowedValue[] | undefined,
-): Record<string, string> | undefined {
-  if (!values || values.length < 2) return fields;
-  const first = values[0]!;
-  return {
-    ...fields,
-    ...(first.terminologyId ? { terminology_id: first.terminologyId } : {}),
-    defining_code: first.code,
-    code_string: first.code,
-  };
+function attachUnitSelector(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  units: string[] | undefined,
+): void {
+  if (!units || units.length < 2) return;
+  const input = shell.getInput(dvFieldInputName("units"));
+  if (!input?.connection) return;
+  const selector = createStringListSelector(workspace, units);
+  const existing = input.connection.targetBlock();
+  if (existing) existing.dispose(false);
+  connectBlockToInput(input, selector);
+}
+
+function isCodedChoiceRmType(rmType: string): boolean {
+  return rmType === "DV_CODED_TEXT" || rmType === "CODE_PHRASE";
+}
+
+function isOrdinalChoiceRmType(rmType: string): boolean {
+  return rmType === "DV_ORDINAL" || rmType === "DV_SCALE";
 }
 
 type ListCreateBlock = BlockSvg & {
@@ -678,28 +743,159 @@ function ensureStockListMessages(): void {
   Blockly.setLocale(table);
 }
 
-function createValueSetSelector(
+function createCodedValueSetSelector(
   workspace: Blockly.Workspace,
+  rmType: string,
   values: AllowedValue[],
 ): BlockSvg {
   ensureStockListMessages();
+  const blockType = rmType === "CODE_PHRASE" ? "code_phrase" : blockTypeForRm(rmType);
+  ensureRmBlockType(blockType, rmType);
   const list = workspace.newBlock("lists_create_with") as ListCreateBlock;
   list.itemCount_ = values.length;
   list.updateShape_();
   for (let i = 0; i < values.length; i++) {
+    const choice = workspace.newBlock(blockType) as BlockSvg;
+    if (choice.getField("RM_TYPE")) choice.setFieldValue(rmType, "RM_TYPE");
+    applyFixedFieldsToDataValueShell(workspace, choice, fieldsForAllowedValue(values[i]!, rmType));
+    list.getInput(`ADD${i}`)?.connection?.connect(choice.outputConnection!);
+    finalizeBlock(choice);
+  }
+  finalizeBlock(list);
+  const assumedIdx = values.findIndex((value) => value.assumed);
+  return createListGetIndex(
+    workspace,
+    list,
+    assumedIdx >= 0 ? assumedIdx : 0,
+    blocklyCheckForDv(rmType),
+  );
+}
+
+function fieldsForAllowedValue(
+  value: AllowedValue,
+  rmType: string,
+): Record<string, string> {
+  const terminology = value.terminologyId ?? "local";
+  if (rmType === "CODE_PHRASE") {
+    return { terminology_id: terminology, code_string: value.code };
+  }
+  return {
+    value: value.label || value.code,
+    terminology_id: terminology,
+    defining_code: value.code,
+    code_string: value.code,
+  };
+}
+
+function fieldsForAllowedOrdinal(value: AllowedOrdinal): Record<string, string> {
+  return {
+    value: String(value.value),
+    symbol_value: value.label,
+    terminology_id: value.terminologyId ?? "local",
+    defining_code: value.code,
+    code_string: value.code,
+  };
+}
+
+function createOrdinalValueSetSelector(
+  workspace: Blockly.Workspace,
+  rmType: string,
+  values: AllowedOrdinal[],
+): BlockSvg {
+  ensureStockListMessages();
+  const blockType = blockTypeForRm(rmType);
+  ensureRmBlockType(blockType, rmType);
+  const list = workspace.newBlock("lists_create_with") as ListCreateBlock;
+  list.itemCount_ = values.length;
+  list.updateShape_();
+  for (let i = 0; i < values.length; i++) {
+    const choice = workspace.newBlock(blockType) as BlockSvg;
+    if (choice.getField("RM_TYPE")) choice.setFieldValue(rmType, "RM_TYPE");
+    applyOrdinalFieldsToDataValueShell(
+      workspace,
+      choice,
+      fieldsForAllowedOrdinal(values[i]!),
+    );
+    list.getInput(`ADD${i}`)?.connection?.connect(choice.outputConnection!);
+    finalizeBlock(choice);
+  }
+  finalizeBlock(list);
+  const assumedIdx = values.findIndex((value) => value.assumed);
+  return createListGetIndex(
+    workspace,
+    list,
+    assumedIdx >= 0 ? assumedIdx : 0,
+    blocklyCheckForDv(rmType),
+  );
+}
+
+function createStringListSelector(
+  workspace: Blockly.Workspace,
+  items: string[],
+): BlockSvg {
+  ensureStockListMessages();
+  const list = workspace.newBlock("lists_create_with") as ListCreateBlock;
+  list.itemCount_ = items.length;
+  list.updateShape_();
+  for (let i = 0; i < items.length; i++) {
     const text = workspace.newBlock("text") as BlockSvg;
-    text.setFieldValue(values[i]!.label || values[i]!.code, "TEXT");
+    text.setFieldValue(items[i]!, "TEXT");
     list.getInput(`ADD${i}`)?.connection?.connect(text.outputConnection!);
     finalizeBlock(text);
   }
   finalizeBlock(list);
+  return createListGetIndex(workspace, list, 0, "String");
+}
 
+/** 0-based index; Blockly `FROM_START` AT is 1-based (`emitListsGetIndex` subtracts 1). */
+function createListGetIndex(
+  workspace: Blockly.Workspace,
+  list: BlockSvg,
+  indexFromStart: number,
+  outputCheck?: string | string[] | null,
+): BlockSvg {
+  ensureStockListMessages();
   const get = workspace.newBlock("lists_getIndex") as ListGetIndexBlock;
   get.setFieldValue("GET", "MODE");
-  get.setFieldValue("FIRST", "WHERE");
-  get.updateAt_?.(false);
+  get.setFieldValue("FROM_START", "WHERE");
+  get.updateAt_?.(true);
+  const num = workspace.newBlock("math_number") as BlockSvg;
+  num.setFieldValue(String(indexFromStart + 1), "NUM");
+  get.getInput("AT")?.connection?.connect(num.outputConnection!);
+  finalizeBlock(num);
   get.getInput("VALUE")?.connection?.connect(list.outputConnection!);
+  if (outputCheck) get.setOutput(true, outputCheck);
   return finalizeBlock(get);
+}
+
+function connectBlockToInput(
+  input: Blockly.Input | null | undefined,
+  child: Blockly.Block,
+): void {
+  if (!input?.connection || !child.outputConnection) return;
+  const parentConn = input.connection;
+  const childConn = child.outputConnection;
+  const attempt = (): void => {
+    if (parentConn.isConnected() && parentConn.targetConnection !== childConn) {
+      parentConn.disconnect();
+    }
+    parentConn.connect(childConn);
+  };
+  try {
+    attempt();
+  } catch {
+    /* type check rejected */
+  }
+  if (parentConn.targetConnection === childConn) return;
+  const prevCheck = parentConn.getCheck();
+  input.setCheck(null);
+  try {
+    attempt();
+  } catch {
+    /* still incompatible */
+  } finally {
+    if (prevCheck) input.setCheck(prevCheck);
+  }
 }
 
 function primaryValueChild(node: SkeletonNode): SkeletonNode | undefined {

@@ -735,9 +735,19 @@ export function applyFixedFieldsToDataValueShell(
     return;
   }
 
+  if (rmType === "DV_ORDINAL" || rmType === "DV_SCALE") {
+    applyOrdinalFieldsToDataValueShell(workspace, shell, fields);
+    return;
+  }
+
   if (fields.value) {
     ensureDvFieldVisible(shell, "value");
     connectLiteralText(workspace, shell, dvFieldInputName("value"), fields.value);
+  }
+
+  if (fields.units) {
+    ensureDvFieldVisible(shell, "units");
+    connectLiteralText(workspace, shell, dvFieldInputName("units"), fields.units);
   }
 
   if (fields.terminology_id || fields.defining_code || fields.code_string) {
@@ -797,6 +807,72 @@ function connectLiteralText(
   const text = _workspace.newBlock("text");
   text.setFieldValue(value, "TEXT");
   if (text.outputConnection) input.connection.connect(text.outputConnection);
+}
+
+export function applyOrdinalFieldsToDataValueShell(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  fields: Record<string, string>,
+): void {
+  if (fields.value) {
+    ensureDvFieldVisible(shell, "value");
+    connectLiteralNumber(workspace, shell, dvFieldInputName("value"), Number(fields.value));
+  }
+  if (
+    fields.symbol_value || fields.terminology_id || fields.defining_code || fields.code_string
+  ) {
+    ensureDvFieldVisible(shell, "symbol");
+    const symbol = ensureNestedDvCodedText(workspace, shell, dvFieldInputName("symbol"));
+    if (symbol) {
+      applyFixedFieldsToDataValueShell(workspace, symbol, {
+        value: fields.symbol_value ?? "",
+        terminology_id: fields.terminology_id ?? "",
+        defining_code: fields.defining_code ?? fields.code_string ?? "",
+        code_string: fields.code_string ?? fields.defining_code ?? "",
+      });
+    }
+  }
+}
+
+function connectLiteralNumber(
+  workspace: Blockly.Workspace,
+  parent: Blockly.Block,
+  inputName: string,
+  value: number,
+): void {
+  if (!Number.isFinite(value)) return;
+  const input = parent.getInput(inputName);
+  if (!input?.connection) return;
+  const existing = input.connection.targetBlock();
+  if (existing) existing.dispose(false);
+  const num = workspace.newBlock("math_number");
+  num.setFieldValue(String(value), "NUM");
+  if (num.outputConnection) input.connection.connect(num.outputConnection);
+}
+
+function ensureNestedDvCodedText(
+  workspace: Blockly.Workspace,
+  shell: Blockly.Block,
+  inputName: string,
+): Blockly.Block | null {
+  const input = shell.getInput(inputName);
+  if (!input?.connection) return null;
+  const existing = input.connection.targetBlock();
+  if (existing && isDataValueBlock(existing) && existing.getFieldValue("RM_TYPE") === "DV_CODED_TEXT") {
+    return existing;
+  }
+  if (existing) return null;
+  ensureRmBlockType("dv_coded_text", "DV_CODED_TEXT");
+  const coded = workspace.newBlock("dv_coded_text");
+  if (coded.outputConnection) {
+    input.connection.connect(coded.outputConnection);
+  }
+  if (typeof document !== "undefined") {
+    const svg = coded as BlockSvg;
+    svg.initSvg?.();
+    svg.render?.();
+  }
+  return coded;
 }
 
 export function isDataValueBlock(block: Blockly.Block): boolean {
@@ -1078,7 +1154,8 @@ function defineCodePhraseBlock(): void {
 function isMappableField(attr: RmAttributeMeta): boolean {
   if (isPrimitiveRmType(attr.typeName)) return true;
   const base = attr.typeName.split("<")[0]!;
-  return base === "CODE_PHRASE" || base === "Terminology_code";
+  return base === "CODE_PHRASE" || base === "Terminology_code" ||
+    base === "DV_CODED_TEXT";
 }
 
 function appendDvFieldInput(
@@ -1093,6 +1170,8 @@ function appendDvFieldInput(
   const check = blocklyCheckForPrimitiveType(attr.typeName) ??
     (attr.typeName.startsWith("CODE_PHRASE") || attr.typeName === "CODE_PHRASE"
       ? ["String", "CODE_PHRASE"]
+      : attr.typeName === "DV_CODED_TEXT"
+      ? blocklyCheckForDv("DV_CODED_TEXT")
       : "String");
   const input = block.appendValueInput(name)
     .setCheck(check)

@@ -202,6 +202,9 @@ Deno.test("typescript codegen from Blockly canvas updates when a source query is
     assertStringIncludes(before, "new COMPOSITION({");
     assertEquals(before.includes("$.systolic"), false);
     assertStringIncludes(before, "Blockly canvas");
+    assertStringIncludes(before, "mm[Hg]");
+    assertStringIncludes(before, "new DV_CODED_TEXT");
+    assertStringIncludes(before, "at1001");
 
     const mapped = applyExpressionEdit(empty, systolic.slotId, 'xpathNumber("$.systolic")', {
       rmType: systolic.rmType,

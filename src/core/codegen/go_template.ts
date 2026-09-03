@@ -94,6 +94,10 @@ function emitBlock(block: BlockNode): string[] {
     case "xml_attribute": {
       break;
     }
+    case "defaults_block":
+    case "maps_create_with": {
+      break;
+    }
     case "controls_if": {
       lines.push(...emitControlsIf(block));
       break;

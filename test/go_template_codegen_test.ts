@@ -247,6 +247,7 @@ Deno.test("chemo symptoms Blockly generates TakeCare XML Go template", () => {
   assert(output.includes("2811"), "fatigue TermId");
   assert(output.includes("13700"), "document UID TermId");
   assert(output.includes("if ne"), "conditional symptom sections");
+  assertEquals(output.includes("unsupported block: defaults_block"), false);
 });
 
 Deno.test("Go template WASM executes index/Parameters and the chemo mapping", async () => {

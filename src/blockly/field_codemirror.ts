@@ -275,6 +275,7 @@ function normalizeLanguage(value: string): EditorLanguage {
     case "xml":
     case "html":
     case "handlebars":
+    case "go-template":
     case "none":
       return value;
     default:

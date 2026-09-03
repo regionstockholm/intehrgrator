@@ -3,6 +3,12 @@ import type { SourceFormatId } from "../../types/mod.ts";
 import type { ExprAst } from "../expression/mod.ts";
 import { parseExpression } from "../expression/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
+import { DEFAULTS_MAP_NAME } from "../defaults/factory.ts";
+import {
+  executeEnvelopeParameters,
+  parseJsonDocument,
+  unwrapExecuteEnvelope,
+} from "./json_document.ts";
 
 export interface SourceContext {
   format: SourceFormatId;
@@ -23,8 +29,16 @@ export function createSourceContext(
   kind: "json" | "xml" = format === "xml" ? "xml" : "json",
 ): SourceContext {
   if (kind === "json") {
-    const json = JSON.parse(content);
-    return { format, kind, data: json, json };
+    const parsed = parseJsonDocument(content);
+    const json = unwrapExecuteEnvelope(parsed);
+    const parameters = executeEnvelopeParameters(parsed);
+    return {
+      format,
+      kind,
+      data: json,
+      json,
+      ...(parameters ? { namedMaps: { [DEFAULTS_MAP_NAME]: parameters } } : {}),
+    };
   }
   const doc = new DOMParser().parseFromString(content, "application/xml");
   if (doc.querySelector("parsererror")) throw new Error("Invalid XML source");

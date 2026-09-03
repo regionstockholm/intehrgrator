@@ -23,12 +23,14 @@ export type EditorLanguage =
   | "xml"
   | "html"
   | "handlebars"
+  | "go-template"
   | "none";
 
 /** Dropdown pairs for Blockly (`[label, value]`). */
 export const EDITOR_LANGUAGE_OPTIONS: Array<[string, EditorLanguage]> = [
   ["Plain", "none"],
   ["Handlebars", "handlebars"],
+  ["Go Template", "go-template"],
   ["JSON", "json"],
   ["XML", "xml"],
   ["HTML", "html"],
@@ -78,6 +80,7 @@ export function languageSupport(language: EditorLanguage): Extension {
     case "html":
       return html();
     case "handlebars":
+    case "go-template":
       return handlebarsLanguage;
     case "none":
       return [];
@@ -101,6 +104,7 @@ export function languageForExportTarget(target: string, code = ""): EditorLangua
   if (target === "typescript") return "typescript";
   const detected = detectEditorLanguage(code);
   if (detected === "json" || detected === "xml") return detected;
+  if (target === "handlebars" || target === "go-template") return target;
   return "none";
 }
 

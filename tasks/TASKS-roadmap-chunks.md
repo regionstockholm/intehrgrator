@@ -600,8 +600,8 @@ Context from the mapping scripts in `examples/patient-reported-chemotherapy-symp
 
   - [x] 7.1 Add `go-template` to `ConversionScriptLanguage` + Output mode UI
   - [x] 7.2 Go template codegen adapter (Mapping Model + Blockly → Go template syntax)
-  - [ ] 7.3 Go WASM runtime + curated Sprig-subset FuncMap; vendor artifact
-  - [x] 7.4 Execute Go template in Conversion Test Run (generated script via WASM — WASM stub until artifact is built)
+  - [x] 7.3 Go WASM runtime + curated Sprig-subset FuncMap; vendor artifact (`web/wasm/`, `deno task wasm:go-template`)
+  - [x] 7.4 Execute Go template in Conversion Test Run (generated script via WASM)
   - [x] 7.5 Execute Handlebars Authored Template in Conversion Test Run; extend ADR 0003
   - [ ] 7.6 Harden Handlebars Mapping preview (Kintegrate fixtures, nested #with/#each, FLAT keys, slot/json)
   - [x] 7.7 Execute envelope: `{ Parameters: defaults, Data: source }` for Go Test Run

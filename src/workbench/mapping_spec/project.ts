@@ -178,7 +178,6 @@ function classify(type: string): SpecLineKind {
     type === "json_object" ||
     type === "json_array" ||
     type === "xml_element" ||
-    type === "go_xml_element" ||
     isRmContainerBlockType(type)
   ) {
     return "container";

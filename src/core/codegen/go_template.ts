@@ -56,13 +56,18 @@ interface BlockNode {
   fields?: Record<string, unknown>;
   inputs?: Record<string, { block?: BlockNode }>;
   next?: { block?: BlockNode };
-  extraState?: { attributes?: Array<{ name: string; value: string }> };
+  extraState?: {
+    attributes?: Array<{ name: string; value: string }>;
+    childGroups?: string[];
+    elseIfCount?: number;
+    hasElse?: boolean;
+  };
 }
 
 function emitBlockTree(blocks: unknown[]): string[] {
   const lines: string[] = [];
   for (const block of blocks) {
-    lines.push(...emitBlock(block as BlockNode));
+    lines.push(...emitStatementChain(block as BlockNode));
   }
   return lines;
 }
@@ -72,9 +77,8 @@ function emitBlock(block: BlockNode): string[] {
   if (!block) return lines;
 
   switch (block.type) {
-    case "go_xml_element":
     case "xml_element": {
-      lines.push(...emitGoXmlElement(block));
+      lines.push(...emitXmlElement(block));
       break;
     }
     case "xml_text": {
@@ -87,10 +91,7 @@ function emitBlock(block: BlockNode): string[] {
       }
       break;
     }
-    case "go_xml_comment":
-    case "xml_comment": {
-      const text = String(block.fields?.TEXT ?? "");
-      lines.push(`<!-- ${text} -->`);
+    case "xml_attribute": {
       break;
     }
     case "controls_if": {
@@ -104,7 +105,6 @@ function emitBlock(block: BlockNode): string[] {
     }
     case "text_handlebars": {
       const script = block.inputs?.SCRIPT?.block;
-      const context = block.inputs?.CONTEXT?.block;
       if (script) {
         lines.push(...emitValueExpression(script));
       }
@@ -131,10 +131,6 @@ function emitBlock(block: BlockNode): string[] {
     }
     default:
       lines.push(`{{- /* unsupported block: ${block.type} */ -}}`);
-  }
-
-  if (block.next?.block) {
-    lines.push(...emitBlock(block.next.block));
   }
 
   return lines;
@@ -283,23 +279,52 @@ function emitInlineValue(block: BlockNode): string {
   }
 }
 
-function emitGoXmlElement(block: BlockNode): string[] {
-  const tag = String(block.fields?.TAG ?? "element");
-  const attrs = emitXmlAttributes(block);
-  const children = block.inputs?.CHILDREN?.block;
-  const text = block.inputs?.TEXT?.block;
-  if (children || text) {
-    return [
-      `<${tag}${attrs}>`,
-      ...(text ? emitBlock(text) : []),
-      ...(children ? emitStatementChain(children) : []),
-      `</${tag}>`,
-    ];
+function emitXmlElement(block: BlockNode): string[] {
+  const tag = xmlTagName(block);
+  const bodyHead = firstChildStatement(block);
+  const attrParts: string[] = [...emitStaticAttributes(block)];
+  const body: BlockNode[] = [];
+  let current: BlockNode | undefined = bodyHead;
+  while (current) {
+    if (current.type === "xml_attribute") {
+      const name = String(current.fields?.NAME ?? "").trim();
+      if (name) {
+        const valBlock = current.inputs?.VALUE?.block;
+        const val = valBlock ? emitValueExpression(valBlock).join("") : "";
+        attrParts.push(` ${name}="${val}"`);
+      }
+    } else {
+      body.push(current);
+    }
+    current = current.next?.block;
+  }
+  const legacyText = block.inputs?.TEXT?.block;
+  const attrs = attrParts.join("");
+  if (body.length || legacyText) {
+    const inner: string[] = [];
+    if (legacyText) inner.push(...emitBlock(legacyText));
+    for (const child of body) inner.push(...emitBlock(child));
+    return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
   }
   return [`<${tag}${attrs} />`];
 }
 
-function emitXmlAttributes(block: BlockNode): string {
+function xmlTagName(block: BlockNode): string {
+  const name = String(block.fields?.NAME ?? block.fields?.TAG ?? "element").trim();
+  return name || "element";
+}
+
+function firstChildStatement(block: BlockNode): BlockNode | undefined {
+  const inputs = block.inputs ?? {};
+  if (inputs.TARGET_children?.block) return inputs.TARGET_children.block;
+  if (inputs.CHILDREN?.block) return inputs.CHILDREN.block;
+  for (const [key, value] of Object.entries(inputs)) {
+    if (key.startsWith("TARGET_") && value?.block) return value.block;
+  }
+  return undefined;
+}
+
+function emitStaticAttributes(block: BlockNode): string[] {
   const attrs: string[] = [];
   for (const attr of block.extraState?.attributes ?? []) {
     const name = String(attr.name ?? "").trim();
@@ -310,11 +335,13 @@ function emitXmlAttributes(block: BlockNode): string {
   while (block.fields?.[`ATTR_NAME${i}`] !== undefined) {
     const name = String(block.fields[`ATTR_NAME${i}`]);
     const valBlock = block.inputs?.[`ATTR_VALUE${i}`]?.block;
-    const val = valBlock ? emitValueExpression(valBlock).join("") : String(block.fields?.[`ATTR_VALUE${i}`] ?? "");
+    const val = valBlock
+      ? emitValueExpression(valBlock).join("")
+      : String(block.fields?.[`ATTR_VALUE${i}`] ?? "");
     attrs.push(` ${name}="${val}"`);
     i++;
   }
-  return attrs.join("");
+  return attrs;
 }
 
 function extractTextValue(block: BlockNode): string {
@@ -342,10 +369,10 @@ export function emitGoExpr(ast: ExprAst): string {
       return String(ast.value);
     case "call": {
       switch (ast.name) {
-        case "xpathString":
-        case "xpathNumber":
-        case "xpathBoolean":
-        case "xpathNode":
+        case "xpathString": /* falls through */
+        case "xpathNumber": /* falls through */
+        case "xpathBoolean": /* falls through */
+        case "xpathNode": /* falls through */
         case "xpath": {
           const path = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
           return `index .Data ${goQuote(path)}`;
@@ -367,6 +394,7 @@ export function emitGoExpr(ast: ExprAst): string {
         default:
           return `/* unsupported: ${ast.name} */`;
       }
+      break;
     }
     case "binary":
       return `/* binary ${ast.op} not supported in Go template */`;

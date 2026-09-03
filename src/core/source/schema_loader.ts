@@ -1,9 +1,10 @@
 import type { SchemaTreeNode, SourceFormatId } from "../../types/mod.ts";
+import { parseJsonDocument, unwrapExecuteEnvelope } from "./json_document.ts";
 
 type JsonSchemaObject = Record<string, unknown>;
 
 export function loadJsonSchema(content: string, rootName = "root"): SchemaTreeNode {
-  const data = JSON.parse(content);
+  const data = parseJsonDocument(content);
   if (isJsonSchemaDocument(data)) {
     return jsonSchemaToTree(data, rootName, "$");
   }
@@ -11,7 +12,7 @@ export function loadJsonSchema(content: string, rootName = "root"): SchemaTreeNo
 }
 
 export function inferSchemaFromInstance(content: string, rootName = "root"): SchemaTreeNode {
-  const data = JSON.parse(content);
+  const data = unwrapExecuteEnvelope(parseJsonDocument(content));
   return instanceToSchemaTree(data, rootName, "$");
 }
 

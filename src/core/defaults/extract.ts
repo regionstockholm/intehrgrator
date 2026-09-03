@@ -59,12 +59,54 @@ export function mapBlockFromDefaultsJson(parsed: unknown): unknown | null {
     return rec.inputs?.MAP?.block ?? rec.inputs?.MAP?.shadow ?? null;
   }
   const blocks = rec.blocks?.blocks;
-  if (!Array.isArray(blocks)) return null;
-  const defaults = blocks.find((block) => block.type === DEFAULTS_BLOCK_TYPE);
-  const fromDefaults = defaults?.inputs?.MAP?.block ?? defaults?.inputs?.MAP?.shadow;
-  if (fromDefaults) return fromDefaults;
-  const map = blocks.find((block) => block.type === MAPS_CREATE_WITH);
-  return map ?? null;
+  if (Array.isArray(blocks)) {
+    const defaults = blocks.find((block) => block.type === DEFAULTS_BLOCK_TYPE);
+    const fromDefaults = defaults?.inputs?.MAP?.block ?? defaults?.inputs?.MAP?.shadow;
+    if (fromDefaults) return fromDefaults;
+    const map = blocks.find((block) => block.type === MAPS_CREATE_WITH);
+    if (map) return map;
+  }
+  return mapsCreateWithFromPlainRecord(parsed);
+}
+
+function mapsCreateWithFromPlainRecord(parsed: unknown): BlocklyBlockJson | null {
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+  const rec = parsed as Record<string, unknown>;
+  if ("type" in rec || "blocks" in rec) return null;
+  const entries = Object.entries(rec);
+  if (!entries.length) return null;
+  if (
+    !entries.every(([, value]) =>
+      value == null ||
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean"
+    )
+  ) {
+    return null;
+  }
+  const fields: Record<string, unknown> = {};
+  const inputs: NonNullable<BlocklyBlockJson["inputs"]> = {};
+  entries.forEach(([key, value], i) => {
+    fields[`KEY${i}`] = key;
+    inputs[`VAL${i}`] = { block: literalBlock(value) };
+  });
+  return {
+    type: MAPS_CREATE_WITH,
+    extraState: { itemCount: entries.length },
+    fields,
+    inputs,
+  };
+}
+
+function literalBlock(value: unknown): BlocklyBlockJson {
+  if (typeof value === "number") {
+    return { type: "math_number", fields: { NUM: value } };
+  }
+  if (typeof value === "boolean") {
+    return { type: "logic_boolean", fields: { BOOL: value ? "TRUE" : "FALSE" } };
+  }
+  return { type: "text", fields: { TEXT: String(value ?? "") } };
 }
 
 /**

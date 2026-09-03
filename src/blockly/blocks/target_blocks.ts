@@ -32,9 +32,13 @@ export function registerTargetBlocks(): void {
   defineValueBlock("json_boolean", "JSON boolean", JSON_COLOUR, "Generic JSON boolean");
   defineValueBlock("json_null", "JSON null", JSON_COLOUR, "Generic JSON null");
 
-  defineStructureBlock("xml_element", "XML element", XML_COLOUR, "Generic XML element");
+  defineStructureBlock("xml_element", "element", XML_COLOUR, "Generic XML element", {
+    editableName: true,
+    namePrefix: "XML",
+    defaultChildGroup: "children",
+  });
   defineValueBlock("xml_text", "XML text", XML_COLOUR, "Generic XML text node");
-  defineValueBlock("xml_attribute", "XML attribute", XML_COLOUR, "Generic XML attribute");
+  defineXmlAttribute();
 }
 
 export function isGenericValueBlockType(type: string): boolean {
@@ -46,18 +50,33 @@ function defineStructureBlock(
   defaultName: string,
   colour: string,
   tooltip: string,
-  options?: { withSchemaMutator?: boolean },
+  options?: {
+    withSchemaMutator?: boolean;
+    editableName?: boolean;
+    namePrefix?: string;
+    defaultChildGroup?: string;
+  },
 ): void {
   if (Blockly.Blocks[type]) return;
+  const defaultChildGroup = options?.defaultChildGroup;
   const blockDef: Record<string, unknown> = {
     init: function (this: Block) {
-      this.appendDummyInput("HEADER")
-        .appendField(new Blockly.FieldLabel(defaultName), "NAME")
-        .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
+      const header = this.appendDummyInput("HEADER");
+      if (options?.namePrefix) header.appendField(options.namePrefix);
+      if (options?.editableName) {
+        header.appendField(new Blockly.FieldTextInput(defaultName), "NAME");
+      } else {
+        header.appendField(new Blockly.FieldLabel(defaultName), "NAME");
+      }
+      header.appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
       this.getField("TARGET_TYPE")?.setVisible(false);
       this.appendDummyInput()
         .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
       this.getField("SLOT_ID")?.setVisible(false);
+      if (defaultChildGroup) {
+        this.appendStatementInput(targetChildInputName(defaultChildGroup))
+          .appendField(defaultChildGroup);
+      }
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
@@ -86,7 +105,14 @@ function defineStructureBlock(
       const childGroups = Array.isArray(raw)
         ? raw.filter((group): group is string => typeof group === "string" && group.length > 0)
         : [];
-      syncTargetChildInputs(this, childGroups);
+      const groups = defaultChildGroup && !childGroups.includes(defaultChildGroup)
+        ? [defaultChildGroup, ...childGroups]
+        : childGroups.length
+        ? childGroups
+        : defaultChildGroup
+        ? [defaultChildGroup]
+        : [];
+      syncTargetChildInputs(this, groups);
     };
   }
   Blockly.Blocks[type] = blockDef;
@@ -114,6 +140,29 @@ function defineValueBlock(
       this.setNextStatement(true);
       this.setColour(colour);
       this.setTooltip(tooltip);
+      this.setInputsInline(true);
+    },
+  };
+}
+
+function defineXmlAttribute(): void {
+  if (Blockly.Blocks.xml_attribute) return;
+  Blockly.Blocks.xml_attribute = {
+    init: function (this: Block) {
+      this.appendDummyInput("HEADER")
+        .appendField("XML attr")
+        .appendField(new Blockly.FieldTextInput("attr"), "NAME")
+        .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
+      this.getField("TARGET_TYPE")?.setVisible(false);
+      this.appendValueInput("VALUE").setCheck(null).appendField("value");
+      this.appendDummyInput()
+        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
+      this.getField("SLOT_ID")?.setVisible(false);
+      appendHiddenTargetMandatory(this);
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(XML_COLOUR);
+      this.setTooltip("XML attribute on the parent element");
       this.setInputsInline(true);
     },
   };

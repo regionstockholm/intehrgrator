@@ -3,6 +3,11 @@ import { dirname, fromFileUrl, join } from "@std/path";
 import { generate, generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
+import {
+  ensureGoTemplateWasm,
+  executeGoTemplate,
+  isGoTemplateWasmLoaded,
+} from "@intehrgrator/core/output/go_template_runtime.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
@@ -19,6 +24,26 @@ function modelWithSlots(slots: Array<{ slotId: string; expression: string; label
     });
   }
   return model;
+}
+
+function xmlNoteWithQuery(path: string) {
+  return {
+    type: "xml_element",
+    fields: { NAME: "Note" },
+    extraState: { childGroups: ["children"] },
+    inputs: {
+      TARGET_children: {
+        block: {
+          type: "xml_text",
+          inputs: {
+            VALUE: {
+              block: { type: "source_query", fields: { EXPRESSION: path } },
+            },
+          },
+        },
+      },
+    },
+  };
 }
 
 Deno.test("go-template codegen from slot expressions", () => {
@@ -38,30 +63,48 @@ Deno.test("go-template codegen adapter is registered", () => {
   assert(output.includes("Go text/template"), "should identify as Go template");
 });
 
-Deno.test("go-template codegen from Blockly state with xml_element", () => {
+Deno.test("go-template codegen from xml_element + xml_text + source_query", () => {
   const model = createEmptyModel("test");
-  const blocklyState = {
-    blocks: {
-      blocks: [
-        {
-          type: "xml_element",
-          fields: { TAG: "Note" },
-          inputs: {
-            TEXT: {
-              block: {
-                type: "source_query",
-                fields: { EXPRESSION: "path/to/value|value" },
-              },
-            },
-          },
-        },
-      ],
-    },
-  };
-  const output = generateGoTemplate(model, { blocklyState });
+  const output = generateGoTemplate(model, {
+    blocklyState: { blocks: { blocks: [xmlNoteWithQuery("path/to/value|value")] } },
+  });
   assert(output.includes("<Note>"), "should emit XML open tag");
   assert(output.includes("</Note>"), "should emit XML close tag");
   assert(output.includes('index .Data "path/to/value|value"'), "should emit index .Data for source query");
+});
+
+Deno.test("go-template codegen nests text_code Go snippets inside xml_text", () => {
+  const model = createEmptyModel("test");
+  const output = generateGoTemplate(model, {
+    blocklyState: {
+      blocks: {
+        blocks: [
+          {
+            type: "xml_element",
+            fields: { NAME: "Note" },
+            extraState: { childGroups: ["children"] },
+            inputs: {
+              TARGET_children: {
+                block: {
+                  type: "xml_text",
+                  inputs: {
+                    VALUE: {
+                      block: {
+                        type: "text_code",
+                        fields: { LANG: "go-template", TEXT: '{{ index .Data "raw" }}' },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  });
+  assert(output.includes('<Note>'), "xml wrapper");
+  assert(output.includes('{{ index .Data "raw" }}'), "raw Go text block emitted as-is");
 });
 
 Deno.test("go-template codegen from Blockly state with controls_if", () => {
@@ -86,9 +129,17 @@ Deno.test("go-template codegen from Blockly state with controls_if", () => {
             DO0: {
               block: {
                 type: "xml_element",
-                fields: { TAG: "TextKeyWord" },
+                fields: { NAME: "TextKeyWord" },
+                extraState: { childGroups: ["children"] },
                 inputs: {
-                  TEXT: { block: { type: "text", fields: { TEXT: "Symptom present" } } },
+                  TARGET_children: {
+                    block: {
+                      type: "xml_text",
+                      inputs: {
+                        VALUE: { block: { type: "text", fields: { TEXT: "Symptom present" } } },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -147,16 +198,6 @@ Deno.test("Handlebars Output mode with slot references in authored template", ()
   assert(String(result.output).includes("Ada"), "slot value should be resolved");
 });
 
-Deno.test("Go template Output mode returns error when WASM is not loaded", () => {
-  const model = createEmptyModel("test");
-  const result = runTest(model, '{"x": 1}', "json", {
-    outputMode: "go-template",
-    generatedCode: '{{ index .Data "x" }}',
-  });
-  assertEquals(result.ok, false);
-  assert(String(result.error).includes("WASM"), "should mention WASM");
-});
-
 Deno.test("Go template Output mode with empty code returns error", () => {
   const model = createEmptyModel("test");
   const result = runTest(model, '{"x": 1}', "json", {
@@ -166,7 +207,7 @@ Deno.test("Go template Output mode with empty code returns error", () => {
   assert(String(result.output).includes("No Go template code"), "should explain missing code");
 });
 
-Deno.test("chemo symptoms Blockly loads in headless workspace", () => {
+Deno.test("chemo symptoms Blockly loads on existing xml_* blocks", () => {
   initBlocklyGenerators();
   const text = Deno.readTextFileSync(
     join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
@@ -176,9 +217,14 @@ Deno.test("chemo symptoms Blockly loads in headless workspace", () => {
   try {
     Blockly.serialization.workspaces.load(state, ws);
     const types = new Set(ws.getAllBlocks(false).map((b) => b.type));
-    assert(types.has("go_xml_element"), "should contain go_xml_element blocks");
-    assert(types.has("go_xml_comment"), "should contain go_xml_comment blocks");
+    assert(types.has("xml_element"), "xml_element");
+    assert(types.has("xml_text"), "xml_text");
+    assert(types.has("xml_attribute"), "xml_attribute");
     assert(types.has("controls_if"), "should contain conditional blocks");
+    assertEquals(types.has("go_xml_element"), false);
+    assertEquals(types.has("go_xml_comment"), false);
+    assertEquals(Blockly.Blocks["go_xml_element"], undefined);
+    assertEquals(Blockly.Blocks["go_xml_comment"], undefined);
     assert(ws.getAllBlocks(false).length >= 40, "should load the full example tree");
   } finally {
     ws.dispose();
@@ -192,11 +238,63 @@ Deno.test("chemo symptoms Blockly generates TakeCare XML Go template", () => {
   const blocklyState = JSON.parse(text);
   const model = createEmptyModel("chemo-symptoms");
   const output = generateGoTemplate(model, { blocklyState });
-  assert(output.includes("<ProfdocHISMessage MsgType=\"Request\">"), "root message with attribute");
+  assert(output.includes("<ProfdocHISMessage"), "root message");
+  assert(output.includes('MsgType="Request"'), "root attribute from xml_attribute");
   assert(output.includes(".Parameters.Time"), "header defaults from Parameters");
+  assert(output.includes(".Parameters.PatientId"), "PatId reads PatientId default");
   assert(output.includes("<TextKeyWord>"), "symptom keyword elements");
   assert(output.includes('index .Data "patientrapporterade_symptom'), "FLAT source paths");
   assert(output.includes("2811"), "fatigue TermId");
   assert(output.includes("13700"), "document UID TermId");
   assert(output.includes("if ne"), "conditional symptom sections");
+});
+
+Deno.test("Go template WASM executes index/Parameters and the chemo mapping", async () => {
+  await ensureGoTemplateWasm();
+  assertEquals(isGoTemplateWasmLoaded(), true);
+  assertEquals(
+    executeGoTemplate("{{ index .Data \"x\" }}|{{ .Parameters.Time }}", {
+      Parameters: { Time: "t1" },
+      Data: { x: "hi" },
+    }),
+    "hi|t1",
+  );
+
+  const blocklyState = JSON.parse(
+    Deno.readTextFileSync(
+      join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+    ),
+  );
+  const defaults = JSON.parse(
+    Deno.readTextFileSync(
+      join(root, "examples/patient-reported-chemotherapy-symptoms/defaults.map.json"),
+    ),
+  ) as Record<string, unknown>;
+  const source = Deno.readTextFileSync(
+    join(root, "examples/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+  );
+  const result = runTest(createEmptyModel("chemo-symptoms"), source, "json", {
+    outputMode: "go-template",
+    blocklyState,
+    defaults,
+  });
+  assertEquals(result.ok, true, String(result.error ?? result.output));
+  const xml = String(result.output);
+  assert(xml.includes("<ProfdocHISMessage"), "renders TakeCare root");
+  assert(xml.includes("<PatId>"), "PatId element");
+  assert(xml.includes("194002287086"), "Parameters.PatientId");
+  assert(xml.includes("<TermId>13700</TermId>") || xml.includes("13700"), "always-present UID keyword");
+});
+
+Deno.test("Go template Test Run uses instance Parameters when no defaults overlay", async () => {
+  await ensureGoTemplateWasm();
+  const source = Deno.readTextFileSync(
+    join(root, "examples/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+  );
+  const result = runTest(createEmptyModel("chemo-symptoms"), source, "json", {
+    outputMode: "go-template",
+    generatedCode: "{{ .Parameters.PatientId }}",
+  });
+  assertEquals(result.ok, true, String(result.error ?? result.output));
+  assertEquals(String(result.output).trim(), "194002287086");
 });

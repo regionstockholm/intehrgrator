@@ -92,7 +92,8 @@ Deno.test("Text toolbox lists CodeMirror text and Handlebars blocks after stock 
   const types = (text?.contents ?? []).map((block) => block.type);
   assertEquals(types[0], "text");
   assertEquals(types[1], "text_code");
-  assertEquals(types[2], "text_handlebars");
+  assertEquals(types[2], "text_code");
+  assertEquals(types[3], "text_handlebars");
 });
 
 Deno.test("source_query_node outputs Source and serializes to xpathNode", () => {
@@ -167,6 +168,7 @@ Deno.test("FieldCodeMirror defaults to 3 rows by 40 columns and round-trips text
 Deno.test("CodeMirror language dropdown includes Handlebars and installed highlighters", () => {
   const ids = EDITOR_LANGUAGE_OPTIONS.map(([, id]) => id);
   assertEquals(ids.includes("handlebars"), true);
+  assertEquals(ids.includes("go-template"), true);
   assertEquals(ids.includes("json"), true);
   assertEquals(ids.includes("xml"), true);
   assertEquals(ids.includes("html"), true);

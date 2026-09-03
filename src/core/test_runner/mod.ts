@@ -28,7 +28,8 @@ import {
   type TargetDefinition,
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
-import { executeGoTemplate } from "../output/go_template_runtime.ts";
+import { executeGoTemplate, isGoTemplateWasmLoaded } from "../output/go_template_runtime.ts";
+import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
 import { validateConvertedOutput } from "../output/template_validation.ts";
 
@@ -70,13 +71,14 @@ export function runTest(
   try {
     const handler = getSourceFormatHandler(format);
     const ctx = handler.createContext(exampleContent);
-    ctx.namedMaps = namedMapsFromBlocklyState(options.blocklyState);
-    if (options.defaults) {
-      ctx.namedMaps[DEFAULTS_MAP_NAME] = {
-        ...(ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {}),
-        ...options.defaults,
-      };
-    }
+    const fromContext = ctx.namedMaps ?? {};
+    const fromBlockly = namedMapsFromBlocklyState(options.blocklyState);
+    ctx.namedMaps = { ...fromContext, ...fromBlockly };
+    ctx.namedMaps[DEFAULTS_MAP_NAME] = {
+      ...(fromContext[DEFAULTS_MAP_NAME] ?? {}),
+      ...(fromBlockly[DEFAULTS_MAP_NAME] ?? {}),
+      ...(options.defaults ?? {}),
+    };
     const defaults = ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {};
 
     if (mode === "typescript") {
@@ -127,12 +129,22 @@ export function runTest(
     }
 
     if (mode === "go-template") {
-      const code = options.generatedCode ?? "";
-      if (!code.trim()) {
+      const code = options.generatedCode?.trim()
+        ? options.generatedCode
+        : generateGoTemplate(model, { blocklyState: options.blocklyState });
+      if (!code.trim() || code.split("\n").every((line) => line.startsWith("{{- /*") || !line.trim())) {
         return {
           ok: false,
-          output: "// No Go template code generated. Add blocks to the Blockly canvas.\n",
+          output: "// No Go template code generated. Add XML blocks to the Blockly canvas.\n",
           error: "No Go template code generated.",
+          warnings,
+        };
+      }
+      if (!isGoTemplateWasmLoaded()) {
+        return {
+          ok: false,
+          output: `// Go template WASM runtime is not loaded.\n// Generated script:\n${code}`,
+          error: "Go template WASM runtime is not loaded.",
           warnings,
         };
       }

@@ -251,7 +251,8 @@ exportTargetSelect.addEventListener("change", () => {
     | "typescript"
     | "java"
     | "handlebars"
-    | "xquery";
+    | "xquery"
+    | "go-template";
   controller.setExportTarget(target);
   if (target === "handlebars") showTextView("handlebars");
 });

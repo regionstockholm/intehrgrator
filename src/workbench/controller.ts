@@ -447,8 +447,8 @@ export class WorkbenchController {
   async loadExampleSet(set: ExampleSet): Promise<void> {
     this.resetWorkspaceState();
     try {
-      await this.openTemplateFromUrl(set.target);
-      await this.loadSchemaFromUrl(set.source.schema);
+      if (set.target) await this.openTemplateFromUrl(set.target);
+      if (set.source.schema) await this.loadSchemaFromUrl(set.source.schema);
       for (const instanceUrl of set.source.instances) {
         await this.addExampleFromUrl(instanceUrl);
       }

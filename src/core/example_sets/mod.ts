@@ -19,7 +19,7 @@ export const EHRTSLIB_EXAMPLE_SETS_CATALOG_URL =
   "https://raw.githubusercontent.com/ErikSundvall/ehrtslib/main/examples/intehrgrator-example-sets.json";
 
 export interface ExampleSetSource {
-  schema: string;
+  schema?: string;
   instances: string[];
 }
 
@@ -28,7 +28,7 @@ export interface ExampleSet {
   title: string;
   description?: string;
   source: ExampleSetSource;
-  target: string;
+  target?: string;
   /** Optional Blockly workspace JSON URI. */
   mapping?: string;
   /** Optional Defaults Map (`maps_create_with` Blockly JSON) URI. */
@@ -89,10 +89,12 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
     throw new Error(`${prefix}.source must be an object`);
   }
   const sourceRaw = raw.source as Record<string, unknown>;
-  const schema = resolveCatalogUri(
-    requiredString(sourceRaw.schema, `${prefix}.source.schema`),
-    catalogUrl,
-  );
+  const schema = sourceRaw.schema
+    ? resolveCatalogUri(
+      requiredString(sourceRaw.schema, `${prefix}.source.schema`),
+      catalogUrl,
+    )
+    : undefined;
   if (!Array.isArray(sourceRaw.instances)) {
     throw new Error(`${prefix}.source.instances must be an array of URIs`);
   }
@@ -102,7 +104,9 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
       catalogUrl,
     )
   );
-  const target = resolveCatalogUri(requiredString(raw.target, `${prefix}.target`), catalogUrl);
+  const target = raw.target
+    ? resolveCatalogUri(requiredString(raw.target, `${prefix}.target`), catalogUrl)
+    : undefined;
   const mapping = raw.mapping === undefined
     ? undefined
     : resolveCatalogUri(requiredString(raw.mapping, `${prefix}.mapping`), catalogUrl);

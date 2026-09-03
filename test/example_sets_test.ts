@@ -60,7 +60,7 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
 Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL", async () => {
   const text = await readExample("example-sets.json");
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 3);
+  assertEquals(catalog.sets.length, 4);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);

@@ -1,7 +1,7 @@
 export const MODEL_VERSION = 2;
 
 /** Conversion script language. Deliberately separate from Target instance format. */
-export type ConversionScriptLanguage = "typescript" | "java" | "handlebars" | "xquery";
+export type ConversionScriptLanguage = "typescript" | "java" | "handlebars" | "xquery" | "go-template";
 
 /** @deprecated alias — prefer ConversionScriptLanguage. */
 export type ExportTarget = ConversionScriptLanguage;
@@ -11,6 +11,7 @@ export const CONVERSION_SCRIPT_LANGUAGES: readonly ConversionScriptLanguage[] = 
   "java",
   "handlebars",
   "xquery",
+  "go-template",
 ];
 
 /** Target & Previews header select. Mapping preview is not a script dialect. */
@@ -31,6 +32,7 @@ export function conversionScriptLanguageLabel(
   if (language === "typescript") return "TypeScript";
   if (language === "java") return "Java";
   if (language === "handlebars") return "Handlebars";
+  if (language === "go-template") return "Go Template";
   return "XQuery";
 }
 

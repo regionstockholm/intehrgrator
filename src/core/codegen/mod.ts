@@ -2,6 +2,7 @@ import type { ExportTarget, MappingModel, SkeletonNode } from "../../types/mod.t
 import { parseExpression, serialize } from "../expression/mod.ts";
 import { precompileHandlebars } from "../output/handlebars_dialect.ts";
 import { generateXQuery } from "./xquery.ts";
+import { generateGoTemplate } from "./go_template.ts";
 import {
   generateTypeScriptFromSkeleton,
   generateTypeScriptFromSlots,
@@ -13,6 +14,7 @@ export {
   generateXQuery,
   jsonDollarPathToLookup,
 } from "./xquery.ts";
+export { generateGoTemplate } from "./go_template.ts";
 export {
   emitTsExpression,
   generateTypeScriptFromSkeleton,
@@ -108,6 +110,12 @@ const adapters = new Map<ExportTarget, ExportTargetAdapter>([
     extension: "xq",
     mime: "application/xquery",
     generate: generateXQuery,
+  }],
+  ["go-template", {
+    id: "go-template",
+    extension: "tmpl",
+    mime: "text/x-go-template",
+    generate: generateGoTemplate,
   }],
 ]);
 

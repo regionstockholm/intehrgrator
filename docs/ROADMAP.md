@@ -58,8 +58,8 @@
 - [x] Target instance formats beyond openEHR: JSON Schema, XML Schema, free-form
 - [x] Optional Better Form Bridge + `deno task setup:better-forms`
 - [ ] Full Better form-viewer ScriptApi / formTestApi parity and Cypress generator port
-- [ ] Harden **Mapping preview** Handlebars Template Test Run (helpers, nested `#with`/`#each`, FLAT paths, slot interop) — current path is shaky
-- [ ] Execute Authored Handlebars Template in Conversion Test Run(s) (today: generate only; Mapping preview still runs the authored Handlebars Template) — Chunk 7 extends [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
+- [ ] Harden **Mapping preview** Handlebars Template Test Run (helpers, nested `#with`/`#each`, FLAT paths, slot interop) — **Chunk 7.1** (7.6 carry-over); fixture-first parity with Conversion Test Run
+- [x] Execute Authored Handlebars Template in Conversion Test Run(s) when Output mode is Handlebars — Chunk 7.5; Mapping preview path unchanged
 - [ ] Blockly→Handlebars codegen (deferred — harden Authored Template path first)
 - [ ] Reverse-engineered Handlebars Blockly example set + non-Blockly test harness support for Handlebars example files and expected output (future, after Go template example set)
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md), [ADR 0001](adr/0001-mapping-and-target-seams.md), and [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
@@ -72,7 +72,7 @@
 - [x] Execute envelope `{ Parameters: defaults, Data: source }` — Defaults Map provides the Parameters bag
 - [x] Example Set: `examples/patient-reported-chemotherapy-symptoms/` — reverse-engineered Blockly mapping using `xml_element`/`xml_text`/`xml_attribute` (plus `text_code` LANG=go-template when a raw snippet is needed) for ProfdocHISMessage XML + reference hand-authored PROD Go template script
 - [ ] FLAT as source is less than ideal (STRUCTURED would be one notch up) but must be supported for existing pipeline use cases; ehrtslib can convert other openEHR formats to FLAT
-- See [ADR 0004](adr/0004-go-template-codegen-only.md) (pending adoption)
+- See [ADR 0004](adr/0004-go-template-codegen-only.md)
 
 
 ## H. Schema specific dynamic blockly toolboxes

@@ -18,8 +18,10 @@ import {
   sheetLookup,
   sheetToCsv,
   sheetsToBag,
+  applySheetMutator,
+  evalSheetCall,
 } from "@intehrgrator/core/sheets/mod.ts";
-import { applySheetMutator, evalSheetCall } from "@intehrgrator/core/sheets/evaluate.ts";
+import { fireSheetChange } from "@intehrgrator/workbench/sheet_undo.ts";
 import { exportBundle, importBundle, BUNDLE_VERSION } from "@intehrgrator/core/persistence/mod.ts";
 import { DEFAULT_SETTINGS, type ProjectBundle } from "@intehrgrator/types/mod.ts";
 
@@ -190,5 +192,19 @@ Deno.test("applySheetMutator writes into the convert-time bag", () => {
   const bag = sheetsToBag([terms]);
   applySheetMutator("sheet_set_cell", ["icd10_snomed", "A1", "I11"], bag);
   assertEquals(getCellA1(bag.icd10_snomed!, "A1"), "I11");
+});
+
+Deno.test("SheetChangeEvent is on the Blockly undo stack and restores JSON", () => {
+  const workspace = new Blockly.Workspace();
+  let current = [emptySheet("before")];
+  fireSheetChange(workspace, [emptySheet("before")], [emptySheet("after")], (sheets) => {
+    current = sheets;
+  });
+  assertEquals((workspace.getUndoStack?.()?.length ?? 0) > 0, true);
+  workspace.undo(false);
+  assertEquals(current[0]?.name, "before");
+  workspace.undo(true);
+  assertEquals(current[0]?.name, "after");
+  workspace.dispose();
 });
 

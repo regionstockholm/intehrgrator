@@ -178,10 +178,14 @@ export function mountSheetsPanel(
           tableOverflow: true,
           tableWidth: "100%",
           tableHeight: "100%",
+          csvFileName: sheet.name,
           columnSorting: false,
           parseFormulas: false,
         }],
         onafterchanges: () => {
+          commitFromWidget();
+        },
+        onchange: () => {
           commitFromWidget();
         },
         oninsertrow: () => commitFromWidget(),
@@ -352,19 +356,24 @@ export function mountSheetsPanel(
 
   const onKey = (ev: KeyboardEvent): void => {
     if (ev.key === "Escape" && fullscreen) {
+      ev.preventDefault();
       setFullscreen(false);
       return;
     }
-    const inSheet = root.contains(ev.target as Node);
-    if (!inSheet) return;
     const key = ev.key.toLowerCase();
-    if ((ev.ctrlKey || ev.metaKey) && key === "z") {
-      ev.preventDefault();
-      const ws = options.getWorkspace();
-      ws.undo(ev.shiftKey);
-    }
+    const undo = (ev.ctrlKey || ev.metaKey) && key === "z" && !ev.shiftKey;
+    const redo = (ev.ctrlKey || ev.metaKey) && (key === "y" || (key === "z" && ev.shiftKey));
+    if (!undo && !redo) return;
+    const target = ev.target as Node | null;
+    const inSheet = !!(target && (root.contains(target) ||
+      (target instanceof Element && target.closest(".jss, .jss_worksheet, .jss_container"))));
+    if (!inSheet && !fullscreen) return;
+    ev.preventDefault();
+    ev.stopImmediatePropagation();
+    commitFromWidget();
+    options.getWorkspace().undo(redo);
   };
-  document.addEventListener("keydown", onKey);
+  document.addEventListener("keydown", onKey, true);
 
   refresh();
 
@@ -379,7 +388,7 @@ export function mountSheetsPanel(
     setFullscreen,
     destroy: () => {
       destroyed = true;
-      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("keydown", onKey, true);
       setFullscreen(false);
       destroyGrid();
       root.innerHTML = "";

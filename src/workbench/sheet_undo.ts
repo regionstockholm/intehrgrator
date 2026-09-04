@@ -49,5 +49,7 @@ export function fireSheetChange(
 ): void {
   const event = new SheetChangeEvent(workspace, before, after, restore);
   if (event.isNull()) return;
-  Blockly.Events.fire(event as AbstractEvent);
+  // Apply immediately (Blockly.Events.fire is rAF-queued; Ctrl+Z in the grid
+  // must see this step on the Mapping Editors stack).
+  workspace.fireChangeListener(event as AbstractEvent);
 }

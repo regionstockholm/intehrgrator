@@ -22,3 +22,22 @@ Deno.test("toolbox contains a search category above the minimap covering custom 
     assert(types.includes(type), `toolbox-search index should include ${type}`);
   }
 });
+
+Deno.test("Lists and Maps share one toolbox drawer; Sheets stays separate", () => {
+  const toolbox = buildDemoToolbox("en") as {
+    contents: Array<{ name?: string; contents?: Array<{ type?: string }> }>;
+  };
+  const names = toolbox.contents.map((c) => c.name);
+  assertEquals(names.filter((n) => n === msg("en").CAT_LISTS_AND_MAPS).length, 1);
+  assertEquals(names.includes("Lists"), false);
+  assertEquals(names.includes("Maps"), false);
+  const joint = toolbox.contents.find((c) => c.name === msg("en").CAT_LISTS_AND_MAPS);
+  const types = (joint?.contents ?? []).map((block) => block.type);
+  assert(types.includes("lists_create_with"), "joint drawer includes list blocks");
+  assert(types.includes("maps_get"), "joint drawer includes map blocks");
+  assert(types.includes("maps_create_with"), "joint drawer includes maps_create_with");
+  const sheets = toolbox.contents.find((c) => c.name === msg("en").CAT_SHEETS);
+  assert(sheets, "Sheets remains its own drawer");
+  const sheetTypes = (sheets?.contents ?? []).map((block) => block.type);
+  assert(sheetTypes.includes("sheet"), "Sheets drawer still has sheet blocks");
+});

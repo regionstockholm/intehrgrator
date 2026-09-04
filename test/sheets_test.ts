@@ -168,7 +168,7 @@ Deno.test("project bundle round-trips sheets JSON", () => {
   const bundle: ProjectBundle = {
     version: BUNDLE_VERSION,
     projectId: "p1",
-    appVersion: "0.4.0",
+    appVersion: "0.5.0",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     template: null,

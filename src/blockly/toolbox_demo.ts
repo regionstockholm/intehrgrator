@@ -429,9 +429,9 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       },
       {
         kind: "category",
-        name: m.CAT_LISTS,
+        name: m.CAT_LISTS_AND_MAPS,
         colour: 172,
-        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryLists" },
+        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryListsMaps" },
         contents: [
           { kind: "block", type: "lists_create_with", extraState: { itemCount: 0 } },
           { kind: "block", type: "lists_create_with", extraState: { itemCount: 3 } },
@@ -457,14 +457,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
           },
           { kind: "block", type: "lists_sort" },
           { kind: "block", type: "lists_reverse" },
-        ],
-      },
-      {
-        kind: "category",
-        name: m.CAT_MAPS,
-        colour: 260,
-        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryMaps" },
-        contents: [
           { kind: "block", type: "maps_create_with", extraState: { itemCount: 0 } },
           mapsCreateWithToolboxBlock(3),
           { kind: "block", type: "maps_create_empty" },

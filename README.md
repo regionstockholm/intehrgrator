@@ -5,11 +5,13 @@ Visual integration workbench for mapping source data (JSON/XML) to openEHR Compo
 ## Webapp for users
 Go to https://regionstockholm.github.io/intehrgrator/ click (i) - encircled i - at various places in the interface to learn about use.
 
-## Desktop app (0.3)
+## Desktop app (0.5)
 
 Download a platform build from [Releases](https://github.com/regionstockholm/intehrgrator/releases) and run it locally — no Deno install, no GitHub Pages. The same workbench opens in a native window (OS webview) and talks only to `127.0.0.1`.
 
-**New in 0.3:** localhost **Agent API** and stdio **MCP** server for IDE/AI agents, plus an installable mapping skill. See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) and [.cursor/skills/intehrgrator-mapping/SKILL.md](.cursor/skills/intehrgrator-mapping/SKILL.md).
+**New in 0.5:** **Sheets** in Mapping Editors (jspreadsheet-ce widget, CSV import/export, `sheet_*` Blockly accessors, convert-time `ctx.sheets` bag). Lists and Maps share one toolbox drawer (**Lists & maps**); `maps_*` stay for Defaults Map and nested Blockly values. See [docs/ROADMAP.md](docs/ROADMAP.md) §C and [tasks/DESIGN-sheets-vs-maps.md](tasks/DESIGN-sheets-vs-maps.md).
+
+**From 0.3:** localhost **Agent API** and stdio **MCP** server for IDE/AI agents, plus an installable mapping skill. See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) and [.cursor/skills/intehrgrator-mapping/SKILL.md](.cursor/skills/intehrgrator-mapping/SKILL.md).
 
 | Asset | Platform |
 | --- | --- |

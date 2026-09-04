@@ -25,6 +25,7 @@
 - [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
 - [x] **Chunk 8 — spreadsheet/matrix first:** embed a real sheet widget (Excel/Sheets paste, named column headers, optional row names, typed columns). Persist a project-owned 2D sheet model. Library comparison: [spreadsheet-matrix-libraries.md](future/spreadsheet-matrix-libraries.md). **Then** add Blockly accessor/mutator blocks whose names follow that library’s get/set/insert/delete/header API (cell A1 or x,y; row; column; header; bulk data; lookup-by-content). Maps stay 1D key→value (`maps_get`); sheets are the 2D structure for terminology grids (e.g. later: code + rubric → `DV_CODED_TEXT`).
 - [x] Digest CSV / Excel / Google Sheets **into that sheet** (clipboard paste + file), not into `maps_create_with`.
+- [x] **Keep `maps_*`** for Defaults Map + nested Blockly values (Chunk 8 Q9 step 2, option A). Join Lists + Maps toolbox drawers into **Lists & maps**. Sheets stay a separate drawer. See [`tasks/DESIGN-sheets-vs-maps.md`](../tasks/DESIGN-sheets-vs-maps.md).
 - [ ] FHIR ConceptMap / ValueSet → sheet/map import — **deferred** (after the sheet widget + Blockly accessors exist)
 
 

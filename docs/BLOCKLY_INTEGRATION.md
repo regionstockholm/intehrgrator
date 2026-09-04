@@ -62,10 +62,10 @@ cogwheel mutator (`optional_rm_mutator` / `dv_fields_mutator`), not a custom `+`
 ### 4. Control Flow & Utility Blocks
 
 Toolbox layout and stock categories follow the Blockly DevSite landing demo
-(Logic, Loops, Math, Text, Lists, Variables, Functions) plus intEHRgrator
-categories **Source** and **Data values**, with `@blockly/toolbox-search`
+(Logic, Loops, Math, Text, Lists & maps, Variables, Functions) plus intEHRgrator
+categories **Source**, **Data values**, and **Sheets**, with `@blockly/toolbox-search`
 (`kind: "search"`) at the top so Search covers every `kind: "block"` drawer
-including custom Source, openEHR types, and Maps. See [Attribution](#attribution).
+including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and Sheets. See [Attribution](#attribution).
 
 - **Stock Blockly:** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
   `math_arithmetic`, `text_join`, `text_trim`, `logic_ternary`, variables, procedures, …

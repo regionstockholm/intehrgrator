@@ -29,11 +29,11 @@ import {
 } from "../rm_type_emoji.ts";
 import { FieldSkeletonTitle, humanizeRmType, isSkeletonTitleField } from "../field_skeleton_title.ts";
 import {
-  appendSlotCardinality,
   parseSlotCardinality,
   rmAttributeCardinality,
   type SlotCardinality,
 } from "../slot_cardinality.ts";
+import { appendSlotLabel } from "../slot_label.ts";
 import { registerTermPickBlock } from "./term_pick.ts";
 import {
   appendMutatorCogwheel,
@@ -243,16 +243,22 @@ export function ensureRmBlockType(blockType: string, rmType: string): void {
   ensureRmContainerBlock(rmType);
 }
 
+/** Structural mouths always shown: BMM-mandatory plus silent UI-mandatory (e.g. HISTORY.events). */
+function alwaysVisibleMouthAttrs(rmType: string): string[] {
+  const silent = new Set(mandatoryAttributesFor(rmType));
+  return attributesFor(rmType)
+    .filter((attr) => !isPrimitiveRmType(baseRmTypeName(attr.typeName)))
+    .filter((attr) => attr.mandatory || silent.has(attr.name))
+    .map((attr) => attr.name);
+}
+
 function ensureRmContainerBlock(rmType: string): string {
   const type = blockTypeForRm(rmType);
   if (Blockly.Blocks[type]) {
     RM_CONTAINER_TYPES.add(type);
     return type;
   }
-  const inputs = attributesFor(rmType)
-    .filter((attr) => !isPrimitiveRmType(baseRmTypeName(attr.typeName)))
-    .filter((attr) => attr.mandatory)
-    .map((attr) => ({ name: attr.name }));
+  const inputs = alwaysVisibleMouthAttrs(rmType).map((name) => ({ name }));
   defineContainerBlock(type, inputs, STRUCTURE_COLOUR, {
     expandable: true,
     rmType,
@@ -308,14 +314,12 @@ function definePartyRefBlock(): void {
       appendBlockOutputEmoji(header, "PARTY_REF");
       header.appendField(new FieldSkeletonTitle("PARTY_REF"), "NAME");
       for (const attr of ["id", "namespace", "type"] as const) {
-        const input = this.appendValueInput(rmAttributeInputName(attr))
-          .appendField(attr);
+        const input = this.appendValueInput(rmAttributeInputName(attr));
         input.setCheck("String");
-        appendSlotCardinality(
-          input,
-          rmAttributeCardinality("PARTY_REF", attr) ?? { min: 1, max: 1 },
-        );
-        appendSlotTypeEmoji(input, "String");
+        appendSlotLabel(input, attr, {
+          card: rmAttributeCardinality("PARTY_REF", attr) ?? { min: 1, max: 1 },
+          rmType: "String",
+        });
       }
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable("PARTY_REF"), "RM_TYPE");
@@ -342,8 +346,13 @@ export function orderedRmAttributes(rmType: string, present: string[]): string[]
   const seen = new Set<string>();
   const ordered: string[] = [];
   const meta = attributesFor(rmType);
-  const mandatoryNames = meta.filter((a) => a.mandatory).map((a) => a.name);
-  const optionalNames = meta.filter((a) => !a.mandatory).map((a) => a.name);
+  const silent = new Set(mandatoryAttributesFor(rmType));
+  const mandatoryNames = meta
+    .filter((a) => a.mandatory || silent.has(a.name))
+    .map((a) => a.name);
+  const optionalNames = meta
+    .filter((a) => !a.mandatory && !silent.has(a.name))
+    .map((a) => a.name);
   const preferred = [...mandatoryNames, ...optionalNames];
   const fallback = preferred.length ? preferred : mandatoryAttributesFor(rmType);
 
@@ -582,39 +591,31 @@ function appendRmAttributeInput(
   const card = cardinality ?? slotCardinalityFor(block, rmType, attr);
 
   if (slotType === "PARTY_REF" || typeName === "PARTY_REF") {
-    const input = block.appendValueInput(rmAttributeInputName(attr))
-      .appendField(attr);
+    const input = block.appendValueInput(rmAttributeInputName(attr));
     input.setCheck(checkOverride ?? "party_ref");
-    appendSlotCardinality(input, card);
-    appendSlotTypeEmoji(input, "PARTY_REF");
+    appendSlotLabel(input, attr, { card, rmType: "PARTY_REF" });
     return;
   }
 
   if (listElement && isDataValueType(listElement)) {
-    const input = block.appendValueInput(rmAttributeInputName(attr))
-      .appendField(attr);
+    const input = block.appendValueInput(rmAttributeInputName(attr));
     const dvCheck = blocklyCheckForDv(listElement);
     input.setCheck(checkOverride ?? (dvCheck ? [dvCheck, "lists_create_with"] : "lists_create_with"));
-    appendSlotCardinality(input, card);
-    appendSlotTypeEmoji(input, listElement);
+    appendSlotLabel(input, attr, { card, rmType: listElement });
     return;
   }
 
   if (isRmValueAttribute(rmType, attr) || isPartyProxyType(slotType)) {
-    const input = block.appendValueInput(rmAttributeInputName(attr))
-      .appendField(attr);
+    const input = block.appendValueInput(rmAttributeInputName(attr));
     const check = checkOverride ?? puzzleCheckForAttr(rmType, attr, slotType);
     if (check) input.setCheck(check);
-    appendSlotCardinality(input, card);
-    appendSlotTypeEmoji(input, slotType);
+    appendSlotLabel(input, attr, { card, rmType: slotType });
     return;
   }
-  const stmt = block.appendStatementInput(rmAttributeInputName(attr))
-    .appendField(attr);
+  const stmt = block.appendStatementInput(rmAttributeInputName(attr));
   const check = checkOverride ?? statementCheckForAttr(rmType, attr);
   if (check) stmt.setCheck(check);
-  appendSlotCardinality(stmt, card);
-  appendSlotTypeEmoji(stmt, slotType);
+  appendSlotLabel(stmt, attr, { card, rmType: slotType });
 }
 
 function puzzleCheckForAttr(
@@ -670,8 +671,7 @@ export function configureElementValueSlot(block: Blockly.Block, rmType: string):
   if (!input) return;
   const check = blocklyCheckForDv(rmType);
   input.setCheck(check);
-  appendSlotCardinality(input, { min: 1, max: 1 });
-  appendSlotTypeEmoji(input, rmType);
+  appendSlotLabel(input, "value", { card: { min: 1, max: 1 }, rmType });
 }
 
 /** Create (or return) the DATA_VALUE shell on an ELEMENT value input. */
@@ -993,11 +993,11 @@ function defineValueElementBlock(): void {
       appendBlockOutputEmoji(header, "ELEMENT");
       header.appendField(new FieldSkeletonTitle("ELEMENT"), "NAME");
       appendMutatorCogwheel(header);
-      const value = this.appendValueInput("VALUE")
-        .setCheck(null)
-        .appendField("value");
-      appendSlotCardinality(value, { min: 1, max: 1 });
-      appendSlotTypeEmoji(value, slotRmTypeForAttr("ELEMENT", "value"));
+      const value = this.appendValueInput("VALUE").setCheck(null);
+      appendSlotLabel(value, "value", {
+        card: { min: 1, max: 1 },
+        rmType: slotRmTypeForAttr("ELEMENT", "value"),
+      });
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable("ELEMENT"), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -1236,7 +1236,7 @@ function optionalRmMutatorChoices(block: Blockly.Block): Array<[string, string]>
     presentAttributes: locked,
     templateConstrained: locked,
   })) {
-    labels.set(opt.attributeName, `${opt.label} (${opt.attributeName})`);
+    labels.set(opt.attributeName, opt.label);
   }
   for (const name of block.extraInputs_ ?? []) {
     if (!labels.has(name)) labels.set(name, name);
@@ -1301,17 +1301,15 @@ function defineMutatorItemBlock(type: string, colour: string): void {
   if (Blockly.Blocks[type]) return;
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField(
-        new Blockly.FieldLabelSerializable(""),
-        "LABEL",
-      );
+      // Single row: a second dummy input for hidden ATTR doubled block height (~59px).
       this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(""), "ATTR");
-      this.getField("ATTR")!.setVisible(false);
+        .appendField(new Blockly.FieldLabelSerializable(""), "LABEL")
+        .appendField(zeroSizeSerializableField(""), "ATTR");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
       this.contextMenu = false;
+      this.setInputsInline(true);
     },
     loadExtraState: function (
       this: Blockly.Block,
@@ -1329,6 +1327,21 @@ function defineMutatorItemBlock(type: string, colour: string): void {
       };
     },
   };
+}
+
+/** Serializable ATTR that does not contribute to block layout size. */
+function zeroSizeSerializableField(value: string) {
+  const field = new Blockly.FieldLabelSerializable(value);
+  field.EDITABLE = false;
+  field.SERIALIZABLE = true;
+  field.initView = () => {};
+  const sized = field as unknown as { size_?: { width: number; height: number }; getSize?: () => { width: number; height: number } };
+  if (sized.size_) {
+    sized.size_.width = 0;
+    sized.size_.height = 0;
+  }
+  sized.getSize = () => ({ width: 0, height: 0 });
+  return field;
 }
 
 function initSvgIfPresent(block: Blockly.Block): void {
@@ -1486,28 +1499,22 @@ function registerOptionalRmMutator(): void {
       }
       for (const name of this.extraInputs_ ?? []) {
         const parentRm = rmTypeOfBlock(this);
+        // Skip attrs that already have a fixed ATTR_ mouth (e.g. HISTORY.events).
+        if (this.getInput(rmAttributeInputName(name))) continue;
         const slotType = slotRmTypeForAttr(parentRm, name);
+        const card = this.slotCardinalities_?.[name] ??
+          rmAttributeCardinality(parentRm, name);
         if (isRmValueAttribute(parentRm, name) || isPartyProxyType(slotType)) {
-          const input = this.appendValueInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
-            .appendField(name);
+          const input = this.appendValueInput(`${OPTIONAL_INPUT_PREFIX}${name}`);
           const check = isPartyProxyType(slotType)
             ? slotType
             : (slotType ? blocklyCheckForDv(slotType) : null);
           if (check) input.setCheck(check);
-          appendSlotCardinality(
-            input,
-            this.slotCardinalities_?.[name] ?? rmAttributeCardinality(parentRm, name),
-          );
-          appendSlotTypeEmoji(input, slotType);
+          appendSlotLabel(input, name, { card, rmType: slotType });
           continue;
         }
-        const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
-          .appendField(name);
-        appendSlotCardinality(
-          stmt,
-          this.slotCardinalities_?.[name] ?? rmAttributeCardinality(parentRm, name),
-        );
-        appendSlotTypeEmoji(stmt, slotType);
+        const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`);
+        appendSlotLabel(stmt, name, { card, rmType: slotType });
       }
     },
     },

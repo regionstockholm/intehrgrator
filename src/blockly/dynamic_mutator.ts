@@ -14,11 +14,12 @@ export type MutatorFlyoutBlock = {
   extraState?: { attr: string; label: string };
 };
 
-/** Blockly mutator cog (16×16), same motif as MutatorIcon. */
+/** Blockly mutator cog (16×16) — light fill + dark stroke so it reads on dark RM blocks. */
 export const COGWHEEL_SVG = "data:image/svg+xml," + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">` +
-    `<path fill="#5f6368" d="m4.203,7.296 0,1.368 -0.92,0.677 -0.11,0.41 0.9,1.559 0.41,0.11 1.043,-0.457 1.187,0.683 0.127,1.134 0.3,0.3 1.8,0 0.3,-0.299 0.127,-1.138 1.185,-0.682 1.046,0.458 0.409,-0.11 0.9,-1.559 -0.11,-0.41 -0.92,-0.677 0,-1.366 0.92,-0.677 0.11,-0.41 -0.9,-1.559 -0.409,-0.109 -1.046,0.458 -1.185,-0.682 -0.127,-1.138 -0.3,-0.299 -1.8,0 -0.3,0.3 -0.126,1.135 -1.187,0.682 -1.043,-0.457 -0.41,0.11 -0.899,1.559 0.108,0.409z"/>` +
-    `<circle fill="#5f6368" cx="8" cy="8" r="2.7"/>` +
+    `<path fill="#f8fafc" stroke="#0f172a" stroke-width="0.9" stroke-linejoin="round" d="m4.203,7.296 0,1.368 -0.92,0.677 -0.11,0.41 0.9,1.559 0.41,0.11 1.043,-0.457 1.187,0.683 0.127,1.134 0.3,0.3 1.8,0 0.3,-0.299 0.127,-1.138 1.185,-0.682 1.046,0.458 0.409,-0.11 0.9,-1.559 -0.11,-0.41 -0.92,-0.677 0,-1.366 0.92,-0.677 0.11,-0.41 -0.9,-1.559 -0.409,-0.109 -1.046,0.458 -1.185,-0.682 -0.127,-1.138 -0.3,-0.299 -1.8,0 -0.3,0.3 -0.126,1.135 -1.187,0.682 -1.043,-0.457 -0.41,0.11 -0.899,1.559 0.108,0.409z"/>` +
+    `<circle fill="#f8fafc" stroke="#0f172a" stroke-width="0.9" cx="8" cy="8" r="2.55"/>` +
+    `<circle fill="#0f172a" cx="8" cy="8" r="1.05"/>` +
     `</svg>`,
 );
 
@@ -149,6 +150,10 @@ function refreshMutatorFlyout(
     [];
   const stackNames = readMutatorStackNames(icon, extras);
   const contents = contentsFor(block, stackNames);
+  // Tighten vertical gaps between flyout option blocks (Blockly default ~24).
+  const gapHost = flyout as unknown as { GAP_Y?: number; gap_?: number };
+  if (typeof gapHost.GAP_Y === "number") gapHost.GAP_Y = 6;
+  if (typeof gapHost.gap_ === "number") gapHost.gap_ = 6;
   flyout.show(contents);
 }
 
@@ -170,45 +175,47 @@ export function autoSizeMutatorBubble(
   let flyoutHeight = 0;
 
   if (flyout) {
+    const gapHost = flyout as unknown as { GAP_Y?: number };
+    if (typeof gapHost.GAP_Y === "number") gapHost.GAP_Y = 6;
     flyoutWidth = flyout.getWidth?.() ?? 0;
     const flyoutWs = (flyout as unknown as { workspace_?: import("blockly/core").WorkspaceSvg }).workspace_;
     if (flyoutWs) {
       const box = flyoutWs.getBlocksBoundingBox?.();
       if (box && Number.isFinite(box.bottom) && Number.isFinite(box.top)) {
-        flyoutHeight = Math.max(flyoutHeight, box.bottom - box.top + 36);
-        flyoutWidth = Math.max(flyoutWidth, box.right - box.left + 24);
+        flyoutHeight = Math.max(flyoutHeight, box.bottom - box.top + 16);
+        flyoutWidth = Math.max(flyoutWidth, box.right - box.left + 16);
       }
       const blocks = flyoutWs.getTopBlocks?.(false) ?? [];
-      let calculatedFlyoutHeight = 24;
+      let calculatedFlyoutHeight = 12;
       for (const b of blocks) {
         const hw = b.getHeightWidth?.();
         if (hw) {
-          calculatedFlyoutHeight += hw.height + 12;
-          flyoutWidth = Math.max(flyoutWidth, hw.width + 36);
+          calculatedFlyoutHeight += hw.height + 6;
+          flyoutWidth = Math.max(flyoutWidth, hw.width + 20);
         }
       }
       flyoutHeight = Math.max(flyoutHeight, calculatedFlyoutHeight);
     }
   }
 
-  let wsWidth = 160;
-  let wsHeight = 120;
+  let wsWidth = 120;
+  let wsHeight = 72;
   const wsBox = mini.getBlocksBoundingBox?.();
   if (wsBox && Number.isFinite(wsBox.bottom) && Number.isFinite(wsBox.top)) {
-    wsWidth = Math.max(wsWidth, wsBox.right - wsBox.left + 40);
-    wsHeight = Math.max(wsHeight, wsBox.bottom - wsBox.top + 40);
+    wsWidth = Math.max(wsWidth, wsBox.right - wsBox.left + 24);
+    wsHeight = Math.max(wsHeight, wsBox.bottom - wsBox.top + 24);
   }
   const topBlocks = mini.getTopBlocks?.(false) ?? [];
   for (const b of topBlocks) {
     const hw = b.getHeightWidth?.();
     if (hw) {
-      wsWidth = Math.max(wsWidth, hw.width + 48);
-      wsHeight = Math.max(wsHeight, hw.height + 48);
+      wsWidth = Math.max(wsWidth, hw.width + 28);
+      wsHeight = Math.max(wsHeight, hw.height + 28);
     }
   }
 
-  const desiredWidth = Math.max(380, flyoutWidth + wsWidth + 60);
-  const desiredHeight = Math.max(240, Math.max(flyoutHeight, wsHeight) + 40);
+  const desiredWidth = Math.max(280, flyoutWidth + wsWidth + 36);
+  const desiredHeight = Math.max(140, Math.max(flyoutHeight, wsHeight) + 24);
 
   const parentSvg = sourceBlock?.workspace ? (sourceBlock.workspace as import("blockly/core").WorkspaceSvg).getParentSvg?.() : null;
   const maxAvailableWidth = parentSvg?.clientWidth ? parentSvg.clientWidth - 40 : 1600;

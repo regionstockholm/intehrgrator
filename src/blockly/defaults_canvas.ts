@@ -189,7 +189,7 @@ export function restoreDefaultsBlockState(
   ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
 }
 
-/** Place the Defaults stack at top-left; shift Template Skeleton to the right of it. */
+/** Place the Defaults stack at top-left; put Template Skeleton underneath it. */
 export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void {
   const defaults = findDefaultsBlock(workspace);
   if (!defaults || typeof (defaults as BlockSvg).moveBy !== "function") return;
@@ -202,13 +202,15 @@ export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void 
   const size = typeof (defaults as BlockSvg).getHeightWidth === "function"
     ? (defaults as BlockSvg).getHeightWidth()
     : { width: 280, height: 160 };
-  const skeletonX = DEFAULTS_X + size.width + SKELETON_GAP;
+  const skeletonY = DEFAULTS_Y + size.height + SKELETON_GAP;
   for (const block of workspace.getTopBlocks(false)) {
     if (block.type === DEFAULTS_BLOCK_TYPE) continue;
     if (typeof (block as BlockSvg).moveBy !== "function") continue;
     const xy = block.getRelativeToSurfaceXY?.() ?? { x: 0, y: 0 };
-    if (xy.x < skeletonX) {
-      (block as BlockSvg).moveBy(skeletonX - xy.x, 0);
+    const dx = DEFAULTS_X - xy.x;
+    const dy = skeletonY - xy.y;
+    if (dx !== 0 || dy !== 0) {
+      (block as BlockSvg).moveBy(dx, dy);
     }
   }
 }

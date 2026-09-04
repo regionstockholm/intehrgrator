@@ -37,6 +37,7 @@ import {
   rmTypeConnectionTooltip,
   slotEmojiFieldName,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
+import { isSlotLabelField } from "@intehrgrator/blockly/slot_label.ts";
 import { isSkeletonTitleField, humanizeRmType } from "@intehrgrator/blockly/field_skeleton_title.ts";
 import { loadSkeletonIntoWorkspace, setAllBlocksCollapsed, attachOptionalRmChild } from "@intehrgrator/blockly/skeleton_loader.ts";
 import {
@@ -124,7 +125,10 @@ Deno.test("syncRmAttributeInputs labels statement mouths with RM attribute names
   syncRmAttributeInputs(block, "OBSERVATION", ["protocol", "data"]);
   const labels = block.inputList
     .filter((input) => input.name.startsWith("ATTR_"))
-    .map((input) => input.fieldRow[0]?.getText?.() ?? "");
+    .map((input) => {
+      const field = input.fieldRow[0];
+      return isSlotLabelField(field) ? field.attrLabel : (field?.getText?.() ?? "");
+    });
   assertEquals(labels, ["data", "protocol"]);
   assert(block.getInput(rmAttributeInputName("data")));
   workspace.dispose();
@@ -427,30 +431,42 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
     zipehrEmojiForRmType("OBSERVATION"),
   );
   const data = observation.getInput(rmAttributeInputName("data"));
-  assertEquals(data?.fieldRow[0]?.getText(), "data");
-  assertEquals(data?.fieldRow.at(-1)?.getText(), zipehrEmojiForRmType("HISTORY"));
+  const dataLabel = data?.fieldRow[0];
+  assert(isSlotLabelField(dataLabel));
+  assertEquals(dataLabel.attrLabel, "data");
+  assertEquals(dataLabel.getText(), `data [1..1] ${zipehrEmojiForRmType("HISTORY")}`);
 
   const element = workspace.newBlock("element");
   const value = element.getInput("VALUE");
-  assertEquals(value?.fieldRow.at(-1)?.getText(), ABSTRACT_SLOT_GLYPH);
-  assertEquals(value?.fieldRow.at(-1)?.getTooltip?.(), rmTypeConnectionTooltip("DATA_VALUE"));
+  const valueLabel = value?.fieldRow[0];
+  assert(isSlotLabelField(valueLabel));
+  assertEquals(valueLabel.getText().endsWith(ABSTRACT_SLOT_GLYPH), true);
+  assertEquals(valueLabel.rmType(), "DATA_VALUE");
   configureElementValueSlot(element, "DV_QUANTITY");
-  assertEquals(value?.fieldRow.at(-1)?.getText(), zipehrEmojiForRmType("DV_QUANTITY"));
-  assertEquals(value?.fieldRow.at(-1)?.getTooltip?.(), "DV_QUANTITY");
+  assertEquals(valueLabel.getText(), `value [1..1] ${zipehrEmojiForRmType("DV_QUANTITY")}`);
   configureElementValueSlot(element, "DV_CODED_TEXT");
-  assertEquals(value?.fieldRow.at(-1)?.getText(), zipehrEmojiForRmType("DV_CODED_TEXT"));
-  assertEquals(value?.fieldRow.at(-1)?.getTooltip?.(), "DV_CODED_TEXT");
+  assertEquals(valueLabel.getText(), `value [1..1] ${zipehrEmojiForRmType("DV_CODED_TEXT")}`);
 
   const composition = workspace.newBlock("composition");
   const content = composition.getInput(rmAttributeInputName("content"));
-  assertEquals(content?.fieldRow.at(-1)?.getText(), ABSTRACT_SLOT_GLYPH);
-  assertEquals(isRmTypeEmojiField(content?.fieldRow.at(-1) ?? null), true);
-  assertEquals(content?.fieldRow.at(-1)?.getTooltip?.()?.includes("CONTENT_ITEM (abstract)"), true);
+  const contentLabel = content?.fieldRow[0];
+  assert(isSlotLabelField(contentLabel));
+  assertEquals(contentLabel.getText().endsWith(ABSTRACT_SLOT_GLYPH), true);
+  assertEquals(contentLabel.rmType(), "CONTENT_ITEM");
 
   const composer = composition.getInput(rmAttributeInputName("composer"));
-  assertEquals(composer?.fieldRow.at(-1)?.getText(), ABSTRACT_SLOT_GLYPH);
-  assertEquals(composer?.fieldRow.at(-1)?.getTooltip?.()?.includes("PARTY_PROXY (abstract)"), true);
-  assertEquals(composer?.fieldRow.at(-1)?.getTooltip?.()?.includes("PARTY_SELF"), true);
+  const composerLabel = composer?.fieldRow[0];
+  assert(isSlotLabelField(composerLabel));
+  assertEquals(composerLabel.getText().endsWith(ABSTRACT_SLOT_GLYPH), true);
+  assertEquals(composerLabel.rmType(), "PARTY_PROXY");
+  assertEquals(rmTypeConnectionTooltip(composerLabel.rmType()).includes("PARTY_SELF"), true);
+
+  const history = workspace.newBlock("history");
+  assert(history.getInput(rmAttributeInputName("events")), "HISTORY.events is a fixed mouth");
+  assert(history.getInput(rmAttributeInputName("origin")), "HISTORY.origin stays visible");
+  const eventsLabel = history.getInput(rmAttributeInputName("events"))?.fieldRow[0];
+  assert(isSlotLabelField(eventsLabel));
+  assertEquals(eventsLabel.attrLabel, "events");
 
   workspace.dispose();
 });
@@ -680,16 +696,34 @@ Deno.test("skeleton canvas picks Position from a list of complete DV_CODED_TEXT 
   workspace.dispose();
 });
 
-const ordinalFixture = await Deno.readTextFile(
-  new URL(
-    "../vendor/ehrtslib/test_data/opt14/constrain_test.opt",
-    import.meta.url,
-  ),
-);
-
 Deno.test("skeleton canvas picks Vocalization from a list of complete DV_ORDINAL objects", () => {
   ensureBlocks();
-  const { skeleton } = generateSkeleton(ordinalFixture);
+  // Synthetic ELEMENT: constrain_test marks Abbey Vocalization optional, so the
+  // full OPT walk would hide it; exercise the ordinal choice-list scaffolder directly.
+  const skeleton: SkeletonNode[] = [{
+    slotId: "pain/content/vocalization",
+    blockType: "element",
+    rmType: "ELEMENT",
+    label: "Vocalization",
+    kind: "container",
+    mandatory: true,
+    children: [{
+      slotId: "pain/content/vocalization/value",
+      blockType: "dv_ordinal",
+      rmType: "DV_ORDINAL",
+      label: "Vocalization",
+      rmAttribute: "value",
+      kind: "value",
+      mandatory: true,
+      children: [],
+      allowedOrdinals: [
+        { value: 0, code: "at0010", label: "Absent", terminologyId: "local" },
+        { value: 1, code: "at0011", label: "Occasional", terminologyId: "local" },
+        { value: 2, code: "at0012", label: "Frequent", terminologyId: "local" },
+        { value: 3, code: "at0013", label: "Constant", terminologyId: "local" },
+      ],
+    }],
+  }];
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
 
@@ -823,17 +857,23 @@ Deno.test("mandatory containers do not get a warning triangle just for being man
   workspace.dispose();
 });
 
-Deno.test("slots show [min..max] cardinality left of the ZipEHR emoji", () => {
+Deno.test("slots show combined name, [min..max], and ZipEHR glyph in one caption", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
   const observation = workspace.newBlock("observation");
   syncRmAttributeInputs(observation, "OBSERVATION", ["data"]);
   const data = observation.getInput(rmAttributeInputName("data"));
   assert(data);
-  const card = data.fieldRow.find((field) => isSlotCardinalityField(field));
-  assert(card);
-  assertEquals(card.getText(), formatSlotCardinality({ min: 1, max: 1 }));
-  assertEquals(data.fieldRow.at(-1)?.name?.startsWith("SLOT_EMOJI_"), true);
+  const label = data.fieldRow.find((field) => isSlotLabelField(field));
+  assert(label);
+  assertEquals(label.attrLabel, "data");
+  assertEquals(isSlotCardinalityField(label), true);
+  assertEquals(label.min, 1);
+  assertEquals(label.max, 1);
+  assertEquals(
+    label.getText(),
+    `data ${formatSlotCardinality({ min: 1, max: 1 })} ${zipehrEmojiForRmType("HISTORY")}`,
+  );
   workspace.dispose();
 });
 
@@ -1113,7 +1153,7 @@ Deno.test("autoSizeMutatorBubble calculates content bounds and enlarges bubble",
 
   autoSizeMutatorBubble(fakeBubble);
   assert(appliedSize, "applied size to bubble");
-  assert((appliedSize as { width: number }).width >= 380, "width at least 380");
-  assert((appliedSize as { height: number }).height >= 240, "height at least 240");
+  assert((appliedSize as { width: number }).width >= 280, "width at least 280");
+  assert((appliedSize as { height: number }).height >= 140, "height at least 140");
   miniWs.dispose();
 });

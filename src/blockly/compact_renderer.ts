@@ -1,6 +1,7 @@
 import { Blockly } from "./blockly_core.ts";
 import { isRmTypeEmojiField } from "./rm_type_emoji.ts";
 import { isSlotCardinalityField } from "./slot_cardinality.ts";
+import { isSlotLabelField } from "./slot_label.ts";
 
 export const COMPACT_RENDERER_NAME = "thrasos-compact";
 
@@ -28,7 +29,11 @@ export function registerCompactThrasosRenderer(): string {
     // deno-lint-ignore no-explicit-any
     getInRowSpacing_(prev: any, next: any) {
       const spacing = super.getInRowSpacing_(prev, next);
-      if (isRmEmojiMeasurable(prev) || isRmEmojiMeasurable(next) || isSlotCardMeasurable(prev) || isSlotCardMeasurable(next)) {
+      if (
+        isRmEmojiMeasurable(prev) || isRmEmojiMeasurable(next) ||
+        isSlotCardMeasurable(prev) || isSlotCardMeasurable(next) ||
+        isSlotLabelMeasurable(prev) || isSlotLabelMeasurable(next)
+      ) {
         return Math.min(spacing, 1);
       }
       // Tighten gaps between consecutive in-row fields (title, labels, +).
@@ -116,4 +121,8 @@ function isRmEmojiMeasurable(elem: any): boolean {
 
 function isSlotCardMeasurable(elem: any): boolean {
   return isSlotCardinalityField(elem?.field ?? null);
+}
+
+function isSlotLabelMeasurable(elem: any): boolean {
+  return isSlotLabelField(elem?.field ?? null);
 }

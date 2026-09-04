@@ -485,6 +485,19 @@ body.sheets-fullscreen::before {
   stroke: var(--border);
   stroke-width: 1.5;
 }
+
+/* Optional-RM / DV-fields mutator bubble: less chrome around compact option blocks */
+.blocklyMiniWorkspaceBubble,
+.blocklyBubbleCanvas .blocklyBubble {
+  --mutator-flyout-gap: 6px;
+}
+.blocklyMiniWorkspaceBubble .blocklyFlyout {
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.blocklyMiniWorkspaceBubble .blocklyText {
+  font-size: 12px !important;
+}
 .blockly-mount .blocklyToolboxCategory {
   min-height: 15px;
   line-height: 15px;
@@ -597,10 +610,29 @@ body.sheets-fullscreen::before {
   font-weight: 700 !important;
 }
 
+.blockly-mount .blocklyText.blockly-slot-label {
+  font-size: 12px !important;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400 !important;
+  white-space: pre;
+}
+.blockly-mount .blocklyText.blockly-slot-label--unmet {
+  font-weight: 700 !important;
+}
+.blockly-mount .blocklyText.blockly-slot-label--abstract,
+.blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,
+.blockly-mount .blocklyText.blockly-rm-emoji-abstract {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
 .blockly-mount .blocklyImage.blocklyMutatorCog,
 .blockly-mount img[alt="Optional attributes…"] {
-  margin-left: 4px;
-  opacity: 0.85;
+  margin-left: 6px;
+  opacity: 1;
+  filter: drop-shadow(0 0 1.25px rgba(255, 255, 255, 0.95))
+    drop-shadow(0 0 1px rgba(15, 23, 42, 0.85));
 }
 
 /* Default Blockly mutator icon is replaced by header cogwheel on RM blocks */
@@ -662,10 +694,8 @@ body.sheets-fullscreen::before {
 .blockly-mount .blockly-rm-emoji-field {
   cursor: help;
 }
-.blockly-mount .blockly-rm-emoji-qmark-ring {
-  fill: none;
-  stroke-width: 1.6px;
-  pointer-events: none;
+.blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract {
+  cursor: pointer;
 }
 
 .blocklyTooltipDiv {

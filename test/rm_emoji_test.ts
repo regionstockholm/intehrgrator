@@ -22,8 +22,8 @@ Deno.test("ZipEHR emojis match ehrtslib symbol table for common DV_* types", () 
   assertEquals(zipehrEmojiForRmType("unknown_type"), undefined);
 });
 
-Deno.test("abstract RM types without ZipEHR glyphs use an encircled question mark", () => {
-  assertEquals(ABSTRACT_SLOT_GLYPH, "?\u20DD");
+Deno.test("abstract RM types without ZipEHR glyphs use a double-question-mark link glyph", () => {
+  assertEquals(ABSTRACT_SLOT_GLYPH, "\u2047");
   assertEquals(connectionPointGlyph("CONTENT_ITEM"), ABSTRACT_SLOT_GLYPH);
   assertEquals(connectionPointGlyph("ITEM"), ABSTRACT_SLOT_GLYPH);
   assertEquals(connectionPointGlyph("ITEM_STRUCTURE"), ABSTRACT_SLOT_GLYPH);
@@ -32,7 +32,7 @@ Deno.test("abstract RM types without ZipEHR glyphs use an encircled question mar
   assertEquals(connectionPointGlyph("unknown_type"), undefined);
 });
 
-Deno.test("abstract PARTY_PROXY slots use ? even though ZipEHR has an emoji", () => {
+Deno.test("abstract PARTY_PROXY slots use ⁇ even though ZipEHR has an emoji", () => {
   assertEquals(connectionPointGlyph("PARTY_PROXY"), zipehrEmojiForRmType("PARTY_PROXY"));
   assertEquals(connectionPointGlyph("PARTY_PROXY", true), ABSTRACT_SLOT_GLYPH);
   const tip = rmTypeConnectionTooltip("PARTY_PROXY");

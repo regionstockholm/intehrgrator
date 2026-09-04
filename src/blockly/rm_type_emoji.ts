@@ -2,8 +2,9 @@
  * ZipEHR RM-type emojis on Blockly connection points.
  *
  * Block output (left/top puzzle): first field of HEADER, next to the tab.
- * Value slots (right sockets): last field on the input, tightly left of the plug.
- * Statement slots (C / downward mouths): last field on the input, next to the notch.
+ * Value/statement slots: combined into FieldSlotLabel with the attr name
+ * (see slot_label.ts). Abstract slots use ⁇ (underlined link), not a ring.
+ * Specialization puzzles (PARTY_PROXY.KIND) still use this field alone.
  */
 import type { Field, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
@@ -19,11 +20,8 @@ import {
 
 export const BLOCK_OUT_EMOJI_FIELD = "RM_OUT_EMOJI";
 export const SLOT_EMOJI_FIELD_PREFIX = "SLOT_EMOJI_";
-/**
- * Encircled question mark (U+003F + combining enclosing circle U+20DD).
- * On the canvas this is drawn as "?" inside an SVG ring so the circle is crisp.
- */
-export const ABSTRACT_SLOT_GLYPH = "?\u20DD";
+/** Double question mark (U+2047) — abstract slot marker, styled as a link in CSS. */
+export const ABSTRACT_SLOT_GLYPH = "\u2047";
 
 /** Theme body text is 12px; connection glyphs are ~50% larger. */
 export const RM_EMOJI_FONT_PX = 18;
@@ -66,7 +64,7 @@ export function rmEmojiFontPx(rmType: string): number {
 
 /**
  * Glyph shown at a connection.
- * Slots of abstract types (PARTY_PROXY, CONTENT_ITEM, …) use the encircled ?
+ * Slots of abstract types (PARTY_PROXY, CONTENT_ITEM, …) use ⁇
  * even when ZipEHR also has an emoji — the popup lists allowed subclasses.
  * Block output still prefers the ZipEHR emoji so the block keeps its identity.
  */
@@ -119,14 +117,14 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
 
   private rmType_ = "";
   private forSlot_ = false;
-  private ring_: SVGCircleElement | null = null;
 
   constructor(rmType: string, forSlot = false) {
     const glyph = connectionPointGlyph(rmType, forSlot) ?? "";
-    super(glyph, cssClassFor(rmType), { tooltip: rmTypeConnectionTooltip(rmType) });
+    super(glyph, cssClassFor(rmType, forSlot), { tooltip: rmTypeConnectionTooltip(rmType) });
     this.rmType_ = rmType;
     this.forSlot_ = forSlot;
     this.setTooltip(rmTypeConnectionTooltip(rmType));
+    this.CURSOR = forSlot && isAbstractPlaceholderType(rmType) ? "pointer" : "help";
     installRmTypeEmojiTooltips();
   }
 
@@ -137,7 +135,8 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
   setRmType(rmType: string): void {
     this.rmType_ = rmType;
     const glyph = connectionPointGlyph(rmType, this.forSlot_) ?? "";
-    this.setClass(cssClassFor(rmType));
+    this.setClass(cssClassFor(rmType, this.forSlot_));
+    this.CURSOR = this.forSlot_ && isAbstractPlaceholderType(rmType) ? "pointer" : "help";
     this.syncCssClasses_?.();
     this.setTooltip(rmTypeConnectionTooltip(rmType));
     this.setValue(glyph);
@@ -162,13 +161,7 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     this.layoutGlyph_();
   }
 
-  applyColour(): void {
-    super.applyColour?.();
-    this.syncRingStroke_();
-  }
-
   getDisplayText_(): string {
-    if (this.showsAbstractPlaceholder_()) return "?";
     return super.getDisplayText_?.() ?? String(this.getText?.() ?? "");
   }
 
@@ -176,13 +169,12 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     if (!this.size_) return;
     const px = rmEmojiFontPx(this.rmType_);
     const abstract = this.showsAbstractPlaceholder_();
-    const text = abstract
-      ? "?"
-      : String(this.getText?.() ?? this.getValue?.() ?? "");
-    this.size_.width = abstract ? px : measureGlyphWidth(text, px);
-    this.size_.height = px;
+    const text = String(this.getText?.() ?? this.getValue?.() ?? "");
+    this.size_.width = abstract
+      ? Math.ceil(px * 0.85)
+      : measureGlyphWidth(text, px);
+    this.size_.height = abstract ? Math.max(14, Math.round(px * 0.75)) : px;
     this.layoutGlyph_();
-    this.syncAbstractRing_(px, abstract);
   }
 
   private showsAbstractPlaceholder_(): boolean {
@@ -194,24 +186,19 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     const abstract = this.showsAbstractPlaceholder_();
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
-    el.style.setProperty("font-size", abstract ? `${Math.round(px * 0.62)}px` : `${px}px`, "important");
+    const fontPx = abstract ? Math.max(12, Math.round(px * 0.75)) : px;
+    el.style.setProperty("font-size", `${fontPx}px`, "important");
     el.style.setProperty(
       "font-family",
       abstract ? '"Google Sans", "Segoe UI", sans-serif' : EMOJI_FONT,
       "important",
     );
-    el.setAttribute("font-size", String(abstract ? Math.round(px * 0.62) : px));
+    el.setAttribute("font-size", String(fontPx));
     el.setAttribute("dominant-baseline", "central");
     el.setAttribute("dy", "0");
-    el.setAttribute("y", String(px / 2));
-    if (abstract) {
-      el.textContent = "?";
-      el.setAttribute("text-anchor", "middle");
-      el.setAttribute("x", String(px / 2));
-    } else {
-      el.setAttribute("text-anchor", "start");
-      el.setAttribute("x", "0");
-    }
+    el.setAttribute("y", String(this.size_?.height ? this.size_.height / 2 : px / 2));
+    el.setAttribute("text-anchor", "start");
+    el.setAttribute("x", "0");
   }
 
   private syncCssClasses_(): void {
@@ -221,11 +208,15 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     const remove = Blockly.utils?.dom?.removeClass;
     if (group && add) {
       add(group, "blockly-rm-emoji-field");
+      if (this.showsAbstractPlaceholder_()) add(group, "blockly-rm-emoji-abstract");
+      else remove?.(group, "blockly-rm-emoji-abstract");
       if (isHardToReadRmEmoji(this.rmType_)) add(group, "blockly-rm-emoji-lg");
       else remove?.(group, "blockly-rm-emoji-lg");
     }
     if (text && add) {
       add(text, "blockly-rm-emoji");
+      if (this.showsAbstractPlaceholder_()) add(text, "blockly-rm-emoji-abstract");
+      else remove?.(text, "blockly-rm-emoji-abstract");
       if (isHardToReadRmEmoji(this.rmType_)) add(text, "blockly-rm-emoji-lg");
       else remove?.(text, "blockly-rm-emoji-lg");
     }
@@ -239,41 +230,6 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     return true;
   }
 
-  private syncAbstractRing_(px: number, show: boolean): void {
-    const group = this.fieldGroup_ as SVGGElement | null;
-    if (!group || typeof document === "undefined") {
-      this.ring_ = null;
-      return;
-    }
-    if (!show) {
-      this.ring_?.remove();
-      this.ring_ = null;
-      return;
-    }
-    if (!this.ring_) {
-      const ring = document.createElementNS("http://www.w3.org/2000/svg", "circle");
-      ring.setAttribute("class", "blockly-rm-emoji-qmark-ring");
-      ring.setAttribute("fill", "none");
-      ring.setAttribute("stroke-width", "1.6");
-      const text = this.textElement_ as SVGTextElement | null;
-      if (text?.parentNode === group) group.insertBefore(ring, text);
-      else group.appendChild(ring);
-      this.ring_ = ring;
-    }
-    const r = Math.max(5, px / 2 - 1.1);
-    this.ring_.setAttribute("cx", String(px / 2));
-    this.ring_.setAttribute("cy", String(px / 2));
-    this.ring_.setAttribute("r", String(r));
-    this.syncRingStroke_();
-  }
-
-  private syncRingStroke_(): void {
-    if (!this.ring_) return;
-    const el = this.textElement_ as SVGTextElement | null;
-    const fill = el?.getAttribute("fill") || el?.style.fill || "";
-    this.ring_.setAttribute("stroke", fill || "currentColor");
-  }
-
   private syncTipAttr_(): void {
     const tip = rmTypeConnectionTooltip(this.rmType_);
     this.fieldGroup_?.setAttribute("data-rm-type-tip", tip);
@@ -282,8 +238,11 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
   }
 }
 
-function cssClassFor(rmType: string): string {
-  return isHardToReadRmEmoji(rmType) ? "blockly-rm-emoji blockly-rm-emoji-lg" : "blockly-rm-emoji";
+function cssClassFor(rmType: string, forSlot = false): string {
+  const parts = ["blockly-rm-emoji"];
+  if (isHardToReadRmEmoji(rmType)) parts.push("blockly-rm-emoji-lg");
+  if (forSlot && isAbstractPlaceholderType(rmType)) parts.push("blockly-rm-emoji-abstract");
+  return parts.join(" ");
 }
 
 let measureCanvas: HTMLCanvasElement | null = null;

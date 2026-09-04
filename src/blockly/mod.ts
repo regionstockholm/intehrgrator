@@ -12,6 +12,7 @@ import {
 } from "./blocks/schema_mutator.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
+import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { blockToExpression } from "./expression_serialize.ts";
@@ -101,6 +102,7 @@ export {
   serializeDefaultsMapArgument,
 } from "./defaults_canvas.ts";
 export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler } from "./blocks/map_blocks.ts";
+export { setSheetFocusHandler } from "./blocks/sheet_blocks.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
 export {
   generateTypeScriptFromBlocklyState,
@@ -113,6 +115,7 @@ export function initBlocklyGenerators(): void {
   registerTargetBlocks();
   registerExpressionBlocks();
   registerMapBlocks();
+  registerSheetBlocks();
   registerTextBlocks();
   registerGenerators();
   registerTypeScriptExportAdapter();
@@ -199,6 +202,95 @@ function registerGenerators(): void {
       parts.push(`${key}: ${val}`);
     }
     return [`({ ${parts.join(", ")} })`, Order.ATOMIC] as [string, number];
+  };
+
+  javascriptGenerator.forBlock["sheet_get_cell"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const a1 = javascriptGenerator.valueToCode(block, "A1", Order.NONE) || '"A1"';
+    return [`sheetGetCell(${name}, ${a1})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_get_xy"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
+    return [`sheetGetXy(${name}, ${x}, ${y})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_get_row"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
+    return [`sheetGetRow(${name}, ${y})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_get_column"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    return [`sheetGetColumn(${name}, ${x})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_get_header"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    return [`sheetGetHeader(${name}, ${x})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_get_data"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    return [`sheetGetData(${name})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_lookup"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const col = javascriptGenerator.valueToCode(block, "MATCH_COL", Order.NONE) || '""';
+    const val = javascriptGenerator.valueToCode(block, "MATCH_VAL", Order.NONE) || '""';
+    const ret = javascriptGenerator.valueToCode(block, "RETURN_COL", Order.NONE) || '""';
+    return [`sheetLookup(${name}, ${col}, ${val}, ${ret})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["sheet_set_cell"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const a1 = javascriptGenerator.valueToCode(block, "A1", Order.NONE) || '"A1"';
+    const val = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || '""';
+    return `sheetSetCell(${name}, ${a1}, ${val});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_set_xy"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
+    const val = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || '""';
+    return `sheetSetXy(${name}, ${x}, ${y}, ${val});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_set_row"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
+    const val = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || "[]";
+    return `sheetSetRow(${name}, ${y}, ${val});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_set_column"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    const val = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || "[]";
+    return `sheetSetColumn(${name}, ${x}, ${val});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_set_header"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    const val = javascriptGenerator.valueToCode(block, "VALUE", Order.NONE) || '""';
+    return `sheetSetHeader(${name}, ${x}, ${val});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_insert_row"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
+    return `sheetInsertRow(${name}, ${y});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_delete_row"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const y = javascriptGenerator.valueToCode(block, "Y", Order.NONE) || "0";
+    return `sheetDeleteRow(${name}, ${y});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_insert_column"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    return `sheetInsertColumn(${name}, ${x});\n`;
+  };
+  javascriptGenerator.forBlock["sheet_delete_column"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");
+    const x = javascriptGenerator.valueToCode(block, "X", Order.NONE) || "0";
+    return `sheetDeleteColumn(${name}, ${x});\n`;
   };
 
   javascriptGenerator.forBlock["text_code"] = (block) =>

@@ -40,7 +40,7 @@ export interface TsEmitContext {
   /** When set, relative source paths evaluate against this loop node. */
   loopVar?: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars">;
+  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets">;
 }
 
 export function createTsEmitContext(sourceVar = "sourceCtx.data"): TsEmitContext {
@@ -69,6 +69,15 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
           return `__vars[${args[0]}]`;
         case "maps_get":
           return emitMapsGet(ast, args);
+        case "sheet_get_cell":
+        case "sheet_get_xy":
+        case "sheet_get_row":
+        case "sheet_get_column":
+        case "sheet_get_header":
+        case "sheet_get_data":
+        case "sheet_lookup":
+          ctx.helpers.add("sheets");
+          return emitSheetCall(ast.name, args);
         case "xpathNumber":
           ctx.helpers.add("number");
           return emitXpathCall("xpathNumber", ast.args[0], args[0] ?? '""', ctx);
@@ -102,6 +111,14 @@ function emitMapsGet(ast: Extract<ExprAst, { kind: "call" }>, args: string[]): s
     return `defaults[${key}]`;
   }
   return `((${args[0]} === "defaults" ? defaults : {})[${key}])`;
+}
+
+function emitSheetCall(name: string, args: string[]): string {
+  return `${jsName(name)}(${args.join(", ")})`;
+}
+
+function jsName(name: string): string {
+  return name.replace(/_([a-z])/g, (_, ch: string) => ch.toUpperCase());
 }
 
 function emitMapLiteral(
@@ -167,7 +184,7 @@ export interface TypeScriptModuleParts {
   templateId: string;
   body: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars">;
+  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets">;
   rootType?: string;
   /** Where the RM tree was walked from. */
   source?: "blockly" | "skeleton" | "slots";
@@ -220,6 +237,9 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
     "export function convertSourceToComposition(",
     "  sourceCtx: SourceContext,",
     "  defaults: Record<string, unknown> = {},",
+    ...(parts.helpers.has("sheets")
+      ? ["  sheets: Record<string, { name?: string; headers: string[]; values: unknown[][]; rowNames?: string[] }> = {},"]
+      : []),
     `)${root !== "unknown" ? `: ${root}` : ""} {`,
   );
   if (usesXpath) {
@@ -232,6 +252,10 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
   }
   if (parts.helpers.has("handlebars")) {
     lines.push(...indentLines(handlebarsHelper(), 1));
+    lines.push("");
+  }
+  if (parts.helpers.has("sheets")) {
+    lines.push(...indentLines(sheetHelpers(), 1));
     lines.push("");
   }
   for (const line of parts.body.split("\n")) {
@@ -322,6 +346,47 @@ function xpathHelpers(helpers: Set<string>): string[] {
   }
   while (lines.at(-1) === "") lines.pop();
   return lines;
+}
+
+function sheetHelpers(): string[] {
+  return [
+    "function sheetOf(name: string) { return sheets[name]; }",
+    "function sheetGetCell(name: string, a1: string) {",
+    "  const s = sheetOf(name); if (!s) return null;",
+    "  const m = /^([A-Za-z]+)(\\d+)$/.exec(String(a1).trim()); if (!m) return null;",
+    "  let x = 0; for (const ch of m[1].toUpperCase()) x = x * 26 + (ch.charCodeAt(0) - 64);",
+    "  const row = s.values[Number(m[2]) - 1]; return row ? row[x - 1] ?? null : null;",
+    "}",
+    "function sheetGetXy(name: string, x: number, y: number) {",
+    "  const row = sheetOf(name)?.values[y]; return row ? row[x] ?? null : null;",
+    "}",
+    "function sheetGetRow(name: string, y: number) { return [...(sheetOf(name)?.values[y] ?? [])]; }",
+    "function sheetGetColumn(name: string, x: number) {",
+    "  return (sheetOf(name)?.values ?? []).map((row: unknown[]) => row?.[x] ?? null);",
+    "}",
+    "function sheetGetHeader(name: string, x: number) { return sheetOf(name)?.headers[x] ?? \"\"; }",
+    "function sheetGetData(name: string) { return (sheetOf(name)?.values ?? []).map((row: unknown[]) => [...row]); }",
+    "function sheetLookup(name: string, matchCol: string | number, matchValue: unknown, returnCol?: string | number) {",
+    "  const s = sheetOf(name); if (!s) return null;",
+    "  const idx = (ref: string | number) => {",
+    "    if (typeof ref === \"number\") return ref;",
+    "    const t = String(ref);",
+    "    const hi = s.headers.indexOf(t); if (hi >= 0) return hi;",
+    "    if (/^[A-Za-z]+$/.test(t)) { let n = 0; for (const ch of t.toUpperCase()) n = n * 26 + (ch.charCodeAt(0) - 64); return n - 1; }",
+    "    if (/^\\d+$/.test(t)) return Number(t);",
+    "    return -1;",
+    "  };",
+    "  const mi = idx(matchCol);",
+    "  const y = s.values.findIndex((row: unknown[]) => String(row?.[mi] ?? \"\") === String(matchValue ?? \"\"));",
+    "  if (y < 0) return null;",
+    "  if (returnCol === undefined || returnCol === null || returnCol === \"\") {",
+    "    const rec: Record<string, unknown> = {};",
+    "    s.headers.forEach((h: string, x: number) => { rec[h || String(x)] = s.values[y][x]; });",
+    "    return rec;",
+    "  }",
+    "  return s.values[y][idx(returnCol)] ?? null;",
+    "}",
+  ];
 }
 
 function handlebarsHelper(): string[] {

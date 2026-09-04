@@ -250,6 +250,7 @@ Deno.test("buildPrompt openEHR target includes references and block examples", (
   assertEquals(prompt.includes("icd10_snomed"), true);
   assertEquals(prompt.includes("source takes precedence"), true);
   assertEquals(prompt.includes("maps_get"), true);
+  assertEquals(prompt.includes("sheet_lookup"), true);
   assertEquals(prompt.includes("OPENEHR_PRIMER.md"), false);
 });
 

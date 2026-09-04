@@ -66,6 +66,7 @@ import {
   serializeDefaultsMapArgument,
   setDefaultsMapPickHandler,
   setDefaultsMapInfoHandler,
+  setSheetFocusHandler,
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
@@ -80,6 +81,9 @@ import {
   workspaceCanUndo,
   type DocumentSnapshot,
 } from "../src/workbench/document_undo.ts";
+import { SHEET_CHANGE_EVENT_TYPE } from "../src/workbench/sheet_undo.ts";
+import { mountSheetsPanel } from "../src/ui/sheets_panel.ts";
+import { sheetsChrome } from "../src/ui/sheets_i18n.ts";
 import {
   optionalRmInputName,
   presentAttributeNames,
@@ -159,10 +163,12 @@ const validationDeserializeSelect = document.getElementById(
 const validationModeWrap = document.getElementById("validation-mode-wrap")!;
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
 const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
+const sheetsTab = document.getElementById("tab-sheets") as HTMLButtonElement;
 const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
 const uploadSpecBtn = document.getElementById("btn-upload-spec") as HTMLButtonElement;
 const mappingJsonHost = document.getElementById("spec-editor")!;
 const handlebarsHost = document.getElementById("handlebars-editor")!;
+const sheetsHost = document.getElementById("sheets-host")!;
 
 const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElement;
 const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
@@ -188,7 +194,8 @@ let updatingHandlebarsEditor = false;
 const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
   if (!updatingHandlebarsEditor) controller.setHandlebarsTemplate(text);
 }, "handlebars");
-let activeTextView: "mapping-json" | "handlebars" = "mapping-json";
+let activeTextView: "mapping-json" | "handlebars" | "sheets" = "mapping-json";
+let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
 type HandlebarsInsertMode = "flat" | "tree";
 const handlebarsInsertToolbar = document.getElementById("handlebars-insert-toolbar");
 
@@ -227,20 +234,25 @@ let suppressBlocklyModelSync = false;
 let applyingDocumentUndo = false;
 let documentReplaceDepth = 0;
 
-function showTextView(view: "mapping-json" | "handlebars"): void {
+function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {
   activeTextView = view;
   const showHandlebars = view === "handlebars";
-  mappingJsonHost.hidden = showHandlebars;
+  const showSheets = view === "sheets";
+  mappingJsonHost.hidden = showHandlebars || showSheets;
   handlebarsHost.hidden = !showHandlebars;
-  mappingJsonTab.classList.toggle("active", !showHandlebars);
+  sheetsHost.hidden = !showSheets;
+  mappingJsonTab.classList.toggle("active", view === "mapping-json");
   handlebarsTab.classList.toggle("active", showHandlebars);
+  sheetsTab?.classList.toggle("active", showSheets);
   if (handlebarsInsertToolbar) handlebarsInsertToolbar.hidden = !showHandlebars;
-  downloadSpecBtn.hidden = showHandlebars;
-  if (uploadSpecBtn) uploadSpecBtn.hidden = showHandlebars;
+  downloadSpecBtn.hidden = showHandlebars || showSheets;
+  if (uploadSpecBtn) uploadSpecBtn.hidden = showHandlebars || showSheets;
+  if (showSheets) sheetsPanel?.refresh();
 }
 
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
+sheetsTab?.addEventListener("click", () => showTextView("sheets"));
 downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
 uploadSpecBtn?.addEventListener("click", () =>
   void withUndoableDocumentReplace(() => controller.importBlocklyDefinition())
@@ -371,6 +383,19 @@ async function bootBlockly(): Promise<void> {
     if (!(tip instanceof HTMLElement)) return;
     openInfoTipAt(tip, anchor ?? tip.querySelector(".info-tip-btn") ?? tip);
   });
+  setSheetFocusHandler((name) => {
+    showTextView("sheets");
+    sheetsPanel?.showSheet(name);
+  });
+  sheetsPanel = mountSheetsPanel(sheetsHost, {
+    getSheets: () => controller.getSheets(),
+    replaceSheets: (sheets, opts) => controller.replaceSheets(sheets, opts),
+    markDirty: () => controller.markDirty(),
+  }, {
+    getWorkspace: () => workspace,
+    getLocale: () => blocklyLocale,
+  });
+  if (sheetsTab) sheetsTab.textContent = sheetsChrome(blocklyLocale).tab;
 
   attachWorkspaceMinimap(workspace, blocklyMount);
   installToolboxSearchInputFix(blocklyMount, () => workspace);
@@ -449,6 +474,10 @@ async function bootBlockly(): Promise<void> {
   workspace.addChangeListener((event) => {
     refreshUndoButtons();
     if (event.type === DOCUMENT_SWAP_EVENT_TYPE) return;
+    if (event.type === SHEET_CHANGE_EVENT_TYPE) {
+      refreshUndoButtons();
+      return;
+    }
     if (event.type === CANVAS_SWAP_EVENT_TYPE) {
       refreshUndoButtons();
       return;
@@ -458,6 +487,14 @@ async function bootBlockly(): Promise<void> {
         ? event.blockId
         : null;
       applyBlockSelection(blockId, "blockly");
+      if (blockId) {
+        const clicked = workspace.getBlockById(blockId);
+        if (clicked?.type === "sheet") {
+          const name = String(clicked.getFieldValue("NAME") || "Sheet1");
+          showTextView("sheets");
+          sheetsPanel?.showSheet(name);
+        }
+      }
       return;
     }
     if (
@@ -1716,6 +1753,7 @@ function render(): void {
     );
     updatingHandlebarsEditor = false;
   }
+  sheetsPanel?.refresh();
   const generated = afterCanvas.generatedCode || "// Generated Export";
   setEditorDoc(exportEditor, generated, languageForExportTarget(s.settings.exportTarget, generated));
   const testOutput = afterCanvas.testResult?.output ?? afterCanvas.testResult?.composition;

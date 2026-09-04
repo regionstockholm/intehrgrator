@@ -481,6 +481,104 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
           { kind: "block", type: "maps_isEmpty" },
         ],
       },
+      {
+        kind: "category",
+        name: m.CAT_SHEETS,
+        colour: 165,
+        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategorySheets" },
+        contents: [
+          { kind: "block", type: "sheet", fields: { NAME: "Sheet1" } },
+          {
+            kind: "block",
+            type: "sheet_lookup",
+            fields: { NAME: "Sheet1" },
+            inputs: {
+              MATCH_COL: { shadow: { type: "text", fields: { TEXT: "code" } } },
+              MATCH_VAL: { shadow: { type: "text", fields: { TEXT: "" } } },
+              RETURN_COL: { shadow: { type: "text", fields: { TEXT: "snomed" } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "sheet_get_cell",
+            fields: { NAME: "Sheet1" },
+            inputs: {
+              A1: { shadow: { type: "text", fields: { TEXT: "A1" } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "sheet_get_xy",
+            fields: { NAME: "Sheet1" },
+            inputs: {
+              X: { shadow: { type: "math_number", fields: { NUM: 0 } } },
+              Y: { shadow: { type: "math_number", fields: { NUM: 0 } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "sheet_get_row",
+            fields: { NAME: "Sheet1" },
+            inputs: { Y: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+          {
+            kind: "block",
+            type: "sheet_get_column",
+            fields: { NAME: "Sheet1" },
+            inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+          {
+            kind: "block",
+            type: "sheet_get_header",
+            fields: { NAME: "Sheet1" },
+            inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+          { kind: "block", type: "sheet_get_data", fields: { NAME: "Sheet1" } },
+          {
+            kind: "block",
+            type: "sheet_set_cell",
+            fields: { NAME: "Sheet1" },
+            inputs: {
+              A1: { shadow: { type: "text", fields: { TEXT: "A1" } } },
+              VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "sheet_set_xy",
+            fields: { NAME: "Sheet1" },
+            inputs: {
+              X: { shadow: { type: "math_number", fields: { NUM: 0 } } },
+              Y: { shadow: { type: "math_number", fields: { NUM: 0 } } },
+              VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "sheet_insert_row",
+            fields: { NAME: "Sheet1" },
+            inputs: { Y: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+          {
+            kind: "block",
+            type: "sheet_delete_row",
+            fields: { NAME: "Sheet1" },
+            inputs: { Y: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+          {
+            kind: "block",
+            type: "sheet_insert_column",
+            fields: { NAME: "Sheet1" },
+            inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+          {
+            kind: "block",
+            type: "sheet_delete_column",
+            fields: { NAME: "Sheet1" },
+            inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
+          },
+        ],
+      },
       { kind: "sep" },
       {
         kind: "category",

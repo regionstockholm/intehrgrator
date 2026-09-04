@@ -636,11 +636,11 @@ Chunk 7 merged in PR #22 with **7.6** left open. Grill Q13 already adopted fixtu
   - [ ] 7.1.6 Fix `handlebars()` builtin to pass slot bag from context
   - [ ] 7.1.7 Docs: amend ADR 0003; tick ROADMAP Handlebars Test Run item; narrow 7.6 wording
 
-- [ ] 8.0 Chunk 8 — Spreadsheet / matrix widget, then Blockly accessors (roadmap C)
+  - [x] 8.0 Chunk 8 — Spreadsheet / matrix widget, then Blockly accessors (roadmap C)
 
 ## Grill round 1 (Chunk 8 frontier — spreadsheet/matrix)
 
-Asked after the user rejected a “paste into 1D maps” MVP. **Awaiting adoption.** Library comparison: [`docs/future/spreadsheet-matrix-libraries.md`](../docs/future/spreadsheet-matrix-libraries.md).
+Asked after the user rejected a “paste into 1D maps” MVP. **Adopted 2026-09-04.** Library comparison: [`docs/future/spreadsheet-matrix-libraries.md`](../docs/future/spreadsheet-matrix-libraries.md). Maps second-step options: [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md).
 
 **Settled (user 2026-09-04):** proper spreadsheet/matrix support **first**; initial Blockly accessor/mutator set is derived from the **selected library’s API**; **FHIR is deferred**.
 
@@ -657,7 +657,7 @@ Context: 1D **Map** blocks exist. ROADMAP still wants named columns, optional ro
 **E** — **canvas-datagrid** (BSD-3). https://github.com/TonyGermaneri/canvas-datagrid — data grid, not A1 sheet.
 **F** — No embed: own HTML `<table>` + **PapaParse** only. https://www.papaparse.com/
 
-➡️ **Recommended: A.** Vanilla, MIT, bounded deps, native Excel paste, headers + cell/row/column CRUD that map cleanly to Blockly. Reject C/D (React), Luckysheet (archived), Handsontable/HyperFormula (proprietary / GPLv3).
+➡️ **Adopted: A**, and **use jspreadsheet-ce’s own features as much as possible**: file import/export, optional fullscreen, `setDictionary` i18n for the app’s UI languages (`en` / `sv` / `de` / `es` / `ca` / `fr`), native Excel/Sheets cut-and-paste, and **host undo/redo** (Blockly Mapping Editors stack via a custom event — do not leave the grid on a private undo island). Reject C/D (React), Luckysheet (archived), Handsontable/HyperFormula (proprietary / GPLv3).
 
 ---
 
@@ -667,7 +667,7 @@ Context: 1D **Map** blocks exist. ROADMAP still wants named columns, optional ro
 **B** — Persist the library’s native workbook JSON (jspreadsheet `getData`/`getConfig`, Univer snapshot, …).
 **C** — DOM-only until Blockly blocks exist; no persistence in v1.
 
-➡️ **Recommended: A.** Widget is a view. Blockly and Conversion scripts must not require the grid in the DOM.
+➡️ **Adopted: A.** Widget is a view. Blockly and Conversion scripts must not require the grid in the DOM.
 
 ---
 
@@ -677,7 +677,7 @@ Context: 1D **Map** blocks exist. ROADMAP still wants named columns, optional ro
 **B** — Modal / drawer opened from a named `sheet` Blockly block (like Defaults Map folder).
 **C** — Replace part of the Source Pane.
 
-➡️ **Recommended: A.** Sheets are mapping artefacts (terminology grids), not source instances. A named `sheet` block can still *focus* that tab (B as navigation, not the only editor).
+➡️ **Adopted: A**, with **limited space**: scrollbars on the grid and the existing Mapping Editors **adjustable split** (Blockly vs bottom). Switch to **modal / fullscreen** (library fullscreen + overlay) when the docked slice is too small. Named `sheet` block still *focuses* that tab (B as navigation, not the only editor).
 
 ---
 
@@ -687,7 +687,7 @@ Context: 1D **Map** blocks exist. ROADMAP still wants named columns, optional ro
 **B** — Chunk 8 = widget only; Chunk 8.1 = Blockly blocks.
 **C** — Blockly blocks first against a fake 2D array; widget later.
 
-➡️ **Recommended: A.** User asked for the sheet first, then blocks based on the library. Same chunk, ordered commits: embed → model → paste → blocks.
+➡️ **Adopted: A.** Same chunk, ordered: embed → model → paste → blocks.
 
 ---
 
@@ -704,7 +704,7 @@ Include in Chunk 8:
 **B** — Accessors only in Chunk 8; mutators later.
 **C** — Also wrap formulas, merge, style, undo (`parseFormulas`, `setMerge`, …).
 
-➡️ **Recommended: A.** Mutators are required for “matrix support”. Formulas/merge/style → later.
+➡️ **Adopted: A.** Mutators are required for “matrix support”. Formulas/merge/style → later.
 
 ---
 
@@ -714,7 +714,7 @@ Include in Chunk 8:
 **B** — Free-form per-cell Blockly values (nested blocks in cells) in Chunk 8.
 **C** — Headers only; no row names or types yet.
 
-➡️ **Recommended: A.** Per-cell nested Blockly (B) fights a spreadsheet widget; keep cells as JSON primitives in v1.
+➡️ **Adopted: A.** Per-cell nested Blockly (B) fights a spreadsheet widget; keep cells as JSON primitives in v1. Nested Blockly values stay on **Map** (see Q9).
 
 ---
 
@@ -724,7 +724,7 @@ Include in Chunk 8:
 **B** — Always PapaParse, then `setData`.
 **C** — File only, no clipboard.
 
-➡️ **Recommended: A.**
+➡️ **Adopted: A.** Native widget clipboard + CSV/file. PapaParse only if CE v5 helpers fail.
 
 ---
 
@@ -734,7 +734,7 @@ Include in Chunk 8:
 **B** — Bake the grid as literals into generated scripts.
 **C** — Mapping preview only; Conversion scripts ignore sheets until Chunk 9.
 
-➡️ **Recommended: A.**
+➡️ **Adopted: A.** Named sheets on a convert-time `ctx.sheets` bag (ADR 0002-style).
 
 ---
 
@@ -744,7 +744,7 @@ Include in Chunk 8:
 **B** — Replace terminology `maps_get` with sheets immediately.
 **C** — Auto-project every 2-column sheet into a named Map.
 
-➡️ **Recommended: A.**
+➡️ **Adopted: mostly B.** If maps are used in **code or example sets** as 2-column terminology lookups, **replace with sheets**. **Do not delete `maps_*` in this step.** Defaults Map and map **values** can be entire Blockly structures — that stays. Present alternatives for a **second implementation step** in [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md) and wait for a judgement before removing map blocks.
 
 ---
 
@@ -753,7 +753,7 @@ Include in Chunk 8:
 **A** — Not in Chunk 8 (deferred).
 **B** — Parse FHIR JSON into the sheet in this chunk.
 
-➡️ **Recommended: A.** User deferred FHIR. Reopen after accessors exist.
+➡️ **Adopted: A.** Not in Chunk 8. Reopen after accessors exist.
 
 ---
 
@@ -763,17 +763,18 @@ Include in Chunk 8:
 **B** — Example set in `example-sets.json` required.
 **C** — Widget screenshot-only.
 
-➡️ **Recommended: A.** Example set optional.
+➡️ **Adopted: A.** Headless sheet-model tests + Blockly serialize + `runTest` lookup; small fixture. Example set optional.
 
 ---
 
-### Chunk 8 implementation notes (pending adoption)
+### Chunk 8 implementation notes (adopted 2026-09-04)
 
-- **Order:** pick library (Q1) → persist Sheet JSON (Q2) → embed widget + paste (Q3, Q7) → Blockly accessors/mutators (Q5) → Test Run/codegen bag (Q8).
-- **Defer:** FHIR; Excel formulas/merge/style; per-cell nested Blockly; `DV_CODED_TEXT` composite helper; roadmap B “inline hardcoded lookup”.
+- **Order:** jspreadsheet-ce (Q1, including native import/export/fullscreen/i18n/Excel paste + host undo) → persist Sheet JSON (Q2) → embed widget in Mapping Editors with scrollbars, adjustable split, modal/fullscreen (Q3, Q7) → Blockly accessors/mutators (Q5) → Test Run/codegen bag (Q8).
+- **Maps:** keep `maps_*`; replace terminology-style usage in code/prompts; Defaults + nested Blockly map values stay. Second step: [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md).
+- **Defer:** FHIR; Excel formulas/merge/style; per-cell nested Blockly; `DV_CODED_TEXT` composite helper; deleting `maps_*`.
 - **Do not** paste into `maps_create_with` as the 2D representation.
 
-### Relevant files (Chunk 8 — adopted scope TBD)
+### Relevant files (Chunk 8)
 
 - `docs/future/spreadsheet-matrix-libraries.md` — library comparison
 - `src/core/sheets/` — Sheet JSON model + lookup (new)
@@ -784,13 +785,13 @@ Include in Chunk 8:
 - `src/core/test_runner/mod.ts` — `ctx.sheets`
 - `CONTEXT.md`, `docs/ROADMAP.md` §C
 
-  - [ ] 8.1 Adopt library; add Deno import + vendored CSS/assets as needed
-  - [ ] 8.2 Sheet JSON model (name, headers, optional row names, values, types)
-  - [ ] 8.3 Embed widget; bind to model; Excel/Sheets paste + CSV/file
-  - [ ] 8.4 Blockly `sheet` declaration + accessor/mutator/lookup blocks
-  - [ ] 8.5 Test Run + codegen: named sheets bag
-  - [ ] 8.6 Tests: model, paste, Blockly round-trip, lookup in `runTest`
-  - [ ] 8.7 Docs: ROADMAP §C, CONTEXT Sheet vs Map
+  - [x] 8.1 Adopt library; add Deno import + vendored CSS/assets as needed
+  - [x] 8.2 Sheet JSON model (name, headers, optional row names, values, types)
+  - [x] 8.3 Embed widget; bind to model; Excel/Sheets paste + CSV/file
+  - [x] 8.4 Blockly `sheet` declaration + accessor/mutator/lookup blocks
+  - [x] 8.5 Test Run + codegen: named sheets bag
+  - [x] 8.6 Tests: model, paste, Blockly round-trip, lookup in `runTest`
+  - [x] 8.7 Docs: ROADMAP §C, CONTEXT Sheet vs Map
   - [ ] (later) FHIR ConceptMap → sheet
   - [ ] (later) formulas / `DV_CODED_TEXT` helper / `sheet_to_map`
 

@@ -60,6 +60,13 @@ const VALUE_BLOCK_TYPES = new Set([
   "maps_create_with",
   "maps_create_empty",
   "maps_get",
+  "sheet_lookup",
+  "sheet_get_cell",
+  "sheet_get_xy",
+  "sheet_get_row",
+  "sheet_get_column",
+  "sheet_get_header",
+  "sheet_get_data",
   "math_number",
   "logic_boolean",
   "text_trim",
@@ -173,25 +180,27 @@ export function buildPrompt(options: BuildPromptOptions): string {
   sections.push(
     "",
     "## Block examples",
-    "Value slots only — no RM containers or DV shells in suggestions. Prefer maps for code/terminology translation.",
+    "Value slots only — no RM containers or DV shells in suggestions. Prefer Sheets (`sheet_lookup`) for code/terminology translation; keep `maps_get` for Defaults Map keys.",
     "",
-    "**Terminology translation (ICD-10 → SNOMED CT)** — `maps_get` with dynamic key from source (named map on canvas, e.g. `icd10_snomed`):",
+    "**Terminology translation (ICD-10 → SNOMED CT)** — `sheet_lookup` against a named Sheet (headers `code` / `snomed`), key from source:",
     "```json",
     JSON.stringify({
       slotId: "{targetId}{path/to/code_string/value}",
       block: {
-        type: "maps_get",
+        type: "sheet_lookup",
         fields: { NAME: "icd10_snomed" },
         inputs: {
-          KEY: {
+          MATCH_COL: { block: { type: "text", fields: { TEXT: "code" } } },
+          MATCH_VAL: {
             block: {
               type: "source_query",
               fields: { EXPRESSION: "$.diagnosis.icd10" },
             },
           },
+          RETURN_COL: { block: { type: "text", fields: { TEXT: "snomed" } } },
         },
       },
-      note: "I10→38341003, E11→44054006, …",
+      note: "Sheet icd10_snomed: I10→38341003, E11→44054006, …",
     }, null, 2),
     "```",
     "",
@@ -222,7 +231,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
     "**Repeating container** — put `for_each_source` in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list).",
     "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `maps_get` / `maps_create_with` for terminology and code translation. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `sheet_lookup` for terminology and code translation (named Sheet). Use `maps_get` / `maps_create_with` for Defaults Map keys. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {
@@ -517,7 +526,7 @@ export function explainSuggestionSchemaIssue(
   }
   if (keyword === "enum" || /does not match any of/i.test(raw)) {
     if (/\.type$/.test(path)) {
-      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, or maps_create_* (not source_query_string). Loops use for_each_source only in loops[].`;
+      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, sheet_lookup, or maps_create_* (not source_query_string). Loops use for_each_source only in loops[].`;
     }
   }
   if (keyword === "const") {
@@ -941,6 +950,51 @@ function blockJsonToExpression(
         ? blockJsonToExpression(child("KEY")!, rewriteSourcePath)
         : '""';
       return `maps_get(${JSON.stringify(name)}, ${key ?? '""'})`;
+    }
+    case "sheet_lookup": {
+      const name = String(fields.NAME ?? "Sheet1");
+      const col = child("MATCH_COL")
+        ? blockJsonToExpression(child("MATCH_COL")!, rewriteSourcePath)
+        : '""';
+      const val = child("MATCH_VAL")
+        ? blockJsonToExpression(child("MATCH_VAL")!, rewriteSourcePath)
+        : '""';
+      const ret = child("RETURN_COL")
+        ? blockJsonToExpression(child("RETURN_COL")!, rewriteSourcePath)
+        : '""';
+      return `sheet_lookup(${JSON.stringify(name)}, ${col ?? '""'}, ${val ?? '""'}, ${ret ?? '""'})`;
+    }
+    case "sheet_get_cell": {
+      const name = String(fields.NAME ?? "Sheet1");
+      const a1 = child("A1")
+        ? blockJsonToExpression(child("A1")!, rewriteSourcePath)
+        : '"A1"';
+      return `sheet_get_cell(${JSON.stringify(name)}, ${a1 ?? '"A1"'})`;
+    }
+    case "sheet_get_xy": {
+      const name = String(fields.NAME ?? "Sheet1");
+      const x = child("X") ? blockJsonToExpression(child("X")!, rewriteSourcePath) : "0";
+      const y = child("Y") ? blockJsonToExpression(child("Y")!, rewriteSourcePath) : "0";
+      return `sheet_get_xy(${JSON.stringify(name)}, ${x ?? "0"}, ${y ?? "0"})`;
+    }
+    case "sheet_get_row": {
+      const name = String(fields.NAME ?? "Sheet1");
+      const y = child("Y") ? blockJsonToExpression(child("Y")!, rewriteSourcePath) : "0";
+      return `sheet_get_row(${JSON.stringify(name)}, ${y ?? "0"})`;
+    }
+    case "sheet_get_column": {
+      const name = String(fields.NAME ?? "Sheet1");
+      const x = child("X") ? blockJsonToExpression(child("X")!, rewriteSourcePath) : "0";
+      return `sheet_get_column(${JSON.stringify(name)}, ${x ?? "0"})`;
+    }
+    case "sheet_get_header": {
+      const name = String(fields.NAME ?? "Sheet1");
+      const x = child("X") ? blockJsonToExpression(child("X")!, rewriteSourcePath) : "0";
+      return `sheet_get_header(${JSON.stringify(name)}, ${x ?? "0"})`;
+    }
+    case "sheet_get_data": {
+      const name = String(fields.NAME ?? "Sheet1");
+      return `sheet_get_data(${JSON.stringify(name)})`;
     }
     case "math_number":
       return String(fields.NUM ?? 0);

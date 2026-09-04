@@ -6,6 +6,8 @@
   <title>intEHRgrator — Integration Workbench</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans:400,500" />
   <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="vendor/jspreadsheet/jsuites.css" />
+  <link rel="stylesheet" href="vendor/jspreadsheet/jspreadsheet.css" />
 </head>
 <body>
   <header class="toolbar">
@@ -183,6 +185,7 @@
             <div class="mapping-editor-tab-group">
               <button id="tab-mapping-json" class="mapping-editor-tab active" type="button">Mapping Spec</button>
               <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
+              <button id="tab-sheets" class="mapping-editor-tab" type="button">Sheets</button>
             </div>
             <button
               id="btn-download-spec"
@@ -221,6 +224,7 @@
           </div>
           <div id="spec-editor" class="editor-host"></div>
           <div id="handlebars-editor" class="editor-host" hidden></div>
+          <div id="sheets-host" class="sheets-host" hidden></div>
         </div>
       </div>
     </section>

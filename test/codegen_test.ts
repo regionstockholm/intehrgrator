@@ -39,6 +39,19 @@ Deno.test("typescript codegen contains template id", () => {
   assertEquals(ts.includes('"defaults" === "defaults"'), false);
 });
 
+Deno.test("typescript codegen emits sheetLookup helper for sheet_lookup slots", () => {
+  const model = applyExpressionEdit(
+    createEmptyModel("terms"),
+    "s1",
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+    { rmType: "DV_TEXT", returnType: "string" },
+  );
+  const ts = generate(model, "typescript");
+  assertStringIncludes(ts, "function sheetLookup");
+  assertStringIncludes(ts, "sheetLookup(");
+  assertStringIncludes(ts, "sheets:");
+});
+
 Deno.test("java codegen structure", () => {
   const model = createEmptyModel("vitals");
   const java = generate(model, "java");
@@ -97,6 +110,10 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
   assertEquals(
     emitXQueryExpr(parseExpression('maps_get("defaults", "language")')),
     '(if ("defaults" eq "defaults") then map:get($defaults, "language") else ())',
+  );
+  assertEquals(
+    emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
+    '(: sheet_lookup — bind $sheets at convert time :) ()',
   );
 });
 

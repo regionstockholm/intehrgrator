@@ -31,6 +31,7 @@ import { renderHandlebars } from "../output/handlebars_dialect.ts";
 import { executeGoTemplate, isGoTemplateWasmLoaded } from "../output/go_template_runtime.ts";
 import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
+import { sheetsToBag } from "../sheets/mod.ts";
 import { validateConvertedOutput } from "../output/template_validation.ts";
 
 export interface RunTestOptions {
@@ -46,6 +47,8 @@ export interface RunTestOptions {
   blocklyState?: unknown;
   /** Convert-time Defaults Map overlay (wins over Blockly named `defaults`). */
   defaults?: Record<string, unknown>;
+  /** Convert-time named Sheets (ADR 0005). */
+  sheets?: import("../sheets/types.ts").SheetDocument[];
   /** ehrtslib JSON deserializer preset for openEHR template validation. */
   openEhrJsonDeserializeMode?: OpenEhrJsonDeserializeMode;
 }
@@ -80,6 +83,7 @@ export function runTest(
       ...(options.defaults ?? {}),
     };
     const defaults = ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {};
+    ctx.sheets = { ...ctx.sheets, ...sheetsToBag(options.sheets ?? []) };
 
     if (mode === "typescript") {
       const code = options.generatedCode ?? generateTypeScript(model, {
@@ -90,7 +94,7 @@ export function runTest(
       const raw = runGeneratedTypeScript(code, {
         format,
         data: ctx.data,
-      }, defaults);
+      }, defaults, undefined, ctx.sheets);
       const output = serializedConversionOutput(raw);
       const outputValidation = validateConvertedOutput(output, options.target, {
       deserializeMode: options.openEhrJsonDeserializeMode,

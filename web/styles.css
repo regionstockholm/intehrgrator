@@ -410,8 +410,23 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-radius: 8px;
   box-shadow: 0 8px 32px rgba(0,0,0,0.25);
   padding: 12px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sheets-panel--fullscreen .sheets-grid-host {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
 }
 body.sheets-fullscreen { overflow: hidden; }
+body.sheets-fullscreen::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 79;
+}
 .blockly-mount {
   --blockly-minimap-width: 147px;
   --blockly-minimap-height: 147px;

@@ -346,11 +346,8 @@ export function mountSheetsPanel(
     root.classList.toggle("sheets-panel--fullscreen", on);
     document.body.classList.toggle("sheets-fullscreen", on);
     paintChrome();
-    try {
-      worksheet?.parent.fullscreen(on);
-    } catch {
-      // library fullscreen is optional
-    }
+    // Host overlay is the modal; library `.fullscreen` is z-index 21 and
+    // would sit under this panel (blank white).
   };
   fullBtn.addEventListener("click", () => setFullscreen(!fullscreen));
 

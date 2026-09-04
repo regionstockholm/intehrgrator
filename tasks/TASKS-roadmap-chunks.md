@@ -325,7 +325,7 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 | 5    | Local/offline AI skill                  | D: parallel IDE + local app; installable AI skill for suggestion format                                                                                  | Docs + skill packaging                                                                     |
 | 6    | Dynamic schema toolboxes                | H: JSON/XSD target drawers from schema; TakeCare test + term ids                                                                                         | Productized schema-specific Blockly                                                        |
 | 7    | Handlebars correctness                  | G: harden Mapping preview Test Run (7.1 patch); execute Authored Template in Conversion Test Run — **done**; Blockly ↔ Handlebars codegen deferred | 7.0 merged (PR #22); 7.1 closes fixture parity |
-| 8    | Maps/tables                             | C: CSV/Excel paste tables; FHIR terminology maps (MVP → 8.1 FHIR/full grid)                                                                               | Needs named-map pipeline fix + paste ingestion |
+| 8    | Spreadsheet / matrix                    | C: embed sheet widget + persist 2D model; Blockly accessors/mutators from that API; CSV/Excel paste into the sheet. FHIR deferred                         | Maps stay 1D; sheet is the 2D structure        |
 | 9    | Conversion scripts                      | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI                                                                         | After mapping/RM is trustworthy                                                            |
 | 10   | Persistence, i18n, versioning           | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
 | 11   | Better Form parity                      | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
@@ -636,140 +636,163 @@ Chunk 7 merged in PR #22 with **7.6** left open. Grill Q13 already adopted fixtu
   - [ ] 7.1.6 Fix `handlebars()` builtin to pass slot bag from context
   - [ ] 7.1.7 Docs: amend ADR 0003; tick ROADMAP Handlebars Test Run item; narrow 7.6 wording
 
-- [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
+- [ ] 8.0 Chunk 8 — Spreadsheet / matrix widget, then Blockly accessors (roadmap C)
 
-## Grill round 1 (Chunk 8 frontier — CSV / FHIR tables)
+## Grill round 1 (Chunk 8 frontier — spreadsheet/matrix)
 
-Asked before coding Chunk 8. **Awaiting user adoption.**
+Asked after the user rejected a “paste into 1D maps” MVP. **Awaiting adoption.** Library comparison: [`docs/future/spreadsheet-matrix-libraries.md`](../docs/future/spreadsheet-matrix-libraries.md).
 
-Context: Roadmap §C items 26–27. Chunk 1D **map blocks** (`maps_create_with`, `maps_get`, `defaults_block`) are done. AI/docs already mention ICD-10→SNOMED via `maps_get("icd10_snomed", …)` but there is **no UI** to author named terminology maps, **no paste/import**, and **non-`defaults` `maps_get` is incomplete** in TS/XQuery/Go codegen. No FHIR/ConceptMap code exists.
+**Settled (user 2026-09-04):** proper spreadsheet/matrix support **first**; initial Blockly accessor/mutator set is derived from the **selected library’s API**; **FHIR is deferred**.
 
-❓ **Q1** - **Chunk 8 boundary**: One chunk or split?
-
-**A** — One chunk (CSV paste + named maps + lookup E2E); FHIR import in same PR.  
-**B** — **Chunk 8 MVP** (paste → named 1D/2-column map + `maps_get` pipeline fix); **Chunk 8.1** (full N×M grid + FHIR ConceptMap).  
-**C** — Defer tables entirely; do Chunk 9 (conversion goldens) next.
-
-➡️ **Recommended: B.** Chunk 8 proves paste + terminology lookup on existing map blocks; full grid editor and FHIR are large enough to split.
+Context: 1D **Map** blocks exist. ROADMAP still wants named columns, optional row names, typed columns, Excel/Sheets paste, and later code+label lookup into `DV_CODED_TEXT`. That is a **Sheet**, not `maps_create_with`.
 
 ---
 
-❓ **Q2** - **Table model for MVP**: Extend `maps_create_with` or introduce a new 2D `table_*` block family?
+❓ **Q1** - **Which spreadsheet library?**
 
-**A** — Paste TSV/CSV into **2-column** `maps_create_with` (key → value); optional header row.  
-**B** — New `table_create` block with row/column names, typed columns, and separate lookup blocks.  
-**C** — Both in Chunk 8.
+**A** — **jspreadsheet-ce** (MIT, vanilla, 2 deps: `jsuites` + `@jspreadsheet/formula`). Docs: https://github.com/jspreadsheet/ce · https://bossanova.uk/jspreadsheet/v4/docs/quick-reference · npm https://www.npmjs.com/package/jspreadsheet-ce
+**B** — **x-data-spreadsheet** (MIT, ~zero deps, canvas). https://github.com/myliang/x-spreadsheet — stale; successor `@wolf-table/table` is 0.0.3.
+**C** — **Univer** sheets preset (Apache-2.0, Excel-complete). https://github.com/dream-num/univer · https://univer.ai/ — React + large plugin graph.
+**D** — **fortune-sheet** (MIT Luckysheet fork). https://github.com/ruilisi/fortune-sheet — React + lodash/immer.
+**E** — **canvas-datagrid** (BSD-3). https://github.com/TonyGermaneri/canvas-datagrid — data grid, not A1 sheet.
+**F** — No embed: own HTML `<table>` + **PapaParse** only. https://www.papaparse.com/
 
-➡️ **Recommended: A for MVP.** Matches today's `maps_get` and Defaults Map extraction. Full N×M grid is stretch (Q1 B → 8.1).
-
----
-
-❓ **Q3** - **Named terminology maps on canvas**: How does the user name a map (e.g. `icd10_snomed`)?
-
-**A** — Add `NAME` field to top-level `maps_create_with` (not only on `maps_get`).  
-**B** — New `terminology_map` block wrapping `maps_create_with`.  
-**C** — Keep maps nested under `defaults_block` only; terminology maps live in IndexedDB catalog.
-
-➡️ **Recommended: A + catalog.** Top-level named `maps_create_with` in Maps drawer; load/save via catalog pattern like Defaults Map (reuse or extend `idb_catalog`).
+➡️ **Recommended: A.** Vanilla, MIT, bounded deps, native Excel paste, headers + cell/row/column CRUD that map cleanly to Blockly. Reject C/D (React), Luckysheet (archived), Handsontable/HyperFormula (proprietary / GPLv3).
 
 ---
 
-❓ **Q4** - **Paste UX**: Where does clipboard/file import land?
+❓ **Q2** - **Source of truth**: library instance vs project-owned sheet JSON?
 
-**A** — Maps toolbox category: **Paste table** → dialog → spawns named `maps_create_with` on canvas.  
-**B** — Context menu on existing `maps_create_with` (paste replaces/appends rows).  
-**C** — Separate **Tables** pane (like Defaults panel).
+**A** — Persist a thin **Sheet** document (name, column titles, optional row names, 2D values, optional column types). Widget binds to it; Test Run/codegen read the JSON.
+**B** — Persist the library’s native workbook JSON (jspreadsheet `getData`/`getConfig`, Univer snapshot, …).
+**C** — DOM-only until Blockly blocks exist; no persistence in v1.
 
-➡️ **Recommended: A + B.** Flyout action for new map; paste-into-existing for edits. No new pane in MVP.
-
----
-
-❓ **Q5** - **Lookup blocks for MVP**: `maps_get` only, or add index/content lookup?
-
-**A** — **`maps_get` only** (key-based); fix named-map runtime + codegen (TS, XQuery, Go template).  
-**B** — Add `table_lookup_row` / `table_lookup_column` (index + content search).  
-**C** — Add composite return block producing `DV_CODED_TEXT` (code + rubric from two columns).
-
-➡️ **Recommended: A in Chunk 8.** `maps_get` is enough for ICD→SNOMED; index/content and DV_CODED_TEXT composite → 8.1+.
+➡️ **Recommended: A.** Widget is a view. Blockly and Conversion scripts must not require the grid in the DOM.
 
 ---
 
-❓ **Q6** - **Codegen / Test Run envelope**: How do named maps reach conversion scripts?
+❓ **Q3** - **Where does the sheet UI live?**
 
-**A** — `namedMapsFromBlocklyState` → Test Run `ctx.namedMaps`; TS/XQuery/Go emit `maps_get("name", key)` against convert-time map args.  
-**B** — Inline map literals at codegen time (bake table into script).  
-**C** — Go template only: extra top-level fields beside `Parameters` / `Data`.
+**A** — New **Sheets** section in Mapping Editors (split under Blockly, sibling to Mapping Spec / Handlebars Template).
+**B** — Modal / drawer opened from a named `sheet` Blockly block (like Defaults Map folder).
+**C** — Replace part of the Source Pane.
 
-➡️ **Recommended: A** (consistent with ADR 0002 convert-time maps). Today non-`defaults` names are broken or stubbed — fix in Chunk 8.
-
----
-
-❓ **Q7** - **TSV/CSV parsing rules for Excel/Sheets paste**:
-
-**A** — Tab-separated first (clipboard from Excel/Sheets); comma fallback for `.csv` files.  
-**B** — RFC 4180 CSV only.  
-**C** — User picks delimiter in paste dialog.
-
-➡️ **Recommended: A + C light.** Default TSV for paste; file import offers delimiter if autodetect fails.
+➡️ **Recommended: A.** Sheets are mapping artefacts (terminology grids), not source instances. A named `sheet` block can still *focus* that tab (B as navigation, not the only editor).
 
 ---
 
-❓ **Q8** - **Example set / tests**:
+❓ **Q4** - **Chunk 8 sequence inside the chunk**
 
-**A** — Small fixture: 2-column ICD→SNOMED map + `maps_get` in a slot expression + Test Run.  
-**B** — Register in `example-sets.json`.  
-**C** — Unit tests only (no example set).
+**A** — Widget + persist + paste **then** Blockly accessors/mutators in the **same** chunk (two PRs OK).
+**B** — Chunk 8 = widget only; Chunk 8.1 = Blockly blocks.
+**C** — Blockly blocks first against a fake 2D array; widget later.
 
-➡️ **Recommended: A + C.** Example set optional; unit + integration tests required.
-
----
-
-❓ **Q9** - **FHIR ConceptMap / ValueSet import** (roadmap C line 27):
-
-**A** — In Chunk 8 MVP (parse FHIR JSON → `maps_create_with`).  
-**B** — Chunk 8.1 after paste MVP ships.  
-**C** — Out of scope until a concrete FHIR fixture is chosen.
-
-➡️ **Recommended: B.** No FHIR code in repo; paste MVP unblocks the same use case manually.
+➡️ **Recommended: A.** User asked for the sheet first, then blocks based on the library. Same chunk, ordered commits: embed → model → paste → blocks.
 
 ---
 
-❓ **Q10** - **Bundle persistence**: Where do pasted tables live?
+❓ **Q5** - **Initial Blockly set** (names follow jspreadsheet CE if Q1=A)
 
-**A** — Blockly workspace JSON only (project bundle).  
-**B** — Separate `mapping.terminologyMaps.json` sidecar in bundle.  
-**C** — IndexedDB catalog only (not in bundle).
+Include in Chunk 8:
 
-➡️ **Recommended: A.** Named `maps_create_with` blocks on canvas, same as Defaults Map — already persisted in `blocklyState`.
+- Named declaration: `sheet` (NAME, like Defaults Map)
+- Accessors: `sheet_get_cell` (A1), `sheet_get_xy`, `sheet_get_row`, `sheet_get_column`, `sheet_get_header`, `sheet_get_data`
+- Mutators: `sheet_set_cell` / `sheet_set_xy`, `sheet_set_row` / `sheet_set_column`, `sheet_set_header`, `sheet_insert_row` / `sheet_delete_row`, `sheet_insert_column` / `sheet_delete_column`
+- Content lookup: `sheet_lookup` (find first row where header/column equals value → row or cell)
+
+**A** — That set.
+**B** — Accessors only in Chunk 8; mutators later.
+**C** — Also wrap formulas, merge, style, undo (`parseFormulas`, `setMerge`, …).
+
+➡️ **Recommended: A.** Mutators are required for “matrix support”. Formulas/merge/style → later.
+
+---
+
+❓ **Q6** - **Row names and column types** (ROADMAP)
+
+**A** — Column titles via widget headers (`setHeader`). Optional **row-name column** (leftmost, unique). Column `type` from the library (text / numeric / dropdown) where it exists.
+**B** — Free-form per-cell Blockly values (nested blocks in cells) in Chunk 8.
+**C** — Headers only; no row names or types yet.
+
+➡️ **Recommended: A.** Per-cell nested Blockly (B) fights a spreadsheet widget; keep cells as JSON primitives in v1.
+
+---
+
+❓ **Q7** - **Paste / file ingest**
+
+**A** — Native widget clipboard (Excel/Sheets TSV) + `csv` / file open into `setData`. PapaParse only if CE v5 helpers are insufficient.
+**B** — Always PapaParse, then `setData`.
+**C** — File only, no clipboard.
+
+➡️ **Recommended: A.**
+
+---
+
+❓ **Q8** - **Test Run / codegen**
+
+**A** — Named sheets on a convert-time bag (`ctx.sheets` / script argument), parallel to Defaults Map (ADR 0002). Accessors evaluate against that JSON.
+**B** — Bake the grid as literals into generated scripts.
+**C** — Mapping preview only; Conversion scripts ignore sheets until Chunk 9.
+
+➡️ **Recommended: A.**
+
+---
+
+❓ **Q9** - **Relationship to 1D maps**
+
+**A** — Keep `maps_*` unchanged. Sheets are a new Maps/Sheets toolbox group. Optional later: `sheet_to_map` (two columns → Map).
+**B** — Replace terminology `maps_get` with sheets immediately.
+**C** — Auto-project every 2-column sheet into a named Map.
+
+➡️ **Recommended: A.**
+
+---
+
+❓ **Q10** - **FHIR ConceptMap / ValueSet**
+
+**A** — Not in Chunk 8 (deferred).
+**B** — Parse FHIR JSON into the sheet in this chunk.
+
+➡️ **Recommended: A.** User deferred FHIR. Reopen after accessors exist.
+
+---
+
+❓ **Q11** - **Tests**
+
+**A** — Headless sheet-model tests + Blockly serialize + `runTest` lookup; one small terminology-grid fixture (not necessarily an example set).
+**B** — Example set in `example-sets.json` required.
+**C** — Widget screenshot-only.
+
+➡️ **Recommended: A.** Example set optional.
 
 ---
 
 ### Chunk 8 implementation notes (pending adoption)
 
-- **MVP:** TSV/CSV paste → named `maps_create_with`; Maps flyout + paste-into-block; fix `namedMaps` + `maps_get` through Test Run and all codegen adapters.
-- **Stretch (8.1):** N×M grid, row/column typing, `table_lookup_*` blocks, FHIR ConceptMap import, composite `DV_CODED_TEXT` lookup.
-- **Explicitly defer:** Roadmap B “inline hardcoded map” right-click; `maps_keys`/`maps_length` in codegen unless trivial.
+- **Order:** pick library (Q1) → persist Sheet JSON (Q2) → embed widget + paste (Q3, Q7) → Blockly accessors/mutators (Q5) → Test Run/codegen bag (Q8).
+- **Defer:** FHIR; Excel formulas/merge/style; per-cell nested Blockly; `DV_CODED_TEXT` composite helper; roadmap B “inline hardcoded lookup”.
+- **Do not** paste into `maps_create_with` as the 2D representation.
 
 ### Relevant files (Chunk 8 — adopted scope TBD)
 
-- `src/core/tables/` — new: `parse_tsv.ts`, `paste_to_map_block.ts` (names TBD)
-- `src/blockly/blocks/map_blocks.ts` — `NAME` on `maps_create_with`, paste hooks
-- `src/core/defaults/extract.ts` — named map extraction (partially exists)
-- `src/core/source/query_runtime.ts`, `src/core/expression/mod.ts` — `maps_get` eval
-- `src/core/codegen/typescript.ts`, `xquery.ts`, `go_template.ts` — non-defaults `maps_get`
-- `src/core/test_runner/mod.ts` — merge all named maps
-- `web/main.ts`, `web/index.html` — paste dialog
-- `src/blockly/toolbox_demo.ts` — Maps drawer entries
-- `docs/ROADMAP.md` §C, `CONTEXT.md` — Map vs Table glossary
-- `test/table_paste_test.ts`, `test/map_blocks_test.ts` — extend
+- `docs/future/spreadsheet-matrix-libraries.md` — library comparison
+- `src/core/sheets/` — Sheet JSON model + lookup (new)
+- `web/` — widget host + paste
+- `src/blockly/blocks/` — `sheet_*` blocks (new); Maps toolbox
+- `src/core/source/query_runtime.ts`, `src/core/expression/mod.ts` — evaluate accessors
+- `src/core/codegen/` — emit sheet lookups
+- `src/core/test_runner/mod.ts` — `ctx.sheets`
+- `CONTEXT.md`, `docs/ROADMAP.md` §C
 
-  - [ ] 8.1 TSV/CSV parse + paste dialog (clipboard + file)
-  - [ ] 8.2 Named `maps_create_with` block + toolbox placement
-  - [ ] 8.3 Fix named-map pipeline: extract → Test Run → TS/XQuery/Go codegen
-  - [ ] 8.4 Tests: paste fixture → Blockly → `maps_get` round-trip
-  - [ ] 8.5 Docs: ROADMAP §C, CONTEXT table terminology
-  - [ ] 8.6 (stretch / 8.1) Full N×M grid editor
-  - [ ] 8.7 (stretch / 8.1) FHIR ConceptMap import
+  - [ ] 8.1 Adopt library; add Deno import + vendored CSS/assets as needed
+  - [ ] 8.2 Sheet JSON model (name, headers, optional row names, values, types)
+  - [ ] 8.3 Embed widget; bind to model; Excel/Sheets paste + CSV/file
+  - [ ] 8.4 Blockly `sheet` declaration + accessor/mutator/lookup blocks
+  - [ ] 8.5 Test Run + codegen: named sheets bag
+  - [ ] 8.6 Tests: model, paste, Blockly round-trip, lookup in `runTest`
+  - [ ] 8.7 Docs: ROADMAP §C, CONTEXT Sheet vs Map
+  - [ ] (later) FHIR ConceptMap → sheet
+  - [ ] (later) formulas / `DV_CODED_TEXT` helper / `sheet_to_map`
 
 - [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)
 - [ ] 10.0 Chunk 10 — GitHub save, UI i18n, dependency hashes (roadmap B/L)

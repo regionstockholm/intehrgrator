@@ -56,7 +56,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   en: {
     CAT_SEARCH: "Search",
     CAT_SOURCE: "Source",
-    CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_TYPES: "openEHR",
     CAT_OPENEHR_ENTRIES: "Compositions & entries",
     CAT_OPENEHR_ITEMS: "Items & events",
     CAT_OPENEHR_PARTY: "Party",
@@ -97,7 +97,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   sv: {
     CAT_SEARCH: "Sök",
     CAT_SOURCE: "Källa",
-    CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_TYPES: "openEHR",
     CAT_OPENEHR_ENTRIES: "Compositions & entries",
     CAT_OPENEHR_ITEMS: "Items & events",
     CAT_OPENEHR_PARTY: "Party",
@@ -138,7 +138,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   de: {
     CAT_SEARCH: "Suche",
     CAT_SOURCE: "Quelle",
-    CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_TYPES: "openEHR",
     CAT_OPENEHR_ENTRIES: "Compositions & entries",
     CAT_OPENEHR_ITEMS: "Items & events",
     CAT_OPENEHR_PARTY: "Party",
@@ -179,7 +179,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   es: {
     CAT_SEARCH: "Buscar",
     CAT_SOURCE: "Origen",
-    CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_TYPES: "openEHR",
     CAT_OPENEHR_ENTRIES: "Compositions & entries",
     CAT_OPENEHR_ITEMS: "Items & events",
     CAT_OPENEHR_PARTY: "Party",
@@ -220,7 +220,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   ca: {
     CAT_SEARCH: "Cerca",
     CAT_SOURCE: "Origen",
-    CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_TYPES: "openEHR",
     CAT_OPENEHR_ENTRIES: "Compositions & entries",
     CAT_OPENEHR_ITEMS: "Items & events",
     CAT_OPENEHR_PARTY: "Party",
@@ -261,7 +261,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
   fr: {
     CAT_SEARCH: "Rechercher",
     CAT_SOURCE: "Source",
-    CAT_OPENEHR_TYPES: "openEHR types",
+    CAT_OPENEHR_TYPES: "openEHR",
     CAT_OPENEHR_ENTRIES: "Compositions & entries",
     CAT_OPENEHR_ITEMS: "Items & events",
     CAT_OPENEHR_PARTY: "Party",

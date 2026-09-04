@@ -41,6 +41,7 @@
     "npm:@lezer/highlight@^1.2.1": "1.2.3",
     "npm:@lhncbc/ucum-lhc@*": "7.1.8",
     "npm:blockly@*": "11.2.2",
+    "npm:blockly@11.2.2": "11.2.2",
     "npm:blockly@^11.2.2": "11.2.2",
     "npm:d3@7.9.0": "7.9.0",
     "npm:esbuild@0.25.0": "0.25.0",
@@ -291,14 +292,14 @@
     "@csstools/color-helpers@5.1.0": {
       "integrity": "sha512-S11EXWJyy0Mz5SYvRmY8nJYTFFd1LCNV+7cXyAgQtOOuzb4EsgfqDufL+9esx72/eLhsRdGZwaldu/h+E4t4BA=="
     },
-    "@csstools/css-calc@2.1.4_@csstools+css-parser-algorithms@3.0.5__@csstools+css-tokenizer@3.0.4_@csstools+css-tokenizer@3.0.4": {
+    "@csstools/css-calc@2.1.4_@csstools+css-parser-algorithms@3.0.5_@csstools+css-tokenizer@3.0.4": {
       "integrity": "sha512-3N8oaj+0juUw/1H3YwmDDJXCgTB1gKU6Hc/bB502u9zR0q2vd786XJH9QfrKIEgFlZmhZiq6epXl4rHqhzsIgQ==",
       "dependencies": [
         "@csstools/css-parser-algorithms",
         "@csstools/css-tokenizer"
       ]
     },
-    "@csstools/css-color-parser@3.1.0_@csstools+css-parser-algorithms@3.0.5__@csstools+css-tokenizer@3.0.4_@csstools+css-tokenizer@3.0.4": {
+    "@csstools/css-color-parser@3.1.0_@csstools+css-parser-algorithms@3.0.5_@csstools+css-tokenizer@3.0.4": {
       "integrity": "sha512-nbtKwh3a6xNVIp/VRuXV64yTKnb1IjTAEEh3irzS+HkKjAOYLTGNb9pmVNntZ8iVBHcWDA2Dof0QtPgFI1BaTA==",
       "dependencies": [
         "@csstools/color-helpers",

@@ -37,6 +37,23 @@ class DockedMinimap extends Minimap {
       toolboxEl.appendChild(wrapper);
     }
 
+    // Search sits with the minimap (fixed foot), not in the scrolling category list.
+    const searchRow = toolboxEl?.querySelector(
+      ".blocklyToolboxCategorySearch, .blocklyToolboxCategory:has(input[type='search'])",
+    ) as HTMLElement | null;
+    if (toolboxEl && searchRow && searchRow.parentElement !== toolboxEl) {
+      if (wrapper && wrapper.parentElement === toolboxEl) {
+        toolboxEl.insertBefore(searchRow, wrapper);
+      } else {
+        toolboxEl.appendChild(searchRow);
+      }
+    } else if (toolboxEl && searchRow && wrapper && wrapper.parentElement === toolboxEl) {
+      // Keep search immediately above the minimap.
+      if (searchRow.nextElementSibling !== wrapper) {
+        toolboxEl.insertBefore(searchRow, wrapper);
+      }
+    }
+
     const toolbox = this.primaryWorkspace.getToolbox?.();
     const width = Math.round(
       (typeof toolbox?.getWidth === "function" ? toolbox.getWidth() : 0) ||

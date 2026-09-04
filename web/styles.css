@@ -396,11 +396,25 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .sheets-grid-host {
   flex: 1;
   min-height: 0;
-  overflow: auto;
+  /* Host must not scroll — jspreadsheet `.jss_content` owns overflow (avoids double bars / flicker). */
+  overflow: hidden;
   border: 1px solid var(--border);
   background: #fff;
 }
-.sheets-grid { min-width: 100%; min-height: 100%; }
+.sheets-grid {
+  min-width: 100%;
+  min-height: 100%;
+  height: 100%;
+}
+.sheets-grid .jss_container,
+.sheets-grid .jss {
+  height: 100%;
+}
+.sheets-grid .jss_content {
+  /* Sized by sheets_panel.sizeGrid; keep overflow here only. */
+  overflow: auto !important;
+  box-shadow: none !important;
+}
 .sheets-panel--fullscreen {
   position: fixed;
   inset: 12px;
@@ -463,9 +477,18 @@ body.sheets-fullscreen::before {
   min-height: 0;
   overflow-y: auto;
 }
+.blockly-mount .blocklyToolboxDiv > .blocklyToolboxCategorySearch,
+.blockly-mount .blocklyToolboxDiv > .blocklyToolboxCategory:has(input[type="search"]) {
+  flex: 0 0 auto;
+  margin-top: auto;
+  width: 100%;
+  box-sizing: border-box;
+  border-top: 1px solid var(--border);
+  background: #fff;
+}
 .blockly-mount .blocklyToolboxDiv > .blockly-minimap {
   flex: 0 0 var(--blockly-minimap-height);
-  margin-top: auto;
+  margin-top: 0;
   width: 100%;
   height: var(--blockly-minimap-height);
   position: relative;
@@ -622,6 +645,12 @@ body.sheets-fullscreen::before {
 .blockly-mount .blocklyText.blockly-slot-label--abstract,
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,
 .blockly-mount .blocklyText.blockly-rm-emoji-abstract {
+  text-decoration: none;
+  cursor: pointer;
+}
+.blockly-mount .blocklyText .blockly-slot-abstract-glyph,
+.blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,
+.blockly-mount .blocklyText.blockly-rm-emoji-abstract {
   text-decoration: underline;
   text-underline-offset: 2px;
   cursor: pointer;
@@ -631,8 +660,6 @@ body.sheets-fullscreen::before {
 .blockly-mount img[alt="Optional attributes…"] {
   margin-left: 6px;
   opacity: 1;
-  filter: drop-shadow(0 0 1.25px rgba(255, 255, 255, 0.95))
-    drop-shadow(0 0 1px rgba(15, 23, 42, 0.85));
 }
 
 /* Default Blockly mutator icon is replaced by header cogwheel on RM blocks */

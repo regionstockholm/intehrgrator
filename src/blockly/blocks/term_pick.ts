@@ -20,7 +20,9 @@ export function registerTermPickBlock(): void {
 
   Blockly.Blocks[TERM_PICK_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(
+        (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? 0) as number,
+      );
       appendBlockOutputEmoji(header, "CODE_PHRASE");
       header
         .appendField(new FieldSkeletonTitle("CODE_PHRASE", "built-in"), "NAME")

@@ -33,7 +33,7 @@ import {
   rmAttributeCardinality,
   type SlotCardinality,
 } from "../slot_cardinality.ts";
-import { appendSlotLabel } from "../slot_label.ts";
+import { appendSlotLabel, isSlotLabelField } from "../slot_label.ts";
 import { registerTermPickBlock } from "./term_pick.ts";
 import {
   appendMutatorCogwheel,
@@ -44,6 +44,38 @@ import {
 } from "../dynamic_mutator.ts";
 
 export { openBlockMutator };
+
+/** Blockly Align.LEFT (-1) — class header (emoji / title / cog) hugs the left edge. */
+function inputAlignLeft(): number {
+  return (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? -1) as number;
+}
+
+/** Blockly Align.RIGHT (1) — slot captions sit just left of their mouth / socket. */
+function inputAlignRight(): number {
+  return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
+}
+
+/**
+ * Keep class chrome on its own left-aligned top row; slot captions hug mouths.
+ * Call after init / shape sync so JSON `inputsInline: true` cannot merge HEADER
+ * onto a right-aligned value row.
+ */
+export function enforceOpenEhrBlockLayout(block: Blockly.Block): void {
+  block.setInputsInline(false);
+  const header = block.getInput("HEADER");
+  if (header) header.setAlign(inputAlignLeft());
+  for (const input of block.inputList) {
+    if (input.name === "HEADER") continue;
+    const hasSlotCaption = input.fieldRow.some((field) => isSlotLabelField(field));
+    const isAttrMouth = input.name.startsWith(RM_ATTR_INPUT_PREFIX) ||
+      input.name.startsWith(OPTIONAL_INPUT_PREFIX) ||
+      input.name.startsWith(DV_FIELD_PREFIX) ||
+      input.name.startsWith(OPTIONAL_DV_FIELD_PREFIX) ||
+      input.name === "VALUE" ||
+      input.name === RM_SPECIALIZATION_INPUT;
+    if (hasSlotCaption || isAttrMouth) input.setAlign(inputAlignRight());
+  }
+}
 
 export const EVENT_KIND_OPTIONS: Array<[string, string]> = [
   ["EVENT", "EVENT"],
@@ -310,11 +342,12 @@ function definePartyRefBlock(): void {
   RM_CONTAINER_TYPES.add(type);
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputEmoji(header, "PARTY_REF");
       header.appendField(new FieldSkeletonTitle("PARTY_REF"), "NAME");
       for (const attr of ["id", "namespace", "type"] as const) {
-        const input = this.appendValueInput(rmAttributeInputName(attr));
+        const input = this.appendValueInput(rmAttributeInputName(attr))
+          .setAlign(inputAlignRight());
         input.setCheck("String");
         appendSlotLabel(input, attr, {
           card: rmAttributeCardinality("PARTY_REF", attr) ?? { min: 1, max: 1 },
@@ -327,7 +360,7 @@ function definePartyRefBlock(): void {
       this.setOutput(true, "PARTY_REF");
       this.setColour(STRUCTURE_COLOUR);
       this.setTooltip("openEHR RM PARTY_REF — external party reference");
-      this.setInputsInline(true);
+      enforceOpenEhrBlockLayout(this);
     },
   };
 }
@@ -394,6 +427,7 @@ export function syncRmAttributeInputs(
     );
   }
   restoreAttributeConnections(block, saved);
+  enforceOpenEhrBlockLayout(block);
 }
 
 /**
@@ -591,28 +625,34 @@ function appendRmAttributeInput(
   const card = cardinality ?? slotCardinalityFor(block, rmType, attr);
 
   if (slotType === "PARTY_REF" || typeName === "PARTY_REF") {
-    const input = block.appendValueInput(rmAttributeInputName(attr));
-    input.setCheck(checkOverride ?? "party_ref");
+    const input = block.appendValueInput(rmAttributeInputName(attr))
+      .setAlign(inputAlignRight());
+    // Match party_ref block output check ("PARTY_REF"), not the block type id.
+    input.setCheck(checkOverride ?? "PARTY_REF");
     appendSlotLabel(input, attr, { card, rmType: "PARTY_REF" });
     return;
   }
 
   if (listElement && isDataValueType(listElement)) {
-    const input = block.appendValueInput(rmAttributeInputName(attr));
+    const input = block.appendValueInput(rmAttributeInputName(attr))
+      .setAlign(inputAlignRight());
     const dvCheck = blocklyCheckForDv(listElement);
-    input.setCheck(checkOverride ?? (dvCheck ? [dvCheck, "lists_create_with"] : "lists_create_with"));
+    // lists_create_with outputs "Array", not its block type name.
+    input.setCheck(checkOverride ?? (dvCheck ? [dvCheck, "Array"] : "Array"));
     appendSlotLabel(input, attr, { card, rmType: listElement });
     return;
   }
 
   if (isRmValueAttribute(rmType, attr) || isPartyProxyType(slotType)) {
-    const input = block.appendValueInput(rmAttributeInputName(attr));
+    const input = block.appendValueInput(rmAttributeInputName(attr))
+      .setAlign(inputAlignRight());
     const check = checkOverride ?? puzzleCheckForAttr(rmType, attr, slotType);
     if (check) input.setCheck(check);
     appendSlotLabel(input, attr, { card, rmType: slotType });
     return;
   }
-  const stmt = block.appendStatementInput(rmAttributeInputName(attr));
+  const stmt = block.appendStatementInput(rmAttributeInputName(attr))
+    .setAlign(inputAlignRight());
   const check = checkOverride ?? statementCheckForAttr(rmType, attr);
   if (check) stmt.setCheck(check);
   appendSlotLabel(stmt, attr, { card, rmType: slotType });
@@ -928,7 +968,7 @@ function defineContainerBlock(
   RM_CONTAINER_TYPES.add(type);
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputEmoji(header, options.rmType);
       if (isEventFamilyType(options.rmType)) {
         header.appendField(new Blockly.FieldDropdown(EVENT_KIND_OPTIONS), "RM_TYPE");
@@ -940,7 +980,8 @@ function defineContainerBlock(
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
       if (options.expandable) appendMutatorCogwheel(header);
       if (options.specializationCheck) {
-        const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT);
+        const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT)
+          .setAlign(inputAlignRight());
         kind.setCheck(options.specializationCheck);
         appendSlotTypeEmoji(kind, options.rmType);
       }
@@ -971,7 +1012,6 @@ function defineContainerBlock(
       this.getField("ARCHETYPE_CTX")!.setVisible(false);
       this.setColour(colour);
       this.setTooltip(`openEHR RM ${options.rmType}`);
-      this.setInputsInline(true);
       if (isPartyProxyType(options.rmType)) {
         this.setOutput(true, options.nestCheck ?? options.rmType);
       } else if (options.nestCheck) {
@@ -981,6 +1021,7 @@ function defineContainerBlock(
       if (options.expandable) {
         Blockly.Extensions.apply("optional_rm_mutator", this, true);
       }
+      enforceOpenEhrBlockLayout(this);
     },
   };
 }
@@ -989,11 +1030,13 @@ function defineValueElementBlock(): void {
   RM_CONTAINER_TYPES.add("element");
   Blockly.Blocks["element"] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputEmoji(header, "ELEMENT");
       header.appendField(new FieldSkeletonTitle("ELEMENT"), "NAME");
       appendMutatorCogwheel(header);
-      const value = this.appendValueInput("VALUE").setCheck(null);
+      const value = this.appendValueInput("VALUE")
+        .setAlign(inputAlignRight())
+        .setCheck("DATA_VALUE");
       appendSlotLabel(value, "value", {
         card: { min: 1, max: 1 },
         rmType: slotRmTypeForAttr("ELEMENT", "value"),
@@ -1015,8 +1058,8 @@ function defineValueElementBlock(): void {
       this.setNextStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
       this.setColour(ELEMENT_COLOUR);
       this.setTooltip("openEHR RM ELEMENT — named data item with a DATA_VALUE");
-      this.setInputsInline(true);
       Blockly.Extensions.apply("optional_rm_mutator", this, true);
+      enforceOpenEhrBlockLayout(this);
     },
   };
 }
@@ -1033,7 +1076,7 @@ function defineDataValueBlock(rmType: string): void {
 
   Blockly.Blocks[type] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputEmoji(header, rmType);
       header.appendField(new FieldSkeletonTitle(rmType, humanizeRmType(rmType)), "NAME");
       if (optionalAttributes(rmType).some((a) => isMappableField(a))) {
@@ -1061,7 +1104,7 @@ function defineDataValueBlock(rmType: string): void {
       this.setOutput(true, blocklyCheckForDv(rmType));
       this.setColour(DV_COLOUR);
       this.setTooltip(rmType);
-      this.setInputsInline(true);
+      enforceOpenEhrBlockLayout(this);
     },
   };
 }
@@ -1127,20 +1170,22 @@ function defineCodePhraseBlock(): void {
   if (Blockly.Blocks["code_phrase"]) return;
   Blockly.Blocks["code_phrase"] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputEmoji(header, "CODE_PHRASE");
       header.appendField(new FieldSkeletonTitle("CODE_PHRASE", humanizeRmType("CODE_PHRASE")), "NAME");
       const code = this.appendValueInput(dvFieldInputName("code_string"))
+        .setAlign(inputAlignRight())
         .setCheck("String")
         .appendField("code");
       appendSlotTypeEmoji(code, "String");
       const terminology = this.appendValueInput(dvFieldInputName("terminology_id"))
+        .setAlign(inputAlignRight())
         .setCheck("String")
         .appendField("terminology");
       appendSlotTypeEmoji(terminology, "String");
       this.setOutput(true, "CODE_PHRASE");
       this.setColour(DV_COLOUR);
-      this.setInputsInline(true);
+      enforceOpenEhrBlockLayout(this);
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable("CODE_PHRASE"), "RM_TYPE");
       this.getField("RM_TYPE")!.setVisible(false);
@@ -1174,6 +1219,7 @@ function appendDvFieldInput(
       ? blocklyCheckForDv("DV_CODED_TEXT")
       : "String");
   const input = block.appendValueInput(name)
+    .setAlign(inputAlignRight())
     .setCheck(check)
     .appendField(attr.name);
   appendSlotTypeEmoji(input, baseRmTypeName(attr.typeName));
@@ -1505,7 +1551,8 @@ function registerOptionalRmMutator(): void {
         const card = this.slotCardinalities_?.[name] ??
           rmAttributeCardinality(parentRm, name);
         if (isRmValueAttribute(parentRm, name) || isPartyProxyType(slotType)) {
-          const input = this.appendValueInput(`${OPTIONAL_INPUT_PREFIX}${name}`);
+          const input = this.appendValueInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
+            .setAlign(inputAlignRight());
           const check = isPartyProxyType(slotType)
             ? slotType
             : (slotType ? blocklyCheckForDv(slotType) : null);
@@ -1513,9 +1560,11 @@ function registerOptionalRmMutator(): void {
           appendSlotLabel(input, name, { card, rmType: slotType });
           continue;
         }
-        const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`);
+        const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
+          .setAlign(inputAlignRight());
         appendSlotLabel(stmt, name, { card, rmType: slotType });
       }
+      enforceOpenEhrBlockLayout(this);
     },
     },
     bindMutatorOpener,
@@ -1604,6 +1653,7 @@ function registerDvFieldsMutator(): void {
         const attr = attributesFor(rmType).find((a) => a.name === name);
         if (attr) appendDvFieldInput(this, attr, true);
       }
+      enforceOpenEhrBlockLayout(this);
     },
     },
     bindMutatorOpener,

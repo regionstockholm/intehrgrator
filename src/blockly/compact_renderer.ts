@@ -1,5 +1,6 @@
 import { Blockly } from "./blockly_core.ts";
-import { isRmTypeEmojiField } from "./rm_type_emoji.ts";
+import { isSkeletonTitleField } from "./field_skeleton_title.ts";
+import { BLOCK_OUT_EMOJI_FIELD, isRmTypeEmojiField } from "./rm_type_emoji.ts";
 import { isSlotCardinalityField } from "./slot_cardinality.ts";
 import { isSlotLabelField } from "./slot_label.ts";
 
@@ -16,6 +17,10 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * every `.blocklyPath` white, so that extra bezier is drawn as a hook on
  * top of the nested child — especially inside a larger inline row. Skip
  * the hole and only position the connection.
+ *
+ * Row alignment: class chrome (emoji / skeleton title / cog) stays LEFT on
+ * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
+ * from riding a right-aligned value/statement row after inline merges.
  */
 export function registerCompactThrasosRenderer(): string {
   // deno-lint-ignore no-explicit-any
@@ -24,6 +29,8 @@ export function registerCompactThrasosRenderer(): string {
   const BaseInfo = Blockly.thrasos.RenderInfo as any;
   // deno-lint-ignore no-explicit-any
   const BaseDrawer = Blockly.blockRendering.Drawer as any;
+  const AlignLeft = Blockly.inputs?.Align?.LEFT ?? -1;
+  const AlignRight = Blockly.inputs?.Align?.RIGHT ?? 1;
 
   class CompactRenderInfo extends (BaseInfo ?? Object) {
     // deno-lint-ignore no-explicit-any
@@ -41,6 +48,12 @@ export function registerCompactThrasosRenderer(): string {
         return Math.min(spacing, 2);
       }
       return spacing;
+    }
+
+    // deno-lint-ignore no-explicit-any
+    addAlignmentPadding_(row: any, missingSpace: number) {
+      applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
+      return super.addAlignmentPadding_(row, missingSpace);
     }
   }
 
@@ -112,6 +125,27 @@ function applyCompactConstants(constants: any): void {
   constants.MIN_BLOCK_HEIGHT = Math.max(24, tabRoom);
   constants.DUMMY_INPUT_MIN_HEIGHT = Math.max(tabRoom, Number(constants.DUMMY_INPUT_MIN_HEIGHT ?? 0));
   constants.EMPTY_INLINE_INPUT_HEIGHT = Math.max(tabRoom, Number(constants.EMPTY_INLINE_INPUT_HEIGHT ?? 0));
+}
+
+// deno-lint-ignore no-explicit-any
+function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
+  if (!row?.elements) return;
+  let hasClassChrome = false;
+  let hasSlotCaption = false;
+  for (const elem of row.elements) {
+    const field = elem?.field;
+    if (!field) continue;
+    if (isSlotLabelField(field)) hasSlotCaption = true;
+    if (isSkeletonTitleField(field)) hasClassChrome = true;
+    if (isRmTypeEmojiField(field) && field.name === BLOCK_OUT_EMOJI_FIELD) {
+      hasClassChrome = true;
+    }
+    if (field.name === "MUTATOR_COG") hasClassChrome = true;
+  }
+  // Mixed rows (inline HEADER + value): prefer left so class chrome is not
+  // shoved toward the socket; prefer external rows via setInputsInline(false).
+  if (hasSlotCaption && !hasClassChrome) row.align = alignRight;
+  else if (hasClassChrome) row.align = alignLeft;
 }
 
 // deno-lint-ignore no-explicit-any

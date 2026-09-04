@@ -89,7 +89,7 @@ export function registerSheetBlocks(): void {
         .appendField(nameField(), "NAME")
         .appendField("cell");
       this.appendValueInput("A1").setCheck("String");
-      this.setOutput(true, null);
+      this.setOutput(true, ["String", "Number", "Boolean"]);
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
       this.setTooltip("Get a Sheet cell by A1 reference (e.g. B2).");
@@ -101,7 +101,7 @@ export function registerSheetBlocks(): void {
       this.appendDummyInput().appendField("get").appendField(nameField(), "NAME");
       this.appendValueInput("X").setCheck("Number").appendField("x");
       this.appendValueInput("Y").setCheck("Number").appendField("y");
-      this.setOutput(true, null);
+      this.setOutput(true, ["String", "Number", "Boolean"]);
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
       this.setTooltip("Get a Sheet cell by 0-based column x and row y.");
@@ -153,7 +153,7 @@ export function registerSheetBlocks(): void {
       this.appendValueInput("MATCH_COL").setCheck(["String", "Number"]).appendField("where");
       this.appendValueInput("MATCH_VAL").appendField("=");
       this.appendValueInput("RETURN_COL").setCheck(["String", "Number"]).appendField("return");
-      this.setOutput(true, null);
+      this.setOutput(true, ["String", "Number", "Boolean"]);
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
       this.setTooltip("First row where a header/column equals a value; return that row or a column.");

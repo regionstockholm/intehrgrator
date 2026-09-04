@@ -14,12 +14,13 @@ export type MutatorFlyoutBlock = {
   extraState?: { attr: string; label: string };
 };
 
-/** Blockly mutator cog (16×16) — light fill + dark stroke so it reads on dark RM blocks. */
+/** Blockly-style mutator badge: rounded square + white gear (matches `.blocklyIconShape`). */
 export const COGWHEEL_SVG = "data:image/svg+xml," + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">` +
-    `<path fill="#f8fafc" stroke="#0f172a" stroke-width="0.9" stroke-linejoin="round" d="m4.203,7.296 0,1.368 -0.92,0.677 -0.11,0.41 0.9,1.559 0.41,0.11 1.043,-0.457 1.187,0.683 0.127,1.134 0.3,0.3 1.8,0 0.3,-0.299 0.127,-1.138 1.185,-0.682 1.046,0.458 0.409,-0.11 0.9,-1.559 -0.11,-0.41 -0.92,-0.677 0,-1.366 0.92,-0.677 0.11,-0.41 -0.9,-1.559 -0.409,-0.109 -1.046,0.458 -1.185,-0.682 -0.127,-1.138 -0.3,-0.299 -1.8,0 -0.3,0.3 -0.126,1.135 -1.187,0.682 -1.043,-0.457 -0.41,0.11 -0.899,1.559 0.108,0.409z"/>` +
-    `<circle fill="#f8fafc" stroke="#0f172a" stroke-width="0.9" cx="8" cy="8" r="2.55"/>` +
-    `<circle fill="#0f172a" cx="8" cy="8" r="1.05"/>` +
+    `<rect class="blocklyIconShape" rx="4" ry="4" width="16" height="16" fill="#5b80a5" stroke="#ffffff" stroke-width="1"/>` +
+    `<path fill="#ffffff" d="m4.2,7.3 0,1.37 -0.92,0.68 -0.11,0.41 0.9,1.56 0.41,0.11 1.04,-0.46 1.19,0.68 0.13,1.14 0.3,0.3 1.8,0 0.3,-0.3 0.13,-1.14 1.18,-0.68 1.05,0.46 0.41,-0.11 0.9,-1.56 -0.11,-0.41 -0.92,-0.68 0,-1.37 0.92,-0.68 0.11,-0.41 -0.9,-1.56 -0.41,-0.11 -1.05,0.46 -1.18,-0.68 -0.13,-1.14 -0.3,-0.3 -1.8,0 -0.3,0.3 -0.13,1.14 -1.19,0.68 -1.04,-0.46 -0.41,0.11 -0.9,1.56 0.11,0.41z"/>` +
+    `<circle fill="#5b80a5" cx="8" cy="8" r="2.2"/>` +
+    `<circle fill="#ffffff" cx="8" cy="8" r="1.15"/>` +
     `</svg>`,
 );
 

@@ -21,6 +21,8 @@ import {
   optionalRmInputName,
   rmAttributeInputName,
   syncRmAttributeInputs,
+  enforceOpenEhrBlockLayout,
+  isRmContainerBlockType,
 } from "./blocks/rm_blocks.ts";
 import { createTermPickBlock, isTermPickBlock } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
@@ -81,6 +83,17 @@ export function loadSkeletonIntoWorkspace(
     }
     applyModelOptionalSchemaFields(workspace, model);
     setAllBlocksCollapsed(workspace, false);
+    for (const block of workspace.getAllBlocks(false)) {
+      if (
+        isRmContainerBlockType(block.type) ||
+        isDataValueBlock(block) ||
+        block.type === "element" ||
+        block.type === "party_ref" ||
+        block.type === "code_phrase"
+      ) {
+        enforceOpenEhrBlockLayout(block);
+      }
+    }
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);
     refreshWorkspaceConstraints(workspace);

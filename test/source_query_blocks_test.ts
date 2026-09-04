@@ -85,13 +85,13 @@ Deno.test("Source toolbox drawer lists string, number, and boolean source blocks
       ]);
 });
 
-Deno.test("openEHR types drawer starts with COMPOSITION and keeps DATA_VALUE leaves", () => {
+Deno.test("openEHR drawer starts with COMPOSITION and keeps DATA_VALUE leaves", () => {
   ensure();
   const toolbox = buildDemoToolbox("sv") as {
     contents: Array<{ name?: string; contents?: Array<{ type?: string; kind?: string; contents?: Array<{ type?: string }> }> }>;
   };
   const cat = toolbox.contents.find((c) => c.name === msg("sv").CAT_OPENEHR_TYPES);
-  assertEquals(cat?.name, "openEHR types");
+  assertEquals(cat?.name, "openEHR");
   const types: string[] = [];
   const walk = (items: Array<{ type?: string; kind?: string; contents?: Array<{ type?: string }> }> | undefined) => {
     for (const item of items ?? []) {

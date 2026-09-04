@@ -1,5 +1,5 @@
 /**
- * Browser UI test: "openEHR types" category in the Blockly toolbox
+ * Browser UI test: "openEHR" category in the Blockly toolbox
  * opens a flyout containing all openEHR blocks with clean category list alignment.
  */
 
@@ -8,7 +8,7 @@ import { assert, assertEquals } from "@std/assert";
 import { baseUrl, waitForTestApi } from "./helpers.ts";
 
 Deno.test({
-  name: "UI: openEHR types category opens flyout with openEHR blocks",
+  name: "UI: openEHR category opens flyout with openEHR blocks",
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
@@ -22,24 +22,24 @@ Deno.test({
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
 
-      // Find "openEHR types" category and "Logic" category below it
+      // Find "openEHR" category and "Logic" category below it
       const openEhrTypesCategory = page.locator(".blocklyToolboxCategoryOpenEhrTypes");
       await openEhrTypesCategory.waitFor({ timeout: 10_000 });
 
       const logicCategory = page.locator(".blocklyToolboxCategoryLogic");
       await logicCategory.waitFor({ timeout: 10_000 });
 
-      // Verify category positions are orderly (Logic is strictly below openEHR types)
+      // Verify category positions are orderly (Logic is strictly below openEHR)
       const openEhrBox = await openEhrTypesCategory.boundingBox();
       const logicBox = await logicCategory.boundingBox();
       if (!openEhrBox || !logicBox) throw new Error("Could not get category bounding boxes");
 
       assert(
         logicBox.y > openEhrBox.y,
-        `Logic category should be below openEHR types (openEHR Y: ${openEhrBox.y}, Logic Y: ${logicBox.y})`
+        `Logic category should be below openEHR (openEHR Y: ${openEhrBox.y}, Logic Y: ${logicBox.y})`,
       );
 
-      // Click "openEHR types" category to open flyout
+      // Click "openEHR" category to open flyout
       await openEhrTypesCategory.click();
       await page.waitForTimeout(500);
 
@@ -47,7 +47,11 @@ Deno.test({
       const flyout = page.locator(".blocklyFlyout");
       await flyout.waitFor({ timeout: 5_000 });
       const isFlyoutVisible = await flyout.isVisible();
-      assertEquals(isFlyoutVisible, true, "Blockly flyout should be visible when openEHR types category is selected");
+      assertEquals(
+        isFlyoutVisible,
+        true,
+        "Blockly flyout should be visible when openEHR category is selected",
+      );
 
       // Verify flyout contains key openEHR blocks
       const blockCount = await page.evaluate(() => {

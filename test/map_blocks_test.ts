@@ -93,3 +93,33 @@ Deno.test("maps_create_with serializes field keys and value sockets", () => {
   assert(saved.inputs?.VAL0);
   workspace.dispose();
 });
+
+Deno.test("maps_create_with uses mutator quark stack instead of +/-", () => {
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  const map = workspace.newBlock(MAPS_CREATE_WITH) as MapCreateBlock & {
+    decompose?: (ws: Blockly.Workspace) => Blockly.Block;
+    compose?: (container: Blockly.Block) => void;
+  };
+  assertEquals(map.itemCount_, 2);
+  assert(typeof map.decompose === "function");
+  assert(typeof map.compose === "function");
+  assert(!map.getField("PLUS"));
+  assert(!map.getField("MINUS"));
+  const bubble = new Blockly.Workspace();
+  try {
+    const container = map.decompose!(bubble);
+    assertEquals(container.type, "maps_create_with_container");
+    let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
+    let n = 0;
+    while (item) {
+      assertEquals(item.type, "maps_create_with_item");
+      n++;
+      item = item.getNextBlock();
+    }
+    assertEquals(n, 2);
+  } finally {
+    bubble.dispose();
+  }
+  workspace.dispose();
+});

@@ -24,6 +24,7 @@ import {
   syncRmAttributeInputs,
   applyEventRmType,
   applyItemStructureRmType,
+  enforceOpenEhrBlockLayout,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
@@ -440,7 +441,8 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
   const value = element.getInput("VALUE");
   const valueLabel = value?.fieldRow[0];
   assert(isSlotLabelField(valueLabel));
-  assertEquals(valueLabel.getText().endsWith(ABSTRACT_SLOT_GLYPH), true);
+  // Abstract ⁇ is drawn as an underlined tspan, not part of Field.getText().
+  assertEquals(valueLabel.getText(), "value [1..1]");
   assertEquals(valueLabel.rmType(), "DATA_VALUE");
   configureElementValueSlot(element, "DV_QUANTITY");
   assertEquals(valueLabel.getText(), `value [1..1] ${zipehrEmojiForRmType("DV_QUANTITY")}`);
@@ -451,13 +453,13 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
   const content = composition.getInput(rmAttributeInputName("content"));
   const contentLabel = content?.fieldRow[0];
   assert(isSlotLabelField(contentLabel));
-  assertEquals(contentLabel.getText().endsWith(ABSTRACT_SLOT_GLYPH), true);
+  assertEquals(contentLabel.getText().includes(ABSTRACT_SLOT_GLYPH), false);
   assertEquals(contentLabel.rmType(), "CONTENT_ITEM");
 
   const composer = composition.getInput(rmAttributeInputName("composer"));
   const composerLabel = composer?.fieldRow[0];
   assert(isSlotLabelField(composerLabel));
-  assertEquals(composerLabel.getText().endsWith(ABSTRACT_SLOT_GLYPH), true);
+  assertEquals(composerLabel.getText().includes(ABSTRACT_SLOT_GLYPH), false);
   assertEquals(composerLabel.rmType(), "PARTY_PROXY");
   assertEquals(rmTypeConnectionTooltip(composerLabel.rmType()).includes("PARTY_SELF"), true);
 
@@ -471,6 +473,29 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
   workspace.dispose();
 });
 
+Deno.test("openEHR class chrome stays left; slot captions hug mouths", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const observation = workspace.newBlock("observation");
+  assertEquals(observation.getInputsInline(), false);
+  assertEquals(observation.getInput("HEADER")?.align, Blockly.inputs.Align.LEFT);
+  const data = observation.getInput(rmAttributeInputName("data"));
+  assertEquals(data?.align, Blockly.inputs.Align.RIGHT);
+
+  const element = workspace.newBlock("element");
+  assertEquals(element.getInputsInline(), false);
+  assertEquals(element.getInput("HEADER")?.align, Blockly.inputs.Align.LEFT);
+  assertEquals(element.getInput("VALUE")?.align, Blockly.inputs.Align.RIGHT);
+
+  // Saved inline state must not stick after layout enforcement.
+  element.setInputsInline(true);
+  element.getInput("HEADER")?.setAlign(Blockly.inputs.Align.RIGHT);
+  enforceOpenEhrBlockLayout(element);
+  assertEquals(element.getInputsInline(), false);
+  assertEquals(element.getInput("HEADER")?.align, Blockly.inputs.Align.LEFT);
+  assertEquals(element.getInput("VALUE")?.align, Blockly.inputs.Align.RIGHT);
+  workspace.dispose();
+});
 Deno.test("Optional RM Insertion attaches a typed child without clearing the canvas", () => {
   ensureBlocks();
   const { skeleton } = generateSkeleton(fixture);
@@ -966,14 +991,14 @@ Deno.test("PARTY_IDENTIFIED exposes identity slots for compositions", () => {
   const idInput = party.getInput(rmAttributeInputName("identifiers"));
   const idCheck = idInput?.connection?.getCheck() ?? [];
   assert(
-    Array.isArray(idCheck) && idCheck.includes("lists_create_with"),
-    "identifiers accepts lists_create_with for List<DV_IDENTIFIER>",
+    Array.isArray(idCheck) && idCheck.includes("Array"),
+    "identifiers accepts Array (lists_create_with output) for List<DV_IDENTIFIER>",
   );
   const refInput = party.getInput(rmAttributeInputName("external_ref"));
   const refCheck = refInput?.connection?.getCheck();
   assert(
-    refCheck === "party_ref" || (Array.isArray(refCheck) && refCheck.includes("party_ref")),
-    `external_ref should accept party_ref, got ${JSON.stringify(refCheck)}`,
+    refCheck === "PARTY_REF" || (Array.isArray(refCheck) && refCheck.includes("PARTY_REF")),
+    `external_ref should accept PARTY_REF, got ${JSON.stringify(refCheck)}`,
   );
   workspace.dispose();
 });

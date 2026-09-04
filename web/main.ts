@@ -461,7 +461,7 @@ async function bootBlockly(): Promise<void> {
       });
     }
     options.push({
-      text: "Open observer snapshot…",
+      text: "Open viewer window…",
       enabled: workspace.getTopBlocks(false).length > 0,
       callback: () => openCanvasSnapshot(),
     });

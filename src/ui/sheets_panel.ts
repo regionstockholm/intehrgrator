@@ -261,7 +261,13 @@ export function mountSheetsPanel(
     select.value = name;
     activeName = name;
     const sheet = findSheet(sheets, name);
-    if (sheet) bindSheet(sheet);
+    if (!sheet) return;
+    // Refocus / Sheets tab: keep the live grid if data already matches (avoids destroy/rebuild flicker).
+    if (widgetMatches(sheet)) {
+      scheduleSizeGrid();
+      return;
+    }
+    bindSheet(sheet);
   };
 
   addBtn.addEventListener("click", () => {
@@ -361,16 +367,28 @@ export function mountSheetsPanel(
   };
 
   const sizeGrid = (): void => {
+    if (destroyed || fullscreen) return;
+    const hostW = gridHost.clientWidth || root.clientWidth;
+    const hostH = gridHost.clientHeight || Math.max(root.clientHeight - toolbar.offsetHeight, 0);
+    if (hostW < 40 || hostH < 40) return;
     const content = (worksheet && "content" in worksheet
       ? (worksheet as WorksheetInstance & { content?: HTMLElement }).content
       : null) ?? gridEl.querySelector(".jss_content") as HTMLElement | null;
     if (!content) return;
-    const { widthPx, heightPx } = gridViewport();
-    content.style.width = `${widthPx}px`;
-    content.style.height = `${heightPx}px`;
-    content.style.maxHeight = `${heightPx}px`;
+    // Fit exactly to the host so only `.jss_content` scrolls — never the host.
+    content.style.width = `${hostW}px`;
+    content.style.height = `${hostH}px`;
+    content.style.maxHeight = `${hostH}px`;
   };
-  const hostResize = new ResizeObserver(() => sizeGrid());
+  let sizeRaf = 0;
+  const scheduleSizeGrid = (): void => {
+    if (sizeRaf) return;
+    sizeRaf = requestAnimationFrame(() => {
+      sizeRaf = 0;
+      sizeGrid();
+    });
+  };
+  const hostResize = new ResizeObserver(() => scheduleSizeGrid());
   hostResize.observe(root);
   hostResize.observe(gridHost);
 
@@ -423,6 +441,10 @@ export function mountSheetsPanel(
     setFullscreen,
     destroy: () => {
       destroyed = true;
+      if (sizeRaf) {
+        cancelAnimationFrame(sizeRaf);
+        sizeRaf = 0;
+      }
       document.removeEventListener("keydown", onKey, true);
       hostResize.disconnect();
       setFullscreen(false);

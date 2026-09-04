@@ -104,7 +104,8 @@ export class FieldSlotLabel extends FieldLabelBase {
       parts.push(formatSlotCardinality({ min: this.min, max: this.max }));
     }
     const glyph = connectionPointGlyph(this.rmType_ || undefined, true);
-    if (glyph) parts.push(glyph);
+    // Abstract ⁇ is drawn as an underlined tspan so only the glyph is linked-looking.
+    if (glyph && !this.isAbstractSlot_()) parts.push(glyph);
     this.setValue(parts.join(" "));
     this.CURSOR = this.isAbstractSlot_() ? "pointer" : "default";
     this.syncClass_();
@@ -113,7 +114,8 @@ export class FieldSlotLabel extends FieldLabelBase {
   }
 
   private syncClass_(): void {
-    this.setClass?.(cssClass(this.unmet, this.isAbstractSlot_()));
+    // Do not put --abstract on the whole caption — only the ⁇ tspan is underlined.
+    this.setClass?.(cssClass(this.unmet, false));
   }
 
   private syncTipAttr_(): void {
@@ -129,11 +131,15 @@ export class FieldSlotLabel extends FieldLabelBase {
 
   updateSize_(): void {
     if (!this.size_) return;
-    const text = String(this.getText?.() ?? this.getValue?.() ?? "");
+    const abstract = this.isAbstractSlot_();
+    const glyph = abstract
+      ? (connectionPointGlyph(this.rmType_, true) ?? "")
+      : "";
+    const base = String(this.getText?.() ?? this.getValue?.() ?? "");
+    const full = abstract && glyph ? `${base} ${glyph}` : base;
     const px = this.rmType_ ? rmEmojiFontPx(this.rmType_) : RM_EMOJI_FONT_PX;
-    // Caption uses body-ish size; abstract ⁇ stays readable without the old ring box.
-    const fontPx = this.isAbstractSlot_() ? Math.max(12, Math.round(px * 0.75)) : 12;
-    this.size_.width = measureCaptionWidth(text, fontPx, this.isAbstractSlot_());
+    const fontPx = abstract ? Math.max(12, Math.round(px * 0.75)) : 12;
+    this.size_.width = measureCaptionWidth(full, fontPx, abstract);
     this.size_.height = Math.max(14, fontPx);
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
@@ -142,12 +148,17 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("y", String(this.size_.height / 2));
     el.setAttribute("text-anchor", "start");
     el.setAttribute("x", "0");
-    if (this.isAbstractSlot_()) {
-      el.style.setProperty("font-size", `${fontPx}px`, "important");
+    el.style.setProperty("font-size", `${fontPx}px`, "important");
+    if (abstract && glyph && typeof document !== "undefined") {
+      // Rebuild text so only ⁇ is underlined.
+      while (el.firstChild) el.removeChild(el.firstChild);
+      el.appendChild(document.createTextNode(base ? `${base} ` : ""));
+      const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+      tspan.setAttribute("class", "blockly-slot-abstract-glyph");
+      tspan.textContent = glyph;
+      el.appendChild(tspan);
     } else if (this.rmType_ && isHardToReadRmEmoji(this.rmType_)) {
       el.style.setProperty("font-size", "13px", "important");
-    } else {
-      el.style.removeProperty("font-size");
     }
   }
 }

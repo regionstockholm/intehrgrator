@@ -744,7 +744,9 @@ Include in Chunk 8:
 **B** — Replace terminology `maps_get` with sheets immediately.
 **C** — Auto-project every 2-column sheet into a named Map.
 
-➡️ **Adopted: mostly B.** If maps are used in **code or example sets** as 2-column terminology lookups, **replace with sheets**. **Do not delete `maps_*` in this step.** Defaults Map and map **values** can be entire Blockly structures — that stays. Present alternatives for a **second implementation step** in [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md) and wait for a judgement before removing map blocks.
+➡️ **Adopted: mostly B, then step 2 = A.** If maps are used in **code or example sets** as 2-column terminology lookups, **replace with sheets**. **Do not delete `maps_*`.** Defaults Map and map **values** can be entire Blockly structures — that stays.
+
+**Step 2 (2026-09-04):** keep maps; join Lists + Maps toolbox drawers into **Lists & maps**; Sheets remain a separate category. Recorded in [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md) and `docs/ROADMAP.md` §C.
 
 ---
 
@@ -770,7 +772,7 @@ Include in Chunk 8:
 ### Chunk 8 implementation notes (adopted 2026-09-04)
 
 - **Order:** jspreadsheet-ce (Q1, including native import/export/fullscreen/i18n/Excel paste + host undo) → persist Sheet JSON (Q2) → embed widget in Mapping Editors with scrollbars, adjustable split, modal/fullscreen (Q3, Q7) → Blockly accessors/mutators (Q5) → Test Run/codegen bag (Q8).
-- **Maps:** keep `maps_*`; replace terminology-style usage in code/prompts; Defaults + nested Blockly map values stay. Second step: [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md).
+- **Maps:** keep `maps_*`; replace terminology-style usage in code/prompts; Defaults + nested Blockly map values stay. Step 2 adopted: option A + joint **Lists & maps** toolbox category ([`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md)).
 - **Defer:** FHIR; Excel formulas/merge/style; per-cell nested Blockly; `DV_CODED_TEXT` composite helper; deleting `maps_*`.
 - **Do not** paste into `maps_create_with` as the 2D representation.
 
@@ -779,7 +781,7 @@ Include in Chunk 8:
 - `docs/future/spreadsheet-matrix-libraries.md` — library comparison
 - `src/core/sheets/` — Sheet JSON model + lookup (new)
 - `web/` — widget host + paste
-- `src/blockly/blocks/` — `sheet_*` blocks (new); Maps toolbox
+- `src/blockly/blocks/` — `sheet_*` blocks (new); Lists & maps toolbox (`maps_*` kept)
 - `src/core/source/query_runtime.ts`, `src/core/expression/mod.ts` — evaluate accessors
 - `src/core/codegen/` — emit sheet lookups
 - `src/core/test_runner/mod.ts` — `ctx.sheets`
@@ -792,6 +794,7 @@ Include in Chunk 8:
   - [x] 8.5 Test Run + codegen: named sheets bag
   - [x] 8.6 Tests: model, paste, Blockly round-trip, lookup in `runTest`
   - [x] 8.7 Docs: ROADMAP §C, CONTEXT Sheet vs Map
+  - [x] 8.8 Q9 step 2: keep `maps_*`; join Lists + Maps into **Lists & maps**; Sheets stay separate
   - [ ] (later) FHIR ConceptMap → sheet
   - [ ] (later) formulas / `DV_CODED_TEXT` helper / `sheet_to_map`
 

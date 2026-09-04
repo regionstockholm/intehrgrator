@@ -30,8 +30,7 @@ export interface IntehrMessages {
   CAT_LOOPS: string;
   CAT_MATH: string;
   CAT_TEXT: string;
-  CAT_LISTS: string;
-  CAT_MAPS: string;
+  CAT_LISTS_AND_MAPS: string;
   CAT_SHEETS: string;
   CAT_VARIABLES: string;
   CAT_PROCEDURES: string;
@@ -70,8 +69,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_LOOPS: "Loops",
     CAT_MATH: "Math",
     CAT_TEXT: "Text",
-    CAT_LISTS: "Lists",
-    CAT_MAPS: "Maps",
+    CAT_LISTS_AND_MAPS: "Lists & maps",
     CAT_SHEETS: "Sheets",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Functions",
@@ -112,8 +110,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_LOOPS: "Loopar",
     CAT_MATH: "Matematik",
     CAT_TEXT: "Text",
-    CAT_LISTS: "Listor",
-    CAT_MAPS: "Mappar",
+    CAT_LISTS_AND_MAPS: "Listor & mappar",
     CAT_SHEETS: "Kalkylblad",
     CAT_VARIABLES: "Variabler",
     CAT_PROCEDURES: "Funktioner",
@@ -154,8 +151,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_LOOPS: "Schleifen",
     CAT_MATH: "Mathematik",
     CAT_TEXT: "Text",
-    CAT_LISTS: "Listen",
-    CAT_MAPS: "Maps",
+    CAT_LISTS_AND_MAPS: "Listen & Maps",
     CAT_SHEETS: "Tabellen",
     CAT_VARIABLES: "Variablen",
     CAT_PROCEDURES: "Funktionen",
@@ -196,8 +192,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_LOOPS: "Bucles",
     CAT_MATH: "Matemáticas",
     CAT_TEXT: "Texto",
-    CAT_LISTS: "Listas",
-    CAT_MAPS: "Mapas",
+    CAT_LISTS_AND_MAPS: "Listas y mapas",
     CAT_SHEETS: "Hojas",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funciones",
@@ -238,8 +233,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_LOOPS: "Bucles",
     CAT_MATH: "Matemàtiques",
     CAT_TEXT: "Text",
-    CAT_LISTS: "Llistes",
-    CAT_MAPS: "Mapes",
+    CAT_LISTS_AND_MAPS: "Llistes i mapes",
     CAT_SHEETS: "Fulls",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funcions",
@@ -280,8 +274,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_LOOPS: "Boucles",
     CAT_MATH: "Math",
     CAT_TEXT: "Texte",
-    CAT_LISTS: "Listes",
-    CAT_MAPS: "Maps",
+    CAT_LISTS_AND_MAPS: "Listes et maps",
     CAT_SHEETS: "Feuilles",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Fonctions",

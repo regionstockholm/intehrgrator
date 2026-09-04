@@ -540,11 +540,8 @@ body.sheets-fullscreen::before {
 .blockly-mount .blocklyToolboxCategoryText {
   border-left: 15px solid #ffca28 !important;
 }
-.blockly-mount .blocklyToolboxCategoryLists {
+.blockly-mount .blocklyToolboxCategoryListsMaps {
   border-left: 15px solid #4db6ac !important;
-}
-.blockly-mount .blocklyToolboxCategoryMaps {
-  border-left: 15px solid #7e57c2 !important;
 }
 .blockly-mount .blocklyToolboxCategorySheets {
   border-left: 15px solid #00897B !important;

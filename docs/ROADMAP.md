@@ -23,8 +23,9 @@
 ## C. Better support for map and table data structures
 - [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist. Key/value pairs share a row (Blockly 11 `appendEndRowInput`), so the Defaults Map nested constructor stays compact.
 - [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
-- [ ] Make it possible to digest CSV tables (including via UI cut & paste of grids from Excel and Google sheets) for setting up table structures (arbitrariy number of rows and columns). They can later via suitable blockly blocks for picking based on index and/or content be used e.g. to get both label and code for terminology bound texts - that could mean that the resulting map target is a DV_CODED_TEXT. Each row has an optional unique name (string) to the far left and, each column has an optional unique name on top. The rest of the cells do not need to be unique and can have any datatype that blockly supports including nested blocks, but it should be possible to restrict the datatype of a row or column to a certain data output type (boolean / number / string / object)
-- [ ] Make it possible to digest FHIR terminology mappings for setting up maps/tables
+- [ ] **Chunk 8 — spreadsheet/matrix first:** embed a real sheet widget (Excel/Sheets paste, named column headers, optional row names, typed columns). Persist a project-owned 2D sheet model. Library comparison: [spreadsheet-matrix-libraries.md](future/spreadsheet-matrix-libraries.md). **Then** add Blockly accessor/mutator blocks whose names follow that library’s get/set/insert/delete/header API (cell A1 or x,y; row; column; header; bulk data; lookup-by-content). Maps stay 1D key→value (`maps_get`); sheets are the 2D structure for terminology grids (e.g. later: code + rubric → `DV_CODED_TEXT`).
+- [ ] Digest CSV / Excel / Google Sheets **into that sheet** (clipboard paste + file), not into `maps_create_with`.
+- [ ] FHIR ConceptMap / ValueSet → sheet/map import — **deferred** (after the sheet widget + Blockly accessors exist)
 
 
 ## D. Local (offline) version with AI agent/CLI/IDE integration
@@ -58,8 +59,8 @@
 - [x] Target instance formats beyond openEHR: JSON Schema, XML Schema, free-form
 - [x] Optional Better Form Bridge + `deno task setup:better-forms`
 - [ ] Full Better form-viewer ScriptApi / formTestApi parity and Cypress generator port
-- [ ] Harden **Mapping preview** Handlebars Template Test Run (helpers, nested `#with`/`#each`, FLAT paths, slot interop) — current path is shaky
-- [ ] Execute Authored Handlebars Template in Conversion Test Run(s) (today: generate only; Mapping preview still runs the authored Handlebars Template) — Chunk 7 extends [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
+- [ ] Harden **Mapping preview** Handlebars Template Test Run (helpers, nested `#with`/`#each`, FLAT paths, slot interop) — **Chunk 7.1** (7.6 carry-over); fixture-first parity with Conversion Test Run
+- [x] Execute Authored Handlebars Template in Conversion Test Run(s) when Output mode is Handlebars — Chunk 7.5; Mapping preview path unchanged
 - [ ] Blockly→Handlebars codegen (deferred — harden Authored Template path first)
 - [ ] Reverse-engineered Handlebars Blockly example set + non-Blockly test harness support for Handlebars example files and expected output (future, after Go template example set)
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md), [ADR 0001](adr/0001-mapping-and-target-seams.md), and [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
@@ -72,7 +73,7 @@
 - [x] Execute envelope `{ Parameters: defaults, Data: source }` — Defaults Map provides the Parameters bag
 - [x] Example Set: `examples/patient-reported-chemotherapy-symptoms/` — reverse-engineered Blockly mapping using `xml_element`/`xml_text`/`xml_attribute` (plus `text_code` LANG=go-template when a raw snippet is needed) for ProfdocHISMessage XML + reference hand-authored PROD Go template script
 - [ ] FLAT as source is less than ideal (STRUCTURED would be one notch up) but must be supported for existing pipeline use cases; ehrtslib can convert other openEHR formats to FLAT
-- See [ADR 0004](adr/0004-go-template-codegen-only.md) (pending adoption)
+- See [ADR 0004](adr/0004-go-template-codegen-only.md)
 
 
 ## H. Schema specific dynamic blockly toolboxes

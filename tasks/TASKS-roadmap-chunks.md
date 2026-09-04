@@ -324,8 +324,8 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 | 4    | AI copy-paste polish                    | I: validate assist; openehr-assistant prompt hint; clarify Import AI suggestions label                                                                   | Small, isolated toolbar/prompt work                                                        |
 | 5    | Local/offline AI skill                  | D: parallel IDE + local app; installable AI skill for suggestion format                                                                                  | Docs + skill packaging                                                                     |
 | 6    | Dynamic schema toolboxes                | H: JSON/XSD target drawers from schema; TakeCare test + term ids                                                                                         | Productized schema-specific Blockly                                                        |
-| 7    | Handlebars correctness                  | G: harden Mapping preview Test Run; execute generated Handlebars script; Blockly ↔ Handlebars Template round-trip; arm Click-to-Map on source-node block | Documented as shaky; ADR 0001 / 0003                                                       |
-| 8    | Maps/tables                             | C: CSV/Excel paste tables; FHIR terminology maps                                                                                                         | Needs solid map blocks (already done) + lookup blocks                                      |
+| 7    | Handlebars correctness                  | G: harden Mapping preview Test Run (7.1 patch); execute Authored Template in Conversion Test Run — **done**; Blockly ↔ Handlebars codegen deferred | 7.0 merged (PR #22); 7.1 closes fixture parity |
+| 8    | Spreadsheet / matrix                    | C: embed sheet widget + persist 2D model; Blockly accessors/mutators from that API; CSV/Excel paste into the sheet. FHIR deferred                         | Maps stay 1D; sheet is the 2D structure        |
 | 9    | Conversion scripts                      | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI                                                                         | After mapping/RM is trustworthy                                                            |
 | 10   | Persistence, i18n, versioning           | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
 | 11   | Better Form parity                      | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
@@ -463,7 +463,7 @@ Context from current code:
 - Generalize **cogwheel mutator** to schema structure blocks; wire optional catalog from target format handler.
 - **`skeleton_loader`**: scaffold mandatory schema tree on canvas (openEHR-like policy).
 - **`syncToolbox`**: invalidate on target load + skeleton structure hash (not just length).
-- TakeCare / vendor-specific term ids → late roadmap (after CSV/FHIR tables or dedicated vendor chunk).
+- TakeCare / vendor-specific term ids → late roadmap (after spreadsheet/matrix Chunk 8 or a dedicated vendor chunk; FHIR ConceptMap import is deferred).
 
 ### Relevant files (Chunk 6 — adopted scope)
 
@@ -483,7 +483,7 @@ Context from current code:
 - [x] 6.6 Tests: nested drawer, mutator, scaffold round-trip (generic JSON Schema + XSD fixtures; no TakeCare)
 - [x] 6.7 Docs: ROADMAP H, BLOCKLY_INTEGRATION, CONTEXT
 
-- [ ] 7.0 Chunk 7 — Template languages: Kintegrate Handlebars + Go text/template codegen (roadmap G)
+- [x] 7.0 Chunk 7 — Template languages: Kintegrate Handlebars + Go text/template codegen (roadmap G)
 
 ## Grill round 1 (Chunk 7 frontier — template languages)
 
@@ -611,7 +611,189 @@ Context from the mapping scripts in `examples/patient-reported-chemotherapy-symp
   - [x] 7.11 Path-inventory tokenizer fix (`{{~#with` / `{{~#each`); regenerated goldens
   - [x] 7.12 Docs: ROADMAP G, ADR 0004 (Go template codegen-only)
 
-- [ ] 8.0 Chunk 8 — CSV / FHIR tables (roadmap C)
+- [ ] 7.1 Chunk 7.1 — Handlebars Mapping preview hardening (7.6 carry-over, patch before Chunk 8)
+
+Chunk 7 merged in PR #22 with **7.6** left open. Grill Q13 already adopted fixture-first hardening independent of Go. No new grill round — implement directly.
+
+### Chunk 7.1 implementation notes (from Q13 + post-merge audit)
+
+- Kintegrate fixtures (`intro`, `mdk_rek_demo`, `air-oxygenation`, `handlebars-script1`) already pass via direct `renderHandlebars`; **Mapping preview** path (`runTest` with `outputMode: "preview"` + free-form target) lacks parity tests.
+- `handlebars()` builtin in `query_runtime.ts` does not pass `_slots` — breaks `{{slot}}` inside `text_handlebars` slot expressions.
+- ADR 0003 / `CONTEXT.md` still say Handlebars Conversion mode does not execute (stale after 7.5).
+
+### Relevant files (Chunk 7.1)
+
+- `test/kintegrate_migration_test.ts` — route golden assertions through `runTest` preview path; add preview ↔ `handlebars` mode parity
+- `src/core/test_runner/mod.ts` — reference implementation (both modes call `renderHandlebars`)
+- `src/core/source/query_runtime.ts` — thread slots into `handlebars()` builtin
+- `docs/adr/0003-mapping-preview-vs-generated-script.md`, `CONTEXT.md`, `docs/ROADMAP.md` §G
+
+  - [ ] 7.1.1 Refactor Kintegrate tests: assert via `runTest` Mapping preview (not only direct `renderHandlebars`)
+  - [ ] 7.1.2 Parity test: same fixture under `outputMode: "preview"` and `outputMode: "handlebars"`
+  - [ ] 7.1.3 Slot/json interop in Mapping preview (`{{slot}}`, `{{{json (slot …)}}}`) via `runTest`
+  - [ ] 7.1.4 `runTest` coverage for full `handlebars-script1.hbs` (intro + MDK halves)
+  - [ ] 7.1.5 Optional: golden `.expected.txt` for MDK + emergency-ward (whitespace / `~` trim)
+  - [ ] 7.1.6 Fix `handlebars()` builtin to pass slot bag from context
+  - [ ] 7.1.7 Docs: amend ADR 0003; tick ROADMAP Handlebars Test Run item; narrow 7.6 wording
+
+- [ ] 8.0 Chunk 8 — Spreadsheet / matrix widget, then Blockly accessors (roadmap C)
+
+## Grill round 1 (Chunk 8 frontier — spreadsheet/matrix)
+
+Asked after the user rejected a “paste into 1D maps” MVP. **Awaiting adoption.** Library comparison: [`docs/future/spreadsheet-matrix-libraries.md`](../docs/future/spreadsheet-matrix-libraries.md).
+
+**Settled (user 2026-09-04):** proper spreadsheet/matrix support **first**; initial Blockly accessor/mutator set is derived from the **selected library’s API**; **FHIR is deferred**.
+
+Context: 1D **Map** blocks exist. ROADMAP still wants named columns, optional row names, typed columns, Excel/Sheets paste, and later code+label lookup into `DV_CODED_TEXT`. That is a **Sheet**, not `maps_create_with`.
+
+---
+
+❓ **Q1** - **Which spreadsheet library?**
+
+**A** — **jspreadsheet-ce** (MIT, vanilla, 2 deps: `jsuites` + `@jspreadsheet/formula`). Docs: https://github.com/jspreadsheet/ce · https://bossanova.uk/jspreadsheet/v4/docs/quick-reference · npm https://www.npmjs.com/package/jspreadsheet-ce
+**B** — **x-data-spreadsheet** (MIT, ~zero deps, canvas). https://github.com/myliang/x-spreadsheet — stale; successor `@wolf-table/table` is 0.0.3.
+**C** — **Univer** sheets preset (Apache-2.0, Excel-complete). https://github.com/dream-num/univer · https://univer.ai/ — React + large plugin graph.
+**D** — **fortune-sheet** (MIT Luckysheet fork). https://github.com/ruilisi/fortune-sheet — React + lodash/immer.
+**E** — **canvas-datagrid** (BSD-3). https://github.com/TonyGermaneri/canvas-datagrid — data grid, not A1 sheet.
+**F** — No embed: own HTML `<table>` + **PapaParse** only. https://www.papaparse.com/
+
+➡️ **Recommended: A.** Vanilla, MIT, bounded deps, native Excel paste, headers + cell/row/column CRUD that map cleanly to Blockly. Reject C/D (React), Luckysheet (archived), Handsontable/HyperFormula (proprietary / GPLv3).
+
+---
+
+❓ **Q2** - **Source of truth**: library instance vs project-owned sheet JSON?
+
+**A** — Persist a thin **Sheet** document (name, column titles, optional row names, 2D values, optional column types). Widget binds to it; Test Run/codegen read the JSON.
+**B** — Persist the library’s native workbook JSON (jspreadsheet `getData`/`getConfig`, Univer snapshot, …).
+**C** — DOM-only until Blockly blocks exist; no persistence in v1.
+
+➡️ **Recommended: A.** Widget is a view. Blockly and Conversion scripts must not require the grid in the DOM.
+
+---
+
+❓ **Q3** - **Where does the sheet UI live?**
+
+**A** — New **Sheets** section in Mapping Editors (split under Blockly, sibling to Mapping Spec / Handlebars Template).
+**B** — Modal / drawer opened from a named `sheet` Blockly block (like Defaults Map folder).
+**C** — Replace part of the Source Pane.
+
+➡️ **Recommended: A.** Sheets are mapping artefacts (terminology grids), not source instances. A named `sheet` block can still *focus* that tab (B as navigation, not the only editor).
+
+---
+
+❓ **Q4** - **Chunk 8 sequence inside the chunk**
+
+**A** — Widget + persist + paste **then** Blockly accessors/mutators in the **same** chunk (two PRs OK).
+**B** — Chunk 8 = widget only; Chunk 8.1 = Blockly blocks.
+**C** — Blockly blocks first against a fake 2D array; widget later.
+
+➡️ **Recommended: A.** User asked for the sheet first, then blocks based on the library. Same chunk, ordered commits: embed → model → paste → blocks.
+
+---
+
+❓ **Q5** - **Initial Blockly set** (names follow jspreadsheet CE if Q1=A)
+
+Include in Chunk 8:
+
+- Named declaration: `sheet` (NAME, like Defaults Map)
+- Accessors: `sheet_get_cell` (A1), `sheet_get_xy`, `sheet_get_row`, `sheet_get_column`, `sheet_get_header`, `sheet_get_data`
+- Mutators: `sheet_set_cell` / `sheet_set_xy`, `sheet_set_row` / `sheet_set_column`, `sheet_set_header`, `sheet_insert_row` / `sheet_delete_row`, `sheet_insert_column` / `sheet_delete_column`
+- Content lookup: `sheet_lookup` (find first row where header/column equals value → row or cell)
+
+**A** — That set.
+**B** — Accessors only in Chunk 8; mutators later.
+**C** — Also wrap formulas, merge, style, undo (`parseFormulas`, `setMerge`, …).
+
+➡️ **Recommended: A.** Mutators are required for “matrix support”. Formulas/merge/style → later.
+
+---
+
+❓ **Q6** - **Row names and column types** (ROADMAP)
+
+**A** — Column titles via widget headers (`setHeader`). Optional **row-name column** (leftmost, unique). Column `type` from the library (text / numeric / dropdown) where it exists.
+**B** — Free-form per-cell Blockly values (nested blocks in cells) in Chunk 8.
+**C** — Headers only; no row names or types yet.
+
+➡️ **Recommended: A.** Per-cell nested Blockly (B) fights a spreadsheet widget; keep cells as JSON primitives in v1.
+
+---
+
+❓ **Q7** - **Paste / file ingest**
+
+**A** — Native widget clipboard (Excel/Sheets TSV) + `csv` / file open into `setData`. PapaParse only if CE v5 helpers are insufficient.
+**B** — Always PapaParse, then `setData`.
+**C** — File only, no clipboard.
+
+➡️ **Recommended: A.**
+
+---
+
+❓ **Q8** - **Test Run / codegen**
+
+**A** — Named sheets on a convert-time bag (`ctx.sheets` / script argument), parallel to Defaults Map (ADR 0002). Accessors evaluate against that JSON.
+**B** — Bake the grid as literals into generated scripts.
+**C** — Mapping preview only; Conversion scripts ignore sheets until Chunk 9.
+
+➡️ **Recommended: A.**
+
+---
+
+❓ **Q9** - **Relationship to 1D maps**
+
+**A** — Keep `maps_*` unchanged. Sheets are a new Maps/Sheets toolbox group. Optional later: `sheet_to_map` (two columns → Map).
+**B** — Replace terminology `maps_get` with sheets immediately.
+**C** — Auto-project every 2-column sheet into a named Map.
+
+➡️ **Recommended: A.**
+
+---
+
+❓ **Q10** - **FHIR ConceptMap / ValueSet**
+
+**A** — Not in Chunk 8 (deferred).
+**B** — Parse FHIR JSON into the sheet in this chunk.
+
+➡️ **Recommended: A.** User deferred FHIR. Reopen after accessors exist.
+
+---
+
+❓ **Q11** - **Tests**
+
+**A** — Headless sheet-model tests + Blockly serialize + `runTest` lookup; one small terminology-grid fixture (not necessarily an example set).
+**B** — Example set in `example-sets.json` required.
+**C** — Widget screenshot-only.
+
+➡️ **Recommended: A.** Example set optional.
+
+---
+
+### Chunk 8 implementation notes (pending adoption)
+
+- **Order:** pick library (Q1) → persist Sheet JSON (Q2) → embed widget + paste (Q3, Q7) → Blockly accessors/mutators (Q5) → Test Run/codegen bag (Q8).
+- **Defer:** FHIR; Excel formulas/merge/style; per-cell nested Blockly; `DV_CODED_TEXT` composite helper; roadmap B “inline hardcoded lookup”.
+- **Do not** paste into `maps_create_with` as the 2D representation.
+
+### Relevant files (Chunk 8 — adopted scope TBD)
+
+- `docs/future/spreadsheet-matrix-libraries.md` — library comparison
+- `src/core/sheets/` — Sheet JSON model + lookup (new)
+- `web/` — widget host + paste
+- `src/blockly/blocks/` — `sheet_*` blocks (new); Maps toolbox
+- `src/core/source/query_runtime.ts`, `src/core/expression/mod.ts` — evaluate accessors
+- `src/core/codegen/` — emit sheet lookups
+- `src/core/test_runner/mod.ts` — `ctx.sheets`
+- `CONTEXT.md`, `docs/ROADMAP.md` §C
+
+  - [ ] 8.1 Adopt library; add Deno import + vendored CSS/assets as needed
+  - [ ] 8.2 Sheet JSON model (name, headers, optional row names, values, types)
+  - [ ] 8.3 Embed widget; bind to model; Excel/Sheets paste + CSV/file
+  - [ ] 8.4 Blockly `sheet` declaration + accessor/mutator/lookup blocks
+  - [ ] 8.5 Test Run + codegen: named sheets bag
+  - [ ] 8.6 Tests: model, paste, Blockly round-trip, lookup in `runTest`
+  - [ ] 8.7 Docs: ROADMAP §C, CONTEXT Sheet vs Map
+  - [ ] (later) FHIR ConceptMap → sheet
+  - [ ] (later) formulas / `DV_CODED_TEXT` helper / `sheet_to_map`
+
 - [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)
 - [ ] 10.0 Chunk 10 — GitHub save, UI i18n, dependency hashes (roadmap B/L)
 - [ ] 11.0 Chunk 11 — Better Form parity (roadmap G)

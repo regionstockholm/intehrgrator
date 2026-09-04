@@ -45,8 +45,12 @@ Blockly loop that binds each node from a multi-valued Source Path to a named var
 _Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
 
 **Map**:
-A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map**, later terminology tables, and ad-hoc lookups.
-_Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor)
+A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups.
+_Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor), **Sheet** (2D grid)
+
+**Sheet** (matrix / spreadsheet):
+A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly accessor/mutator blocks wrap get/set/insert/delete/lookup. Distinct from **Map** and from openEHR `ITEM_TABLE`.
+_Avoid_: table (ambiguous with RM `ITEM_TABLE`), Excel (the desktop app), treating a Sheet as a 1D Map
 
 **Defaults block**:
 The unique canvas declaration that binds a **Map** argument as the named Map `defaults`. At most one per workspace; present before a **Template Skeleton** exists so the informatician can edit or add keys, then load a target. **Map lookup**s read that binding by name, not by a wire to the argument. Carries the control to pick or **Save as** a **Defaults Map**. Scaffolding a target **joins** the Template Skeleton and lookups to this block rather than replacing it.

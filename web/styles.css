@@ -405,6 +405,10 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   position: fixed;
   inset: 12px;
   z-index: 80;
+  width: calc(100vw - 24px);
+  height: calc(100vh - 24px);
+  max-height: calc(100vh - 24px);
+  box-sizing: border-box;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -415,9 +419,12 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   min-height: 0;
 }
 .sheets-panel--fullscreen .sheets-grid-host {
-  flex: 1 1 auto;
+  flex: 1 1 0%;
   min-height: 0;
-  height: auto;
+  height: 0;
+}
+.sheets-panel--fullscreen .sheets-grid {
+  height: 100%;
 }
 .sheets-panel--fullscreen .jss_content {
   width: 100% !important;

@@ -114,8 +114,9 @@ export function mountSheetsPanel(
     try {
       jspreadsheet.destroy(gridEl as unknown as Parameters<typeof jspreadsheet.destroy>[0], true);
     } catch {
-      gridEl.innerHTML = "";
+      // destroyed or never mounted
     }
+    gridEl.innerHTML = "";
   };
 
   const readWorksheet = (name: string): SheetDocument | null => {
@@ -345,13 +346,16 @@ export function mountSheetsPanel(
   const sizeGrid = (): void => {
     const content = gridEl.querySelector(".jss_content") as HTMLElement | null;
     if (!content) return;
-    const w = Math.max(gridHost.clientWidth - 4, 120);
-    const h = Math.max(gridHost.clientHeight - 4, 80);
+    const panel = root.getBoundingClientRect();
+    const bar = toolbar.getBoundingClientRect().height;
+    const w = Math.max(Math.floor(panel.width - 24), 120);
+    const h = Math.max(Math.floor(panel.height - bar - 28), 80);
     content.style.width = `${w}px`;
     content.style.height = `${h}px`;
     content.style.maxHeight = `${h}px`;
   };
   const hostResize = new ResizeObserver(() => sizeGrid());
+  hostResize.observe(root);
   hostResize.observe(gridHost);
 
   const setFullscreen = (on: boolean): void => {
@@ -359,7 +363,7 @@ export function mountSheetsPanel(
     root.classList.toggle("sheets-panel--fullscreen", on);
     document.body.classList.toggle("sheets-fullscreen", on);
     paintChrome();
-    requestAnimationFrame(() => sizeGrid());
+    requestAnimationFrame(() => requestAnimationFrame(() => sizeGrid()));
   };
   fullBtn.addEventListener("click", () => setFullscreen(!fullscreen));
 

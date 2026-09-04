@@ -463,7 +463,7 @@ Context from current code:
 - Generalize **cogwheel mutator** to schema structure blocks; wire optional catalog from target format handler.
 - **`skeleton_loader`**: scaffold mandatory schema tree on canvas (openEHR-like policy).
 - **`syncToolbox`**: invalidate on target load + skeleton structure hash (not just length).
-- TakeCare / vendor-specific term ids → late roadmap (after CSV/FHIR tables or dedicated vendor chunk).
+- TakeCare / vendor-specific term ids → late roadmap (after spreadsheet/matrix Chunk 8 or a dedicated vendor chunk; FHIR ConceptMap import is deferred).
 
 ### Relevant files (Chunk 6 — adopted scope)
 

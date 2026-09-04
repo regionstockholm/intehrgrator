@@ -23,6 +23,22 @@ import {
 
 export const SLOT_LABEL_FIELD_PREFIX = "SLOT_LABEL_";
 
+/** Which overlay field-level showEditor_ should open when both could apply. */
+export type SlotLabelOverlay = "abstract-tip" | "help" | null;
+
+/**
+ * Abstract ⁇ tip wins over attribute/spec help so concrete-implementation
+ * lists stay reachable on RM slots that also have BMM documentation.
+ */
+export function slotLabelOverlayForEditor(options: {
+  isAbstractSlot: boolean;
+  hasAttrHelp: boolean;
+}): SlotLabelOverlay {
+  if (options.isAbstractSlot) return "abstract-tip";
+  if (options.hasAttrHelp) return "help";
+  return null;
+}
+
 // deno-lint-ignore no-explicit-any
 const FieldLabelBase = Blockly.FieldLabel as any;
 
@@ -106,18 +122,28 @@ export class FieldSlotLabel extends FieldLabelBase {
   }
 
   showEditor_(): void {
-    const help = this.attributeHelp_();
-    if (help) {
-      const anchor = this.attrTspan_ ??
-        this.getClickTarget_?.() ??
-        this.fieldGroup_;
-      if (anchor && "getBoundingClientRect" in anchor) {
-        showSpecHelpPopup(anchor as Element, help);
-      }
+    // Blockly opens the editor from field-group mousedown. Prefer the
+    // abstract ⁇ tip over attribute help so concrete-implementation lists
+    // are not swallowed when both apply (common for RM slots).
+    const action = slotLabelOverlayForEditor({
+      isAbstractSlot: this.isAbstractSlot_(),
+      hasAttrHelp: this.hasAttrHelp_(),
+    });
+    if (action === "abstract-tip") {
+      dismissSpecHelpPopup();
+      pinSlotLabelTip(this);
       return;
     }
-    if (!this.isAbstractSlot_()) return;
-    pinSlotLabelTip(this);
+    if (action !== "help") return;
+    dismissSlotLabelTip();
+    const help = this.attributeHelp_();
+    if (!help) return;
+    const anchor = this.attrTspan_ ??
+      this.getClickTarget_?.() ??
+      this.fieldGroup_;
+    if (anchor && "getBoundingClientRect" in anchor) {
+      showSpecHelpPopup(anchor as Element, help);
+    }
   }
 
   isClickableInFlyout(): boolean {
@@ -234,8 +260,12 @@ export class FieldSlotLabel extends FieldLabelBase {
       tspan.textContent = this.attrLabel;
       if (attrHelp) {
         tspan.style.cursor = "pointer";
+        // Stop Blockly field mousedown→showEditor_ so attr help does not
+        // race the abstract ⁇ tip on the same caption.
+        tspan.addEventListener("mousedown", (event) => event.stopPropagation());
         tspan.addEventListener("click", (event) => {
           event.stopPropagation();
+          dismissSlotLabelTip();
           dismissSpecHelpPopup();
           const help = this.attributeHelp_();
           if (help) showSpecHelpPopup(tspan, help);
@@ -252,8 +282,10 @@ export class FieldSlotLabel extends FieldLabelBase {
         tspan.setAttribute("class", "blockly-slot-abstract-glyph");
         tspan.textContent = glyph;
         tspan.style.cursor = "pointer";
+        tspan.addEventListener("mousedown", (event) => event.stopPropagation());
         tspan.addEventListener("click", (event) => {
           event.stopPropagation();
+          dismissSpecHelpPopup();
           pinSlotLabelTip(this);
         });
         el.appendChild(tspan);
@@ -351,6 +383,16 @@ function measureCaptionWidth(text: string, fontPx: number, abstract: boolean): n
 
 const PIN_ID = "blockly-slot-label-tip";
 
+function dismissSlotLabelTip(): void {
+  if (typeof document === "undefined") return;
+  const tip = document.getElementById(PIN_ID);
+  if (!tip) return;
+  const cleanup = (tip as HTMLElement & { _dismiss?: () => void })._dismiss;
+  cleanup?.();
+  stopAnchoring(tip);
+  tip.remove();
+}
+
 function pinSlotLabelTip(field: FieldSlotLabel): void {
   if (typeof document === "undefined") return;
   Blockly.Tooltip?.hide?.();
@@ -362,14 +404,10 @@ function pinSlotLabelTip(field: FieldSlotLabel): void {
 
   let tip = document.getElementById(PIN_ID);
   if (tip && tip.dataset.anchor === field.pinId) {
-    stopAnchoring(tip);
-    tip.remove();
+    dismissSlotLabelTip();
     return;
   }
-  if (tip) {
-    stopAnchoring(tip);
-    tip.remove();
-  }
+  dismissSlotLabelTip();
   tip = document.createElement("div");
   tip.id = PIN_ID;
   tip.className = "blockly-rm-emoji-tip";
@@ -384,14 +422,15 @@ function pinSlotLabelTip(field: FieldSlotLabel): void {
 
   const dismiss = (event: Event) => {
     if (event.target instanceof Node && tip?.contains(event.target)) return;
-    if (tip) stopAnchoring(tip);
-    tip?.remove();
-    document.removeEventListener("pointerdown", dismiss, true);
-    document.removeEventListener("keydown", onKey, true);
+    dismissSlotLabelTip();
   };
   const onKey = (event: KeyboardEvent) => {
     if (event.key === "Escape") dismiss(event);
   };
   document.addEventListener("pointerdown", dismiss, true);
   document.addEventListener("keydown", onKey, true);
+  (tip as HTMLElement & { _dismiss?: () => void })._dismiss = () => {
+    document.removeEventListener("pointerdown", dismiss, true);
+    document.removeEventListener("keydown", onKey, true);
+  };
 }

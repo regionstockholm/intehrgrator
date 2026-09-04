@@ -363,6 +363,55 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-radius: 3px; padding: 0 3px;
 }
 .handlebars-insert-hint { margin-left: auto; font-size: 10px; opacity: 0.85; }
+.sheets-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sheets-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.sheets-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.sheets-select {
+  min-width: 8rem;
+  font-size: 12px;
+}
+.sheets-empty {
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.sheets-grid-host {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  background: #fff;
+}
+.sheets-grid { min-width: 100%; min-height: 100%; }
+.sheets-panel--fullscreen {
+  position: fixed;
+  inset: 12px;
+  z-index: 80;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+  padding: 12px;
+}
+body.sheets-fullscreen { overflow: hidden; }
 .blockly-mount {
   --blockly-minimap-width: 147px;
   --blockly-minimap-height: 147px;
@@ -466,6 +515,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .blockly-mount .blocklyToolboxCategoryMaps {
   border-left: 15px solid #7e57c2 !important;
+}
+.blockly-mount .blocklyToolboxCategorySheets {
+  border-left: 15px solid #00897B !important;
 }
 .blockly-mount .blocklyToolboxCategoryVariables {
   border-left: 15px solid #ef9a9a !important;

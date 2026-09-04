@@ -82,6 +82,11 @@ import {
   type ExampleSetCatalog,
 } from "../core/example_sets/mod.ts";
 import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
+import {
+  cloneSheets,
+  normalizeSheets,
+  type SheetDocument,
+} from "../core/sheets/mod.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import {
   snapshotUrlHistory,
@@ -128,6 +133,7 @@ export class WorkbenchController {
   private examples = new ExampleInstanceManager();
   private specText = "";
   private handlebarsTemplate = "";
+  private sheets: SheetDocument[] = [];
   private generatedCode = "";
   private testResult: TestResult | null = null;
   private exampleTestResults = new Map<string, TestResult>();
@@ -179,6 +185,21 @@ export class WorkbenchController {
     return value;
   }
 
+  getSheets(): SheetDocument[] {
+    return cloneSheets(this.sheets);
+  }
+
+  /** Replace project Sheets. Caller records Blockly undo when the change is user-authored. */
+  replaceSheets(sheets: SheetDocument[], options: { silent?: boolean } = {}): void {
+    this.sheets = normalizeSheets(sheets);
+    if (options.silent) {
+      this.notifyChange();
+      return;
+    }
+    this.refreshDerived();
+    this.markDirty();
+  }
+
   markDirty(): void {
     this.dirty = true;
     this.scheduleAutosave();
@@ -216,6 +237,7 @@ export class WorkbenchController {
       blocklyState: this.blocklyState,
       blocklyReloadToken: this.blocklyReloadToken,
       handlebarsTemplate: this.handlebarsTemplate,
+      sheets: cloneSheets(this.sheets),
       generatedCode: this.generatedCode,
       testResult: this.testResult,
       outputValidations: Object.fromEntries(this.outputValidations),
@@ -853,7 +875,8 @@ export class WorkbenchController {
         this.schemaTree ||
         this.examples.hasExamples() ||
         this.model.slots.some((slot) => slot.expression) ||
-        this.model.optionalRm.length,
+        this.model.optionalRm.length ||
+        this.sheets.length,
     );
   }
 
@@ -1305,6 +1328,7 @@ export class WorkbenchController {
     this.examples = new ExampleInstanceManager();
     this.specText = "";
     this.handlebarsTemplate = "";
+    this.sheets = [];
     this.generatedCode = "";
     this.testResult = null;
     this.outputValidations.clear();
@@ -1356,6 +1380,7 @@ export class WorkbenchController {
       generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      sheets: cloneSheets(this.sheets),
       openEhrJsonDeserializeMode: this.settings.openEhrJsonDeserializeMode,
     });
   }
@@ -1413,6 +1438,7 @@ export class WorkbenchController {
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
         model: this.model,
         handlebarsTemplate: this.handlebarsTemplate,
+        sheets: cloneSheets(this.sheets),
       },
       settings: { ...this.settings, exportTarget: "typescript" },
       urlHistory: this.captureUrlHistory(),
@@ -1438,6 +1464,7 @@ export class WorkbenchController {
     };
     this.blocklyState = bundle.mapping.blocklyState;
     this.handlebarsTemplate = bundle.mapping.handlebarsTemplate ?? "";
+    this.sheets = normalizeSheets(bundle.mapping.sheets ?? []);
     this.templateFilename = "";
     this.templateContent = "";
     this.templateId = "";

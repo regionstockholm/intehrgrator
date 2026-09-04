@@ -1,3 +1,5 @@
+import type { SheetDocument } from "../core/sheets/types.ts";
+
 export const MODEL_VERSION = 2;
 
 /** Conversion script language. Deliberately separate from Target instance format. */
@@ -240,6 +242,8 @@ export interface ProjectBundle {
     model: MappingModel;
     /** User-authored Kintegrate-compatible conversion template. */
     handlebarsTemplate?: string;
+    /** Named 2D Sheet documents (widget is a view). */
+    sheets?: SheetDocument[];
   };
   settings: ProjectSettings;
   /** Recent schema / example / target URLs (including GitHub .t.json closures). */

@@ -61,6 +61,7 @@ export function runGeneratedTypeScript(
   sourceCtx: { format: string; data: unknown },
   defaults: Record<string, unknown> = {},
   runtime: GeneratedScriptRuntime = generatedScriptRuntime(),
+  sheets: Record<string, unknown> = {},
 ): unknown {
   const { names, body } = stripGeneratedTypeScript(source);
   const missing = names.filter((name) => !(name in runtime));
@@ -70,6 +71,7 @@ export function runGeneratedTypeScript(
   let convert: (
     ctx: { format: string; data: unknown },
     defaults?: Record<string, unknown>,
+    sheets?: Record<string, unknown>,
   ) => unknown;
   try {
     convert = new Function(
@@ -82,7 +84,7 @@ export function runGeneratedTypeScript(
     const detail = err instanceof Error ? err.message : String(err);
     throw new Error(`Generated TypeScript could not be executed (${detail}):\n${body}`);
   }
-  return convert(sourceCtx, defaults);
+  return convert(sourceCtx, defaults, sheets);
 }
 
 /** Canonical JSON when the result is an ehrtslib RM tree; otherwise the value as-is. */

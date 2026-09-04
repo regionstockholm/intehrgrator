@@ -4,6 +4,7 @@
 
 import { Blockly } from "../blockly/blockly_core.ts";
 import { DOCUMENT_SWAP_EVENT_TYPE } from "./document_undo.ts";
+import { SHEET_CHANGE_EVENT_TYPE } from "./sheet_undo.ts";
 
 const SEMANTIC_MOVE = new Set([
   Blockly.Events.BLOCK_CREATE,
@@ -17,6 +18,7 @@ export function isSemanticBlocklyEvent(event: Blockly.Events.Abstract): boolean 
   if (event.type === Blockly.Events.FINISHED_LOADING) return false;
   if (event.type === Blockly.Events.CLICK) return false;
   if (event.type === DOCUMENT_SWAP_EVENT_TYPE) return true;
+  if (event.type === SHEET_CHANGE_EVENT_TYPE) return true;
   if (SEMANTIC_MOVE.has(event.type)) return true;
   if (event.type === Blockly.Events.BLOCK_MOVE) {
     const move = event as Blockly.Events.BlockMove;
@@ -39,6 +41,8 @@ export function summarizeBlocklyEvent(event: Blockly.Events.Abstract): string {
       return "Connect or move block";
     case DOCUMENT_SWAP_EVENT_TYPE:
       return "Load project or template";
+    case SHEET_CHANGE_EVENT_TYPE:
+      return "Edit sheet";
     default:
       return "Edit mapping canvas";
   }

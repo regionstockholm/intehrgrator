@@ -71,6 +71,45 @@ export function blockToExpression(block: Block | null): string | null {
       const key = blockToExpression(block.getInputTargetBlock("KEY")) ?? '""';
       return `maps_get(${JSON.stringify(name)}, ${key})`;
     }
+    case "sheet_get_cell": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      const a1 = blockToExpression(block.getInputTargetBlock("A1")) ?? '"A1"';
+      return `sheet_get_cell(${JSON.stringify(name)}, ${a1})`;
+    }
+    case "sheet_get_xy": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      const x = blockToExpression(block.getInputTargetBlock("X")) ?? "0";
+      const y = blockToExpression(block.getInputTargetBlock("Y")) ?? "0";
+      return `sheet_get_xy(${JSON.stringify(name)}, ${x}, ${y})`;
+    }
+    case "sheet_get_row": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      const y = blockToExpression(block.getInputTargetBlock("Y")) ?? "0";
+      return `sheet_get_row(${JSON.stringify(name)}, ${y})`;
+    }
+    case "sheet_get_column": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      const x = blockToExpression(block.getInputTargetBlock("X")) ?? "0";
+      return `sheet_get_column(${JSON.stringify(name)}, ${x})`;
+    }
+    case "sheet_get_header": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      const x = blockToExpression(block.getInputTargetBlock("X")) ?? "0";
+      return `sheet_get_header(${JSON.stringify(name)}, ${x})`;
+    }
+    case "sheet_get_data": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      return `sheet_get_data(${JSON.stringify(name)})`;
+    }
+    case "sheet_lookup": {
+      const name = String(block.getFieldValue("NAME") || "Sheet1");
+      const col = blockToExpression(block.getInputTargetBlock("MATCH_COL")) ?? '""';
+      const val = blockToExpression(block.getInputTargetBlock("MATCH_VAL")) ?? '""';
+      const ret = blockToExpression(block.getInputTargetBlock("RETURN_COL"));
+      return ret
+        ? `sheet_lookup(${JSON.stringify(name)}, ${col}, ${val}, ${ret})`
+        : `sheet_lookup(${JSON.stringify(name)}, ${col}, ${val})`;
+    }
     case "maps_create_empty":
       return "map()";
     case "maps_create_with": {

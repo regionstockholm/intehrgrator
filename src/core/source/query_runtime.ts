@@ -4,6 +4,8 @@ import type { ExprAst } from "../expression/mod.ts";
 import { parseExpression } from "../expression/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
 import { DEFAULTS_MAP_NAME } from "../defaults/factory.ts";
+import { evalSheetCall, isSheetAccessor } from "../sheets/evaluate.ts";
+import type { SheetBag } from "../sheets/types.ts";
 import {
   executeEnvelopeParameters,
   parseJsonDocument,
@@ -21,6 +23,8 @@ export interface SourceContext {
   vars?: Record<string, unknown>;
   /** Named Maps (Defaults Map and others) for `maps_get`. */
   namedMaps?: Record<string, Record<string, unknown>>;
+  /** Named Sheets for `sheet_*` accessors (ADR 0005). */
+  sheets?: SheetBag;
 }
 
 export function createSourceContext(
@@ -106,6 +110,9 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           if (!map || typeof map !== "object") return null;
           return (map as Record<string, unknown>)[key] ?? null;
         }
+      }
+      if (isSheetAccessor(ast.name)) {
+        return evalSheetCall(ast.name, args, ctx.sheets ?? {});
       }
     }
   }

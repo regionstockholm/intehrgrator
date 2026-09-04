@@ -93,6 +93,18 @@ await esbuild.build({
 
 await copy(join(root, "web", "index.html"), join(outDir, "index.html"), { overwrite: true });
 await copy(join(root, "web", "styles.css"), join(outDir, "styles.css"), { overwrite: true });
+const jssCssDir = join(outDir, "vendor", "jspreadsheet");
+await ensureDir(jssCssDir);
+await copy(
+  join(root, "node_modules", "jspreadsheet-ce", "dist", "jspreadsheet.css"),
+  join(jssCssDir, "jspreadsheet.css"),
+  { overwrite: true },
+);
+await copy(
+  join(root, "node_modules", "jsuites", "dist", "jsuites.css"),
+  join(jssCssDir, "jsuites.css"),
+  { overwrite: true },
+);
 await copy(join(root, "web", "wasm"), join(outDir, "wasm"), { overwrite: true });
 await copy(
   join(root, "web", "better-form-viewer.html"),

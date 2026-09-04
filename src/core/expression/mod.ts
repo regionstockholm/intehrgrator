@@ -1,3 +1,5 @@
+import { SHEET_ACCESSOR_NAMES, type SheetAccessorName } from "../sheets/evaluate.ts";
+
 export type ExprAst =
   | { kind: "literal"; value: string | number | boolean }
   | {
@@ -15,7 +17,8 @@ export type ExprAst =
       | "maps_get"
       | "xpathNode"
       | "handlebars"
-      | "map";
+      | "map"
+      | SheetAccessorName;
     args: ExprAst[];
   }
   | { kind: "binary"; op: "+" | "-" | "*" | "/"; left: ExprAst; right: ExprAst };
@@ -34,6 +37,7 @@ const BUILTIN_NAMES = new Set([
   "maps_get",
   "handlebars",
   "map",
+  ...SHEET_ACCESSOR_NAMES,
 ]);
 
 export function parseExpression(source: string): ExprAst {
@@ -156,20 +160,7 @@ class Parser {
         }
         if (this.peek()?.type !== ")") throw new Error("Expected )");
         this.consume();
-        const builtin = name as
-          | "xpath"
-          | "xpathString"
-          | "xpathNumber"
-          | "xpathBoolean"
-          | "xpathNode"
-          | "trim"
-          | "concat"
-          | "if"
-          | "switch"
-          | "var"
-          | "maps_get"
-          | "handlebars"
-          | "map";
+        const builtin = name as ExprAst extends { kind: "call" } ? ExprAst["name"] : never;
         return { kind: "call", name: builtin, args };
       }
       throw new Error(`Unknown identifier: ${name}`);

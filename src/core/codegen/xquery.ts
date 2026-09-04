@@ -223,8 +223,16 @@ export function emitXQueryExpr(ast: ExprAst): string {
           return emitSwitchXq(args);
         case "var":
           return `$vars(${args[0]})`;
-        case "maps_get":
+    case "maps_get":
           return `(if (${args[0]} eq "defaults") then map:get($defaults, ${args[1]}) else ())`;
+        case "sheet_get_cell":
+        case "sheet_get_xy":
+        case "sheet_get_row":
+        case "sheet_get_column":
+        case "sheet_get_header":
+        case "sheet_get_data":
+        case "sheet_lookup":
+          return `(: ${ast.name} — bind $sheets at convert time :) ()`;
         case "xpathString":
         case "xpath":
           return emitXPathCall("string-at", ast.args[0]);

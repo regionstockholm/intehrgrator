@@ -65,7 +65,7 @@ A Blockly value block that retrieves an entry from a named **Map** (including th
 _Avoid_: `defaults_get` as a separate block type, connecting a Map constructor into multiple slots
 
 **Mapping Editor**:
-The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top, [CodeMirror](https://codemirror.net/) on the bottom showing the **Mapping Specification** (Blockly JSON with line numbers and Mapping Spec Widgets for density / safe field edits) and an editable **Handlebars Template** tab (Tree insert toolbar only while that tab is showing). A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
+The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top; the bottom slice (adjustable) holds **Mapping Specification**, **Handlebars Template**, and **Sheets** tabs. **Sheets** embeds a spreadsheet widget (Excel/Sheets paste, CSV import/export, optional fullscreen) bound to project-owned Sheet JSON. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
 _Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library), Target value slots rail / Slots Pane (removed)
 
 **Target & Previews**:
@@ -83,7 +83,7 @@ Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against
 _Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
 **Test Run**:
-When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run
 
@@ -92,7 +92,7 @@ When enabled, Test Run re-executes automatically (debounced) after mapping edits
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s; openEHR Composition is one possible Target instance format, not the only one.
+Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors; openEHR Composition is one possible Target instance format, not the only one.
 _Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode
 
 **Template Skeleton**:

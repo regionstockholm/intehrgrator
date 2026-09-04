@@ -4,6 +4,7 @@
  */
 
 import { getSharedWorkbenchService } from "./http.ts";
+import { APP_VERSION } from "../core/persistence/mod.ts";
 
 type JsonRpcId = string | number | null;
 
@@ -296,7 +297,7 @@ async function handleRequest(req: JsonRpcRequest, client: AgentClient): Promise<
       reply({
         protocolVersion: "2024-11-05",
         capabilities: { tools: {} },
-        serverInfo: { name: "intehrgrator", version: "0.4.0" },
+        serverInfo: { name: "intehrgrator", version: APP_VERSION },
       });
       return;
     }

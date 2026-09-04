@@ -128,13 +128,14 @@ export function mountSheetsPanel(
     const values = (worksheet.getData() ?? []).map((row) =>
       (Array.isArray(row) ? row : []).map((c) => (c == null ? "" : c as string | number | boolean))
     );
+    const trimmed = trimTrailingEmptyRows(values);
     const existing = findSheet(host.getSheets(), name);
     return normalizeSheet({
       name,
       headers,
-      values,
+      values: trimmed,
       columnTypes: existing?.columnTypes,
-      rowNames: readRowNames(worksheet, values.length) ?? existing?.rowNames,
+      rowNames: readRowNames(worksheet, trimmed.length) ?? existing?.rowNames,
     });
   };
 
@@ -165,20 +166,21 @@ export function mountSheetsPanel(
       const rowTitles = sheet.rowNames?.length
         ? sheet.rowNames.map((title) => ({ title }))
         : undefined;
+      const viewport = gridViewport();
       const created = jspreadsheet(gridEl, {
         worksheets: [{
           data: sheet.values.length ? sheet.values : [[""]],
           columns,
           ...(rowTitles ? { rows: rowTitles } : {}),
           minDimensions: [
-            Math.max(sheet.headers.length, 1),
-            Math.max(sheet.values.length, 1),
+            Math.max(sheet.headers.length, viewport.cols),
+            Math.max(sheet.values.length, viewport.rows),
           ],
           minSpareRows: 0,
           minSpareCols: 0,
           tableOverflow: true,
-          tableWidth: "100%",
-          tableHeight: "100%",
+          tableWidth: viewport.widthPx,
+          tableHeight: viewport.heightPx,
           csvFileName: sheet.name,
           columnSorting: false,
           parseFormulas: false,
@@ -343,16 +345,30 @@ export function mountSheetsPanel(
     URL.revokeObjectURL(url);
   });
 
+  const gridViewport = (): { widthPx: number; heightPx: number; cols: number; rows: number } => {
+    const widthPx = Math.max(root.clientWidth - 24, gridHost.clientWidth || 200, 200);
+    const heightPx = Math.max(
+      root.clientHeight - toolbar.offsetHeight - 28,
+      gridHost.clientHeight || 120,
+      120,
+    );
+    return {
+      widthPx,
+      heightPx,
+      cols: Math.max(3, Math.floor(widthPx / 120)),
+      rows: Math.max(4, Math.floor(heightPx / 26)),
+    };
+  };
+
   const sizeGrid = (): void => {
-    const content = gridEl.querySelector(".jss_content") as HTMLElement | null;
+    const content = (worksheet && "content" in worksheet
+      ? (worksheet as WorksheetInstance & { content?: HTMLElement }).content
+      : null) ?? gridEl.querySelector(".jss_content") as HTMLElement | null;
     if (!content) return;
-    const panel = root.getBoundingClientRect();
-    const bar = toolbar.getBoundingClientRect().height;
-    const w = Math.max(Math.floor(panel.width - 24), 120);
-    const h = Math.max(Math.floor(panel.height - bar - 28), 80);
-    content.style.width = `${w}px`;
-    content.style.height = `${h}px`;
-    content.style.maxHeight = `${h}px`;
+    const { widthPx, heightPx } = gridViewport();
+    content.style.width = `${widthPx}px`;
+    content.style.height = `${heightPx}px`;
+    content.style.maxHeight = `${heightPx}px`;
   };
   const hostResize = new ResizeObserver(() => sizeGrid());
   hostResize.observe(root);
@@ -363,7 +379,13 @@ export function mountSheetsPanel(
     root.classList.toggle("sheets-panel--fullscreen", on);
     document.body.classList.toggle("sheets-fullscreen", on);
     paintChrome();
-    requestAnimationFrame(() => requestAnimationFrame(() => sizeGrid()));
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const sheet = findSheet(host.getSheets(), activeName);
+        if (sheet) bindSheet(sheet);
+        else sizeGrid();
+      });
+    });
   };
   fullBtn.addEventListener("click", () => setFullscreen(!fullscreen));
 
@@ -437,4 +459,17 @@ function readRowNames(
     titles.push(title ?? "");
   }
   return named ? titles : undefined;
+}
+
+function trimTrailingEmptyRows(
+  values: Array<Array<string | number | boolean>>,
+): Array<Array<string | number | boolean>> {
+  let end = values.length;
+  while (
+    end > 1 &&
+    (values[end - 1] ?? []).every((cell) => cell === "" || cell == null)
+  ) {
+    end--;
+  }
+  return values.slice(0, Math.max(end, 1));
 }

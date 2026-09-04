@@ -1,10 +1,13 @@
 /**
  * Single left-of-socket caption: `attr [min..max] glyph` with spaces only.
- * Replaces the former three separate fields (name, cardinality, type glyph).
+ * Attribute name is hover-underlined / clickable when ehrtslib `spec` (or
+ * schema documentation) has help text for that RM attribute.
  */
 import type { Field, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 import { anchorFloating, stopAnchoring } from "../ui/floating.ts";
+import { documentationHelp, rmAttributeHelp } from "../core/spec_help.ts";
+import { dismissSpecHelpPopup, showSpecHelpPopup } from "../ui/spec_help_popup.ts";
 import {
   connectionPointGlyph,
   isAbstractPlaceholderType,
@@ -37,6 +40,9 @@ export class FieldSlotLabel extends FieldLabelBase {
   hasCard = false;
   unmet = false;
   private rmType_ = "";
+  /** Schema property docs when not using openEHR RM attribute tables. */
+  private documentation_ = "";
+  private attrTspan_: SVGTSpanElement | null = null;
   readonly pinId = `slot-label-${++pinSeq}`;
 
   /** Lets block_constraints refresh unmet cardinality on this caption. */
@@ -46,7 +52,11 @@ export class FieldSlotLabel extends FieldLabelBase {
 
   constructor(
     attrLabel: string,
-    options: { card?: SlotCardinality; rmType?: string } = {},
+    options: {
+      card?: SlotCardinality;
+      rmType?: string;
+      documentation?: string;
+    } = {},
   ) {
     super("", cssClass(false, false));
     this.attrLabel = attrLabel;
@@ -56,6 +66,7 @@ export class FieldSlotLabel extends FieldLabelBase {
       this.max = options.card.max;
     }
     this.rmType_ = options.rmType ?? "";
+    this.documentation_ = (options.documentation ?? "").trim();
     this.refreshText_();
   }
 
@@ -79,6 +90,15 @@ export class FieldSlotLabel extends FieldLabelBase {
     this.refreshText_();
   }
 
+  setDocumentation(documentation: string | undefined): void {
+    this.documentation_ = (documentation ?? "").trim();
+    this.refreshText_();
+  }
+
+  documentation(): string {
+    return this.documentation_;
+  }
+
   setUnmet(unmet: boolean): void {
     if (this.unmet === unmet) return;
     this.unmet = unmet;
@@ -86,16 +106,46 @@ export class FieldSlotLabel extends FieldLabelBase {
   }
 
   showEditor_(): void {
+    const help = this.attributeHelp_();
+    if (help) {
+      const anchor = this.attrTspan_ ??
+        this.getClickTarget_?.() ??
+        this.fieldGroup_;
+      if (anchor && "getBoundingClientRect" in anchor) {
+        showSpecHelpPopup(anchor as Element, help);
+      }
+      return;
+    }
     if (!this.isAbstractSlot_()) return;
     pinSlotLabelTip(this);
   }
 
   isClickableInFlyout(): boolean {
-    return this.isAbstractSlot_();
+    return this.hasAttrHelp_() || this.isAbstractSlot_();
   }
 
   private isAbstractSlot_(): boolean {
     return Boolean(this.rmType_ && isAbstractPlaceholderType(this.rmType_));
+  }
+
+  private parentRmClass_(): string {
+    const block = this.getSourceBlock?.();
+    if (!block) return "";
+    return String(block.getFieldValue("RM_TYPE") || "").trim();
+  }
+
+  private hasAttrHelp_(): boolean {
+    if (this.documentation_) return true;
+    const parent = this.parentRmClass_();
+    return Boolean(parent && rmAttributeHelp(parent, this.attrLabel));
+  }
+
+  private attributeHelp_() {
+    if (this.documentation_) {
+      return documentationHelp(this.attrLabel, this.documentation_);
+    }
+    const parent = this.parentRmClass_();
+    return parent ? rmAttributeHelp(parent, this.attrLabel) : null;
   }
 
   private refreshText_(): void {
@@ -107,7 +157,7 @@ export class FieldSlotLabel extends FieldLabelBase {
     // Abstract ⁇ is drawn as an underlined tspan so only the glyph is linked-looking.
     if (glyph && !this.isAbstractSlot_()) parts.push(glyph);
     this.setValue(parts.join(" "));
-    this.CURSOR = this.isAbstractSlot_() ? "pointer" : "default";
+    this.CURSOR = this.hasAttrHelp_() || this.isAbstractSlot_() ? "pointer" : "default";
     this.syncClass_();
     this.syncTipAttr_();
     this.updateSize_?.();
@@ -135,8 +185,17 @@ export class FieldSlotLabel extends FieldLabelBase {
     const glyph = abstract
       ? (connectionPointGlyph(this.rmType_, true) ?? "")
       : "";
-    const base = String(this.getText?.() ?? this.getValue?.() ?? "");
-    const full = abstract && glyph ? `${base} ${glyph}` : base;
+    const card = this.hasCard
+      ? formatSlotCardinality({ min: this.min, max: this.max })
+      : "";
+    const concreteGlyph = !abstract
+      ? (connectionPointGlyph(this.rmType_ || undefined, true) ?? "")
+      : "";
+    const fullParts = [this.attrLabel];
+    if (card) fullParts.push(card);
+    if (abstract && glyph) fullParts.push(glyph);
+    else if (concreteGlyph) fullParts.push(concreteGlyph);
+    const full = fullParts.join(" ");
     const px = this.rmType_ ? rmEmojiFontPx(this.rmType_) : RM_EMOJI_FONT_PX;
     const fontPx = abstract ? Math.max(12, Math.round(px * 0.75)) : 12;
     this.size_.width = measureCaptionWidth(full, fontPx, abstract);
@@ -149,16 +208,63 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("text-anchor", "start");
     el.setAttribute("x", "0");
     el.style.setProperty("font-size", `${fontPx}px`, "important");
-    if (abstract && glyph && typeof document !== "undefined") {
-      // Rebuild text so only ⁇ is underlined.
-      while (el.firstChild) el.removeChild(el.firstChild);
-      el.appendChild(document.createTextNode(base ? `${base} ` : ""));
+    this.rebuildCaption_(el, card, abstract ? glyph : concreteGlyph, abstract, fontPx);
+  }
+
+  private rebuildCaption_(
+    el: SVGTextElement,
+    card: string,
+    glyph: string,
+    abstractGlyph: boolean,
+    fontPx: number,
+  ): void {
+    if (typeof document === "undefined") return;
+    while (el.firstChild) el.removeChild(el.firstChild);
+    this.attrTspan_ = null;
+
+    const attrHelp = this.hasAttrHelp_();
+    if (this.attrLabel) {
       const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-      tspan.setAttribute("class", "blockly-slot-abstract-glyph");
-      tspan.textContent = glyph;
+      tspan.setAttribute(
+        "class",
+        attrHelp
+          ? "blockly-slot-attr-name blockly-spec-help-target"
+          : "blockly-slot-attr-name",
+      );
+      tspan.textContent = this.attrLabel;
+      if (attrHelp) {
+        tspan.style.cursor = "pointer";
+        tspan.addEventListener("click", (event) => {
+          event.stopPropagation();
+          dismissSpecHelpPopup();
+          const help = this.attributeHelp_();
+          if (help) showSpecHelpPopup(tspan, help);
+        });
+      }
       el.appendChild(tspan);
-    } else if (this.rmType_ && isHardToReadRmEmoji(this.rmType_)) {
+      this.attrTspan_ = tspan;
+    }
+    if (card) el.appendChild(document.createTextNode(` ${card}`));
+    if (glyph) {
+      el.appendChild(document.createTextNode(" "));
+      if (abstractGlyph) {
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        tspan.setAttribute("class", "blockly-slot-abstract-glyph");
+        tspan.textContent = glyph;
+        tspan.style.cursor = "pointer";
+        tspan.addEventListener("click", (event) => {
+          event.stopPropagation();
+          pinSlotLabelTip(this);
+        });
+        el.appendChild(tspan);
+      } else {
+        el.appendChild(document.createTextNode(glyph));
+      }
+    }
+    if (this.rmType_ && isHardToReadRmEmoji(this.rmType_) && !abstractGlyph) {
       el.style.setProperty("font-size", "13px", "important");
+    } else {
+      el.style.setProperty("font-size", `${fontPx}px`, "important");
     }
   }
 }
@@ -180,7 +286,11 @@ export function slotLabelFieldName(inputName: string): string {
 export function appendSlotLabel(
   input: Input,
   attrLabel: string,
-  options: { card?: SlotCardinality; rmType?: string } = {},
+  options: {
+    card?: SlotCardinality;
+    rmType?: string;
+    documentation?: string;
+  } = {},
 ): void {
   const name = slotLabelFieldName(input.name);
   const existing = input.fieldRow.find((field) => field.name === name);
@@ -188,6 +298,7 @@ export function appendSlotLabel(
     existing.attrLabel = attrLabel;
     existing.setCardinality(options.card);
     existing.setRmType(options.rmType);
+    existing.setDocumentation(options.documentation);
     return;
   }
   // Prefer a clean row: drop legacy split name / card / emoji fields.

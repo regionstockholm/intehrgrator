@@ -1,5 +1,8 @@
 import { Blockly } from "../blockly_core.ts";
 import type { Block } from "blockly/core";
+import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
+import { findSkeletonNode } from "../schema_catalog.ts";
+import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
@@ -66,7 +69,7 @@ function defineStructureBlock(
       if (options?.editableName) {
         header.appendField(new Blockly.FieldTextInput(defaultName), "NAME");
       } else {
-        header.appendField(new Blockly.FieldLabel(defaultName), "NAME");
+        header.appendField(new FieldSkeletonTitle("", defaultName), "NAME");
       }
       header.appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
       this.getField("TARGET_TYPE")?.setVisible(false);
@@ -128,7 +131,7 @@ function defineValueBlock(
   Blockly.Blocks[type] = {
     init: function (this: Block) {
       this.appendDummyInput("HEADER")
-        .appendField(new Blockly.FieldLabel(defaultName), "NAME")
+        .appendField(new FieldSkeletonTitle("", defaultName), "NAME")
         .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
       this.getField("TARGET_TYPE")?.setVisible(false);
       this.appendValueInput("VALUE").setCheck(null).appendField("value");
@@ -182,9 +185,25 @@ export function syncTargetChildInputs(
   for (const input of [...block.inputList]) {
     if (input.name.startsWith(TARGET_CHILD_PREFIX)) block.removeInput(input.name);
   }
+  const docs = schemaChildDocumentation(block);
   for (const group of childGroups) {
-    block.appendStatementInput(targetChildInputName(group)).appendField(group);
+    const input = block.appendStatementInput(targetChildInputName(group));
+    appendSlotLabel(input, group, { documentation: docs.get(group) });
   }
+}
+
+/** Property/element docs from the scaffold catalog (JSON Schema / XSD). */
+function schemaChildDocumentation(block: Block): Map<string, string> {
+  const out = new Map<string, string>();
+  const slotId = String(block.getFieldValue("SLOT_ID") ?? "");
+  const parent = slotId ? findSkeletonNode(slotId) : undefined;
+  if (!parent) return out;
+  for (const child of parent.children) {
+    const name = child.rmAttribute ?? child.label;
+    const text = child.documentation?.trim();
+    if (name && text) out.set(name, text);
+  }
+  return out;
 }
 
 export function targetChildInputName(group: string): string {

@@ -9,9 +9,9 @@ type VendorSpec = {
 const repos: VendorSpec[] = [
   {
     dir: "ehrtslib",
-    // origin/main includes OPT code_list / assumed_value / quantity units
-    // through Web Template (ErikSundvall/ehrtslib#73, 2026-09-03).
-    // C_ORDINAL list[] parsing is still vendor-patched below.
+    // origin/main includes OPT code_list / assumed_value / quantity units (#73),
+    // C_ORDINAL.list + C_QUANTITY intervals / coded-text nested defining_code (#79),
+    // and optional `spec/` package for BMM class/attribute documentation.
     url: "https://github.com/ErikSundvall/ehrtslib.git",
   },
   {

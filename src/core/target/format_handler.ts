@@ -236,6 +236,7 @@ function schemaTreeToSkeleton(
     kind,
     mandatory: node.multiplicity === "1" || node.multiplicity === "1..*",
     multiplicity: node.multiplicity,
+    ...(node.description ? { documentation: node.description } : {}),
     children,
   };
 }
@@ -332,7 +333,9 @@ function xsdElementToSkeleton(
   language?: string,
 ): SkeletonNode {
   const name = stringAttr(element, "@name") || fallbackName;
-  const label = xsdDocumentationLabel(element, language) || name;
+  const documentation = xsdDocumentationLabel(element, language);
+  // Prefer the element name as the block title; keep annotation prose for help.
+  const label = name;
   const complex = asRecord(element.complexType);
   const sequence = asRecord(complex?.sequence) ?? asRecord(complex?.all) ??
     asRecord(complex?.choice);
@@ -357,6 +360,7 @@ function xsdElementToSkeleton(
     kind,
     mandatory: min > 0,
     multiplicity,
+    ...(documentation ? { documentation } : {}),
     children,
   };
 }

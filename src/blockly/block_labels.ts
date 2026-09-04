@@ -25,6 +25,7 @@ export function applySkeletonBlockLabels(block: Block, node: SkeletonNode): void
   if (isSkeletonTitleField(nameField)) {
     if (node.rmType && !isTermPickBlock(block)) nameField.setClassName(node.rmType);
     if (!isTermPickBlock(block)) nameField.setAtCode(node.archetypeNodeId ?? "");
+    nameField.setDocumentation(node.documentation);
   } else if (node.archetypeNodeId) {
     setFieldIfPresent(block, "AT_CODE", node.archetypeNodeId);
   }

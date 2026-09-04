@@ -146,6 +146,12 @@ export interface SkeletonNode {
   multiplicity?: string;
   /** Cardinality of the parent attribute slot this node occupies. */
   slotCardinality?: string;
+  /**
+   * Free-text documentation for the help popup (JSON Schema `description`,
+   * XSD `xs:documentation`). openEHR RM class/attr prose comes from ehrtslib
+   * `spec` instead.
+   */
+  documentation?: string;
   children: SkeletonNode[];
   attachmentPoint?: string;
 }
@@ -164,6 +170,8 @@ export interface SchemaTreeNode {
   value?: unknown;
   /** Compact cardinality, e.g. `1`, `0..1`, `0..*`, `1..*`. */
   multiplicity?: string;
+  /** JSON Schema `description` or similar prose for the help popup. */
+  description?: string;
   children: SchemaTreeNode[];
 }
 

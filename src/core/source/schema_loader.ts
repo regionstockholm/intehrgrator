@@ -71,7 +71,14 @@ function jsonSchemaToTree(
     const children = itemSchema && typeof itemSchema === "object"
       ? [jsonSchemaToTree(itemSchema as JsonSchemaObject, `${name}[*]`, `${path}[*]`)]
       : [];
-    return { path, name, type: "array", multiplicity, children };
+    return {
+      path,
+      name,
+      type: "array",
+      multiplicity,
+      ...(schemaDescription(resolved) ? { description: schemaDescription(resolved) } : {}),
+      children,
+    };
   }
 
   if (type === "object" || resolved.properties) {
@@ -82,10 +89,31 @@ function jsonSchemaToTree(
     const children = Object.entries(props).map(([key, prop]) =>
       jsonSchemaToTree(prop, key, appendJsonPath(path, key), required)
     );
-    return { path, name, type: "object", multiplicity, children };
+    return {
+      path,
+      name,
+      type: "object",
+      multiplicity,
+      ...(schemaDescription(resolved) ? { description: schemaDescription(resolved) } : {}),
+      children,
+    };
   }
 
-  return { path, name, type, multiplicity, children: [] };
+  return {
+    path,
+    name,
+    type,
+    multiplicity,
+    ...(schemaDescription(resolved) ? { description: schemaDescription(resolved) } : {}),
+    children: [],
+  };
+}
+
+function schemaDescription(schema: JsonSchemaObject): string | undefined {
+  const raw = schema.description;
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim();
+  return trimmed || undefined;
 }
 
 function resolveSchema(schema: JsonSchemaObject): JsonSchemaObject {

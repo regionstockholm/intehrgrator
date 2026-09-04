@@ -3,9 +3,17 @@
  *   **node name**          (bold)
  *   CLASSNAME at0001       (small)
  * Class name and at-code sit under the name so the header uses less width.
+ * When help exists, the CLASSNAME is underlined on hover and opens the spec popup.
  */
 import type { Field } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
+import {
+  documentationHelp,
+  hasRmClassHelp,
+  rmClassHelp,
+  type SpecHelpContent,
+} from "../core/spec_help.ts";
+import { dismissSpecHelpPopup, showSpecHelpPopup } from "../ui/spec_help_popup.ts";
 
 // deno-lint-ignore no-explicit-any
 const FieldLabelBase = Blockly.FieldLabel as any;
@@ -43,8 +51,11 @@ export class FieldSkeletonTitle extends FieldLabelBase {
 
   private className_ = "";
   private atCode_ = "";
+  /** Schema/XSD free-text docs (openEHR uses ehrtslib `spec` via className_). */
+  private documentation_ = "";
   private nameEl_: SVGTextElement | null = null;
   private metaEl_: SVGTextElement | null = null;
+  private classTspan_: SVGTSpanElement | null = null;
 
   constructor(className: string, name = "", atCode = "") {
     super(name ?? "", "blockly-skeleton-title");
@@ -70,6 +81,29 @@ export class FieldSkeletonTitle extends FieldLabelBase {
     this.refresh_();
   }
 
+  setDocumentation(documentation: string | undefined): void {
+    this.documentation_ = (documentation ?? "").trim();
+    this.refresh_();
+  }
+
+  documentation(): string {
+    return this.documentation_;
+  }
+
+  showEditor_(): void {
+    const help = this.helpContent_();
+    if (!help) return;
+    const anchor = this.hasRmClassHelp_()
+      ? (this.classTspan_ ?? this.getClickTarget_?.() ?? this.fieldGroup_)
+      : (this.nameEl_ ?? this.getClickTarget_?.() ?? this.fieldGroup_);
+    if (!anchor || !("getBoundingClientRect" in anchor)) return;
+    showSpecHelpPopup(anchor as Element, help);
+  }
+
+  isClickableInFlyout(): boolean {
+    return this.hasHelp_();
+  }
+
   initView(): void {
     const group = this.fieldGroup_ as SVGGElement | null;
     if (!group || typeof document === "undefined") return;
@@ -78,6 +112,12 @@ export class FieldSkeletonTitle extends FieldLabelBase {
     this.nameEl_.setAttribute("class", "blocklyText blockly-skeleton-name");
     this.nameEl_.setAttribute("dominant-baseline", "hanging");
     this.nameEl_.setAttribute("text-anchor", "start");
+    this.nameEl_.addEventListener("click", (event) => {
+      if (!this.hasDocOnlyHelp_()) return;
+      event.stopPropagation();
+      dismissSpecHelpPopup();
+      this.showEditor_();
+    });
     group.appendChild(this.nameEl_);
 
     this.metaEl_ = document.createElementNS("http://www.w3.org/2000/svg", "text");
@@ -94,13 +134,14 @@ export class FieldSkeletonTitle extends FieldLabelBase {
 
   render_(): void {
     const name = this.nameText_();
-    const meta = this.metaText_();
-    if (this.nameEl_) this.nameEl_.textContent = name;
-    if (this.metaEl_) {
-      this.metaEl_.textContent = meta;
-      this.metaEl_.style.display = meta ? "" : "none";
+    if (this.nameEl_) {
+      this.nameEl_.textContent = name;
+      this.nameEl_.classList.toggle("blockly-spec-help-target", this.hasDocOnlyHelp_());
+      this.nameEl_.style.cursor = this.hasDocOnlyHelp_() ? "pointer" : "";
     }
+    this.rebuildMeta_();
     this.updateSize_();
+    this.syncHelpClass_();
   }
 
   /** Blockly would otherwise baseline a single-line label. */
@@ -125,6 +166,7 @@ export class FieldSkeletonTitle extends FieldLabelBase {
       (this.textElement_ as SVGTextElement | null)?.getAttribute("fill") ||
       "";
     if (this.metaEl_ && fill) this.metaEl_.setAttribute("fill", fill);
+    if (this.classTspan_ && fill) this.classTspan_.setAttribute("fill", fill);
   }
 
   private nameText_(): string {
@@ -133,6 +175,69 @@ export class FieldSkeletonTitle extends FieldLabelBase {
 
   private metaText_(): string {
     return [this.className_, this.atCode_].filter(Boolean).join(" ");
+  }
+
+  private hasRmClassHelp_(): boolean {
+    return hasRmClassHelp(this.className_);
+  }
+
+  private hasDocOnlyHelp_(): boolean {
+    return Boolean(this.documentation_) && !this.hasRmClassHelp_();
+  }
+
+  private hasHelp_(): boolean {
+    return this.hasDocOnlyHelp_() || this.hasRmClassHelp_();
+  }
+
+  private helpContent_(): SpecHelpContent | null {
+    if (this.hasRmClassHelp_()) return rmClassHelp(this.className_);
+    if (this.documentation_) {
+      return documentationHelp(this.nameText_() || this.className_ || "Documentation", this.documentation_);
+    }
+    return null;
+  }
+
+  private rebuildMeta_(): void {
+    const el = this.metaEl_;
+    if (!el) return;
+    const cls = this.className_;
+    const at = this.atCode_;
+    const meta = this.metaText_();
+    el.style.display = meta ? "" : "none";
+    this.classTspan_ = null;
+    while (el.firstChild) el.removeChild(el.firstChild);
+    if (!meta) return;
+
+    if (cls && typeof document !== "undefined") {
+      const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+      const classHelp = this.hasRmClassHelp_();
+      tspan.setAttribute(
+        "class",
+        classHelp
+          ? "blockly-skeleton-class-name blockly-spec-help-target"
+          : "blockly-skeleton-class-name",
+      );
+      tspan.textContent = cls;
+      if (classHelp) {
+        tspan.style.cursor = "pointer";
+        tspan.addEventListener("click", (event) => {
+          event.stopPropagation();
+          dismissSpecHelpPopup();
+          this.showEditor_();
+        });
+      }
+      el.appendChild(tspan);
+      this.classTspan_ = tspan;
+      if (at) el.appendChild(document.createTextNode(` ${at}`));
+    } else {
+      el.textContent = meta;
+    }
+  }
+
+  private syncHelpClass_(): void {
+    const group = this.fieldGroup_ as Element | null;
+    group?.classList.toggle("blockly-skeleton-title-field--help", this.hasHelp_());
+    this.CURSOR = this.hasHelp_() ? "pointer" : "default";
   }
 
   private layout_(): void {

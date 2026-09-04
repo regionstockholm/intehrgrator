@@ -396,9 +396,9 @@ function buildTargetStructureBlock(
   depth: number,
 ): BlockSvg {
   const block = workspace.newBlock("target_structure") as BlockSvg;
-  block.setFieldValue(node.label, "NAME");
   block.setFieldValue(node.rmType, "TARGET_TYPE");
   block.setFieldValue(node.slotId, "SLOT_ID");
+  applySkeletonBlockLabels(block, node);
   const visibleChildren = node.children.filter((child) => child.mandatory === true);
   const groups = [...new Set(visibleChildren.map((child) => child.rmAttribute ?? child.label))];
   syncTargetChildInputs(block, groups);
@@ -424,9 +424,9 @@ function buildTargetValueBlock(
   isRoot: boolean,
 ): BlockSvg {
   const block = workspace.newBlock("target_value") as BlockSvg;
-  block.setFieldValue(node.label, "NAME");
   block.setFieldValue(node.rmType, "TARGET_TYPE");
   block.setFieldValue(node.slotId, "SLOT_ID");
+  applySkeletonBlockLabels(block, node);
   if (!isRoot && !block.outputConnection) {
     block.setPreviousStatement(true);
     block.setNextStatement(true);

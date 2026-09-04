@@ -12,6 +12,7 @@ import {
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
 import { applyMutatorItemLabel } from "./rm_blocks.ts";
+import { appendSlotLabel } from "../slot_label.ts";
 import { presentTargetFieldNames, syncTargetChildInputs, targetChildInputName } from "./target_blocks.ts";
 
 const TARGET_CHILD_PREFIX = "TARGET_";
@@ -247,8 +248,18 @@ export function registerSchemaFieldsMutator(): void {
             this.removeInput(input.name);
           }
         }
+        const slotId = String(this.getFieldValue("SLOT_ID") ?? "");
+        const docs = new Map(
+          optionalSchemaChildren(slotId)
+            .filter((child) => child.documentation?.trim())
+            .map((child) => [
+              child.rmAttribute ?? child.label,
+              child.documentation!.trim(),
+            ]),
+        );
         for (const name of this.schemaExtraFields_ ?? []) {
-          this.appendStatementInput(schemaOptionalInputName(name)).appendField(name);
+          const input = this.appendStatementInput(schemaOptionalInputName(name));
+          appendSlotLabel(input, name, { documentation: docs.get(name) });
         }
       },
     },

@@ -45,7 +45,7 @@ Blockly loop that binds each node from a multi-valued Source Path to a named var
 _Avoid_: Context boundary, frame as context root (unless discussing kintegrate)
 
 **Map**:
-A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups.
+A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups. Toolbox: list and map blocks share one **Lists & maps** drawer; **Sheets** is a separate drawer.
 _Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor), **Sheet** (2D grid)
 
 **Sheet** (matrix / spreadsheet):

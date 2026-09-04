@@ -196,6 +196,7 @@ export function mountSheetsPanel(
       }) as unknown as WorksheetInstance[];
       worksheet = created[0] ?? null;
       if (worksheet) worksheet.ignoreHistory = true;
+      sizeGrid();
     } finally {
       applying = false;
     }
@@ -341,13 +342,24 @@ export function mountSheetsPanel(
     URL.revokeObjectURL(url);
   });
 
+  const sizeGrid = (): void => {
+    const content = gridEl.querySelector(".jss_content") as HTMLElement | null;
+    if (!content) return;
+    const w = Math.max(gridHost.clientWidth - 4, 120);
+    const h = Math.max(gridHost.clientHeight - 4, 80);
+    content.style.width = `${w}px`;
+    content.style.height = `${h}px`;
+    content.style.maxHeight = `${h}px`;
+  };
+  const hostResize = new ResizeObserver(() => sizeGrid());
+  hostResize.observe(gridHost);
+
   const setFullscreen = (on: boolean): void => {
     fullscreen = on;
     root.classList.toggle("sheets-panel--fullscreen", on);
     document.body.classList.toggle("sheets-fullscreen", on);
     paintChrome();
-    // Host overlay is the modal; library `.fullscreen` is z-index 21 and
-    // would sit under this panel (blank white).
+    requestAnimationFrame(() => sizeGrid());
   };
   fullBtn.addEventListener("click", () => setFullscreen(!fullscreen));
 
@@ -386,6 +398,7 @@ export function mountSheetsPanel(
     destroy: () => {
       destroyed = true;
       document.removeEventListener("keydown", onKey, true);
+      hostResize.disconnect();
       setFullscreen(false);
       destroyGrid();
       root.innerHTML = "";

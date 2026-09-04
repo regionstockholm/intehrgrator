@@ -419,6 +419,14 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   min-height: 0;
   height: auto;
 }
+.sheets-panel--fullscreen .jss_content {
+  width: 100% !important;
+  height: 100% !important;
+  max-height: none !important;
+}
+.sheets-panel--fullscreen .jss_container {
+  height: 100%;
+}
 body.sheets-fullscreen { overflow: hidden; }
 body.sheets-fullscreen::before {
   content: "";

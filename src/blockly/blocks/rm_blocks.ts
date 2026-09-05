@@ -19,7 +19,7 @@ import {
   subtypesOf,
   type RmAttributeMeta,
 } from "../../core/rm_meta.ts";
-import { blocklyCheckForDv } from "../block_checks.ts";
+import { blocklyCheckForDv, blocklyOutputForDv } from "../block_checks.ts";
 import {
   appendBlockOutputEmoji,
   appendSlotTypeEmoji,
@@ -1101,7 +1101,7 @@ function defineDataValueBlock(rmType: string): void {
         Blockly.Extensions.apply("dv_fields_mutator", this, true);
       }
 
-      this.setOutput(true, blocklyCheckForDv(rmType));
+      this.setOutput(true, blocklyOutputForDv(rmType));
       this.setColour(DV_COLOUR);
       this.setTooltip(rmType);
       enforceOpenEhrBlockLayout(this);

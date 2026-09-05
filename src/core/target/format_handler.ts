@@ -334,8 +334,9 @@ function xsdElementToSkeleton(
 ): SkeletonNode {
   const name = stringAttr(element, "@name") || fallbackName;
   const documentation = xsdDocumentationLabel(element, language);
-  // Prefer the element name as the block title; keep annotation prose for help.
-  const label = name;
+  // xml:lang documentation doubles as the localized block title when present;
+  // keep the same prose on `documentation` for the help viewer.
+  const label = documentation || name;
   const complex = asRecord(element.complexType);
   const sequence = asRecord(complex?.sequence) ?? asRecord(complex?.all) ??
     asRecord(complex?.choice);

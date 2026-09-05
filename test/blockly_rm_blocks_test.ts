@@ -4,6 +4,7 @@ import { generateSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.
 import {
   blocklyCheckForDv,
   blocklyCheckForReturnType,
+  blocklyOutputForDv,
 } from "@intehrgrator/blockly/block_checks.ts";
 import {
   applyFixedFieldsToDataValueShell,
@@ -112,6 +113,12 @@ Deno.test("blocklyCheckForDv maps DV types to typed shell checks", () => {
   assertEquals(blocklyCheckForReturnType("string"), "String");
 });
 
+Deno.test("blocklyOutputForDv widens DV shells with DATA_VALUE for reconnect", () => {
+  assertEquals(blocklyOutputForDv("DV_QUANTITY"), ["DV_QUANTITY", "DATA_VALUE"]);
+  assertEquals(blocklyOutputForDv("DV_BOOLEAN"), ["DV_BOOLEAN", "DATA_VALUE"]);
+  assertEquals(blocklyOutputForDv("DV_TEXT"), ["DV_TEXT", "DV_CODED_TEXT", "DATA_VALUE"]);
+});
+
 Deno.test("orderedRmAttributes puts mandatory RM attrs first", () => {
   assertEquals(
     orderedRmAttributes("OBSERVATION", ["protocol", "data"]),
@@ -152,7 +159,7 @@ Deno.test("DATA_VALUE shell exposes mandatory fields from meta", () => {
   const shell = workspace.newBlock("dv_quantity");
   assert(shell.getInput(dvFieldInputName("magnitude")));
   assert(shell.getInput(dvFieldInputName("units")));
-  assertEquals(shell.outputConnection?.getCheck(), ["DV_QUANTITY"]);
+  assertEquals(shell.outputConnection?.getCheck(), ["DV_QUANTITY", "DATA_VALUE"]);
   workspace.dispose();
 });
 

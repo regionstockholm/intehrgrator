@@ -35,3 +35,19 @@ export function blocklyCheckForDv(rmType: string): string | string[] | null {
   const primitive = blocklyCheckForReturnType(returnTypeForDv(rmType));
   return primitive ? [primitive] : null;
 }
+
+/**
+ * Output type(s) for a DV_* block. Always include `DATA_VALUE` so shells can
+ * reconnect to a generic ELEMENT.value slot during Blockly serialization
+ * (init sets check to DATA_VALUE before per-slot configureElementValueSlot).
+ */
+export function blocklyOutputForDv(rmType: string): string | string[] | null {
+  const check = blocklyCheckForDv(rmType);
+  if (check == null) return null;
+  const types = Array.isArray(check) ? [...check] : [check];
+  if (!types.includes("DATA_VALUE") && types.every((t) => isDataValueType(t) || t === "CODE_PHRASE")) {
+    // CODE_PHRASE is not a DATA_VALUE; only widen true DV_* outputs.
+    if (types.some((t) => isDataValueType(t))) types.push("DATA_VALUE");
+  }
+  return types.length === 1 ? types[0]! : types;
+}

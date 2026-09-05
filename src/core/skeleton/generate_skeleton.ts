@@ -862,11 +862,19 @@ function extractFixedFields(
 }
 
 function terminologyIdFromAm(cObj: AmObject): string | undefined {
-  const tid = cObj.terminology_id ?? cObj.terminology;
+  return coerceTerminologyId(cObj.terminology_id ?? cObj.terminology);
+}
+
+/** ehrtslib may yield a plain string or a TERMINOLOGY_ID / String wrapper. */
+function coerceTerminologyId(tid: unknown): string | undefined {
   if (typeof tid === "string" && tid) return tid;
-  if (tid && typeof tid === "object") {
-    const value = (tid as { value?: unknown }).value;
-    if (typeof value === "string" && value) return value;
+  if (!tid || typeof tid !== "object") return undefined;
+  const rec = tid as { value?: unknown; _value?: unknown };
+  const nested = rec.value ?? rec._value;
+  if (typeof nested === "string" && nested) return nested;
+  if (nested && typeof nested === "object") {
+    const inner = (nested as { value?: unknown }).value;
+    if (typeof inner === "string" && inner) return inner;
   }
   return undefined;
 }
@@ -1002,9 +1010,11 @@ function extractAllowedOrdinals(cObj: AmObject, terms: TermBag): AllowedOrdinal[
       sym.defining_code?.code_string ??
       amCodeString(sym);
     if (!code) continue;
-    const terminologyId = sym.terminology_id ??
-      sym.defining_code?.terminology_id ??
-      terminologyIdFromAm(sym);
+    const terminologyId = coerceTerminologyId(
+      sym.terminology_id ??
+        sym.defining_code?.terminology_id ??
+        terminologyIdFromAm(sym),
+    );
     const label = lookupTermText(terms, code) ?? code;
     items.push({
       value,

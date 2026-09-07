@@ -3,15 +3,18 @@ import {
   SOURCE_TYPE_EMOJI,
   type SourceReturnType,
 } from "../../blockly/source_query.ts";
+import { EDITOR_LANGUAGE_OPTIONS } from "../codemirror_setup.ts";
 import { attachInfoTip, detachInfoTip } from "../../ui/info_tip.ts";
-import type { SpecLine } from "./project.ts";
+import type { SpecEditFieldName, SpecEditableField, SpecLine } from "./project.ts";
 
 /** Matching CodeMirror line box — keep Spec rows as dense as a code listing. */
 export const SPEC_LINE_HEIGHT = 18;
+const CODE_ROW_HEIGHT = 15;
+const CODE_MAX_ROWS = 8;
 
 export type SpecFieldEditHandler = (
   blockId: string,
-  field: "EXPRESSION" | "RETURN_TYPE",
+  field: SpecEditFieldName,
   value: string,
 ) => void;
 
@@ -30,6 +33,11 @@ export class MappingSpecWidget extends WidgetType {
   }
 
   override get estimatedHeight(): number {
+    if (this.line.editKind === "code") {
+      const text = this.line.editable?.find((f) => f.field === "TEXT")?.value ?? "";
+      const rows = Math.min(CODE_MAX_ROWS, Math.max(3, text.split("\n").length));
+      return 20 + rows * CODE_ROW_HEIGHT;
+    }
     return SPEC_LINE_HEIGHT;
   }
 
@@ -39,8 +47,12 @@ export class MappingSpecWidget extends WidgetType {
       this.line.kind === other.line.kind &&
       this.line.type === other.line.type &&
       this.line.attribute === other.line.attribute &&
+      this.line.shell === other.line.shell &&
+      this.line.editKind === other.line.editKind &&
       this.line.summary === other.line.summary &&
       JSON.stringify(this.line.editable) === JSON.stringify(other.line.editable) &&
+      JSON.stringify(this.line.attributeEdit) === JSON.stringify(other.line.attributeEdit) &&
+      JSON.stringify(this.line.aliasIds) === JSON.stringify(other.line.aliasIds) &&
       JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
       this.warning === other.warning &&
       this.selected === other.selected
@@ -50,6 +62,7 @@ export class MappingSpecWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const row = document.createElement("span");
     row.className = `spec-widget spec-widget--${this.line.kind}`;
+    if (this.line.editKind === "code") row.classList.add("spec-widget--multiline");
     if (this.selected) row.classList.add("spec-widget--selected");
     row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
     if (this.line.blockId) row.dataset.blockId = this.line.blockId;
@@ -67,7 +80,26 @@ export class MappingSpecWidget extends WidgetType {
       row.appendChild(warn);
     }
 
-    if (this.line.attribute) {
+    if (this.line.attributeEdit && this.line.blockId) {
+      const attr = document.createElement("span");
+      attr.className = "spec-widget-attr spec-widget-attr--edit";
+      if (this.line.attribute?.startsWith("@")) {
+        const at = document.createElement("span");
+        at.className = "spec-widget-punct";
+        at.textContent = "@";
+        attr.appendChild(at);
+      }
+      attr.appendChild(
+        textInput(
+          this.line,
+          this.line.attributeEdit,
+          this.onFieldEdit,
+          this.line.attribute?.startsWith("@") ? "Attribute name" : "Map key",
+          "spec-widget-input spec-widget-input--attr",
+        ),
+      );
+      row.appendChild(attr);
+    } else if (this.line.attribute) {
       const attr = document.createElement("span");
       attr.className = "spec-widget-attr";
       attr.textContent = this.line.attribute;
@@ -78,62 +110,15 @@ export class MappingSpecWidget extends WidgetType {
     const badge = document.createElement("span");
     badge.className = "spec-widget-badge";
     badge.textContent = badgeLabel(this.line);
+    if (this.line.shell) badge.title = this.line.shell;
     row.appendChild(badge);
 
-    if (this.line.kind === "source_query" && this.line.blockId && this.line.editable) {
-      const returnField = this.line.editable.find((f) => f.field === "RETURN_TYPE");
-      const exprField = this.line.editable.find((f) => f.field === "EXPRESSION");
-
-      if (returnField) {
-        const select = document.createElement("select");
-        select.className = "spec-widget-select spec-widget-type-select";
-        select.setAttribute("aria-label", "Return type");
-        for (const opt of ["string", "number", "boolean"] as SourceReturnType[]) {
-          const option = document.createElement("option");
-          option.value = opt;
-          option.textContent = `${SOURCE_TYPE_EMOJI[opt]} ${opt}`;
-          if (opt === (returnField.value ?? "string")) option.selected = true;
-          select.appendChild(option);
-        }
-        select.addEventListener("change", () => {
-          if (this.line.blockId) {
-            this.onFieldEdit?.(this.line.blockId, "RETURN_TYPE", select.value);
-          }
-        });
-        row.appendChild(select);
-      } else {
-        const typeHint = document.createElement("span");
-        typeHint.className = "spec-widget-type";
-        const summaryType = sourceReturnTypeFromSummary(this.line.summary);
-        typeHint.textContent = SOURCE_TYPE_EMOJI[summaryType];
-        typeHint.title = summaryType;
-        typeHint.setAttribute("aria-label", summaryType);
-        row.appendChild(typeHint);
-      }
-
-      const input = document.createElement("input");
-      input.type = "text";
-      input.className = "spec-widget-input";
-      input.value = exprField?.value ?? "";
-      input.setAttribute("aria-label", "Source path expression");
-      input.addEventListener("change", () => {
-        if (this.line.blockId) {
-          this.onFieldEdit?.(this.line.blockId, "EXPRESSION", input.value);
-        }
-      });
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          input.blur();
-        }
-      });
-      row.appendChild(input);
-    } else {
-      const summary = document.createElement("span");
-      summary.className = "spec-widget-summary";
-      summary.textContent = this.line.summary || this.line.label;
-      row.appendChild(summary);
-    }
+    const editors = document.createElement("span");
+    editors.className = this.line.editKind === "code"
+      ? "spec-widget-editors spec-widget-editors--stack"
+      : "spec-widget-editors";
+    renderEditors(editors, this.line, this.onFieldEdit);
+    row.appendChild(editors);
 
     const tip = document.createElement("span");
     tip.className = "info-tip info-tip--end";
@@ -157,7 +142,7 @@ export class MappingSpecWidget extends WidgetType {
         const target = event.target;
         if (
           target instanceof Element &&
-          target.closest("input, select, button, .info-tip, .info-tip-balloon")
+          target.closest("input, select, textarea, button, .info-tip, .info-tip-balloon")
         ) {
           return;
         }
@@ -178,6 +163,272 @@ export class MappingSpecWidget extends WidgetType {
   }
 }
 
+function renderEditors(
+  host: HTMLElement,
+  line: SpecLine,
+  onFieldEdit?: SpecFieldEditHandler,
+): void {
+  const fields = line.editable ?? [];
+  if (!fields.length || line.editKind === "none" || !line.blockId) {
+    const summary = document.createElement("span");
+    summary.className = "spec-widget-summary";
+    summary.textContent = line.summary || line.label;
+    host.appendChild(summary);
+    return;
+  }
+
+  if (line.editKind === "source_path") {
+    const returnField = fields.find((f) => f.field === "RETURN_TYPE");
+    const exprField = fields.find((f) => f.field === "EXPRESSION");
+    if (returnField) {
+      host.appendChild(returnTypeSelect(line, returnField, onFieldEdit));
+    } else {
+      const typeHint = document.createElement("span");
+      typeHint.className = "spec-widget-type";
+      const summaryType = sourceReturnTypeFromSummary(line.summary);
+      typeHint.textContent = SOURCE_TYPE_EMOJI[summaryType];
+      typeHint.title = summaryType;
+      typeHint.setAttribute("aria-label", summaryType);
+      host.appendChild(typeHint);
+    }
+    if (exprField) {
+      host.appendChild(textInput(line, exprField, onFieldEdit, "Source path expression", "spec-widget-input"));
+    }
+    return;
+  }
+
+  if (line.editKind === "map_get") {
+    const name = fields.find((f) => f.field === "NAME");
+    const key = fields.find((f) => f.field === "TEXT" || f.field === "EXPRESSION");
+    if (name) {
+      host.appendChild(textInput(line, name, onFieldEdit, "Map name", "spec-widget-input spec-widget-input--name"));
+    }
+    const lbrack = document.createElement("span");
+    lbrack.className = "spec-widget-punct";
+    lbrack.textContent = "[";
+    host.appendChild(lbrack);
+    if (key) {
+      host.appendChild(textInput(line, key, onFieldEdit, "Map key", "spec-widget-input"));
+    }
+    const rbrack = document.createElement("span");
+    rbrack.className = "spec-widget-punct";
+    rbrack.textContent = "]";
+    host.appendChild(rbrack);
+    return;
+  }
+
+  if (line.editKind === "compare") {
+    for (const field of fields) {
+      if (field.field === "OP") {
+        host.appendChild(opSelect(line, field, onFieldEdit));
+      } else {
+        host.appendChild(textInput(line, field, onFieldEdit, field.field, "spec-widget-input spec-widget-input--short"));
+      }
+    }
+    return;
+  }
+
+  if (line.editKind === "sheet_lookup") {
+    const name = fields.find((f) => f.field === "NAME");
+    const rest = fields.filter((f) => f.field !== "NAME");
+    if (name) {
+      host.appendChild(textInput(line, name, onFieldEdit, "Sheet name", "spec-widget-input spec-widget-input--name"));
+    }
+    const punct = (text: string) => {
+      const el = document.createElement("span");
+      el.className = "spec-widget-punct";
+      el.textContent = text;
+      return el;
+    };
+    if (rest[0]) {
+      host.appendChild(punct("where"));
+      host.appendChild(textInput(line, rest[0], onFieldEdit, "Match column", "spec-widget-input spec-widget-input--short"));
+    }
+    if (rest[1]) {
+      host.appendChild(punct("="));
+      host.appendChild(textInput(line, rest[1], onFieldEdit, "Match value", "spec-widget-input"));
+    }
+    if (rest[2]) {
+      host.appendChild(punct("→"));
+      host.appendChild(textInput(line, rest[2], onFieldEdit, "Return column", "spec-widget-input spec-widget-input--short"));
+    }
+    return;
+  }
+
+  if (line.editKind === "code") {
+    const lang = fields.find((f) => f.field === "LANG");
+    const text = fields.find((f) => f.field === "TEXT");
+    if (lang) host.appendChild(langSelect(line, lang, onFieldEdit));
+    if (text) host.appendChild(codeArea(line, text, onFieldEdit));
+    return;
+  }
+
+  if (line.editKind === "loop") {
+    const name = fields.find((f) => f.field === "VAR");
+    const path = fields.find((f) => f.field === "PATH");
+    const prefix = document.createElement("span");
+    prefix.className = "spec-widget-punct";
+    prefix.textContent = "for each";
+    host.appendChild(prefix);
+    if (name) host.appendChild(textInput(line, name, onFieldEdit, "Loop variable", "spec-widget-input spec-widget-input--name"));
+    const inn = document.createElement("span");
+    inn.className = "spec-widget-punct";
+    inn.textContent = "in";
+    host.appendChild(inn);
+    if (path) host.appendChild(textInput(line, path, onFieldEdit, "Source path", "spec-widget-input"));
+    return;
+  }
+
+  if (line.editKind === "boolean") {
+    const bool = fields.find((f) => f.field === "BOOL");
+    if (bool) host.appendChild(boolSelect(line, bool, onFieldEdit));
+    return;
+  }
+
+  for (const field of fields) {
+    if (field.field === "LANG") {
+      host.appendChild(langSelect(line, field, onFieldEdit));
+      continue;
+    }
+    host.appendChild(textInput(line, field, onFieldEdit, field.field, "spec-widget-input"));
+  }
+}
+
+function editTarget(line: SpecLine, field: SpecEditableField): string | undefined {
+  return field.targetBlockId ?? line.blockId;
+}
+
+function commit(
+  line: SpecLine,
+  field: SpecEditableField,
+  value: string,
+  onFieldEdit?: SpecFieldEditHandler,
+): void {
+  const id = editTarget(line, field);
+  if (id) onFieldEdit?.(id, field.field, value);
+}
+
+function textInput(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit: SpecFieldEditHandler | undefined,
+  aria: string,
+  className: string,
+): HTMLInputElement {
+  const input = document.createElement("input");
+  input.type = field.field === "NUM" ? "number" : "text";
+  input.className = className;
+  input.value = field.value;
+  input.setAttribute("aria-label", aria);
+  input.addEventListener("change", () => commit(line, field, input.value, onFieldEdit));
+  input.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      input.blur();
+    }
+  });
+  return input;
+}
+
+function codeArea(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit?: SpecFieldEditHandler,
+): HTMLTextAreaElement {
+  const area = document.createElement("textarea");
+  area.className = "spec-widget-code";
+  area.value = field.value;
+  area.setAttribute("aria-label", "Generated text");
+  const rows = Math.min(CODE_MAX_ROWS, Math.max(3, field.value.split("\n").length));
+  area.rows = rows;
+  area.spellcheck = false;
+  area.addEventListener("change", () => commit(line, field, area.value, onFieldEdit));
+  return area;
+}
+
+function returnTypeSelect(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit?: SpecFieldEditHandler,
+): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.className = "spec-widget-select spec-widget-type-select";
+  select.setAttribute("aria-label", "Return type");
+  for (const opt of ["string", "number", "boolean"] as SourceReturnType[]) {
+    const option = document.createElement("option");
+    option.value = opt;
+    option.textContent = `${SOURCE_TYPE_EMOJI[opt]} ${opt}`;
+    if (opt === (field.value ?? "string")) option.selected = true;
+    select.appendChild(option);
+  }
+  select.addEventListener("change", () => commit(line, field, select.value, onFieldEdit));
+  return select;
+}
+
+function langSelect(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit?: SpecFieldEditHandler,
+): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.className = "spec-widget-select";
+  select.setAttribute("aria-label", "Code language");
+  for (const [label, value] of EDITOR_LANGUAGE_OPTIONS) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    if (value === field.value) option.selected = true;
+    select.appendChild(option);
+  }
+  select.addEventListener("change", () => commit(line, field, select.value, onFieldEdit));
+  return select;
+}
+
+function opSelect(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit?: SpecFieldEditHandler,
+): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.className = "spec-widget-select spec-widget-select--op";
+  select.setAttribute("aria-label", "Compare operator");
+  for (const [value, label] of [
+    ["EQ", "="],
+    ["NEQ", "≠"],
+    ["LT", "<"],
+    ["LTE", "≤"],
+    ["GT", ">"],
+    ["GTE", "≥"],
+  ] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    if (value === field.value) option.selected = true;
+    select.appendChild(option);
+  }
+  select.addEventListener("change", () => commit(line, field, select.value, onFieldEdit));
+  return select;
+}
+
+function boolSelect(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit?: SpecFieldEditHandler,
+): HTMLSelectElement {
+  const select = document.createElement("select");
+  select.className = "spec-widget-select";
+  select.setAttribute("aria-label", "Boolean");
+  for (const [value, label] of [["TRUE", "true"], ["FALSE", "false"]] as const) {
+    const option = document.createElement("option");
+    option.value = value;
+    option.textContent = label;
+    if (value === field.value) option.selected = true;
+    select.appendChild(option);
+  }
+  select.addEventListener("change", () => commit(line, field, select.value, onFieldEdit));
+  return select;
+}
+
 function sourceReturnTypeFromSummary(summary: string): SourceReturnType {
   const raw = summary.split(" · ")[0] ?? "string";
   if (raw === "number" || raw === "boolean" || raw === "node") return raw;
@@ -185,6 +436,9 @@ function sourceReturnTypeFromSummary(summary: string): SourceReturnType {
 }
 
 function badgeLabel(line: SpecLine): string {
+  if (line.shell) {
+    return line.shell.replace(/^dv_/i, "DV_").toUpperCase();
+  }
   switch (line.kind) {
     case "header":
       return "spec";
@@ -194,8 +448,18 @@ function badgeLabel(line: SpecLine): string {
       return line.type.replace(/^dv_/i, "DV_").toUpperCase();
     case "value":
       return "slot";
+    case "map_lookup":
+      return "map";
+    case "sheet_lookup":
+      return "sheet";
+    case "text_gen":
+      return line.editable?.find((f) => f.field === "LANG")?.value || "code";
+    case "literal":
+      return line.editKind === "number" ? "num" : line.editKind === "boolean" ? "bool" : "text";
+    case "logic":
+      return line.type === "logic_operation" ? line.label : "if";
     case "container":
-      return line.type;
+      return line.type.replace(/^schema_/, "");
     default:
       return line.type;
   }

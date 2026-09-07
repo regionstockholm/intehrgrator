@@ -1,6 +1,6 @@
 /**
- * Mapping Spec pane stores full Blockly workspace JSON in CodeMirror
- * and Download saves that same JSON (including x/y).
+ * Mapping Spec pane shows a compact projection. Download still saves
+ * full Blockly workspace JSON (including x/y).
  */
 
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
@@ -13,7 +13,7 @@ import {
 import type { IntehrgratorTestApi } from "../../src/ui_test/test_api.ts";
 
 Deno.test({
-  name: "UI: Mapping Spec document and Download are full Blockly JSON",
+  name: "UI: Mapping Spec is a compact projection; Download is full Blockly JSON",
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
@@ -30,22 +30,14 @@ Deno.test({
       await downloadBtn.waitFor({ timeout: 10_000 });
       assertEquals(await downloadBtn.isVisible(), true);
       assertEquals(await uploadBtn.isVisible(), true);
-      assertEquals(await downloadBtn.textContent().then((t) => t?.includes("Download")), true);
-      assertEquals(await uploadBtn.textContent().then((t) => t?.includes("Upload")), true);
 
       const doc = await page.evaluate(() => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
           .intehrgratorTestApi;
         return api.getMappingSpecDocument();
       });
-      const parsed = JSON.parse(doc) as {
-        blocks?: { blocks?: Array<{ type?: string; x?: number; y?: number; fields?: Record<string, unknown> }> };
-      };
-      const roots = parsed.blocks?.blocks ?? [];
-      assert(roots.length > 0, "expected Blockly root blocks in Mapping Spec document");
-      assert(typeof roots[0]?.x === "number", "document must keep block x");
-      assert(typeof roots[0]?.y === "number", "document must keep block y");
-      assertStringIncludes(doc, '"type":');
+      assertEquals(doc.trimStart().startsWith("{"), false, "Spec tab must not show raw Blockly JSON");
+      assertEquals(doc.includes('"x":'), false);
 
       const [download] = await Promise.all([
         page.waitForEvent("download", { timeout: 10_000 }),
@@ -56,12 +48,13 @@ Deno.test({
       const downloadPath = await download.path();
       assert(downloadPath, "expected downloaded file path");
       const downloaded = await Deno.readTextFile(downloadPath);
-      const downloadedJson = JSON.parse(downloaded) as typeof parsed;
-      assertEquals(
-        downloadedJson.blocks?.blocks?.[0]?.type,
-        parsed.blocks?.blocks?.[0]?.type,
-      );
-      assertEquals(downloadedJson.blocks?.blocks?.[0]?.x, parsed.blocks?.blocks?.[0]?.x);
+      const downloadedJson = JSON.parse(downloaded) as {
+        blocks?: { blocks?: Array<{ type?: string; x?: number; y?: number; id?: string }> };
+      };
+      const roots = downloadedJson.blocks?.blocks ?? [];
+      assert(roots.length > 0, "expected Blockly root blocks in download");
+      assert(typeof roots[0]?.x === "number", "download must keep block x");
+      assert(typeof roots[0]?.y === "number", "download must keep block y");
 
       const tweaked = JSON.parse(downloaded) as {
         blocks: { languageVersion?: number; blocks: Array<Record<string, unknown>> };
@@ -80,8 +73,45 @@ Deno.test({
           .intehrgratorTestApi;
         return api.getMappingSpecDocument();
       });
-      assertStringIncludes(after, '"id": "uploaded-root"');
-      assertStringIncludes(after, '"x": 99');
+      assertEquals(after.includes('"id": "uploaded-root"'), false);
+      const snapshot = await page.evaluate(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        return api.getSnapshot();
+      });
+      assert(
+        snapshot.blocklyBlocks.some((block) => block.id === "uploaded-root"),
+        "upload must restore Blockly ids",
+      );
+      assertStringIncludes(after, snapshot.blocklyBlocks[0]?.type ?? "composition");
+
+      await page.evaluate(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        api.loadBlocklyJson("edit.blockly.json", JSON.stringify({
+          blocks: {
+            languageVersion: 0,
+            blocks: [{
+              type: "source_query",
+              id: "sq-edit",
+              x: 8,
+              y: 8,
+              fields: { EXPRESSION: "$.systolic", RETURN_TYPE: "number" },
+            }],
+          },
+        }));
+      });
+      const pathInput = page.locator('.spec-widget-input[aria-label="Source path expression"]');
+      await pathInput.waitFor({ timeout: 10_000 });
+      await pathInput.fill("$.diastolic");
+      await pathInput.blur();
+      await page.waitForTimeout(200);
+      const edited = await page.evaluate(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        return api.getSnapshot().blocklyBlocks.find((b) => b.id === "sq-edit")?.fields.EXPRESSION;
+      });
+      assertEquals(edited, "$.diastolic");
     } finally {
       await browser.close();
     }

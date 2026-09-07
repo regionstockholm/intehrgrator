@@ -26,11 +26,15 @@ export function specWarningMarkers(
 ): SpecWarningMarker[] {
   const out: SpecWarningMarker[] = [];
   for (const widget of doc.widgets) {
-    const blockId = widget.line.blockId;
-    if (!blockId) continue;
-    const message = warnings[blockId];
-    if (!message) continue;
-    out.push({ blockId, from: widget.from, message });
+    const ids = [widget.line.blockId, ...(widget.line.aliasIds ?? [])].filter(
+      (id): id is string => Boolean(id),
+    );
+    for (const id of ids) {
+      const message = warnings[id];
+      if (!message) continue;
+      out.push({ blockId: widget.line.blockId ?? id, from: widget.from, message });
+      break;
+    }
   }
   return out;
 }

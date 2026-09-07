@@ -168,8 +168,12 @@ Optional RM types attachable via Optional RM Insertion (cogwheel mutator / conte
 _Avoid_: Primer-only RM list, toolbox free-build of LOCATABLE extras, library-level attachment picker API
 
 **Mapping Specification**:
-Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, and ADR 0006.
+Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. Optional **Blockly Function**s are reusable fragments of that tree, not a sequential script. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, and ADR 0006.
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
+
+**Blockly Function**:
+A stock Blockly procedure (Functions drawer): a definition block plus call sites. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function.
+_Avoid_: TypeScript/Java export function, Conversion script, custom DSL subroutine
 
 **Mapping Spec Widget**:
 One projected row in the Mapping Spec tab: a compact, indented view of one semantic mapping (source path, map lookup, sheet lookup, literal, text generation, flattened condition, or container). Safe Blockly fields are editable in the row (paths, map keys, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT). Wrappers that do not change mapping meaning (`xml_text`, `DV_*` shells, unnamed maps) are omitted; their Blockly ids stay on the visible row. Download/Upload still round-trip the **full Blockly JSON document**.

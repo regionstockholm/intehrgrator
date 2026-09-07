@@ -140,6 +140,7 @@ Mapping Model (slots[], loops, expressions)
 ## Related
 
 - [xquery-export-investigation.md](xquery-export-investigation.md) — declarative export precedent
+- [function-test-harnesses.md](function-test-harnesses.md) — unit tests of **Blockly Function**s and decision-table-shaped oracles; specified points under PBT
 - [MAPPING_SPECIFICATION.md](../MAPPING_SPECIFICATION.md) — Mapping Model pipeline
 - [ADR 0001](../adr/0001-mapping-and-target-seams.md) — mapping and target seams
 - [ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md) — preview vs generated script

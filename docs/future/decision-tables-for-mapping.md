@@ -232,6 +232,7 @@ Offer a “show missing combinations” action for Boolean/enum columns. Skip it
 | [spreadsheet-matrix-libraries.md](spreadsheet-matrix-libraries.md) | Widget stays jspreadsheet-ce; decision tables are extra column metadata + eval, not a new grid library. |
 | [text-first-mapping-editor.md](text-first-mapping-editor.md) | A Mapping Spec Widget row for `decision_table` would collapse the eval block; the grid still lives in the Sheets tab. |
 | [formal-verification-export.md](formal-verification-export.md) | UNIQUE / balanced tables are ready-made invariants (“exactly one row matches”). Good later input to a mapping contract. |
+| [function-test-harnesses.md](function-test-harnesses.md) | Same grid can hold **oracles** (input combos → expected outputs) for a **Blockly Function**. Distinct **kind** from convert-time rule tables; a mapping decision table can seed a test table. |
 
 ---
 

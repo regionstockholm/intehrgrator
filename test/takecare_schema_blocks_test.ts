@@ -264,12 +264,32 @@ Deno.test("lung-MDT Blockly mapping uses TakeCare schema blocks, not generic XML
   }
 });
 
-Deno.test("chemo-symptoms Blockly mapping uses TakeCare schema blocks, not generic XML", async () => {
-  const { CHEMO_TEXT_KEYWORDS } = await import(
-    "../scripts/build-chemo-symptoms-blockly.ts"
+Deno.test("chemo-symptoms Blockly mapping covers every PROD TermId on schema blocks", async () => {
+  const {
+    ALL_NEJ_COMPARES,
+    CHEMO_KEYWORDS,
+    extractProdTermIds,
+  } = await import("../scripts/build-chemo-symptoms-blockly.ts");
+  const script = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "../examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt",
+    ),
   );
-  assertEquals(CHEMO_TEXT_KEYWORDS.length, 4);
-  assertEquals(CHEMO_TEXT_KEYWORDS.filter((item) => item.condition === "neq-nej").length, 3);
+  assertEquals(
+    CHEMO_KEYWORDS.map((item) => item.termId),
+    extractProdTermIds(script),
+  );
+  assertEquals(CHEMO_KEYWORDS.filter((item) => item.kind === "TextKeyWord").length, 16);
+  assertEquals(CHEMO_KEYWORDS.filter((item) => item.kind === "NumericKeyword").length, 2);
+  const noneChunk = script.slice(
+    script.indexOf("Om patienten svarat"),
+    script.indexOf("{{else}}"),
+  );
+  assertEquals(ALL_NEJ_COMPARES.length, 17);
+  for (const cmp of ALL_NEJ_COMPARES) {
+    assert(noneChunk.includes(cmp.path), `all-Nej if should include ${cmp.path}`);
+  }
 
   const mapping = JSON.parse(
     await Deno.readTextFile(
@@ -292,19 +312,25 @@ Deno.test("chemo-symptoms Blockly mapping uses TakeCare schema blocks, not gener
   };
   walk(mapping);
   assert(types.includes("schema_ProfdocHISMessage"));
-  assertEquals(types.filter((type) => type === "schema_TextKeyWord").length, 4);
+  assertEquals(types.filter((type) => type === "schema_TextKeyWord").length, 16);
+  assertEquals(types.filter((type) => type === "schema_NumericKeyword").length, 2);
   assertEquals(types.includes("xml_element"), false);
   assertEquals(types.includes("target_value"), false);
+  for (const termId of extractProdTermIds(script)) {
+    assert(JSON.stringify(mapping).includes(termId), `mapping should include TermId ${termId}`);
+  }
 
   const { workspace } = loadTakeCareWorkspace();
   try {
     Blockly.serialization.workspaces.load(mapping, workspace);
     const loaded = workspace.getAllBlocks(false).map((block) => block.type);
-    assertEquals(loaded.filter((type) => type === "schema_TextKeyWord").length, 4);
+    assertEquals(loaded.filter((type) => type === "schema_TextKeyWord").length, 16);
+    assertEquals(loaded.filter((type) => type === "schema_NumericKeyword").length, 2);
     const keywords = workspace.getAllBlocks(false).find((block) =>
       block.type === "schema_Keywords"
     );
     assertEquals(keywords?.getInput(schemaOptionalInputName("TextKeywords"))?.type, VALUE_INPUT);
+    assertEquals(keywords?.getInput(schemaOptionalInputName("NumericKeywords"))?.type, VALUE_INPUT);
   } finally {
     workspace.dispose();
   }

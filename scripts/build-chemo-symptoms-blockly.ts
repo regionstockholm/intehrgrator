@@ -1,6 +1,6 @@
 /**
  * Build examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json
- * from the TakeCare XSD using schema-generated blocks (not generic XML).
+ * from TakeCare-CasenoteWrite-edit01.xsd + Mappningsscript 1.9.1 - PROD.txt.
  *
  *   deno run -A scripts/build-chemo-symptoms-blockly.ts
  */
@@ -29,37 +29,308 @@ import "blockly/blocks";
 
 const rootDir = join(dirname(fromFileUrl(import.meta.url)), "..");
 
-const BASE =
+const Q =
   "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/frågeformulär_för_symptom_och_andra_tecken/ospecificerad_händelse:0";
 
-export interface ChemoSymptomKeyword {
-  termId: string;
+export interface DataCompare {
   path: string;
-  condition?: "neq-nej";
+  op: "EQ" | "NEQ";
+  value: string;
 }
 
-/** First three symptom sections plus the always-emitted composition UID keyword. */
-export const CHEMO_TEXT_KEYWORDS: ChemoSymptomKeyword[] = [
+export interface ChemoKeywordSpec {
+  kind: "TextKeyWord" | "NumericKeyword";
+  termId: string;
+  comment: string;
+  /** Outer emission condition. `unless-and` matches PROD `{{if and …}}{{else}}<Keyword>`. */
+  when: "eq" | "neq" | "unless-and" | "always";
+  compares: DataCompare[];
+  group: "none-reported" | "symptom" | "after" | "numeric";
+}
+
+/** Every TakeCare TermId emitted by Mappningsscript 1.9.1 - PROD.txt */
+export const CHEMO_KEYWORDS: ChemoKeywordSpec[] = [
   {
+    kind: "TextKeyWord",
+    termId: "16183",
+    comment: "Patientrapporterade utfallsmått (PROM)",
+    when: "always",
+    compares: [],
+    group: "none-reported",
+  },
+  {
+    kind: "TextKeyWord",
     termId: "2811",
-    path: `${BASE}/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value`,
-    condition: "neq-nej",
+    comment: "Fatigue",
+    when: "neq",
+    compares: [{
+      path: `${Q}/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value`,
+      op: "NEQ",
+      value: "Nej",
+    }],
+    group: "symptom",
   },
   {
+    kind: "TextKeyWord",
     termId: "1830",
-    path: `${BASE}/andning/upplever_du_andnöd_vid_ansträngning_eller_i_vila|value`,
-    condition: "neq-nej",
+    comment: "Andning",
+    when: "eq",
+    compares: [{
+      path: `${Q}/andning/upplever_du_svårigheter_med_din_andning|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
   },
   {
+    kind: "TextKeyWord",
     termId: "6298",
-    path: `${BASE}/hjärta-kärl/upplever_du_bröstsmärtor_hjärtklappning_eller_svullna_ben|value`,
-    condition: "neq-nej",
+    comment: "Hjärta-kärl",
+    when: "eq",
+    compares: [{
+      path:
+        `${Q}/besvär_kring_hjärttrakten/upplever_du_någon_typ_av_besvär_kring_hjärttrakten_hjärtklappning_hård_puls_tryck_över_bröstet_eller_liknande|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
   },
   {
+    kind: "TextKeyWord",
+    termId: "7643",
+    comment: "Svullnad",
+    when: "eq",
+    compares: [{
+      path: `${Q}/svullnad/har_du_ökad_svullnad_i_kroppen|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "207",
+    comment: "Hud",
+    when: "eq",
+    compares: [{
+      path: `${Q}/utslag_eller_hudrodnad/har_du_utslag_eller_hudrodnad|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "7570",
+    comment: "Nagelfunktioner",
+    when: "eq",
+    compares: [{
+      path: `${Q}/naglar/har_du_förändringar_av_naglarna|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "1921",
+    comment: "Klåda",
+    when: "eq",
+    compares: [{
+      path: `${Q}/klåda/har_du_klåda|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "2018",
+    comment: "Munhåla och svalg",
+    when: "eq",
+    compares: [{
+      path: `${Q}/mun_svalg/har_du_förändringar_i_mun_svalg|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "5464",
+    comment: "Aptitförändring",
+    when: "unless-and",
+    compares: [
+      { path: `${Q}/aptit/upplever_du_förändrad_aptit|code`, op: "EQ", value: "3" },
+      { path: `${Q}/matintag/hur_har_ditt_matintag_förändrats|code`, op: "EQ", value: "3" },
+    ],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "1908",
+    comment: "Illamående/kräkning",
+    when: "eq",
+    compares: [{
+      path: `${Q}/illamående/upplever_du_besvär_av_illamående|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "1875",
+    comment: "Elimination",
+    when: "unless-and",
+    compares: [
+      { path: `${Q}/diarréer/har_du_problem_med_diarréer|value`, op: "EQ", value: "Nej" },
+      { path: `${Q}/förstoppning/har_du_förstoppning|value`, op: "EQ", value: "Nej" },
+    ],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "2008",
+    comment: "Smärta",
+    when: "eq",
+    compares: [{
+      path: `${Q}/smärta/upplever_du_värk_i_muskler_och_eller_leder|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "2310",
+    comment: "Sinnesintryck",
+    when: "eq",
+    compares: [{
+      path:
+        `${Q}/stickningar_pirrningar_domningar/upplever_du_stickningar_eller_pirrningar_domningar|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "symptom",
+  },
+  {
+    kind: "TextKeyWord",
+    termId: "14768",
+    comment: "Patientens kommentar",
+    when: "unless-and",
+    compares: [
+      {
+        path:
+          `${Q}/generella_behandlingsrelaterade_frågor/har_något_eller_några_av_de_symptom_du_skattat_förvärrats_sedan_föregående_behandling|value`,
+        op: "EQ",
+        value: "Nej",
+      },
+      {
+        path:
+          `${Q}/generella_behandlingsrelaterade_frågor/har_du_ytterligare_biverkningar_som_du_vill_förmedla_eller_förtydliga_för_oss|value`,
+        op: "EQ",
+        value: "Nej",
+      },
+      {
+        path:
+          `${Q}/generella_behandlingsrelaterade_frågor/har_du_någon_fråga_inför_kommande_behandling|value`,
+        op: "EQ",
+        value: "Nej",
+      },
+    ],
+    group: "after",
+  },
+  {
+    kind: "TextKeyWord",
     termId: "13700",
-    path: "patientrapporterade_symptom_inför_medicinsk_onkologisk_behandling/_uid|value",
+    comment: "DokumentID från extern system",
+    when: "always",
+    compares: [],
+    group: "after",
+  },
+  {
+    kind: "NumericKeyword",
+    termId: "2025",
+    comment: "Kroppstemperatur",
+    when: "eq",
+    compares: [{
+      path: `${Q}/feber/har_du_haft_en_kroppstemperatur_över_38_grader_senaste_dygnet|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "numeric",
+  },
+  {
+    kind: "NumericKeyword",
+    termId: "3484",
+    comment: "Viktförändring",
+    when: "eq",
+    compares: [{
+      path: `${Q}/vikt/har_din_vikt_förändrats_de_senaste_veckorna|value`,
+      op: "EQ",
+      value: "Ja",
+    }],
+    group: "numeric",
   },
 ];
+
+/** 17 screening equals that PROD ANDs before emitting TermId 16183. */
+export const ALL_NEJ_COMPARES: DataCompare[] = [
+  { path: `${Q}/trötthet/upplever_du_trötthet_fatigue_som_påverkar_ditt_dagliga_liv|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/andning/upplever_du_svårigheter_med_din_andning|value`, op: "EQ", value: "Nej" },
+  {
+    path:
+      `${Q}/besvär_kring_hjärttrakten/upplever_du_någon_typ_av_besvär_kring_hjärttrakten_hjärtklappning_hård_puls_tryck_över_bröstet_eller_liknande|value`,
+    op: "EQ",
+    value: "Nej",
+  },
+  { path: `${Q}/svullnad/har_du_ökad_svullnad_i_kroppen|value`, op: "EQ", value: "Nej" },
+  {
+    path: `${Q}/feber/har_du_haft_en_kroppstemperatur_över_38_grader_senaste_dygnet|value`,
+    op: "EQ",
+    value: "Nej",
+  },
+  { path: `${Q}/utslag_eller_hudrodnad/har_du_utslag_eller_hudrodnad|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/klåda/har_du_klåda|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/naglar/har_du_förändringar_av_naglarna|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/mun_svalg/har_du_förändringar_i_mun_svalg|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/aptit/upplever_du_förändrad_aptit|code`, op: "EQ", value: "3" },
+  { path: `${Q}/matintag/hur_har_ditt_matintag_förändrats|code`, op: "EQ", value: "3" },
+  { path: `${Q}/vikt/har_din_vikt_förändrats_de_senaste_veckorna|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/illamående/upplever_du_besvär_av_illamående|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/diarréer/har_du_problem_med_diarréer|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/förstoppning/har_du_förstoppning|value`, op: "EQ", value: "Nej" },
+  { path: `${Q}/smärta/upplever_du_värk_i_muskler_och_eller_leder|value`, op: "EQ", value: "Nej" },
+  {
+    path:
+      `${Q}/stickningar_pirrningar_domningar/upplever_du_stickningar_eller_pirrningar_domningar|value`,
+    op: "EQ",
+    value: "Nej",
+  },
+];
+
+export function extractGoDefine(script: string, name: string): string {
+  const start = script.indexOf(`{{- define "${name}" -}}`);
+  if (start < 0) throw new Error(`missing define ${name}`);
+  const endMarker = "{{- end -}}";
+  const end = script.indexOf(endMarker, start);
+  if (end < 0) throw new Error(`unclosed define ${name}`);
+  return script.slice(start, end + endMarker.length);
+}
+
+export function extractNoteForTermId(script: string, termId: string): string {
+  const re = new RegExp(
+    `<TermId>\\s*${termId}\\s*</TermId>\\s*<Note>([\\s\\S]*?)</Note>`,
+  );
+  const match = script.match(re);
+  if (!match) throw new Error(`missing <Note> for TermId ${termId}`);
+  return match[1];
+}
+
+export function extractProdTermIds(script: string): string[] {
+  return [...script.matchAll(/<TermId>\s*(\d+)\s*<\/TermId>/g)].map((m) => m[1]!);
+}
 
 function descendant(node: SkeletonNode | undefined, ...names: string[]): SkeletonNode | undefined {
   let current = node;
@@ -105,6 +376,19 @@ function mathNumber(workspace: Blockly.Workspace, value: string): Blockly.Block 
   return block;
 }
 
+function textLiteral(workspace: Blockly.Workspace, value: string): Blockly.Block {
+  const block = workspace.newBlock("text");
+  block.setFieldValue(value, "TEXT");
+  return block;
+}
+
+function goTextCode(workspace: Blockly.Workspace, text: string): Blockly.Block {
+  const block = workspace.newBlock("text_code");
+  if (block.getField("LANG")) block.setFieldValue("go-template", "LANG");
+  block.setFieldValue(text, "TEXT");
+  return block;
+}
+
 function structureFromNode(
   workspace: Blockly.Workspace,
   node: SkeletonNode,
@@ -116,25 +400,78 @@ function structureFromNode(
   return block;
 }
 
-function wrapIfNeqNej(
+function compareData(workspace: Blockly.Workspace, cmp: DataCompare): Blockly.Block {
+  const block = workspace.newBlock("logic_compare");
+  block.setFieldValue(cmp.op, "OP");
+  const src = createSourceQueryBlock(workspace, cmp.path, "string");
+  block.getInput("A")?.connection?.connect(src.outputConnection!);
+  block.getInput("B")?.connection?.connect(textLiteral(workspace, cmp.value).outputConnection!);
+  return block;
+}
+
+function andAll(workspace: Blockly.Workspace, compares: DataCompare[]): Blockly.Block {
+  if (!compares.length) throw new Error("andAll needs compares");
+  let acc = compareData(workspace, compares[0]!);
+  for (const next of compares.slice(1)) {
+    const op = workspace.newBlock("logic_operation");
+    op.setFieldValue("AND", "OP");
+    op.getInput("A")?.connection?.connect(acc.outputConnection!);
+    op.getInput("B")?.connection?.connect(compareData(workspace, next).outputConnection!);
+    acc = op;
+  }
+  return acc;
+}
+
+function wrapIf(
   workspace: Blockly.Workspace,
   inner: Blockly.Block,
-  path: string,
+  spec: ChemoKeywordSpec,
 ): Blockly.Block {
+  if (spec.when === "always") return inner;
+  if (spec.when === "unless-and") {
+    const iff = createIfElse(workspace);
+    iff.getInput("IF0")?.connection?.connect(andAll(workspace, spec.compares).outputConnection!);
+    iff.getInput("ELSE")?.connection?.connect(inner.previousConnection!);
+    return iff;
+  }
   const iff = workspace.newBlock("controls_if");
-  const cmp = workspace.newBlock("logic_compare");
-  cmp.setFieldValue("NEQ", "OP");
-  const src = createSourceQueryBlock(workspace, path, "string");
-  const nej = workspace.newBlock("text");
-  nej.setFieldValue("Nej", "TEXT");
-  cmp.getInput("A")?.connection?.connect(src.outputConnection!);
-  cmp.getInput("B")?.connection?.connect(nej.outputConnection!);
-  iff.getInput("IF0")?.connection?.connect(cmp.outputConnection!);
+  const cond = spec.compares.length === 1
+    ? compareData(workspace, spec.compares[0]!)
+    : andAll(workspace, spec.compares);
+  iff.getInput("IF0")?.connection?.connect(cond.outputConnection!);
   iff.getInput("DO0")?.connection?.connect(inner.previousConnection!);
   return iff;
 }
 
-export function buildChemoSymptomsWorkspace(xsd: string): Blockly.Workspace {
+function createIfElse(workspace: Blockly.Workspace): Blockly.Block {
+  const appended = Blockly.serialization.blocks.append(
+    { type: "controls_if", extraState: { elseIfCount: 0, hasElse: true } },
+    workspace,
+  ) as Blockly.Block | undefined;
+  if (!appended) throw new Error("failed to create controls_if with else");
+  return appended;
+}
+
+function keywordBlock(
+  workspace: Blockly.Workspace,
+  node: SkeletonNode,
+  spec: ChemoKeywordSpec,
+  script: string,
+): Blockly.Block {
+  const block = structureFromNode(workspace, node);
+  if (typeof block.setCommentText === "function") block.setCommentText(spec.comment);
+  fillValue(block, targetChildInputName("TermId"), mathNumber(workspace, spec.termId));
+  const note = extractNoteForTermId(script, spec.termId);
+  if (spec.kind === "TextKeyWord") {
+    fillValue(block, targetChildInputName("Note"), goTextCode(workspace, note));
+  } else {
+    composeSchemaOptionalFields(block, ["Note"]);
+    fillValue(block, schemaOptionalInputName("Note"), goTextCode(workspace, note));
+  }
+  return block;
+}
+
+export function buildChemoSymptomsWorkspace(xsd: string, script: string): Blockly.Workspace {
   initBlocklyGenerators();
   const target = getTargetFormatHandler("xml-schema").load(
     "TakeCare-CasenoteWrite-edit01.xsd",
@@ -149,6 +486,9 @@ export function buildChemoSymptomsWorkspace(xsd: string): Blockly.Workspace {
     "en",
     "xml-schema",
   );
+
+  const define = goTextCode(workspace, extractGoDefine(script, "cleanAndQuoteFreeTextInput"));
+  define.moveBy(20, 20);
 
   const root = workspace.getAllBlocks(false).find((block) =>
     block.type === "schema_ProfdocHISMessage"
@@ -165,45 +505,67 @@ export function buildChemoSymptomsWorkspace(xsd: string): Blockly.Workspace {
     InvokingSystem: "InvokingSystem",
   };
   for (const [field, key] of Object.entries(headerKeys)) {
-    const input = root.getInput(targetChildInputName(field));
-    if (!input) continue;
+    if (!root.getInput(targetChildInputName(field))) continue;
     fillValue(root, targetChildInputName(field), mapsGet(workspace, key));
   }
-
   fillValue(root, targetChildInputName("TemplateType"), mathNumber(workspace, "1"));
-
   composeSchemaOptionalFields(root, ["Signed", "UUID"]);
   fillValue(root, schemaOptionalInputName("Signed"), mathNumber(workspace, "0"));
   fillValue(root, schemaOptionalInputName("UUID"), mapsGet(workspace, "UUID"));
 
   const keywords = root.getInput("TARGET_Keywords")?.connection?.targetBlock();
   if (!keywords) throw new Error("missing Keywords");
-  composeSchemaOptionalFields(keywords, ["TextKeywords"]);
+  composeSchemaOptionalFields(keywords, ["TextKeywords", "NumericKeywords"]);
   attachOptionalSchemaChild(workspace, keywords, "TextKeywords");
+  attachOptionalSchemaChild(workspace, keywords, "NumericKeywords");
 
   const textKeywords = keywords.getInput(schemaOptionalInputName("TextKeywords"))
     ?.connection?.targetBlock();
-  if (!textKeywords) throw new Error("missing TextKeywords");
+  const numericKeywords = keywords.getInput(schemaOptionalInputName("NumericKeywords"))
+    ?.connection?.targetBlock();
+  if (!textKeywords || !numericKeywords) throw new Error("missing keyword containers");
 
-  const scaffolded = textKeywords.getInput("TARGET_TextKeyWord")?.connection?.targetBlock();
-  if (scaffolded) scaffolded.dispose(false);
+  textKeywords.getInput("TARGET_TextKeyWord")?.connection?.targetBlock()?.dispose(false);
+  numericKeywords.getInput("TARGET_NumericKeyword")?.connection?.targetBlock()?.dispose(false);
 
   const rootNode = findSkeletonNode(root.getFieldValue("SLOT_ID"));
-  const textKeyWordNode = descendant(rootNode, "Keywords", "TextKeywords", "TextKeyWord");
-  if (!textKeyWordNode) throw new Error("missing TextKeyWord skeleton node");
+  const textNode = descendant(rootNode, "Keywords", "TextKeywords", "TextKeyWord");
+  const numericNode = descendant(rootNode, "Keywords", "NumericKeywords", "NumericKeyword");
+  if (!textNode || !numericNode) throw new Error("missing keyword skeleton nodes");
 
-  for (const item of CHEMO_TEXT_KEYWORDS) {
-    const block = structureFromNode(workspace, textKeyWordNode);
-    fillValue(block, targetChildInputName("TermId"), mathNumber(workspace, item.termId));
-    fillValue(
-      block,
-      targetChildInputName("Note"),
-      createSourceQueryBlock(workspace, item.path, "string"),
+  const none = CHEMO_KEYWORDS.find((k) => k.group === "none-reported")!;
+  const symptoms = CHEMO_KEYWORDS.filter((k) => k.group === "symptom");
+  const after = CHEMO_KEYWORDS.filter((k) => k.group === "after");
+  const numeric = CHEMO_KEYWORDS.filter((k) => k.group === "numeric");
+
+  const noneIf = createIfElse(workspace);
+  noneIf.getInput("IF0")?.connection?.connect(andAll(workspace, ALL_NEJ_COMPARES).outputConnection!);
+  noneIf.getInput("DO0")?.connection?.connect(
+    keywordBlock(workspace, textNode, none, script).previousConnection!,
+  );
+  for (const spec of symptoms) {
+    appendStatement(
+      noneIf,
+      "ELSE",
+      wrapIf(workspace, keywordBlock(workspace, textNode, spec, script), spec),
     );
-    const stacked = item.condition === "neq-nej"
-      ? wrapIfNeqNej(workspace, block, item.path)
-      : block;
-    appendStatement(textKeywords, targetChildInputName("TextKeyWord"), stacked);
+  }
+  appendStatement(textKeywords, targetChildInputName("TextKeyWord"), noneIf);
+
+  for (const spec of after) {
+    appendStatement(
+      textKeywords,
+      targetChildInputName("TextKeyWord"),
+      wrapIf(workspace, keywordBlock(workspace, textNode, spec, script), spec),
+    );
+  }
+
+  for (const spec of numeric) {
+    appendStatement(
+      numericKeywords,
+      targetChildInputName("NumericKeyword"),
+      wrapIf(workspace, keywordBlock(workspace, numericNode, spec, script), spec),
+    );
   }
 
   return workspace;
@@ -213,13 +575,35 @@ if (import.meta.main) {
   const xsd = Deno.readTextFileSync(
     join(rootDir, "examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
-  const workspace = buildChemoSymptomsWorkspace(xsd);
-  const state = Blockly.serialization.workspaces.save(workspace);
+  const script = Deno.readTextFileSync(
+    join(rootDir, "examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt"),
+  );
+  const prodIds = extractProdTermIds(script);
+  const specIds = CHEMO_KEYWORDS.map((k) => k.termId);
+  if (prodIds.join() !== specIds.join()) {
+    throw new Error(
+      `CHEMO_KEYWORDS TermIds drift from PROD (script ${prodIds.join(",")} vs spec ${specIds.join(",")})`,
+    );
+  }
+  for (const spec of CHEMO_KEYWORDS) extractNoteForTermId(script, spec.termId);
+
+  const workspace = buildChemoSymptomsWorkspace(xsd, script);
+  const state = Blockly.serialization.workspaces.save(workspace) as {
+    blocks?: { blocks?: Array<{ type?: string }> };
+  };
+  const top = state.blocks?.blocks;
+  if (Array.isArray(top)) {
+    const defineIdx = top.findIndex((block) => block.type === "text_code");
+    if (defineIdx > 0) {
+      const [defineBlock] = top.splice(defineIdx, 1);
+      top.unshift(defineBlock!);
+    }
+  }
   const out = join(
     rootDir,
     "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
   );
   Deno.writeTextFileSync(out, `${JSON.stringify(state, null, 2)}\n`);
   workspace.dispose();
-  console.log(`Wrote ${out}`);
+  console.log(`Wrote ${out} (${specIds.length} TermIds)`);
 }

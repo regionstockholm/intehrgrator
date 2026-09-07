@@ -46,7 +46,7 @@
     {
       "id": "chemo-symptoms-flat-to-tc-xml",
       "title": "Patient-reported chemotherapy symptoms (FLAT → TakeCare XML)",
-      "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd), not generic XML blocks. Select Go Template output mode to see generated Go text/template code. Reference hand-authored Go template scripts are in the mapping/ folder. Parameters come from the Defaults Map.",
+      "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd). Rebuilds Mappningsscript 1.9.1 PROD: all TextKeyWord/NumericKeyword TermIds, the no-symptom 16183 branch, free-text helper, and Defaults Map header parameters. Select Go Template output mode to see generated Go text/template code.",
       "source": {
         "instances": [
           "./patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",

@@ -302,7 +302,11 @@ Deno.test("chemo symptoms Blockly loads on TakeCare schema blocks", () => {
     assertEquals(Blockly.Blocks["go_xml_comment"], undefined);
     assertEquals(
       ws.getAllBlocks(false).filter((b) => b.type === "schema_TextKeyWord").length,
-      4,
+      16,
+    );
+    assertEquals(
+      ws.getAllBlocks(false).filter((b) => b.type === "schema_NumericKeyword").length,
+      2,
     );
   } finally {
     ws.dispose();
@@ -323,7 +327,15 @@ Deno.test("chemo symptoms Blockly generates TakeCare XML Go template", () => {
   assert(output.includes("<TextKeyWord>"), "symptom keyword elements");
   assert(output.includes('index .Data "patientrapporterade_symptom'), "FLAT source paths");
   assert(output.includes("2811"), "fatigue TermId");
+  assert(output.includes("16183"), "no-symptom PROM TermId");
   assert(output.includes("13700"), "document UID TermId");
+  assert(output.includes("2025"), "temperature numeric TermId");
+  assert(output.includes("3484"), "weight numeric TermId");
+  assert(output.includes('{{- define "cleanAndQuoteFreeTextInput"'), "PROD free-text helper define");
+  assert(output.includes("besvär_kring_hjärttrakten"), "PROD cardiovascular path");
+  assert(output.includes("upplever_du_svårigheter_med_din_andning"), "PROD breathing path");
+  assertEquals(output.includes("upplever_du_andnöd_vid_ansträngning"), false);
+  assertEquals(output.includes("hjärta-kärl/upplever_du_bröstsmärtor"), false);
   assert(output.includes("if ne"), "conditional symptom sections");
   assertEquals(output.includes("unsupported block: defaults_block"), false);
 });

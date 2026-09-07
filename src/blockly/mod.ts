@@ -15,6 +15,7 @@ import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
+import { registerExtractToFunctionMenu } from "./extract_function.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
@@ -105,6 +106,12 @@ export {
 } from "./defaults_canvas.ts";
 export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler } from "./blocks/map_blocks.ts";
 export { setSheetFocusHandler } from "./blocks/sheet_blocks.ts";
+export {
+  canExtractToFunction,
+  extractBlockToFunction,
+  registerExtractToFunctionMenu,
+  EXTRACT_TO_FUNCTION_MENU_ID,
+} from "./extract_function.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
 export {
   generateTypeScriptFromBlocklyState,
@@ -119,6 +126,7 @@ export function initBlocklyGenerators(): void {
   registerMapBlocks();
   registerSheetBlocks();
   registerTextBlocks();
+  registerExtractToFunctionMenu();
   registerGenerators();
   registerTypeScriptExportAdapter();
 }

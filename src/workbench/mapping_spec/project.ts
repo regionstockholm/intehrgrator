@@ -153,7 +153,7 @@ function walkBlock(
  * Prefix order matters: `OPTFLD_` before `OPT_`.
  */
 export function slotAttributeFromInputName(inputName: string): string | undefined {
-  const prefixed = inputName.match(/^(?:ATTR_|OPTFLD_|OPT_|FLD_|TARGET_)(.+)$/);
+  const prefixed = inputName.match(/^(?:ATTR_|OPTFLD_|SCHEMA_OPT_|OPT_|FLD_|TARGET_)(.+)$/);
   if (prefixed?.[1]) return prefixed[1];
   if (inputName === "VALUE" || inputName === "MAGNITUDE" || inputName === "KIND") {
     return inputName.toLowerCase();
@@ -175,6 +175,7 @@ function classify(type: string): SpecLineKind {
   }
   if (
     type === "target_structure" ||
+    type.startsWith("schema_") ||
     type === "json_object" ||
     type === "json_array" ||
     type === "xml_element" ||

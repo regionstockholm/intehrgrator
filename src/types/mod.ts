@@ -152,6 +152,8 @@ export interface SkeletonNode {
    * `spec` instead.
    */
   documentation?: string;
+  /** XML Schema only: attribute vs child element. */
+  xmlKind?: "element" | "attribute";
   children: SkeletonNode[];
   attachmentPoint?: string;
 }

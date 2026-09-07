@@ -33,6 +33,14 @@ Deno.test("accept helpers feed Chromium and VS Code pickers", () => {
   });
 });
 
+Deno.test("XSD files use a distinct FSA MIME so Windows does not hide them under XML", () => {
+  const types = acceptToPickerTypes(".opt,.json,.xsd,.xml");
+  const accept = types?.[0]?.accept ?? {};
+  assertEquals(accept["application/vnd.intehrgrator.xsd"], [".xsd"]);
+  assertEquals(accept["application/xml"], [".opt", ".xml"]);
+  assertEquals(accept["application/json"], [".json"]);
+});
+
 Deno.test("acceptToPickerTypes never uses application/octet-stream", () => {
   const types = acceptToPickerTypes(".json,.xml,.zip,.intehrgrator,.blockly.json");
   const accept = types?.[0]?.accept ?? {};

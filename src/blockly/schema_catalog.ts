@@ -20,8 +20,23 @@ export function findSkeletonNode(slotId: string): SkeletonNode | undefined {
   return walk(catalogRoots);
 }
 
-export function optionalSchemaChildren(slotId: string): SkeletonNode[] {
-  const node = findSkeletonNode(slotId);
+/** Blockly loads extraState before SLOT_ID; fall back to the schema_* type. */
+export function findSkeletonNodeByBlockType(blockType: string): SkeletonNode | undefined {
+  if (!blockType) return undefined;
+  const walk = (nodes: SkeletonNode[]): SkeletonNode | undefined => {
+    for (const node of nodes) {
+      if (node.blockType === blockType) return node;
+      const nested = walk(node.children);
+      if (nested) return nested;
+    }
+    return undefined;
+  };
+  return walk(catalogRoots);
+}
+
+export function optionalSchemaChildren(slotId: string, blockType?: string): SkeletonNode[] {
+  const node = (slotId ? findSkeletonNode(slotId) : undefined) ??
+    (blockType ? findSkeletonNodeByBlockType(blockType) : undefined);
   if (!node) return [];
   return node.children.filter((child) => child.mandatory !== true);
 }

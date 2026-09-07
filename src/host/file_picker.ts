@@ -63,8 +63,9 @@ function mimeForFsaExtension(ext: string): string {
   switch (ext) {
     case ".json":
       return "application/json";
-    case ".xml":
     case ".xsd":
+      return "application/vnd.intehrgrator.xsd";
+    case ".xml":
     case ".opt":
     case ".opt2":
       return "application/xml";

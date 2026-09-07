@@ -21,6 +21,11 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * Row alignment: class chrome (emoji / skeleton title / cog) stays LEFT on
  * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
  * from riding a right-aligned value/statement row after inline merges.
+ *
+ * Vertical: Thrasos pins statement-row fields to the notch, but still
+ * centers fields on tall *value* rows (`row.height / 2`). Schema single-
+ * occurrence children are puzzle (value) slots, so attribute captions were
+ * floating mid-child. Pin slot captions to the socket/notch like Zelos.
  */
 export function registerCompactThrasosRenderer(): string {
   // deno-lint-ignore no-explicit-any
@@ -54,6 +59,14 @@ export function registerCompactThrasosRenderer(): string {
     addAlignmentPadding_(row: any, missingSpace: number) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
       return super.addAlignmentPadding_(row, missingSpace);
+    }
+
+    // deno-lint-ignore no-explicit-any
+    getElemCenterline_(row: any, elem: any) {
+      if (shouldPinSlotCaptionToMouth_(row, elem)) {
+        return pinnedSlotCaptionCenterline_(row, elem, this.constants_);
+      }
+      return super.getElemCenterline_(row, elem);
     }
   }
 
@@ -146,6 +159,40 @@ function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number):
   // shoved toward the socket; prefer external rows via setInputsInline(false).
   if (hasSlotCaption && !hasClassChrome) row.align = alignRight;
   else if (hasClassChrome) row.align = alignLeft;
+}
+
+/**
+ * Slot captions on value/statement rows with a tall connected child should sit
+ * by the mouth, not at the vertical midpoint of that child.
+ */
+// deno-lint-ignore no-explicit-any
+export function shouldPinSlotCaptionToMouth_(row: any, elem: any): boolean {
+  if (!row || !elem?.field || !isSlotLabelField(elem.field)) return false;
+  return Boolean(row.hasStatement || row.hasExternalInput || row.hasInlineInput);
+}
+
+/** Centerline Y for a slot caption pinned to the input mouth / notch. */
+// deno-lint-ignore no-explicit-any
+export function pinnedSlotCaptionCenterline_(
+  row: any,
+  elem: any,
+  constants: any,
+): number {
+  const y = Number(row?.yPos ?? 0);
+  if (row?.hasStatement) {
+    // Match Zelos: empty statement mouth height, not the connected stack.
+    const emptyH = Number(
+      constants?.EMPTY_STATEMENT_INPUT_HEIGHT ??
+        constants?.MIN_BLOCK_HEIGHT ??
+        24,
+    );
+    return y + emptyH / 2;
+  }
+  // Value socket (inline or external): offset from the top of the row.
+  const offset = Number(
+    constants?.TALL_INPUT_FIELD_OFFSET_Y ?? constants?.MEDIUM_PADDING ?? 3,
+  );
+  return y + offset + Number(elem?.height ?? 0) / 2;
 }
 
 // deno-lint-ignore no-explicit-any

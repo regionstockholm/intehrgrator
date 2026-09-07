@@ -50,18 +50,30 @@ function generateFromBlockly(blocklyState: unknown, model: MappingModel): string
   return emitBlockTree(blocks).join("\n");
 }
 
+interface BlockInput {
+  block?: BlockNode;
+  shadow?: BlockNode;
+}
+
 interface BlockNode {
   type: string;
   id?: string;
   fields?: Record<string, unknown>;
-  inputs?: Record<string, { block?: BlockNode }>;
+  inputs?: Record<string, BlockInput>;
   next?: { block?: BlockNode };
   extraState?: {
     attributes?: Array<{ name: string; value: string }>;
     childGroups?: string[];
     elseIfCount?: number;
     hasElse?: boolean;
+    xmlAttributes?: string[];
+    fields?: Array<{ name: string; xmlKind?: string }>;
   };
+}
+
+/** Blockly serializes unused default values as shadows; maps_get KEY is typically a shadow. */
+function inputChild(input: BlockInput | undefined): BlockNode | undefined {
+  return input?.block ?? input?.shadow;
 }
 
 function emitBlockTree(blocks: unknown[]): string[] {
@@ -77,8 +89,9 @@ function emitBlock(block: BlockNode): string[] {
   if (!block) return lines;
 
   switch (block.type) {
-    case "xml_element": {
-      lines.push(...emitXmlElement(block));
+    case "xml_element":
+    case "target_structure": {
+      lines.push(...emitXmlOrSchemaElement(block));
       break;
     }
     case "xml_text": {
@@ -124,7 +137,7 @@ function emitBlock(block: BlockNode): string[] {
     }
     case "maps_get": {
       const name = String(block.fields?.NAME ?? "defaults");
-      const key = block.inputs?.KEY?.block;
+      const key = inputChild(block.inputs?.KEY);
       const keyStr = key ? extractTextValue(key) : "";
       if (name === "defaults" || name === "Parameters") {
         lines.push(`{{ .Parameters.${sanitizeGoField(keyStr)} }}`);
@@ -134,7 +147,11 @@ function emitBlock(block: BlockNode): string[] {
       break;
     }
     default:
-      lines.push(`{{- /* unsupported block: ${block.type} */ -}}`);
+      if (block.type.startsWith("schema_")) {
+        lines.push(...emitXmlOrSchemaElement(block));
+      } else {
+        lines.push(`{{- /* unsupported block: ${block.type} */ -}}`);
+      }
   }
 
   return lines;
@@ -161,7 +178,7 @@ function emitValueExpression(block: BlockNode): string[] {
     }
     case "maps_get": {
       const name = String(block.fields?.NAME ?? "defaults");
-      const key = block.inputs?.KEY?.block;
+      const key = inputChild(block.inputs?.KEY);
       const keyStr = key ? extractTextValue(key) : "";
       if (name === "defaults" || name === "Parameters") {
         return [`{{ .Parameters.${sanitizeGoField(keyStr)} }}`];
@@ -263,7 +280,7 @@ function emitInlineValue(block: BlockNode): string {
     }
     case "maps_get": {
       const name = String(block.fields?.NAME ?? "defaults");
-      const key = block.inputs?.KEY?.block;
+      const key = inputChild(block.inputs?.KEY);
       const keyStr = key ? extractTextValue(key) : "";
       if (name === "defaults" || name === "Parameters") {
         return `.Parameters.${sanitizeGoField(keyStr)}`;
@@ -283,6 +300,49 @@ function emitInlineValue(block: BlockNode): string {
   }
 }
 
+function emitXmlOrSchemaElement(block: BlockNode): string[] {
+  if (block.type === "xml_element") return emitXmlElement(block);
+  const tag = xmlTagName(block);
+  const xmlAttributes = new Set([
+    ...(block.extraState?.xmlAttributes ?? []),
+    ...(block.extraState?.fields ?? [])
+      .filter((field) => field.xmlKind === "attribute")
+      .map((field) => field.name),
+  ]);
+  const attrParts: string[] = [...emitStaticAttributes(block)];
+  const inner: string[] = [];
+  const inputs = block.inputs ?? {};
+  for (const [key, value] of Object.entries(inputs)) {
+    if (!key.startsWith("TARGET_") && !key.startsWith("SCHEMA_OPT_")) continue;
+    const fieldName = key.replace(/^TARGET_|^SCHEMA_OPT_/, "");
+    const child = inputChild(value);
+    if (!child) continue;
+    if (xmlAttributes.has(fieldName) || child.type === "xml_attribute") {
+      const val = emitValueExpression(child).join("");
+      attrParts.push(` ${fieldName}="${val}"`);
+      continue;
+    }
+    if (isXmlStructureBlockType(child.type)) {
+      inner.push(...emitStatementChain(child));
+      continue;
+    }
+    inner.push(`<${xmlName(fieldName)}>`, ...emitValueExpression(child), `</${xmlName(fieldName)}>`);
+  }
+  const attrs = attrParts.join("");
+  if (inner.length) return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
+  return [`<${tag}${attrs}></${tag}>`];
+}
+
+function isXmlStructureBlockType(type: string): boolean {
+  return type === "xml_element" || type === "target_structure" || type.startsWith("schema_") ||
+    type === "controls_if" || type === "for_each_source";
+}
+
+function xmlName(value: string): string {
+  const safe = value.replace(/[^A-Za-z0-9_.-]/g, "_");
+  return /^[A-Za-z_]/.test(safe) ? safe : `_${safe}`;
+}
+
 function emitXmlElement(block: BlockNode): string[] {
   const tag = xmlTagName(block);
   const bodyHead = firstChildStatement(block);
@@ -293,7 +353,7 @@ function emitXmlElement(block: BlockNode): string[] {
     if (current.type === "xml_attribute") {
       const name = String(current.fields?.NAME ?? "").trim();
       if (name) {
-        const valBlock = current.inputs?.VALUE?.block;
+        const valBlock = inputChild(current.inputs?.VALUE);
         const val = valBlock ? emitValueExpression(valBlock).join("") : "";
         attrParts.push(` ${name}="${val}"`);
       }
@@ -314,6 +374,10 @@ function emitXmlElement(block: BlockNode): string[] {
 }
 
 function xmlTagName(block: BlockNode): string {
+  const slot = String(block.fields?.SLOT_ID ?? "");
+  const path = slot.includes(":") ? slot.slice(slot.indexOf(":") + 1) : slot;
+  const fromPath = path.split("/").filter((part) => part && !part.startsWith("@")).pop();
+  if (fromPath) return fromPath;
   const name = String(block.fields?.NAME ?? block.fields?.TAG ?? "element").trim();
   return name || "element";
 }
@@ -338,7 +402,7 @@ function emitStaticAttributes(block: BlockNode): string[] {
   let i = 0;
   while (block.fields?.[`ATTR_NAME${i}`] !== undefined) {
     const name = String(block.fields[`ATTR_NAME${i}`]);
-    const valBlock = block.inputs?.[`ATTR_VALUE${i}`]?.block;
+    const valBlock = inputChild(block.inputs?.[`ATTR_VALUE${i}`]);
     const val = valBlock
       ? emitValueExpression(valBlock).join("")
       : String(block.fields?.[`ATTR_VALUE${i}`] ?? "");

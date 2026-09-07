@@ -72,7 +72,7 @@
 - [x] Go template codegen adapter: Mapping Model + Blockly → Go `text/template` syntax with curated Sprig-subset FuncMap (`replace`/`regexReplaceAll`/`trim`/`quote`/`lower`/`substr`/`int`/`ge`)
 - [x] In-browser WASM runtime for Go `text/template` execution in Conversion Test Run (Web Shell + desktop). Rebuild with `deno task wasm:go-template` (vendored `web/wasm/`).
 - [x] Execute envelope `{ Parameters: defaults, Data: source }` — Defaults Map provides the Parameters bag
-- [x] Example Set: `examples/patient-reported-chemotherapy-symptoms/` — reverse-engineered Blockly mapping using `xml_element`/`xml_text`/`xml_attribute` (plus `text_code` LANG=go-template when a raw snippet is needed) for ProfdocHISMessage XML + reference hand-authored PROD Go template script
+- [x] Example Set: `examples/patient-reported-chemotherapy-symptoms/` — reverse-engineered Blockly mapping using TakeCare schema blocks (`schema_ProfdocHISMessage` / `schema_TextKeyWord`, plus `text_code` LANG=go-template when a raw snippet is needed) for ProfdocHISMessage XML + reference hand-authored PROD Go template script
 - [ ] FLAT as source is less than ideal (STRUCTURED would be one notch up) but must be supported for existing pipeline use cases; ehrtslib can convert other openEHR formats to FLAT
 - See [ADR 0004](adr/0004-go-template-codegen-only.md)
 

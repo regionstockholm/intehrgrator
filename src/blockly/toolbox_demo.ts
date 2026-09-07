@@ -13,6 +13,12 @@ import type { BlocklyOptions } from "blockly/core";
 import { dataValueLeafTypes, blockTypeForRm } from "../core/rm_meta.ts";
 import type { SkeletonNode, TargetFormatId } from "../types/mod.ts";
 import { msg } from "./i18n/custom_msg.ts";
+import { uniqueSchemaContainerNodes } from "./schema_blocks.ts";
+import {
+  isSchemaStructureBlockType,
+  schemaInputSpecs,
+  schemaConnectionMode,
+} from "../core/target/schema_block_ids.ts";
 
 export type ToolboxJson = NonNullable<BlocklyOptions["toolbox"]>;
 
@@ -114,32 +120,44 @@ function openEhrTypeToolboxContents(m: ReturnType<typeof msg>): Array<Record<str
   ];
 }
 
-function schemaToolboxNode(node: SkeletonNode): Record<string, unknown> {
-  const blockType = node.blockType === "target_value" || node.kind === "value"
-    ? "target_value"
-    : "target_structure";
-  const blockEntry: Record<string, unknown> = {
+function schemaToolboxBlock(node: SkeletonNode, isRoot: boolean): Record<string, unknown> {
+  const fields = schemaInputSpecs(node, { mandatoryOnly: true });
+  return {
     kind: "block",
-    type: blockType,
+    type: isSchemaStructureBlockType(node.blockType) ? node.blockType : "target_structure",
     gap: 4,
+    extraState: {
+      connection: schemaConnectionMode(node, isRoot),
+      typeCheck: node.blockType,
+      fields,
+    },
     fields: {
       NAME: node.label,
       TARGET_TYPE: node.rmType,
       SLOT_ID: node.slotId,
     },
   };
-  if (!node.children.length) return blockEntry;
-  return {
-    kind: "category",
-    name: node.label,
-    colour: 0,
-    contents: [blockEntry, ...node.children.map(schemaToolboxNode)],
-  };
 }
 
-/** Nested schema drawer mirroring the skeleton tree (no flat cap). */
+/**
+ * One flyout level per loaded schema: unique complex types, no nested tree.
+ * Multiple skeleton roots (rare) each get a single named category.
+ */
 function schemaToolboxContents(skeleton: SkeletonNode[]): Array<Record<string, unknown>> {
-  return skeleton.map(schemaToolboxNode);
+  const rootSlotIds = new Set(skeleton.map((node) => node.slotId));
+  if (skeleton.length <= 1) {
+    return uniqueSchemaContainerNodes(skeleton).map((node) =>
+      schemaToolboxBlock(node, rootSlotIds.has(node.slotId))
+    );
+  }
+  return skeleton.map((root) => ({
+    kind: "category",
+    name: root.label || root.rmAttribute || root.blockType,
+    colour: 0,
+    contents: uniqueSchemaContainerNodes([root]).map((node) =>
+      schemaToolboxBlock(node, node.slotId === root.slotId)
+    ),
+  }));
 }
 
 /** Build the workspace toolbox (Blockly demo + Source / openEHR types / JSON / XML). */

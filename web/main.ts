@@ -47,6 +47,7 @@ import {
   setSchemaFieldsMutatorChangeHandler,
   findSkeletonNode,
   skeletonToolboxSignature,
+  registerSchemaBlocksFromSkeleton,
   openBlockMutator,
   composeOptionalRmExtras,
   workspaceToModelJson,
@@ -841,6 +842,7 @@ function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
   const key = `${s.target?.format ?? ""}|${s.templateId}|${sig}|${s.modelLanguage ?? ""}`;
   if (key === toolboxKey) return;
   toolboxKey = key;
+  if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
   workspace.updateToolbox(buildDemoToolbox(blocklyLocale, {
     targetFormat: s.target?.format,
     skeleton: s.skeleton,
@@ -885,6 +887,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     if (s.blocklyState && typeof s.blocklyState === "object") {
       const savedState = s.blocklyState;
       runWithoutBlocklyEvents(() => {
+        if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
         workspace.clear();
         migrateMapsCreateWithJson(savedState);
         Blockly.serialization.workspaces.load(savedState, workspace);

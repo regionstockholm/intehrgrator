@@ -3,7 +3,8 @@ import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
 import type { MappingLoop, OptionalRmInsertion, SkeletonNode } from "../types/mod.ts";
 import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName, optionalRmExtrasOf, optionalRmInputName } from "./blocks/rm_blocks.ts";
-import { isGenericValueBlockType, registerTargetBlocks } from "./blocks/target_blocks.ts";
+import { isGenericValueBlockType, isSchemaStructureBlock, registerTargetBlocks } from "./blocks/target_blocks.ts";
+import { schemaSlotIdForInput } from "./schema_blocks.ts";
 import {
   composeSchemaOptionalFields,
   schemaOptionalExtrasOf,
@@ -90,6 +91,7 @@ export {
   setSchemaFieldsMutatorChangeHandler,
 } from "./blocks/schema_mutator.ts";
 export { setSchemaCatalog, skeletonToolboxSignature, findSkeletonNode } from "./schema_catalog.ts";
+export { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 export { buildDemoToolbox, toolboxBlockTypes, type ToolboxContext } from "./toolbox_demo.ts";
 export {
   attachDefaultPointLookups,
@@ -407,7 +409,24 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
       }
       continue;
     }
-    if (block.type !== "element" && !isGenericValueBlockType(block.type) && !isDataValueBlock(block)) {
+    if (block.type !== "element" && !isGenericValueBlockType(block.type) && !isDataValueBlock(block) &&
+      !isSchemaStructureBlock(block)
+    ) {
+      continue;
+    }
+    if (isSchemaStructureBlock(block)) {
+      for (const input of block.inputList) {
+        if (!input.name.startsWith("TARGET_") && !input.name.startsWith("SCHEMA_OPT_")) continue;
+        if (input.type === 3) continue;
+        const fieldSlot = schemaSlotIdForInput(block, input.name);
+        const exprBlock = block.getInputTargetBlock(input.name);
+        const expression = blockToExpression(exprBlock);
+        if (fieldSlot && expression && !seen.has(fieldSlot)) {
+          seen.add(fieldSlot);
+          const attr = input.name.replace(/^TARGET_|^SCHEMA_OPT_/, "");
+          slots.push({ slotId: fieldSlot, rmType: attr, expression });
+        }
+      }
       continue;
     }
     const slotId = block.getFieldValue("SLOT_ID");
@@ -436,12 +455,12 @@ function optionalRmFromWorkspace(workspace: Blockly.Workspace): OptionalRmInsert
   for (const block of workspace.getAllBlocks(false)) {
     const slotId = block.getFieldValue("SLOT_ID");
     if (!slotId) continue;
-    const extras = block.type === "target_structure"
+    const extras = isSchemaStructureBlock(block)
       ? schemaOptionalExtrasOf(block)
       : optionalRmExtrasOf(block);
     if (!extras.length) continue;
     for (const name of extras) {
-      const input = block.type === "target_structure"
+      const input = isSchemaStructureBlock(block)
         ? block.getInput(schemaOptionalInputName(name))
         : block.getInput(optionalRmInputName(name)) ??
           block.getInput(rmAttributeInputName(name));

@@ -5,17 +5,29 @@ script that converts openEHR FLAT JSON (from the
 *Patientrapporterade symptom inför medicinsk onkologisk behandling* template)
 into TakeCare `ProfdocHISMessage` XML.
 
+The Blockly mapping uses **schema-generated TakeCare blocks**
+(`schema_ProfdocHISMessage`, `schema_TextKeyWord`, …) from
+`examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic `xml_element`
+blocks. Load the example set to get that XSD as the mapping **target** so the
+**Target schema** toolbox lists those types.
+
 ## Contents
 
 | File | Description |
 |------|-------------|
-| `mapping/mapping.blockly.json` | Blockly workspace JSON representing the mapping logic |
+| `mapping/mapping.blockly.json` | Blockly workspace (TakeCare schema blocks) |
+| `mapping/Mappningsscript 1.9.1 - PROD.txt` | Original Go template production script |
+| `mapping/Mappningsscript 1.9.1 - XC.txt` | XC variant of the same script |
+| `defaults.map.json` | Envelope parameters (`PatId`, `UserId`, `Time`, `TemplateId`, …) |
+| `source-instance/*.txt` | openEHR FLAT composition examples |
+| `../TakeCare/TakeCare-CasenoteWrite-edit01.xsd` | Canonical target schema |
 
 ## What the mapping does
 
 1. Emits a `<ProfdocHISMessage>` envelope with header fields (`PatId`,
    `UserId`, `EventTime`, `Signer`, `TemplateId`, etc.) sourced from the
-   Defaults Map (runtime parameters).
+   Defaults Map (runtime parameters). `TemplateType` is the literal `1`;
+   optional `Signed` is `0`.
 2. Inside `<Keywords>/<TextKeywords>`, conditionally emits `<TextKeyWord>`
    elements for each symptom section where the patient answered something
    other than "Nej":
@@ -31,11 +43,15 @@ excessive size.
 
 ## Block types used
 
-- `xml_element` — XML output nodes (editable tag name + children)
-- `xml_text` — text nodes; value may be `source_query`, `maps_get`, `text`, or `text_code` (Go Template)
-- `xml_attribute` — attributes on the parent `xml_element`
+- `schema_ProfdocHISMessage` / `schema_Keywords` / `schema_TextKeywords` /
+  `schema_TextKeyWord` — TakeCare schema structure (Target schema toolbox)
 - `source_query` — FLAT path lookups against openEHR data
 - `maps_get` — retrieval from the Defaults Map (maps to `{{ .Parameters.X }}`)
 - `controls_if` — conditional emission
 - `logic_compare` — NEQ comparison against "Nej"
+- `math_number` — TermId / Signed / TemplateType literals
 - `text` — literal string values
+
+Regenerate the Blockly JSON after schema-block changes:
+
+`deno run -A scripts/build-chemo-symptoms-blockly.ts`

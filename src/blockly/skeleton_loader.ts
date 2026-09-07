@@ -33,13 +33,21 @@ import {
   placeDefaultsBesideSkeleton,
   restoreDefaultsBlockState,
 } from "./defaults_canvas.ts";
-import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
-import {
-  syncTargetChildInputs,
-  targetChildInputName,
-} from "./blocks/target_blocks.ts";
+import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
+import { targetChildInputName } from "./blocks/target_blocks.ts";
 import { schemaOptionalInputName, composeSchemaOptionalFields } from "./blocks/schema_mutator.ts";
 import { findSkeletonNode, setSchemaCatalog } from "./schema_catalog.ts";
+import {
+  createSchemaStructureBlock,
+  registerSchemaBlocksFromSkeleton,
+  schemaSlotIdForInput,
+} from "./schema_blocks.ts";
+import {
+  isSchemaPrimitiveType,
+  isSchemaStructureBlockType,
+  schemaChildInputKind,
+  schemaFieldName,
+} from "../core/target/schema_block_ids.ts";
 import type { TargetFormatId } from "../types/mod.ts";
 import { refreshWorkspaceConstraints } from "./block_constraints.ts";
 import {
@@ -59,6 +67,9 @@ export function loadSkeletonIntoWorkspace(
   targetFormat?: TargetFormatId,
 ): void {
   setSchemaCatalog(skeleton);
+  if (targetFormat === "json-schema" || targetFormat === "xml-schema") {
+    registerSchemaBlocksFromSkeleton(skeleton);
+  }
   const schemaTarget = targetFormat === "json-schema" || targetFormat === "xml-schema";
   runWithoutBlocklyEvents(() => {
     const savedDefaults = schemaTarget ? null : captureDefaultsBlockState(workspace);
@@ -142,6 +153,9 @@ export function applyModelExpressions(
   const apply = () => {
     const slotMap = new Map(model.slots.filter((s) => s.expression).map((s) => [s.slotId, s]));
     for (const block of workspace.getAllBlocks(false)) {
+      if (isSchemaStructureBlock(block)) {
+        attachSchemaFieldExpressions(workspace, block, slotMap);
+      }
       const slotId = block.getFieldValue("SLOT_ID");
       if (!slotId) continue;
       const slot = slotMap.get(slotId);
@@ -267,6 +281,11 @@ export function attachOptionalSchemaChild(
     (child) => (child.rmAttribute ?? child.label) === attributeName,
   );
   if (!childNode) return null;
+  if (childNode.kind === "value" || isSchemaPrimitiveType(childNode.rmType)) {
+    refreshBlockLayout(parent as BlockSvg);
+    refreshWorkspaceConstraints(workspace);
+    return parent as BlockSvg;
+  }
   const child = buildBlockFromNode(workspace, childNode, false, 1);
   if (!child) return null;
   const inputName = parent.getInput(schemaOptionalInputName(attributeName))
@@ -285,7 +304,7 @@ function applyModelOptionalSchemaFields(
   const byParent = new Map<string, string[]>();
   for (const extra of model.optionalRm) {
     const parent = findBlockBySlotId(workspace, extra.attachmentSlotId);
-    if (!parent || parent.type !== "target_structure") continue;
+    if (!parent || !isSchemaStructureBlock(parent)) continue;
     const list = byParent.get(extra.attachmentSlotId) ?? [];
     list.push(extra.attributeName);
     byParent.set(extra.attachmentSlotId, list);
@@ -360,7 +379,7 @@ function buildBlockFromNode(
   parentRmType?: string,
 ): BlockSvg | null {
   let block: BlockSvg | null = null;
-  if (node.blockType === "target_structure") {
+  if (isSchemaStructureBlockType(node.blockType) || node.blockType === "target_structure") {
     block = buildTargetStructureBlock(workspace, node, isRoot, depth);
   } else if (node.blockType === "target_value") {
     block = buildTargetValueBlock(workspace, node, isRoot);
@@ -395,27 +414,54 @@ function buildTargetStructureBlock(
   isRoot: boolean,
   depth: number,
 ): BlockSvg {
-  const block = workspace.newBlock("target_structure") as BlockSvg;
+  const block = createSchemaStructureBlock(workspace, node, isRoot);
   block.setFieldValue(node.rmType, "TARGET_TYPE");
   block.setFieldValue(node.slotId, "SLOT_ID");
   applySkeletonBlockLabels(block, node);
-  const visibleChildren = node.children.filter((child) => child.mandatory === true);
-  const groups = [...new Set(visibleChildren.map((child) => child.rmAttribute ?? child.label))];
-  syncTargetChildInputs(block, groups);
-  if (!isRoot) {
-    block.setPreviousStatement(true);
-    block.setNextStatement(true);
+  if (!isRoot && schemaChildInputKind(node) === "statement") {
+    // repeating complex types stay statement-connected
   }
   finalizeBlock(block);
-  for (const group of groups) {
-    const children = visibleChildren
-      .filter((child) => (child.rmAttribute ?? child.label) === group)
-      .map((child) => buildBlockFromNode(workspace, child, false, depth + 1))
-      .filter((child): child is BlockSvg => child !== null);
-    connectStatementChain(block, targetChildInputName(group), children);
+  const visibleChildren = node.children.filter((child) => child.mandatory === true);
+  for (const child of visibleChildren) {
+    const name = schemaFieldName(child);
+    const inputName = targetChildInputName(name);
+    if (child.kind === "value" || isSchemaPrimitiveType(child.rmType)) {
+      if (child.fixedValue && block.getInput(inputName)?.connection) {
+        const lit = literalForSchemaPrimitive(workspace, child);
+        if (lit?.outputConnection) {
+          block.getInput(inputName)!.connection!.connect(lit.outputConnection);
+        }
+      }
+      continue;
+    }
+    const childBlock = buildBlockFromNode(workspace, child, false, depth + 1);
+    if (!childBlock) continue;
+    connectAttributeChildren(block, inputName, [childBlock]);
   }
   refreshBlockLayout(block);
   return block;
+}
+
+function literalForSchemaPrimitive(
+  workspace: WorkspaceSvg,
+  node: SkeletonNode,
+): BlockSvg | null {
+  const value = node.fixedValue;
+  if (value == null || value === "") return null;
+  const kind = node.rmType.toLowerCase();
+  if (
+    kind === "int" || kind === "integer" || kind === "number" || kind === "decimal" ||
+    kind === "unsignedlong" || kind === "unsignedint" || kind === "long" || kind === "float" ||
+    kind === "double"
+  ) {
+    const num = workspace.newBlock("math_number") as BlockSvg;
+    num.setFieldValue(value, "NUM");
+    return finalizeBlock(num);
+  }
+  const text = workspace.newBlock("text") as BlockSvg;
+  text.setFieldValue(value, "TEXT");
+  return finalizeBlock(text);
 }
 
 function buildTargetValueBlock(
@@ -1011,6 +1057,31 @@ function attachExpressionToElement(
       parent.setCollapsed(false);
     }
     parent = parent.getParent();
+  }
+}
+
+function attachSchemaFieldExpressions(
+  workspace: Blockly.Workspace,
+  block: Blockly.Block,
+  slotMap: Map<string, { expression: string; returnType: string; rmType?: string }>,
+): void {
+  for (const input of block.inputList) {
+    if (!input.name.startsWith("TARGET_") && !input.name.startsWith("SCHEMA_OPT_")) continue;
+    if (input.type === 3) continue; // statement mouth
+    const slotId = schemaSlotIdForInput(block, input.name);
+    if (!slotId) continue;
+    const slot = slotMap.get(slotId);
+    if (!slot) continue;
+    const existing = input.connection?.targetBlock();
+    if (existing) existing.dispose(false);
+    const exprBlock = expressionToBlock(workspace, slot.expression, slot.returnType);
+    if (exprBlock.outputConnection && input.connection) {
+      try {
+        input.connection.connect(exprBlock.outputConnection);
+      } catch {
+        /* type check */
+      }
+    }
   }
 }
 

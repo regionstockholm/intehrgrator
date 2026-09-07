@@ -10,6 +10,8 @@ import {
 } from "@intehrgrator/core/output/go_template_runtime.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
+import { registerSchemaBlocksFromSkeleton } from "@intehrgrator/blockly/schema_blocks.ts";
+import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
@@ -71,6 +73,51 @@ Deno.test("go-template codegen from xml_element + xml_text + source_query", () =
   assert(output.includes("<Note>"), "should emit XML open tag");
   assert(output.includes("</Note>"), "should emit XML close tag");
   assert(output.includes('index .Data "path/to/value|value"'), "should emit index .Data for source query");
+});
+
+Deno.test("go-template codegen emits TakeCare schema blocks as XML", () => {
+  const model = createEmptyModel("ProfdocHISMessage");
+  const output = generateGoTemplate(model, {
+    blocklyState: {
+      blocks: {
+        blocks: [
+          {
+            type: "schema_ProfdocHISMessage",
+            fields: {
+              NAME: "ProfdocHISMessage",
+              SLOT_ID: "ProfdocHISMessage:/ProfdocHISMessage",
+            },
+            extraState: {
+              connection: "statement",
+              typeCheck: "schema_ProfdocHISMessage",
+              xmlAttributes: ["MsgType"],
+              fields: [
+                { name: "MsgType", kind: "value", xmlKind: "attribute" },
+                { name: "PatId", kind: "value", xmlKind: "element" },
+              ],
+            },
+            inputs: {
+              TARGET_MsgType: {
+                block: { type: "text", fields: { TEXT: "Request" } },
+              },
+              TARGET_PatId: {
+                block: {
+                  type: "maps_get",
+                  fields: { NAME: "defaults" },
+                  inputs: { KEY: { block: { type: "text", fields: { TEXT: "PatientId" } } } },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  });
+  assert(output.includes('<ProfdocHISMessage MsgType="Request">'), "attribute on root");
+  assert(output.includes("<PatId>"), "PatId element");
+  assert(output.includes("{{ .Parameters.PatientId }}"), "defaults lookup");
+  assert(output.includes("</PatId>"));
+  assert(output.includes("</ProfdocHISMessage>"));
 });
 
 Deno.test("go-template codegen nests text_code Go snippets inside xml_text", () => {
@@ -175,6 +222,26 @@ Deno.test("go-template codegen maps_get defaults → .Parameters", () => {
   assert(output.includes(".Parameters.Time"), "defaults key → .Parameters.Time");
 });
 
+Deno.test("go-template codegen maps_get reads KEY shadow as well as block", () => {
+  const model = createEmptyModel("test");
+  const output = generateGoTemplate(model, {
+    blocklyState: {
+      blocks: {
+        blocks: [
+          {
+            type: "maps_get",
+            fields: { NAME: "defaults" },
+            inputs: {
+              KEY: { shadow: { type: "text", fields: { TEXT: "PatientId" } } },
+            },
+          },
+        ],
+      },
+    },
+  });
+  assert(output.includes(".Parameters.PatientId"), "shadow KEY → .Parameters.PatientId");
+});
+
 Deno.test("Handlebars Output mode executes the authored template in Conversion Test Run", () => {
   const model = createEmptyModel("test");
   const result = runTest(model, '{"name": "Ada"}', "json", {
@@ -207,8 +274,16 @@ Deno.test("Go template Output mode with empty code returns error", () => {
   assert(String(result.output).includes("No Go template code"), "should explain missing code");
 });
 
-Deno.test("chemo symptoms Blockly loads on existing xml_* blocks", () => {
+Deno.test("chemo symptoms Blockly loads on TakeCare schema blocks", () => {
   initBlocklyGenerators();
+  const xsd = Deno.readTextFileSync(
+    join(root, "examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  );
+  const target = getTargetFormatHandler("xml-schema").load(
+    "TakeCare-CasenoteWrite-edit01.xsd",
+    xsd,
+  );
+  registerSchemaBlocksFromSkeleton(target.skeleton);
   const text = Deno.readTextFileSync(
     join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
   );
@@ -217,15 +292,18 @@ Deno.test("chemo symptoms Blockly loads on existing xml_* blocks", () => {
   try {
     Blockly.serialization.workspaces.load(state, ws);
     const types = new Set(ws.getAllBlocks(false).map((b) => b.type));
-    assert(types.has("xml_element"), "xml_element");
-    assert(types.has("xml_text"), "xml_text");
-    assert(types.has("xml_attribute"), "xml_attribute");
+    assert(types.has("schema_ProfdocHISMessage"), "schema_ProfdocHISMessage");
+    assert(types.has("schema_TextKeyWord"), "schema_TextKeyWord");
     assert(types.has("controls_if"), "should contain conditional blocks");
+    assertEquals(types.has("xml_element"), false);
     assertEquals(types.has("go_xml_element"), false);
     assertEquals(types.has("go_xml_comment"), false);
     assertEquals(Blockly.Blocks["go_xml_element"], undefined);
     assertEquals(Blockly.Blocks["go_xml_comment"], undefined);
-    assert(ws.getAllBlocks(false).length >= 40, "should load the full example tree");
+    assertEquals(
+      ws.getAllBlocks(false).filter((b) => b.type === "schema_TextKeyWord").length,
+      4,
+    );
   } finally {
     ws.dispose();
   }
@@ -239,7 +317,7 @@ Deno.test("chemo symptoms Blockly generates TakeCare XML Go template", () => {
   const model = createEmptyModel("chemo-symptoms");
   const output = generateGoTemplate(model, { blocklyState });
   assert(output.includes("<ProfdocHISMessage"), "root message");
-  assert(output.includes('MsgType="Request"'), "root attribute from xml_attribute");
+  assert(output.includes('MsgType="Request"'), "root MsgType attribute");
   assert(output.includes(".Parameters.Time"), "header defaults from Parameters");
   assert(output.includes(".Parameters.PatientId"), "PatId reads PatientId default");
   assert(output.includes("<TextKeyWord>"), "symptom keyword elements");

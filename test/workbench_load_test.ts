@@ -164,6 +164,20 @@ Deno.test("controller loads JSON Schema target and renders mapped object", () =>
   assertEquals(controller.getState().testResult?.output, { name: "Ada" });
 });
 
+Deno.test("controller loads a local TakeCare XSD (with BOM) as xml-schema target", async () => {
+  const xsd = `\uFEFF${await Deno.readTextFile(
+    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  )}`;
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTargetContent("TakeCare-CasenoteWrite-edit01.xsd", xsd);
+  const state = controller.getState();
+  assertEquals(state.target?.format, "xml-schema");
+  assertEquals(state.skeleton[0]?.blockType, "schema_ProfdocHISMessage");
+  const patId = collectValueSlots(state.skeleton).find((slot) => slot.rmAttribute === "PatId");
+  assert(patId, "PatId should be a mappable value slot, not a wrapper container");
+  assertStringIncludes(state.statusMessage, "xml-schema");
+});
+
 Deno.test("free-form Handlebars target walks source like Kintegrate", () => {
   const controller = new WorkbenchController(stubHost());
   controller.loadTargetContent(

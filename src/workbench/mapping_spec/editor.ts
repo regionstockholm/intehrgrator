@@ -3,12 +3,11 @@ import {
   Decoration,
   EditorView,
   ViewPlugin,
-  WidgetType,
+  keymap,
   type DecorationSet,
   type ViewUpdate,
 } from "@codemirror/view";
-import { json } from "@codemirror/lang-json";
-import { editorChromeExtensions } from "../codemirror_setup.ts";
+import { foldGutter, foldKeymap, foldService } from "@codemirror/language";
 import {
   blocklyJsonDocument,
   type BlocklyJsonDocument,
@@ -70,21 +69,17 @@ const specChromeField = StateField.define<SpecChrome>({
   },
 });
 
-class HiddenJsonWidget extends WidgetType {
-  override get estimatedHeight(): number {
-    return 0;
+function warningForLine(line: SpecLine, warnings: Record<string, string>): string | null {
+  if (line.blockId && warnings[line.blockId]) return warnings[line.blockId] ?? null;
+  for (const id of line.aliasIds ?? []) {
+    if (warnings[id]) return warnings[id] ?? null;
   }
+  return null;
+}
 
-  override toDOM(): HTMLElement {
-    const span = document.createElement("span");
-    span.className = "cm-spec-json-chrome";
-    span.hidden = true;
-    return span;
-  }
-
-  override eq(): boolean {
-    return true;
-  }
+function lineIsSelected(line: SpecLine, selectedBlockId: string | null): boolean {
+  if (!selectedBlockId) return false;
+  return line.blockId === selectedBlockId || (line.aliasIds ?? []).includes(selectedBlockId);
 }
 
 /**
@@ -99,44 +94,46 @@ function buildDecorations(state: EditorState): DecorationSet {
   if (!doc.widgets.length) return Decoration.none;
 
   const ranges = [];
-  const text = state.doc.toString();
-  let cursor = 0;
   for (const widget of doc.widgets) {
-    if (widget.from > cursor) {
-      ranges.push(
-        Decoration.replace({
-          widget: new HiddenJsonWidget(),
-          block: true,
-          inclusive: true,
-        }).range(cursor, widget.from),
-      );
-    }
-    const blockId = widget.line.blockId;
     ranges.push(
       Decoration.replace({
         widget: new MappingSpecWidget(
           widget.line,
           onEdit,
           onSelect,
-          blockId ? chrome.warnings[blockId] ?? null : null,
-          Boolean(blockId && chrome.selectedBlockId === blockId),
+          warningForLine(widget.line, chrome.warnings),
+          lineIsSelected(widget.line, chrome.selectedBlockId),
         ),
-        inclusive: true,
+        block: widget.line.editKind === "code",
+        inclusive: widget.line.editKind !== "code",
       }).range(widget.from, widget.to),
-    );
-    cursor = widget.to;
-    if (text[cursor] === "\n") cursor++;
-  }
-  if (cursor < text.length) {
-    ranges.push(
-      Decoration.replace({
-        widget: new HiddenJsonWidget(),
-        block: true,
-        inclusive: true,
-      }).range(cursor, text.length),
     );
   }
   return Decoration.set(ranges, true);
+}
+
+function indentFoldRange(
+  state: EditorState,
+  lineStart: number,
+  _lineEnd: number,
+): { from: number; to: number } | null {
+  const line = state.doc.lineAt(lineStart);
+  if (!line.text.trim()) return null;
+  const indent = /^ */.exec(line.text)?.[0].length ?? 0;
+  let end = line.to;
+  let sawChild = false;
+  for (let n = line.number + 1; n <= state.doc.lines; n++) {
+    const next = state.doc.line(n);
+    if (!next.text.trim()) {
+      end = next.to;
+      continue;
+    }
+    const nextIndent = /^ */.exec(next.text)?.[0].length ?? 0;
+    if (nextIndent <= indent) break;
+    sawChild = true;
+    end = next.to;
+  }
+  return sawChild ? { from: line.to, to: end } : null;
 }
 
 const jsonDecorations = StateField.define<DecorationSet>({
@@ -167,6 +164,11 @@ const specTheme = EditorView.theme({
     padding: "0 2px",
     lineHeight: `${SPEC_LINE_HEIGHT}px`,
     minHeight: `${SPEC_LINE_HEIGHT}px`,
+  },
+  ".cm-line:has(.spec-widget--multiline)": {
+    height: "auto",
+    lineHeight: "normal",
+    overflow: "visible",
   },
   ".cm-gutters": {
     lineHeight: `${SPEC_LINE_HEIGHT}px`,
@@ -213,10 +215,26 @@ const specTheme = EditorView.theme({
     whiteSpace: "nowrap",
   },
   ".spec-widget-attr": {
-    flex: "0 0 auto",
+    flex: "0 1 auto",
     font: "10px ui-monospace, monospace",
     color: "#5c5c5c",
     lineHeight: "14px",
+    maxWidth: "9rem",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+  },
+  ".spec-widget-attr--edit": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "1px",
+    maxWidth: "10rem",
+    overflow: "visible",
+  },
+  ".spec-widget-input--attr": {
+    minWidth: "3.5rem",
+    maxWidth: "8rem",
+    flex: "1 1 5rem",
   },
   ".spec-widget-badge": {
     flex: "0 0 auto",
@@ -234,10 +252,58 @@ const specTheme = EditorView.theme({
     color: "#9a4b00",
     background: "#fff4ea",
   },
-  ".spec-widget--dv .spec-widget-badge": {
+  ".spec-widget--dv .spec-widget-badge, .spec-widget--map_lookup .spec-widget-badge, .spec-widget--sheet_lookup .spec-widget-badge": {
     color: "#1e3a5f",
     background: "#e8eef7",
   },
+  ".spec-widget--text_gen .spec-widget-badge": {
+    color: "#6d4c00",
+    background: "#fff6d6",
+  },
+  ".spec-widget--logic .spec-widget-badge": {
+    color: "#4a148c",
+    background: "#f3e5f5",
+  },
+  ".spec-widget-editors": {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "4px",
+    flex: "1 1 auto",
+    minWidth: "0",
+  },
+  ".spec-widget-editors--stack": {
+    flexDirection: "column",
+    alignItems: "stretch",
+  },
+  ".spec-widget--multiline": {
+    display: "flex",
+    alignItems: "flex-start",
+    height: "auto",
+    minHeight: `${SPEC_LINE_HEIGHT}px`,
+    whiteSpace: "normal",
+    paddingTop: "2px",
+    paddingBottom: "2px",
+  },
+  ".spec-widget-code": {
+    width: "100%",
+    minHeight: "3.2rem",
+    maxHeight: "8.5rem",
+    boxSizing: "border-box",
+    font: "11px ui-monospace, monospace",
+    padding: "2px 4px",
+    border: "1px solid #d9d9d9",
+    borderRadius: "2px",
+    resize: "vertical",
+    lineHeight: "15px",
+  },
+  ".spec-widget-punct": {
+    flex: "0 0 auto",
+    color: "#666",
+    fontSize: "11px",
+  },
+  ".spec-widget-input--name": { maxWidth: "7rem", flex: "0 1 7rem" },
+  ".spec-widget-input--short": { maxWidth: "6rem", flex: "0 1 6rem" },
+  ".spec-widget-select--op": { minWidth: "2.5rem" },
   ".spec-widget-summary": {
     flex: "1 1 auto",
     minWidth: "0",
@@ -306,6 +372,10 @@ const specTheme = EditorView.theme({
     font: "italic bold 9px/12px Georgia, serif",
     cursor: "pointer",
     padding: "0",
+    opacity: "0",
+  },
+  ".spec-widget:hover .spec-widget-info, .spec-widget:focus-within .spec-widget-info": {
+    opacity: "1",
   },
 });
 
@@ -395,8 +465,9 @@ export function createMappingSpecEditor(
     state: EditorState.create({
       doc: empty.text,
       extensions: [
-        ...editorChromeExtensions,
-        json(),
+        foldGutter(),
+        keymap.of(foldKeymap),
+        foldService.of(indentFoldRange),
         jsonDocField.init(() => empty),
         specChromeField.init(() => emptyChrome),
         editFacet.of(options.onFieldEdit),
@@ -442,14 +513,16 @@ export function setMappingSpecChrome(view: EditorView, chrome: SpecChrome): void
 
 export function scrollMappingSpecToBlock(view: EditorView, blockId: string): void {
   const doc = view.state.field(jsonDocField);
-  const widget = doc.widgets.find((item) => item.line.blockId === blockId);
+  const widget = doc.widgets.find((item) =>
+    item.line.blockId === blockId || (item.line.aliasIds ?? []).includes(blockId)
+  );
   if (!widget) return;
   view.dispatch({
     effects: EditorView.scrollIntoView(widget.from, { y: "center" }),
   });
 }
 
-/** The editor document is the full Blockly workspace JSON. */
+/** Compact Spec projection currently shown in the Mapping Spec tab. */
 export function mappingSpecDocumentText(view: EditorView): string {
   return view.state.doc.toString();
 }

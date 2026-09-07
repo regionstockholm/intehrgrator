@@ -38,10 +38,19 @@ const PROCEDURE_TYPES = new Set([
   "procedures_ifreturn",
 ]);
 
+function blockFlag(block: Blockly.Block, name: "isInFlyout" | "isShadow" | "isMovable"): boolean {
+  const value = (block as unknown as Record<string, unknown>)[name];
+  if (typeof value === "function") return Boolean((value as () => unknown).call(block));
+  return Boolean(value);
+}
+
 export function canExtractToFunction(block: Blockly.Block | null | undefined): boolean {
-  if (!block || block.isInFlyout || block.isShadow?.()) return false;
+  if (!block || blockFlag(block, "isInFlyout") || blockFlag(block, "isShadow")) return false;
   if (block.workspace?.options?.readOnly) return false;
-  if (typeof block.isMovable === "function" && !block.isMovable()) return false;
+  if (typeof (block as { isMovable?: () => boolean }).isMovable === "function" &&
+    !(block as { isMovable: () => boolean }).isMovable()) {
+    return false;
+  }
   if (PROCEDURE_TYPES.has(block.type)) return false;
   return Boolean(block.outputConnection || block.previousConnection);
 }
@@ -104,20 +113,101 @@ export function extractBlockToFunction(
   return call;
 }
 
+type ContextMenuOption = {
+  text?: string;
+  enabled?: boolean;
+  callback?: () => void;
+  weight?: number;
+};
+
+type GenerateContextMenuFn = (this: Blockly.Block) => ContextMenuOption[] | null;
+
+const EXTRACT_MENU_PATCHED = "__intehrExtractToFunctionMenu";
+
+function contextMenuRegistry(): {
+  registry: { getItem: (id: string) => unknown; register: (item: Record<string, unknown>) => void };
+  ScopeType: { BLOCK: string };
+} | null {
+  const candidates = [
+    Blockly.ContextMenuRegistry,
+    (Blockly as unknown as { default?: { ContextMenuRegistry?: typeof Blockly.ContextMenuRegistry } })
+      .default?.ContextMenuRegistry,
+  ];
+  for (const candidate of candidates) {
+    if (candidate?.registry) {
+      return candidate as unknown as {
+        registry: { getItem: (id: string) => unknown; register: (item: Record<string, unknown>) => void };
+        ScopeType: { BLOCK: string };
+      };
+    }
+  }
+  return null;
+}
+
 export function registerExtractToFunctionMenu(): void {
-  const registry = Blockly.ContextMenuRegistry?.registry;
-  if (!registry) return;
-  if (registry.getItem(EXTRACT_TO_FUNCTION_MENU_ID)) return;
-  registry.register({
+  const ctx = contextMenuRegistry();
+  if (!ctx) return;
+  if (ctx.registry.getItem(EXTRACT_TO_FUNCTION_MENU_ID)) return;
+  ctx.registry.register({
     id: EXTRACT_TO_FUNCTION_MENU_ID,
-    scopeType: Blockly.ContextMenuRegistry.ScopeType.BLOCK,
+    scopeType: ctx.ScopeType?.BLOCK ?? "block",
     weight: 6,
     displayText: () => msg(detectLocale()).EXTRACT_TO_FUNCTION,
-    preconditionFn: (scope) => canExtractToFunction(scope.block) ? "enabled" : "hidden",
-    callback: (scope) => {
+    preconditionFn: (scope: { block?: Blockly.Block }) =>
+      canExtractToFunction(scope.block) ? "enabled" : "hidden",
+    callback: (scope: { block?: Blockly.Block }) => {
       if (scope.block) extractBlockToFunction(scope.block);
     },
   });
+}
+
+/**
+ * Ensure the canvas BlockSvg context menu shows Extract to function.
+ * The esbuild `import *` snapshot of Blockly can miss `ContextMenuRegistry`
+ * even though the live BlockSvg prototype uses the compressed singleton;
+ * patching `generateContextMenu` on a real workspace block covers that path.
+ */
+export function installExtractToFunctionOnWorkspace(workspace: Blockly.Workspace): void {
+  registerExtractToFunctionMenu();
+  const proto = blockSvgPrototypeOf(workspace) as
+    | (object & { generateContextMenu?: GenerateContextMenuFn; [EXTRACT_MENU_PATCHED]?: boolean })
+    | null;
+  if (!proto || typeof proto.generateContextMenu !== "function") return;
+  if (proto[EXTRACT_MENU_PATCHED]) return;
+  const original = proto.generateContextMenu;
+  proto.generateContextMenu = function (this: Blockly.Block) {
+    const menu = original.call(this) ?? [];
+    const label = msg(detectLocale()).EXTRACT_TO_FUNCTION;
+    if (canExtractToFunction(this) && !menu.some((item) => item.text === label)) {
+      menu.push({
+        text: label,
+        enabled: true,
+        callback: () => extractBlockToFunction(this),
+        weight: 6,
+      });
+    }
+    return menu;
+  };
+  proto[EXTRACT_MENU_PATCHED] = true;
+}
+
+function blockSvgPrototypeOf(workspace: Blockly.Workspace): object | null {
+  const BlockSvg = (Blockly as unknown as { BlockSvg?: { prototype: object } }).BlockSvg;
+  if (BlockSvg?.prototype) return BlockSvg.prototype;
+  const existing = workspace.getAllBlocks(false)[0];
+  if (existing) return Object.getPrototypeOf(existing) as object;
+  const disabled = typeof Blockly.Events.disable === "function";
+  if (disabled) Blockly.Events.disable();
+  try {
+    const probe = workspace.newBlock("text");
+    const proto = Object.getPrototypeOf(probe) as object;
+    probe.dispose(false);
+    return proto;
+  } catch {
+    return null;
+  } finally {
+    if (disabled) Blockly.Events.enable();
+  }
 }
 
 function createProcedureCall(

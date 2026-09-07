@@ -109,6 +109,7 @@ export { setSheetFocusHandler } from "./blocks/sheet_blocks.ts";
 export {
   canExtractToFunction,
   extractBlockToFunction,
+  installExtractToFunctionOnWorkspace,
   registerExtractToFunctionMenu,
   EXTRACT_TO_FUNCTION_MENU_ID,
 } from "./extract_function.ts";

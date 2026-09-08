@@ -6,6 +6,7 @@
  * lower, upper, substr, int — plus Go stdlib builtins (index, eq, ne, and,
  * or, not, len, print, printf, println, template, define).
  */
+import { fromFileUrl } from "@std/path";
 
 interface GoRuntime {
   importObject: WebAssembly.Imports;
@@ -119,7 +120,8 @@ function denoAssetPath(filename: string): string {
   const meta = import.meta.url;
   if (meta.startsWith("file:")) {
     const wasmDir = new URL("../../../web/wasm/", meta);
-    return decodeURIComponent(new URL(filename, wasmDir).pathname);
+    // fromFileUrl avoids Windows pathname form `/C:/...` which Deno rejects (os error 123).
+    return fromFileUrl(new URL(filename, wasmDir));
   }
   return `web/wasm/${filename}`;
 }

@@ -214,7 +214,7 @@ extractor (`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
 | **Canvas vs Mapping Model gap** | High — XQuery emits flat `slots[]` only; loops and skeleton nesting are open work | High — verifier must choose Blockly walk vs slot index vs preview interpreter |
 | **Template / string DSL blocks** | High — `handlebars()` / `text_code` collapse to opaque strings | High — unbounded string templates are not a decidable logic |
 | **Sheet mutators** | High — not in Mapping Model expressions | High — imperative convert-time state |
-| **Stock imperative Blockly** | High if left in toolbox — do **not** codegen; **remove** while/for/random/print/mutators | High — unbounded / non-deterministic / stateful |
+| **Stock imperative Blockly** | High if left in toolbox — **remove** while/for/random/print/list-index/sheet mutators; **keep** `text_append` + Variables as `let`/`concat` | High — unbounded / non-deterministic; `let`/concat is fine |
 | **Dynamic source paths** | Medium — literal paths compile; dynamic paths need runtime helpers | Medium — symbolic XPath over JSON/XML is hard to bound |
 | **Optional RM / schema mutators** | Low–medium — structure is partly in `optionalRm[]` | Medium — attachment graph must be part of the contract |
 | **Finite enumerations (`term_pick`)** | Low — easy to emit | **Positive** — ideal for DL-style value constraints |
@@ -309,18 +309,30 @@ The toolbox includes `controls_if`, `controls_whileUntil`, `controls_repeat_ext`
 TypeScript canvas codegen silently emits `undefined` for unhandled block types.
 
 **Why it hurts:** Verification tools need **bounded control flow** or pure
-fold/map comprehensions. While-loops and arbitrary variable mutation are hostile
-to SMT, description logics, and static XQuery typing.
+fold/map comprehensions. While-loops, numeric for-loops, and convert-time
+*global* mutable cells are hostile to SMT, description logics, and static
+XQuery typing. Named temporaries and concatenation are not: they are XQuery
+`let` and `concat`.
 
 **Suggestions:**
 
-1. **Discourage** stock loops/variables for mapping values — keep `for_each_source`
-   as the single sanctioned iteration primitive (already documented in
-   [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)).
-2. Add workspace lint: flag `controls_whileUntil`, `controls_repeat_ext`,
-   `variables_set`, and procedures if ever enabled.
+1. **Remove** stock unbounded / counted loops from the toolbox — keep
+   `for_each_source` as the single sanctioned iteration primitive (already
+   documented in [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)). A later
+   “for each source file” grain is a sibling of `for_each_source`, not
+   `controls_forEach` / `controls_whileUntil`.
+2. **Keep** `variables_set` / `variables_get` and `text_append`. Treat
+   `variables_set` as a `let` in the enclosing `for_each_source` (or mapping
+   root); treat `text_append` as `let` of `concat(previous, extra)`. They are
+   not worse than `text_join`; `text_join` is the expression form, `text_append`
+   the statement form of the same concat. Workspace lint should flag
+   `controls_whileUntil` / `controls_repeat_ext` / statement `controls_if`, not
+   these binds.
 3. If conditional mapping is needed, prefer `logic_ternary` / expression `if()`
    or schema-level `switch` over statement-level `controls_if`.
+4. **No backwards compatibility** for removed types: there are no production
+   users yet. Update in-repo fixtures; do not add a load-warning / migration UI
+   for old Project Bundles.
 
 ### 5. Dynamic and scope-dependent source paths
 
@@ -399,15 +411,25 @@ XQuery loops [#39](https://github.com/regionstockholm/intehrgrator/issues/39),
 VMS linter [#40](https://github.com/regionstockholm/intehrgrator/issues/40),
 robustness/metamorphic PBT [#41](https://github.com/regionstockholm/intehrgrator/issues/41).
 
+**Issue #35 revisions (2026-09-08):** no backwards compatibility (no users yet —
+do not add load-warning UI). Keep `text_append` and Variables (`let` / concat,
+not while-loop state). Combining **M sources → N targets** is a later product
+slice; do not implement it in the toolbox cut, but do not delete combine
+primitives (`text_join` / `text_append`, temps, `sheet_lookup`, `maps_get`,
+`lists_set_operation`, `for_each_source`). Multi-file iteration is a future
+sibling of `for_each_source`, not stock `controls_forEach`.
+
 After that cut, treat remaining constructs as:
 
 ```text
 VMS allowed (implement fully, including Mapping Model + all exporters):
   source_query_* (prefer literal paths), maps_get, sheet_get_* / sheet_lookup
-  (static sheets), trim, concat, if, switch, math_arithmetic / round / modulo /
-  constrain, logic_compare / operation / negate / boolean / ternary, term_pick,
-  for_each_source (documented grain), lists_create_with / getIndex (read-only),
-  target_structure / RM scaffold slots, variables_get (loop vars only)
+  (static sheets), trim, concat / text_join / text_append, if, switch,
+  math_arithmetic / round / modulo / constrain, logic_compare / operation /
+  negate / boolean / ternary, logic_list_restriction, term_pick,
+  for_each_source (documented grain), lists_create_with / getIndex / set_operation
+  (read/construct, not lists_setIndex), target_structure / RM scaffold slots,
+  variables_set / variables_get (let in current grain; for_each_source loop vars)
 
 VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified):
   text_code, text_handlebars, ad-hoc json_object / xml_element trees,
@@ -417,18 +439,19 @@ VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified)
 VMS remove from toolbox (do not implement):
   controls_whileUntil, controls_repeat_ext, controls_for, controls_forEach,
   controls_flow_statements, controls_if (statement; keep logic_ternary),
-  math_random_int / math_random_float, text_print, text_append,
-  lists_setIndex, lists_repeat, sheet mutators, variables_set
+  math_random_int / math_random_float, text_print,
+  lists_setIndex, lists_repeat, sheet mutators
 ```
 
-A workspace linter still warns on leftover escape hatches and on any removed
-types that survive in old Project Bundles (migrate or show a load warning).
+A workspace linter still warns on leftover **escape hatches**. It does **not**
+need a migration path for removed types in old Project Bundles. Follow-up #40
+should drop that “leftover in old bundles” criterion.
 
 ## Open questions
 
 1. **Contract language surface** — YAML vs JSON vs a dedicated `.mapping-contract` extension; alignment with [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
 2. **Source schema as precondition** — how strongly to require a loaded Source Schema vs inferring from examples.
-3. **Loop grain** — whether to adopt grain-correctness style rules for `for_each_source` (see recent data-pipeline formalization literature).
+3. **Loop grain** — whether to adopt grain-correctness style rules for `for_each_source` (see recent data-pipeline formalization literature). Multi-file convert (M sources → N targets) adds a second grain (source document) that must stay a sibling of `for_each_source`, not a stock while/for.
 5. **Execution oracle** — verify against Mapping preview interpreter vs generated TypeScript/XQuery (ADR 0003 seam).
 6. **Robustness generators** — how complete must Source Schema be before PBT can claim “no valid source crashes convert”?
 7. **Sensitivity vs equivalence classes** — when `switch` maps many codes to one target, how to declare that class so sensitivity checks do not false-fail.

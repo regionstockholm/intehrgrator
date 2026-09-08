@@ -1,6 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Obstetrix MHV1 (initial maternity-care registration)",
+  "description": "One JSON document is an array of MHV1 rows (Cerner Obstetrix export). Calendar dates are YYYY-MM-DD; empty string means not filled. Integer codes are paired with *_Text display strings. AUDIT (Del 4) is not in this export.",
   "type": "array",
+  "minItems": 1,
   "items": {
     "type": "object",
     "properties": {
@@ -21,7 +24,8 @@
       },
       "Personnummer": {
         "type": "string",
-        "format": "time"
+        "description": "Swedish personal identity number (personnummer). Not a clock time — generated schemas sometimes mis-tag this as format time.",
+        "pattern": "^[0-9]{6,8}-?[0-9]{4}$"
       },
       "Vardgivare": {
         "type": "string"
@@ -36,10 +40,13 @@
         "type": "string"
       },
       "RegTid": {
-        "type": "string"
+        "type": "string",
+        "description": "Registration timestamp as stored by Obstetrix (often local date-time without timezone offset)."
       },
       "InskrDatum": {
-        "type": "string"
+        "type": "string",
+        "description": "Enrolment / inskrivningsdatum.",
+        "format": "date"
       },
       "Barnmorska": {
         "type": "integer"
@@ -48,7 +55,9 @@
         "type": "boolean"
       },
       "SenastMens": {
-        "type": "string"
+        "type": "string",
+        "description": "Last menstrual period (LMP).",
+        "format": "date"
       },
       "RegelbMens": {
         "type": "integer"
@@ -63,16 +72,22 @@
         "type": "string"
       },
       "BerakForSM": {
-        "type": "string"
+        "type": "string",
+        "description": "Estimated date of delivery according to LMP (SM).",
+        "format": "date"
       },
       "ULDatumOverfort": {
         "type": "integer"
       },
       "Vikt": {
-        "type": "integer"
+        "type": "integer",
+        "description": "Weight at enrolment in whole kg.",
+        "minimum": 0
       },
       "Langd": {
-        "type": "integer"
+        "type": "integer",
+        "description": "Height in whole cm.",
+        "minimum": 0
       },
       "TobakForegrav": {
         "type": "integer"
@@ -132,7 +147,8 @@
         "type": "string"
       },
       "OfrivBarnlosAr": {
-        "type": "string"
+        "type": "string",
+        "description": "Years of involuntary infertility; empty string if none / not stated."
       },
       "OfrivBarnlosIngen": {
         "type": "integer"
@@ -228,13 +244,19 @@
         "type": "boolean"
       },
       "Bp_comp": {
-        "type": "string"
+        "type": "string",
+        "description": "Blood pressure at enrolment as systolic/diastolic, e.g. 118/72."
       },
       "Anteckning": {
         "type": "string"
       },
       "GravPos": {
-        "type": "string"
+        "type": "string",
+        "description": "Date the pregnancy test was positive (YYYY-MM-DD), or empty if not filled.",
+        "anyOf": [
+          { "format": "date" },
+          { "const": "" }
+        ]
       },
       "LokReg": {
         "type": "string"
@@ -258,10 +280,13 @@
             },
             "Ar": {
               "type": "string",
-              "format": "time"
+              "description": "Year of the previous pregnancy/birth (YYYY). Not a clock time.",
+              "pattern": "^[0-9]{4}$"
             },
             "Man": {
-              "type": "string"
+              "type": "string",
+              "description": "Month of the previous pregnancy/birth (01–12).",
+              "pattern": "^(0[1-9]|1[0-2])$"
             },
             "Typ": {
               "type": "integer"
@@ -285,10 +310,14 @@
               "type": "string"
             },
             "Vikt": {
-              "type": "integer"
+              "type": "integer",
+              "description": "Birth weight in grams; 0 when not applicable (e.g. miscarriage).",
+              "minimum": 0
             },
             "Gravveckor": {
-              "type": "integer"
+              "type": "integer",
+              "description": "Gestational week at outcome.",
+              "minimum": 0
             },
             "Tillstand": {
               "type": "integer"
@@ -345,7 +374,8 @@
               "type": "integer"
             },
             "AndringsDatum": {
-              "type": "string"
+              "type": "string",
+              "description": "Correction timestamp as stored by Obstetrix (often local date-time without timezone offset)."
             }
           },
           "required": [
@@ -374,7 +404,8 @@
               "type": "integer"
             },
             "Preperat": {
-              "type": "string"
+              "type": "string",
+              "description": "Drug name (Obstetrix spelling Preperat = Preparat)."
             },
             "Dos": {
               "type": "string"
@@ -398,7 +429,12 @@
         }
       },
       "BerakForUL": {
-        "type": "string"
+        "type": "string",
+        "description": "Estimated date of delivery according to ultrasound (YYYY-MM-DD), or empty if not transferred.",
+        "anyOf": [
+          { "format": "date" },
+          { "const": "" }
+        ]
       },
       "Menstyp": {
         "type": "string"

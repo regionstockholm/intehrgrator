@@ -1,6 +1,7 @@
-# Initial registration (MHV1) for maternity care 
+# Initial registration (MHV1) for maternity care
 
-Page 76 to page 87 in the file vendor\obstetrix\documentation (Not on Github) is a poor markdown conversion of aSwedish descriptoion of the user interface and sematics of the app that has the schema corresponding to 
-examples\Obstetrix-MHV1\source-schema\obx-mhv1.review-1.schema.json
+Pages 76–87 in `vendor/obstetrix/documentation` (not on GitHub) are a poor markdown conversion of a Swedish description of the UI and semantics of the app that produces data matching `obx-mhv1.review-1.schema.json`.
 
-It is a form in four parts illustrated by screenshots in this folder plus a screenshot regarding previous pregnancies
+It is a form in four parts; screenshots live in that same vendor documentation folder, including previous pregnancies.
+
+Generated exports sometimes tag `Personnummer` and previous-pregnancy `Ar` as JSON Schema `format: "time"`. Those are a Swedish identity number and a calendar year, not clock times — this copy of the schema corrects that.

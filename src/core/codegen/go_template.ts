@@ -459,6 +459,16 @@ export function emitGoExpr(ast: ExprAst): string {
           const els = ast.args[2] ? emitGoExpr(ast.args[2]) : '""';
           return `if ${cond} }}{{ ${then} }}{{ else }}{{ ${els} }}{{ end`;
         }
+        case "eq":
+          return `eq ${emitGoExpr(ast.args[0]!)} ${emitGoExpr(ast.args[1]!)}`;
+        case "ne":
+          return `ne ${emitGoExpr(ast.args[0]!)} ${emitGoExpr(ast.args[1]!)}`;
+        case "and":
+          return `and (${emitGoExpr(ast.args[0]!)}) (${emitGoExpr(ast.args[1]!)})`;
+        case "or":
+          return `or (${emitGoExpr(ast.args[0]!)}) (${emitGoExpr(ast.args[1]!)})`;
+        case "not":
+          return `not (${emitGoExpr(ast.args[0]!)})`;
         default:
           return `/* unsupported: ${ast.name} */`;
       }

@@ -69,6 +69,12 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
 
 - **Stock Blockly:** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
   `math_arithmetic`, `text_join`, `text_trim`, `logic_ternary`, variables, procedures, …
+- **Logic (DL restrictions):** `logic_quantify` (Manchester `only`/`some`/`none` over a
+  list — ∀/∃/∀¬), `logic_cardinality` (`min`/`max`/`exactly` n), `logic_set_operation`
+  (class `and`/`or` = intersection/union), `logic_set_not` (complement relative to a
+  universe). The list is the fillers of a role; the predicate is class *C*, evaluated
+  with the bound variable and relative source paths against each item. Empty-list
+  `only`/`none` are vacuously true (closed-world data, same truth table as OWL).
 - **Source:** `source_query` — XPath/XQuery via [fontoxpath](https://github.com/FontoXML/fontoxpath);
   typed `evaluateXPathTo*` from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
 - **Loops (custom):** `for_each_source` — iterate nodes from a multi-valued source path

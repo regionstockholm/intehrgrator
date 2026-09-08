@@ -48,6 +48,21 @@ export interface IntehrMessages {
   FOR_EACH_SOURCE_NODES: string;
   FOR_EACH_SOURCE_DO: string;
   FOR_EACH_SOURCE_TOOLTIP: string;
+  LOGIC_AS: string;
+  LOGIC_ONLY: string;
+  LOGIC_SOME: string;
+  LOGIC_NONE: string;
+  LOGIC_MIN: string;
+  LOGIC_MAX: string;
+  LOGIC_EXACTLY: string;
+  LOGIC_SET_AND: string;
+  LOGIC_SET_OR: string;
+  LOGIC_SET_NOT: string;
+  LOGIC_SET_IN: string;
+  LOGIC_QUANTIFY_TOOLTIP: string;
+  LOGIC_CARDINALITY_TOOLTIP: string;
+  LOGIC_SET_OP_TOOLTIP: string;
+  LOGIC_SET_NOT_TOOLTIP: string;
   LANGUAGE_LABEL: string;
   UI_LANGUAGE_LABEL: string;
   MODEL_LANGUAGE_LABEL: string;
@@ -92,6 +107,25 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "do",
     FOR_EACH_SOURCE_TOOLTIP:
       "Loop over every node matched by a source path. Current node is stored in the named variable.",
+    LOGIC_AS: "as",
+    LOGIC_ONLY: "only",
+    LOGIC_SOME: "some",
+    LOGIC_NONE: "none",
+    LOGIC_MIN: "min",
+    LOGIC_MAX: "max",
+    LOGIC_EXACTLY: "exactly",
+    LOGIC_SET_AND: "and",
+    LOGIC_SET_OR: "or",
+    LOGIC_SET_NOT: "not",
+    LOGIC_SET_IN: "in",
+    LOGIC_QUANTIFY_TOOLTIP:
+      "Evaluate a list like OWL Manchester only/some/none (∀/∃). Empty list: only and none are true; some is false.",
+    LOGIC_CARDINALITY_TOOLTIP:
+      "Count list items matching a predicate: min n (≥), max n (≤), or exactly n.",
+    LOGIC_SET_OP_TOOLTIP:
+      "Combine two lists as classes: and = intersection, or = union.",
+    LOGIC_SET_NOT_TOOLTIP:
+      "Complement: items of the universe that are not in the set (Manchester not).",
     LANGUAGE_LABEL: "Language",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Model",
@@ -134,6 +168,25 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "gör",
     FOR_EACH_SOURCE_TOOLTIP:
       "Loopa över varje nod som matchas av en källsökväg. Aktuell nod lagras i den namngivna variabeln.",
+    LOGIC_AS: "som",
+    LOGIC_ONLY: "only",
+    LOGIC_SOME: "some",
+    LOGIC_NONE: "none",
+    LOGIC_MIN: "min",
+    LOGIC_MAX: "max",
+    LOGIC_EXACTLY: "exactly",
+    LOGIC_SET_AND: "and",
+    LOGIC_SET_OR: "or",
+    LOGIC_SET_NOT: "not",
+    LOGIC_SET_IN: "i",
+    LOGIC_QUANTIFY_TOOLTIP:
+      "Utvärdera en lista som OWL Manchester only/some/none (∀/∃). Tom lista: only och none är sanna; some är falsk.",
+    LOGIC_CARDINALITY_TOOLTIP:
+      "Räkna listobjekt som matchar ett predikat: min n (≥), max n (≤) eller exactly n.",
+    LOGIC_SET_OP_TOOLTIP:
+      "Kombinera två listor som klasser: and = snitt, or = union.",
+    LOGIC_SET_NOT_TOOLTIP:
+      "Komplement: objekt i universum som inte finns i mängden (Manchester not).",
     LANGUAGE_LABEL: "Språk",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Modell",
@@ -176,6 +229,25 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "mache",
     FOR_EACH_SOURCE_TOOLTIP:
       "Schleife über jeden Knoten eines Quellpfads. Der aktuelle Knoten wird in der genannten Variable gespeichert.",
+    LOGIC_AS: "als",
+    LOGIC_ONLY: "only",
+    LOGIC_SOME: "some",
+    LOGIC_NONE: "none",
+    LOGIC_MIN: "min",
+    LOGIC_MAX: "max",
+    LOGIC_EXACTLY: "exactly",
+    LOGIC_SET_AND: "and",
+    LOGIC_SET_OR: "or",
+    LOGIC_SET_NOT: "not",
+    LOGIC_SET_IN: "in",
+    LOGIC_QUANTIFY_TOOLTIP:
+      "Liste wie OWL Manchester only/some/none (∀/∃) auswerten. Leere Liste: only und none wahr; some falsch.",
+    LOGIC_CARDINALITY_TOOLTIP:
+      "Listenelemente zählen, die ein Prädikat erfüllen: min n (≥), max n (≤) oder exactly n.",
+    LOGIC_SET_OP_TOOLTIP:
+      "Zwei Listen als Klassen kombinieren: and = Schnitt, or = Vereinigung.",
+    LOGIC_SET_NOT_TOOLTIP:
+      "Komplement: Elemente des Universums, die nicht in der Menge sind (Manchester not).",
     LANGUAGE_LABEL: "Sprache",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Modell",
@@ -218,6 +290,25 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "hacer",
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada nodo coincidente con una ruta de origen. El nodo actual se guarda en la variable indicada.",
+    LOGIC_AS: "como",
+    LOGIC_ONLY: "only",
+    LOGIC_SOME: "some",
+    LOGIC_NONE: "none",
+    LOGIC_MIN: "min",
+    LOGIC_MAX: "max",
+    LOGIC_EXACTLY: "exactly",
+    LOGIC_SET_AND: "and",
+    LOGIC_SET_OR: "or",
+    LOGIC_SET_NOT: "not",
+    LOGIC_SET_IN: "en",
+    LOGIC_QUANTIFY_TOOLTIP:
+      "Evalúa una lista como OWL Manchester only/some/none (∀/∃). Lista vacía: only y none verdaderos; some falso.",
+    LOGIC_CARDINALITY_TOOLTIP:
+      "Cuenta elementos de la lista que cumplen un predicado: min n (≥), max n (≤) o exactly n.",
+    LOGIC_SET_OP_TOOLTIP:
+      "Combina dos listas como clases: and = intersección, or = unión.",
+    LOGIC_SET_NOT_TOOLTIP:
+      "Complemento: elementos del universo que no están en el conjunto (Manchester not).",
     LANGUAGE_LABEL: "Idioma",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Modelo",
@@ -260,6 +351,25 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "fes",
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada node que coincideix amb un camí d'origen. El node actual es desa a la variable indicada.",
+    LOGIC_AS: "com",
+    LOGIC_ONLY: "only",
+    LOGIC_SOME: "some",
+    LOGIC_NONE: "none",
+    LOGIC_MIN: "min",
+    LOGIC_MAX: "max",
+    LOGIC_EXACTLY: "exactly",
+    LOGIC_SET_AND: "and",
+    LOGIC_SET_OR: "or",
+    LOGIC_SET_NOT: "not",
+    LOGIC_SET_IN: "en",
+    LOGIC_QUANTIFY_TOOLTIP:
+      "Avalua una llista com OWL Manchester only/some/none (∀/∃). Llista buida: only i none verdaders; some fals.",
+    LOGIC_CARDINALITY_TOOLTIP:
+      "Compta elements de la llista que compleixen un predicat: min n (≥), max n (≤) o exactly n.",
+    LOGIC_SET_OP_TOOLTIP:
+      "Combina dues llistes com a classes: and = intersecció, or = unió.",
+    LOGIC_SET_NOT_TOOLTIP:
+      "Complement: elements de l'univers que no són al conjunt (Manchester not).",
     LANGUAGE_LABEL: "Idioma",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Model",
@@ -302,6 +412,25 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "faire",
     FOR_EACH_SOURCE_TOOLTIP:
       "Boucle sur chaque nœud correspondant à un chemin source. Le nœud courant est stocké dans la variable nommée.",
+    LOGIC_AS: "comme",
+    LOGIC_ONLY: "only",
+    LOGIC_SOME: "some",
+    LOGIC_NONE: "none",
+    LOGIC_MIN: "min",
+    LOGIC_MAX: "max",
+    LOGIC_EXACTLY: "exactly",
+    LOGIC_SET_AND: "and",
+    LOGIC_SET_OR: "or",
+    LOGIC_SET_NOT: "not",
+    LOGIC_SET_IN: "dans",
+    LOGIC_QUANTIFY_TOOLTIP:
+      "Évalue une liste comme OWL Manchester only/some/none (∀/∃). Liste vide : only et none vrais ; some faux.",
+    LOGIC_CARDINALITY_TOOLTIP:
+      "Compte les éléments de liste qui satisfont un prédicat : min n (≥), max n (≤) ou exactly n.",
+    LOGIC_SET_OP_TOOLTIP:
+      "Combine deux listes comme des classes : and = intersection, or = union.",
+    LOGIC_SET_NOT_TOOLTIP:
+      "Complément : éléments de l'univers absents de l'ensemble (Manchester not).",
     LANGUAGE_LABEL: "Langue",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Modèle",

@@ -27,6 +27,9 @@
 - [x] Digest CSV / Excel / Google Sheets **into that sheet** (clipboard paste + file), not into `maps_create_with`.
 - [x] **Keep `maps_*`** for Defaults Map + nested Blockly values (Chunk 8 Q9 step 2, option A). Join Lists + Maps toolbox drawers into **Lists & maps**. Sheets stay a separate drawer. See [`tasks/DESIGN-sheets-vs-maps.md`](../tasks/DESIGN-sheets-vs-maps.md).
 - [ ] FHIR ConceptMap / ValueSet → sheet/map import — **deferred** (after the sheet widget + Blockly accessors exist)
+- [ ] **Multi-column equality `sheet_lookup`** (AND of several header=`value` pairs, first match). First slice of [decision-tables-for-mapping.md](future/decision-tables-for-mapping.md); still a Sheet, not a Decision table.
+- [ ] **Decision tables** (Sheets-adjacent `kind`): predicate cells, don't-care, hit policy FIRST then UNIQUE/COLLECT, mixed **value** and **snippet** output columns. Sibling Example Set `examples/lung-MDT-form-decision-tables/` (catalog id `lung-mdt-form-to-tc-xml-decision-tables`) — do not replace `examples/lung-MDT-form/`.
+- [ ] **DMN import/export** — later, after the internal decision-table JSON is stable. Simple tables only (equality/range, hit policies FIRST/UNIQUE/COLLECT). Do **not** take on FEEL as the Mapping Expression language. See [OMG DMN 1.5](https://www.omg.org/spec/DMN/1.5) and [decision-tables-for-mapping.md](future/decision-tables-for-mapping.md).
 
 
 ## D. Local (offline) version with AI agent/CLI/IDE integration

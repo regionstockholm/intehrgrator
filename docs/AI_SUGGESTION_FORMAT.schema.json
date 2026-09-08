@@ -150,7 +150,14 @@
             "text_trim",
             "text_join",
             "math_arithmetic",
-            "logic_ternary"
+            "logic_ternary",
+            "logic_compare",
+            "logic_operation",
+            "logic_negate",
+            "logic_quantify",
+            "logic_cardinality",
+            "logic_set_operation",
+            "logic_set_not"
           ]
         },
         "fields": {

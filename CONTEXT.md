@@ -148,8 +148,16 @@ A typed Blockly shell for an openEHR `DV_*` (e.g. `DV_QUANTITY`) that wraps Mapp
 _Avoid_: Value constructor block, DV builder, free-form RM block, “+ fields” image button
 
 **Mapping Expression**:
-Editable fragment inside a value slot in the Mapping Specification — XPath via fontoxpath builtins (`xpathNumber`, `xpathString`, …) plus JS-shaped helpers (`trim`, `concat`, `if`). Not TypeScript/Java export code.
+Editable fragment inside a value slot in the Mapping Specification — XPath via fontoxpath builtins (`xpathNumber`, `xpathString`, …) plus JS-shaped helpers (`trim`, `concat`, `if`) and Description-Logic list restrictions (`all_of` / `any_of` / `none_of` / `at_least` / `at_most` / `exactly`) plus class operators (`intersection`, `union`, `difference`). Not TypeScript/Java export code.
 _Avoid_: Value mapping, get_source
+
+**DL restriction**:
+A Logic-category Blockly value (Boolean) that evaluates a list the way OWL Manchester Syntax evaluates a role: `only` (∀ *R.C*, all_of), `some` (∃ *R.C*, any_of), `none` (∀ *R.*¬*C*, none_of), and `min`/`max`/`exactly` n (cardinality). The list input is the related individuals; the predicate is class *C*, with a named item variable and relative Source Paths evaluated against that item. An empty list makes `only` and `none` true and `some` false.
+_Avoid_: treating this as a statement loop (`for_each_source`), Open-World “unknown” (Test Run is closed-world over the loaded example)
+
+**Set class operator**:
+A Logic-category Blockly value (Array) that combines two lists as OWL classes: `and` (intersection ∩), `or` (union ∪), `not … in …` (complement relative to a universe). Distinct from Boolean `logic_operation` / `logic_negate`.
+_Avoid_: Boolean AND/OR/NOT, Map merge
 
 **Constraint warning**:
 A yellow warning triangle on a Blockly block (and the matching **Mapping Spec Widget**) when a contained constraint is unmet — unmapped mandatory value, abstract EVENT, or unmet slot cardinality. It does not light up merely because a node is template/RM-mandatory.

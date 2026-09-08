@@ -21,4 +21,7 @@ Deno.test("custom messages localize Source and for_each_source", () => {
   assertEquals(msg("en").UI_LANGUAGE_LABEL, "UI");
   assertEquals(msg("sv").MODEL_LANGUAGE_LABEL, "Modell");
   assertEquals(msg("fr").SOURCE_QUERY, "source");
+  assertEquals(msg("en").LOGIC_ONLY, "only");
+  assertEquals(msg("sv").LOGIC_AS, "som");
+  assertEquals(msg("de").LOGIC_SET_AND, "and");
 });

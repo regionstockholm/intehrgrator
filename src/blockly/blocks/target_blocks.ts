@@ -1,6 +1,7 @@
 import { Blockly } from "../blockly_core.ts";
 import type { Block } from "blockly/core";
 import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
+import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import { findSkeletonNode } from "../schema_catalog.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
@@ -103,11 +104,8 @@ function defineStructureBlock(
       } else {
         header.appendField(new FieldSkeletonTitle("", defaultName), "NAME");
       }
-      header.appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
-      this.getField("TARGET_TYPE")?.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")?.setVisible(false);
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
+      appendHiddenSerializable(this, "SLOT_ID", "");
       if (defaultChildGroup) {
         this.appendStatementInput(targetChildInputName(defaultChildGroup))
           .setAlign(inputAlignRight())
@@ -164,14 +162,11 @@ function defineValueBlock(
   Blockly.Blocks[type] = {
     init: function (this: Block) {
       this.appendDummyInput("HEADER")
-        .appendField(new FieldSkeletonTitle("", defaultName), "NAME")
-        .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
-      this.getField("TARGET_TYPE")?.setVisible(false);
+        .appendField(new FieldSkeletonTitle("", defaultName), "NAME");
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
       this.appendValueInput("VALUE").setCheck(null).appendField("value");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")?.setVisible(false);
-      appendHiddenTargetMandatory(this);
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
@@ -187,14 +182,11 @@ function defineXmlAttribute(): void {
     init: function (this: Block) {
       this.appendDummyInput("HEADER")
         .appendField("XML attr")
-        .appendField(new Blockly.FieldTextInput("attr"), "NAME")
-        .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
-      this.getField("TARGET_TYPE")?.setVisible(false);
+        .appendField(new Blockly.FieldTextInput("attr"), "NAME");
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
       this.appendValueInput("VALUE").setCheck(null).appendField("value");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")?.setVisible(false);
-      appendHiddenTargetMandatory(this);
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(XML_COLOUR);
@@ -202,13 +194,6 @@ function defineXmlAttribute(): void {
       this.setInputsInline(true);
     },
   };
-}
-
-function appendHiddenTargetMandatory(block: Block): void {
-  if (block.getField("MANDATORY")) return;
-  block.appendDummyInput()
-    .appendField(new Blockly.FieldLabelSerializable(""), "MANDATORY");
-  block.getField("MANDATORY")?.setVisible(false);
 }
 
 /** Blockly Align.RIGHT — attribute captions sit just left of their mouth. */

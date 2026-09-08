@@ -8,7 +8,7 @@
  * See docs/future/xquery-export-investigation.md.
  */
 import type { MappingModel, MappingSlot } from "../../types/mod.ts";
-import { parseExpression, type ExprAst } from "../expression/mod.ts";
+import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 
 export function generateXQuery(model: MappingModel): string {
   const slotBlocks = model.slots.map((slot) =>
@@ -202,16 +202,17 @@ function emitSlot(slot: MappingSlot): string[] {
 }
 
 /** Map Mapping Expression AST → XQuery 3.1 fragment (context variable `$source`). */
-export function emitXQueryExpr(ast: ExprAst): string {
+export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string> } = {}): string {
   switch (ast.kind) {
     case "literal":
       if (typeof ast.value === "string") return xqString(ast.value);
       if (typeof ast.value === "boolean") return ast.value ? "true()" : "false()";
       return String(ast.value);
     case "binary":
-      return `(${emitXQueryExpr(ast.left)} ${ast.op} ${emitXQueryExpr(ast.right)})`;
+      return `(${emitXQueryExpr(ast.left, env)} ${ast.op} ${emitXQueryExpr(ast.right, env)})`;
     case "call": {
-      const args = ast.args.map(emitXQueryExpr);
+      if (isQuantifyCall(ast.name)) return emitQuantifierXq(ast, env);
+      const args = ast.args.map((a) => emitXQueryExpr(a, env));
       switch (ast.name) {
         case "trim":
           return `normalize-space(${args[0]})`;
@@ -221,9 +222,38 @@ export function emitXQueryExpr(ast: ExprAst): string {
           return `(if (${args[0]}) then ${args[1]} else ${args[2]})`;
         case "switch":
           return emitSwitchXq(args);
-        case "var":
+        case "var": {
+          const name = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+          if (name && env.bind?.[name]) return `$${env.bind[name]}`;
           return `$vars(${args[0]})`;
-    case "maps_get":
+        }
+        case "eq":
+          return `deep-equal(${args[0]}, ${args[1]})`;
+        case "ne":
+          return `not(deep-equal(${args[0]}, ${args[1]}))`;
+        case "lt":
+          return `(${args[0]} lt ${args[1]})`;
+        case "le":
+          return `(${args[0]} le ${args[1]})`;
+        case "gt":
+          return `(${args[0]} gt ${args[1]})`;
+        case "ge":
+          return `(${args[0]} ge ${args[1]})`;
+        case "and":
+          return `(${args[0]} and ${args[1]})`;
+        case "or":
+          return `(${args[0]} or ${args[1]})`;
+        case "not":
+          return `not(${args[0]})`;
+        case "list":
+          return `(${args.join(", ")})`;
+        case "intersection":
+          return `(${args[0]}[some $b in ${args[1]} satisfies deep-equal(., $b)])`;
+        case "union":
+          return `(${args[0]}, ${args[1]}[not(some $a in ${args[0]} satisfies deep-equal(., $a))])`;
+        case "difference":
+          return `(${args[0]}[not(some $b in ${args[1]} satisfies deep-equal(., $b))])`;
+        case "maps_get":
           return `(if (${args[0]} eq "defaults") then map:get($defaults, ${args[1]}) else ())`;
         case "sheet_get_cell":
         case "sheet_get_xy":
@@ -254,6 +284,38 @@ export function emitXQueryExpr(ast: ExprAst): string {
           return emitXPathCall("string-at", ast.args[0]);
       }
     }
+  }
+}
+
+function emitQuantifierXq(
+  ast: Extract<ExprAst, { kind: "call" }>,
+  env: { bind?: Record<string, string> },
+): string {
+  const card = ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly";
+  const list = emitXQueryExpr(ast.args[0]!, env);
+  const n = card ? emitXQueryExpr(ast.args[1]!, env) : "0";
+  const varAst = card ? ast.args[2] : ast.args[1];
+  const predAst = card ? ast.args[3] : ast.args[2];
+  const varName = varAst?.kind === "literal" ? String(varAst.value) : "item";
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(varName) ? varName : "item";
+  const inner = { bind: { ...env.bind, [varName]: ident } };
+  const pred = predAst ? emitXQueryExpr(predAst, inner) : "true()";
+  const counted = `count(for $${ident} in ${list} where ${pred} return $${ident})`;
+  switch (ast.name) {
+    case "all_of":
+      return `(every $${ident} in ${list} satisfies ${pred})`;
+    case "any_of":
+      return `(some $${ident} in ${list} satisfies ${pred})`;
+    case "none_of":
+      return `(every $${ident} in ${list} satisfies not(${pred}))`;
+    case "at_least":
+      return `(${counted} ge ${n})`;
+    case "at_most":
+      return `(${counted} le ${n})`;
+    case "exactly":
+      return `(${counted} eq ${n})`;
+    default:
+      return "false()";
   }
 }
 

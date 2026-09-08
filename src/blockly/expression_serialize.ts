@@ -7,6 +7,18 @@ import {
   xpathEvaluatorForReturnType,
 } from "./source_query.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
+import {
+  callToCardinalityOp,
+  callToQuantifyOp,
+  cardinalityOpToCall,
+  LOGIC_CARDINALITY_BLOCK,
+  LOGIC_QUANTIFY_BLOCK,
+  LOGIC_SET_NOT_BLOCK,
+  LOGIC_SET_OPERATION_BLOCK,
+  quantifyOpToCall,
+  registerLogicBlocks,
+  variableFieldName,
+} from "./blocks/logic_blocks.ts";
 
 type BlockSvg = import("blockly/core").BlockSvg;
 type Workspace = import("blockly/core").Workspace;
@@ -150,6 +162,64 @@ export function blockToExpression(block: Block | null): string | null {
     }
     case "mapping_var_get":
       return `var(${JSON.stringify(block.getFieldValue("VAR") ?? "v")})`;
+    case "logic_compare": {
+      const a = blockToExpression(block.getInputTargetBlock("A")) ?? "false";
+      const b = blockToExpression(block.getInputTargetBlock("B")) ?? "false";
+      const opMap: Record<string, string> = {
+        EQ: "eq",
+        NEQ: "ne",
+        LT: "lt",
+        LTE: "le",
+        GT: "gt",
+        GTE: "ge",
+      };
+      const fn = opMap[String(block.getFieldValue("OP") ?? "EQ")] ?? "eq";
+      return `${fn}(${a}, ${b})`;
+    }
+    case "logic_operation": {
+      const a = blockToExpression(block.getInputTargetBlock("A")) ?? "false";
+      const b = blockToExpression(block.getInputTargetBlock("B")) ?? "false";
+      const fn = String(block.getFieldValue("OP") ?? "AND") === "OR" ? "or" : "and";
+      return `${fn}(${a}, ${b})`;
+    }
+    case "logic_negate": {
+      const inner = blockToExpression(block.getInputTargetBlock("BOOL")) ?? "false";
+      return `not(${inner})`;
+    }
+    case "lists_create_with": {
+      const count = Number((block as Block & { itemCount_?: number }).itemCount_ ?? 0);
+      const parts: string[] = [];
+      for (let i = 0; i < count; i++) {
+        parts.push(blockToExpression(block.getInputTargetBlock(`ADD${i}`)) ?? "false");
+      }
+      return `list(${parts.join(", ")})`;
+    }
+    case "logic_quantify": {
+      const list = blockToExpression(block.getInputTargetBlock("LIST")) ?? "list()";
+      const pred = blockToExpression(block.getInputTargetBlock("PRED")) ?? "true";
+      const name = JSON.stringify(variableFieldName(block));
+      const fn = quantifyOpToCall(String(block.getFieldValue("OP") ?? "ONLY"));
+      return `${fn}(${list}, ${name}, ${pred})`;
+    }
+    case "logic_cardinality": {
+      const list = blockToExpression(block.getInputTargetBlock("LIST")) ?? "list()";
+      const n = blockToExpression(block.getInputTargetBlock("N")) ?? "0";
+      const pred = blockToExpression(block.getInputTargetBlock("PRED")) ?? "true";
+      const name = JSON.stringify(variableFieldName(block));
+      const fn = cardinalityOpToCall(String(block.getFieldValue("OP") ?? "MIN"));
+      return `${fn}(${list}, ${n}, ${name}, ${pred})`;
+    }
+    case "logic_set_operation": {
+      const a = blockToExpression(block.getInputTargetBlock("A")) ?? "list()";
+      const b = blockToExpression(block.getInputTargetBlock("B")) ?? "list()";
+      const fn = String(block.getFieldValue("OP") ?? "AND") === "OR" ? "union" : "intersection";
+      return `${fn}(${a}, ${b})`;
+    }
+    case "logic_set_not": {
+      const set = blockToExpression(block.getInputTargetBlock("SET")) ?? "list()";
+      const universe = blockToExpression(block.getInputTargetBlock("UNIVERSE")) ?? "list()";
+      return `difference(${universe}, ${set})`;
+    }
     default:
       return null;
   }
@@ -265,7 +335,148 @@ export function astToExpressionBlock(
       }
       return finalize(block);
     }
+    if (
+      ast.name === "eq" || ast.name === "ne" || ast.name === "lt" ||
+      ast.name === "le" || ast.name === "gt" || ast.name === "ge"
+    ) {
+      const block = workspace.newBlock("logic_compare") as BlockSvg;
+      const opMap: Record<string, string> = {
+        eq: "EQ",
+        ne: "NEQ",
+        lt: "LT",
+        le: "LTE",
+        gt: "GT",
+        ge: "GTE",
+      };
+      block.setFieldValue(opMap[ast.name] ?? "EQ", "OP");
+      if (ast.args[0]) {
+        block.getInput("A")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[0], returnType, finalize).outputConnection!,
+        );
+      }
+      if (ast.args[1]) {
+        block.getInput("B")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[1], returnType, finalize).outputConnection!,
+        );
+      }
+      return finalize(block);
+    }
+    if (ast.name === "and" || ast.name === "or") {
+      const block = workspace.newBlock("logic_operation") as BlockSvg;
+      block.setFieldValue(ast.name === "or" ? "OR" : "AND", "OP");
+      if (ast.args[0]) {
+        block.getInput("A")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[0], "boolean", finalize).outputConnection!,
+        );
+      }
+      if (ast.args[1]) {
+        block.getInput("B")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[1], "boolean", finalize).outputConnection!,
+        );
+      }
+      return finalize(block);
+    }
+    if (ast.name === "not" && ast.args[0]) {
+      const block = workspace.newBlock("logic_negate") as BlockSvg;
+      block.getInput("BOOL")!.connection!.connect(
+        astToExpressionBlock(workspace, ast.args[0], "boolean", finalize).outputConnection!,
+      );
+      return finalize(block);
+    }
+    if (ast.name === "list") {
+      const block = workspace.newBlock("lists_create_with") as BlockSvg;
+      // deno-lint-ignore no-explicit-any
+      const list = block as any;
+      list.itemCount_ = ast.args.length;
+      list.updateShape_?.();
+      for (let i = 0; i < ast.args.length; i++) {
+        const child = astToExpressionBlock(workspace, ast.args[i]!, returnType, finalize);
+        block.getInput(`ADD${i}`)?.connection?.connect(child.outputConnection!);
+      }
+      return finalize(block);
+    }
+    if (ast.name === "all_of" || ast.name === "any_of" || ast.name === "none_of") {
+      registerLogicBlocks();
+      const block = workspace.newBlock(LOGIC_QUANTIFY_BLOCK) as BlockSvg;
+      block.setFieldValue(callToQuantifyOp(ast.name), "OP");
+      bindVariableField(workspace, block, ast.args[1]);
+      if (ast.args[0]) {
+        block.getInput("LIST")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
+        );
+      }
+      if (ast.args[2]) {
+        block.getInput("PRED")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[2], "boolean", finalize).outputConnection!,
+        );
+      }
+      return finalize(block);
+    }
+    if (ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly") {
+      registerLogicBlocks();
+      const block = workspace.newBlock(LOGIC_CARDINALITY_BLOCK) as BlockSvg;
+      block.setFieldValue(callToCardinalityOp(ast.name), "OP");
+      bindVariableField(workspace, block, ast.args[2]);
+      if (ast.args[0]) {
+        block.getInput("LIST")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
+        );
+      }
+      if (ast.args[1]) {
+        block.getInput("N")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[1], "number", finalize).outputConnection!,
+        );
+      }
+      if (ast.args[3]) {
+        block.getInput("PRED")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[3], "boolean", finalize).outputConnection!,
+        );
+      }
+      return finalize(block);
+    }
+    if (ast.name === "intersection" || ast.name === "union") {
+      registerLogicBlocks();
+      const block = workspace.newBlock(LOGIC_SET_OPERATION_BLOCK) as BlockSvg;
+      block.setFieldValue(ast.name === "union" ? "OR" : "AND", "OP");
+      if (ast.args[0]) {
+        block.getInput("A")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
+        );
+      }
+      if (ast.args[1]) {
+        block.getInput("B")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[1], "node", finalize).outputConnection!,
+        );
+      }
+      return finalize(block);
+    }
+    if (ast.name === "difference") {
+      registerLogicBlocks();
+      const block = workspace.newBlock(LOGIC_SET_NOT_BLOCK) as BlockSvg;
+      if (ast.args[1]) {
+        block.getInput("SET")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[1], "node", finalize).outputConnection!,
+        );
+      }
+      if (ast.args[0]) {
+        block.getInput("UNIVERSE")!.connection!.connect(
+          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
+        );
+      }
+      return finalize(block);
+    }
   }
 
   return finalize(createSourceQueryBlock(workspace, serialize(ast), returnType));
+}
+
+function bindVariableField(workspace: Workspace, block: BlockSvg, ast: ExprAst | undefined): void {
+  const name = ast?.kind === "literal" ? String(ast.value) : "item";
+  // deno-lint-ignore no-explicit-any
+  const ws = workspace as any;
+  let variable = ws.getVariable?.(name);
+  if (!variable && typeof ws.createVariable === "function") {
+    variable = ws.createVariable(name);
+  }
+  if (variable) block.setFieldValue(variable.getId(), "VAR");
 }

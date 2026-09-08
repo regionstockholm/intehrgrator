@@ -1,5 +1,20 @@
 import { SHEET_ACCESSOR_NAMES, type SheetAccessorName } from "../sheets/evaluate.ts";
 
+/** Boolean compare / connectives used by stock Logic blocks and DL predicates. */
+export const LOGIC_COMPARE_NAMES = ["eq", "ne", "lt", "le", "gt", "ge"] as const;
+export const LOGIC_BOOL_NAMES = ["and", "or", "not"] as const;
+/** Manchester-style restrictions over a list (∀/∃/cardinality). */
+export const LOGIC_QUANTIFY_NAMES = ["all_of", "any_of", "none_of"] as const;
+export const LOGIC_CARDINALITY_NAMES = ["at_least", "at_most", "exactly"] as const;
+/** Class/set operators: ∩ ∪ complement (relative to a universe). */
+export const LOGIC_SET_NAMES = ["intersection", "union", "difference"] as const;
+
+export type LogicCompareName = typeof LOGIC_COMPARE_NAMES[number];
+export type LogicBoolName = typeof LOGIC_BOOL_NAMES[number];
+export type LogicQuantifyName = typeof LOGIC_QUANTIFY_NAMES[number];
+export type LogicCardinalityName = typeof LOGIC_CARDINALITY_NAMES[number];
+export type LogicSetName = typeof LOGIC_SET_NAMES[number];
+
 export type ExprAst =
   | { kind: "literal"; value: string | number | boolean }
   | {
@@ -18,6 +33,12 @@ export type ExprAst =
       | "xpathNode"
       | "handlebars"
       | "map"
+      | "list"
+      | LogicCompareName
+      | LogicBoolName
+      | LogicQuantifyName
+      | LogicCardinalityName
+      | LogicSetName
       | SheetAccessorName;
     args: ExprAst[];
   }
@@ -37,8 +58,21 @@ const BUILTIN_NAMES = new Set([
   "maps_get",
   "handlebars",
   "map",
+  "list",
+  ...LOGIC_COMPARE_NAMES,
+  ...LOGIC_BOOL_NAMES,
+  ...LOGIC_QUANTIFY_NAMES,
+  ...LOGIC_CARDINALITY_NAMES,
+  ...LOGIC_SET_NAMES,
   ...SHEET_ACCESSOR_NAMES,
 ]);
+
+export function isQuantifyCall(
+  name: string,
+): name is LogicQuantifyName | LogicCardinalityName {
+  return (LOGIC_QUANTIFY_NAMES as readonly string[]).includes(name) ||
+    (LOGIC_CARDINALITY_NAMES as readonly string[]).includes(name);
+}
 
 export function parseExpression(source: string): ExprAst {
   const tokens = tokenize(source.trim());

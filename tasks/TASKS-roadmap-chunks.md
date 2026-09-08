@@ -325,7 +325,7 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 | 5    | Local/offline AI skill                  | D: parallel IDE + local app; installable AI skill for suggestion format                                                                                  | Docs + skill packaging                                                                     |
 | 6    | Dynamic schema toolboxes                | H: JSON/XSD target drawers from schema; TakeCare test + term ids                                                                                         | Productized schema-specific Blockly                                                        |
 | 7    | Handlebars correctness                  | G: harden Mapping preview Test Run (7.1 patch); execute Authored Template in Conversion Test Run — **done**; Blockly ↔ Handlebars codegen deferred | 7.0 merged (PR #22); 7.1 closes fixture parity |
-| 8    | Spreadsheet / matrix                    | C: embed sheet widget + persist 2D model; Blockly accessors/mutators from that API; CSV/Excel paste into the sheet. FHIR deferred                         | Maps stay 1D; sheet is the 2D structure        |
+| 8    | Spreadsheet / matrix                    | C: embed sheet widget + persist 2D model; Blockly accessors/mutators from that API; CSV/Excel paste into the sheet. FHIR and DMN deferred | Maps stay 1D; sheet is the 2D structure        |
 | 9    | Conversion scripts                      | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI                                                                         | After mapping/RM is trustworthy                                                            |
 | 10   | Persistence, i18n, versioning           | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
 | 11   | Better Form parity                      | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
@@ -797,6 +797,9 @@ Include in Chunk 8:
   - [x] 8.8 Q9 step 2: keep `maps_*`; join Lists + Maps into **Lists & maps**; Sheets stay separate
   - [ ] (later) FHIR ConceptMap → sheet
   - [ ] (later) formulas / `DV_CODED_TEXT` helper / `sheet_to_map`
+  - [ ] (later) multi-column equality `sheet_lookup` — first slice of [`docs/future/decision-tables-for-mapping.md`](../docs/future/decision-tables-for-mapping.md)
+  - [ ] (later) Decision tables (`kind: decision-table`) + sibling Example Set `examples/lung-MDT-form-decision-tables/`
+  - [ ] (later) **DMN import/export** of simple tables (equality/range, FIRST/UNIQUE/COLLECT) — after internal table JSON is stable; no FEEL. [OMG DMN 1.5](https://www.omg.org/spec/DMN/1.5). Roadmap §C.
 
 - [ ] 9.0 Chunk 9 — Conversion script goldens + XQuery Model A/C (roadmap J/K)
 - [ ] 10.0 Chunk 10 — GitHub save, UI i18n, dependency hashes (roadmap B/L)

@@ -193,12 +193,12 @@ Live in the **Sheets** category: same tab, same jspreadsheet widget, same conver
 
 ### Incremental slices (do not ship all at once)
 
-1. **Multi-column equality lookup** — `sheet_lookup` with several `where` pairs (AND), first match. Smallest step; already 80% of “code + sex + laterality” maps. Still a Sheet, not a decision table.
+1. **Multi-column equality lookup** — `sheet_lookup` with several `where` pairs (AND), first match. **First implemented slice (adopted).** Still a Sheet, not a decision table.
 2. **Predicate cells + don't-care + default (`*`) row** — true decision table. Hit policy **FIRST** (row order) to start — matches current `sheet_lookup` and is obvious in a spreadsheet.
 3. **Range predicates** (`>= 140`, `90..120`) on numeric columns — stolen from DL range tables; important for labs/vitals.
 4. **UNIQUE warning** in the Mapping Editor (yellow **Constraint warning** family): two rows match the same Active Example, or the table is not balanced.
 5. **COLLECT + join** for narrative fragments, plus **snippet output columns** (mixed with value columns on the same row).
-6. Optional **DMN XML import/export** of *simple* tables (equality/range, FIRST/UNIQUE/COLLECT). Do not take on FEEL as the Mapping Expression language.
+6. **DMN XML import/export** — **not in the first slices.** Logged on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`tasks/TASKS-roadmap-chunks.md`](../../tasks/TASKS-roadmap-chunks.md). Simple tables only (equality/range, FIRST/UNIQUE/COLLECT). Do not take on FEEL as the Mapping Expression language.
 7. **Sibling lung-MDT Example Set** that uses the tables for the complex Note parts — see below. Do not replace the current Handlebars-in-`text_code` set.
 
 ### Blockly
@@ -220,7 +220,7 @@ Offer a “show missing combinations” action for Boolean/enum columns. Skip it
 - Treat a Decision table as an **ITEM_TABLE** or as a **Map**.
 - Bake table rows into Generated Export as the only mode (contradicts ADR 0005 for site-editable grids). Flattened `if`s are an *adapter fallback*, not the store.
 - Expect tables alone to replace Handlebars/Go template for long-form narrative.
-- Require full DMN/FEEL for v1 — hit-policy *ideas* are enough.
+- Require full DMN/FEEL in the first slices — hit-policy *ideas* are enough. **DMN XML import/export** is a later [ROADMAP §C](../ROADMAP.md) item, after internal table JSON is stable.
 - Rewrite or replace [`examples/lung-MDT-form/`](../../examples/lung-MDT-form/) or catalog id `lung-mdt-form-to-tc-xml`. The decision-table mapping is a **sibling Example Set**.
 
 ---
@@ -242,12 +242,14 @@ Offer a “show missing combinations” action for Boolean/enum columns. Skip it
 
 Instead, **analyse the PROD script and add a sibling Example Set** that keeps the same target, Defaults Map, and (when they exist) source instances, but authors the *combinational* Note logic as decision tables.
 
-| Keep untouched | New (proposed) |
+**Layout (adopted 2026-09-08, option A):** new directory `examples/lung-MDT-form-decision-tables/` holds only the new mapping (+ a short README). Catalog URIs reuse the existing TakeCare XSD, Defaults Map, and PROD script. Do not add a catalog stub that points at a missing mapping file; create the directory when the decision-table construct can actually author it.
+
+| Keep untouched | New (adopted) |
 |----------------|----------------|
-| Catalog id `lung-mdt-form-to-tc-xml` | e.g. `lung-mdt-form-to-tc-xml-decision-tables` |
-| `examples/lung-MDT-form/mapping/mapping.blockly.json` | New mapping JSON (new directory, e.g. `examples/lung-MDT-form-decision-tables/mapping/`) |
+| Catalog id `lung-mdt-form-to-tc-xml` | `lung-mdt-form-to-tc-xml-decision-tables` |
+| `examples/lung-MDT-form/` (all files) | `examples/lung-MDT-form-decision-tables/mapping/mapping.blockly.json` + README |
 | `Mappningsscript XML 3.2.0 (PROD).txt` (gold Handlebars) | Same file referenced as **expected** Conversion Test Run text — do not fork the script |
-| `defaults.map.json`, TakeCare XSD | Catalog URIs pointing at the existing files |
+| `defaults.map.json`, TakeCare XSD | Catalog URIs pointing at those existing files |
 | QA script `3.2.1` | Out of scope unless a difference is table-relevant |
 
 The current catalog entry has `"instances": []`. The sibling set should not invent a fake composition just to load; when real FLAT/STRUCTURED examples land, **share them by URI** with the original set.
@@ -337,7 +339,7 @@ Repeats for undersökningstyp, kroppsställe, ingreppsmetod: prefer `|other|` if
 ### How to build it (when the construct exists)
 
 1. Inventory every `#if (eq` / `#if (and` / `#if (or` in the PROD script; classify as passthrough, FIRST table, or COLLECT.
-2. Copy the current Blockly envelope (ProfdocHISMessage + Defaults Map lookups) into the new mapping file; **do not** run `scripts/build-lung-mdt-blockly.ts` over the original (that script *is* the current set).
+2. Copy the current Blockly envelope (ProfdocHISMessage + Defaults Map lookups) into `examples/lung-MDT-form-decision-tables/mapping/mapping.blockly.json`; **do not** run `scripts/build-lung-mdt-blockly.ts` over the original (that script *is* the current set).
 3. Replace the imaging and treatment `text_code` Notes with `decision_table` eval blocks + Sheets-tab grids; keep `text_handlebars` / `text_code` only as snippet interpolators.
 4. Golden-test Note text against Handlebars execution of the untouched PROD script on shared instances.
 5. Leave `test/takecare_schema_blocks_test.ts` asserting the **original** mapping still uses schema blocks and still round-trips the PROD keyword list.
@@ -352,7 +354,10 @@ Resolved 2026-09-07:
 2. **Mixed outputs** — a row may emit values *and* template snippets depending on inputs (imaging TermId + Note; connector phrase + lowered type).
 3. **Fixture** — new Example Set beside `examples/lung-MDT-form/`; never overwrite that directory or its catalog id.
 
-Still open (not blocking):
+Resolved 2026-09-08:
 
-- First slice: multi-column `sheet_lookup` vs a separately named Decision table from day one? **Recommend** Sheet enhancement first, then `kind: decision-table` when predicate cells exist.
-- DMN import? **Recommend** no until the internal JSON is stable.
+4. **Sibling layout A** — `examples/lung-MDT-form-decision-tables/` for mapping + README only; catalog id `lung-mdt-form-to-tc-xml-decision-tables`; reuse XSD / Defaults Map / PROD script by URI. No empty catalog entry until the mapping exists.
+5. **First slice A** — ship **multi-column equality `sheet_lookup`** (still a Sheet, convert-time bag unchanged) before a separately named Decision table. Promote a grid to `kind: decision-table` when predicate cells, don't-care, mixed value/snippet outputs, or a hit policy other than first-match are needed. Lung-MDT sibling set waits on that promotion (imaging TermId + Note snippets are not equality-only).
+6. **DMN A (now)** — do not implement import/export until the internal decision-table JSON is stable. **Parked** on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`tasks/TASKS-roadmap-chunks.md`](../../tasks/TASKS-roadmap-chunks.md) so it is not forgotten. Still no FEEL.
+
+No remaining open product questions from this grill.

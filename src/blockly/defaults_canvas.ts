@@ -5,8 +5,9 @@ import {
   bindDefaultPoints,
   DEFAULTS_BLOCK_TYPE,
   DEFAULTS_MAP_NAME,
-  factoryDefaultsEntries,
+  factoryDefaultsMapBlockState,
   MAPS_CREATE_WITH,
+  MAPS_GET,
   mapsGetExpression,
   migrateMapsCreateWithJson,
 } from "../core/defaults/mod.ts";
@@ -16,13 +17,13 @@ import {
   connectExpressionToDataValueShell,
   expressionBlockFromDataValueShell,
   isDataValueBlock,
+  registerRmBlocks,
+  RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
 } from "./blocks/rm_blocks.ts";
-import { createTermPickBlock, isTermPickBlock, registerTermPickBlock } from "./blocks/term_pick.ts";
-import { termSetById, termSetIdForDefaultsKey } from "../core/openehr_term_catalog.ts";
-import { parseExpression } from "../core/expression/mod.ts";
-import { astToExpressionBlock } from "./expression_serialize.ts";
-import { createSourceQueryBlock } from "./source_query.ts";
+import { isTermPickBlock, registerTermPickBlock } from "./blocks/term_pick.ts";
+import { termSetById } from "../core/openehr_term_catalog.ts";
+import { defaultsMapKeys } from "./hardcode_defaults.ts";
 
 const DEFAULTS_X = 20;
 const DEFAULTS_Y = 20;
@@ -37,52 +38,6 @@ function finalize(block: Blockly.Block): Blockly.Block {
   return block;
 }
 
-function connectText(
-  workspace: Blockly.Workspace,
-  parent: Blockly.Block,
-  inputName: string,
-  value: string,
-): void {
-  const input = parent.getInput(inputName);
-  if (!input?.connection) return;
-  const existing = input.connection.targetBlock();
-  if (existing && !existing.isShadow()) existing.dispose(false);
-  if (typeof input.connection.setShadowState === "function") {
-    input.connection.setShadowState({
-      type: "text",
-      fields: { TEXT: value },
-    });
-    return;
-  }
-  const text = workspace.newBlock("text");
-  text.setFieldValue(value, "TEXT");
-  if (text.outputConnection) input.connection.connect(text.outputConnection);
-  finalize(text);
-}
-
-function connectDefaultValue(
-  workspace: Blockly.Workspace,
-  parent: Blockly.Block,
-  inputName: string,
-  key: string,
-  value: string,
-): void {
-  const setId = termSetIdForDefaultsKey(key);
-  const set = setId ? termSetById(setId) : undefined;
-  if (set && value && set.codes.some((item) => item.code === value)) {
-    const input = parent.getInput(inputName);
-    if (!input?.connection) return;
-    const existing = input.connection.targetBlock();
-    if (existing) existing.dispose(false);
-    const pick = createTermPickBlock(workspace, set, value);
-    if (pick.outputConnection) input.connection.connect(pick.outputConnection);
-    pick.setShadow?.(true);
-    finalize(pick);
-    return;
-  }
-  connectText(workspace, parent, inputName, value);
-}
-
 export function createEmptyMapBlock(workspace: Blockly.Workspace): Blockly.Block {
   registerMapBlocks();
   const map = workspace.newBlock(MAPS_CREATE_WITH) as Blockly.Block & {
@@ -94,24 +49,25 @@ export function createEmptyMapBlock(workspace: Blockly.Workspace): Blockly.Block
   return finalize(map);
 }
 
+/** Factory Defaults Map from bundled `defaults-with-subject.map.json` (language ← UI). */
 export function createFactoryMapBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
 ): Blockly.Block {
   registerMapBlocks();
   registerTermPickBlock();
-  const entries = factoryDefaultsEntries(uiLanguage);
-  const map = workspace.newBlock(MAPS_CREATE_WITH) as Blockly.Block & {
-    itemCount_: number;
-    updateShape_: () => void;
-  };
-  map.itemCount_ = entries.length;
-  map.updateShape_();
-  for (let i = 0; i < entries.length; i++) {
-    map.setFieldValue(entries[i]!.key, `KEY${i}`);
-    connectDefaultValue(workspace, map, `VAL${i}`, entries[i]!.key, entries[i]!.value);
+  registerRmBlocks();
+  if (typeof Blockly.serialization?.blocks?.append !== "function") {
+    return createEmptyMapBlock(workspace);
   }
-  return finalize(map);
+  const state = factoryDefaultsMapBlockState(uiLanguage);
+  migrateMapsCreateWithJson(state);
+  const appended = Blockly.serialization.blocks.append(
+    state,
+    workspace,
+  ) as Blockly.Block | undefined;
+  if (!appended) return createEmptyMapBlock(workspace);
+  return finalize(appended);
 }
 
 /** Ensure the singleton Defaults block exists, with a factory Map if none is plugged in. */
@@ -215,22 +171,6 @@ export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void 
   }
 }
 
-function expressionToBlock(
-  workspace: Blockly.Workspace,
-  expression: string,
-): Blockly.Block {
-  try {
-    return astToExpressionBlock(
-      workspace,
-      parseExpression(expression),
-      "string",
-      (b) => finalize(b) as BlockSvg,
-    );
-  } catch {
-    return createSourceQueryBlock(workspace, expression, "string");
-  }
-}
-
 function slotAlreadyMapped(block: Blockly.Block): boolean {
   const expr = isDataValueBlock(block) || block.type === "code_phrase"
     ? expressionBlockFromDataValueShell(block)
@@ -239,7 +179,49 @@ function slotAlreadyMapped(block: Blockly.Block): boolean {
   return true;
 }
 
-function attachLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: string): void {
+/** Replace abstract party shells with a Defaults Map lookup of the whole party. */
+function attachPartyLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: string): void {
+  // Prefer plugging into PARTY_PROXY.KIND so the shell (and its SLOT_ID) stay.
+  if (target.type === "party_proxy") {
+    const kind = target.getInput(RM_SPECIALIZATION_INPUT);
+    if (kind?.connection) {
+      const existing = kind.connection.targetBlock();
+      if (existing && !existing.isShadow()) return;
+      if (existing) existing.dispose(false);
+      const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key);
+      finalize(lookup);
+      if (lookup.outputConnection) kind.connection.connect(lookup.outputConnection);
+      finalize(lookup);
+      finalize(target);
+      return;
+    }
+  }
+  const parentConnection = target.outputConnection?.targetConnection;
+  if (!parentConnection) return;
+  if (target.type !== "party_proxy" && target.type !== MAPS_GET) {
+    if (!target.isShadow()) return;
+  }
+  const slotId = target.getFieldValue("SLOT_ID");
+  target.dispose(false);
+  const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key);
+  finalize(lookup);
+  if (lookup.outputConnection) {
+    parentConnection.connect(lookup.outputConnection);
+  }
+  if (slotId && lookup.getField("SLOT_ID")) lookup.setFieldValue(slotId, "SLOT_ID");
+  finalize(lookup);
+}
+
+function attachLookup(
+  workspace: Blockly.Workspace,
+  target: Blockly.Block,
+  key: string,
+  leaf: string,
+): void {
+  if (leaf === "party") {
+    attachPartyLookup(workspace, target, key);
+    return;
+  }
   if (isTermPickBlock(target)) {
     const parentConnection = target.outputConnection?.targetConnection;
     const set = termSetById(target.getFieldValue("SET"));
@@ -300,6 +282,7 @@ export type OptionalInsertFn = (
 /**
  * Scaffold Default points: optional RM insert when needed, then Map lookup on the leaf.
  * Skips slots that already have a non-shadow, non-literal mapping.
+ * `subject` only wires when the Defaults Map currently has a `subject` key.
  */
 export function attachDefaultPointLookups(
   workspace: WorkspaceSvg | Blockly.Workspace,
@@ -307,8 +290,10 @@ export function attachDefaultPointLookups(
   insertOptional?: OptionalInsertFn,
 ): void {
   registerMapBlocks();
+  const mapKeys = defaultsMapKeys(workspace as Blockly.Workspace);
   const bound = bindDefaultPoints(skeleton);
   for (const { point, node, parent } of bound) {
+    if (point.requireMapKey && !mapKeys.has(point.mapKey)) continue;
     let target = findBlockBySlotId(workspace, node.slotId);
     if (!target && point.optionalInsert) {
       const parentBlock = findBlockBySlotId(workspace, parent.slotId);
@@ -323,7 +308,7 @@ export function attachDefaultPointLookups(
         null;
     }
     if (!target) continue;
-    attachLookup(workspace, target, point.mapKey);
+    attachLookup(workspace, target, point.mapKey, point.leaf);
   }
 }
 

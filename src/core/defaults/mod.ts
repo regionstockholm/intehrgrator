@@ -7,11 +7,14 @@ export {
 } from "./points.ts";
 export {
   DEFAULTS_MAP_NAME,
+  FACTORY_COMPOSER_NAME,
   FACTORY_ENCODING,
   FACTORY_HEALTH_CARE_FACILITY,
+  FACTORY_SUBJECT,
   FACTORY_TERRITORY,
   factoryDefaultsEntries,
 } from "./factory.ts";
+export { factoryDefaultsMapBlockState } from "./factory_map.ts";
 export {
   DEFAULTS_BLOCK_TYPE,
   MAPS_CREATE_WITH,

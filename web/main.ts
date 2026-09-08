@@ -67,9 +67,14 @@ import {
   serializeDefaultsMapArgument,
   setDefaultsMapPickHandler,
   setDefaultsMapInfoHandler,
+  setDefaultsMapHardcodeHandler,
+  hardcodeDefaultsMapKey,
+  listDefaultsMapEntries,
   setSheetFocusHandler,
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
+import { APP_VERSION } from "../src/core/persistence/mod.ts";
+import { registerServiceWorker } from "./pwa.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
 import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
@@ -181,6 +186,8 @@ const defaultsMapList = document.getElementById("defaults-map-list")!;
 const dialogDefaultsSaveAs = document.getElementById("dialog-defaults-save-as") as HTMLDialogElement;
 const defaultsSaveAsNameInput = document.getElementById("defaults-save-as-name") as HTMLInputElement;
 const defaultsMapUrlInput = document.getElementById("defaults-map-url-input") as HTMLInputElement;
+const dialogHardcodeDefaults = document.getElementById("dialog-hardcode-defaults") as HTMLDialogElement;
+const hardcodeDefaultsList = document.getElementById("hardcode-defaults-list")!;
 const defaultsCatalog = createIndexedDbDefaultsCatalog();
 
 const specEditor = createMappingSpecEditor(mappingJsonHost, {
@@ -385,6 +392,9 @@ async function bootBlockly(): Promise<void> {
     const tip = document.getElementById("defaults-map-block-info");
     if (!(tip instanceof HTMLElement)) return;
     openInfoTipAt(tip, anchor ?? tip.querySelector(".info-tip-btn") ?? tip);
+  });
+  setDefaultsMapHardcodeHandler(() => {
+    openHardcodeDefaultsDialog();
   });
   setSheetFocusHandler((name) => {
     showTextView("sheets");
@@ -924,6 +934,15 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         blocklyLocale,
         targetFormatOf(s),
       );
+      const derived = workspaceToModelJson(workspace);
+      if (s.blocklyReloadToken > 0) {
+        controller.syncFromBlockly(
+          Blockly.serialization.workspaces.save(workspace),
+          derived.slots,
+          derived.loops,
+          derived.optionalRm,
+        );
+      }
     }
     blocklySkeletonKey = skeletonKey;
     blocklyLabelLanguage = labelLanguage;
@@ -1519,6 +1538,42 @@ async function openDefaultsMapDialog(): Promise<void> {
   dialogDefaultsMap.showModal();
 }
 
+function openHardcodeDefaultsDialog(): void {
+  if (!dialogHardcodeDefaults || !hardcodeDefaultsList || !workspace) return;
+  hardcodeDefaultsList.innerHTML = "";
+  const entries = listDefaultsMapEntries(workspace);
+  if (!entries.length) {
+    const empty = document.createElement("p");
+    empty.className = "load-project-empty";
+    empty.textContent = "The Defaults Map has no entries to hardcode yet.";
+    hardcodeDefaultsList.appendChild(empty);
+  }
+  for (const entry of entries) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "load-project-item";
+    const kind = document.createElement("span");
+    kind.className = "load-project-item-kind";
+    kind.textContent = entry.key;
+    const summary = document.createElement("strong");
+    summary.textContent = entry.summary;
+    button.append(kind, summary);
+    button.addEventListener("click", () => {
+      dialogHardcodeDefaults.close();
+      const replaced = hardcodeDefaultsMapKey(workspace, entry.key);
+      persistBlocklyCanvas();
+      controller.setStatusMessage(
+        replaced > 0
+          ? `Hardcoded “${entry.key}” into ${replaced} lookup${replaced === 1 ? "" : "s"}`
+          : `No maps_get("defaults", "${entry.key}") lookups found on the canvas`,
+      );
+      render();
+    });
+    hardcodeDefaultsList.appendChild(button);
+  }
+  dialogHardcodeDefaults.showModal();
+}
+
 function applyDefaultsMapJson(text: string): void {
   const parsed = JSON.parse(text) as unknown;
   const mapBlock = mapBlockFromDefaultsJson(parsed);
@@ -1528,6 +1583,9 @@ function applyDefaultsMapJson(text: string): void {
 }
 
 document.getElementById("defaults-map-cancel")?.addEventListener("click", () => dialogDefaultsMap.close());
+document.getElementById("hardcode-defaults-cancel")?.addEventListener("click", () =>
+  dialogHardcodeDefaults?.close()
+);
 document.getElementById("defaults-map-browse")?.addEventListener("click", () => {
   void (async () => {
     const file = await host.pickTextFile(".json", "defaults");
@@ -1678,7 +1736,7 @@ function render(): void {
     saveStatus.dirty ? " unsaved" : saveStatus.label ? " saved" : ""
   );
 
-  statusBuild.textContent = `${BUILD_ID} · ${BUILD_TIMESTAMP}`;
+  statusBuild.textContent = `v${APP_VERSION} · ${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
   syncModelLanguageMenu(s);
 
@@ -2054,6 +2112,7 @@ async function main(): Promise<void> {
   // the `?testMode=1` branch to be dropped, which breaks Playwright tests.
   // Installing this lightweight seam unconditionally keeps the E2E harness stable.
   installWorkbenchTestApi();
+  registerServiceWorker();
   const wasmReady = ensureGoTemplateWasm().catch((err) => {
     console.warn("Go template WASM not loaded:", err);
   });

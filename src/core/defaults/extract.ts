@@ -208,5 +208,12 @@ function literalFromInput(
     const code = String(block.fields?.CODE ?? "");
     return !code || code === TERM_PICK_NONE ? "" : code;
   }
+  if (block.type === "party_self") {
+    return { rmType: "PARTY_SELF" };
+  }
+  if (block.type === "party_identified" || block.type === "party_related" || block.type === "party_proxy") {
+    const rmType = String(block.fields?.RM_TYPE ?? block.type.replace(/^party_/, "PARTY_").toUpperCase());
+    return { rmType };
+  }
   return null;
 }

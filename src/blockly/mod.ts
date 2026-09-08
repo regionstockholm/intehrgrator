@@ -115,7 +115,13 @@ export {
   restoreDefaultsBlockState,
   serializeDefaultsMapArgument,
 } from "./defaults_canvas.ts";
-export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler } from "./blocks/map_blocks.ts";
+export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler } from "./blocks/map_blocks.ts";
+export {
+  defaultsMapKeys,
+  hardcodeDefaultsMapKey,
+  listDefaultsMapEntries,
+  type DefaultsMapEntryInfo,
+} from "./hardcode_defaults.ts";
 export { setSheetFocusHandler } from "./blocks/sheet_blocks.ts";
 export {
   canExtractToFunction,

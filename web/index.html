@@ -3,7 +3,12 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#005c53" />
+  <meta name="description" content="intEHRgrator — visual integration workbench for mapping source data to openEHR" />
   <title>intEHRgrator — Integration Workbench</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans:400,500" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="vendor/jspreadsheet/jsuites.css" />
@@ -426,6 +431,23 @@
       <div class="dialog-actions">
         <button type="button" id="defaults-save-as-cancel" value="cancel">Cancel</button>
         <button type="submit" id="defaults-save-as-confirm" value="confirm">Save</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-hardcode-defaults" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Hardcode Defaults Map entry</h2>
+      <p>
+        Choose a map key to <strong>inline</strong> on the canvas. Every
+        <code>get defaults key …</code> lookup for that key is replaced with a copy of
+        the value from this Defaults Map. After that, those slots no longer read the
+        convert-time <code>defaults</code> argument — they use the hardcoded block instead.
+        The Defaults Map itself is left unchanged so you can hardcode other keys later
+        or keep the entry for remaining lookups.
+      </p>
+      <div id="hardcode-defaults-list" class="load-project-list"></div>
+      <div class="dialog-actions">
+        <button type="button" id="hardcode-defaults-cancel" value="cancel">Cancel</button>
       </div>
     </form>
   </dialog>

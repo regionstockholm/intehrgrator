@@ -1,0 +1,126 @@
+{
+  "type": "maps_create_with",
+  "id": ")QS07%I/y;_CUV,`TYRJ",
+  "extraState": {
+    "itemCount": 7
+  },
+  "fields": {
+    "KEY0": "language",
+    "KEY1": "territory",
+    "KEY2": "encoding",
+    "KEY3": "time",
+    "KEY4": "composer_name",
+    "KEY5": "health_care_facility",
+    "KEY6": "subject"
+  },
+  "inputs": {
+    "VAL0": {
+      "shadow": {
+        "type": "text",
+        "id": "w}le/2/6QKDl.C`[Y=A|",
+        "fields": {
+          "TEXT": "sv"
+        }
+      },
+      "block": {
+        "type": "term_pick",
+        "id": "D$PiEdkrY,06*#6FYt7J",
+        "fields": {
+          "NAME": "built-in",
+          "SET": "ISO_639-1",
+          "CODE": "sv",
+          "SLOT_ID": "",
+          "RM_TYPE": "CODE_PHRASE",
+          "MANDATORY": ""
+        }
+      }
+    },
+    "VAL1": {
+      "shadow": {
+        "type": "text",
+        "id": "sd+}v+-D%X%Y;XvJup2|",
+        "fields": {
+          "TEXT": "SE"
+        }
+      },
+      "block": {
+        "type": "term_pick",
+        "id": "XWZo84jG`==mWNu$da^3",
+        "fields": {
+          "NAME": "built-in",
+          "SET": "ISO_3166-1",
+          "CODE": "SE",
+          "SLOT_ID": "",
+          "RM_TYPE": "CODE_PHRASE",
+          "MANDATORY": ""
+        }
+      }
+    },
+    "VAL2": {
+      "shadow": {
+        "type": "term_pick",
+        "id": "Mm^/:=RVY%YN4tPNzB_6",
+        "fields": {
+          "NAME": "built-in",
+          "SET": "IANA_character-sets",
+          "CODE": "UTF-8",
+          "SLOT_ID": "",
+          "RM_TYPE": "CODE_PHRASE",
+          "MANDATORY": ""
+        }
+      }
+    },
+    "VAL3": {
+      "shadow": {
+        "type": "text",
+        "id": "i:aO]|0Vb_fkC~GoM!/I",
+        "fields": {
+          "TEXT": "2026-08-01T09:13:58+02:00"
+        }
+      }
+    },
+    "VAL4": {
+      "shadow": {
+        "type": "text",
+        "id": "0sO!Y/mPMczbXDZ?oZ}W",
+        "fields": {
+          "TEXT": "Dr. Who Demo"
+        }
+      }
+    },
+    "VAL5": {
+      "shadow": {
+        "type": "text",
+        "id": "?B@2wnw0y/XI{gCd24!2",
+        "fields": {
+          "TEXT": "St. Dummy Demo Hospital"
+        }
+      }
+    },
+    "VAL6": {
+      "shadow": {
+        "type": "text",
+        "id": "%`1gLzIIFNQV3mdO,_(a",
+        "fields": {
+          "TEXT": ""
+        }
+      },
+      "block": {
+        "type": "party_self",
+        "id": "%3}%2,odpmlGdzru~gqs",
+        "extraState": {
+          "extras": [],
+          "attrs": []
+        },
+        "fields": {
+          "NAME": "",
+          "SLOT_ID": "",
+          "RM_TYPE": "PARTY_SELF",
+          "MANDATORY": "",
+          "ARCHETYPE_NODE_ID": "",
+          "ARCHETYPE_CTX": ""
+        }
+      }
+    }
+  }
+}

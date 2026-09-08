@@ -2,7 +2,7 @@ import type { SkeletonNode } from "../../types/mod.ts";
 import { isSubtypeOf } from "../rm_meta.ts";
 
 /** Leaf on the typed shell / party block that a Map lookup plugs into. */
-export type DefaultPointLeaf = "code_string" | "value" | "name";
+export type DefaultPointLeaf = "code_string" | "value" | "name" | "party";
 
 export interface DefaultPoint {
   /** Defaults Map key (simplified-format ctx field, no `ctx/` prefix). */
@@ -13,6 +13,11 @@ export interface DefaultPoint {
   leaf: DefaultPointLeaf;
   /** Insert this optional RM attribute when scaffolding if it is missing. */
   optionalInsert?: { rmType: string };
+  /**
+   * When true, scaffolding only wires the lookup if the Defaults Map currently
+   * has this key (used for `subject` → PARTY_SELF).
+   */
+  requireMapKey?: boolean;
 }
 
 /**
@@ -34,6 +39,13 @@ export const OPENEHR_DEFAULT_POINTS: DefaultPoint[] = [
     rmAttribute: "health_care_facility",
     leaf: "name",
     optionalInsert: { rmType: "PARTY_IDENTIFIED" },
+  },
+  {
+    mapKey: "subject",
+    parentRmType: "ENTRY",
+    rmAttribute: "subject",
+    leaf: "party",
+    requireMapKey: true,
   },
 ];
 

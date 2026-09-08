@@ -11,7 +11,7 @@
 - [x] Improve the avove cogwheeel configuration approach: 1.  Now in the popup's editor ther is often just a single block with a dropdown thet can be pulled into the "optional fields" or "optional RM" etc. Thet is unpedagogical with low discoverability of options and unneccesary clicks since you first need to expand the dropdown to see what is available. Instead show one block for each option, and if it is only supposed to be one of that option then make sure it can only be added once. 2. having the cogwheel to the left of the openehr zipehr symbol reduces the pedagogical matchup instead put it to the tigt of the dual label Name/datatype
 - [x] Activate Expand/collapse json etc i code mirror gutter
 - [x] Add undo/redo for mapping editor
-- [ ] Add a way to convert a dynamic defaults (or perhaps any table/map) lookup to inlined hardcoded block- perhaps as a right click menu item
+- [x] Add a way to convert a dynamic defaults (or perhaps any table/map) lookup to inlined hardcoded block- perhaps as a right click menu item
 - [ ] Integrate save functions with github repo (if logged in)
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm

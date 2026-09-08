@@ -45,9 +45,13 @@ export class FieldDropdownHug extends FieldDropdownBase {
     if (this.svgArrow && typeof this.positionSVGArrow === "function") {
       arrow = Number(this.positionSVGArrow(textWidth + xPad, height / 2 - arrowSize / 2) ?? 0);
     }
-    this.size_.width = textWidth + arrow + 2 * xPad;
+    this.size_.width = textWidth + arrow + 2 * xPad + 4;
     this.size_.height = height;
     this.positionTextElement_?.(xPad, textWidth);
+    if (this.borderRect_) {
+      this.borderRect_.setAttribute("width", String(this.size_.width));
+      this.borderRect_.setAttribute("height", String(this.size_.height));
+    }
   }
 }
 

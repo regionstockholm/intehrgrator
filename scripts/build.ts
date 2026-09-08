@@ -93,6 +93,22 @@ await esbuild.build({
 
 await copy(join(root, "web", "index.html"), join(outDir, "index.html"), { overwrite: true });
 await copy(join(root, "web", "styles.css"), join(outDir, "styles.css"), { overwrite: true });
+await copy(join(root, "web", "manifest.webmanifest"), join(outDir, "manifest.webmanifest"), {
+  overwrite: true,
+});
+await copy(join(root, "web", "sw.js"), join(outDir, "sw.js"), { overwrite: true });
+{
+  const swPath = join(outDir, "sw.js");
+  const sw = await Deno.readTextFile(swPath);
+  await Deno.writeTextFile(
+    swPath,
+    sw.replace(
+      'const CACHE_NAME = CACHE_PREFIX + (self.registration?.scope ?? "app");',
+      `const CACHE_NAME = CACHE_PREFIX + ${JSON.stringify(buildId)};`,
+    ),
+  );
+}
+await copy(join(root, "web", "icons"), join(outDir, "icons"), { overwrite: true });
 const jssCssDir = join(outDir, "vendor", "jspreadsheet");
 await ensureDir(jssCssDir);
 await copy(

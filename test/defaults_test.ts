@@ -39,9 +39,10 @@ Deno.test("factory Defaults Map seeds UI language once and dummy facility", () =
   assertEquals(byKey.language, "sv");
   assertEquals(byKey.territory, FACTORY_TERRITORY);
   assertEquals(byKey.encoding, FACTORY_ENCODING);
-  assertEquals(byKey.time, "");
-  assertEquals(byKey.composer_name, "");
+  assertEquals(byKey.time, "2026-08-01T09:13:58+02:00");
+  assertEquals(byKey.composer_name, "Dr. Who Demo");
   assertEquals(byKey.health_care_facility, FACTORY_HEALTH_CARE_FACILITY);
+  assertEquals(byKey.subject, "PARTY_SELF");
   assertEquals(factoryDefaultsEntries("de").find((e) => e.key === "language")?.value, "de");
 });
 
@@ -243,6 +244,7 @@ Deno.test("bindDefaultPoints matches COMPOSITION language on a BP OPT", () => {
   assert(bound.some((item) => item.point.mapKey === "territory"));
   assert(bound.some((item) => item.point.mapKey === "encoding" && item.parent.rmType === "OBSERVATION"));
   assert(bound.some((item) => item.point.mapKey === "composer_name"));
+  assert(bound.some((item) => item.point.mapKey === "subject" && item.point.leaf === "party"));
 });
 
 Deno.test("skeleton scaffolding joins an existing Defaults block and plugs language lookup", () => {
@@ -290,6 +292,27 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
       block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "encoding"
     ),
     "expected an encoding Default point lookup",
+  );
+  assert(
+    lookups.some((block) =>
+      block.getFieldValue("NAME") === "defaults" &&
+      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "subject"
+    ),
+    "expected a subject Default point lookup when Defaults Map has subject",
+  );
+  const subjectIndex = [...Array(12).keys()].find((i) =>
+    factoryMap?.getFieldValue(`KEY${i}`) === "subject"
+  );
+  assertExists(subjectIndex);
+  assertEquals(factoryMap?.getInputTargetBlock(`VAL${subjectIndex}`)?.type, "party_self");
+  const partyProxy = workspace.getAllBlocks(false).find((block) =>
+    block.type === "party_proxy" &&
+    block.getInputTargetBlock("KIND")?.type === "maps_get"
+  );
+  assertExists(partyProxy, "subject should keep PARTY_PROXY shell with maps_get in KIND");
+  assertEquals(
+    partyProxy.getInputTargetBlock("KIND")?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"),
+    "subject",
   );
   const derived = workspaceToModelJson(workspace);
   assert(

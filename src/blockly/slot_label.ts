@@ -14,7 +14,6 @@ import {
   isHardToReadRmEmoji,
   rmEmojiFontPx,
   rmTypeConnectionTooltip,
-  RM_EMOJI_FONT_PX,
 } from "./rm_type_emoji.ts";
 import {
   formatSlotCardinality,
@@ -222,10 +221,20 @@ export class FieldSlotLabel extends FieldLabelBase {
     if (abstract && glyph) fullParts.push(glyph);
     else if (concreteGlyph) fullParts.push(concreteGlyph);
     const full = fullParts.join(" ");
-    const px = this.rmType_ ? rmEmojiFontPx(this.rmType_) : RM_EMOJI_FONT_PX;
-    const fontPx = abstract ? Math.max(12, Math.round(px * 0.75)) : 12;
-    this.size_.width = measureCaptionWidth(full, fontPx, abstract);
-    this.size_.height = Math.max(14, fontPx);
+    // Caption body stays 12px; only the type glyph may be larger.
+    const bodyPx = 12;
+    const glyphPx = this.rmType_
+      ? (abstract
+        ? Math.max(bodyPx, Math.round(rmEmojiFontPx(this.rmType_) * 0.75))
+        : isHardToReadRmEmoji(this.rmType_)
+        ? 13
+        : rmEmojiFontPx(this.rmType_))
+      : bodyPx;
+    const glyphExtra = (abstract && glyph) || concreteGlyph
+      ? Math.max(0, glyphPx - bodyPx) * 0.6
+      : 0;
+    this.size_.width = measureCaptionWidth(full, bodyPx, abstract) + Math.ceil(glyphExtra);
+    this.size_.height = Math.max(14, bodyPx, abstract ? glyphPx : bodyPx);
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
     el.setAttribute("dominant-baseline", "central");
@@ -233,8 +242,8 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("y", String(this.size_.height / 2));
     el.setAttribute("text-anchor", "start");
     el.setAttribute("x", "0");
-    el.style.setProperty("font-size", `${fontPx}px`, "important");
-    this.rebuildCaption_(el, card, abstract ? glyph : concreteGlyph, abstract, fontPx);
+    el.style.setProperty("font-size", `${bodyPx}px`, "important");
+    this.rebuildCaption_(el, card, abstract ? glyph : concreteGlyph, abstract, bodyPx, glyphPx);
   }
 
   private rebuildCaption_(
@@ -242,7 +251,8 @@ export class FieldSlotLabel extends FieldLabelBase {
     card: string,
     glyph: string,
     abstractGlyph: boolean,
-    fontPx: number,
+    bodyPx: number,
+    glyphPx: number,
   ): void {
     if (typeof document === "undefined") return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -258,6 +268,7 @@ export class FieldSlotLabel extends FieldLabelBase {
           : "blockly-slot-attr-name",
       );
       tspan.textContent = this.attrLabel;
+      tspan.style.setProperty("font-size", `${bodyPx}px`, "important");
       if (attrHelp) {
         tspan.style.cursor = "pointer";
         // Stop Blockly field mousedown→showEditor_ so attr help does not
@@ -274,7 +285,10 @@ export class FieldSlotLabel extends FieldLabelBase {
       el.appendChild(tspan);
       this.attrTspan_ = tspan;
     }
-    if (card) el.appendChild(document.createTextNode(` ${card}`));
+    if (card) {
+      const cardNode = document.createTextNode(` ${card}`);
+      el.appendChild(cardNode);
+    }
     if (glyph) {
       el.appendChild(document.createTextNode(" "));
       if (abstractGlyph) {
@@ -282,6 +296,7 @@ export class FieldSlotLabel extends FieldLabelBase {
         tspan.setAttribute("class", "blockly-slot-abstract-glyph");
         tspan.textContent = glyph;
         tspan.style.cursor = "pointer";
+        tspan.style.setProperty("font-size", `${glyphPx}px`, "important");
         tspan.addEventListener("mousedown", (event) => event.stopPropagation());
         tspan.addEventListener("click", (event) => {
           event.stopPropagation();
@@ -290,14 +305,14 @@ export class FieldSlotLabel extends FieldLabelBase {
         });
         el.appendChild(tspan);
       } else {
-        el.appendChild(document.createTextNode(glyph));
+        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+        tspan.setAttribute("class", "blockly-slot-type-glyph");
+        tspan.textContent = glyph;
+        tspan.style.setProperty("font-size", `${glyphPx}px`, "important");
+        el.appendChild(tspan);
       }
     }
-    if (this.rmType_ && isHardToReadRmEmoji(this.rmType_) && !abstractGlyph) {
-      el.style.setProperty("font-size", "13px", "important");
-    } else {
-      el.style.setProperty("font-size", `${fontPx}px`, "important");
-    }
+    el.style.setProperty("font-size", `${bodyPx}px`, "important");
   }
 }
 

@@ -1,4 +1,5 @@
 import { Blockly } from "../blockly_core.ts";
+import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import type { BlockSvg } from "blockly/core";
 import {
   TERM_PICK_NONE,
@@ -48,17 +49,9 @@ export function registerTermPickBlock(): void {
           "CODE",
         );
 
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable("CODE_PHRASE"), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
-      if (!this.getField("MANDATORY")) {
-        this.appendDummyInput()
-          .appendField(new Blockly.FieldLabelSerializable(""), "MANDATORY");
-        this.getField("MANDATORY")!.setVisible(false);
-      }
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "RM_TYPE", "CODE_PHRASE");
+      appendHiddenSerializable(this, "MANDATORY", "");
 
       this.setOutput(true, ["CODE_PHRASE", "DV_CODED_TEXT"]);
       this.setColour(TERM_COLOUR);

@@ -74,7 +74,7 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 - **Purpose:** The main workspace where the mapping logic is defined
 - **Default layout:** Vertical split (not tabs):
   - **Top — Blockly canvas:** Nested puzzle-piece blocks representing the openEHR RM structure from the loaded OPT
-  - **Bottom — Mapping Specification:** Block-aligned declarative DSL (not TypeScript). Structure read-only; expressions editable. Synced with Blockly via Mapping Model. See [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md).
+  - **Bottom — Mapping Specification:** Compact **projection** of the Blockly workspace (not pretty-printed JSON, not a custom DSL). One Mapping Spec Widget per semantic row; wrappers with no mapping meaning are omitted. Safe fields (paths, map keys, literals, `text_code`) are editable in the widgets. **Download** / **Upload** still round-trip full Blockly JSON. Synced with Blockly via Mapping Model. See [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) and [ADR 0006](adr/0006-compact-mapping-spec-projection.md).
 - **Blockly toolbox categories:** Source (orange), Literals (green), Logic (brown), Variables (magenta) — colour-coded in the flyout and category rail
 - **Minimap:** Shown when the Blockly workspace content exceeds the visible canvas at the current zoom level, allowing quick navigation in deep templates
 - **Sync pattern reference:** The Blockly ↔ text sync follows patterns demonstrated by [BlockMirror](https://blockpy-edu.github.io/BlockMirror/docs/); the text editor implementation uses [CodeMirror 6](https://codemirror.net/) directly

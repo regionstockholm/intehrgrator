@@ -67,6 +67,7 @@ import {
   detectTargetFormat,
   getTargetFormatHandler,
   reloadTargetLanguage,
+  stripBom,
   type TargetDefinition,
 } from "../core/target/mod.ts";
 import {
@@ -297,8 +298,9 @@ export class WorkbenchController {
   loadTargetContent(
     filename: string,
     content: string,
-    format: TargetFormatId = detectTargetFormat(filename, content),
+    format: TargetFormatId = detectTargetFormat(filename, stripBom(content)),
   ): void {
+    content = stripBom(content);
     if (isTemplateJson(content)) {
       throw new Error(
         "Better .t.json templates need a GitHub blob/raw URL so dependent archetypes can be fetched. Use ▾ → From GitHub template…",

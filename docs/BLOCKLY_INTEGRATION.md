@@ -86,8 +86,10 @@ When the loaded target is `json-schema` or `xml-schema`:
 - **Always-visible drawers:** **JSON** (`json_object`, `json_array`, `json_value`,
   `json_boolean`, `json_null`) and **XML** (`xml_element`, `xml_text`, `xml_attribute`)
   for ad-hoc structure editing outside the loaded schema.
-- **Target schema drawer:** nested categories mirroring the skeleton tree; prefilled
-  `target_structure` / `target_value` blocks carry `SLOT_ID`, label, and schema type.
+- **Target schema drawer:** one flyout level of unique complex types from the
+  loaded schema (no nested tree of parent/child categories). Multiple skeleton
+  roots, if present, each get a single named category. Prefilled `schema_*` /
+  `target_structure` blocks carry `SLOT_ID`, label, and schema type.
 - **Canvas scaffold:** mandatory schema fields only at load; optional fields via the
   `schema_fields_mutator` cogwheel on `target_structure` (same UX family as openEHR
   optional RM mutators). Mapping Model `optionalRm[]` records added optional fields.

@@ -1,9 +1,12 @@
 /**
- * Project Blockly workspace JSON into a dense, line-numbered Mapping Specification.
- * Coordinates and other layout chrome are omitted from the text; kept in `info` for ⓘ.
+ * Project Blockly workspace JSON into a dense Mapping Spec: one line per
+ * semantic row. Layout chrome stays in ⓘ. Passthrough wrappers and nested
+ * same-operator logic trees are elided so mapping meaning stays visible
+ * without Blockly JSON scaffolding.
  */
 
 import { isRmContainerBlockType } from "../../blockly/blocks/rm_blocks.ts";
+import { MAPS_CREATE_WITH, MAPS_GET } from "../../core/defaults/extract.ts";
 
 export type SpecLineKind =
   | "header"
@@ -11,11 +14,43 @@ export type SpecLineKind =
   | "value"
   | "source_query"
   | "dv"
+  | "map_lookup"
+  | "sheet_lookup"
+  | "literal"
+  | "logic"
+  | "text_gen"
   | "other";
 
+export type SpecEditFieldName =
+  | "EXPRESSION"
+  | "RETURN_TYPE"
+  | "TEXT"
+  | "NUM"
+  | "BOOL"
+  | "LANG"
+  | "PATH"
+  | "VAR"
+  | "NAME"
+  | "OP"
+  | `KEY${string}`;
+
+export type SpecEditKind =
+  | "source_path"
+  | "text"
+  | "code"
+  | "compare"
+  | "map_get"
+  | "sheet_lookup"
+  | "number"
+  | "boolean"
+  | "loop"
+  | "none";
+
 export interface SpecEditableField {
-  field: "EXPRESSION" | "RETURN_TYPE";
+  field: SpecEditFieldName;
   value: string;
+  /** Patch this block when it differs from the row's `blockId`. */
+  targetBlockId?: string;
 }
 
 export interface SpecLine {
@@ -23,6 +58,8 @@ export interface SpecLine {
   indent: number;
   /** Stable Blockly block id when this line maps to a block. */
   blockId?: string;
+  /** Skipped wrapper / nested-logic ids that should scroll/highlight this row. */
+  aliasIds?: string[];
   type: string;
   label: string;
   /**
@@ -31,9 +68,17 @@ export interface SpecLine {
    * Statement-chain siblings keep the same name.
    */
   attribute?: string;
+  /** Elided DATA_VALUE / RM shell type, shown as a badge without a wrapper row. */
+  shell?: string;
+  editKind?: SpecEditKind;
   /** One-line summary shown in the widget chrome. */
   summary: string;
   editable?: SpecEditableField[];
+  /**
+   * The attribute label is itself a Blockly field (map KEY, xml_attribute NAME).
+   * Shown as an input in the attribute column.
+   */
+  attributeEdit?: SpecEditableField;
   /** Hidden details for the info balloon (x/y, raw fields, etc.). */
   info: Record<string, unknown>;
 }
@@ -64,43 +109,27 @@ interface BlocklyWorkspaceJson {
 }
 
 const DV_PREFIX = "dv_";
+const COMPARE_OP: Record<string, string> = {
+  EQ: "=",
+  NEQ: "≠",
+  LT: "<",
+  LTE: "≤",
+  GT: ">",
+  GTE: "≥",
+};
 
 export function projectBlocklyState(state: unknown): SpecProjection {
   const lines: SpecLine[] = [];
-  lines.push({
-    kind: "header",
-    indent: 0,
-    type: "header",
-    label: "Mapping Specification",
-    summary: "Blockly projection · layout chrome omitted · ⓘ for details",
-    info: {
-      note: "Canonical state remains ProjectBundle.mapping.blocklyState (includes x/y).",
-    },
-  });
 
   if (state == null || typeof state !== "object") {
-    lines.push({
-      kind: "other",
-      indent: 0,
-      type: "empty",
-      label: "(empty workspace)",
-      summary: "",
-      info: {},
-    });
+    lines.push(emptyLine("(empty workspace)", {}));
     return toProjection(lines);
   }
 
   const workspace = state as BlocklyWorkspaceJson;
   const roots = workspace.blocks?.blocks ?? [];
   if (!roots.length) {
-    lines.push({
-      kind: "other",
-      indent: 0,
-      type: "empty",
-      label: "(no blocks)",
-      summary: "",
-      info: { languageVersion: workspace.blocks?.languageVersion },
-    });
+    lines.push(emptyLine("(no blocks)", { languageVersion: workspace.blocks?.languageVersion }));
     return toProjection(lines);
   }
 
@@ -110,42 +139,649 @@ export function projectBlocklyState(state: unknown): SpecProjection {
   return toProjection(lines);
 }
 
+function emptyLine(label: string, info: Record<string, unknown>): SpecLine {
+  return {
+    kind: "other",
+    indent: 0,
+    type: "empty",
+    label,
+    summary: "",
+    editKind: "none",
+    info,
+  };
+}
+
+function emit(
+  lines: SpecLine[],
+  line: SpecLine,
+  attributeEdit?: SpecEditableField,
+): void {
+  if (attributeEdit) line.attributeEdit = attributeEdit;
+  lines.push(line);
+}
+
+function withAlias(aliases: string[], id: string | undefined): string[] {
+  return id ? [...aliases, id] : aliases;
+}
+
+function pushAlias(aliases: string[], id: string | undefined): void {
+  if (id) aliases.push(id);
+}
+
 function walkBlock(
   block: BlocklyBlockJson,
   indent: number,
   lines: SpecLine[],
   attribute?: string,
+  extraAliases: string[] = [],
+  shell?: string,
+  attributeEdit?: SpecEditableField,
 ): void {
   const type = block.type ?? "unknown";
-  const fields = block.fields ?? {};
-  const kind = classify(type);
-  const label = pickLabel(type, fields);
-  const editable = editableFields(type, fields);
-  const info = collectInfo(block);
-  if (attribute) info.attribute = attribute;
 
-  lines.push({
+  if (type === "xml_text" || type === "json_value" || type === "target_value") {
+    walkInputs(block, indent, lines, attribute, withAlias(extraAliases, idOf(block)), shell, attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "xml_attribute") {
+    const name = stringField(block, "NAME");
+    const attr = name ? `@${name}` : attribute;
+    const value = inputBlock(block, "VALUE");
+    const nameEdit: SpecEditableField | undefined = name
+      ? { field: "NAME", value: name, targetBlockId: idOf(block) }
+      : attributeEdit;
+    if (value) {
+      walkBlock(value, indent, lines, attr, withAlias(extraAliases, idOf(block)), shell, nameEdit);
+    }
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (isDvShell(type) || type === "code_phrase") {
+    walkInputs(block, indent, lines, attribute, withAlias(extraAliases, idOf(block)), shell ?? type, attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === MAPS_CREATE_WITH && !stringField(block, "NAME")) {
+    walkMapEntries(block, indent, lines, withAlias(extraAliases, idOf(block)));
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "logic_operation") {
+    emitLogicOperation(block, indent, lines, attribute, extraAliases, attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "logic_compare") {
+    emit(lines, compareLine(block, indent, attribute, extraAliases), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === MAPS_GET) {
+    emit(lines, mapsGetLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "sheet_lookup") {
+    emit(lines, sheetLookupLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (isSourceQuery(type)) {
+    emit(lines, sourceQueryLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "text" || type === "text_literal") {
+    emit(lines, textLine(block, indent, attribute, extraAliases, shell, "text"), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "text_code") {
+    emit(lines, textLine(block, indent, attribute, extraAliases, shell, "code"), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "math_number" || type === "number_literal") {
+    emit(lines, numberLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "logic_boolean" || type === "boolean_literal") {
+    emit(lines, booleanLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "for_each_source") {
+    emit(lines, loopLine(block, indent, attribute, extraAliases), attributeEdit);
+    walkNamedInputs(block, indent + 1, lines, ["DO"]);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "controls_if") {
+    emit(lines, containerLine(block, indent, attribute, extraAliases, "if"), attributeEdit);
+    walkIfInputs(block, indent + 1, lines);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === MAPS_CREATE_WITH) {
+    emit(
+      lines,
+      containerLine(block, indent, attribute, extraAliases, stringField(block, "NAME") || "map"),
+      attributeEdit,
+    );
+    walkMapEntries(block, indent + 1, lines, extraAliases);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  emit(lines, genericLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+  walkInputs(block, indent + 1, lines);
+  if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+}
+
+function walkInputs(
+  block: BlocklyBlockJson,
+  indent: number,
+  lines: SpecLine[],
+  inheritAttr?: string,
+  extraAliases: string[] = [],
+  shell?: string,
+  attributeEdit?: SpecEditableField,
+): void {
+  if (!block.inputs) return;
+  if (block.type === MAPS_CREATE_WITH) {
+    walkMapEntries(block, indent, lines, extraAliases);
+    return;
+  }
+  for (const [inputName, input] of Object.entries(block.inputs)) {
+    const child = input?.block ?? input?.shadow;
+    if (!child) continue;
+    const attr = slotAttributeFromInputName(inputName) ?? inheritAttr;
+    walkBlock(child, indent, lines, attr, extraAliases, shell, attributeEdit);
+  }
+}
+
+function walkNamedInputs(
+  block: BlocklyBlockJson,
+  indent: number,
+  lines: SpecLine[],
+  names: string[],
+): void {
+  for (const name of names) {
+    const child = inputBlock(block, name);
+    if (!child) continue;
+    walkBlock(child, indent, lines, slotAttributeFromInputName(name) ?? name.toLowerCase());
+  }
+}
+
+function walkMapEntries(
+  block: BlocklyBlockJson,
+  indent: number,
+  lines: SpecLine[],
+  extraAliases: string[],
+): void {
+  const count = mapItemCount(block);
+  for (let i = 0; i < count; i++) {
+    const key = stringField(block, `KEY${i}`) || `key${i}`;
+    const child = inputBlock(block, `VAL${i}`) ?? inputShadow(block, `VAL${i}`);
+    if (!child) continue;
+    const keyEdit: SpecEditableField | undefined = idOf(block)
+      ? { field: `KEY${i}`, value: key, targetBlockId: idOf(block) }
+      : undefined;
+    walkBlock(child, indent, lines, key, extraAliases, undefined, keyEdit);
+  }
+}
+
+function walkIfInputs(block: BlocklyBlockJson, indent: number, lines: SpecLine[]): void {
+  if (!block.inputs) return;
+  const ifKeys = Object.keys(block.inputs)
+    .filter((name) => /^IF\d+$/.test(name))
+    .sort();
+  for (const ifKey of ifKeys) {
+    const n = ifKey.slice(2);
+    const cond = inputBlock(block, ifKey);
+    const body = inputBlock(block, `DO${n}`);
+    const attr = n === "0" ? "when" : `else when ${n}`;
+    if (cond) walkBlock(cond, indent, lines, attr);
+    if (body) walkBlock(body, indent, lines, n === "0" ? "then" : `then ${n}`);
+  }
+  const elseBody = inputBlock(block, "ELSE");
+  if (elseBody) walkBlock(elseBody, indent, lines, "else");
+}
+
+function emitLogicOperation(
+  block: BlocklyBlockJson,
+  indent: number,
+  lines: SpecLine[],
+  attribute: string | undefined,
+  extraAliases: string[],
+  attributeEdit?: SpecEditableField,
+): void {
+  const op = stringField(block, "OP") || "AND";
+  const leaves = flattenSameOp(block, op);
+  const nestedOps = collectSameOpIds(block, op).filter((id) => id !== idOf(block));
+  const aliases = [...extraAliases, ...nestedOps];
+  if (leaves && leaves.length > 1) {
+    emit(lines, {
+      kind: "logic",
+      indent,
+      blockId: idOf(block),
+      aliasIds: aliases.length ? aliases : undefined,
+      type: "logic_operation",
+      label: op.toLowerCase(),
+      attribute,
+      editKind: "none",
+      summary: op === "AND" ? "all of" : op === "OR" ? "any of" : op,
+      info: collectInfo(block),
+    }, attributeEdit);
+    for (const leaf of leaves) {
+      walkBlock(leaf, indent + 1, lines);
+    }
+    return;
+  }
+  emit(lines, genericLine(block, indent, attribute, extraAliases), attributeEdit);
+  walkInputs(block, indent + 1, lines);
+}
+
+function flattenSameOp(block: BlocklyBlockJson, op: string): BlocklyBlockJson[] | null {
+  if (block.type !== "logic_operation") return null;
+  if (stringField(block, "OP") !== op) return null;
+  const a = inputBlock(block, "A");
+  const b = inputBlock(block, "B");
+  if (!a || !b) return null;
+  const left = a.type === "logic_operation" && stringField(a, "OP") === op
+    ? flattenSameOp(a, op) ?? [a]
+    : [a];
+  const right = b.type === "logic_operation" && stringField(b, "OP") === op
+    ? flattenSameOp(b, op) ?? [b]
+    : [b];
+  return [...left, ...right];
+}
+
+function compareLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+): SpecLine {
+  const op = stringField(block, "OP") || "EQ";
+  const a = inputBlock(block, "A");
+  const b = inputBlock(block, "B");
+  const editable: SpecEditableField[] = [
+    { field: "OP", value: op },
+  ];
+  const aliases = [...extraAliases];
+  let left = "?";
+  let right = "?";
+  if (a && isSourceQuery(a.type ?? "")) {
+    const expr = stringField(a, "EXPRESSION");
+    left = expr;
+    editable.unshift({
+      field: "EXPRESSION",
+      value: expr,
+      targetBlockId: idOf(a),
+    });
+    pushAlias(aliases, idOf(a));
+  } else if (a && (a.type === "text" || a.type === "text_literal")) {
+    left = JSON.stringify(stringField(a, "TEXT"));
+    editable.unshift({ field: "TEXT", value: stringField(a, "TEXT"), targetBlockId: idOf(a) });
+    pushAlias(aliases, idOf(a));
+  } else if (a) {
+    left = a.type ?? "?";
+    pushAlias(aliases, idOf(a));
+  }
+  if (b && (b.type === "text" || b.type === "text_literal")) {
+    right = JSON.stringify(stringField(b, "TEXT"));
+    editable.push({ field: "TEXT", value: stringField(b, "TEXT"), targetBlockId: idOf(b) });
+    pushAlias(aliases, idOf(b));
+  } else if (b && isSourceQuery(b.type ?? "")) {
+    right = stringField(b, "EXPRESSION");
+    editable.push({
+      field: "EXPRESSION",
+      value: stringField(b, "EXPRESSION"),
+      targetBlockId: idOf(b),
+    });
+    pushAlias(aliases, idOf(b));
+  } else if (b && (b.type === "math_number" || b.type === "number_literal")) {
+    right = stringField(b, "NUM") || "0";
+    editable.push({ field: "NUM", value: right, targetBlockId: idOf(b) });
+    pushAlias(aliases, idOf(b));
+  } else if (b) {
+    right = b.type ?? "?";
+    pushAlias(aliases, idOf(b));
+  }
+  const symbol = COMPARE_OP[op] ?? op;
+  return {
+    kind: "logic",
+    indent,
+    blockId: idOf(block),
+    aliasIds: aliases.length ? aliases : undefined,
+    type: "logic_compare",
+    label: symbol,
+    attribute,
+    editKind: "compare",
+    summary: `${left} ${symbol} ${right}`,
+    editable,
+    info: collectInfo(block),
+  };
+}
+
+function mapsGetLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const name = stringField(block, "NAME") || "defaults";
+  const keyNode = inputBlock(block, "KEY") ?? inputShadow(block, "KEY");
+  const editable: SpecEditableField[] = [{ field: "NAME", value: name }];
+  const aliases = [...extraAliases];
+  let keyLabel = "?";
+  if (keyNode && (keyNode.type === "text" || keyNode.type === "text_literal")) {
+    keyLabel = stringField(keyNode, "TEXT");
+    editable.push({
+      field: "TEXT",
+      value: keyLabel,
+      targetBlockId: idOf(keyNode),
+    });
+    pushAlias(aliases, idOf(keyNode));
+  } else if (keyNode && isSourceQuery(keyNode.type ?? "")) {
+    keyLabel = stringField(keyNode, "EXPRESSION");
+    editable.push({
+      field: "EXPRESSION",
+      value: keyLabel,
+      targetBlockId: idOf(keyNode),
+    });
+    pushAlias(aliases, idOf(keyNode));
+  } else if (keyNode) {
+    keyLabel = keyNode.type ?? "?";
+    pushAlias(aliases, idOf(keyNode));
+  }
+  return {
+    kind: "map_lookup",
+    indent,
+    blockId: idOf(block),
+    aliasIds: aliases.length ? aliases : undefined,
+    type: MAPS_GET,
+    label: name,
+    attribute,
+    shell,
+    editKind: "map_get",
+    summary: `${name}[${JSON.stringify(keyLabel)}]`,
+    editable,
+    info: collectInfo(block),
+  };
+}
+
+function bindValueInput(
+  node: BlocklyBlockJson | undefined,
+  aliases: string[],
+  editable: SpecEditableField[],
+): string {
+  if (!node) return "?";
+  const id = idOf(node);
+  if (id) aliases.push(id);
+  if (node.type === "text" || node.type === "text_literal") {
+    const text = stringField(node, "TEXT");
+    editable.push({ field: "TEXT", value: text, targetBlockId: id });
+    return text;
+  }
+  if (isSourceQuery(node.type ?? "")) {
+    const expr = stringField(node, "EXPRESSION");
+    editable.push({ field: "EXPRESSION", value: expr, targetBlockId: id });
+    return expr;
+  }
+  if (node.type === "math_number" || node.type === "number_literal") {
+    const num = stringField(node, "NUM") || "0";
+    editable.push({ field: "NUM", value: num, targetBlockId: id });
+    return num;
+  }
+  return node.type ?? "?";
+}
+
+function sheetLookupLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const name = stringField(block, "NAME") || "Sheet1";
+  const aliases = [...extraAliases];
+  const editable: SpecEditableField[] = [{ field: "NAME", value: name }];
+  const matchCol = bindValueInput(
+    inputBlock(block, "MATCH_COL") ?? inputShadow(block, "MATCH_COL"),
+    aliases,
+    editable,
+  );
+  const matchVal = bindValueInput(
+    inputBlock(block, "MATCH_VAL") ?? inputShadow(block, "MATCH_VAL"),
+    aliases,
+    editable,
+  );
+  const returnCol = bindValueInput(
+    inputBlock(block, "RETURN_COL") ?? inputShadow(block, "RETURN_COL"),
+    aliases,
+    editable,
+  );
+  return {
+    kind: "sheet_lookup",
+    indent,
+    blockId: idOf(block),
+    aliasIds: aliases.length ? aliases : undefined,
+    type: "sheet_lookup",
+    label: name,
+    attribute,
+    shell,
+    editKind: "sheet_lookup",
+    summary: `${name}[${matchCol}=${matchVal} → ${returnCol}]`,
+    editable,
+    info: collectInfo(block),
+  };
+}
+
+function sourceQueryLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const type = block.type ?? "source_query";
+  const expr = stringField(block, "EXPRESSION");
+  const ret = sourceReturnType(type, block.fields ?? {});
+  const editable: SpecEditableField[] = [];
+  if (type === "source_query") {
+    editable.push({ field: "RETURN_TYPE", value: ret });
+  }
+  editable.push({ field: "EXPRESSION", value: expr });
+  return {
+    kind: "source_query",
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type,
+    label: expr || type,
+    attribute,
+    shell,
+    editKind: "source_path",
+    summary: `${ret} · ${expr}`,
+    editable,
+    info: collectInfo(block),
+  };
+}
+
+function textLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell: string | undefined,
+  mode: "text" | "code",
+): SpecLine {
+  const text = stringField(block, "TEXT");
+  const lang = stringField(block, "LANG");
+  const editable: SpecEditableField[] = [];
+  if (mode === "code") {
+    editable.push({ field: "LANG", value: lang || "handlebars" });
+  }
+  editable.push({ field: "TEXT", value: text });
+  const firstLine = text.split("\n")[0] ?? "";
+  return {
+    kind: mode === "code" ? "text_gen" : "literal",
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type: block.type ?? "text",
+    label: firstLine || (mode === "code" ? "code" : "text"),
+    attribute,
+    shell,
+    editKind: mode === "code" ? "code" : "text",
+    summary: mode === "code"
+      ? `${lang || "handlebars"} · ${firstLine}${text.includes("\n") ? "…" : ""}`
+      : JSON.stringify(text),
+    editable,
+    info: collectInfo(block),
+  };
+}
+
+function numberLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const num = stringField(block, "NUM") || "0";
+  return {
+    kind: "literal",
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type: block.type ?? "math_number",
+    label: num,
+    attribute,
+    shell,
+    editKind: "number",
+    summary: num,
+    editable: [{ field: "NUM", value: num }],
+    info: collectInfo(block),
+  };
+}
+
+function booleanLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const bool = stringField(block, "BOOL") || "FALSE";
+  return {
+    kind: "literal",
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type: block.type ?? "logic_boolean",
+    label: bool,
+    attribute,
+    shell,
+    editKind: "boolean",
+    summary: bool === "TRUE" ? "true" : "false",
+    editable: [{ field: "BOOL", value: bool }],
+    info: collectInfo(block),
+  };
+}
+
+function loopLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+): SpecLine {
+  const name = stringField(block, "VAR") || "item";
+  const path = stringField(block, "PATH");
+  return {
+    kind: "container",
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type: "for_each_source",
+    label: name,
+    attribute,
+    editKind: "loop",
+    summary: `${name} in ${path}`,
+    editable: [
+      { field: "VAR", value: name },
+      { field: "PATH", value: path },
+    ],
+    info: collectInfo(block),
+  };
+}
+
+function containerLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  label: string,
+): SpecLine {
+  const kind = classify(block.type ?? "");
+  return {
     kind,
     indent,
-    blockId: typeof block.id === "string" ? block.id : undefined,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type: block.type ?? "unknown",
+    label,
+    attribute,
+    editKind: "none",
+    summary: buildContainerSummary(block, label),
+    info: collectInfo(block),
+  };
+}
+
+function genericLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const type = block.type ?? "unknown";
+  const fields = block.fields ?? {};
+  const label = pickLabel(type, fields);
+  const kind = classify(type);
+  return {
+    kind,
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
     type,
     label,
     attribute,
+    shell,
+    editKind: "none",
     summary: buildSummary(kind, type, fields, label),
-    editable: editable.length ? editable : undefined,
-    info,
-  });
-
-  if (block.inputs) {
-    for (const [inputName, input] of Object.entries(block.inputs)) {
-      const child = input?.block ?? input?.shadow;
-      if (!child) continue;
-      walkBlock(child, indent + 1, lines, slotAttributeFromInputName(inputName));
-    }
-  }
-  if (block.next?.block) {
-    walkBlock(block.next.block, indent, lines, attribute);
-  }
+    info: collectInfo(block),
+  };
 }
 
 /**
@@ -153,36 +789,42 @@ function walkBlock(
  * Prefix order matters: `OPTFLD_` before `OPT_`.
  */
 export function slotAttributeFromInputName(inputName: string): string | undefined {
-  const prefixed = inputName.match(/^(?:ATTR_|OPTFLD_|OPT_|FLD_|TARGET_)(.+)$/);
+  const prefixed = inputName.match(/^(?:ATTR_|OPTFLD_|SCHEMA_OPT_|OPT_|FLD_|TARGET_)(.+)$/);
   if (prefixed?.[1]) return prefixed[1];
   if (inputName === "VALUE" || inputName === "MAGNITUDE" || inputName === "KIND") {
     return inputName.toLowerCase();
   }
+  if (/^DO\d*$/.test(inputName) || inputName === "ELSE") return undefined;
+  if (/^IF\d+$/.test(inputName)) return undefined;
+  if (/^VAL\d+$/.test(inputName)) return undefined;
   return undefined;
 }
 
 function classify(type: string): SpecLineKind {
-  if (
-    type === "source_query" ||
-    type === "source_query_number" ||
-    type === "source_query_boolean" ||
-    type === "source_query_node"
-  ) {
-    return "source_query";
-  }
+  if (isSourceQuery(type)) return "source_query";
   if (type === "element" || type === "target_value" || type === "json_value" || type === "xml_text") {
     return "value";
   }
   if (
     type === "target_structure" ||
+    type.startsWith("schema_") ||
     type === "json_object" ||
     type === "json_array" ||
     type === "xml_element" ||
+    type === "defaults_block" ||
+    type === "for_each_source" ||
+    type === "controls_if" ||
+    type === MAPS_CREATE_WITH ||
     isRmContainerBlockType(type)
   ) {
     return "container";
   }
-  if (type.startsWith(DV_PREFIX) || type.startsWith("DV_")) return "dv";
+  if (isDvShell(type)) return "dv";
+  if (type === MAPS_GET) return "map_lookup";
+  if (type === "sheet_lookup") return "sheet_lookup";
+  if (type === "text_code" || type === "text_handlebars") return "text_gen";
+  if (type === "logic_compare" || type === "logic_operation") return "logic";
+  if (type === "text" || type === "math_number" || type === "logic_boolean") return "literal";
   return "other";
 }
 
@@ -196,30 +838,13 @@ function pickLabel(type: string, fields: Record<string, unknown>): string {
   return type;
 }
 
-function editableFields(
-  type: string,
-  fields: Record<string, unknown>,
-): SpecEditableField[] {
-  if (
-    type !== "source_query" &&
-    type !== "source_query_number" &&
-    type !== "source_query_boolean" &&
-    type !== "source_query_node"
-  ) {
-    return [];
-  }
-  const fieldsOut: SpecEditableField[] = [];
-  if (type === "source_query") {
-    fieldsOut.push({
-      field: "RETURN_TYPE",
-      value: typeof fields["RETURN_TYPE"] === "string" ? fields["RETURN_TYPE"] : "string",
-    });
-  }
-  fieldsOut.push({
-    field: "EXPRESSION",
-    value: typeof fields["EXPRESSION"] === "string" ? fields["EXPRESSION"] : "",
-  });
-  return fieldsOut;
+function buildContainerSummary(block: BlocklyBlockJson, label: string): string {
+  const type = block.type ?? "";
+  const rm = stringField(block, "RM_TYPE") || stringField(block, "TARGET_TYPE");
+  const slot = stringField(block, "SLOT_ID");
+  return [label !== type ? label : "", rm && rm !== label ? rm : "", slot ? `slot ${shortSlot(slot)}` : ""]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function buildSummary(
@@ -236,15 +861,7 @@ function buildSummary(
   const slot = typeof fields["SLOT_ID"] === "string" ? fields["SLOT_ID"] : "";
   if (kind === "source_query") {
     const expr = typeof fields["EXPRESSION"] === "string" ? fields["EXPRESSION"] : "";
-    const ret = type === "source_query_number"
-      ? "number"
-      : type === "source_query_boolean"
-      ? "boolean"
-      : type === "source_query_node"
-      ? "node"
-      : typeof fields["RETURN_TYPE"] === "string"
-      ? fields["RETURN_TYPE"]
-      : "string";
+    const ret = sourceReturnType(type, fields);
     return `${ret} · ${expr}`;
   }
   if (kind === "value" || kind === "container" || kind === "dv") {
@@ -253,6 +870,13 @@ function buildSummary(
       .join(" · ");
   }
   return label !== type ? label : "";
+}
+
+function sourceReturnType(type: string, fields: Record<string, unknown>): string {
+  if (type === "source_query_number") return "number";
+  if (type === "source_query_boolean") return "boolean";
+  if (type === "source_query_node") return "node";
+  return typeof fields["RETURN_TYPE"] === "string" ? fields["RETURN_TYPE"] : "string";
 }
 
 function shortSlot(slotId: string): string {
@@ -277,28 +901,20 @@ export interface BlocklyJsonDocument {
   widgets: Array<{ from: number; to: number; line: SpecLine }>;
 }
 
-/** Pretty-printed Blockly JSON plus widget ranges on each block `"type"` line. */
+/** Compact Spec text plus widget ranges, one range per projected line. */
 export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
-  const text = state == null ? "{}" : JSON.stringify(state, null, 2);
-  const specBlocks = projectBlocklyState(state).lines.filter(
-    (line) => line.kind !== "header" && line.type !== "empty",
-  );
+  const projection = projectBlocklyState(state);
+  const text = projection.text;
   const widgets: BlocklyJsonDocument["widgets"] = [];
-  const jsonLines = text.split("\n");
   let offset = 0;
-  let specIdx = 0;
-  for (let i = 0; i < jsonLines.length; i++) {
-    const line = jsonLines[i]!;
+  const rows = text.length ? text.split("\n") : [""];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i]!;
     const from = offset;
-    const to = from + line.length;
-    offset = to + (i < jsonLines.length - 1 ? 1 : 0);
-    if (specIdx < specBlocks.length && /^\s*"type": /.test(line)) {
-      widgets.push({ from, to, line: specBlocks[specIdx]! });
-      specIdx++;
-    }
-  }
-  if (specIdx !== specBlocks.length) {
-    return { text, widgets: [] };
+    const to = from + row.length;
+    offset = to + (i < rows.length - 1 ? 1 : 0);
+    const line = projection.lines[i];
+    if (line) widgets.push({ from, to, line });
   }
   return { text, widgets };
 }
@@ -315,4 +931,61 @@ function toProjection(lines: SpecLine[]): SpecProjection {
     })
     .join("\n");
   return { text, lines };
+}
+
+function isSourceQuery(type: string): boolean {
+  return (
+    type === "source_query" ||
+    type === "source_query_number" ||
+    type === "source_query_boolean" ||
+    type === "source_query_node"
+  );
+}
+
+function isDvShell(type: string): boolean {
+  return type.startsWith(DV_PREFIX) || type.startsWith("DV_");
+}
+
+function stringField(block: BlocklyBlockJson, name: string): string {
+  const value = block.fields?.[name];
+  return typeof value === "string" ? value : "";
+}
+
+function inputBlock(block: BlocklyBlockJson, name: string): BlocklyBlockJson | undefined {
+  return block.inputs?.[name]?.block;
+}
+
+function inputShadow(block: BlocklyBlockJson, name: string): BlocklyBlockJson | undefined {
+  return block.inputs?.[name]?.shadow;
+}
+
+function idOf(block: BlocklyBlockJson): string | undefined {
+  return typeof block.id === "string" ? block.id : undefined;
+}
+
+function collectSameOpIds(block: BlocklyBlockJson, op: string): string[] {
+  const ids: string[] = [];
+  const walk = (node: BlocklyBlockJson | undefined) => {
+    if (!node || node.type !== "logic_operation") return;
+    if (stringField(node, "OP") !== op) return;
+    const id = idOf(node);
+    if (id) ids.push(id);
+    walk(inputBlock(node, "A"));
+    walk(inputBlock(node, "B"));
+  };
+  walk(block);
+  return ids;
+}
+
+function mapItemCount(block: BlocklyBlockJson): number {
+  const extra = block.extraState;
+  if (extra && typeof extra === "object" && extra !== null && "itemCount" in extra) {
+    const n = (extra as { itemCount?: unknown }).itemCount;
+    if (typeof n === "number") return n;
+  }
+  let count = 0;
+  while (block.fields?.[`KEY${count}`] !== undefined || block.inputs?.[`VAL${count}`]) {
+    count++;
+  }
+  return count;
 }

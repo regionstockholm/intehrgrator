@@ -20,11 +20,47 @@ import {
   buildDemoToolbox,
   toolboxBlockTypes,
 } from "@intehrgrator/blockly/toolbox_demo.ts";
+import { msg } from "@intehrgrator/blockly/i18n/custom_msg.ts";
 import { skeletonToolboxSignature } from "@intehrgrator/blockly/schema_catalog.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { MAPS_CREATE_WITH } from "@intehrgrator/core/defaults/mod.ts";
 import "blockly/blocks";
+
+type ToolboxItem = { kind?: string; name?: string; contents?: unknown[]; type?: string };
+
+function findTargetSchemaCategory(toolbox: unknown): ToolboxItem | undefined {
+  const walk = (item: unknown): ToolboxItem | undefined => {
+    if (!item || typeof item !== "object") return undefined;
+    const rec = item as ToolboxItem;
+    if (rec.kind === "category" && rec.name === msg("en").CAT_TARGET_SCHEMA) return rec;
+    if (Array.isArray(rec.contents)) {
+      for (const child of rec.contents) {
+        const found = walk(child);
+        if (found) return found;
+      }
+    }
+    return undefined;
+  };
+  return walk(toolbox);
+}
+
+/** Nested category depth below this node (0 = flyout of blocks only). */
+function nestedCategoryDepth(item: ToolboxItem): number {
+  const children = (item.contents ?? []).filter((child): child is ToolboxItem =>
+    Boolean(child) && typeof child === "object"
+  );
+  const categories = children.filter((child) => child.kind === "category");
+  if (!categories.length) return 0;
+  return 1 + Math.max(...categories.map((child) => nestedCategoryDepth(child)));
+}
+
+function schemaRoot(workspace: Blockly.Workspace, inputName: string) {
+  return workspace.getAllBlocks(false).find((block) =>
+    (block.type === "target_structure" || block.type.startsWith("schema_")) &&
+    Boolean(block.getInput(inputName))
+  );
+}
 
 const schema = JSON.stringify({
   $id: "patient-summary",
@@ -50,9 +86,10 @@ Deno.test("JSON Schema scaffold shows mandatory fields only", () => {
     "en",
     "json-schema",
   );
-  const root = workspace.getAllBlocks(false).find((block) => block.type === "target_structure");
-  assert(root, "expected a target_structure root");
-  assert(root.getInput("TARGET_name"), "mandatory name mouth should scaffold");
+  const root = schemaRoot(workspace, "TARGET_name");
+  assert(root, "expected a schema structure root");
+  assert(root.getInput("TARGET_name"), "mandatory name value slot should scaffold");
+  assertEquals(root.getInput("TARGET_name")?.type, 1, "name should be a puzzle-piece value slot");
   assertEquals(root.getInput("TARGET_age"), null, "optional age should not scaffold");
   assertEquals(root.getInput("TARGET_note"), null, "optional note should not scaffold");
   workspace.dispose();
@@ -71,14 +108,17 @@ Deno.test("schema mutator adds optional field and syncs optionalRm model path", 
     "en",
     "json-schema",
   );
-  const root = workspace.getAllBlocks(false).find((block) => block.type === "target_structure");
+  const root = schemaRoot(workspace, "TARGET_name");
   assert(root);
   composeSchemaOptionalFields(root!, ["age"]);
-  assert(root!.getInput(schemaOptionalInputName("age")), "mutator should open SCHEMA_OPT_age mouth");
+  const ageInput = root!.getInput(schemaOptionalInputName("age"));
+  assert(ageInput, "mutator should open SCHEMA_OPT_age value slot");
+  assertEquals(ageInput.type, 1, "optional primitive age should be a value slot, not a mouth");
   attachOptionalSchemaChild(workspace, root!, "age");
-  assert(
-    root!.getInput(schemaOptionalInputName("age"))?.connection?.targetBlock(),
-    "optional age child should attach",
+  assertEquals(
+    ageInput.connection?.targetBlock(),
+    null,
+    "optional primitive should stay an empty parent slot, not a wrapper block",
   );
   workspace.dispose();
 });
@@ -104,27 +144,51 @@ Deno.test("createEmptyMapBlock has zero entries", () => {
   workspace.dispose();
 });
 
-Deno.test("schema toolbox nests loaded target drawer under schema root", () => {
+Deno.test("schema toolbox lists unique complex types in one flyout level", () => {
   const target = getTargetFormatHandler("json-schema").load("summary.json", schema);
   const toolbox = buildDemoToolbox("en", {
     targetFormat: "json-schema",
     skeleton: target.skeleton,
   });
   const types = toolboxBlockTypes(toolbox);
-  assert(types.includes("target_structure"));
+  assert(types.some((type) => type === "target_structure" || type.startsWith("schema_")));
   assert(types.includes("target_value"));
-  const nestedCategory = (item: unknown): boolean => {
-    if (!item || typeof item !== "object") return false;
-    const rec = item as { kind?: string; contents?: unknown[] };
-    if (rec.kind === "category" && Array.isArray(rec.contents)) {
-      if (rec.contents.some((child) => {
-        const c = child as { kind?: string };
-        return c.kind === "category" || c.kind === "block";
-      })) return true;
-    }
-    return Array.isArray(rec.contents) && rec.contents.some(nestedCategory);
-  };
-  assert(nestedCategory(toolbox), "target schema drawer should nest categories/blocks");
+  const targetSchema = findTargetSchemaCategory(toolbox);
+  assert(targetSchema, "Target schema drawer should exist");
+  assertEquals(
+    nestedCategoryDepth(targetSchema),
+    0,
+    "single-schema drawer must be a flat flyout, not a folding tree",
+  );
+});
+
+Deno.test("TakeCare Target schema toolbox is one flat unique-type list", async () => {
+  const xsd = await Deno.readTextFile(
+    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  );
+  const target = getTargetFormatHandler("xml-schema").load(
+    "TakeCare-CasenoteWrite-edit01.xsd",
+    xsd,
+  );
+  const toolbox = buildDemoToolbox("en", {
+    targetFormat: "xml-schema",
+    skeleton: target.skeleton,
+  });
+  const targetSchema = findTargetSchemaCategory(toolbox);
+  assert(targetSchema, "Target schema drawer should exist");
+  assertEquals(
+    nestedCategoryDepth(targetSchema),
+    0,
+    "TakeCare types must not nest Keywords/TextKeywords/UserKeywords as extra categories",
+  );
+  const types = (targetSchema.contents ?? []).map((item) =>
+    (item as { type?: string }).type
+  );
+  assert(types.includes("schema_ProfdocHISMessage"));
+  assert(types.includes("schema_TextKeyWord"));
+  assert(types.includes("schema_UserKeyword"));
+  assertEquals(types.filter((type) => type === "schema_TextKeyWord").length, 1);
+  assertEquals(types.includes("xml_element"), false);
 });
 
 Deno.test("skeletonToolboxSignature changes when skeleton structure changes", () => {
@@ -180,10 +244,9 @@ Deno.test("dummy-json-vitals fixture keeps mandatory vitals scaffold", async () 
     "en",
     "json-schema",
   );
-  const root = workspace.getAllBlocks(false).find((block) =>
-    block.type === "target_structure" && Boolean(block.getInput("TARGET_systolic"))
-  );
+  const root = schemaRoot(workspace, "TARGET_systolic");
   assert(root, "systolic/diastolic mandatory slots should scaffold");
+  assertEquals(root!.getInput("TARGET_systolic")?.type, 1, "systolic should be a value slot");
   assertEquals(root!.getInput("TARGET_unit"), null, "optional unit should stay off canvas");
   workspace.dispose();
 });

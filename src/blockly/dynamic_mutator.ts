@@ -258,6 +258,16 @@ export class DynamicFlyoutMutatorIcon extends MutatorIcon {
     return getCogwheelAnchorLocation(this.sourceBlock as BlockSvg);
   }
 
+  /**
+   * Header cogwheel is the visible control. A non-zero mutator icon size
+   * indents the class emoji/title away from the top-left corner.
+   */
+  override getSize(): Blockly.utils.Size {
+    const Size = Blockly.utils?.Size;
+    if (Size) return new Size(0, 0);
+    return { width: 0, height: 0 } as Blockly.utils.Size;
+  }
+
   override setBubbleVisible(visible: boolean): Promise<void> {
     const block = this.sourceBlock as BlockSvg;
     const self = this as unknown as Record<string, unknown>;

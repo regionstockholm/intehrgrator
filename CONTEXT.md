@@ -168,12 +168,16 @@ Optional RM types attachable via Optional RM Insertion (cogwheel mutator / conte
 _Avoid_: Primer-only RM list, toolbox free-build of LOCATABLE extras, library-level attachment picker API
 
 **Mapping Specification**:
-Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`), shown in the Mapping Editor Blockly JSON tab with **line numbers**. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. Dense recurring constructs are rendered via CodeMirror widgets; structure stays Blockly-owned. See `docs/MAPPING_SPECIFICATION.md` and ADR 0001.
+Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. Optional **Blockly Function**s are reusable fragments of that tree, not a sequential script. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, and ADR 0006.
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
+**Blockly Function**:
+A stock Blockly procedure (Functions drawer): a definition block plus call sites. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function.
+_Avoid_: TypeScript/Java export function, Conversion script, custom DSL subroutine
+
 **Mapping Spec Widget**:
-A CodeMirror decoration that collapses a common Blockly JSON construct into a compact, mostly read-only chrome row. v1 covers skeleton containers, value slots, `source_query`, and `DV_*` shells (stock logic/loop widgets later). When the block fills a named RM/DV attribute slot, the attribute name (`language`, `magnitude`, `value`, …) is shown at the start of the row. Only **safe fields** on the widget are editable (e.g. dropdown choices, variable/expression text inputs); rearranging block structure, ids, and coordinates is not done by typing raw JSON. Layout chrome such as `x`/`y` is omitted from the Spec projection by default; an **info** control (encircled *i*) reveals those details in a tooltip-like balloon. Full Blockly JSON including coordinates remains in the Project Bundle for exact restore. A widget whose Blockly block has a **Constraint warning** shows the same yellow warning triangle.
-_Avoid_: Free-form JSON editing of the whole workspace, custom DSL, treating the Spec view as the persistence format byte-for-byte
+One projected row in the Mapping Spec tab: a compact, indented view of one semantic mapping (source path, map lookup, sheet lookup, literal, text generation, flattened condition, or container). Safe Blockly fields are editable in the row (paths, map keys, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT). Wrappers that do not change mapping meaning (`xml_text`, `DV_*` shells, unnamed maps) are omitted; their Blockly ids stay on the visible row. Download/Upload still round-trip the **full Blockly JSON document**.
+_Avoid_: JSON fragment, custom DSL, treating the Spec view as the persistence format
 
 **Mapping Model**:
 Derived semantic index (`templateId`, `targetFormat`, `slotId`, `rmType`, `expression`, optional RM insertions). Rebuilt from Blockly JSON on workspace change; used by validation, AI suggestion import, codegen, and Test Run. Does **not** include Conversion script language.
@@ -185,7 +189,7 @@ _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
 **Sync Scope**:
-Blockly workspace JSON (canonical structure) ⇄ Mapping Spec widgets for safe field edits only → Mapping Model slots[] (derived index) → codegen / Test Run. Widget edits patch the corresponding Blockly fields and regenerate the Model; canvas / Click-to-Map / AI structural changes rewrite the Spec view. Canvas undo/redo is the single history: spec widget edits, Click-to-Map, and cogwheel add/remove are Blockly events (grouped per user action). Open template / Example Sets / Load Project / New project restore a document snapshot; Save / Export do not push undo steps. v1 safe edits: Mapping Expression text on `source_query` (and equivalent expression blocks). Structure, Optional RM Insertion, ids, and coordinates are Blockly-only. Raw free-typing of block tree JSON is not the intended authoring path. Center CodeMirror is **not** Generated Export.
+Blockly workspace JSON (canonical structure) ⇄ Mapping Spec widgets for **safe field edits** (source paths, map name/key, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT) → Mapping Model slots[] (derived index) → codegen / Test Run. The compact projection is not persisted; Download/Upload keep **full Blockly JSON**. Structure, Optional RM Insertion, ids, and coordinates stay Blockly-only. Canvas undo/redo is the single history. Center CodeMirror is **not** Generated Export.
 _Avoid_: Full handwritten Blockly JSON as primary editor, custom DSL as middle language
 
 **Web Shell**:

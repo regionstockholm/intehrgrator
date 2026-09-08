@@ -4,7 +4,8 @@
  */
 import type { Block } from "blockly/core";
 import { isUnmappedValueBlock } from "./block_constraints.ts";
-import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
+import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
+import { schemaSlotIdForInput } from "./schema_blocks.ts";
 import {
   expressionBlockFromDataValueShell,
   isDataValueBlock,
@@ -25,11 +26,20 @@ export type ListeningTarget =
 
 export function owningValueSlotId(block: Block): string | null {
   let current: Block | null = block;
+  let child: Block | null = null;
   while (current) {
     if (current.type === "element" || isGenericValueBlockType(current.type)) {
       const slotId = current.getFieldValue("SLOT_ID");
       return slotId || null;
     }
+    if (isSchemaStructureBlock(current) && child) {
+      const input = current.inputList.find((item) => item.connection?.targetBlock() === child);
+      if (input) {
+        const slotId = schemaSlotIdForInput(current, input.name);
+        if (slotId) return slotId;
+      }
+    }
+    child = current;
     current = current.getParent();
   }
   return null;

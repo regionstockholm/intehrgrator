@@ -21,6 +21,7 @@ import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
 import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
+import { assignSchemaBlockTypes } from "./schema_block_ids.ts";
 
 export interface TargetDefinition {
   format: TargetFormatId;
@@ -71,13 +72,15 @@ export function listTargetFormatIds(): TargetFormatId[] {
 }
 
 export function detectTargetFormat(filename: string, content = ""): TargetFormatId {
+  content = stripBom(content);
   const lower = filename.toLowerCase();
   if (/\.(hbs|handlebars|txt|md|html|csv)$/.test(lower)) return "free-form";
   if (lower.endsWith(".xsd")) return "xml-schema";
   if (/\.(opt|opt2|adl|adls|t\.json)$/.test(lower)) return "openehr-template";
   if (lower.endsWith(".xml")) {
-    return /<(?:\w+:)?schema\b/.test(content) ? "xml-schema" : "openehr-template";
+    return isXmlSchemaDocument(content) ? "xml-schema" : "openehr-template";
   }
+  if (isXmlSchemaDocument(content)) return "xml-schema";
   if (lower.endsWith(".json") || content.trimStart().startsWith("{")) {
     try {
       if (isWebTemplateJson(JSON.parse(content) as unknown)) return "openehr-template";
@@ -87,6 +90,10 @@ export function detectTargetFormat(filename: string, content = ""): TargetFormat
     return "json-schema";
   }
   return "free-form";
+}
+
+function isXmlSchemaDocument(content: string): boolean {
+  return /<(?:\w+:)?schema\b/.test(content) && /XMLSchema/i.test(content);
 }
 
 /** Reload an existing target definition with a different ontology/documentation language. */
@@ -156,19 +163,25 @@ registerTargetFormatHandler({
 registerTargetFormatHandler({
   id: "json-schema",
   load(filename, content) {
+    content = stripBom(content);
     const document = JSON.parse(content) as Record<string, unknown>;
     const targetId = typeof document.$id === "string"
       ? document.$id
       : typeof document.title === "string"
       ? document.title
       : stripExtension(filename);
-    const tree = loadJsonSchema(content, targetId);
+    const displayName = typeof document.title === "string" && document.title.trim()
+      ? document.title.trim()
+      : stripExtension(filename);
+    const tree = loadJsonSchema(content, displayName);
+    const root = schemaTreeToSkeleton(tree, targetId, "json-schema", true);
+    assignSchemaBlockTypes(root);
     return {
       format: "json-schema",
       filename,
       targetId,
       content,
-      skeleton: [schemaTreeToSkeleton(tree, targetId, "json-schema", true)],
+      skeleton: [root],
     };
   },
   render({ definition, slotValues }) {
@@ -181,6 +194,7 @@ registerTargetFormatHandler({
   id: "xml-schema",
   load(filename, content, options) {
     const parsed = parseXmlSchema(content, stripExtension(filename), options?.language);
+    assignSchemaBlockTypes(parsed.root);
     return {
       format: "xml-schema",
       filename,
@@ -218,7 +232,7 @@ function schemaTreeToSkeleton(
   node: SchemaTreeNode,
   targetId: string,
   format: TargetFormatId,
-  root = false,
+  _root = false,
 ): SkeletonNode {
   const children = node.children.map((child) =>
     schemaTreeToSkeleton(child, targetId, format)
@@ -232,13 +246,18 @@ function schemaTreeToSkeleton(
     blockType: kind === "container" ? "target_structure" : "target_value",
     rmType: node.type,
     label: node.name,
-    rmAttribute: root ? undefined : node.name.replace(/\[\*\]$/, ""),
+    rmAttribute: node.name.replace(/\[\*\]$/, ""),
     kind,
     mandatory: node.multiplicity === "1" || node.multiplicity === "1..*",
     multiplicity: node.multiplicity,
+    slotCardinality: node.multiplicity,
     ...(node.description ? { documentation: node.description } : {}),
     children,
   };
+}
+
+export function stripBom(text: string): string {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
 }
 
 function parseXmlSchema(content: string, fallbackId: string, preferredLang?: string): {
@@ -252,7 +271,7 @@ function parseXmlSchema(content: string, fallbackId: string, preferredLang?: str
     attributeNamePrefix: "@",
     removeNSPrefix: true,
   });
-  const document = parser.parse(content) as Record<string, unknown>;
+  const document = parser.parse(stripBom(content).replace(/^\uFEFF/, "")) as Record<string, unknown>;
   const schema = asRecord(document.schema);
   if (!schema) throw new Error("Invalid XML Schema: missing xs:schema");
   const languages = collectXmlSchemaLanguages(schema);
@@ -340,30 +359,90 @@ function xsdElementToSkeleton(
   const complex = asRecord(element.complexType);
   const sequence = asRecord(complex?.sequence) ?? asRecord(complex?.all) ??
     asRecord(complex?.choice);
-  const childElements = arrayOf(sequence?.element);
-  const children = childElements.map((child) => {
-    const childName = stringAttr(child, "@name") || typeLocalName(stringAttr(child, "@ref")) || "element";
+  const childElements = arrayOf(sequence?.element).map((child) => {
+    const childName = stringAttr(child, "@name") || typeLocalName(stringAttr(child, "@ref")) ||
+      "element";
     return xsdElementToSkeleton(child, childName, `${path}/${childName}`, false, language);
   });
-  const min = Number(stringAttr(element, "@minOccurs") || (root ? "1" : "1"));
-  const maxToken = stringAttr(element, "@maxOccurs") || "1";
-  const max = maxToken === "unbounded" ? null : Number(maxToken);
-  const multiplicity = max === 1 ? (min > 0 ? "1" : "0..1") : (min > 0 ? "1..*" : "0..*");
+  const attributes = xsdAttributesToSkeleton(complex, path, language);
+  const children = [...attributes, ...childElements];
+  const { min, multiplicity } = xsdOccurs(element, root);
+  const type = xsdDeclaredType(element) || (complex ? "complexType" : "string");
   const kind = children.length || complex ? "container" : "value";
-  const type = typeLocalName(stringAttr(element, "@type")) || (kind === "container" ? "complexType" : "string");
-  return {
+  const node: SkeletonNode = {
     slotId: `${root ? name : path}:${path}`,
     targetPath: path,
     blockType: kind === "container" ? "target_structure" : "target_value",
     rmType: type,
     label,
-    rmAttribute: root ? undefined : name,
+    rmAttribute: name,
     kind,
     mandatory: min > 0,
     multiplicity,
+    slotCardinality: multiplicity,
+    xmlKind: "element",
     ...(documentation ? { documentation } : {}),
     children,
   };
+  const fixed = stringAttr(element, "@fixed") || stringAttr(element, "@default");
+  if (fixed) node.fixedValue = fixed;
+  return node;
+}
+
+function xsdAttributesToSkeleton(
+  complex: Record<string, unknown> | null,
+  parentPath: string,
+  language?: string,
+): SkeletonNode[] {
+  if (!complex) return [];
+  return arrayOf(complex.attribute).map((attr) => {
+    const name = stringAttr(attr, "@name") || "attr";
+    const use = stringAttr(attr, "@use") || "optional";
+    const type = xsdDeclaredType(attr) || "string";
+    const fixed = stringAttr(attr, "@fixed") || stringAttr(attr, "@default");
+    const required = use === "required" || Boolean(fixed);
+    const multiplicity = required ? "1" : "0..1";
+    const path = `${parentPath}/@${name}`;
+    const documentation = xsdDocumentationLabel(attr, language);
+    const node: SkeletonNode = {
+      slotId: `${path}:${path}`,
+      targetPath: path,
+      blockType: "target_value",
+      rmType: type,
+      label: documentation || name,
+      rmAttribute: name,
+      kind: "value",
+      mandatory: required,
+      multiplicity,
+      slotCardinality: multiplicity,
+      xmlKind: "attribute",
+      ...(documentation ? { documentation } : {}),
+      children: [],
+    };
+    if (fixed) node.fixedValue = fixed;
+    return node;
+  });
+}
+
+function xsdDeclaredType(element: Record<string, unknown>): string {
+  const named = typeLocalName(stringAttr(element, "@type"));
+  if (named) return named;
+  const simple = asRecord(element.simpleType);
+  const restriction = asRecord(simple?.restriction);
+  return typeLocalName(stringAttr(restriction, "@base"));
+}
+
+function xsdOccurs(
+  element: Record<string, unknown>,
+  root: boolean,
+): { min: number; max: number | null; multiplicity: string } {
+  const min = Number(stringAttr(element, "@minOccurs") || (root ? "1" : "1"));
+  const maxToken = stringAttr(element, "@maxOccurs") || "1";
+  const max = maxToken === "unbounded" ? null : Number(maxToken);
+  const multiplicity = max === 1
+    ? (min > 0 ? "1" : "0..1")
+    : (min > 0 ? "1..*" : "0..*");
+  return { min, max, multiplicity };
 }
 
 function renderGenericNode(
@@ -485,13 +564,25 @@ function renderXmlNode(
   node: SkeletonNode,
   values: Readonly<Record<string, unknown>>,
 ): string {
+  if (node.xmlKind === "attribute") return "";
   const name = xmlName(xmlTagName(node));
   if (node.kind === "value") {
     const value = values[node.slotId] ?? fixedValue(node);
     return value === undefined ? "" : `<${name}>${escapeXml(String(value))}</${name}>`;
   }
-  const body = node.children.map((child) => renderXmlNode(child, values)).join("");
-  return `<${name}>${body}</${name}>`;
+  const attrParts: string[] = [];
+  const bodyParts: string[] = [];
+  for (const child of node.children) {
+    if (child.xmlKind === "attribute") {
+      const value = values[child.slotId] ?? fixedValue(child);
+      if (value === undefined) continue;
+      attrParts.push(` ${xmlName(child.rmAttribute ?? child.label)}="${escapeXml(String(value))}"`);
+      continue;
+    }
+    bodyParts.push(renderXmlNode(child, values));
+  }
+  const body = bodyParts.join("");
+  return `<${name}${attrParts.join("")}>${body}</${name}>`;
 }
 
 function xmlTagName(node: SkeletonNode): string {

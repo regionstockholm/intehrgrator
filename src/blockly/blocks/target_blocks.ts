@@ -1,15 +1,17 @@
 import { Blockly } from "../blockly_core.ts";
 import type { Block } from "blockly/core";
 import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
+import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import { findSkeletonNode } from "../schema_catalog.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
+import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
 const TARGET_VALUE_COLOUR = "#6B7280";
 const JSON_COLOUR = "#D97706";
 const XML_COLOUR = "#0284C7";
-const TARGET_CHILD_PREFIX = "TARGET_";
+export const TARGET_CHILD_PREFIX = "TARGET_";
 
 export const JSON_BLOCK_TYPES = ["json_object", "json_array", "json_value", "json_boolean", "json_null"] as const;
 export const XML_BLOCK_TYPES = ["xml_element", "xml_text", "xml_attribute"] as const;
@@ -21,6 +23,33 @@ export const GENERIC_VALUE_BLOCK_TYPES = [
   "xml_text",
   "xml_attribute",
 ] as const;
+
+export function ensureSchemaStructureType(typeId: string, colour = TARGET_STRUCTURE_COLOUR): void {
+  defineStructureBlock(typeId, typeId.replace(/^schema_/, "") || "schema", colour, typeId, {
+    withSchemaMutator: true,
+  });
+}
+
+export function applySchemaConnectionMode(
+  block: Block,
+  mode: "statement" | "value",
+  typeCheck: string,
+): void {
+  if (mode === "value") {
+    if (block.previousConnection?.isConnected()) block.previousConnection.disconnect();
+    if (block.nextConnection?.isConnected()) block.nextConnection.disconnect();
+    block.setPreviousStatement(false);
+    block.setNextStatement(false);
+    block.setOutput(true, typeCheck);
+  } else {
+    if (block.outputConnection?.isConnected()) block.outputConnection.disconnect();
+    block.setOutput(false);
+    block.setPreviousStatement(true, typeCheck);
+    block.setNextStatement(true, typeCheck);
+  }
+  (block as Block & { schemaConnectionMode_?: string }).schemaConnectionMode_ = mode;
+  (block as Block & { schemaTypeCheck_?: string }).schemaTypeCheck_ = typeCheck;
+}
 
 export function registerTargetBlocks(): void {
   registerSchemaFieldsMutator();
@@ -42,6 +71,10 @@ export function registerTargetBlocks(): void {
   });
   defineValueBlock("xml_text", "XML text", XML_COLOUR, "Generic XML text node");
   defineXmlAttribute();
+}
+
+export function isSchemaStructureBlock(block: { type: string }): boolean {
+  return block.type === "target_structure" || block.type.startsWith("schema_");
 }
 
 export function isGenericValueBlockType(type: string): boolean {
@@ -71,13 +104,11 @@ function defineStructureBlock(
       } else {
         header.appendField(new FieldSkeletonTitle("", defaultName), "NAME");
       }
-      header.appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
-      this.getField("TARGET_TYPE")?.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")?.setVisible(false);
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
+      appendHiddenSerializable(this, "SLOT_ID", "");
       if (defaultChildGroup) {
         this.appendStatementInput(targetChildInputName(defaultChildGroup))
+          .setAlign(inputAlignRight())
           .appendField(defaultChildGroup);
       }
       this.setPreviousStatement(true);
@@ -131,14 +162,11 @@ function defineValueBlock(
   Blockly.Blocks[type] = {
     init: function (this: Block) {
       this.appendDummyInput("HEADER")
-        .appendField(new FieldSkeletonTitle("", defaultName), "NAME")
-        .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
-      this.getField("TARGET_TYPE")?.setVisible(false);
+        .appendField(new FieldSkeletonTitle("", defaultName), "NAME");
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
       this.appendValueInput("VALUE").setCheck(null).appendField("value");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")?.setVisible(false);
-      appendHiddenTargetMandatory(this);
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
@@ -154,14 +182,11 @@ function defineXmlAttribute(): void {
     init: function (this: Block) {
       this.appendDummyInput("HEADER")
         .appendField("XML attr")
-        .appendField(new Blockly.FieldTextInput("attr"), "NAME")
-        .appendField(new Blockly.FieldLabelSerializable(""), "TARGET_TYPE");
-      this.getField("TARGET_TYPE")?.setVisible(false);
+        .appendField(new Blockly.FieldTextInput("attr"), "NAME");
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
       this.appendValueInput("VALUE").setCheck(null).appendField("value");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")?.setVisible(false);
-      appendHiddenTargetMandatory(this);
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(XML_COLOUR);
@@ -171,11 +196,35 @@ function defineXmlAttribute(): void {
   };
 }
 
-function appendHiddenTargetMandatory(block: Block): void {
-  if (block.getField("MANDATORY")) return;
-  block.appendDummyInput()
-    .appendField(new Blockly.FieldLabelSerializable(""), "MANDATORY");
-  block.getField("MANDATORY")?.setVisible(false);
+/** Blockly Align.RIGHT — attribute captions sit just left of their mouth. */
+function inputAlignRight(): number {
+  return (Blockly.inputs?.Align?.RIGHT ?? 1) as number;
+}
+
+export function appendSchemaFieldInput(
+  block: Block,
+  field: SchemaInputSpec,
+  inputName: string,
+): void {
+  const input = field.kind === "value"
+    ? block.appendValueInput(inputName)
+    : block.appendStatementInput(inputName);
+  input.setAlign(inputAlignRight());
+  if (field.check) input.setCheck(field.check);
+  appendSlotLabel(input, field.name, {
+    card: field.card,
+    documentation: field.documentation,
+    rmType: field.childBlockType,
+  });
+}
+
+export function syncSchemaFieldInputs(block: Block, fields: SchemaInputSpec[]): void {
+  for (const input of [...block.inputList]) {
+    if (input.name.startsWith(TARGET_CHILD_PREFIX)) block.removeInput(input.name);
+  }
+  for (const field of fields) {
+    appendSchemaFieldInput(block, field, targetChildInputName(field.name));
+  }
 }
 
 export function syncTargetChildInputs(
@@ -187,7 +236,8 @@ export function syncTargetChildInputs(
   }
   const docs = schemaChildDocumentation(block);
   for (const group of childGroups) {
-    const input = block.appendStatementInput(targetChildInputName(group));
+    const input = block.appendStatementInput(targetChildInputName(group))
+      .setAlign(inputAlignRight());
     appendSlotLabel(input, group, { documentation: docs.get(group) });
   }
 }

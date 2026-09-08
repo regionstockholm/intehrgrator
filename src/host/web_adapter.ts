@@ -66,7 +66,8 @@ export class WebHostAdapter implements HostAdapter {
       return handle ? await handle.getFile() : null;
     } catch (err) {
       if (isAbortError(err)) return null;
-      throw err;
+      // Windows IFileDialog can reject unusual MIME groupings; fall back to <input>.
+      return undefined;
     }
   }
 
@@ -231,7 +232,7 @@ export class WebHostAdapter implements HostAdapter {
   async fetchTextUrl(url: string): Promise<PickedTextFile> {
     const fetchable = toFetchableUrl(url, location.href);
     assertHttpUrl(fetchable);
-    const response = await fetch(fetchable);
+    const response = await fetch(fetchable, { cache: "no-store" });
     if (!response.ok) {
       throw new Error(`Could not load ${fetchable} (${response.status} ${response.statusText})`);
     }

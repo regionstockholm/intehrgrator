@@ -4,6 +4,7 @@ export {
   listTargetFormatIds,
   registerTargetFormatHandler,
   reloadTargetLanguage,
+  stripBom,
   type TargetDefinition,
   type TargetFormatHandler,
   type TargetLoadOptions,

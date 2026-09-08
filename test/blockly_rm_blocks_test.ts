@@ -126,6 +126,76 @@ Deno.test("orderedRmAttributes puts mandatory RM attrs first", () => {
   );
 });
 
+/** Dummy inputs with no connection sit as empty rows in Thrasos. */
+function dummyRowsAfterHeader(block: Blockly.Block): number {
+  const inputs = block.inputList;
+  const headerIdx = inputs.findIndex((input) => input.name === "HEADER");
+  const start = headerIdx >= 0 ? headerIdx + 1 : 0;
+  let n = 0;
+  for (let i = start; i < inputs.length; i++) {
+    const input = inputs[i]!;
+    if (input.connection) break;
+    n++;
+  }
+  return n;
+}
+
+function inputNames(block: Blockly.Block): string {
+  return block.inputList.map((input) => input.name || "(dummy)").join(",");
+}
+
+Deno.test("hidden metadata is not extra dummy rows under HEADER", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+
+  const phrase = workspace.newBlock("code_phrase");
+  assertEquals(
+    dummyRowsAfterHeader(phrase),
+    0,
+    `code_phrase extra dummy rows, inputs=${inputNames(phrase)}`,
+  );
+  assert(phrase.getField("SLOT_ID"), "code_phrase keeps SLOT_ID");
+  assertEquals(phrase.getFieldValue("RM_TYPE"), "CODE_PHRASE");
+  phrase.setFieldValue("slot/encoding", "SLOT_ID");
+  const saved = Blockly.serialization.blocks.save(phrase) as {
+    fields?: Record<string, string>;
+  };
+  assertEquals(saved.fields?.SLOT_ID, "slot/encoding");
+
+  const qty = workspace.newBlock("dv_quantity");
+  assertEquals(
+    dummyRowsAfterHeader(qty),
+    0,
+    `dv_quantity extra dummy rows, inputs=${inputNames(qty)}`,
+  );
+
+  const obs = workspace.newBlock("observation");
+  syncRmAttributeInputs(obs, "OBSERVATION", ["data", "encoding", "language"]);
+  assertEquals(
+    dummyRowsAfterHeader(obs),
+    0,
+    `observation extra dummy rows after sync, inputs=${inputNames(obs)}`,
+  );
+  const header = obs.getInput("HEADER");
+  assertEquals(header?.fieldRow[0]?.name, BLOCK_OUT_EMOJI_FIELD);
+
+  const element = workspace.newBlock("element");
+  assertEquals(
+    dummyRowsAfterHeader(element),
+    0,
+    `element extra dummy rows, inputs=${inputNames(element)}`,
+  );
+
+  const pick = workspace.newBlock("term_pick");
+  assertEquals(
+    dummyRowsAfterHeader(pick),
+    0,
+    `term_pick extra dummy rows, inputs=${inputNames(pick)}`,
+  );
+
+  workspace.dispose();
+});
+
 Deno.test("syncRmAttributeInputs labels statement mouths with RM attribute names", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();

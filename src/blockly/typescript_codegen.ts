@@ -18,7 +18,8 @@ import {
   isEventFamilyType,
   isItemStructureFamilyType,
 } from "./blocks/rm_blocks.ts";
-import { isGenericValueBlockType } from "./blocks/target_blocks.ts";
+import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
+import { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { DEFAULTS_BLOCK_TYPE } from "../core/defaults/extract.ts";
@@ -52,7 +53,11 @@ export function registerTypeScriptExportAdapter(): void {
     mime: "text/typescript",
     generate(model, options) {
       if (options?.blocklyState) {
-        const fromCanvas = generateTypeScriptFromBlocklyState(options.blocklyState, model);
+        const fromCanvas = generateTypeScriptFromBlocklyState(
+          options.blocklyState,
+          model,
+          options.skeleton,
+        );
         if (fromCanvas) return fromCanvas;
       }
       if (options?.skeleton?.length) {
@@ -66,6 +71,7 @@ export function registerTypeScriptExportAdapter(): void {
 export function generateTypeScriptFromBlocklyState(
   state: unknown,
   model: MappingModel,
+  skeleton?: import("../types/mod.ts").SkeletonNode[],
 ): string | null {
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
@@ -74,6 +80,7 @@ export function generateTypeScriptFromBlocklyState(
     migrateMapsCreateWithJson(snapshot);
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
+      if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
       Blockly.serialization.workspaces.load(snapshot, workspace);
       generated = generateTypeScriptFromWorkspace(workspace, model);
     });
@@ -110,7 +117,7 @@ export function generateTypeScriptFromWorkspace(
     }
   } else if (model.targetFormat && model.targetFormat !== "openehr-template") {
     const generic = roots.find((block) =>
-      block.type === "target_structure" || block.type === "json_object"
+      isSchemaStructureBlock(block) || block.type === "json_object" || block.type === "xml_element"
     );
     if (generic) {
       body = `return ${emitGeneric(generic, ctx, 0)};`;
@@ -158,7 +165,7 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
     return emitRmContainer(block, ctx, indent);
   }
   if (isDataValueBlock(block)) return emitDvShell(block, ctx, indent);
-  if (isGenericValueBlockType(block.type) || block.type === "target_structure") {
+  if (isGenericValueBlockType(block.type) || isSchemaStructureBlock(block)) {
     return emitGeneric(block, ctx, indent);
   }
   return "undefined";
@@ -464,10 +471,17 @@ function emitGeneric(block: Block, ctx: TsEmitContext, indent: number): string {
   }
   const props: Array<[string, string]> = [];
   for (const input of block.inputList) {
-    if (!input.name.startsWith("TARGET_")) continue;
-    const attr = input.name.slice("TARGET_".length);
-    const code = emitStatementList(block.getInputTargetBlock(input.name), true, ctx, indent);
-    if (code) props.push([attr, code]);
+    if (!input.name.startsWith("TARGET_") && !input.name.startsWith("SCHEMA_OPT_")) continue;
+    const attr = input.name.replace(/^TARGET_|^SCHEMA_OPT_/, "");
+    if (input.type === STATEMENT_INPUT_TYPE) {
+      const code = emitStatementList(block.getInputTargetBlock(input.name), true, ctx, indent);
+      if (code) props.push([attr, code]);
+      continue;
+    }
+    const child = block.getInputTargetBlock(input.name);
+    if (!child) continue;
+    const code = emitBlock(child, ctx, indent + 1);
+    if (!isBlankGeneratedExpr(code)) props.push([attr, code]);
   }
   const name = String(block.getFieldValue("NAME") ?? "").trim();
   if (name && !props.length) return JSON.stringify(name);

@@ -31,9 +31,11 @@ jobs:
       - run: deno task vendor
       - run: deno task test
       - run: deno task build
+      - name: Preserve frozen release versions on GitHub Pages
+        run: deno run -A scripts/assemble-pages.ts main dist dist-pages
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
-          path: dist
+          path: dist-pages
       - id: deployment
         uses: actions/deploy-pages@v5

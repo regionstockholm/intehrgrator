@@ -43,6 +43,13 @@ deno task dev      # serve dist/ on http://localhost:5173
 
 The Web Shell is published on every push to `main` via the **Deploy GitHub Pages** workflow (also runnable manually from Actions). Ensure **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
 
+Bleeding-edge builds stay at the site root. Each desktop release from `deno task release` also publishes an immutable copy under a version subdirectory (for example `https://regionstockholm.github.io/intehrgrator/v0.5/`). Available frozen versions are listed in [`versions.json`](https://regionstockholm.github.io/intehrgrator/versions.json) on the live site.
+
+```bash
+deno task release -- --version 0.6.0   # bump, tag, push; Actions publishes desktop + Pages /v0.6/
+deno task release -- --current         # tag the version already in deno.json
+```
+
 CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, so upstream module moves fail tests instead of shipping against a stale pin.
 
 Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.

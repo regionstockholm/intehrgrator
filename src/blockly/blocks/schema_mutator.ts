@@ -12,8 +12,16 @@ import {
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
 import { applyMutatorItemLabel } from "./rm_blocks.ts";
-import { appendSlotLabel } from "../slot_label.ts";
-import { presentTargetFieldNames, syncTargetChildInputs, targetChildInputName } from "./target_blocks.ts";
+import {
+  appendSchemaFieldInput,
+  applySchemaConnectionMode,
+  presentTargetFieldNames,
+  syncSchemaFieldInputs,
+  syncTargetChildInputs,
+  targetChildInputName,
+} from "./target_blocks.ts";
+import { specForChild, type SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
+import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 
 const TARGET_CHILD_PREFIX = "TARGET_";
 
@@ -21,24 +29,6 @@ export const SCHEMA_FIELDS_MUTATOR = "schema_fields_mutator";
 export const SCHEMA_MUTATOR_CONTAINER = "schema_fields_mutator_container";
 export const SCHEMA_MUTATOR_ITEM = "schema_fields_mutator_item";
 const SCHEMA_OPTIONAL_PREFIX = "SCHEMA_OPT_";
-
-/** Serializable ATTR that does not contribute to block layout size. */
-function zeroSizeAttrField(value: string) {
-  const field = new Blockly.FieldLabelSerializable(value);
-  field.EDITABLE = false;
-  field.SERIALIZABLE = true;
-  field.initView = () => {};
-  const sized = field as unknown as {
-    size_?: { width: number; height: number };
-    getSize?: () => { width: number; height: number };
-  };
-  if (sized.size_) {
-    sized.size_.width = 0;
-    sized.size_.height = 0;
-  }
-  sized.getSize = () => ({ width: 0, height: 0 });
-  return field;
-}
 
 export type SchemaMutatorChange = {
   parent: Block;
@@ -68,15 +58,63 @@ function targetChildGroups(block: Block): string[] {
     .map((input) => input.name.slice(TARGET_CHILD_PREFIX.length));
 }
 
+function optionalChildrenOf(block: Block): ReturnType<typeof optionalSchemaChildren> {
+  const slotId = String(block.getFieldValue("SLOT_ID") ?? "");
+  return optionalSchemaChildren(slotId, block.type);
+}
+
+function specForOptionalExtra(block: Block, name: string): SchemaInputSpec {
+  const stored = (block.schemaOptionalSpecs_ ?? []).find((spec) => spec.name === name);
+  if (stored) return stored;
+  const child = optionalChildrenOf(block)
+    .find((node) => (node.rmAttribute ?? node.label) === name);
+  if (child) return specForChild(child);
+  const input = block.getInput(schemaOptionalInputName(name));
+  if (input) {
+    return {
+      name,
+      kind: input.type === 1 ? "value" : "statement",
+      check: input.connection?.getCheck() ?? null,
+      slotId: "",
+    };
+  }
+  return { name, kind: "value", check: null, slotId: "" };
+}
+
 function restoreTargetStructureState(
   block: Block,
-  state: { childGroups?: string[]; extras?: string[]; attrs?: string[] } | null,
+  state: {
+    childGroups?: string[];
+    extras?: string[];
+    attrs?: string[];
+    fields?: SchemaInputSpec[];
+    optionalFields?: SchemaInputSpec[];
+    connection?: "statement" | "value";
+    typeCheck?: string;
+    xmlAttributes?: string[];
+  } | null,
 ): void {
-  const childGroups = Array.isArray(state?.childGroups)
-    ? state!.childGroups!.filter((group) => typeof group === "string" && group.length > 0)
-    : [];
-  syncTargetChildInputs(block, childGroups);
+  if (state?.typeCheck) {
+    applySchemaConnectionMode(
+      block,
+      state.connection ?? "statement",
+      state.typeCheck,
+    );
+  }
+  if (state?.fields?.length) {
+    (block as Block & { schemaFields_?: SchemaInputSpec[] }).schemaFields_ = state.fields;
+    (block as Block & { schemaXmlAttributes_?: string[] }).schemaXmlAttributes_ =
+      state.xmlAttributes ??
+        state.fields.filter((field) => field.xmlKind === "attribute").map((field) => field.name);
+    syncSchemaFieldInputs(block, state.fields);
+  } else {
+    const childGroups = Array.isArray(state?.childGroups)
+      ? state!.childGroups!.filter((group) => typeof group === "string" && group.length > 0)
+      : [];
+    syncTargetChildInputs(block, childGroups);
+  }
   block.schemaExtraFields_ = Array.isArray(state?.extras) ? state!.extras! : [];
+  block.schemaOptionalSpecs_ = Array.isArray(state?.optionalFields) ? state!.optionalFields! : [];
   block.updateSchemaFields_?.();
 }
 
@@ -96,7 +134,7 @@ function defineSchemaMutatorQuarks(): void {
       init: function (this: Block) {
         this.appendDummyInput()
           .appendField(new Blockly.FieldLabelSerializable(""), "LABEL")
-          .appendField(zeroSizeAttrField(""), "ATTR");
+          .appendField(createHiddenSerializableField(""), "ATTR");
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour("#4B5563");
@@ -111,9 +149,8 @@ function defineSchemaMutatorQuarks(): void {
 }
 
 function schemaMutatorChoices(block: Block): Array<[string, string]> {
-  const slotId = String(block.getFieldValue("SLOT_ID") ?? "");
   const present = new Set(presentTargetFieldNames(block));
-  return optionalSchemaChildren(slotId)
+  return optionalChildrenOf(block)
     .filter((child) => !present.has(child.rmAttribute ?? child.label))
     .map((child) => {
       const name = child.rmAttribute ?? child.label;
@@ -182,18 +219,42 @@ export function registerSchemaFieldsMutator(): void {
         restoreTargetStructureState(this, { childGroups, extras: this.schemaExtraFields_ });
       },
       saveExtraState: function (this: Block) {
-        const childGroups = targetChildGroups(this);
         const extras = this.schemaExtraFields_ ?? [];
-        const payload = {
-          childGroups,
+        const fields = (this as Block & { schemaFields_?: SchemaInputSpec[] }).schemaFields_;
+        const optionalFields = extras.map((name) => specForOptionalExtra(this, name));
+        this.schemaOptionalSpecs_ = optionalFields;
+        const payload: Record<string, unknown> = {
           extras,
           attrs: presentTargetFieldNames(this),
         };
-        return childGroups.length || extras.length ? payload : null;
+        if (fields?.length) payload.fields = fields;
+        else {
+          const childGroups = targetChildGroups(this);
+          if (childGroups.length) payload.childGroups = childGroups;
+        }
+        if (optionalFields.length) payload.optionalFields = optionalFields;
+        const connection = (this as Block & { schemaConnectionMode_?: string }).schemaConnectionMode_;
+        const typeCheck = (this as Block & { schemaTypeCheck_?: string }).schemaTypeCheck_;
+        if (connection) payload.connection = connection;
+        if (typeCheck) payload.typeCheck = typeCheck;
+        const xmlAttributes = (this as Block & { schemaXmlAttributes_?: string[] }).schemaXmlAttributes_;
+        if (xmlAttributes?.length) payload.xmlAttributes = xmlAttributes;
+        return extras.length || fields?.length || payload.childGroups || typeCheck
+          ? payload
+          : null;
       },
       loadExtraState: function (
         this: Block,
-        state: { childGroups?: string[]; extras?: string[]; attrs?: string[] } | string | null,
+        state: {
+          childGroups?: string[];
+          extras?: string[];
+          attrs?: string[];
+          fields?: SchemaInputSpec[];
+          optionalFields?: SchemaInputSpec[];
+          connection?: "statement" | "value";
+          typeCheck?: string;
+          xmlAttributes?: string[];
+        } | string | null,
       ) {
         if (state == null || state === "") {
           restoreTargetStructureState(this, null);
@@ -248,18 +309,8 @@ export function registerSchemaFieldsMutator(): void {
             this.removeInput(input.name);
           }
         }
-        const slotId = String(this.getFieldValue("SLOT_ID") ?? "");
-        const docs = new Map(
-          optionalSchemaChildren(slotId)
-            .filter((child) => child.documentation?.trim())
-            .map((child) => [
-              child.rmAttribute ?? child.label,
-              child.documentation!.trim(),
-            ]),
-        );
         for (const name of this.schemaExtraFields_ ?? []) {
-          const input = this.appendStatementInput(schemaOptionalInputName(name));
-          appendSlotLabel(input, name, { documentation: docs.get(name) });
+          appendSchemaFieldInput(this, specForOptionalExtra(this, name), schemaOptionalInputName(name));
         }
       },
     },
@@ -272,6 +323,7 @@ export function registerSchemaFieldsMutator(): void {
 declare module "blockly/core" {
   interface Block {
     schemaExtraFields_?: string[];
+    schemaOptionalSpecs_?: SchemaInputSpec[];
     updateSchemaFields_?: () => void;
   }
 }

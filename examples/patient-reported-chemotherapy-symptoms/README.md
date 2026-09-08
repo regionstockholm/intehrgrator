@@ -1,41 +1,61 @@
 # Patient-Reported Chemotherapy Symptoms — Mapping Example
 
-This example models a simplified version of a production Go template mapping
-script that converts openEHR FLAT JSON (from the
-*Patientrapporterade symptom inför medicinsk onkologisk behandling* template)
+This example rebuilds the production Go template mapping script
+(`mapping/Mappningsscript 1.9.1 - PROD.txt`) that converts openEHR FLAT JSON
+(from *Patientrapporterade symptom inför medicinsk onkologisk behandling*)
 into TakeCare `ProfdocHISMessage` XML.
+
+The Blockly mapping uses **schema-generated TakeCare blocks**
+(`schema_ProfdocHISMessage`, `schema_TextKeyWord`, `schema_NumericKeyword`, …)
+from `examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic
+`xml_element` blocks. Complex `<Note>` bodies stay as `text_code`
+(LANG=`go-template`) copied from the production script, including
+`{{ template "cleanAndQuoteFreeTextInput" … }}`.
 
 ## Contents
 
 | File | Description |
 |------|-------------|
-| `mapping/mapping.blockly.json` | Blockly workspace JSON representing the mapping logic |
+| `mapping/mapping.blockly.json` | Blockly workspace (TakeCare schema blocks) |
+| `mapping/Mappningsscript 1.9.1 - PROD.txt` | Original Go template production script |
+| `mapping/Mappningsscript 1.9.1 - XC.txt` | XC variant of the same script |
+| `defaults.map.json` | Envelope parameters (`PatId`, `UserId`, `Time`, `TemplateId`, …) |
+| `source-instance/*.txt` | openEHR FLAT composition examples |
+| `../TakeCare/TakeCare-CasenoteWrite-edit01.xsd` | Canonical target schema |
 
 ## What the mapping does
 
-1. Emits a `<ProfdocHISMessage>` envelope with header fields (`PatId`,
-   `UserId`, `EventTime`, `Signer`, `TemplateId`, etc.) sourced from the
-   Defaults Map (runtime parameters).
-2. Inside `<Keywords>/<TextKeywords>`, conditionally emits `<TextKeyWord>`
-   elements for each symptom section where the patient answered something
-   other than "Nej":
-   - **Trötthet (Fatigue)** — TermId 2811
-   - **Andning (Breathing)** — TermId 1830
-   - **Hjärta-kärl (Cardiovascular)** — TermId 6298
-3. Always emits a `<TextKeyWord>` with TermId 13700 carrying the composition
-   `_uid` as the document identifier.
+1. Emits the `cleanAndQuoteFreeTextInput` Go `define` (used by several notes).
+2. Emits a `<ProfdocHISMessage>` envelope with header fields from the Defaults
+   Map. `TemplateType` is the literal `1`; optional `Signed` is `0`.
+3. If the patient answered **Nej** (or aptit/matintag code `3`) on **every**
+   screening question, emits a single `<TextKeyWord>` TermId **16183**
+   (“Patienten rapporterar inga symptom.”).
+4. Otherwise emits per-symptom `<TextKeyWord>` elements with the production
+   TermIds, outer `if`, and Note templates:
 
-The production script covers all 16 symptom sections; this example includes
-the first three to demonstrate the repeating conditional pattern without
-excessive size.
+   | TermId | Section |
+   |--------|---------|
+   | 2811 | Fatigue (`ne` “Nej”, follow-up only when “Ja”) |
+   | 1830 | Andning |
+   | 6298 | Hjärta-kärl |
+   | 7643 | Svullnad |
+   | 207 | Hud |
+   | 7570 | Naglar |
+   | 1921 | Klåda |
+   | 2018 | Mun/svalg |
+   | 5464 | Aptit/matintag (omitted only when both codes are `3`) |
+   | 1908 | Illamående |
+   | 1875 | Elimination (diarré / förstoppning) |
+   | 2008 | Smärta |
+   | 2310 | Sinnesintryck |
 
-## Block types used
+5. If any of the three general follow-up questions is not “Nej”, emits TermId
+   **14768** (patient comments).
+6. Always emits TermId **13700** with the composition `_uid`.
+7. If fever or weight-change is “Ja”, emits `<NumericKeywords>`:
+   TermId **2025** (temperature) and/or **3484** (weight).
 
-- `xml_element` — XML output nodes (editable tag name + children)
-- `xml_text` — text nodes; value may be `source_query`, `maps_get`, `text`, or `text_code` (Go Template)
-- `xml_attribute` — attributes on the parent `xml_element`
-- `source_query` — FLAT path lookups against openEHR data
-- `maps_get` — retrieval from the Defaults Map (maps to `{{ .Parameters.X }}`)
-- `controls_if` — conditional emission
-- `logic_compare` — NEQ comparison against "Nej"
-- `text` — literal string values
+Regenerate after schema-block or PROD-script changes:
+
+`deno run -A scripts/build-chemo-symptoms-blockly.ts`

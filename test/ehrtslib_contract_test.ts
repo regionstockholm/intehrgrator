@@ -44,6 +44,17 @@ import {
 const bpOpt = await Deno.readTextFile(
   join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
 );
+const constrainOpt = await Deno.readTextFile(
+  join(
+    import.meta.dirname!,
+    "..",
+    "vendor",
+    "ehrtslib",
+    "test_data",
+    "opt14",
+    "constrain_test.opt",
+  ),
+);
 const differentialTemplateJson = await Deno.readTextFile(
   join(
     import.meta.dirname!,
@@ -125,3 +136,52 @@ Deno.test("OptXmlSerializer emits C_ARCHETYPE_ROOT and per-root term_definitions
   assertStringIncludes(xml, "openEHR-EHR-CLUSTER.sample_device.v1");
   assertStringIncludes(xml, "Manufacturer details");
 });
+
+/** Regression guard for ErikSundvall/ehrtslib#79 — no local vendor patch. */
+Deno.test("OPT XML parse keeps C_DV_ORDINAL.list value+symbol (upstream #79)", () => {
+  const parsed = parseTemplateInput(constrainOpt);
+  assert(parsed.operationalTemplate, "expected operational template");
+  const ordinal = findAmNode(
+    parsed.operationalTemplate.definition as AmWalkNode | undefined,
+    (n) =>
+      (n.rm_type_name === "DV_ORDINAL" || n.rm_type_name === "DV_SCALE") &&
+      Array.isArray(n.list) &&
+      n.list.length > 0,
+  );
+  assert(ordinal, "expected a C_ORDINAL / C_DV_ORDINAL with list[]");
+  const first = ordinal.list![0] as {
+    value?: number;
+    symbol?: { code_string?: string; terminology_id?: { value?: string } | string };
+  };
+  assert(typeof first.value === "number", "ordinal list item needs numeric value");
+  assert(
+    typeof first.symbol?.code_string === "string" && first.symbol.code_string.length > 0,
+    "ordinal list item needs symbol.code_string",
+  );
+});
+
+type AmWalkNode = {
+  rm_type_name?: string;
+  list?: unknown[];
+  attributes?: Array<{ children?: AmWalkNode | AmWalkNode[] }>;
+  children?: AmWalkNode | AmWalkNode[];
+};
+
+function findAmNode(
+  node: AmWalkNode | undefined,
+  pred: (n: AmWalkNode) => boolean,
+): AmWalkNode | undefined {
+  if (!node) return undefined;
+  if (pred(node)) return node;
+  for (const attr of asArray(node.attributes)) {
+    for (const child of asArray(attr.children)) {
+      const hit = findAmNode(child, pred);
+      if (hit) return hit;
+    }
+  }
+  for (const child of asArray(node.children)) {
+    const hit = findAmNode(child, pred);
+    if (hit) return hit;
+  }
+  return undefined;
+}

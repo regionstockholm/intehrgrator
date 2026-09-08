@@ -82,7 +82,10 @@ Deno.test("schema scaffold wires documentation onto title and slot labels", () =
       "en",
       "json-schema",
     );
-    const root = workspace.getAllBlocks(false).find((b) => b.type === "target_structure");
+    const root = workspace.getAllBlocks(false).find((b) =>
+      (b.type === "target_structure" || b.type.startsWith("schema_")) &&
+      Boolean(b.getInput("TARGET_givenName"))
+    );
     assert(root);
     const title = root.getField("NAME");
     assert(isSkeletonTitleField(title));

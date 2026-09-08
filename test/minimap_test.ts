@@ -79,7 +79,8 @@ Deno.test("copyWorkspaceState round-trips JSON Schema target_structure children"
   loadSkeletonIntoWorkspace(primary, target.skeleton, createEmptyModel(target.targetId));
   assert(
     primary.getAllBlocks(false).some((block) =>
-      block.type === "target_structure" && Boolean(block.getInput("TARGET_systolic"))
+      (block.type === "target_structure" || block.type.startsWith("schema_")) &&
+      Boolean(block.getInput("TARGET_systolic"))
     ),
     "primary skeleton should expose TARGET_systolic",
   );
@@ -87,9 +88,10 @@ Deno.test("copyWorkspaceState round-trips JSON Schema target_structure children"
   assertEquals(blockTypes(mini), blockTypes(primary));
   assert(
     mini.getAllBlocks(false).some((block) =>
-      block.type === "target_structure" && Boolean(block.getInput("TARGET_systolic"))
+      (block.type === "target_structure" || block.type.startsWith("schema_")) &&
+      Boolean(block.getInput("TARGET_systolic"))
     ),
-    "minimap copy should keep TARGET_systolic mouths",
+    "minimap copy should keep TARGET_systolic slots",
   );
   primary.dispose();
   mini.dispose();

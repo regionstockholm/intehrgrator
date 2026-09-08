@@ -14,8 +14,9 @@ permissions:
   id-token: write
 
 concurrency:
+  # Share the group with release.yml; never cancel an in-flight release Pages deploy.
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   deploy:

@@ -52,6 +52,13 @@ export async function fetchVersionsManifest(baseUrl: string): Promise<VersionsMa
   }
 }
 
+/** Path segments under the host in `baseUrl` (e.g. intehrgrator → 1). */
+export function pagesRepoPathDepth(baseUrl: string): number {
+  const path = new URL(baseUrl).pathname.replace(/^\/+|\/+$/g, "");
+  if (!path) return 0;
+  return path.split("/").filter(Boolean).length;
+}
+
 async function runWget(args: string[]): Promise<void> {
   const status = await new Deno.Command("wget", {
     args,
@@ -65,7 +72,7 @@ async function runWget(args: string[]): Promise<void> {
 }
 
 /** Flatten wget output when it nests under the final URL path segment. */
-async function flattenWgetNest(dest: string, nestedName: string): Promise<void> {
+export async function flattenWgetNest(dest: string, nestedName: string): Promise<void> {
   const nested = join(dest, nestedName);
   try {
     await Deno.stat(nested);
@@ -82,15 +89,33 @@ async function flattenWgetNest(dest: string, nestedName: string): Promise<void> 
   await Deno.remove(nested, { recursive: true });
 }
 
+export async function versionHasIndex(root: string, tag: string): Promise<boolean> {
+  try {
+    const st = await Deno.stat(join(root, tag, "index.html"));
+    return st.isFile;
+  } catch {
+    return false;
+  }
+}
+
 /** Mirror the live Pages site (root + frozen versions) into dest. */
 export async function mirrorLiveSite(baseUrl: string, dest: string): Promise<void> {
   await emptyDir(dest);
   await ensureDir(dest);
-  await runWget(["-q", "-r", "-np", "-nH", "-P", dest, `${baseUrl}/`]);
-  await flattenWgetNest(dest, "intehrgrator");
+  const cut = pagesRepoPathDepth(baseUrl);
+  const args = ["-q", "-r", "-np", "-nH"];
+  if (cut > 0) args.push(`--cut-dirs=${cut}`);
+  args.push("-P", dest, `${baseUrl}/`);
+  await runWget(args);
+  // Older mirrors / alternate wget layouts may still nest under the repo segment.
+  const repoSeg = new URL(baseUrl).pathname.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean).pop();
+  if (repoSeg) await flattenWgetNest(dest, repoSeg);
 }
 
-/** Mirror a single frozen version subdirectory from the live Pages site. */
+/**
+ * Mirror a single frozen version subdirectory from the live Pages site.
+ * Fails if `index.html` is missing so we never publish empty `/vX.Y/` dirs.
+ */
 export async function mirrorVersionSubdir(
   baseUrl: string,
   tag: string,
@@ -99,8 +124,20 @@ export async function mirrorVersionSubdir(
   const dest = join(destRoot, tag);
   await emptyDir(dest);
   await ensureDir(dest);
-  await runWget(["-q", "-r", "-np", "-nH", "-P", dest, `${baseUrl}/${tag}/`]);
+  // URL path is /<repo>/<tag>/… — cut both so files land directly in dest/.
+  const cut = pagesRepoPathDepth(baseUrl) + 1;
+  const args = ["-q", "-r", "-np", "-nH", `--cut-dirs=${cut}`, "-P", dest, `${baseUrl}/${tag}/`];
+  await runWget(args);
+  // Belt-and-suspenders for layouts that still nest.
+  const repoSeg = new URL(baseUrl).pathname.replace(/^\/+|\/+$/g, "").split("/").filter(Boolean).pop();
+  if (repoSeg) await flattenWgetNest(dest, repoSeg);
   await flattenWgetNest(dest, tag);
+
+  if (!(await versionHasIndex(destRoot, tag))) {
+    throw new Error(
+      `Failed to mirror frozen Pages version /${tag}/ — index.html missing after wget`,
+    );
+  }
 }
 
 async function copyDistContents(src: string, dest: string): Promise<void> {
@@ -110,6 +147,7 @@ async function copyDistContents(src: string, dest: string): Promise<void> {
 
 /**
  * Main-branch deploy: publish bleeding-edge root and keep frozen version subdirs.
+ * Versions that cannot be mirrored are dropped from the manifest (never publish empty dirs).
  */
 export async function assembleMainPagesSite(opts: {
   baseUrl: string;
@@ -119,11 +157,27 @@ export async function assembleMainPagesSite(opts: {
   await emptyDir(opts.outDir);
   await copyDistContents(opts.rootDist, opts.outDir);
 
-  const manifest = await fetchVersionsManifest(opts.baseUrl);
-  for (const tag of manifest.versions) {
-    await mirrorVersionSubdir(opts.baseUrl, tag, opts.outDir);
+  const listed = await fetchVersionsManifest(opts.baseUrl);
+  const preserved: string[] = [];
+  for (const tag of listed.versions) {
+    try {
+      await mirrorVersionSubdir(opts.baseUrl, tag, opts.outDir);
+      preserved.push(tag);
+    } catch (error) {
+      console.warn(
+        `Dropping frozen Pages version ${tag}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      try {
+        await Deno.remove(join(opts.outDir, tag), { recursive: true });
+      } catch {
+        // ignore cleanup errors
+      }
+    }
   }
 
+  const manifest = normalizeManifest({ versions: preserved });
   await writeVersionsManifest(join(opts.outDir, VERSIONS_MANIFEST), manifest);
   return manifest;
 }
@@ -137,8 +191,8 @@ export async function assembleReleasePagesSite(opts: {
   versionDist: string;
   outDir: string;
 }): Promise<VersionsManifest> {
-  const manifest = await fetchVersionsManifest(opts.baseUrl);
-  if (manifest.versions.includes(opts.versionTag)) {
+  const listed = await fetchVersionsManifest(opts.baseUrl);
+  if (listed.versions.includes(opts.versionTag)) {
     throw new Error(
       `GitHub Pages version ${opts.versionTag} already exists — release web builds are immutable`,
     );
@@ -146,19 +200,44 @@ export async function assembleReleasePagesSite(opts: {
 
   await mirrorLiveSite(opts.baseUrl, opts.outDir);
 
-  try {
-    await Deno.stat(join(opts.outDir, opts.versionTag));
+  // Keep only frozen versions that actually mirrored with an index.html.
+  const preserved: string[] = [];
+  for (const tag of listed.versions) {
+    if (await versionHasIndex(opts.outDir, tag)) {
+      preserved.push(tag);
+      continue;
+    }
+    // Root wget often does not recurse into unlinked version dirs — fetch each explicitly.
+    try {
+      await mirrorVersionSubdir(opts.baseUrl, tag, opts.outDir);
+      preserved.push(tag);
+    } catch (error) {
+      console.warn(
+        `Not preserving missing frozen Pages version ${tag}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      try {
+        await Deno.remove(join(opts.outDir, tag), { recursive: true });
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  if (await versionHasIndex(opts.outDir, opts.versionTag)) {
     throw new Error(
       `GitHub Pages path /${opts.versionTag}/ already exists — release web builds are immutable`,
     );
-  } catch (error) {
-    if (!(error instanceof Deno.errors.NotFound)) throw error;
   }
 
   await copyDistContents(opts.versionDist, join(opts.outDir, opts.versionTag));
+  if (!(await versionHasIndex(opts.outDir, opts.versionTag))) {
+    throw new Error(`Release dist for ${opts.versionTag} is missing index.html`);
+  }
 
   const next: VersionsManifest = {
-    versions: normalizeManifest({ versions: [...manifest.versions, opts.versionTag] }).versions,
+    versions: normalizeManifest({ versions: [...preserved, opts.versionTag] }).versions,
   };
   await writeVersionsManifest(join(opts.outDir, VERSIONS_MANIFEST), next);
   return next;

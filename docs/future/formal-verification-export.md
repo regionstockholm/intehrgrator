@@ -391,9 +391,13 @@ rules; JSON-LD / SHACL / description-logic approaches want a fixed target schema
 ### Proposed direction: Verifiable Mapping Subset (VMS)
 
 **Do not implement codegen / Mapping Model coverage for hostile stock Blockly.**
-Prefer **removing those blocks from the toolbox** (see GitHub issue on
-verification-hostile blocks) so agents do not spend effort on
-`controls_whileUntil`, random numbers, sheet mutators, etc.
+Prefer **removing those blocks from the toolbox** ([issue #35](https://github.com/regionstockholm/intehrgrator/issues/35))
+so agents do not spend effort on `controls_whileUntil`, random numbers, sheet
+mutators, etc. Follow-ups: Mapping Model IR [#37](https://github.com/regionstockholm/intehrgrator/issues/37),
+preview/codegen equivalence [#38](https://github.com/regionstockholm/intehrgrator/issues/38),
+XQuery loops [#39](https://github.com/regionstockholm/intehrgrator/issues/39),
+VMS linter [#40](https://github.com/regionstockholm/intehrgrator/issues/40),
+robustness/metamorphic PBT [#41](https://github.com/regionstockholm/intehrgrator/issues/41).
 
 After that cut, treat remaining constructs as:
 

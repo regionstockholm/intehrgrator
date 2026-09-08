@@ -214,7 +214,7 @@ extractor (`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
 | **Canvas vs Mapping Model gap** | High — XQuery emits flat `slots[]` only; loops and skeleton nesting are open work | High — verifier must choose Blockly walk vs slot index vs preview interpreter |
 | **Template / string DSL blocks** | High — `handlebars()` / `text_code` collapse to opaque strings | High — unbounded string templates are not a decidable logic |
 | **Sheet mutators** | High — not in Mapping Model expressions | High — imperative convert-time state |
-| **Stock imperative Blockly** | Medium — in toolbox but mostly un-codegen'd | Medium — authors can build non-analysable control flow |
+| **Stock imperative Blockly** | High if left in toolbox — do **not** codegen; **remove** while/for/random/print/mutators | High — unbounded / non-deterministic / stateful |
 | **Dynamic source paths** | Medium — literal paths compile; dynamic paths need runtime helpers | Medium — symbolic XPath over JSON/XML is hard to bound |
 | **Optional RM / schema mutators** | Low–medium — structure is partly in `optionalRm[]` | Medium — attachment graph must be part of the contract |
 | **Finite enumerations (`term_pick`)** | Low — easy to emit | **Positive** — ideal for DL-style value constraints |

@@ -32,19 +32,90 @@ and [ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md).
 
 ## What “correctness” could mean
 
-Layers worth supporting (not all need day-one proof):
+Layers worth supporting (not all need day-one proof). In an **integration**
+setting, “the mapping is correct” is rarely a single clinical theorem; it is a
+stack of **machine-checkable relations** between source schema, convert-time
+environment (Defaults Map, Sheets), mapping, and target schema/template.
 
-1. **Syntactic / schema correctness** — output conforms to target schema/template.
-2. **Structural correspondence** — source path *P* maps to target slot *S* under relation *R* (units, codes, cardinality).
-3. **Completeness / totality** — required target slots populated for all sources matching the source schema.
-4. **Semantic preservation** — no invented clinical meaning; terminologies and units respected.
-5. **Pipeline / grain properties** — loops do not duplicate or drop rows; repeated-container grain is consistent.
-6. **Round-trip** — forward ∘ inverse ≈ identity when an inverse mapping exists (interop scenarios).
+1. **Syntactic / schema correctness** — output conforms to target schema/template
+   (`TemplateValidator`, JSON Schema, XSD).
+2. **Structural correspondence** — source path *P* maps to target slot *S* under
+   relation *R* (units, codes, cardinality).
+3. **Completeness** — required target slots populated whenever the source
+   actually has the corresponding data (and the mapping claims that path).
+4. **Semantic preservation** — no invented clinical meaning; terminologies and
+   units respected.
+5. **Pipeline / grain properties** — loops do not duplicate or drop rows;
+   repeated-container grain is consistent.
+6. **Round-trip** — forward ∘ inverse ≈ identity when an inverse mapping exists
+   (interop scenarios).
+7. **Robustness / definedness (crash-freedom)** — see below.
+8. **Metamorphic / sensitivity** — see below.
 
 Full machine-checked proofs of (4)–(6) are hard in healthcare because source
 schemas are often partial and semantics under-specified. A practical goal is
 **strong falsification** (counterexamples) plus **contract documentation**, with
-optional proof slices for safety-critical mappings.
+optional proof slices for safety-critical mappings. Layers **(7)** and **(8)**
+are especially fitting for integration pipelines: they do not require a full
+clinical gold standard, yet they catch mappings that “work on the three demo
+files” and then explode or silently lie in production.
+
+### Robustness: no valid source should break the mapping
+
+Informally: *if the input is a legal source record, conversion must finish and
+must not emit garbage that looks like a target instance.*
+
+More formally, fix a source schema \(S\), convert-time environment \(E\)
+(Defaults Map + static Sheets), mapping \(m\), and target schema/template \(T\).
+For every source \(s \in S\):
+
+| Outcome | Meaning | Verdict |
+|---------|---------|---------|
+| **Defined + valid** | \(m(s, E)\) terminates and \(m(s, E) \in T\) | Success |
+| **Defined + incomplete** | Terminates; optional slots omitted; still in \(T\) (optionals allowed) | Success if those slots were optional |
+| **Rejected** | \(s \notin S\) or \(E\) fails its precondition | Not a mapping bug — document the precondition |
+| **Erroneous** | \(s \in S\) but convert **throws**, **hangs**, or returns a value **not in** \(T\) (half-built RM, wrong types, failed deserialize) | Mapping bug |
+
+“Erroneous” includes: uncaught XPath errors, `undefined` leaking from unhandled
+Blockly types, division by zero, template engines throwing on missing helpers,
+and producing JSON that the OPT validator then rejects when the source was
+schema-valid.
+
+This is **totality of convert on \(S\)** plus **soundness of output wrt \(T\)**.
+It is *not* “every optional clinical field is filled.” Empty optional slots are
+fine; **crash** and **invalid structure** are not.
+
+Testable today (PBT / generators from Source Schema):
+
+- generate many \(s \in S\); assert convert does not throw;
+- assert output passes `TemplateValidator` / JSON Schema / XSD;
+- treat timeouts and `undefined` slots on **mandatory** paths as failures.
+
+### Metamorphic / sensitivity: variation in input vs variation in output
+
+Informally: *changing the source in a way the mapping cares about should change
+the corresponding output; changing things the mapping ignores should not; adding
+another repeating item should add another target child.*
+
+This is **metamorphic testing**: relations between *pairs* of runs, without a
+full expected COMPOSITION for every input. Useful relations for mappings:
+
+| Relation | Typical check |
+|----------|----------------|
+| **Independence of unread fields** | Mutate JSON/XML nodes that no `source_query` reads → output unchanged (up to allowed metadata). Catches accidental whole-document Handlebars/`text_code` coupling. |
+| **Sensitivity of mapped fields** | Change a source value that a slot’s expression reads → that slot’s value changes, *unless* the mapping’s `if`/`switch` puts both values in the same equivalence class (then document the class). Catches dead mappings and always-constant slots. |
+| **Normalization invariance** | Extra whitespace, JSON key order, equivalent XML prefixes, Unicode NFC vs NFD on strings the mapping `trim`s → clinical values unchanged. |
+| **Loop grain / monotonicity** | Add one node to a `for_each_source` collection → target repeating container grows by one (no fan-trap / chasm-trap). Delete the last node → count decreases. |
+| **Determinism** | Same \((s, E)\) twice → identical output. Forbids `math_random_*` and hidden convert-time mutation (sheet mutators). |
+
+“Reasonable variation” is **not** mathematical continuity (coded values are
+discrete). It is: *the mapping’s declared dataflow explains the output delta.*
+If systolic goes 120 → 130, `DV_QUANTITY.magnitude` should follow; territory
+should not flip; an unread `comment` field should not rewrite `COMPOSITION.uid`.
+
+Function-level decision tables ([function-test-harnesses.md](function-test-harnesses.md))
+are the **specified points** on this surface; PBT plus metamorphic relations
+fill the gaps between those points.
 
 ## Candidate formalisms (ranked)
 
@@ -319,32 +390,44 @@ rules; JSON-LD / SHACL / description-logic approaches want a fixed target schema
 
 ### Proposed direction: Verifiable Mapping Subset (VMS)
 
-A practical near-term gate before mapping-contract export:
+**Do not implement codegen / Mapping Model coverage for hostile stock Blockly.**
+Prefer **removing those blocks from the toolbox** (see GitHub issue on
+verification-hostile blocks) so agents do not spend effort on
+`controls_whileUntil`, random numbers, sheet mutators, etc.
+
+After that cut, treat remaining constructs as:
 
 ```text
-VMS allowed:
-  source_query_* (literal paths), maps_get, sheet_get_* / sheet_lookup (static sheets),
-  trim, concat, if, switch, math on numbers, logic_ternary, term_pick,
-  for_each_source (one level, documented grain), target_structure / RM scaffold slots
+VMS allowed (implement fully, including Mapping Model + all exporters):
+  source_query_* (prefer literal paths), maps_get, sheet_get_* / sheet_lookup
+  (static sheets), trim, concat, if, switch, math_arithmetic / round / modulo /
+  constrain, logic_compare / operation / negate / boolean / ternary, term_pick,
+  for_each_source (documented grain), lists_create_with / getIndex (read-only),
+  target_structure / RM scaffold slots, variables_get (loop vars only)
 
-VMS escape hatch (marked unverified):
-  text_code, text_handlebars, json_object/xml_element ad-hoc trees,
-  sheet mutators, stock Blockly loops/variables, dynamic source paths
+VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified):
+  text_code, text_handlebars, ad-hoc json_object / xml_element trees,
+  dynamic (non-literal) source paths, procedures_defreturn (until function
+  harness lands)
 
-VMS forbidden for proof (warn or block):
-  controls_whileUntil, controls_repeat_ext, variables_set (if used for mapping)
+VMS remove from toolbox (do not implement):
+  controls_whileUntil, controls_repeat_ext, controls_for, controls_forEach,
+  controls_flow_statements, controls_if (statement; keep logic_ternary),
+  math_random_int / math_random_float, text_print, text_append,
+  lists_setIndex, lists_repeat, sheet mutators, variables_set
 ```
 
-Implement as a workspace linter (similar to constraint warnings) rather than
-removing blocks from the toolbox — informaticians retain full expressiveness;
-verification export documents what was checked.
+A workspace linter still warns on leftover escape hatches and on any removed
+types that survive in old Project Bundles (migrate or show a load warning).
 
 ## Open questions
 
 1. **Contract language surface** — YAML vs JSON vs a dedicated `.mapping-contract` extension; alignment with [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
 2. **Source schema as precondition** — how strongly to require a loaded Source Schema vs inferring from examples.
 3. **Loop grain** — whether to adopt grain-correctness style rules for `for_each_source` (see recent data-pipeline formalization literature).
-4. **Execution oracle** — verify against Mapping preview interpreter vs generated TypeScript/XQuery (ADR 0003 seam).
+5. **Execution oracle** — verify against Mapping preview interpreter vs generated TypeScript/XQuery (ADR 0003 seam).
+6. **Robustness generators** — how complete must Source Schema be before PBT can claim “no valid source crashes convert”?
+7. **Sensitivity vs equivalence classes** — when `switch` maps many codes to one target, how to declare that class so sensitivity checks do not false-fail.
 
 ## Related
 
@@ -363,6 +446,7 @@ verification export documents what was checked.
 - Healthcare mapping formal specs: FHIRconnect, OMOCL (archetype path → target field)
 - Verifiable declarative mappings (RML → OCaml + Gospel/Cameleer): [Towards Verifiable Declarative Mappings](https://edkamb.github.io/files/kgcw2026.pdf)
 - Grain correctness in data pipelines: [Grain Theory (arXiv:2601.00995)](https://arxiv.org/abs/2601.00995)
+- Metamorphic testing of transformations (relations between paired runs, no gold output per input): Chen et al., *Metamorphic Testing: A Review of Challenges and Opportunities*
 
 ## Question for parallel research
 

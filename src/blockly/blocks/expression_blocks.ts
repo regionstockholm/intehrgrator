@@ -1,5 +1,6 @@
 import { Blockly } from "../blockly_core.ts";
 import { blocklyCheckForReturnType } from "../block_checks.ts";
+import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 import { msg, detectLocale } from "../i18n/locale.ts";
 import {
   type SourceReturnType,
@@ -61,7 +62,7 @@ function defineSourceQueryBlock(
       if (type === "source_query") {
         // Serializable zero-size label: older workspaces stored RETURN_TYPE here.
         // A FieldTextInput would draw a second "string" box beside the path.
-        row.appendField(hiddenSerializableField(returnType), "RETURN_TYPE");
+        row.appendField(createHiddenSerializableField(returnType), "RETURN_TYPE");
       }
       this.setOutput(true, blocklyCheckForReturnType(returnType));
       this.setColour(SOURCE_COLOUR);
@@ -70,18 +71,4 @@ function defineSourceQueryBlock(
       this.setInputsInline(true);
     },
   };
-}
-
-/** Label that serializes but never occupies Blockly layout or draws a field rect. */
-function hiddenSerializableField(value: string) {
-  const field = new Blockly.FieldLabelSerializable(value);
-  field.EDITABLE = false;
-  field.SERIALIZABLE = true;
-  field.initView = () => {};
-  const sized = field as unknown as { size_?: { width: number; height: number } };
-  if (sized.size_) {
-    sized.size_.width = 0;
-    sized.size_.height = 0;
-  }
-  return field;
 }

@@ -41,6 +41,12 @@ export function registerCompactThrasosRenderer(): string {
     // deno-lint-ignore no-explicit-any
     getInRowSpacing_(prev: any, next: any) {
       const spacing = super.getInRowSpacing_(prev, next);
+      if (isZeroSizeMeasurable(prev) || isZeroSizeMeasurable(next)) return 0;
+      // Class chrome sits against the left body edge / output notch.
+      if (!prev && isClassChromeMeasurable(next)) return 0;
+      if (isClassChromeMeasurable(next) && !prev?.field) {
+        return Math.min(spacing, 1);
+      }
       if (
         isRmEmojiMeasurable(prev) || isRmEmojiMeasurable(next) ||
         isSlotCardMeasurable(prev) || isSlotCardMeasurable(next) ||
@@ -96,12 +102,14 @@ export function registerCompactThrasosRenderer(): string {
 
     // deno-lint-ignore no-explicit-any
     makeRenderInfo_(block: any) {
+      // deno-lint-ignore no-explicit-any
       if (BaseInfo) return new (CompactRenderInfo as any)(this, block);
       return super.makeRenderInfo_(block);
     }
 
     // deno-lint-ignore no-explicit-any
     makeDrawer_(block: any, info: any) {
+      // deno-lint-ignore no-explicit-any
       if (BaseDrawer) return new (CompactDrawer as any)(block, info);
       return super.makeDrawer_(block, info);
     }
@@ -136,8 +144,10 @@ function applyCompactConstants(constants: any): void {
   const tabHeight = Number(constants.TAB_HEIGHT ?? 15);
   const tabRoom = tabHeight + 11;
   constants.MIN_BLOCK_HEIGHT = Math.max(24, tabRoom);
-  constants.DUMMY_INPUT_MIN_HEIGHT = Math.max(tabRoom, Number(constants.DUMMY_INPUT_MIN_HEIGHT ?? 0));
-  constants.EMPTY_INLINE_INPUT_HEIGHT = Math.max(tabRoom, Number(constants.EMPTY_INLINE_INPUT_HEIGHT ?? 0));
+  // Assign (do not Math.max with theme): init() inflates dummy/inline mins
+  // from TAB_HEIGHT and would keep that extra vertical gap under HEADER.
+  constants.DUMMY_INPUT_MIN_HEIGHT = tabRoom;
+  constants.EMPTY_INLINE_INPUT_HEIGHT = tabRoom;
 }
 
 // deno-lint-ignore no-explicit-any
@@ -173,11 +183,7 @@ export function shouldPinSlotCaptionToMouth_(row: any, elem: any): boolean {
 
 /** Centerline Y for a slot caption pinned to the input mouth / notch. */
 // deno-lint-ignore no-explicit-any
-export function pinnedSlotCaptionCenterline_(
-  row: any,
-  elem: any,
-  constants: any,
-): number {
+export function pinnedSlotCaptionCenterline_(row: any, elem: any, constants: any): number {
   const y = Number(row?.yPos ?? 0);
   if (row?.hasStatement) {
     // Match Zelos: empty statement mouth height, not the connected stack.
@@ -200,10 +206,26 @@ function isRmEmojiMeasurable(elem: any): boolean {
   return isRmTypeEmojiField(elem?.field ?? null);
 }
 
+// deno-lint-ignore no-explicit-any
+function isClassChromeMeasurable(elem: any): boolean {
+  const field = elem?.field;
+  if (!field) return false;
+  if (isRmTypeEmojiField(field) && field.name === BLOCK_OUT_EMOJI_FIELD) return true;
+  if (isSkeletonTitleField(field)) return true;
+  return field.name === "MUTATOR_COG";
+}
+
+// deno-lint-ignore no-explicit-any
+function isZeroSizeMeasurable(elem: any): boolean {
+  return Boolean(elem?.field) && Number(elem?.width ?? 0) === 0 && Number(elem?.height ?? 0) === 0;
+}
+
+// deno-lint-ignore no-explicit-any
 function isSlotCardMeasurable(elem: any): boolean {
   return isSlotCardinalityField(elem?.field ?? null);
 }
 
+// deno-lint-ignore no-explicit-any
 function isSlotLabelMeasurable(elem: any): boolean {
   return isSlotLabelField(elem?.field ?? null);
 }

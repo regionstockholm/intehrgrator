@@ -21,6 +21,7 @@ import {
   targetChildInputName,
 } from "./target_blocks.ts";
 import { specForChild, type SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
+import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 
 const TARGET_CHILD_PREFIX = "TARGET_";
 
@@ -28,24 +29,6 @@ export const SCHEMA_FIELDS_MUTATOR = "schema_fields_mutator";
 export const SCHEMA_MUTATOR_CONTAINER = "schema_fields_mutator_container";
 export const SCHEMA_MUTATOR_ITEM = "schema_fields_mutator_item";
 const SCHEMA_OPTIONAL_PREFIX = "SCHEMA_OPT_";
-
-/** Serializable ATTR that does not contribute to block layout size. */
-function zeroSizeAttrField(value: string) {
-  const field = new Blockly.FieldLabelSerializable(value);
-  field.EDITABLE = false;
-  field.SERIALIZABLE = true;
-  field.initView = () => {};
-  const sized = field as unknown as {
-    size_?: { width: number; height: number };
-    getSize?: () => { width: number; height: number };
-  };
-  if (sized.size_) {
-    sized.size_.width = 0;
-    sized.size_.height = 0;
-  }
-  sized.getSize = () => ({ width: 0, height: 0 });
-  return field;
-}
 
 export type SchemaMutatorChange = {
   parent: Block;
@@ -151,7 +134,7 @@ function defineSchemaMutatorQuarks(): void {
       init: function (this: Block) {
         this.appendDummyInput()
           .appendField(new Blockly.FieldLabelSerializable(""), "LABEL")
-          .appendField(zeroSizeAttrField(""), "ATTR");
+          .appendField(createHiddenSerializableField(""), "ATTR");
         this.setPreviousStatement(true);
         this.setNextStatement(true);
         this.setColour("#4B5563");

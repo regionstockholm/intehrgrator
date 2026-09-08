@@ -90,9 +90,9 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Math | `math_arithmetic` | `OP`: `ADD`\|`MINUS`\|`MULTIPLY`\|`DIVIDE`; inputs `A`,`B` |
 | Logic | `logic_ternary` | inputs `IF`,`THEN`,`ELSE` |
 | Logic compare | `logic_compare`, `logic_operation`, `logic_negate` | `OP` `EQ`/`NEQ`/`LT`/`LTE`/`GT`/`GTE` or `AND`/`OR`; inputs `A`,`B` / `BOOL` |
-| DL restriction | `logic_quantify` | `OP` `ONLY`/`SOME`/`NONE` (Manchester; ∀/∃/∀¬). Inputs `LIST`, `PRED`; field `VAR` (item name). Emits `all_of`/`any_of`/`none_of`. Empty list: `only`/`none` true, `some` false. |
-| DL cardinality | `logic_cardinality` | `OP` `MIN`/`MAX`/`EXACTLY`; inputs `LIST`,`N`,`PRED`; field `VAR`. Emits `at_least`/`at_most`/`exactly`. |
-| Set class ops | `logic_set_operation`, `logic_set_not` | `and`/`or` = intersection/union; `not SET in UNIVERSE` = complement. |
+| List restriction | `logic_list_restriction` | `OP` `ALL`/`ANY`/`NONE` (Manchester ∀/∃/∀¬) or `AT_LEAST`/`AT_MOST`/`EXACTLY`. Inputs `LIST`, `PRED`; fields `N` (integer threshold, counting operators only), `VAR` (item name, default `item`), `NONEMPTY` (boolean; `ALL`/`NONE`/`AT_MOST` only). Emits `all_of`/`any_of`/`none_of`/`at_least`/`at_most`/`exactly`, wrapped as `and(any_of(list, v, true), …)` when `NONEMPTY` is true. Empty list: `ALL`/`NONE`/`AT_MOST` true, `ANY` false. |
+| Current item | `logic_current_item` | Field `VAR` = item name to read, or omitted for the nearest enclosing restriction. Emits `var("…")`. |
+| Set class ops | `lists_set_operation` | `OP` `BOTH`/`EITHER`/`NOT_IN`; inputs `A`,`B`. Emits `intersection`/`union`/`difference(A, B)`. |
 
 No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional RM, Handlebars text, or list-construction blocks (`lists_*`) in this envelope — list-valued RM slots stay structural on the canvas.
 

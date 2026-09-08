@@ -69,12 +69,24 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
 
 - **Stock Blockly:** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
   `math_arithmetic`, `text_join`, `text_trim`, `logic_ternary`, variables, procedures, …
-- **Logic (DL restrictions):** `logic_quantify` (Manchester `only`/`some`/`none` over a
-  list — ∀/∃/∀¬), `logic_cardinality` (`min`/`max`/`exactly` n), `logic_set_operation`
-  (class `and`/`or` = intersection/union), `logic_set_not` (complement relative to a
-  universe). The list is the fillers of a role; the predicate is class *C*, evaluated
-  with the bound variable and relative source paths against each item. Empty-list
-  `only`/`none` are vacuously true (closed-world data, same truth table as OWL).
+- **Logic (list restrictions):** `logic_list_restriction` reads
+  “⟨all⟩ of ⟨list⟩ match ⟨condition⟩”. One dropdown covers the Manchester quantifiers
+  (`all`/`any`/`none` = ∀/∃/∀¬, emitting `all_of`/`any_of`/`none_of`) and the
+  cardinalities (`at least`/`at most`/`exactly` n, emitting `at_least`/`at_most`/`exactly`);
+  the threshold is a numeric field shown only for the counting operators, so a computed
+  threshold has to be written as a Mapping Expression instead. The list is the fillers of
+  a role; the condition is class *C*, evaluated with relative source paths against each
+  item. Empty-list `all`/`none`/`at most` are vacuously true (closed-world data, same
+  truth table as OWL), so those three show a **require at least one item** checkbox that
+  wraps the call as `and(any_of(list, v, true), …)`. `logic_current_item` (“this item”)
+  references the item under test; the binder name is a text field that stays hidden until
+  a restriction is nested inside another restriction’s condition, or the user picks
+  **Name the current item** from the context menu. No workspace Variable is created for it.
+- **Lists & maps (set class operators):** `lists_set_operation` combines two lists —
+  “items in both ⟨A⟩ and ⟨B⟩” (`intersection`), “items in either ⟨A⟩ or ⟨B⟩” (`union`),
+  “items in ⟨A⟩ but not in ⟨B⟩” (`difference`, arguments in reading order). It is a list
+  block, not a Logic block: sharing the Logic drawer and the words `and`/`or` with the
+  Boolean `logic_operation` made the two indistinguishable on the canvas.
 - **Source:** `source_query` — XPath/XQuery via [fontoxpath](https://github.com/FontoXML/fontoxpath);
   typed `evaluateXPathTo*` from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
 - **Loops (custom):** `for_each_source` — iterate nodes from a multi-valued source path

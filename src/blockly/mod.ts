@@ -15,7 +15,17 @@ import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
-import { registerLogicBlocks } from "./blocks/logic_blocks.ts";
+import {
+  currentItemName,
+  LISTS_SET_OPERATION_BLOCK,
+  LOGIC_CURRENT_ITEM_BLOCK,
+  LOGIC_LIST_RESTRICTION_BLOCK,
+  registerLogicBlocks,
+  restrictionCount,
+  restrictionItemName,
+  restrictionOpNeedsCount,
+  restrictionRequiresItems,
+} from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { blockToExpression } from "./expression_serialize.ts";
@@ -315,56 +325,49 @@ function registerGenerators(): void {
     return [`renderHandlebars(${script}, ${context})`, Order.FUNCTION_CALL] as [string, number];
   };
 
-  javascriptGenerator.forBlock["logic_quantify"] = (block) => {
+  javascriptGenerator.forBlock[LOGIC_LIST_RESTRICTION_BLOCK] = (block) => {
     const list = javascriptGenerator.valueToCode(block, "LIST", Order.NONE) || "[]";
     const pred = javascriptGenerator.valueToCode(block, "PRED", Order.NONE) || "true";
-    const name = block.getField("VAR")?.getText() ?? "item";
+    const name = restrictionItemName(block);
     const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "_item";
     const bind = `(__vars[${JSON.stringify(name)}] = ${ident}, ${pred})`;
     const arr = `asList(${list})`;
-    const op = String(block.getFieldValue("OP") ?? "ONLY");
-    const code = op === "SOME"
-      ? `${arr}.some((${ident}) => ${bind})`
-      : op === "NONE"
-      ? `${arr}.every((${ident}) => !${bind})`
-      : `${arr}.every((${ident}) => ${bind})`;
+    const op = String(block.getFieldValue("OP") ?? "ALL");
+    let code: string;
+    if (restrictionOpNeedsCount(op)) {
+      const count = `${arr}.filter((${ident}) => ${bind}).length`;
+      const n = restrictionCount(block);
+      code = op === "AT_MOST"
+        ? `${count} <= ${n}`
+        : op === "EXACTLY"
+        ? `${count} === ${n}`
+        : `${count} >= ${n}`;
+    } else {
+      code = op === "ANY"
+        ? `${arr}.some((${ident}) => ${bind})`
+        : op === "NONE"
+        ? `${arr}.every((${ident}) => !${bind})`
+        : `${arr}.every((${ident}) => ${bind})`;
+    }
+    if (restrictionRequiresItems(block)) {
+      return [`(${arr}.length > 0 && ${code})`, Order.ATOMIC] as [string, number];
+    }
     return [code, Order.FUNCTION_CALL] as [string, number];
   };
 
-  javascriptGenerator.forBlock["logic_cardinality"] = (block) => {
-    const list = javascriptGenerator.valueToCode(block, "LIST", Order.NONE) || "[]";
-    const n = javascriptGenerator.valueToCode(block, "N", Order.NONE) || "0";
-    const pred = javascriptGenerator.valueToCode(block, "PRED", Order.NONE) || "true";
-    const name = block.getField("VAR")?.getText() ?? "item";
-    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "_item";
-    const bind = `(__vars[${JSON.stringify(name)}] = ${ident}, ${pred})`;
-    const count = `asList(${list}).filter((${ident}) => ${bind}).length`;
-    const op = String(block.getFieldValue("OP") ?? "MIN");
-    const code = op === "MAX"
-      ? `${count} <= ${n}`
-      : op === "EXACTLY"
-      ? `${count} === ${n}`
-      : `${count} >= ${n}`;
-    return [code, Order.FUNCTION_CALL] as [string, number];
-  };
+  javascriptGenerator.forBlock[LOGIC_CURRENT_ITEM_BLOCK] = (block) =>
+    [`__vars[${JSON.stringify(currentItemName(block))}]`, Order.MEMBER] as [string, number];
 
-  javascriptGenerator.forBlock["logic_set_operation"] = (block) => {
+  javascriptGenerator.forBlock[LISTS_SET_OPERATION_BLOCK] = (block) => {
     const a = javascriptGenerator.valueToCode(block, "A", Order.NONE) || "[]";
     const b = javascriptGenerator.valueToCode(block, "B", Order.NONE) || "[]";
-    const op = String(block.getFieldValue("OP") ?? "AND");
-    const code = op === "OR"
-      ? `setUnion(asList(${a}), asList(${b}))`
-      : `setIntersection(asList(${a}), asList(${b}))`;
-    return [code, Order.FUNCTION_CALL] as [string, number];
-  };
-
-  javascriptGenerator.forBlock["logic_set_not"] = (block) => {
-    const set = javascriptGenerator.valueToCode(block, "SET", Order.NONE) || "[]";
-    const universe = javascriptGenerator.valueToCode(block, "UNIVERSE", Order.NONE) || "[]";
-    return [
-      `setDifference(asList(${universe}), asList(${set}))`,
-      Order.FUNCTION_CALL,
-    ] as [string, number];
+    const op = String(block.getFieldValue("OP") ?? "BOTH");
+    const fn = op === "EITHER"
+      ? "setUnion"
+      : op === "NOT_IN"
+      ? "setDifference"
+      : "setIntersection";
+    return [`${fn}(asList(${a}), asList(${b}))`, Order.FUNCTION_CALL] as [string, number];
   };
 
   javascriptGenerator.forBlock["composition"] = (block) => {

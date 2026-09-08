@@ -48,21 +48,28 @@ export interface IntehrMessages {
   FOR_EACH_SOURCE_NODES: string;
   FOR_EACH_SOURCE_DO: string;
   FOR_EACH_SOURCE_TOOLTIP: string;
-  LOGIC_AS: string;
-  LOGIC_ONLY: string;
-  LOGIC_SOME: string;
+  LOGIC_ALL: string;
+  LOGIC_ANY: string;
   LOGIC_NONE: string;
-  LOGIC_MIN: string;
-  LOGIC_MAX: string;
+  LOGIC_AT_LEAST: string;
+  LOGIC_AT_MOST: string;
   LOGIC_EXACTLY: string;
-  LOGIC_SET_AND: string;
-  LOGIC_SET_OR: string;
-  LOGIC_SET_NOT: string;
-  LOGIC_SET_IN: string;
-  LOGIC_QUANTIFY_TOOLTIP: string;
-  LOGIC_CARDINALITY_TOOLTIP: string;
-  LOGIC_SET_OP_TOOLTIP: string;
-  LOGIC_SET_NOT_TOOLTIP: string;
+  LOGIC_OF: string;
+  LOGIC_MATCH: string;
+  LOGIC_REQUIRE_ITEMS: string;
+  LOGIC_ITEM_NAME: string;
+  LOGIC_NAME_ITEM: string;
+  LOGIC_HIDE_ITEM_NAME: string;
+  LOGIC_THIS_ITEM: string;
+  LOGIC_RESTRICTION_TOOLTIP: string;
+  LOGIC_CURRENT_ITEM_TOOLTIP: string;
+  LOGIC_SET_BOTH: string;
+  LOGIC_SET_EITHER: string;
+  LOGIC_SET_NOT_IN: string;
+  LOGIC_SET_CONN_AND: string;
+  LOGIC_SET_CONN_OR: string;
+  LOGIC_SET_CONN_NOT_IN: string;
+  LOGIC_SET_TOOLTIP: string;
   LANGUAGE_LABEL: string;
   UI_LANGUAGE_LABEL: string;
   MODEL_LANGUAGE_LABEL: string;
@@ -107,25 +114,31 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "do",
     FOR_EACH_SOURCE_TOOLTIP:
       "Loop over every node matched by a source path. Current node is stored in the named variable.",
-    LOGIC_AS: "as",
-    LOGIC_ONLY: "only",
-    LOGIC_SOME: "some",
+    LOGIC_ALL: "all",
+    LOGIC_ANY: "any",
     LOGIC_NONE: "none",
-    LOGIC_MIN: "min",
-    LOGIC_MAX: "max",
+    LOGIC_AT_LEAST: "at least",
+    LOGIC_AT_MOST: "at most",
     LOGIC_EXACTLY: "exactly",
-    LOGIC_SET_AND: "and",
-    LOGIC_SET_OR: "or",
-    LOGIC_SET_NOT: "not",
-    LOGIC_SET_IN: "in",
-    LOGIC_QUANTIFY_TOOLTIP:
-      "Evaluate a list like OWL Manchester only/some/none (∀/∃). Empty list: only and none are true; some is false.",
-    LOGIC_CARDINALITY_TOOLTIP:
-      "Count list items matching a predicate: min n (≥), max n (≤), or exactly n.",
-    LOGIC_SET_OP_TOOLTIP:
-      "Combine two lists as classes: and = intersection, or = union.",
-    LOGIC_SET_NOT_TOOLTIP:
-      "Complement: items of the universe that are not in the set (Manchester not).",
+    LOGIC_OF: "of",
+    LOGIC_MATCH: "match",
+    LOGIC_REQUIRE_ITEMS: "require at least one item",
+    LOGIC_ITEM_NAME: "each item is called",
+    LOGIC_NAME_ITEM: "Name the current item",
+    LOGIC_HIDE_ITEM_NAME: "Hide the item name",
+    LOGIC_THIS_ITEM: "this item",
+    LOGIC_RESTRICTION_TOOLTIP:
+      "True when the required number of list items match the condition. Source paths in the condition are relative to each item. An empty list makes all, none and at most true — tick require at least one item to rule that out. (OWL Manchester only/some/none and min/max/exactly.)",
+    LOGIC_CURRENT_ITEM_TOOLTIP:
+      "The list item the surrounding restriction is testing right now.",
+    LOGIC_SET_BOTH: "items in both",
+    LOGIC_SET_EITHER: "items in either",
+    LOGIC_SET_NOT_IN: "items in",
+    LOGIC_SET_CONN_AND: "and",
+    LOGIC_SET_CONN_OR: "or",
+    LOGIC_SET_CONN_NOT_IN: "but not in",
+    LOGIC_SET_TOOLTIP:
+      "Combine two lists: items in both (intersection), items in either (union), or items in the first but not the second (difference).",
     LANGUAGE_LABEL: "Language",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Model",
@@ -168,25 +181,31 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "gör",
     FOR_EACH_SOURCE_TOOLTIP:
       "Loopa över varje nod som matchas av en källsökväg. Aktuell nod lagras i den namngivna variabeln.",
-    LOGIC_AS: "som",
-    LOGIC_ONLY: "only",
-    LOGIC_SOME: "some",
-    LOGIC_NONE: "none",
-    LOGIC_MIN: "min",
-    LOGIC_MAX: "max",
-    LOGIC_EXACTLY: "exactly",
-    LOGIC_SET_AND: "and",
-    LOGIC_SET_OR: "or",
-    LOGIC_SET_NOT: "not",
-    LOGIC_SET_IN: "i",
-    LOGIC_QUANTIFY_TOOLTIP:
-      "Utvärdera en lista som OWL Manchester only/some/none (∀/∃). Tom lista: only och none är sanna; some är falsk.",
-    LOGIC_CARDINALITY_TOOLTIP:
-      "Räkna listobjekt som matchar ett predikat: min n (≥), max n (≤) eller exactly n.",
-    LOGIC_SET_OP_TOOLTIP:
-      "Kombinera två listor som klasser: and = snitt, or = union.",
-    LOGIC_SET_NOT_TOOLTIP:
-      "Komplement: objekt i universum som inte finns i mängden (Manchester not).",
+    LOGIC_ALL: "alla",
+    LOGIC_ANY: "något",
+    LOGIC_NONE: "inget",
+    LOGIC_AT_LEAST: "minst",
+    LOGIC_AT_MOST: "högst",
+    LOGIC_EXACTLY: "exakt",
+    LOGIC_OF: "av",
+    LOGIC_MATCH: "matchar",
+    LOGIC_REQUIRE_ITEMS: "kräv minst ett objekt",
+    LOGIC_ITEM_NAME: "varje objekt kallas",
+    LOGIC_NAME_ITEM: "Namnge aktuellt objekt",
+    LOGIC_HIDE_ITEM_NAME: "Dölj objektnamnet",
+    LOGIC_THIS_ITEM: "detta objekt",
+    LOGIC_RESTRICTION_TOOLTIP:
+      "Sant när det begärda antalet listobjekt matchar villkoret. Källsökvägar i villkoret är relativa till varje objekt. Tom lista gör alla, inget och högst sanna — kryssa kräv minst ett objekt för att utesluta det. (OWL Manchester only/some/none och min/max/exactly.)",
+    LOGIC_CURRENT_ITEM_TOOLTIP:
+      "Det listobjekt som den omgivande restriktionen just nu prövar.",
+    LOGIC_SET_BOTH: "objekt i båda",
+    LOGIC_SET_EITHER: "objekt i någon av",
+    LOGIC_SET_NOT_IN: "objekt i",
+    LOGIC_SET_CONN_AND: "och",
+    LOGIC_SET_CONN_OR: "eller",
+    LOGIC_SET_CONN_NOT_IN: "men inte i",
+    LOGIC_SET_TOOLTIP:
+      "Kombinera två listor: objekt i båda (snitt), objekt i någon av (union), eller objekt i den första men inte i den andra (differens).",
     LANGUAGE_LABEL: "Språk",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Modell",
@@ -229,25 +248,31 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "mache",
     FOR_EACH_SOURCE_TOOLTIP:
       "Schleife über jeden Knoten eines Quellpfads. Der aktuelle Knoten wird in der genannten Variable gespeichert.",
-    LOGIC_AS: "als",
-    LOGIC_ONLY: "only",
-    LOGIC_SOME: "some",
-    LOGIC_NONE: "none",
-    LOGIC_MIN: "min",
-    LOGIC_MAX: "max",
-    LOGIC_EXACTLY: "exactly",
-    LOGIC_SET_AND: "and",
-    LOGIC_SET_OR: "or",
-    LOGIC_SET_NOT: "not",
-    LOGIC_SET_IN: "in",
-    LOGIC_QUANTIFY_TOOLTIP:
-      "Liste wie OWL Manchester only/some/none (∀/∃) auswerten. Leere Liste: only und none wahr; some falsch.",
-    LOGIC_CARDINALITY_TOOLTIP:
-      "Listenelemente zählen, die ein Prädikat erfüllen: min n (≥), max n (≤) oder exactly n.",
-    LOGIC_SET_OP_TOOLTIP:
-      "Zwei Listen als Klassen kombinieren: and = Schnitt, or = Vereinigung.",
-    LOGIC_SET_NOT_TOOLTIP:
-      "Komplement: Elemente des Universums, die nicht in der Menge sind (Manchester not).",
+    LOGIC_ALL: "alle",
+    LOGIC_ANY: "mindestens eines",
+    LOGIC_NONE: "keines",
+    LOGIC_AT_LEAST: "mindestens",
+    LOGIC_AT_MOST: "höchstens",
+    LOGIC_EXACTLY: "genau",
+    LOGIC_OF: "von",
+    LOGIC_MATCH: "erfüllen",
+    LOGIC_REQUIRE_ITEMS: "mindestens ein Element verlangen",
+    LOGIC_ITEM_NAME: "jedes Element heißt",
+    LOGIC_NAME_ITEM: "Aktuelles Element benennen",
+    LOGIC_HIDE_ITEM_NAME: "Elementnamen ausblenden",
+    LOGIC_THIS_ITEM: "dieses Element",
+    LOGIC_RESTRICTION_TOOLTIP:
+      "Wahr, wenn die verlangte Anzahl der Listenelemente die Bedingung erfüllt. Quellpfade in der Bedingung sind relativ zu jedem Element. Leere Liste: alle, keines und höchstens sind wahr — mindestens ein Element verlangen schließt das aus. (OWL Manchester only/some/none und min/max/exactly.)",
+    LOGIC_CURRENT_ITEM_TOOLTIP:
+      "Das Listenelement, das die umgebende Restriktion gerade prüft.",
+    LOGIC_SET_BOTH: "Elemente in beiden",
+    LOGIC_SET_EITHER: "Elemente in einer von",
+    LOGIC_SET_NOT_IN: "Elemente in",
+    LOGIC_SET_CONN_AND: "und",
+    LOGIC_SET_CONN_OR: "oder",
+    LOGIC_SET_CONN_NOT_IN: "aber nicht in",
+    LOGIC_SET_TOOLTIP:
+      "Zwei Listen kombinieren: Elemente in beiden (Schnitt), in einer von beiden (Vereinigung) oder in der ersten, aber nicht in der zweiten (Differenz).",
     LANGUAGE_LABEL: "Sprache",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Modell",
@@ -290,25 +315,31 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "hacer",
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada nodo coincidente con una ruta de origen. El nodo actual se guarda en la variable indicada.",
-    LOGIC_AS: "como",
-    LOGIC_ONLY: "only",
-    LOGIC_SOME: "some",
-    LOGIC_NONE: "none",
-    LOGIC_MIN: "min",
-    LOGIC_MAX: "max",
-    LOGIC_EXACTLY: "exactly",
-    LOGIC_SET_AND: "and",
-    LOGIC_SET_OR: "or",
-    LOGIC_SET_NOT: "not",
-    LOGIC_SET_IN: "en",
-    LOGIC_QUANTIFY_TOOLTIP:
-      "Evalúa una lista como OWL Manchester only/some/none (∀/∃). Lista vacía: only y none verdaderos; some falso.",
-    LOGIC_CARDINALITY_TOOLTIP:
-      "Cuenta elementos de la lista que cumplen un predicado: min n (≥), max n (≤) o exactly n.",
-    LOGIC_SET_OP_TOOLTIP:
-      "Combina dos listas como clases: and = intersección, or = unión.",
-    LOGIC_SET_NOT_TOOLTIP:
-      "Complemento: elementos del universo que no están en el conjunto (Manchester not).",
+    LOGIC_ALL: "todos",
+    LOGIC_ANY: "alguno",
+    LOGIC_NONE: "ninguno",
+    LOGIC_AT_LEAST: "al menos",
+    LOGIC_AT_MOST: "como máximo",
+    LOGIC_EXACTLY: "exactamente",
+    LOGIC_OF: "de",
+    LOGIC_MATCH: "cumplen",
+    LOGIC_REQUIRE_ITEMS: "exigir al menos un elemento",
+    LOGIC_ITEM_NAME: "cada elemento se llama",
+    LOGIC_NAME_ITEM: "Nombrar el elemento actual",
+    LOGIC_HIDE_ITEM_NAME: "Ocultar el nombre del elemento",
+    LOGIC_THIS_ITEM: "este elemento",
+    LOGIC_RESTRICTION_TOOLTIP:
+      "Verdadero cuando el número requerido de elementos de la lista cumple la condición. Las rutas de origen de la condición son relativas a cada elemento. Lista vacía: todos, ninguno y como máximo son verdaderos — marque exigir al menos un elemento para descartarlo. (OWL Manchester only/some/none y min/max/exactly.)",
+    LOGIC_CURRENT_ITEM_TOOLTIP:
+      "El elemento de la lista que la restricción circundante está evaluando.",
+    LOGIC_SET_BOTH: "elementos en ambas",
+    LOGIC_SET_EITHER: "elementos en alguna de",
+    LOGIC_SET_NOT_IN: "elementos en",
+    LOGIC_SET_CONN_AND: "y",
+    LOGIC_SET_CONN_OR: "o",
+    LOGIC_SET_CONN_NOT_IN: "pero no en",
+    LOGIC_SET_TOOLTIP:
+      "Combina dos listas: elementos en ambas (intersección), en alguna de las dos (unión) o en la primera pero no en la segunda (diferencia).",
     LANGUAGE_LABEL: "Idioma",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Modelo",
@@ -351,25 +382,31 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "fes",
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada node que coincideix amb un camí d'origen. El node actual es desa a la variable indicada.",
-    LOGIC_AS: "com",
-    LOGIC_ONLY: "only",
-    LOGIC_SOME: "some",
-    LOGIC_NONE: "none",
-    LOGIC_MIN: "min",
-    LOGIC_MAX: "max",
-    LOGIC_EXACTLY: "exactly",
-    LOGIC_SET_AND: "and",
-    LOGIC_SET_OR: "or",
-    LOGIC_SET_NOT: "not",
-    LOGIC_SET_IN: "en",
-    LOGIC_QUANTIFY_TOOLTIP:
-      "Avalua una llista com OWL Manchester only/some/none (∀/∃). Llista buida: only i none verdaders; some fals.",
-    LOGIC_CARDINALITY_TOOLTIP:
-      "Compta elements de la llista que compleixen un predicat: min n (≥), max n (≤) o exactly n.",
-    LOGIC_SET_OP_TOOLTIP:
-      "Combina dues llistes com a classes: and = intersecció, or = unió.",
-    LOGIC_SET_NOT_TOOLTIP:
-      "Complement: elements de l'univers que no són al conjunt (Manchester not).",
+    LOGIC_ALL: "tots",
+    LOGIC_ANY: "algun",
+    LOGIC_NONE: "cap",
+    LOGIC_AT_LEAST: "com a mínim",
+    LOGIC_AT_MOST: "com a màxim",
+    LOGIC_EXACTLY: "exactament",
+    LOGIC_OF: "de",
+    LOGIC_MATCH: "compleixen",
+    LOGIC_REQUIRE_ITEMS: "exigeix com a mínim un element",
+    LOGIC_ITEM_NAME: "cada element s'anomena",
+    LOGIC_NAME_ITEM: "Anomena l'element actual",
+    LOGIC_HIDE_ITEM_NAME: "Amaga el nom de l'element",
+    LOGIC_THIS_ITEM: "aquest element",
+    LOGIC_RESTRICTION_TOOLTIP:
+      "Cert quan el nombre requerit d'elements de la llista compleix la condició. Els camins d'origen de la condició són relatius a cada element. Llista buida: tots, cap i com a màxim són certs — marqueu exigeix com a mínim un element per descartar-ho. (OWL Manchester only/some/none i min/max/exactly.)",
+    LOGIC_CURRENT_ITEM_TOOLTIP:
+      "L'element de la llista que la restricció circumdant està avaluant.",
+    LOGIC_SET_BOTH: "elements en totes dues",
+    LOGIC_SET_EITHER: "elements en alguna de",
+    LOGIC_SET_NOT_IN: "elements en",
+    LOGIC_SET_CONN_AND: "i",
+    LOGIC_SET_CONN_OR: "o",
+    LOGIC_SET_CONN_NOT_IN: "però no en",
+    LOGIC_SET_TOOLTIP:
+      "Combina dues llistes: elements en totes dues (intersecció), en alguna de les dues (unió) o en la primera però no en la segona (diferència).",
     LANGUAGE_LABEL: "Idioma",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Model",
@@ -412,25 +449,31 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "faire",
     FOR_EACH_SOURCE_TOOLTIP:
       "Boucle sur chaque nœud correspondant à un chemin source. Le nœud courant est stocké dans la variable nommée.",
-    LOGIC_AS: "comme",
-    LOGIC_ONLY: "only",
-    LOGIC_SOME: "some",
-    LOGIC_NONE: "none",
-    LOGIC_MIN: "min",
-    LOGIC_MAX: "max",
-    LOGIC_EXACTLY: "exactly",
-    LOGIC_SET_AND: "and",
-    LOGIC_SET_OR: "or",
-    LOGIC_SET_NOT: "not",
-    LOGIC_SET_IN: "dans",
-    LOGIC_QUANTIFY_TOOLTIP:
-      "Évalue une liste comme OWL Manchester only/some/none (∀/∃). Liste vide : only et none vrais ; some faux.",
-    LOGIC_CARDINALITY_TOOLTIP:
-      "Compte les éléments de liste qui satisfont un prédicat : min n (≥), max n (≤) ou exactly n.",
-    LOGIC_SET_OP_TOOLTIP:
-      "Combine deux listes comme des classes : and = intersection, or = union.",
-    LOGIC_SET_NOT_TOOLTIP:
-      "Complément : éléments de l'univers absents de l'ensemble (Manchester not).",
+    LOGIC_ALL: "tous",
+    LOGIC_ANY: "au moins un",
+    LOGIC_NONE: "aucun",
+    LOGIC_AT_LEAST: "au moins",
+    LOGIC_AT_MOST: "au plus",
+    LOGIC_EXACTLY: "exactement",
+    LOGIC_OF: "de",
+    LOGIC_MATCH: "satisfont",
+    LOGIC_REQUIRE_ITEMS: "exiger au moins un élément",
+    LOGIC_ITEM_NAME: "chaque élément s'appelle",
+    LOGIC_NAME_ITEM: "Nommer l'élément courant",
+    LOGIC_HIDE_ITEM_NAME: "Masquer le nom de l'élément",
+    LOGIC_THIS_ITEM: "cet élément",
+    LOGIC_RESTRICTION_TOOLTIP:
+      "Vrai lorsque le nombre requis d'éléments de la liste satisfait la condition. Les chemins source de la condition sont relatifs à chaque élément. Liste vide : tous, aucun et au plus sont vrais — cochez exiger au moins un élément pour l'exclure. (OWL Manchester only/some/none et min/max/exactly.)",
+    LOGIC_CURRENT_ITEM_TOOLTIP:
+      "L'élément de liste que la restriction environnante évalue actuellement.",
+    LOGIC_SET_BOTH: "éléments dans les deux",
+    LOGIC_SET_EITHER: "éléments dans l'une de",
+    LOGIC_SET_NOT_IN: "éléments dans",
+    LOGIC_SET_CONN_AND: "et",
+    LOGIC_SET_CONN_OR: "ou",
+    LOGIC_SET_CONN_NOT_IN: "mais pas dans",
+    LOGIC_SET_TOOLTIP:
+      "Combine deux listes : éléments dans les deux (intersection), dans l'une des deux (union) ou dans la première mais pas dans la seconde (différence).",
     LANGUAGE_LABEL: "Langue",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Modèle",

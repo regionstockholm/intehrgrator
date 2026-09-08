@@ -76,10 +76,9 @@ const VALUE_BLOCK_TYPES = new Set([
   "logic_compare",
   "logic_operation",
   "logic_negate",
-  "logic_quantify",
-  "logic_cardinality",
-  "logic_set_operation",
-  "logic_set_not",
+  "logic_list_restriction",
+  "logic_current_item",
+  "lists_set_operation",
 ]);
 
 const MULTIPART_BOUNDARY = "intehrgrator-part";
@@ -898,6 +897,19 @@ function validateBlockShape(block: SuggestionBlock, depth = 0): void {
   }
 }
 
+/** `logic_list_restriction` OP → Mapping Expression call (mirrors the Blockly block). */
+const RESTRICTION_OP_CALLS: Record<string, string> = {
+  ALL: "all_of",
+  ANY: "any_of",
+  NONE: "none_of",
+  AT_LEAST: "at_least",
+  AT_MOST: "at_most",
+  EXACTLY: "exactly",
+};
+
+/** Operators the `NONEMPTY` guard applies to; the rest already exclude the empty list. */
+const RESTRICTION_OPS_HOLDING_ON_EMPTY = ["ALL", "NONE", "AT_MOST"];
+
 function blockJsonToExpression(
   block: SuggestionBlock,
   rewriteSourcePath?: (xpath: string) => string,
@@ -1078,7 +1090,7 @@ function blockJsonToExpression(
         : "false";
       return `not(${inner})`;
     }
-    case "logic_quantify": {
+    case "logic_list_restriction": {
       const list = child("LIST")
         ? blockJsonToExpression(child("LIST")!, rewriteSourcePath)
         : "list()";
@@ -1086,38 +1098,25 @@ function blockJsonToExpression(
         ? blockJsonToExpression(child("PRED")!, rewriteSourcePath)
         : "true";
       const name = JSON.stringify(String(fields.VAR ?? "item"));
-      const fn = String(fields.OP ?? "ONLY") === "SOME"
-        ? "any_of"
-        : String(fields.OP ?? "ONLY") === "NONE"
-        ? "none_of"
-        : "all_of";
-      return `${fn}(${list}, ${name}, ${pred})`;
+      const op = String(fields.OP ?? "ALL");
+      const fn = RESTRICTION_OP_CALLS[op] ?? "all_of";
+      let call = `${fn}(${list}, ${name}, ${pred})`;
+      if (op === "AT_LEAST" || op === "AT_MOST" || op === "EXACTLY") {
+        const n = Number(fields.N ?? 0);
+        call = `${fn}(${list}, ${Number.isFinite(n) ? n : 0}, ${name}, ${pred})`;
+      }
+      const guarded = fields.NONEMPTY === true || fields.NONEMPTY === "TRUE";
+      if (!guarded || !RESTRICTION_OPS_HOLDING_ON_EMPTY.includes(op)) return call;
+      return `and(any_of(${list}, ${name}, true), ${call})`;
     }
-    case "logic_cardinality": {
-      const list = child("LIST")
-        ? blockJsonToExpression(child("LIST")!, rewriteSourcePath)
-        : "list()";
-      const n = child("N") ? blockJsonToExpression(child("N")!, rewriteSourcePath) : "0";
-      const pred = child("PRED")
-        ? blockJsonToExpression(child("PRED")!, rewriteSourcePath)
-        : "true";
-      const name = JSON.stringify(String(fields.VAR ?? "item"));
-      const op = String(fields.OP ?? "MIN");
-      const fn = op === "MAX" ? "at_most" : op === "EXACTLY" ? "exactly" : "at_least";
-      return `${fn}(${list}, ${n}, ${name}, ${pred})`;
-    }
-    case "logic_set_operation": {
+    case "logic_current_item":
+      return `var(${JSON.stringify(String(fields.VAR || "item"))})`;
+    case "lists_set_operation": {
       const a = child("A") ? blockJsonToExpression(child("A")!, rewriteSourcePath) : "list()";
       const b = child("B") ? blockJsonToExpression(child("B")!, rewriteSourcePath) : "list()";
-      const fn = String(fields.OP ?? "AND") === "OR" ? "union" : "intersection";
+      const op = String(fields.OP ?? "BOTH");
+      const fn = op === "EITHER" ? "union" : op === "NOT_IN" ? "difference" : "intersection";
       return `${fn}(${a}, ${b})`;
-    }
-    case "logic_set_not": {
-      const set = child("SET") ? blockJsonToExpression(child("SET")!, rewriteSourcePath) : "list()";
-      const universe = child("UNIVERSE")
-        ? blockJsonToExpression(child("UNIVERSE")!, rewriteSourcePath)
-        : "list()";
-      return `difference(${universe}, ${set})`;
     }
     default:
       return null;

@@ -44,6 +44,20 @@
       "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt"
     },
     {
+      "id": "obx-mhv1-unmapped-json-to-openehr",
+      "title": "OBX MHV1, unmapped, JSON --> openEHR",
+      "description": "Obstetrix MHV1 JSON Schema and three maternity-care registration instances, targeting the MHV1 Prenatal visit openEHR template. The template is a GitHub .t.json (dependencies fetched from the same branch). No mapping.",
+      "source": {
+        "schema": "./Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
+        "instances": [
+          "./Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
+          "./Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
+          "./Obstetrix-MHV1/source-instance/3-komplex-mhv3.json"
+        ]
+      },
+      "target": "https://github.com/regionstockholm/CKM-mirror-via-modellbibliotek/blob/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json"
+    },
+    {
       "id": "chemo-symptoms-flat-to-tc-xml",
       "title": "Patient-reported chemotherapy symptoms (FLAT → TakeCare XML)",
       "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd). Rebuilds Mappningsscript 1.9.1 PROD: all TextKeyWord/NumericKeyword TermIds, the no-symptom 16183 branch, free-text helper, and Defaults Map header parameters. Select Go Template output mode to see generated Go text/template code.",

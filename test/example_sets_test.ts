@@ -68,7 +68,7 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
 Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL", async () => {
   const text = await readExample("example-sets.json");
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 5);
+  assertEquals(catalog.sets.length, 6);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
@@ -86,6 +86,24 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
   assertEquals(
     mapped.defaults,
     "https://app.test/examples/dummy-json-vitals/defaults.map.json",
+  );
+  const obx = catalog.sets.find((set) => set.id === "obx-mhv1-unmapped-json-to-openehr");
+  if (!obx) throw new Error("expected OBX MHV1 example set");
+  assertEquals(obx.title, "OBX MHV1, unmapped, JSON --> openEHR");
+  assertEquals(obx.mapping, undefined);
+  assertEquals(obx.defaults, undefined);
+  assertEquals(
+    obx.source.schema,
+    "https://app.test/examples/Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
+  );
+  assertEquals(obx.source.instances.length, 3);
+  assertEquals(
+    obx.source.instances[0],
+    "https://app.test/examples/Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
+  );
+  assertEquals(
+    obx.target,
+    "https://raw.githubusercontent.com/regionstockholm/CKM-mirror-via-modellbibliotek/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json",
   );
   const chemo = catalog.sets.find((set) => set.id === "chemo-symptoms-flat-to-tc-xml");
   if (!chemo) throw new Error("expected chemo example set");

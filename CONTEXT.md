@@ -151,13 +151,21 @@ _Avoid_: Value constructor block, DV builder, free-form RM block, “+ fields”
 Editable fragment inside a value slot in the Mapping Specification — XPath via fontoxpath builtins (`xpathNumber`, `xpathString`, …) plus JS-shaped helpers (`trim`, `concat`, `if`) and Description-Logic list restrictions (`all_of` / `any_of` / `none_of` / `at_least` / `at_most` / `exactly`) plus class operators (`intersection`, `union`, `difference`). Not TypeScript/Java export code.
 _Avoid_: Value mapping, get_source
 
-**DL restriction**:
-A Logic-category Blockly value (Boolean) that evaluates a list the way OWL Manchester Syntax evaluates a role: `only` (∀ *R.C*, all_of), `some` (∃ *R.C*, any_of), `none` (∀ *R.*¬*C*, none_of), and `min`/`max`/`exactly` n (cardinality). The list input is the related individuals; the predicate is class *C*, with a named item variable and relative Source Paths evaluated against that item. An empty list makes `only` and `none` true and `some` false.
-_Avoid_: treating this as a statement loop (`for_each_source`), Open-World “unknown” (Test Run is closed-world over the loaded example)
+**List restriction**:
+One Logic-category Blockly value (Boolean, `logic_list_restriction`) reading “⟨all⟩ of ⟨list⟩ match ⟨condition⟩”. Its dropdown covers the OWL Manchester quantifiers — `all` (∀ *R.C*, all_of), `any` (∃ *R.C*, any_of), `none` (∀ *R.*¬*C*, none_of) — and the cardinalities `at least` / `at most` / `exactly` n, whose threshold is a numeric field that appears only for those three. The list input is the related individuals; the condition is class *C*, evaluated with relative Source Paths against each item. An empty list makes `all`, `none` and `at most` true, so those three also carry the **Empty-list guard**.
+_Avoid_: Manchester keywords on the block face (`only`/`some`/`none`), separate quantifier and cardinality blocks, unlabelled sockets, treating this as a statement loop (`for_each_source`), Open-World “unknown” (Test Run is closed-world over the loaded example)
+
+**Empty-list guard**:
+The **require at least one item** checkbox on a **List restriction**, shown for the operators that hold vacuously (`all`, `none`, `at most`). Unchecked (the default) the block is exactly its OWL call; checked it emits `and(any_of(list, v, true), <call>)`, since `any_of(list, v, true)` already means “the list has an item”. Deliberately visible rather than hidden, because vacuous truth is the trap it exists to prevent.
+_Avoid_: a `non_empty` builtin, checked-by-default, silently non-vacuous quantifiers, hiding the choice in the tooltip
+
+**Current item**:
+The list item a **List restriction** is testing, referenced inside the condition by the `logic_current_item` block (“this item”, with a dropdown onto outer names when nested). The binder name is a plain text field on the restriction, hidden until nesting needs it — reveal it from the context menu (**Name the current item**), and it appears automatically when one restriction lands inside another’s condition. It is not a workspace Variable.
+_Avoid_: `field_variable` binder, an `item` entry in the Variables drawer, an always-visible `as ⟨name⟩` field
 
 **Set class operator**:
-A Logic-category Blockly value (Array) that combines two lists as OWL classes: `and` (intersection ∩), `or` (union ∪), `not … in …` (complement relative to a universe). Distinct from Boolean `logic_operation` / `logic_negate`.
-_Avoid_: Boolean AND/OR/NOT, Map merge
+A Lists & maps Blockly value (Array, `lists_set_operation`) combining two lists as OWL classes: “items in both ⟨A⟩ and ⟨B⟩” (intersection ∩), “items in either ⟨A⟩ or ⟨B⟩” (union ∪), “items in ⟨A⟩ but not in ⟨B⟩” (difference ∖, arguments in reading order). It sits with the list blocks rather than in Logic because it returns a list — which is also what keeps it visually apart from Boolean `logic_operation` / `logic_negate`.
+_Avoid_: Boolean AND/OR/NOT, bare `and`/`or` labels on list operands, a Logic-drawer home, `not … in …` phrasing that reverses the operands, Map merge
 
 **Constraint warning**:
 A yellow warning triangle on a Blockly block (and the matching **Mapping Spec Widget**) when a contained constraint is unmet — unmapped mandatory value, abstract EVENT, or unmet slot cardinality. It does not light up merely because a node is template/RM-mandatory.

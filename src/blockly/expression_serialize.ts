@@ -8,16 +8,25 @@ import {
 } from "./source_query.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
 import {
-  callToCardinalityOp,
-  callToQuantifyOp,
-  cardinalityOpToCall,
-  LOGIC_CARDINALITY_BLOCK,
-  LOGIC_QUANTIFY_BLOCK,
-  LOGIC_SET_NOT_BLOCK,
-  LOGIC_SET_OPERATION_BLOCK,
-  quantifyOpToCall,
+  callToRestrictionOp,
+  callToSetOp,
+  currentItemName,
+  DEFAULT_ITEM_NAME,
+  isRestrictionCall,
+  isSetCall,
+  LISTS_SET_OPERATION_BLOCK,
+  LOGIC_CURRENT_ITEM_BLOCK,
+  LOGIC_LIST_RESTRICTION_BLOCK,
   registerLogicBlocks,
-  variableFieldName,
+  restrictionCount,
+  restrictionItemName,
+  restrictionOpHoldsOnEmptyList,
+  restrictionOpNeedsCount,
+  restrictionOpToCall,
+  restrictionRequiresItems,
+  setOpToCall,
+  setRestrictionItemName,
+  setRestrictionRequiresItems,
 } from "./blocks/logic_blocks.ts";
 
 type BlockSvg = import("blockly/core").BlockSvg;
@@ -205,31 +214,25 @@ export function blockToExpression(block: Block | null): string | null {
       }
       return `list(${parts.join(", ")})`;
     }
-    case "logic_quantify": {
+    case LOGIC_LIST_RESTRICTION_BLOCK: {
       const list = blockToExpression(block.getInputTargetBlock("LIST")) ?? "list()";
       const pred = blockToExpression(block.getInputTargetBlock("PRED")) ?? "true";
-      const name = JSON.stringify(variableFieldName(block));
-      const fn = quantifyOpToCall(String(block.getFieldValue("OP") ?? "ONLY"));
-      return `${fn}(${list}, ${name}, ${pred})`;
+      const name = JSON.stringify(restrictionItemName(block));
+      const op = String(block.getFieldValue("OP") ?? "ALL");
+      const fn = restrictionOpToCall(op);
+      const call = restrictionOpNeedsCount(op)
+        ? `${fn}(${list}, ${restrictionCount(block)}, ${name}, ${pred})`
+        : `${fn}(${list}, ${name}, ${pred})`;
+      // `any_of(list, v, true)` is "the list has an item" — no new builtin needed.
+      if (!restrictionRequiresItems(block)) return call;
+      return `and(any_of(${list}, ${name}, true), ${call})`;
     }
-    case "logic_cardinality": {
-      const list = blockToExpression(block.getInputTargetBlock("LIST")) ?? "list()";
-      const n = blockToExpression(block.getInputTargetBlock("N")) ?? "0";
-      const pred = blockToExpression(block.getInputTargetBlock("PRED")) ?? "true";
-      const name = JSON.stringify(variableFieldName(block));
-      const fn = cardinalityOpToCall(String(block.getFieldValue("OP") ?? "MIN"));
-      return `${fn}(${list}, ${n}, ${name}, ${pred})`;
-    }
-    case "logic_set_operation": {
+    case LOGIC_CURRENT_ITEM_BLOCK:
+      return `var(${JSON.stringify(currentItemName(block))})`;
+    case LISTS_SET_OPERATION_BLOCK: {
       const a = blockToExpression(block.getInputTargetBlock("A")) ?? "list()";
       const b = blockToExpression(block.getInputTargetBlock("B")) ?? "list()";
-      const fn = String(block.getFieldValue("OP") ?? "AND") === "OR" ? "union" : "intersection";
-      return `${fn}(${a}, ${b})`;
-    }
-    case "logic_set_not": {
-      const set = blockToExpression(block.getInputTargetBlock("SET")) ?? "list()";
-      const universe = blockToExpression(block.getInputTargetBlock("UNIVERSE")) ?? "list()";
-      return `difference(${universe}, ${set})`;
+      return `${setOpToCall(String(block.getFieldValue("OP") ?? "BOTH"))}(${a}, ${b})`;
     }
     default:
       return null;
@@ -372,6 +375,18 @@ export function astToExpressionBlock(
       }
       return finalize(block);
     }
+    if (ast.name === "and") {
+      // `and(any_of(list, v, true), <restriction>(list, …))` is one guarded
+      // restriction block, not a Boolean and of two of them.
+      const guarded = guardedRestriction(ast);
+      if (guarded) {
+        const block = restrictionBlockFromAst(workspace, guarded, finalize);
+        if (block) {
+          setRestrictionRequiresItems(block, true);
+          return finalize(block);
+        }
+      }
+    }
     if (ast.name === "and" || ast.name === "or") {
       const block = workspace.newBlock("logic_operation") as BlockSvg;
       block.setFieldValue(ast.name === "or" ? "OR" : "AND", "OP");
@@ -406,49 +421,14 @@ export function astToExpressionBlock(
       }
       return finalize(block);
     }
-    if (ast.name === "all_of" || ast.name === "any_of" || ast.name === "none_of") {
-      registerLogicBlocks();
-      const block = workspace.newBlock(LOGIC_QUANTIFY_BLOCK) as BlockSvg;
-      block.setFieldValue(callToQuantifyOp(ast.name), "OP");
-      bindVariableField(workspace, block, ast.args[1]);
-      if (ast.args[0]) {
-        block.getInput("LIST")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
-        );
-      }
-      if (ast.args[2]) {
-        block.getInput("PRED")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[2], "boolean", finalize).outputConnection!,
-        );
-      }
-      return finalize(block);
+    if (isRestrictionCall(ast.name)) {
+      const block = restrictionBlockFromAst(workspace, ast, finalize);
+      if (block) return finalize(block);
     }
-    if (ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly") {
+    if (isSetCall(ast.name)) {
       registerLogicBlocks();
-      const block = workspace.newBlock(LOGIC_CARDINALITY_BLOCK) as BlockSvg;
-      block.setFieldValue(callToCardinalityOp(ast.name), "OP");
-      bindVariableField(workspace, block, ast.args[2]);
-      if (ast.args[0]) {
-        block.getInput("LIST")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
-        );
-      }
-      if (ast.args[1]) {
-        block.getInput("N")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[1], "number", finalize).outputConnection!,
-        );
-      }
-      if (ast.args[3]) {
-        block.getInput("PRED")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[3], "boolean", finalize).outputConnection!,
-        );
-      }
-      return finalize(block);
-    }
-    if (ast.name === "intersection" || ast.name === "union") {
-      registerLogicBlocks();
-      const block = workspace.newBlock(LOGIC_SET_OPERATION_BLOCK) as BlockSvg;
-      block.setFieldValue(ast.name === "union" ? "OR" : "AND", "OP");
+      const block = workspace.newBlock(LISTS_SET_OPERATION_BLOCK) as BlockSvg;
+      block.setFieldValue(callToSetOp(ast.name), "OP");
       if (ast.args[0]) {
         block.getInput("A")!.connection!.connect(
           astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
@@ -461,33 +441,70 @@ export function astToExpressionBlock(
       }
       return finalize(block);
     }
-    if (ast.name === "difference") {
-      registerLogicBlocks();
-      const block = workspace.newBlock(LOGIC_SET_NOT_BLOCK) as BlockSvg;
-      if (ast.args[1]) {
-        block.getInput("SET")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[1], "node", finalize).outputConnection!,
-        );
-      }
-      if (ast.args[0]) {
-        block.getInput("UNIVERSE")!.connection!.connect(
-          astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
-        );
-      }
-      return finalize(block);
-    }
   }
 
   return finalize(createSourceQueryBlock(workspace, serialize(ast), returnType));
 }
 
-function bindVariableField(workspace: Workspace, block: BlockSvg, ast: ExprAst | undefined): void {
-  const name = ast?.kind === "literal" ? String(ast.value) : "item";
-  // deno-lint-ignore no-explicit-any
-  const ws = workspace as any;
-  let variable = ws.getVariable?.(name);
-  if (!variable && typeof ws.createVariable === "function") {
-    variable = ws.createVariable(name);
+type CallAst = Extract<ExprAst, { kind: "call" }>;
+
+/**
+ * Build one `logic_list_restriction` from `all_of` / `at_least` / … .
+ *
+ * Returns null when the call cannot be shown on the block — the threshold is a
+ * numeric field, so a computed count has to stay a raw Mapping Expression.
+ */
+function restrictionBlockFromAst(
+  workspace: Workspace,
+  ast: CallAst,
+  finalize: (block: BlockSvg) => BlockSvg,
+): BlockSvg | null {
+  const op = callToRestrictionOp(ast.name);
+  const counting = restrictionOpNeedsCount(op);
+  const countAst = counting ? ast.args[1] : undefined;
+  if (counting && !(countAst?.kind === "literal" && typeof countAst.value === "number")) {
+    return null;
   }
-  if (variable) block.setFieldValue(variable.getId(), "VAR");
+  registerLogicBlocks();
+  const block = workspace.newBlock(LOGIC_LIST_RESTRICTION_BLOCK) as BlockSvg;
+  block.setFieldValue(op, "OP");
+  if (counting) block.setFieldValue(Number(countAst!.value), "N");
+  const nameAst = counting ? ast.args[2] : ast.args[1];
+  setRestrictionItemName(
+    block,
+    nameAst?.kind === "literal" ? String(nameAst.value) : DEFAULT_ITEM_NAME,
+  );
+  if (ast.args[0]) {
+    block.getInput("LIST")!.connection!.connect(
+      astToExpressionBlock(workspace, ast.args[0], "node", finalize).outputConnection!,
+    );
+  }
+  const predAst = counting ? ast.args[3] : ast.args[2];
+  if (predAst) {
+    block.getInput("PRED")!.connection!.connect(
+      astToExpressionBlock(workspace, predAst, "boolean", finalize).outputConnection!,
+    );
+  }
+  return block;
+}
+
+/**
+ * The restriction inside `and(any_of(list, v, true), <restriction>(list, …, v, …))`,
+ * which is how the **require at least one item** guard is written.
+ */
+function guardedRestriction(ast: CallAst): CallAst | null {
+  if (ast.args.length !== 2) return null;
+  const [guard, body] = ast.args;
+  if (guard?.kind !== "call" || guard.name !== "any_of" || guard.args.length !== 3) return null;
+  if (guard.args[2]?.kind !== "literal" || guard.args[2].value !== true) return null;
+  if (body?.kind !== "call" || !isRestrictionCall(body.name)) return null;
+  const bodyOp = callToRestrictionOp(body.name);
+  // Only the vacuously-true operators show the checkbox, so only they can absorb
+  // the guard; on the others (`at_least(list, 0, …)`) it would be dropped.
+  if (!restrictionOpHoldsOnEmptyList(bodyOp)) return null;
+  const bodyName = restrictionOpNeedsCount(bodyOp) ? body.args[2] : body.args[1];
+  if (!guard.args[0] || !body.args[0]) return null;
+  if (serialize(guard.args[0]) !== serialize(body.args[0])) return null;
+  if (!bodyName || serialize(guard.args[1]!) !== serialize(bodyName)) return null;
+  return body;
 }

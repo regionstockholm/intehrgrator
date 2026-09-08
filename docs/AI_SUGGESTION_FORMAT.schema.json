@@ -154,10 +154,9 @@
             "logic_compare",
             "logic_operation",
             "logic_negate",
-            "logic_quantify",
-            "logic_cardinality",
-            "logic_set_operation",
-            "logic_set_not"
+            "logic_list_restriction",
+            "logic_current_item",
+            "lists_set_operation"
           ]
         },
         "fields": {

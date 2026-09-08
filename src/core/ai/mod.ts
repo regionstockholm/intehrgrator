@@ -73,6 +73,13 @@ const VALUE_BLOCK_TYPES = new Set([
   "text_join",
   "math_arithmetic",
   "logic_ternary",
+  "logic_compare",
+  "logic_operation",
+  "logic_negate",
+  "logic_quantify",
+  "logic_cardinality",
+  "logic_set_operation",
+  "logic_set_not",
 ]);
 
 const MULTIPART_BOUNDARY = "intehrgrator-part";
@@ -1044,6 +1051,73 @@ function blockJsonToExpression(
       };
       const op = opMap[String(fields.OP ?? "ADD")] ?? "+";
       return `(${a} ${op} ${b})`;
+    }
+    case "logic_compare": {
+      const a = child("A") ? blockJsonToExpression(child("A")!, rewriteSourcePath) : "false";
+      const b = child("B") ? blockJsonToExpression(child("B")!, rewriteSourcePath) : "false";
+      const opMap: Record<string, string> = {
+        EQ: "eq",
+        NEQ: "ne",
+        LT: "lt",
+        LTE: "le",
+        GT: "gt",
+        GTE: "ge",
+      };
+      const fn = opMap[String(fields.OP ?? "EQ")] ?? "eq";
+      return `${fn}(${a}, ${b})`;
+    }
+    case "logic_operation": {
+      const a = child("A") ? blockJsonToExpression(child("A")!, rewriteSourcePath) : "false";
+      const b = child("B") ? blockJsonToExpression(child("B")!, rewriteSourcePath) : "false";
+      const fn = String(fields.OP ?? "AND") === "OR" ? "or" : "and";
+      return `${fn}(${a}, ${b})`;
+    }
+    case "logic_negate": {
+      const inner = child("BOOL")
+        ? blockJsonToExpression(child("BOOL")!, rewriteSourcePath)
+        : "false";
+      return `not(${inner})`;
+    }
+    case "logic_quantify": {
+      const list = child("LIST")
+        ? blockJsonToExpression(child("LIST")!, rewriteSourcePath)
+        : "list()";
+      const pred = child("PRED")
+        ? blockJsonToExpression(child("PRED")!, rewriteSourcePath)
+        : "true";
+      const name = JSON.stringify(String(fields.VAR ?? "item"));
+      const fn = String(fields.OP ?? "ONLY") === "SOME"
+        ? "any_of"
+        : String(fields.OP ?? "ONLY") === "NONE"
+        ? "none_of"
+        : "all_of";
+      return `${fn}(${list}, ${name}, ${pred})`;
+    }
+    case "logic_cardinality": {
+      const list = child("LIST")
+        ? blockJsonToExpression(child("LIST")!, rewriteSourcePath)
+        : "list()";
+      const n = child("N") ? blockJsonToExpression(child("N")!, rewriteSourcePath) : "0";
+      const pred = child("PRED")
+        ? blockJsonToExpression(child("PRED")!, rewriteSourcePath)
+        : "true";
+      const name = JSON.stringify(String(fields.VAR ?? "item"));
+      const op = String(fields.OP ?? "MIN");
+      const fn = op === "MAX" ? "at_most" : op === "EXACTLY" ? "exactly" : "at_least";
+      return `${fn}(${list}, ${n}, ${name}, ${pred})`;
+    }
+    case "logic_set_operation": {
+      const a = child("A") ? blockJsonToExpression(child("A")!, rewriteSourcePath) : "list()";
+      const b = child("B") ? blockJsonToExpression(child("B")!, rewriteSourcePath) : "list()";
+      const fn = String(fields.OP ?? "AND") === "OR" ? "union" : "intersection";
+      return `${fn}(${a}, ${b})`;
+    }
+    case "logic_set_not": {
+      const set = child("SET") ? blockJsonToExpression(child("SET")!, rewriteSourcePath) : "list()";
+      const universe = child("UNIVERSE")
+        ? blockJsonToExpression(child("UNIVERSE")!, rewriteSourcePath)
+        : "list()";
+      return `difference(${universe}, ${set})`;
     }
     default:
       return null;

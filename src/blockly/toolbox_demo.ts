@@ -254,6 +254,47 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
           { kind: "block", type: "logic_negate" },
           { kind: "block", type: "logic_boolean" },
           { kind: "block", type: "logic_ternary" },
+          {
+            kind: "block",
+            type: "logic_quantify",
+            fields: { OP: "ONLY" },
+          },
+          {
+            kind: "block",
+            type: "logic_quantify",
+            fields: { OP: "SOME" },
+          },
+          {
+            kind: "block",
+            type: "logic_quantify",
+            fields: { OP: "NONE" },
+          },
+          {
+            kind: "block",
+            type: "logic_cardinality",
+            fields: { OP: "MIN" },
+            inputs: {
+              N: { shadow: { type: "math_number", fields: { NUM: 1 } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "logic_cardinality",
+            fields: { OP: "MAX" },
+            inputs: {
+              N: { shadow: { type: "math_number", fields: { NUM: 1 } } },
+            },
+          },
+          {
+            kind: "block",
+            type: "logic_cardinality",
+            fields: { OP: "EXACTLY" },
+            inputs: {
+              N: { shadow: { type: "math_number", fields: { NUM: 1 } } },
+            },
+          },
+          { kind: "block", type: "logic_set_operation" },
+          { kind: "block", type: "logic_set_not" },
         ],
       },
       {

@@ -13,7 +13,7 @@
  */
 
 import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
-import { parseExpression, type ExprAst } from "../expression/mod.ts";
+import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { attributesFor } from "../rm_meta.ts";
 
@@ -40,7 +40,7 @@ export interface TsEmitContext {
   /** When set, relative source paths evaluate against this loop node. */
   loopVar?: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets">;
+  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets" | "logic">;
 }
 
 export function createTsEmitContext(sourceVar = "sourceCtx.data"): TsEmitContext {
@@ -55,6 +55,7 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
     case "binary":
       return `(${emitTsExpression(ast.left, ctx)} ${ast.op} ${emitTsExpression(ast.right, ctx)})`;
     case "call": {
+      if (isQuantifyCall(ast.name)) return emitQuantifierTs(ast, ctx);
       const args = ast.args.map((a) => emitTsExpression(a, ctx));
       switch (ast.name) {
         case "trim":
@@ -66,7 +67,39 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
         case "switch":
           return emitSwitchTs(args);
         case "var":
+          ctx.helpers.add("logic");
           return `__vars[${args[0]}]`;
+        case "eq":
+          ctx.helpers.add("logic");
+          return `sameItem(${args[0]}, ${args[1]})`;
+        case "ne":
+          ctx.helpers.add("logic");
+          return `!sameItem(${args[0]}, ${args[1]})`;
+        case "lt":
+          return `(Number(${args[0]}) < Number(${args[1]}))`;
+        case "le":
+          return `(Number(${args[0]}) <= Number(${args[1]}))`;
+        case "gt":
+          return `(Number(${args[0]}) > Number(${args[1]}))`;
+        case "ge":
+          return `(Number(${args[0]}) >= Number(${args[1]}))`;
+        case "and":
+          return `(${args[0]} && ${args[1]})`;
+        case "or":
+          return `(${args[0]} || ${args[1]})`;
+        case "not":
+          return `!(${args[0]})`;
+        case "list":
+          return `[${args.join(", ")}]`;
+        case "intersection":
+          ctx.helpers.add("logic");
+          return `setIntersection(asList(${args[0]}), asList(${args[1]}))`;
+        case "union":
+          ctx.helpers.add("logic");
+          return `setUnion(asList(${args[0]}), asList(${args[1]}))`;
+        case "difference":
+          ctx.helpers.add("logic");
+          return `setDifference(asList(${args[0]}), asList(${args[1]}))`;
         case "maps_get":
           return emitMapsGet(ast, args);
         case "sheet_get_cell":
@@ -149,6 +182,40 @@ function emitXpathCall(
   return `${fn}(${pathCode}, ${node})`;
 }
 
+function emitQuantifierTs(
+  ast: Extract<ExprAst, { kind: "call" }>,
+  ctx: TsEmitContext,
+): string {
+  ctx.helpers.add("logic");
+  const card = ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly";
+  const listCode = emitTsExpression(ast.args[0]!, ctx);
+  const nCode = card ? emitTsExpression(ast.args[1]!, ctx) : "0";
+  const varAst = card ? ast.args[2] : ast.args[1];
+  const predAst = card ? ast.args[3] : ast.args[2];
+  const varName = varAst?.kind === "literal" ? String(varAst.value) : "item";
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(varName) ? varName : "_item";
+  const innerCtx: TsEmitContext = { ...ctx, loopVar: ident };
+  const predCode = predAst ? emitTsExpression(predAst, innerCtx) : "true";
+  const bind = `(__vars[${JSON.stringify(varName)}] = ${ident}, ${predCode})`;
+  const arr = `asList(${listCode})`;
+  switch (ast.name) {
+    case "all_of":
+      return `${arr}.every((${ident}) => ${bind})`;
+    case "any_of":
+      return `${arr}.some((${ident}) => ${bind})`;
+    case "none_of":
+      return `${arr}.every((${ident}) => !${bind})`;
+    case "at_least":
+      return `${arr}.filter((${ident}) => ${bind}).length >= ${nCode}`;
+    case "at_most":
+      return `${arr}.filter((${ident}) => ${bind}).length <= ${nCode}`;
+    case "exactly":
+      return `${arr}.filter((${ident}) => ${bind}).length === ${nCode}`;
+    default:
+      return "false";
+  }
+}
+
 function emitSwitchTs(args: string[]): string {
   if (args.length < 2) return "null";
   const discriminant = args[0];
@@ -184,7 +251,7 @@ export interface TypeScriptModuleParts {
   templateId: string;
   body: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets">;
+  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets" | "logic">;
   rootType?: string;
   /** Where the RM tree was walked from. */
   source?: "blockly" | "skeleton" | "slots";
@@ -256,6 +323,11 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
   }
   if (parts.helpers.has("sheets")) {
     lines.push(...indentLines(sheetHelpers(), 1));
+    lines.push("");
+  }
+  if (parts.helpers.has("logic")) {
+    lines.push("  const __vars: Record<string, unknown> = {};");
+    lines.push(...indentLines(logicHelpers(), 1));
     lines.push("");
   }
   for (const line of parts.body.split("\n")) {
@@ -346,6 +418,36 @@ function xpathHelpers(helpers: Set<string>): string[] {
   }
   while (lines.at(-1) === "") lines.pop();
   return lines;
+}
+
+function logicHelpers(): string[] {
+  return [
+    "function asList(value: unknown): unknown[] {",
+    "  if (Array.isArray(value)) return value;",
+    "  if (value == null) return [];",
+    "  return [value];",
+    "}",
+    "function sameItem(a: unknown, b: unknown): boolean {",
+    "  if (Object.is(a, b)) return true;",
+    "  if (a && b && typeof a === \"object\" && typeof b === \"object\") {",
+    "    try { return JSON.stringify(a) === JSON.stringify(b); } catch { return false; }",
+    "  }",
+    "  return false;",
+    "}",
+    "function setIntersection(a: unknown[], b: unknown[]): unknown[] {",
+    "  return a.filter((item) => b.some((other) => sameItem(item, other)));",
+    "}",
+    "function setUnion(a: unknown[], b: unknown[]): unknown[] {",
+    "  const out = [...a];",
+    "  for (const item of b) {",
+    "    if (!out.some((other) => sameItem(item, other))) out.push(item);",
+    "  }",
+    "  return out;",
+    "}",
+    "function setDifference(universe: unknown[], excluded: unknown[]): unknown[] {",
+    "  return universe.filter((item) => !excluded.some((other) => sameItem(item, other)));",
+    "}",
+  ];
 }
 
 function sheetHelpers(): string[] {

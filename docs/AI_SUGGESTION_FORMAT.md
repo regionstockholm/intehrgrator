@@ -89,6 +89,10 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Text | `text_trim`, `text_join` | `MODE`; `text_join` may need `extraState.itemCount` + `ADD0`… |
 | Math | `math_arithmetic` | `OP`: `ADD`\|`MINUS`\|`MULTIPLY`\|`DIVIDE`; inputs `A`,`B` |
 | Logic | `logic_ternary` | inputs `IF`,`THEN`,`ELSE` |
+| Logic compare | `logic_compare`, `logic_operation`, `logic_negate` | `OP` `EQ`/`NEQ`/`LT`/`LTE`/`GT`/`GTE` or `AND`/`OR`; inputs `A`,`B` / `BOOL` |
+| DL restriction | `logic_quantify` | `OP` `ONLY`/`SOME`/`NONE` (Manchester; ∀/∃/∀¬). Inputs `LIST`, `PRED`; field `VAR` (item name). Emits `all_of`/`any_of`/`none_of`. Empty list: `only`/`none` true, `some` false. |
+| DL cardinality | `logic_cardinality` | `OP` `MIN`/`MAX`/`EXACTLY`; inputs `LIST`,`N`,`PRED`; field `VAR`. Emits `at_least`/`at_most`/`exactly`. |
+| Set class ops | `logic_set_operation`, `logic_set_not` | `and`/`or` = intersection/union; `not SET in UNIVERSE` = complement. |
 
 No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional RM, Handlebars text, or list-construction blocks (`lists_*`) in this envelope — list-valued RM slots stay structural on the canvas.
 

@@ -1,7 +1,10 @@
 import fontoxpath from "fontoxpath";
 import type { SourceFormatId } from "../../types/mod.ts";
 import type { ExprAst } from "../expression/mod.ts";
-import { parseExpression } from "../expression/mod.ts";
+import {
+  isQuantifyCall,
+  parseExpression,
+} from "../expression/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
 import { DEFAULTS_MAP_NAME } from "../defaults/factory.ts";
 import { evalSheetCall, isSheetAccessor } from "../sheets/evaluate.ts";
@@ -21,6 +24,11 @@ export interface SourceContext {
   xmlDocument?: Document;
   /** Loop variables (`for_each_source` VAR → current source node). */
   vars?: Record<string, unknown>;
+  /**
+   * When set, relative source paths walk this node instead of `json`.
+   * Used while evaluating a DL restriction predicate against a list item.
+   */
+  relativeRoot?: unknown;
   /** Named Maps (Defaults Map and others) for `maps_get`. */
   namedMaps?: Record<string, Record<string, unknown>>;
   /** Named Sheets for `sheet_*` accessors (ADR 0005). */
@@ -75,6 +83,16 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
       break;
     }
     case "call": {
+      if (isQuantifyCall(ast.name)) return evalQuantifier(ast, ctx);
+      if (ast.name === "and") {
+        return ast.args.every((arg) => !!evalAst(arg, ctx));
+      }
+      if (ast.name === "or") {
+        return ast.args.some((arg) => !!evalAst(arg, ctx));
+      }
+      if (ast.name === "not") {
+        return !evalAst(ast.args[0]!, ctx);
+      }
       const args = ast.args.map((a) => evalAst(a, ctx));
       switch (ast.name) {
         case "trim":
@@ -83,6 +101,26 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           return args.map(String).join("");
         case "if":
           return args[0] ? args[1] : args[2];
+        case "eq":
+          return sameItem(args[0], args[1]);
+        case "ne":
+          return !sameItem(args[0], args[1]);
+        case "lt":
+          return Number(args[0]) < Number(args[1]);
+        case "le":
+          return Number(args[0]) <= Number(args[1]);
+        case "gt":
+          return Number(args[0]) > Number(args[1]);
+        case "ge":
+          return Number(args[0]) >= Number(args[1]);
+        case "list":
+          return args;
+        case "intersection":
+          return setIntersection(asList(args[0]), asList(args[1]));
+        case "union":
+          return setUnion(asList(args[0]), asList(args[1]));
+        case "difference":
+          return setDifference(asList(args[0]), asList(args[1]));
         case "xpath":
         case "xpathString":
           return xpathEval(String(args[0] ?? ""), ctx, "string");
@@ -144,11 +182,12 @@ function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
     const path = relative
       ? (trimmed === "." ? "$" : `$.${trimmed.replace(/^\./, "")}`)
       : trimmed;
+    const walkRoot = relative ? (ctx.relativeRoot ?? ctx.json) : ctx.json;
     if (/\[\*\]/.test(path)) {
-      return evalJsonWildcard(path, ctx.json);
+      return evalJsonWildcard(path, walkRoot);
     }
     if (relative) {
-      return walkJsonSegments(ctx.json, parseJsonAuthoringPath(path));
+      return walkJsonSegments(walkRoot, parseJsonAuthoringPath(path));
     }
     const query = toJsonXPath(expr);
     const variables = { source: ctx.json };
@@ -275,10 +314,12 @@ function coerceReturn(value: unknown, returnType: string): unknown {
 export function evalSourceNode(expr: string, ctx: SourceContext): unknown {
   const trimmed = expr.trim();
   if (ctx.kind === "json") {
+    const relative = isRelativeJsonPath(trimmed);
+    const root = relative ? (ctx.relativeRoot ?? ctx.json) : ctx.json;
     if (!trimmed || trimmed === "$" || trimmed === "." || trimmed === "/") {
-      return ctx.json;
+      return root;
     }
-    const nodes = collectJsonNodes(trimmed, ctx.json);
+    const nodes = collectJsonNodes(trimmed, root);
     return nodes.length <= 1 ? (nodes[0] ?? null) : nodes;
   }
   const documentNode = ctx.xmlDocument;
@@ -286,6 +327,81 @@ export function evalSourceNode(expr: string, ctx: SourceContext): unknown {
   const path = !trimmed || trimmed === "$" || trimmed === "." ? "/" : trimmed;
   const node = fontoxpath.evaluateXPathToFirstNode(path, documentNode);
   return xmlNodeToJson(node as Node | null);
+}
+
+export function asList(value: unknown): unknown[] {
+  if (Array.isArray(value)) return value;
+  if (value == null) return [];
+  return [value];
+}
+
+export function sameItem(a: unknown, b: unknown): boolean {
+  if (Object.is(a, b)) return true;
+  if (a && b && typeof a === "object" && typeof b === "object") {
+    try {
+      return JSON.stringify(a) === JSON.stringify(b);
+    } catch {
+      return false;
+    }
+  }
+  return false;
+}
+
+function evalQuantifier(
+  ast: Extract<ExprAst, { kind: "call" }>,
+  ctx: SourceContext,
+): boolean {
+  const card = ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly";
+  const list = asList(evalAst(ast.args[0]!, ctx));
+  const n = card ? Number(evalAst(ast.args[1]!, ctx)) : 0;
+  const varArg = card ? ast.args[2] : ast.args[1];
+  const pred = card ? ast.args[3] : ast.args[2];
+  const varName = String(evalAst(varArg ?? { kind: "literal", value: "item" }, ctx) ?? "item");
+  const matches = (item: unknown) => {
+    if (!pred) return true;
+    return !!evalAst(pred, itemContext(ctx, varName, item));
+  };
+  switch (ast.name) {
+    case "all_of":
+      return list.every(matches);
+    case "any_of":
+      return list.some(matches);
+    case "none_of":
+      return list.every((item) => !matches(item));
+    case "at_least":
+      return list.filter(matches).length >= n;
+    case "at_most":
+      return list.filter(matches).length <= n;
+    case "exactly":
+      return list.filter(matches).length === n;
+    default:
+      return false;
+  }
+}
+
+function itemContext(ctx: SourceContext, name: string, item: unknown): SourceContext {
+  return {
+    ...ctx,
+    vars: { ...(ctx.vars ?? {}), [name]: item },
+    relativeRoot: item,
+    data: item,
+  };
+}
+
+function setIntersection(a: unknown[], b: unknown[]): unknown[] {
+  return a.filter((item) => b.some((other) => sameItem(item, other)));
+}
+
+function setUnion(a: unknown[], b: unknown[]): unknown[] {
+  const out = [...a];
+  for (const item of b) {
+    if (!out.some((other) => sameItem(item, other))) out.push(item);
+  }
+  return out;
+}
+
+function setDifference(universe: unknown[], excluded: unknown[]): unknown[] {
+  return universe.filter((item) => !excluded.some((other) => sameItem(item, other)));
 }
 
 function xmlNodeToJson(node: Node | null): unknown {

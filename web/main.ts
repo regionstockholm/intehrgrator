@@ -68,6 +68,7 @@ import {
   setDefaultsMapPickHandler,
   setDefaultsMapInfoHandler,
   setSheetFocusHandler,
+  installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
@@ -364,6 +365,7 @@ async function bootBlockly(): Promise<void> {
     trashcan: false,
     renderer: registerCompactThrasosRenderer(),
   });
+  installExtractToFunctionOnWorkspace(workspace);
   installBlocklyFloatingOverlays();
 
   const loadOnce = takeLoadOnceBlocks();

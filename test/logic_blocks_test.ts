@@ -146,3 +146,26 @@ Deno.test("logic_compare serializes so restriction predicates can use it", () =>
   assertEquals(blockToExpression(cmp), 'eq("Cat", "Cat")');
   workspace.dispose();
 });
+
+Deno.test("lists_create_with of non-expression children does not fake list(false,…)", () => {
+  // Regression: DL list() serialization must not swallow scaffolded DV_* shells
+  // (coded-text / ordinal value sets) as false — TypeScript canvas codegen needs
+  // null so it can emitListsCreate with new DV_CODED_TEXT.
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const list = workspace.newBlock("lists_create_with") as Blockly.Block & {
+    itemCount_?: number;
+    updateShape_?: () => void;
+  };
+  list.itemCount_ = 2;
+  list.updateShape_?.();
+  const a = workspace.newBlock("text");
+  a.setFieldValue("ok", "TEXT");
+  list.getInput("ADD0")!.connection!.connect(a.outputConnection!);
+  // Data-value shells are Mapping Spec structure, not Mapping Expressions.
+  const shell = workspace.newBlock("dv_coded_text");
+  shell.setFieldValue("DV_CODED_TEXT", "RM_TYPE");
+  list.getInput("ADD1")!.connection!.connect(shell.outputConnection!);
+  assertEquals(blockToExpression(list), null);
+  workspace.dispose();
+});

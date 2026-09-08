@@ -1,0 +1,89 @@
+# Publish desktop binaries and a frozen GitHub Pages subdirectory for each release tag.
+# Triggered by `deno task release` (push annotated tag) or manual tag push.
+
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag (e.g. v0.6)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Resolve release tag
+        id: rel
+        run: |
+          if [ -n "${{ github.event.inputs.tag }}" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Vendor ehrtslib
+        run: deno task vendor
+
+      - name: Test
+        run: deno task test
+
+      - name: Build Web Shell
+        run: deno task build
+
+      - name: Compile desktop binaries
+        run: deno task compile:desktop
+
+      - name: Assemble versioned GitHub Pages tree
+        run: deno run -A scripts/assemble-pages.ts release "${{ steps.rel.outputs.tag }}" dist dist-pages
+
+      - uses: actions/configure-pages@v6
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist-pages
+
+      - id: deployment
+        uses: actions/deploy-pages@v5
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ steps.rel.outputs.tag }}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading assets only"
+          else
+            gh release create "$TAG" \
+              --title "intEHRgrator desktop ${TAG#v}" \
+              --notes "Desktop binaries and frozen Web Shell at https://regionstockholm.github.io/intehrgrator/${TAG}/"
+          fi
+          gh release upload "$TAG" dist/release/intEHRgrator-linux-x64.AppImage --clobber
+          gh release upload "$TAG" dist/release/intEHRgrator-windows-x64.zip --clobber
+          gh release upload "$TAG" dist/release/intEHRgrator-macos-x64.zip --clobber
+          gh release upload "$TAG" dist/release/intEHRgrator-macos-arm64.zip --clobber

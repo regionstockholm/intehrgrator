@@ -42,5 +42,6 @@ Blockly may never be fully removed — it remains valuable for control-flow bloc
 
 ## Related
 
+- [textual-mapping-languages.md](textual-mapping-languages.md) — which language (YAML slot projection, XQuery, JSONata, …) if the text surface becomes more than decorated Blockly JSON
 - [UI_ARCHITECTURE.md](../UI_ARCHITECTURE.md) — CodeMirror Sync Scope
 - [CONTEXT.md](../../CONTEXT.md) — Mapping Expression, Sync Scope

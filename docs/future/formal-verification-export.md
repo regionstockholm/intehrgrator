@@ -139,6 +139,7 @@ Mapping Model (slots[], loops, expressions)
 
 ## Related
 
+- [textual-mapping-languages.md](textual-mapping-languages.md) — authoring languages (distinct from this verification export)
 - [xquery-export-investigation.md](xquery-export-investigation.md) — declarative export precedent
 - [function-test-harnesses.md](function-test-harnesses.md) — unit tests of **Blockly Function**s and decision-table-shaped oracles; specified points under PBT
 - [MAPPING_SPECIFICATION.md](../MAPPING_SPECIFICATION.md) — Mapping Model pipeline

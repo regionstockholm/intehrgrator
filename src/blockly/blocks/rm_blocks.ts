@@ -34,6 +34,10 @@ import {
   type SlotCardinality,
 } from "../slot_cardinality.ts";
 import { appendSlotLabel, isSlotLabelField } from "../slot_label.ts";
+import {
+  appendHiddenSerializable,
+  createHiddenSerializableField,
+} from "../hidden_serializable_field.ts";
 import { registerTermPickBlock } from "./term_pick.ts";
 import {
   appendMutatorCogwheel,
@@ -354,9 +358,7 @@ function definePartyRefBlock(): void {
           rmType: "String",
         });
       }
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable("PARTY_REF"), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
+      appendHiddenSerializable(this, "RM_TYPE", "PARTY_REF");
       this.setOutput(true, "PARTY_REF");
       this.setColour(STRUCTURE_COLOUR);
       this.setTooltip("openEHR RM PARTY_REF — external party reference");
@@ -995,21 +997,13 @@ function defineContainerBlock(
           }
         }
       }
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
+      appendHiddenSerializable(this, "SLOT_ID", "");
       if (!isEventFamilyType(options.rmType) && !isItemStructureFamilyType(options.rmType)) {
-        this.appendDummyInput()
-          .appendField(new Blockly.FieldLabelSerializable(options.rmType), "RM_TYPE");
-        this.getField("RM_TYPE")!.setVisible(false);
+        appendHiddenSerializable(this, "RM_TYPE", options.rmType);
       }
-      appendHiddenLabel(this, "MANDATORY", "");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
-      this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
-      this.getField("ARCHETYPE_CTX")!.setVisible(false);
+      appendHiddenSerializable(this, "MANDATORY", "");
+      appendHiddenSerializable(this, "ARCHETYPE_NODE_ID", "");
+      appendHiddenSerializable(this, "ARCHETYPE_CTX", "");
       this.setColour(colour);
       this.setTooltip(`openEHR RM ${options.rmType}`);
       if (isPartyProxyType(options.rmType)) {
@@ -1041,19 +1035,11 @@ function defineValueElementBlock(): void {
         card: { min: 1, max: 1 },
         rmType: slotRmTypeForAttr("ELEMENT", "value"),
       });
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable("ELEMENT"), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
-      appendHiddenLabel(this, "MANDATORY", "");
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_NODE_ID");
-      this.getField("ARCHETYPE_NODE_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "ARCHETYPE_CTX");
-      this.getField("ARCHETYPE_CTX")!.setVisible(false);
+      appendHiddenSerializable(this, "RM_TYPE", "ELEMENT");
+      appendHiddenSerializable(this, "MANDATORY", "");
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "ARCHETYPE_NODE_ID", "");
+      appendHiddenSerializable(this, "ARCHETYPE_CTX", "");
       this.setPreviousStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
       this.setNextStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
       this.setColour(ELEMENT_COLOUR);
@@ -1082,13 +1068,9 @@ function defineDataValueBlock(rmType: string): void {
       if (optionalAttributes(rmType).some((a) => isMappableField(a))) {
         appendMutatorCogwheel(header);
       }
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable(rmType), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
-      appendHiddenLabel(this, "MANDATORY", "");
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "RM_TYPE", rmType);
+      appendHiddenSerializable(this, "MANDATORY", "");
 
       const mandatory = mandatoryAttributes(rmType).filter((a) =>
         isMappableField(a)
@@ -1186,12 +1168,8 @@ function defineCodePhraseBlock(): void {
       this.setOutput(true, "CODE_PHRASE");
       this.setColour(DV_COLOUR);
       enforceOpenEhrBlockLayout(this);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldLabelSerializable("CODE_PHRASE"), "RM_TYPE");
-      this.getField("RM_TYPE")!.setVisible(false);
-      this.appendDummyInput()
-        .appendField(new Blockly.FieldTextInput(""), "SLOT_ID");
-      this.getField("SLOT_ID")!.setVisible(false);
+      appendHiddenSerializable(this, "RM_TYPE", "CODE_PHRASE");
+      appendHiddenSerializable(this, "SLOT_ID", "");
     },
   };
 }
@@ -1350,7 +1328,7 @@ function defineMutatorItemBlock(type: string, colour: string): void {
       // Single row: a second dummy input for hidden ATTR doubled block height (~59px).
       this.appendDummyInput()
         .appendField(new Blockly.FieldLabelSerializable(""), "LABEL")
-        .appendField(zeroSizeSerializableField(""), "ATTR");
+        .appendField(createHiddenSerializableField(""), "ATTR");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
@@ -1373,21 +1351,6 @@ function defineMutatorItemBlock(type: string, colour: string): void {
       };
     },
   };
-}
-
-/** Serializable ATTR that does not contribute to block layout size. */
-function zeroSizeSerializableField(value: string) {
-  const field = new Blockly.FieldLabelSerializable(value);
-  field.EDITABLE = false;
-  field.SERIALIZABLE = true;
-  field.initView = () => {};
-  const sized = field as unknown as { size_?: { width: number; height: number }; getSize?: () => { width: number; height: number } };
-  if (sized.size_) {
-    sized.size_.width = 0;
-    sized.size_.height = 0;
-  }
-  sized.getSize = () => ({ width: 0, height: 0 });
-  return field;
 }
 
 function initSvgIfPresent(block: Blockly.Block): void {
@@ -1678,9 +1641,3 @@ declare module "blockly/core" {
   }
 }
 
-function appendHiddenLabel(block: Blockly.Block, name: string, value: string): void {
-  if (block.getField(name)) return;
-  block.appendDummyInput()
-    .appendField(new Blockly.FieldLabelSerializable(value), name);
-  block.getField(name)?.setVisible(false);
-}

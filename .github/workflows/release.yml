@@ -76,12 +76,23 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           TAG="${{ steps.rel.outputs.tag }}"
+          PAGES_URL="https://regionstockholm.github.io/intehrgrator/${TAG}/"
+          {
+            echo "## intEHRgrator desktop ${TAG#v}"
+            echo
+            echo "Local Integration Workbench as a Deno desktop app (OS webview). Same Mapping Editor as the [Web Shell for this release](${PAGES_URL}), packaged for offline use on \`127.0.0.1\`."
+            echo
+            echo "### Web Shell (frozen for this release)"
+            echo
+            echo "- **This version:** [${PAGES_URL}](${PAGES_URL})"
+            echo "- **Bleeding edge (main):** https://regionstockholm.github.io/intehrgrator/"
+          } > /tmp/release-notes.md
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists — uploading assets only"
           else
             gh release create "$TAG" \
               --title "intEHRgrator desktop ${TAG#v}" \
-              --notes "Desktop binaries and frozen Web Shell at https://regionstockholm.github.io/intehrgrator/${TAG}/"
+              --notes-file /tmp/release-notes.md
           fi
           gh release upload "$TAG" dist/release/intEHRgrator-linux-x64.AppImage --clobber
           gh release upload "$TAG" dist/release/intEHRgrator-windows-x64.zip --clobber

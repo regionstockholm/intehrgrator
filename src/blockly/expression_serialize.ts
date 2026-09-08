@@ -187,10 +187,21 @@ export function blockToExpression(block: Block | null): string | null {
       return `not(${inner})`;
     }
     case "lists_create_with": {
+      // Expression-path lists (DL quantifiers) need every item serializable.
+      // Scaffolded coded-text / ordinal value-set lists hold DV_* shells that
+      // are not Mapping Expressions — return null so TypeScript canvas codegen
+      // falls through to emitListsCreate (new DV_CODED_TEXT / …).
       const count = Number((block as Block & { itemCount_?: number }).itemCount_ ?? 0);
       const parts: string[] = [];
       for (let i = 0; i < count; i++) {
-        parts.push(blockToExpression(block.getInputTargetBlock(`ADD${i}`)) ?? "false");
+        const child = block.getInputTargetBlock(`ADD${i}`);
+        if (!child) {
+          parts.push("null");
+          continue;
+        }
+        const part = blockToExpression(child);
+        if (part === null) return null;
+        parts.push(part);
       }
       return `list(${parts.join(", ")})`;
     }

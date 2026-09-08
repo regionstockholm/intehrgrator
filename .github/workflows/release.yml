@@ -56,9 +56,7 @@ jobs:
       - name: Build Web Shell
         run: deno task build
 
-      - name: Compile desktop binaries
-        run: deno task compile:desktop
-
+      # Pages first so a desktop compile failure cannot block the frozen Web Shell.
       - name: Assemble versioned GitHub Pages tree
         run: deno run -A scripts/assemble-pages.ts release "${{ steps.rel.outputs.tag }}" dist dist-pages
 
@@ -70,6 +68,9 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@v5
+
+      - name: Compile desktop binaries
+        run: deno task compile:desktop
 
       - name: Create GitHub Release
         env:

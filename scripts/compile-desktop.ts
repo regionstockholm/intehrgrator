@@ -16,13 +16,14 @@ const TARGETS = [
     target: "x86_64-unknown-linux-gnu",
     output: join("dist", "release", "intEHRgrator-linux-x64.AppImage"),
   },
+  // Deno appends `.app` for darwin targets; do not include it in --output or you get `.app.app`.
   {
     target: "x86_64-apple-darwin",
-    output: join("dist", "release", "intEHRgrator-macos-x64.app"),
+    output: join("dist", "release", "intEHRgrator-macos-x64"),
   },
   {
     target: "aarch64-apple-darwin",
-    output: join("dist", "release", "intEHRgrator-macos-arm64.app"),
+    output: join("dist", "release", "intEHRgrator-macos-arm64"),
   },
 ] as const;
 

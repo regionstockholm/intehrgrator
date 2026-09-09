@@ -115,6 +115,16 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           return Number(args[0]) >= Number(args[1]);
         case "list":
           return args;
+        case "lists_getIndex": {
+          const items = asList(args[0]);
+          const where = String(args[1] ?? "FIRST");
+          if (where === "FIRST") return items[0] ?? null;
+          if (where === "LAST") return items[items.length - 1] ?? null;
+          const at = Number(args[2] ?? 1);
+          if (where === "FROM_START") return items[at - 1] ?? null;
+          if (where === "FROM_END") return items[items.length - at] ?? null;
+          return null;
+        }
         case "intersection":
           return setIntersection(asList(args[0]), asList(args[1]));
         case "union":

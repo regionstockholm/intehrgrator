@@ -1,19 +1,42 @@
 import { assert, assertEquals } from "@std/assert";
+import { join } from "@std/path";
+import * as enMsg from "blockly/msg/en";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import {
   applyModelLoops,
+  attachOptionalSchemaChild,
   initBlocklyGenerators,
+  loadSkeletonIntoWorkspace,
   workspaceToModelJson,
 } from "@intehrgrator/blockly/mod.ts";
 import { rmAttributeInputName, syncRmAttributeInputs } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
+import { composeSchemaOptionalFields, schemaOptionalInputName } from "@intehrgrator/blockly/blocks/schema_mutator.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
+import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
+import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { MODEL_VERSION } from "@intehrgrator/types/mod.ts";
+import type { TargetSignatureNode } from "@intehrgrator/types/mod.ts";
 
 let ready = false;
 function ensure(): void {
   if (ready) return;
+  const anyMod = enMsg as { default?: Record<string, string> } & Record<string, string>;
+  const table = anyMod.default && typeof anyMod.default === "object" ? anyMod.default : anyMod;
+  Blockly.setLocale(table);
   initBlocklyGenerators();
   ready = true;
+}
+
+function findSignature(
+  nodes: TargetSignatureNode[],
+  slotId: string,
+): TargetSignatureNode | undefined {
+  for (const node of nodes) {
+    if (node.slotId === slotId) return node;
+    const child = findSignature(node.children, slotId);
+    if (child) return child;
+  }
+  return undefined;
 }
 
 function connectDo(loop: Blockly.Block, body: Blockly.Block): void {
@@ -224,4 +247,149 @@ Deno.test("applyModelLoops restores for_each_list from IR", () => {
 Deno.test("empty model uses Mapping Model version 3", () => {
   assertEquals(createEmptyModel("t").modelVersion, MODEL_VERSION);
   assertEquals(MODEL_VERSION, 3);
+});
+
+Deno.test("lists_getIndex in a value slot is a kept expression, not unsupported", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const slot = workspace.newBlock("target_value");
+  slot.setFieldValue("slot/code", "SLOT_ID");
+  const get = workspace.newBlock("lists_getIndex") as Blockly.Block & {
+    updateAt_?: (hasAt: boolean) => void;
+  };
+  get.setFieldValue("GET", "MODE");
+  get.setFieldValue("FROM_START", "WHERE");
+  get.updateAt_?.(true);
+  const list = workspace.newBlock("lists_create_with") as Blockly.Block & {
+    itemCount_?: number;
+    updateShape_?: () => void;
+  };
+  list.itemCount_ = 2;
+  list.updateShape_?.();
+  const a = workspace.newBlock("text");
+  a.setFieldValue("I10", "TEXT");
+  const b = workspace.newBlock("text");
+  b.setFieldValue("E11", "TEXT");
+  list.getInput("ADD0")!.connection!.connect(a.outputConnection!);
+  list.getInput("ADD1")!.connection!.connect(b.outputConnection!);
+  const num = workspace.newBlock("math_number");
+  num.setFieldValue("2", "NUM");
+  get.getInput("VALUE")!.connection!.connect(list.outputConnection!);
+  get.getInput("AT")!.connection!.connect(num.outputConnection!);
+  slot.getInput("VALUE")!.connection!.connect(get.outputConnection!);
+
+  const ir = workspaceToModelJson(workspace);
+  const mapped = ir.slots.find((s) => s.slotId === "slot/code");
+  assertEquals(mapped?.expression, 'lists_getIndex(list("I10", "E11"), "FROM_START", 2)');
+  assertEquals(
+    ir.unsupported.some((u) => u.blockType === "lists_getIndex"),
+    false,
+    "read-only lists_getIndex is VMS Keep, not unsupported",
+  );
+  assertEquals(
+    evaluate(mapped!.expression, createSourceContext("{}", "json"), "string"),
+    "E11",
+  );
+  workspace.dispose();
+});
+
+Deno.test("text_handlebars is recorded as an escape hatch", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const slot = workspace.newBlock("target_value");
+  slot.setFieldValue("slot/note", "SLOT_ID");
+  const render = workspace.newBlock("text_handlebars");
+  const script = workspace.newBlock("text");
+  script.setFieldValue("{{name}}", "TEXT");
+  render.getInput("SCRIPT")!.connection!.connect(script.outputConnection!);
+  slot.getInput("VALUE")!.connection!.connect(render.outputConnection!);
+
+  const ir = workspaceToModelJson(workspace);
+  const mapped = ir.slots.find((s) => s.slotId === "slot/note");
+  assertEquals(mapped?.expression, 'handlebars("{{name}}", map())');
+  assertEquals(mapped?.hatch, { kind: "text_handlebars" });
+  assert(ir.unsupported.some((u) => u.blockType === "text_handlebars" && u.reason === "escape"));
+  workspace.dispose();
+});
+
+Deno.test("schema optional fields are marked optional on targetSignature", () => {
+  ensure();
+  const xsd = Deno.readTextFileSync(
+    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  );
+  const target = getTargetFormatHandler("xml-schema").load("edit01.xsd", xsd);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(
+    workspace,
+    target.skeleton,
+    createEmptyModel(target.targetId),
+    null,
+    "en",
+    "xml-schema",
+  );
+  const keywords = workspace.getAllBlocks(false).find((block) => block.type === "schema_Keywords");
+  assert(keywords, "expected schema_Keywords");
+  composeSchemaOptionalFields(keywords, ["TextKeywords"]);
+  attachOptionalSchemaChild(workspace, keywords, "TextKeywords");
+  const child = keywords.getInput(schemaOptionalInputName("TextKeywords"))?.connection?.targetBlock();
+  assert(child, "expected optional TextKeywords child");
+  const childSlot = child.getFieldValue("SLOT_ID");
+  assert(childSlot, "optional child has SLOT_ID");
+
+  const ir = workspaceToModelJson(workspace);
+  const node = findSignature(ir.targetSignature, childSlot);
+  assertEquals(node?.optional, true);
+  assert(ir.optionalRm.some((row) => row.attributeName === "TextKeywords"));
+  workspace.dispose();
+});
+
+Deno.test("lung-MDT fixture Blockly extracts unsupported Remove types and round-trips", () => {
+  ensure();
+  const xsd = Deno.readTextFileSync(
+    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  );
+  const target = getTargetFormatHandler("xml-schema").load("edit01.xsd", xsd);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(
+    workspace,
+    target.skeleton,
+    createEmptyModel(target.targetId),
+    null,
+    "en",
+    "xml-schema",
+  );
+  const mapping = JSON.parse(
+    Deno.readTextFileSync(
+      join(import.meta.dirname!, "../examples/lung-MDT-form/mapping/mapping.blockly.json"),
+    ),
+  );
+  Blockly.serialization.workspaces.load(mapping, workspace);
+  const first = workspaceToModelJson(workspace);
+  assert(
+    first.unsupported.some((u) => u.blockType === "controls_if" && u.reason === "removed"),
+    "leftover statement-if is recorded as removed, not an If IR node",
+  );
+  assert(
+    first.unsupported.some((u) => u.blockType === "text_code" && u.reason === "escape" && u.lang),
+    "text_code LANG is recorded as escape",
+  );
+  assertEquals(first.loops.some((loop) => (loop as { if?: unknown }).if != null), false);
+  const saved = Blockly.serialization.workspaces.save(workspace);
+  workspace.dispose();
+
+  const loaded = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(
+    loaded,
+    target.skeleton,
+    createEmptyModel(target.targetId),
+    null,
+    "en",
+    "xml-schema",
+  );
+  Blockly.serialization.workspaces.load(saved, loaded);
+  const second = workspaceToModelJson(loaded);
+  assertEquals(second.unsupported, first.unsupported);
+  assertEquals(second.slots, first.slots);
+  assertEquals(second.targetSignature, first.targetSignature);
+  loaded.dispose();
 });

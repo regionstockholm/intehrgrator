@@ -44,3 +44,26 @@ Deno.test("hardcodeDefaultsMapKey inlines maps_get lookups from the Defaults Map
   assertEquals(connected.getFieldValue("TEXT"), "SE");
   workspace.dispose();
 });
+
+Deno.test("hardcode of a term_pick Defaults Map key inlines into a CODE_PHRASE mouth", () => {
+  registerRmBlocks();
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  ensureDefaultsBlock(workspace, "sv");
+  const composition = workspace.newBlock("composition");
+  const languageInput = composition.getInput("ATTR_language");
+  assert(languageInput?.connection, "COMPOSITION.language mouth");
+  const existing = languageInput.connection.targetBlock();
+  existing?.dispose(false);
+  const lookup = createMapsGetBlock(workspace, "defaults", "language");
+  assert(lookup.outputConnection);
+  languageInput.connection.connect(lookup.outputConnection);
+
+  assertEquals(hardcodeDefaultsMapKey(workspace, "language"), 1);
+  const inlined = composition.getInput("ATTR_language")?.connection?.targetBlock();
+  assertEquals(inlined?.type, "term_pick");
+  assertEquals(inlined?.getFieldValue("SET"), "ISO_639-1");
+  assertEquals(inlined?.getFieldValue("CODE"), "sv");
+  workspace.dispose();
+});
+

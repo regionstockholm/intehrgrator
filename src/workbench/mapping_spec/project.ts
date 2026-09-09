@@ -7,6 +7,10 @@
 
 import { isRmContainerBlockType } from "../../blockly/blocks/rm_blocks.ts";
 import { MAPS_CREATE_WITH, MAPS_GET } from "../../core/defaults/extract.ts";
+import {
+  termPickDropdownOptions,
+  termSetDropdownOptions,
+} from "../../core/openehr_term_catalog.ts";
 
 export type SpecLineKind =
   | "header"
@@ -19,6 +23,7 @@ export type SpecLineKind =
   | "literal"
   | "logic"
   | "text_gen"
+  | "term_pick"
   | "other";
 
 export type SpecEditFieldName =
@@ -32,6 +37,8 @@ export type SpecEditFieldName =
   | "VAR"
   | "NAME"
   | "OP"
+  | "SET"
+  | "CODE"
   | `KEY${string}`;
 
 export type SpecEditKind =
@@ -44,6 +51,7 @@ export type SpecEditKind =
   | "number"
   | "boolean"
   | "loop"
+  | "term_pick"
   | "none";
 
 export interface SpecEditableField {
@@ -51,6 +59,8 @@ export interface SpecEditableField {
   value: string;
   /** Patch this block when it differs from the row's `blockId`. */
   targetBlockId?: string;
+  /** Closed list of valid [label, value] pairs (TERM_PICK and other long picks). */
+  options?: Array<[string, string]>;
 }
 
 export interface SpecLine {
@@ -225,6 +235,12 @@ function walkBlock(
 
   if (type === MAPS_GET) {
     emit(lines, mapsGetLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "term_pick") {
+    emit(lines, termPickLine(block, indent, attribute, extraAliases, shell), attributeEdit);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
   }
@@ -478,6 +494,38 @@ function compareLine(
     editKind: "compare",
     summary: `${left} ${symbol} ${right}`,
     editable,
+    info: collectInfo(block),
+  };
+}
+
+function termPickLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const setId = stringField(block, "SET");
+  const code = stringField(block, "CODE");
+  const setOptions = termSetDropdownOptions();
+  const codeOptions = termPickDropdownOptions(setId);
+  const setLabel = setOptions.find(([, value]) => value === setId)?.[0] ?? setId;
+  const codeLabel = codeOptions.find(([, value]) => value === code)?.[0] ?? code;
+  return {
+    kind: "term_pick",
+    indent,
+    blockId: idOf(block),
+    aliasIds: extraAliases.length ? extraAliases : undefined,
+    type: "term_pick",
+    label: stringField(block, "NAME") || "built-in",
+    attribute,
+    shell,
+    editKind: "term_pick",
+    summary: [setLabel, codeLabel].filter(Boolean).join(" · "),
+    editable: [
+      { field: "SET", value: setId, options: setOptions },
+      { field: "CODE", value: code, options: codeOptions },
+    ],
     info: collectInfo(block),
   };
 }
@@ -821,6 +869,7 @@ function classify(type: string): SpecLineKind {
   }
   if (isDvShell(type)) return "dv";
   if (type === MAPS_GET) return "map_lookup";
+  if (type === "term_pick") return "term_pick";
   if (type === "sheet_lookup") return "sheet_lookup";
   if (type === "text_code" || type === "text_handlebars") return "text_gen";
   if (type === "logic_compare" || type === "logic_operation") return "logic";

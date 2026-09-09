@@ -6,6 +6,7 @@
  * Option lists such as ISO_639-1 make that gap especially obvious.
  */
 import { Blockly } from "./blockly_core.ts";
+import { attachDropdownSearch } from "../ui/searchable_pick.ts";
 
 const TEXT_FONT =
   '"Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif';
@@ -51,6 +52,15 @@ export class FieldDropdownHug extends FieldDropdownBase {
     if (this.borderRect_) {
       this.borderRect_.setAttribute("width", String(this.size_.width));
       this.borderRect_.setAttribute("height", String(this.size_.height));
+    }
+  }
+
+  showEditor_(e?: Event): void {
+    super.showEditor_(e);
+    const attach = () => attachDropdownSearch(this);
+    queueMicrotask(attach);
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(attach);
     }
   }
 }

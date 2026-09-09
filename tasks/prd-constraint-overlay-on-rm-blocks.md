@@ -29,7 +29,7 @@ Keep one Blockly vocabulary (**RM Block**s). When the operational template’s *
 
 Mouths that still match the RM keep today’s single caption. Live mapping failures stay **Constraint warning** triangles (unmet effective interval), not overlay colour.
 
-Phase 1 implements that structural overlay and stops the mutator offering template-prohibited attributes. Later phases overlay value-domain constraints (units, codes, magnitude ranges, type narrowing) using the same quiet-unless-narrowed rule.
+Phase 1 implements that structural overlay and the three-way canvas/mutator split: **mandated** RM-optional attributes appear as locked mouths on the block; **still-optional** attributes stay in the cogwheel; **prohibited** (`max=0`) attributes are absent from both. Later phases overlay value-domain constraints (units, codes, magnitude ranges, type narrowing) using the same quiet-unless-narrowed rule.
 
 ## Goals
 
@@ -63,11 +63,12 @@ Phase 1 implements that structural overlay and stops the mutator offering templa
 3. When they are equal, the mouth caption must remain a single `[min..max]` / `[n..*]` as today.
 4. Object **occurrences** must not replace attribute existence/cardinality on the mouth caption. If a later phase shows occurrences, they belong on the child RM Block, not the parent mouth.
 5. Constraint warning triangles must evaluate the *effective* interval (current behaviour, re-confirmed). Overlay colour must not mean “unmet.”
-6. Optional RM Insertion must omit attributes prohibited by the OPT (`C_ATTRIBUTE.is_prohibited` / occurrences `0..0`). Flattened OPTs that already dropped those nodes still need an exclusion list so the cogwheel cannot resurrect them from RM meta alone.
-7. Template-mandatory and silent-mandatory mouths stay locked (existing rule).
-8. Overlay signalling must not be colour-only (Δ + strikethrough are required companions).
-9. JSON Schema / XML Schema targets are unchanged by this PRD (no Constraint Overlay).
-10. Phase 1 must not regress existing DATA_VALUE scaffolding: unique units → `fixedFields.units`; coded/ordinal lists → Blockly lists; `assumed_value` as list default.
+6. **Mandation promotes onto the canvas.** An RM-optional attribute whose effective OPT existence (`C_ATTRIBUTE.existence`) or object occurrences (`C_OBJECT.occurrences`) lower bound is ≥ 1 MUST appear as a visible Attribute mouth on the parent RM Block at scaffold time — not only inside the cogwheel. Treat either AM property: a template that only sets attribute existence to `{1..1}` still counts as mandatory (today’s walker looks at the child object and can miss that). The mouth is locked; its caption is a Constraint Overlay vs the RM interval (typically `[0..1]` or `[0..*]`).
+7. Optional RM Insertion must omit attributes prohibited by the OPT (`C_ATTRIBUTE.is_prohibited` / occurrences `0..0`). Flattened OPTs that already dropped those nodes still need an exclusion list so the cogwheel cannot resurrect them from RM meta alone.
+8. Template-mandatory, AM-mandated (FR 6), and silent-mandatory mouths stay locked (existing rule, extended to mandation).
+9. Overlay signalling must not be colour-only (Δ + strikethrough are required companions).
+10. JSON Schema / XML Schema targets are unchanged by this PRD (no Constraint Overlay).
+11. Phase 1 must not regress existing DATA_VALUE scaffolding: unique units → `fixedFields.units`; coded/ordinal lists → Blockly lists; `assumed_value` as list default.
 
 ## Implementation Decisions
 
@@ -79,7 +80,10 @@ Settled from AM facts, current scaffolding behaviour, and the user’s Better-st
 4. **Visual language:** Unicode `Δ` + overlay colour for the effective interval + strikethrough on the RM interval. Unmet stays bold `--unmet` as today. Overlay hue must remain readable on the Modest Blockly Theme pastels; do not reuse the warning-triangle yellow as overlay colour.
 5. **Custom field, not two FieldLabels:** Blockly `FieldLabel` cannot mix strikethrough and colour on one string. Phase 1 adds one overlay-capable caption field (two tspans or equivalent), replacing the single-string slot-cardinality label when a delta exists.
 6. **Enforcement vs illustration:** illustrate on the mouth; enforce via existing Constraint warning + mutator lock/hide. Do not invent a new hard-block UI for extra children (statement stacks already fail the count check).
-7. **Prohibited nodes:** remain absent from the canvas (OPT flattening already drops `existence matches {0}`). Phase 1 adds mutator exclusion so RM meta cannot bring them back.
+7. **Three-way canvas / mutator split:**
+   - **Mandated** (RM-optional, AM/template `min ≥ 1`): visible locked mouth on the RM Block, with Constraint Overlay vs RM. This is existing Template Skeleton policy (`child.mandatory === true` already expands the mouth via `syncRmAttributeInputs`); Phase 1 must also honour `C_ATTRIBUTE.existence` when the child object’s occurrences are unstated.
+   - **Still optional:** remains behind Optional RM Insertion (cogwheel), as today.
+   - **Prohibited** (`existence` / occurrences `0..0`): absent from the canvas (OPT flattening already drops these nodes). Phase 1 adds mutator exclusion so RM meta cannot bring them back.
 8. **Value-domain overlay:** not in Phase 1. Unique units / coded lists / ordinals stay as today’s scaffolding. Phase 2 applies the same quiet-unless-narrowed overlay to units, codes, magnitude `Interval<Real>` from `C_QUANTITY_ITEM`, and RM-type narrowing (`DV_TEXT` → `DV_CODED_TEXT`).
 9. **Defaults vs assumed values:** unchanged. Template `default_value` appears in data; archetype `assumed_value` does not. Overlay work must not conflate them.
 10. **Seam:** extend the Template Skeleton node (or a sibling attribute map on the parent) with `rmCardinality` + `effectiveCardinality` per RM attribute. Blockly reads that pair. Do not parse BMM in intEHRgrator; RM multiplicity comes from ehrtslib as today.
@@ -87,7 +91,7 @@ Settled from AM facts, current scaffolding behaviour, and the user’s Better-st
 
 ## Testing Decisions
 
-- Test external behaviour: given a small OPT that narrows an optional RM attribute to `1..1`, the parent RM Block’s mouth caption is an overlay (Δ, effective `1..1`, RM interval struck through). A sibling attribute left at RM multiplicity has no Δ.
+- Test external behaviour: given a small OPT that narrows an optional RM attribute to `1..1`, that Attribute mouth is present on the parent RM Block without opening the cogwheel, locked, and its caption is an overlay (Δ, effective `1..1`, RM interval struck through). A sibling attribute left at RM multiplicity has no Δ and stays in the mutator if it is still optional.
 - Given an OPT that sets `max=0` on an optional RM attribute, that name is absent from the cogwheel mutator list even though RM meta still lists it.
 - Unmet effective cardinality still sets `--unmet` and a Constraint warning; overlay mouths use the effective bounds for that check.
 - Do not assert pixel colours or x/y. Assert field CSS classes / structured caption model (`hasOverlay`, `effective`, `rm`).
@@ -128,10 +132,11 @@ Settled from AM facts, current scaffolding behaviour, and the user’s Better-st
 Background-agent session: facts from openEHR Assistant + AM BMM + current skeleton; the user’s Better-style mouth proposal accepted. Override on the implementation issue if needed.
 
 1. **Pedagogical goal** — Hybrid: effective constraint is primary; overlay is the delta vs RM. (Not OPT-only, not a three-layer stack.)
-2. **Phase 1 surface** — Attribute mouths (existence/cardinality) + mutator exclusion of prohibited attributes.
-3. **“Original” interval** — RM BMM via ehrtslib, not a guessed ADL default.
-4. **Glyph** — `Δ` + overlay colour + strikethrough, as proposed.
-5. **sRM** — reading of an RM Block with overlay, not a new toolbox.
+2. **Phase 1 surface** — Attribute mouths (existence/cardinality) + the three-way split (mandated on-block / still-optional in cogwheel / prohibited omitted).
+3. **Mandation** — optional AM attributes made mandatory **do** show on the block, locked, with Δ; they are not left under the cogwheel.
+4. **“Original” interval** — RM BMM via ehrtslib, not a guessed ADL default.
+5. **Glyph** — `Δ` + overlay colour + strikethrough, as proposed.
+6. **sRM** — reading of an RM Block with overlay, not a new toolbox.
 
 ---
 
@@ -139,7 +144,7 @@ Background-agent session: facts from openEHR Assistant + AM BMM + current skelet
 
 | Kind | AM home | Who may narrow | Phase 1 canvas | Later |
 | --- | --- | --- | --- | --- |
-| Attribute existence `{0}`, `{0..1}`, `{1..1}` | `C_ATTRIBUTE.existence` | Archetype, template | Overlay on single-valued mouths; hide `{0}` from mutator | — |
+| Attribute existence `{0}`, `{0..1}`, `{1..1}` | `C_ATTRIBUTE.existence` | Archetype, template | `{1..1}` on-block locked + overlay vs RM; `{0}` omitted from mutator | — |
 | Container cardinality (interval, ordered, unique) | `C_ATTRIBUTE.cardinality` | Archetype, template | Overlay on container mouths (interval only) | ordered/unique in help |
 | Object occurrences | `C_OBJECT.occurrences` | Archetype, template | Drives skeleton include/mandatory; not drawn on the parent mouth | Child-block occurrences if they differ from the mouth |
 | RM type narrowing / choice | `C_OBJECT.rm_type_name` | Template picks one of a choice (rule B3) | Already: concrete `DV_*` shell | Δ badge when `DV_TEXT`→`DV_CODED_TEXT` |

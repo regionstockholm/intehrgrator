@@ -312,6 +312,30 @@ Deno.test("text_handlebars is recorded as an escape hatch", () => {
   workspace.dispose();
 });
 
+Deno.test("procedures_callreturn is recorded as an escape hatch, not a silent drop", () => {
+  ensure();
+  assert(Blockly.Blocks["procedures_callreturn"], "procedures_callreturn stays registered");
+  const workspace = new Blockly.Workspace();
+  const slot = workspace.newBlock("target_value");
+  slot.setFieldValue("slot/fn", "SLOT_ID");
+  const call = workspace.newBlock("procedures_callreturn");
+  slot.getInput("VALUE")!.connection!.connect(call.outputConnection!);
+
+  const ir = workspaceToModelJson(workspace);
+  assert(
+    ir.unsupported.some((u) =>
+      u.blockType === "procedures_callreturn" && u.reason === "escape" && u.slotId === "slot/fn"
+    ),
+    `expected procedures_callreturn escape, got ${JSON.stringify(ir.unsupported)}`,
+  );
+  assertEquals(
+    ir.slots.some((s) => s.slotId === "slot/fn"),
+    false,
+    "opaque procedure call is not a first-class slot expression",
+  );
+  workspace.dispose();
+});
+
 Deno.test("schema optional fields are marked optional on targetSignature", () => {
   ensure();
   const xsd = Deno.readTextFileSync(

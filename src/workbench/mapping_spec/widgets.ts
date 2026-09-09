@@ -6,6 +6,7 @@ import {
 import { EDITOR_LANGUAGE_OPTIONS } from "../codemirror_setup.ts";
 import { attachInfoTip, detachInfoTip } from "../../ui/info_tip.ts";
 import type { SpecEditFieldName, SpecEditableField, SpecLine } from "./project.ts";
+import { createSearchablePick } from "../../ui/searchable_pick.ts";
 
 /** Matching CodeMirror line box — keep Spec rows as dense as a code listing. */
 export const SPEC_LINE_HEIGHT = 18;
@@ -285,9 +286,29 @@ function renderEditors(
     return;
   }
 
+  if (line.editKind === "term_pick") {
+    const set = fields.find((f) => f.field === "SET");
+    const code = fields.find((f) => f.field === "CODE");
+    if (set) {
+      host.appendChild(
+        pickField(line, set, onFieldEdit, "Term set", "spec-widget-select spec-widget-select--set"),
+      );
+    }
+    if (code) {
+      host.appendChild(
+        pickField(line, code, onFieldEdit, "Term code", "spec-widget-input spec-widget-input--code"),
+      );
+    }
+    return;
+  }
+
   for (const field of fields) {
     if (field.field === "LANG") {
       host.appendChild(langSelect(line, field, onFieldEdit));
+      continue;
+    }
+    if (field.options?.length) {
+      host.appendChild(pickField(line, field, onFieldEdit, field.field, "spec-widget-select"));
       continue;
     }
     host.appendChild(textInput(line, field, onFieldEdit, field.field, "spec-widget-input"));
@@ -410,6 +431,22 @@ function opSelect(
   return select;
 }
 
+function pickField(
+  line: SpecLine,
+  field: SpecEditableField,
+  onFieldEdit: SpecFieldEditHandler | undefined,
+  aria: string,
+  className: string,
+): HTMLElement {
+  return createSearchablePick({
+    options: field.options ?? [],
+    value: field.value,
+    ariaLabel: aria,
+    className,
+    onCommit: (value) => commit(line, field, value, onFieldEdit),
+  });
+}
+
 function boolSelect(
   line: SpecLine,
   field: SpecEditableField,
@@ -450,6 +487,8 @@ function badgeLabel(line: SpecLine): string {
       return "slot";
     case "map_lookup":
       return "map";
+    case "term_pick":
+      return "TERM_PICK";
     case "sheet_lookup":
       return "sheet";
     case "text_gen":

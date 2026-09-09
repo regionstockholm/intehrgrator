@@ -5,6 +5,7 @@ import {
   MAPS_CREATE_WITH,
   MAPS_GET,
 } from "../../core/defaults/extract.ts";
+import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import {
   appendMutatorCogwheel,
   hideDefaultMutatorIcon,
@@ -293,12 +294,14 @@ export function registerMapBlocks(): void {
 
   Blockly.Blocks[MAPS_GET] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput()
+      this.appendDummyInput("HEADER")
         .appendField("get")
         .appendField(new Blockly.FieldTextInput(DEFAULTS_MAP_NAME), "NAME");
       this.appendValueInput("KEY")
         .setCheck("String")
         .appendField("key");
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      appendHiddenSerializable(this, "RM_TYPE", "");
       this.setOutput(true, null);
       this.setColour(MAP_COLOUR);
       this.setTooltip("Look up a value in a named Map");
@@ -387,9 +390,12 @@ export function createMapsGetBlock(
   workspace: Blockly.Workspace,
   mapName: string,
   key: string,
+  meta?: { slotId?: string; rmType?: string },
 ): Blockly.Block {
   const block = workspace.newBlock(MAPS_GET);
   block.setFieldValue(mapName, "NAME");
+  if (meta?.slotId && block.getField("SLOT_ID")) block.setFieldValue(meta.slotId, "SLOT_ID");
+  if (meta?.rmType && block.getField("RM_TYPE")) block.setFieldValue(meta.rmType, "RM_TYPE");
   const keyInput = block.getInput("KEY");
   if (keyInput?.connection) {
     const existing = keyInput.connection.targetBlock();

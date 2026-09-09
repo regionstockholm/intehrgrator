@@ -97,8 +97,8 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
   Click-to-Map on a slot under a repeating container (`0..*` / `1..*`) wraps that
   container with **`for_each_source`** (not `for_each_list`) and stores **relative**
   `source_query` paths. `for_each_list` iterates a list / map-keys / sheet-rows
-  **value** (same grain rules; Mapping Model `loops[]` `kind: "list"` is follow-up
-  [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Do not duplicate
+  **value** (same grain rules; Mapping Model `loops[]` records `kind: "list"`
+  and the collection expression). Do not duplicate
   EVENT (or other repeating) blocks on the canvas; Test Run expands `HISTORY.events`
   from the loop. A kintegrate-style Source Pane “context root” is not required — see
   [future/source-context-root.md](future/source-context-root.md).

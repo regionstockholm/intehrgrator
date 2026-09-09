@@ -38,7 +38,7 @@
 - [x] test and describe how the local app can run in parallel with a normal IDE working on same files and how the IDE's AI can help, at least write an installabel skill (ande possibly and MCP, see below)
 - [x] make an "installable" AI skill that explains intehrgrator to the AI so that the AI can produce mapping suggestions in correct format
 - [x] If the user turns it on and allows running a server, then expose an MCP API to a running instance of the executable (os native) version of intehrgrator. It could work in a way similar to how the Pencil/PEN (https://www.pen.dev/) MCP works. I believe it exposes operations that do work on the internal model of the pen/pencil editor so that the changes become visible as thery are performed by the agents. Same for intehrgrator would be to via MCP/API manipulate the blockly model and have the canvas update meanwhile.
-- [ ] It would be good if the MCP (unless intehrgrator runs in a future headless mode) actually scrolls to and highlights the blocks it is editing.
+- [x] It would be good if the MCP (unless intehrgrator runs in a future headless mode) actually scrolls to and highlights the blocks it is editing. — **Chunk 5.1:** opt-in “Follow active agent”, pulse-without-scroll on main canvas, live **Open observer** window with per-agent layers
 - [x] Preferably the MCP-mediated edits should be atomic and free of race conditions so that several agents could work towards the same model simultaneousley, e.g. one teminology mapping agent and another source system mapping agent. Would exposing the undo/redo log via the MCP make it possible for agents to detect stuff done since they last looked?  Perhaps return a timestamp (or other identifier) for the last action done by the (atomic) MCP call would help the calling agents determine if the model has changed since thay started thinking (and thus may need reevaluation/rethinking depending on what changed). **Chunk 5 ships revision token + undo/redo on the Agent API;** IN the long run, perhaps a CRDT or operational transformation could be considered for multi agent and multi user simultaneous editing - but i hope blocklys built in undo/redo stack is enough to start with.
 
 
@@ -47,7 +47,7 @@
 
 ## F. open EHR reference model classes available as blockly blocks.
 - [x] Change the CLUSTER block into the same colour as the ELEMENT block and move ELEMENT up to below CLUSTER 
-- [ ] check if any classes are missing
+- [x] check if any classes are missing — **Chunk 3:** nested toolbox + flyout filled for common RM; full Demographics compositions still future (see PARTY note below)
 - [x] There are two similarly looking blocks for SECTION, compare, then remove one.
 - [x] improve sorting of blocks in blockly toolbox (put common ones earlier, possibly subdivide/group, fix colour/pattern semantics)
 - [x] The PARTY_IDENTIFIED and possibly related blockly blocks are missing some attributes (when not using party REF) — `name`, `identifiers`, and `external_ref` (`party_ref`) are now on PARTY_* blocks; full Demographics compositions remain future work
@@ -68,7 +68,7 @@
 - [ ] Blockly→Handlebars codegen (deferred — harden Authored Template path first)
 - [ ] Reverse-engineered Handlebars Blockly example set + non-Blockly test harness support for Handlebars example files and expected output (future, after Go template example set)
 - See [KINTEGRATE_MIGRATION.md](KINTEGRATE_MIGRATION.md), [ADR 0001](adr/0001-mapping-and-target-seams.md), and [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md)
-- make the recently added JSON/XML subtree "source" blockly block also trigger/arm click to map so that source tree can be pointed at
+- [x] make the recently added JSON/XML subtree "source" blockly block also trigger/arm click to map so that source tree can be pointed at — `source_query_node` Listening Mode (Chunk 7.10)
 
 ### Go text/template (Chunk 7 — FLAT→legacy narrative codegen)
 - [x] Conversion script language `go-template` — **codegen-only** (no Authored Template tab; Blockly mapping is the source of truth)
@@ -81,9 +81,9 @@
 
 
 ## H. Schema specific dynamic blockly toolboxes
-- [ ] It should be possible to load any valid XML or JSON schema in a way similarly to how an openEHR template can be loaded and scaffolded as target, and have intehrgrator dynamically add a new drawer filled with blockly blocks representing that schema with blocks named after the schema's types and with mandatory attribute slots visible and a possibility for end user to add the non-mandatory slots. 
-- [ ] **Always-visible generic JSON/XML drawers** remain for free-form structure authoring (Chunk 6 adopted grill).
-- [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins?
+- [x] It should be possible to load any valid XML or JSON schema in a way similarly to how an openEHR template can be loaded and scaffolded as target, and have intehrgrator dynamically add a new drawer filled with blockly blocks representing that schema with blocks named after the schema's types and with mandatory attribute slots visible and a possibility for end user to add the non-mandatory slots. — **Chunk 6** (schema_* blocks, nested drawer, cogwheel optional fields, mandatory scaffold)
+- [x] **Always-visible generic JSON/XML drawers** remain for free-form structure authoring (Chunk 6 adopted grill).
+- [ ] test with TakeCare schema - decide if it should be a design time (or via plugin?) or runtime load feature - Does blockly already handle plugins? — **deferred** golden / vendor path (chemo Example Set already uses TakeCare schema blocks at runtime)
 - [ ] add special support for TakeCare term id (multiple systems, e.g. both test and prod ) — **deferred** (late roadmap; not Chunk 6)
 
 ## I. Initial AI Assistance

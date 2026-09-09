@@ -20,7 +20,7 @@ export function normalizeManifest(raw: unknown): VersionsManifest {
   const versions = (raw as VersionsManifest).versions;
   if (!Array.isArray(versions)) return emptyManifest();
   return {
-    versions: [...new Set(versions.filter((v) => typeof v === "string" && v.startsWith("v")))]
+    versions: [...new Set(versions.filter((v) => typeof v === "string" && /^v\d/.test(v)))]
       .sort()
       .reverse(),
   };

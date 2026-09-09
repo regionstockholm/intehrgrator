@@ -210,6 +210,20 @@ function registerGenerators(): void {
     );
   };
 
+  javascriptGenerator.forBlock["for_each_list"] = (block) => {
+    const name = block.getFieldValue("VAR") || "item";
+    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+    const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
+    const body = javascriptGenerator.statementToCode(block, "DO").trim();
+    const returned = body ? stripTrailingComma(body) : "null";
+    return (
+      `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => {\n` +
+      `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+      `  return ${returned};\n` +
+      `}),\n`
+    );
+  };
+
   javascriptGenerator.forBlock["maps_get"] = (block) => {
     const name = String(block.getFieldValue("NAME") || "defaults");
     const key = javascriptGenerator.valueToCode(block, "KEY", Order.NONE) || '""';

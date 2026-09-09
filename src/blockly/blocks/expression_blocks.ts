@@ -25,7 +25,7 @@ export function registerExpressionBlocks(): void {
 
   /**
    * Loop over nodes from a multi-valued source path.
-   * Complements Blockly's controls_forEach for openEHR mapping.
+   * Complements `for_each_list` (computed list values) for openEHR mapping.
    */
   Blockly.Blocks["for_each_source"] = {
     init: function (this: Blockly.Block) {
@@ -44,6 +44,27 @@ export function registerExpressionBlocks(): void {
       this.setTooltip(m.FOR_EACH_SOURCE_TOOLTIP);
       this.setStyle?.("loop_blocks");
       this.setInputsInline(false);
+    },
+  };
+
+  /**
+   * Bounded iteration over a list / map-keys / sheet-rows value.
+   * Not stock `controls_forEach` (no break/continue; grain is the list item).
+   */
+  Blockly.Blocks["for_each_list"] = {
+    init: function (this: Blockly.Block) {
+      this.appendValueInput("LIST")
+        .appendField(m.FOR_EACH_SOURCE_PREFIX)
+        .appendField(new Blockly.FieldTextInput("item"), "VAR")
+        .appendField(m.FOR_EACH_SOURCE_IN);
+      this.appendStatementInput("DO")
+        .appendField(m.FOR_EACH_SOURCE_DO);
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(LOOP_COLOUR);
+      this.setTooltip(m.FOR_EACH_LIST_TOOLTIP);
+      this.setStyle?.("loop_blocks");
+      this.setInputsInline(true);
     },
   };
 }

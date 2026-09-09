@@ -388,7 +388,7 @@ export function setRestrictionRequiresItems(block: Blockly.Block, required: bool
  * Blocks that bind an item name around `block`, innermost first.
  *
  * A restriction only binds inside its condition — an item reference sitting in the
- * list socket is out of scope. `for_each_source` binds its whole body.
+ * list socket is out of scope. `for_each_source` / `for_each_list` bind their whole body.
  */
 function enclosingBinders(block: Blockly.Block | null): Blockly.Block[] {
   const found: Blockly.Block[] = [];
@@ -397,7 +397,7 @@ function enclosingBinders(block: Blockly.Block | null): Blockly.Block[] {
   while (parent && child) {
     const bindsChild = parent.type === LOGIC_LIST_RESTRICTION_BLOCK
       ? parent.getInputWithBlock?.(child)?.name === "PRED"
-      : parent.type === "for_each_source";
+      : parent.type === "for_each_source" || parent.type === "for_each_list";
     if (bindsChild) found.push(parent);
     child = parent;
     parent = parent.getParent();

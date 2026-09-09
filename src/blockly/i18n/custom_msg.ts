@@ -48,6 +48,7 @@ export interface IntehrMessages {
   FOR_EACH_SOURCE_NODES: string;
   FOR_EACH_SOURCE_DO: string;
   FOR_EACH_SOURCE_TOOLTIP: string;
+  FOR_EACH_LIST_TOOLTIP: string;
   LOGIC_ALL: string;
   LOGIC_ANY: string;
   LOGIC_NONE: string;
@@ -114,6 +115,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "do",
     FOR_EACH_SOURCE_TOOLTIP:
       "Loop over every node matched by a source path. Current node is stored in the named variable.",
+    FOR_EACH_LIST_TOOLTIP:
+      "Loop over every item in a list (or map keys / sheet rows). Current item is stored in the named variable. No break or continue.",
     LOGIC_ALL: "all",
     LOGIC_ANY: "any",
     LOGIC_NONE: "none",
@@ -181,6 +184,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "gör",
     FOR_EACH_SOURCE_TOOLTIP:
       "Loopa över varje nod som matchas av en källsökväg. Aktuell nod lagras i den namngivna variabeln.",
+    FOR_EACH_LIST_TOOLTIP:
+      "Loopa över varje objekt i en lista (eller mapnycklar / kalkylbladsrader). Aktuellt objekt lagras i den namngivna variabeln. Ingen break eller continue.",
     LOGIC_ALL: "alla",
     LOGIC_ANY: "något",
     LOGIC_NONE: "inget",
@@ -248,6 +253,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "mache",
     FOR_EACH_SOURCE_TOOLTIP:
       "Schleife über jeden Knoten eines Quellpfads. Der aktuelle Knoten wird in der genannten Variable gespeichert.",
+    FOR_EACH_LIST_TOOLTIP:
+      "Schleife über jedes Element einer Liste (oder Map-Schlüssel / Tabellenzeilen). Das aktuelle Element wird in der genannten Variable gespeichert. Kein break oder continue.",
     LOGIC_ALL: "alle",
     LOGIC_ANY: "mindestens eines",
     LOGIC_NONE: "keines",
@@ -315,6 +322,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "hacer",
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada nodo coincidente con una ruta de origen. El nodo actual se guarda en la variable indicada.",
+    FOR_EACH_LIST_TOOLTIP:
+      "Recorre cada elemento de una lista (o claves de mapa / filas de hoja). El elemento actual se guarda en la variable indicada. Sin break ni continue.",
     LOGIC_ALL: "todos",
     LOGIC_ANY: "alguno",
     LOGIC_NONE: "ninguno",
@@ -382,6 +391,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "fes",
     FOR_EACH_SOURCE_TOOLTIP:
       "Recorre cada node que coincideix amb un camí d'origen. El node actual es desa a la variable indicada.",
+    FOR_EACH_LIST_TOOLTIP:
+      "Recorre cada element d'una llista (o claus de mapa / files de full). L'element actual es desa a la variable indicada. Sense break ni continue.",
     LOGIC_ALL: "tots",
     LOGIC_ANY: "algun",
     LOGIC_NONE: "cap",
@@ -449,6 +460,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_DO: "faire",
     FOR_EACH_SOURCE_TOOLTIP:
       "Boucle sur chaque nœud correspondant à un chemin source. Le nœud courant est stocké dans la variable nommée.",
+    FOR_EACH_LIST_TOOLTIP:
+      "Boucle sur chaque élément d'une liste (ou clés de map / lignes de feuille). L'élément courant est stocké dans la variable nommée. Pas de break ni continue.",
     LOGIC_ALL: "tous",
     LOGIC_ANY: "au moins un",
     LOGIC_NONE: "aucun",

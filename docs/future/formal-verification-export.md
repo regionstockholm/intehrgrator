@@ -404,10 +404,12 @@ After that cut, treat remaining constructs as:
 ```text
 VMS allowed (implement fully, including Mapping Model + all exporters):
   source_query_* (prefer literal paths), maps_get, sheet_get_* / sheet_lookup
-  (static sheets), trim, concat, if, switch, math_arithmetic / round / modulo /
-  constrain, logic_compare / operation / negate / boolean / ternary, term_pick,
-  for_each_source (documented grain), lists_create_with / getIndex (read-only),
-  target_structure / RM scaffold slots, variables_get (loop vars only)
+  (static sheets), trim, concat, text_append, if, switch, math_arithmetic / round /
+  modulo / constrain, logic_compare / operation / negate / boolean / ternary,
+  term_pick, for_each_source and for_each_list (documented grain),
+  lists_create_with / getIndex (read-only), target_structure / RM scaffold slots,
+  variables_set / variables_get (`let` in the enclosing for_each_* grain, or mapping
+  root)
 
 VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified):
   text_code, text_handlebars, ad-hoc json_object / xml_element trees,
@@ -415,14 +417,16 @@ VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified)
   harness lands)
 
 VMS remove from toolbox (do not implement):
-  controls_whileUntil, controls_repeat_ext, controls_for, controls_forEach,
+  controls_whileUntil, controls_repeat_ext, controls_for, stock controls_forEach,
   controls_flow_statements, controls_if (statement; keep logic_ternary),
-  math_random_int / math_random_float, text_print, text_append,
-  lists_setIndex, lists_repeat, sheet mutators, variables_set
+  math_random_int / math_random_float, text_print,
+  lists_setIndex, lists_repeat, sheet mutators
 ```
 
-A workspace linter still warns on leftover escape hatches and on any removed
-types that survive in old Project Bundles (migrate or show a load warning).
+A workspace linter ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
+still warns on leftover escape hatches (`text_code`, `text_handlebars`, dynamic paths).
+Removed types leftover in old bundles do not need a load warning — there is no
+published Project Bundle contract yet.
 
 ## Open questions
 

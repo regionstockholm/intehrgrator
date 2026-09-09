@@ -67,8 +67,11 @@ categories **Source**, **Data values**, and **Sheets**, with `@blockly/toolbox-s
 (`kind: "search"`) at the top so Search covers every `kind: "block"` drawer
 including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and Sheets. See [Attribution](#attribution).
 
-- **Stock Blockly:** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
-  `math_arithmetic`, `text_join`, `text_trim`, `logic_ternary`, variables, procedures, …
+- **Stock Blockly (VMS cut):** `math_arithmetic`, `text_join`, `text_append`,
+  `text_trim`, `logic_ternary`, variables (`variables_set` / `variables_get` as `let`
+  in the current grain). Statement `controls_if`, `while` / numeric `for` / stock
+  `controls_forEach`, random, `text_print`, list-index mutators, and sheet mutators
+  are **not** in the default toolbox (see [issue #35](https://github.com/regionstockholm/intehrgrator/issues/35)).
 - **Logic (list restrictions):** `logic_list_restriction` reads
   “⟨all⟩ of ⟨list⟩ match ⟨condition⟩”. One dropdown covers the Manchester quantifiers
   (`all`/`any`/`none` = ∀/∃/∀¬, emitting `all_of`/`any_of`/`none_of`) and the
@@ -89,12 +92,15 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
   Boolean `logic_operation` made the two indistinguishable on the canvas.
 - **Source:** `source_query` — XPath/XQuery via [fontoxpath](https://github.com/FontoXML/fontoxpath);
   typed `evaluateXPathTo*` from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
-- **Loops (custom):** `for_each_source` — iterate nodes from a multi-valued source path
-  into a named mapping variable (alongside stock `controls_forEach`). Click-to-Map on a
-  slot under a repeating container (`0..*` / `1..*`) wraps that container with this
-  block and stores **relative** `source_query` paths. Do not duplicate EVENT (or other
-  repeating) blocks on the canvas; Test Run expands `HISTORY.events` from the loop.
-  A kintegrate-style Source Pane “context root” is not required — see
+- **Loops (custom):** `for_each_source` and `for_each_list` only. `for_each_source`
+  iterates nodes from a multi-valued source path into a named mapping variable.
+  Click-to-Map on a slot under a repeating container (`0..*` / `1..*`) wraps that
+  container with **`for_each_source`** (not `for_each_list`) and stores **relative**
+  `source_query` paths. `for_each_list` iterates a list / map-keys / sheet-rows
+  **value** (same grain rules; Mapping Model `loops[]` `kind: "list"` is follow-up
+  [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Do not duplicate
+  EVENT (or other repeating) blocks on the canvas; Test Run expands `HISTORY.events`
+  from the loop. A kintegrate-style Source Pane “context root” is not required — see
   [future/source-context-root.md](future/source-context-root.md).
 
 ### JSON Schema / XML Schema targets

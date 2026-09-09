@@ -4,6 +4,11 @@ import {
   projectBlocklyState,
   slotAttributeFromInputName,
 } from "@intehrgrator/workbench/mapping_spec/mod.ts";
+import {
+  TERM_PICK_NONE,
+  termPickDropdownOptions,
+  termSetDropdownOptions,
+} from "@intehrgrator/core/openehr_term_catalog.ts";
 
 Deno.test("projectBlocklyState compresses nested blocks and omits x/y from text", () => {
   const state = {
@@ -456,4 +461,34 @@ Deno.test("compare rows keep left-to-right field order when the left operand is 
   assertEquals(fields, ["TEXT", "OP", "EXPRESSION"]);
   assertEquals(projection.lines[0]?.editable?.[0]?.targetBlockId, "left");
   assertEquals(projection.lines[0]?.editable?.[2]?.targetBlockId, "right");
+});
+
+Deno.test("projectBlocklyState exposes editable TERM_PICK set and code with catalog options", () => {
+  const projection = projectBlocklyState({
+    blocks: {
+      languageVersion: 0,
+      blocks: [{
+        type: "term_pick",
+        id: "lang",
+        fields: {
+          NAME: "built-in",
+          SET: "ISO_639-1",
+          CODE: "sv",
+          RM_TYPE: "CODE_PHRASE",
+        },
+      }],
+    },
+  });
+  const row = projection.lines.find((line) => line.type === "term_pick");
+  assertEquals(row?.editKind, "term_pick");
+  assertEquals(row?.editable?.map((field) => field.field), ["SET", "CODE"]);
+  assertEquals(row?.editable?.find((field) => field.field === "SET")?.value, "ISO_639-1");
+  assertEquals(row?.editable?.find((field) => field.field === "CODE")?.value, "sv");
+  const setOptions = row?.editable?.find((field) => field.field === "SET")?.options ?? [];
+  const codeOptions = row?.editable?.find((field) => field.field === "CODE")?.options ?? [];
+  assertEquals(setOptions, termSetDropdownOptions());
+  assertEquals(codeOptions, termPickDropdownOptions("ISO_639-1"));
+  assertEquals(codeOptions.some(([, value]) => value === "sv"), true);
+  assertEquals(codeOptions.some(([, value]) => value === "not-a-language"), false);
+  assertEquals(codeOptions.some(([, value]) => value === TERM_PICK_NONE), true);
 });

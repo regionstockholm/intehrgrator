@@ -19,7 +19,10 @@ Passthrough wrappers (`xml_text`, `DV_*` shells, `code_phrase`, unnamed
 `maps_create_with`) and nested same-operator `AND`/`OR` trees are elided
 so the mapping meaning stays visible without Blockly JSON scaffolding.
 **Safe fields** are editable in the widgets (source paths, map keys,
-literals, `text_code` snippets, compare operands, loop variable/path).
+literals, `text_code` snippets, compare operands, loop variable/path,
+TERM_PICK set/code). Long pick lists type-to-filter in both the Spec
+widgets and the Blockly dropdowns; only catalog-valid combinations can
+be chosen.
 Structure changes stay in Blockly.
 
 Download/Upload still round-trip the **full Blockly workspace JSON** so a

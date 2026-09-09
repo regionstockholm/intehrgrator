@@ -150,6 +150,25 @@ function finalizeBlock(block: Blockly.Block): void {
   svg.render?.();
 }
 
+export function defaultsMapValueBlock(
+  workspace: Workspace,
+  key: string,
+): Blockly.Block | null {
+  const map = findDefaultsMapBlock(workspace);
+  if (!map) return null;
+  const wanted = key.trim();
+  if (!wanted) return null;
+  const count = Number(
+    (map as Blockly.Block & { itemCount_?: number }).itemCount_ ??
+      mapCountFromInputs(map),
+  );
+  for (let i = 0; i < count; i++) {
+    if (String(map.getFieldValue(`KEY${i}`) ?? "").trim() !== wanted) continue;
+    return map.getInputTargetBlock(`VAL${i}`);
+  }
+  return null;
+}
+
 function findDefaultsMapBlock(workspace: Workspace): Blockly.Block | null {
   for (const block of workspace.getTopBlocks(false)) {
     if (block.type === DEFAULTS_BLOCK_TYPE) {

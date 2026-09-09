@@ -13,6 +13,7 @@ import {
 } from "./blocks/schema_mutator.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
+import { MAPS_GET } from "../core/defaults/extract.ts";
 import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import {
@@ -471,6 +472,16 @@ export function workspaceToModelJson(workspace: Blockly.Workspace): {
   const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
   const seen = new Set<string>();
   for (const block of workspace.getAllBlocks(false)) {
+    if (block.type === MAPS_GET) {
+      const slotId = block.getFieldValue("SLOT_ID");
+      const expression = blockToExpression(block);
+      const rmType = block.getFieldValue("RM_TYPE") || "CODE_PHRASE";
+      if (slotId && expression && !seen.has(slotId)) {
+        seen.add(slotId);
+        slots.push({ slotId, rmType, expression });
+      }
+      continue;
+    }
     if (block.type === "party_identified") {
       const slotId = block.getFieldValue("SLOT_ID");
       const exprBlock = block.getInputTargetBlock(rmAttributeInputName("name"));

@@ -13,7 +13,6 @@ import {
 } from "../core/defaults/mod.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
 import {
-  applyFixedFieldsToDataValueShell,
   connectExpressionToDataValueShell,
   expressionBlockFromDataValueShell,
   isDataValueBlock,
@@ -22,8 +21,7 @@ import {
   rmAttributeInputName,
 } from "./blocks/rm_blocks.ts";
 import { isTermPickBlock, registerTermPickBlock } from "./blocks/term_pick.ts";
-import { termSetById } from "../core/openehr_term_catalog.ts";
-import { defaultsMapKeys } from "./hardcode_defaults.ts";
+import { defaultsMapKeys, defaultsMapValueBlock } from "./hardcode_defaults.ts";
 
 const DEFAULTS_X = 20;
 const DEFAULTS_Y = 20;
@@ -212,6 +210,20 @@ function attachPartyLookup(workspace: Blockly.Workspace, target: Blockly.Block, 
   finalize(lookup);
 }
 
+/** Replace a CODE_PHRASE / term_pick shell with a Defaults Map lookup of the whole object. */
+function attachPhraseLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: string): void {
+  if (target.type === MAPS_GET) return;
+  const parentConnection = target.outputConnection?.targetConnection;
+  if (!parentConnection) return;
+  const slotId = target.getFieldValue("SLOT_ID");
+  const rmType = target.getFieldValue("RM_TYPE") || "CODE_PHRASE";
+  target.dispose(false);
+  const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key, { slotId, rmType });
+  finalize(lookup);
+  if (lookup.outputConnection) parentConnection.connect(lookup.outputConnection);
+  finalize(lookup);
+}
+
 function attachLookup(
   workspace: Blockly.Workspace,
   target: Blockly.Block,
@@ -222,25 +234,9 @@ function attachLookup(
     attachPartyLookup(workspace, target, key);
     return;
   }
-  if (isTermPickBlock(target)) {
-    const parentConnection = target.outputConnection?.targetConnection;
-    const set = termSetById(target.getFieldValue("SET"));
-    const slotId = target.getFieldValue("SLOT_ID");
-    target.dispose(false);
-    const shell = workspace.newBlock("code_phrase");
-    if (shell.getField("RM_TYPE")) shell.setFieldValue("CODE_PHRASE", "RM_TYPE");
-    if (slotId && shell.getField("SLOT_ID")) shell.setFieldValue(slotId, "SLOT_ID");
-    if (shell.outputConnection && parentConnection) {
-      parentConnection.connect(shell.outputConnection);
-    }
-    applyFixedFieldsToDataValueShell(workspace, shell, {
-      terminology_id: set?.terminologyId ?? "",
-    });
-    const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key);
-    finalize(lookup);
-    connectExpressionToDataValueShell(shell, lookup);
-    finalize(lookup);
-    finalize(shell);
+  const mapValue = defaultsMapValueBlock(workspace, key);
+  if (isTermPickBlock(mapValue) || isTermPickBlock(target)) {
+    attachPhraseLookup(workspace, target, key);
     return;
   }
   if (slotAlreadyMapped(target)) return;
@@ -280,7 +276,10 @@ export type OptionalInsertFn = (
 ) => Blockly.Block | null;
 
 /**
- * Scaffold Default points: optional RM insert when needed, then Map lookup on the leaf.
+ * Scaffold Default points: optional RM insert when needed, then Map lookup.
+ * Object-valued Defaults Map keys (`term_pick`) plug into the RM attribute mouth
+ * (COMPOSITION.language, ENTRY.encoding, …). Scalar keys still plug into the
+ * typed-shell leaf (time, composer name, facility).
  * Skips slots that already have a non-shadow, non-literal mapping.
  * `subject` only wires when the Defaults Map currently has a `subject` key.
  */

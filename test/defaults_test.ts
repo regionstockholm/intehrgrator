@@ -28,6 +28,8 @@ import {
   hydrateDefaultsMapArgument,
 } from "@intehrgrator/blockly/defaults_canvas.ts";
 import { workspaceToModelJson } from "@intehrgrator/blockly/mod.ts";
+import { rmAttributeInputName } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
+import { projectBlocklyState } from "@intehrgrator/workbench/mapping_spec/mod.ts";
 
 const opt = await Deno.readTextFile(
   join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
@@ -323,6 +325,68 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
     derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "encoding")')),
     "encoding lookup should appear in the Mapping Model",
   );
+  workspace.dispose();
+});
+
+Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute mouth", () => {
+  registerRmBlocks();
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  ensureDefaultsBlock(workspace, "sv");
+  const { skeleton } = generateSkeleton(opt);
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null, "sv");
+
+  const composition = workspace.getAllBlocks(false).find((block) => block.type === "composition");
+  assertExists(composition);
+  const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
+  assertEquals(language?.type, "maps_get");
+  assertEquals(language?.getParent()?.type, "composition");
+  assertEquals(language?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "language");
+  assert(language?.getFieldValue("SLOT_ID"), "language maps_get should keep the skeleton slot id");
+
+  const territory = composition.getInputTargetBlock(rmAttributeInputName("territory"));
+  assertEquals(territory?.type, "maps_get");
+  assertEquals(territory?.getParent()?.type, "composition");
+
+  const encodingLookups = workspace.getAllBlocks(false).filter((block) =>
+    block.type === "maps_get" &&
+    block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "encoding"
+  );
+  assert(encodingLookups.length > 0, "expected encoding Default point lookups");
+  for (const lookup of encodingLookups) {
+    assertEquals(
+      lookup.getParent()?.type === "code_phrase",
+      false,
+      "encoding maps_get should sit on ENTRY.encoding, not CODE_PHRASE.code",
+    );
+  }
+
+  const timeLookups = workspace.getAllBlocks(false).filter((block) =>
+    block.type === "maps_get" &&
+    block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "time"
+  );
+  assert(
+    timeLookups.some((block) => {
+      const parentType = block.getParent()?.type ?? "";
+      return parentType.startsWith("dv_") || parentType === "dv_date_time";
+    }),
+    "scalar time should still plug into the DV date/time value leaf",
+  );
+
+  const projection = projectBlocklyState(Blockly.serialization.workspaces.save(workspace));
+  const languageRow = projection.lines.find((line) =>
+    line.attribute === "language" && line.type === "maps_get"
+  );
+  assertExists(languageRow);
+  assertEquals(languageRow.shell, undefined);
+  assertEquals(
+    projection.lines.some((line) =>
+      line.attribute === "code" && line.type === "maps_get" && line.shell === "code_phrase"
+    ),
+    false,
+    "language lookup must not appear as CODE_PHRASE.code",
+  );
+
   workspace.dispose();
 });
 

@@ -637,7 +637,7 @@ Deno.test("termSetForMandatedCode finds built-in composition category and not lo
   assertEquals(termSetForMandatedCode("local", "at1000"), undefined);
 });
 
-Deno.test("skeleton canvas pre-fills RM terminology on language and territory", () => {
+Deno.test("skeleton canvas plugs language and territory Defaults lookups into CODE_PHRASE mouths", () => {
   ensureBlocks();
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
@@ -648,22 +648,14 @@ Deno.test("skeleton canvas pre-fills RM terminology on language and territory", 
   const languageInput = composition.getInput(rmAttributeInputName("language"));
   assertEquals(languageInput?.connection?.getCheck(), ["CODE_PHRASE"]);
   const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
-  assert(language, "expected CODE_PHRASE on COMPOSITION.language");
-  assertEquals(language.type, "code_phrase");
-  assertEquals(
-    language.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
-    "ISO_639-1",
-  );
-  assertEquals(language.getInputTargetBlock(dvFieldInputName("code_string"))?.type, "maps_get");
+  assert(language, "expected maps_get on COMPOSITION.language");
+  assertEquals(language.type, "maps_get");
+  assertEquals(language.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "language");
   assertEquals(language.type === "element", false);
 
   const territory = composition.getInputTargetBlock(rmAttributeInputName("territory"));
-  assertEquals(territory?.type, "code_phrase");
-  assertEquals(
-    territory?.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
-    "ISO_3166-1",
-  );
-  assertEquals(territory?.getInputTargetBlock(dvFieldInputName("code_string"))?.type, "maps_get");
+  assertEquals(territory?.type, "maps_get");
+  assertEquals(territory?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "territory");
 
   const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
   assertEquals(category?.type, "term_pick");
@@ -679,12 +671,8 @@ Deno.test("skeleton canvas pre-fills RM terminology on language and territory", 
   );
   assert(observation, "expected observation");
   const encoding = observation.getInputTargetBlock(rmAttributeInputName("encoding"));
-  assertEquals(encoding?.type, "code_phrase");
-  assertEquals(
-    encoding?.getInputTargetBlock(dvFieldInputName("terminology_id"))?.getFieldValue("TEXT"),
-    "IANA_character-sets",
-  );
-  assertEquals(encoding?.getInputTargetBlock(dvFieldInputName("code_string"))?.type, "maps_get");
+  assertEquals(encoding?.type, "maps_get");
+  assertEquals(encoding?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "encoding");
 
   workspace.dispose();
 });

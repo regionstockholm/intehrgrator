@@ -135,7 +135,7 @@ Deno.test("Remove-list blocks are unsupported/removed, not first-class IR", () =
   workspace.dispose();
 });
 
-Deno.test("nested target signature includes optional RM extras", () => {
+Deno.test("nested target signature walks RM parent/child SLOT_IDs", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const cluster = workspace.newBlock("cluster");

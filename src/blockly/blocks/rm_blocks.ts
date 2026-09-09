@@ -625,13 +625,15 @@ function appendRmAttributeInput(
     ? baseRmTypeName(typeName)
     : null;
   const card = cardinality ?? slotCardinalityFor(block, rmType, attr);
+  const rmCard = block.rmCardinalities_?.[attr] ?? rmAttributeCardinality(rmType, attr);
+  const labelOpts = { card, rmCard, rmType: slotType as string | undefined };
 
   if (slotType === "PARTY_REF" || typeName === "PARTY_REF") {
     const input = block.appendValueInput(rmAttributeInputName(attr))
       .setAlign(inputAlignRight());
     // Match party_ref block output check ("PARTY_REF"), not the block type id.
     input.setCheck(checkOverride ?? "PARTY_REF");
-    appendSlotLabel(input, attr, { card, rmType: "PARTY_REF" });
+    appendSlotLabel(input, attr, { ...labelOpts, rmType: "PARTY_REF" });
     return;
   }
 
@@ -641,7 +643,7 @@ function appendRmAttributeInput(
     const dvCheck = blocklyCheckForDv(listElement);
     // lists_create_with outputs "Array", not its block type name.
     input.setCheck(checkOverride ?? (dvCheck ? [dvCheck, "Array"] : "Array"));
-    appendSlotLabel(input, attr, { card, rmType: listElement });
+    appendSlotLabel(input, attr, { ...labelOpts, rmType: listElement });
     return;
   }
 
@@ -650,14 +652,14 @@ function appendRmAttributeInput(
       .setAlign(inputAlignRight());
     const check = checkOverride ?? puzzleCheckForAttr(rmType, attr, slotType);
     if (check) input.setCheck(check);
-    appendSlotLabel(input, attr, { card, rmType: slotType });
+    appendSlotLabel(input, attr, labelOpts);
     return;
   }
   const stmt = block.appendStatementInput(rmAttributeInputName(attr))
     .setAlign(inputAlignRight());
   const check = checkOverride ?? statementCheckForAttr(rmType, attr);
   if (check) stmt.setCheck(check);
-  appendSlotLabel(stmt, attr, { card, rmType: slotType });
+  appendSlotLabel(stmt, attr, labelOpts);
 }
 
 function puzzleCheckForAttr(
@@ -1095,6 +1097,7 @@ export const OPTIONAL_RM_MUTATOR_CONTAINER = "optional_rm_mutator_container";
 export const OPTIONAL_RM_MUTATOR_ITEM = "optional_rm_mutator_item";
 export const DV_FIELDS_MUTATOR_CONTAINER = "dv_fields_mutator_container";
 export const DV_FIELDS_MUTATOR_ITEM = "dv_fields_mutator_item";
+export const PROHIBITED_RM_INPUT_PREFIX = "PROHIBITED_";
 
 export type OptionalRmMutatorChange = {
   parent: Blockly.Block;
@@ -1122,6 +1125,8 @@ export function setOptionalRmPickHandler(
 /** Apply a mutator stack of optional RM extras (used by tests and the workbench seam). */
 export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): void {
   if (!block.decompose || !block.compose) return;
+  const banned = prohibitedNameSet(block);
+  const allowed = names.filter((name) => name && !banned.has(name));
   const bubble = new Blockly.Workspace();
   try {
     const container = block.decompose(bubble);
@@ -1132,7 +1137,7 @@ export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): 
       item = next;
     }
     let connection = container.getInput("STACK")?.connection ?? null;
-    for (const name of names) {
+    for (const name of allowed) {
       const quark = bubble.newBlock(OPTIONAL_RM_MUTATOR_ITEM);
       initSvgIfPresent(quark);
       if (name) applyMutatorItemLabel(quark, name, name);
@@ -1218,16 +1223,31 @@ function ensureDvFieldVisible(block: Blockly.Block, attrName: string): void {
   }
 }
 
+type ProhibitedRmRow = {
+  name: string;
+  rm: SlotCardinality;
+  effective: SlotCardinality;
+};
+
 function parseMutatorExtraState(
-  state: { extras?: string[]; attrs?: string[] } | string | null,
-): { extras: string[]; attrs: string[] } {
-  if (state == null || state === "") return { extras: [], attrs: [] };
+  state: {
+    extras?: string[];
+    attrs?: string[];
+    prohibited?: ProhibitedRmRow[];
+  } | string | null,
+): { extras: string[]; attrs: string[]; prohibited: ProhibitedRmRow[] } {
+  if (state == null || state === "") return { extras: [], attrs: [], prohibited: [] };
   const obj = typeof state === "string"
-    ? JSON.parse(state) as { extras?: string[]; attrs?: string[] }
+    ? JSON.parse(state) as {
+      extras?: string[];
+      attrs?: string[];
+      prohibited?: ProhibitedRmRow[];
+    }
     : state;
   return {
     extras: Array.isArray(obj.extras) ? obj.extras : [],
     attrs: Array.isArray(obj.attrs) ? obj.attrs : [],
+    prohibited: Array.isArray(obj.prohibited) ? obj.prohibited : [],
   };
 }
 
@@ -1259,14 +1279,35 @@ function optionalRmMutatorChoices(block: Blockly.Block): Array<[string, string]>
   for (const opt of getValidAttachments(rmType, {
     presentAttributes: locked,
     templateConstrained: locked,
+    prohibitedAttributes: prohibitedNameSet(block),
   })) {
     labels.set(opt.attributeName, opt.label);
   }
   for (const name of block.extraInputs_ ?? []) {
-    if (!labels.has(name)) labels.set(name, name);
+    if (!labels.has(name) && !prohibitedNameSet(block).has(name)) {
+      labels.set(name, name);
+    }
   }
   const rows = [...labels.entries()].map(([name, label]) => [label, name] as [string, string]);
   return rows.length ? rows : [["(none)", ""]];
+}
+
+function prohibitedNameSet(block: Blockly.Block): Set<string> {
+  return new Set((block.prohibitedAttributes_ ?? []).map((row) => row.name));
+}
+
+export function prohibitedRmInputName(attr: string): string {
+  return `${PROHIBITED_RM_INPUT_PREFIX}${attr}`;
+}
+
+function appendProhibitedMutatorRows(container: Blockly.Block, parent: Blockly.Block): void {
+  for (const row of parent.prohibitedAttributes_ ?? []) {
+    const input = container.appendDummyInput(prohibitedRmInputName(row.name));
+    appendSlotLabel(input, row.name, {
+      card: row.effective,
+      rmCard: row.rm,
+    });
+  }
 }
 
 function humanizeAttrName(name: string): string {
@@ -1439,28 +1480,37 @@ function registerOptionalRmMutator(): void {
       return {
         extras: this.extraInputs_ ?? [],
         attrs: presentAttributeNames(this),
+        prohibited: this.prohibitedAttributes_ ?? [],
       };
     },
     loadExtraState: function (
       this: Blockly.Block,
-      state: { extras?: string[]; attrs?: string[] } | string | null,
+      state: {
+        extras?: string[];
+        attrs?: string[];
+        prohibited?: ProhibitedRmRow[];
+      } | string | null,
     ) {
       const parsed = parseMutatorExtraState(state);
       this.extraInputs_ = parsed.extras;
+      if (parsed.prohibited.length) this.prohibitedAttributes_ = parsed.prohibited;
       restoreMutatorAttributes(this, parsed.extras, parsed.attrs);
     },
     decompose: function (this: Blockly.Block, workspace: Blockly.Workspace) {
       const labels = new Map(optionalRmMutatorChoices(this));
-      return stackMutatorItems(
+      const container = stackMutatorItems(
         workspace,
         OPTIONAL_RM_MUTATOR_CONTAINER,
         OPTIONAL_RM_MUTATOR_ITEM,
         this.extraInputs_ ?? [],
         labels,
       );
+      appendProhibitedMutatorRows(container, this);
+      return container;
     },
     compose: function (this: Blockly.Block, container: Blockly.Block) {
-      const next = namesFromMutatorStack(container);
+      const banned = prohibitedNameSet(this);
+      const next = namesFromMutatorStack(container).filter((name) => !banned.has(name));
       const prev = [...(this.extraInputs_ ?? [])];
       const connections = new Map<string, Blockly.Connection | null>();
       let item: Blockly.Block | null = container.getInputTargetBlock("STACK");
@@ -1494,6 +1544,7 @@ function registerOptionalRmMutator(): void {
       }
     },
     addInput_: function (this: Blockly.Block, name: string) {
+      if (prohibitedNameSet(this).has(name)) return;
       this.extraInputs_ = this.extraInputs_ ?? [];
       if (!this.extraInputs_.includes(name)) {
         this.extraInputs_.push(name);
@@ -1513,6 +1564,8 @@ function registerOptionalRmMutator(): void {
         const slotType = slotRmTypeForAttr(parentRm, name);
         const card = this.slotCardinalities_?.[name] ??
           rmAttributeCardinality(parentRm, name);
+        const rmCard = this.rmCardinalities_?.[name] ??
+          rmAttributeCardinality(parentRm, name);
         if (isRmValueAttribute(parentRm, name) || isPartyProxyType(slotType)) {
           const input = this.appendValueInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
             .setAlign(inputAlignRight());
@@ -1520,12 +1573,12 @@ function registerOptionalRmMutator(): void {
             ? slotType
             : (slotType ? blocklyCheckForDv(slotType) : null);
           if (check) input.setCheck(check);
-          appendSlotLabel(input, name, { card, rmType: slotType });
+          appendSlotLabel(input, name, { card, rmCard, rmType: slotType });
           continue;
         }
         const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
           .setAlign(inputAlignRight());
-        appendSlotLabel(stmt, name, { card, rmType: slotType });
+        appendSlotLabel(stmt, name, { card, rmCard, rmType: slotType });
       }
       enforceOpenEhrBlockLayout(this);
     },
@@ -1630,6 +1683,12 @@ declare module "blockly/core" {
     extraInputs_?: string[];
     extraDvFields_?: string[];
     slotCardinalities_?: Record<string, SlotCardinality>;
+    rmCardinalities_?: Record<string, SlotCardinality>;
+    prohibitedAttributes_?: Array<{
+      name: string;
+      rm: SlotCardinality;
+      effective: SlotCardinality;
+    }>;
     savedConnection_?: Blockly.Connection | null;
     firePlusClick?: () => void;
     addInput_?: (name: string) => void;

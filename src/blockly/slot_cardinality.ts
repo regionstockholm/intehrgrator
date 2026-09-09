@@ -1,17 +1,31 @@
 /**
  * Compact `[min..max]` labels on Blockly slots, bold when the live count
- * is outside the allowed range.
+ * is outside the allowed range. Interval math lives in `core/cardinality.ts`.
  */
 import type { Field, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
-import { attributesFor } from "../core/rm_meta.ts";
+import {
+  type CardinalityInterval,
+  formatCardinalityBrackets,
+  isCardinalityMet as intervalIsMet,
+  parseCardinality,
+  rmAttributeInterval,
+} from "../core/cardinality.ts";
 
 export const SLOT_CARD_FIELD_PREFIX = "SLOT_CARD_";
 
-export interface SlotCardinality {
-  min: number;
-  max: number | null;
-}
+export type SlotCardinality = CardinalityInterval;
+
+export {
+  OVERLAY_DELTA,
+  constraintOverlayHelp,
+  formatCardinalityCompact,
+  intervalsEqual,
+  isProhibitedInterval,
+  isStrictNarrowing,
+  intervalFromAmAttribute,
+  intervalFromAmBound,
+} from "../core/cardinality.ts";
 
 // deno-lint-ignore no-explicit-any
 const FieldLabelBase = Blockly.FieldLabel as any;
@@ -60,37 +74,22 @@ export function slotCardinalityFieldName(inputName: string): string {
 
 /** Always `[n..m]` / `[n..*]`, including `[1..1]` rather than a bare `1`. */
 export function formatSlotCardinality(card: SlotCardinality): string {
-  const upper = card.max == null ? "*" : String(card.max);
-  return `[${card.min}..${upper}]`;
+  return formatCardinalityBrackets(card);
 }
 
 export function parseSlotCardinality(raw?: string | null): SlotCardinality | undefined {
-  if (!raw) return undefined;
-  const text = raw.trim().replace(/^\[/, "").replace(/\]$/, "");
-  if (text === "1") return { min: 1, max: 1 };
-  const star = /^(\d+)\.\.\*$/.exec(text);
-  if (star) return { min: Number(star[1]), max: null };
-  const range = /^(\d+)\.\.(\d+)$/.exec(text);
-  if (range) return { min: Number(range[1]), max: Number(range[2]) };
-  return undefined;
+  return parseCardinality(raw);
 }
 
 export function rmAttributeCardinality(
   rmType: string,
   attrName: string,
 ): SlotCardinality | undefined {
-  const meta = attributesFor(rmType).find((a) => a.name === attrName);
-  if (!meta?.multiplicity) return undefined;
-  return {
-    min: Number(meta.multiplicity.min ?? 0),
-    max: meta.multiplicity.max == null ? null : Number(meta.multiplicity.max),
-  };
+  return rmAttributeInterval(rmType, attrName);
 }
 
 export function isCardinalityMet(count: number, card: SlotCardinality): boolean {
-  if (count < card.min) return false;
-  if (card.max != null && count > card.max) return false;
-  return true;
+  return intervalIsMet(count, card);
 }
 
 /**

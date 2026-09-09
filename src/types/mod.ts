@@ -84,6 +84,20 @@ export interface MappingModel {
 
 export type SkeletonNodeKind = "container" | "value";
 
+/**
+ * RM BMM vs effective OPT interval for one Attribute mouth (or a prohibited
+ * Optional RM Insertion row). Blockly captions are a view of this pair.
+ */
+export interface AttributeConstraint {
+  name: string;
+  /** Compact RM BMM multiplicity, e.g. `0..1` / `0..*`. */
+  rmCardinality: string;
+  /** Compact effective OPT existence or cardinality. */
+  effectiveCardinality: string;
+  /** True when the OPT prohibits the attribute (`max=0`). */
+  prohibited?: boolean;
+}
+
 /** One member of a template-constrained coded/string value set. */
 export interface AllowedValue {
   code: string;
@@ -146,6 +160,15 @@ export interface SkeletonNode {
   multiplicity?: string;
   /** Cardinality of the parent attribute slot this node occupies. */
   slotCardinality?: string;
+  /** RM BMM multiplicity of the parent attribute this node occupies. */
+  rmCardinality?: string;
+  /** Effective OPT existence/cardinality of that parent attribute. */
+  effectiveCardinality?: string;
+  /**
+   * Per-attribute RM vs effective intervals on this RM class, including
+   * template-prohibited (`max=0`) attributes that never become mouths.
+   */
+  attributeConstraints?: AttributeConstraint[];
   /**
    * Free-text documentation for the help popup (JSON Schema `description`,
    * XSD `xs:documentation`). openEHR RM class/attr prose comes from ehrtslib

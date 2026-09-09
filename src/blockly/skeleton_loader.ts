@@ -550,6 +550,9 @@ function buildContainerBlock(
     },
   );
 
+  const constraintByName = new Map(
+    (node.attributeConstraints ?? []).map((row) => [row.name, row]),
+  );
   const attributes = [
     ...new Set(
       visibleChildren
@@ -557,15 +560,38 @@ function buildContainerBlock(
         .filter((attr): attr is string => Boolean(attr)),
     ),
   ];
+  for (const row of node.attributeConstraints ?? []) {
+    if (row.prohibited) continue;
+    const effective = parseSlotCardinality(row.effectiveCardinality);
+    if (effective && effective.min >= 1 && !attributes.includes(row.name)) {
+      attributes.push(row.name);
+    }
+  }
   const cards: Record<string, SlotCardinality> = {};
+  const rmCards: Record<string, SlotCardinality> = {};
   for (const attr of attributes) {
     const kids = visibleChildren.filter((child) => child.rmAttribute === attr);
-    const raw = kids[0]?.slotCardinality ?? kids[0]?.multiplicity;
-    const parsed = parseSlotCardinality(raw) ??
+    const constraint = constraintByName.get(attr);
+    const effective = parseSlotCardinality(constraint?.effectiveCardinality) ??
+      parseSlotCardinality(kids[0]?.effectiveCardinality) ??
+      parseSlotCardinality(kids[0]?.slotCardinality ?? kids[0]?.multiplicity) ??
       rmAttributeCardinality(node.rmType, attr);
-    if (parsed) cards[attr] = parsed;
+    const rm = parseSlotCardinality(constraint?.rmCardinality) ??
+      parseSlotCardinality(kids[0]?.rmCardinality) ??
+      rmAttributeCardinality(node.rmType, attr);
+    if (effective) cards[attr] = effective;
+    if (rm) rmCards[attr] = rm;
   }
   block.slotCardinalities_ = cards;
+  block.rmCardinalities_ = rmCards;
+  block.prohibitedAttributes_ = (node.attributeConstraints ?? [])
+    .filter((row) => row.prohibited)
+    .flatMap((row) => {
+      const rm = parseSlotCardinality(row.rmCardinality);
+      const effective = parseSlotCardinality(row.effectiveCardinality);
+      if (!rm || !effective) return [];
+      return [{ name: row.name, rm, effective }];
+    });
   syncRmAttributeInputs(block, node.rmType, attributes, cards);
 
   if (!isRoot && !block.outputConnection) {

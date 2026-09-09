@@ -712,6 +712,15 @@ body.sheets-fullscreen::before {
 .blockly-mount .blocklyText.blockly-slot-label--unmet {
   font-weight: 700 !important;
 }
+.blockly-mount .blocklyText .blockly-slot-overlay-delta,
+.blockly-mount .blocklyText .blockly-slot-overlay-effective {
+  fill: #0f766e;
+  font-weight: 600;
+}
+.blockly-mount .blocklyText .blockly-slot-overlay-rm {
+  fill: #64748b;
+  text-decoration: line-through;
+}
 .blockly-mount .blocklyText.blockly-slot-label--abstract,
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,
 .blockly-mount .blocklyText.blockly-rm-emoji-abstract {

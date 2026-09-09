@@ -2,6 +2,8 @@ import { assertEquals } from "@std/assert";
 import {
   formatSlotCardinality,
   isCardinalityMet,
+  isProhibitedInterval,
+  isStrictNarrowing,
   parseSlotCardinality,
 } from "@intehrgrator/blockly/slot_cardinality.ts";
 
@@ -25,4 +27,33 @@ Deno.test("isCardinalityMet enforces min and optional max", () => {
   assertEquals(isCardinalityMet(0, { min: 1, max: null }), false);
   assertEquals(isCardinalityMet(1, { min: 1, max: 1 }), true);
   assertEquals(isCardinalityMet(2, { min: 1, max: 1 }), false);
+});
+
+Deno.test("isStrictNarrowing is true only for a tighter interval", () => {
+  assertEquals(
+    isStrictNarrowing({ min: 0, max: 1 }, { min: 1, max: 1 }),
+    true,
+  );
+  assertEquals(
+    isStrictNarrowing({ min: 0, max: null }, { min: 1, max: 1 }),
+    true,
+  );
+  assertEquals(
+    isStrictNarrowing({ min: 0, max: null }, { min: 1, max: null }),
+    true,
+  );
+  assertEquals(
+    isStrictNarrowing({ min: 0, max: 1 }, { min: 0, max: 0 }),
+    true,
+  );
+  assertEquals(
+    isStrictNarrowing({ min: 1, max: 1 }, { min: 1, max: 1 }),
+    false,
+  );
+  assertEquals(
+    isStrictNarrowing({ min: 0, max: 1 }, { min: 0, max: 1 }),
+    false,
+  );
+  assertEquals(isProhibitedInterval({ min: 0, max: 0 }), true);
+  assertEquals(isProhibitedInterval({ min: 0, max: 1 }), false);
 });

@@ -132,6 +132,8 @@ export function blocklyCheckForPrimitiveType(typeName: string): string | null {
 export interface AttachmentContext {
   presentAttributes: Set<string>;
   templateConstrained: Set<string>;
+  /** OPT-prohibited attributes (`max=0`) — listed in the mutator, never addable. */
+  prohibitedAttributes?: Set<string>;
 }
 
 /**
@@ -148,6 +150,7 @@ export function getValidAttachments(
     if (attr.mandatory) continue;
     if (context.presentAttributes.has(attr.name)) continue;
     if (context.templateConstrained.has(attr.name)) continue;
+    if (context.prohibitedAttributes?.has(attr.name)) continue;
 
     const base = baseRmTypeName(attr.typeName);
     if (isPrimitiveRmType(base)) continue;

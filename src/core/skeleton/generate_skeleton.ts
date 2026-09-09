@@ -7,7 +7,12 @@ import {
   applyOperationalTemplateTermScopes,
   type TermScopeMeta,
 } from "ehrtslib/generation/term_scope.ts";
-import type { AllowedOrdinal, AllowedValue, SkeletonNode } from "../../types/mod.ts";
+import type {
+  AllowedOrdinal,
+  AllowedValue,
+  AttributeConstraint,
+  SkeletonNode,
+} from "../../types/mod.ts";
 import {
   blockTypeForRm,
   isAutoFixedValueSlot,
@@ -18,6 +23,14 @@ import {
 } from "../rm_mandatory.ts";
 import { withRmConstrainedFields } from "../rm_terminology.ts";
 import { isSubtypeOf } from "../rm_meta.ts";
+import {
+  formatCardinalityCompact,
+  intervalFromAmAttribute,
+  intervalFromAmBound,
+  isProhibitedInterval,
+  rmAttributeInterval,
+  type CardinalityInterval,
+} from "../cardinality.ts";
 import {
   archetypeShortName,
   availableOptLanguages,
@@ -203,12 +216,20 @@ function walkComplex(
 
   const children: SkeletonNode[] = [];
   const presentAttrs = new Set<string>();
+  const attributeConstraints: AttributeConstraint[] = [];
 
   for (const attr of (cObj.attributes ?? []) as AmObject[]) {
     const attrName = attr.rm_attribute_name as string | undefined;
     if (!attrName) continue;
     presentAttrs.add(attrName);
+    const rmInterval = rmAttributeInterval(rmType, attrName);
+    const effective = intervalFromAmAttribute(attr);
+    const constraint = attributeConstraintOf(attrName, rmInterval, effective);
+    if (constraint) attributeConstraints.push(constraint);
+    if (constraint?.prohibited) continue;
+
     const slotCard = multiplicityOfAttribute(attr);
+    const attrMandatory = (effective?.min ?? 0) >= 1;
     const childNodes = walkAttribute(
       attr,
       templateId,
@@ -220,6 +241,11 @@ function walkComplex(
     for (const child of childNodes) {
       child.rmAttribute = attrName;
       child.slotCardinality = slotCard ?? child.multiplicity;
+      if (constraint) {
+        child.rmCardinality = constraint.rmCardinality;
+        child.effectiveCardinality = constraint.effectiveCardinality;
+      }
+      if (attrMandatory) child.mandatory = true;
       applyRmConstrainedFields(child, rmType);
       children.push(child);
     }
@@ -238,6 +264,13 @@ function walkComplex(
     if (silent) {
       silent.rmAttribute = attrName;
       silent.slotCardinality = silent.slotCardinality ?? silent.multiplicity;
+      const silentRm = rmAttributeInterval(rmType, attrName);
+      if (silentRm) {
+        const compact = formatCardinalityCompact(silentRm);
+        silent.rmCardinality = silent.rmCardinality ?? compact;
+        silent.effectiveCardinality = silent.effectiveCardinality ??
+          silent.slotCardinality ?? compact;
+      }
       children.push(silent);
     }
   }
@@ -264,6 +297,7 @@ function walkComplex(
     multiplicity,
     children,
     attachmentPoint: slotPath,
+    ...(attributeConstraints.length ? { attributeConstraints } : {}),
   };
 }
 
@@ -499,10 +533,8 @@ function silentMandatoryRmType(parentType: string, attrName: string): string | n
 }
 
 function isMandatory(cObj: AmObject): boolean {
-  const occ = cObj.occurrences ?? cObj.existence;
-  if (!occ) return false;
-  const lower = Number(occ.lower ?? 0);
-  return lower > 0;
+  const occ = intervalFromAmBound(cObj.occurrences ?? cObj.existence);
+  return (occ?.min ?? 0) > 0;
 }
 
 const AQL_NAME_PRED = /^(.*),'([^']+)'$/;
@@ -545,32 +577,29 @@ function pathNodeSegment(nodeId: string | undefined, rmType: string): string {
 }
 
 export function multiplicityOfAm(cObj: AmObject): string | undefined {
-  const occ = cObj?.occurrences ?? cObj?.existence;
-  if (!occ) return undefined;
-  const lower = Number(occ.lower ?? 0);
-  const unbounded = occ.upper_unbounded === true ||
-    occ._upper_unbounded === true ||
-    occ._upper_unbounded?.value === true;
-  const upperRaw = occ.upper ?? occ._upper;
-  const upper = unbounded || upperRaw == null ? null : Number(upperRaw);
-  if (upper == null || Number.isNaN(upper) || upper < 0) {
-    return lower > 0 ? "1..*" : "0..*";
-  }
-  if (upper === 1) return lower > 0 ? "1" : "0..1";
-  return `${lower}..${upper}`;
+  const interval = intervalFromAmBound(cObj?.occurrences ?? cObj?.existence);
+  return interval ? formatCardinalityCompact(interval) : undefined;
 }
 
 function multiplicityOfAttribute(attr: AmObject): string | undefined {
-  if (!attr) return undefined;
-  const card = attr.cardinality;
-  if (card) {
-    const interval = card.interval ?? card;
-    return multiplicityOfAm({ occurrences: interval });
-  }
-  if (attr.existence) {
-    return multiplicityOfAm({ occurrences: attr.existence });
-  }
-  return undefined;
+  const interval = intervalFromAmAttribute(attr);
+  return interval ? formatCardinalityCompact(interval) : undefined;
+}
+
+function attributeConstraintOf(
+  name: string,
+  rm: CardinalityInterval | undefined,
+  effective: CardinalityInterval | undefined,
+): AttributeConstraint | undefined {
+  if (!rm && !effective) return undefined;
+  const rmCard = rm ?? effective!;
+  const effCard = effective ?? rm!;
+  return {
+    name,
+    rmCardinality: formatCardinalityCompact(rmCard),
+    effectiveCardinality: formatCardinalityCompact(effCard),
+    ...(isProhibitedInterval(effCard) ? { prohibited: true } : {}),
+  };
 }
 
 export function isRepeatingMultiplicity(multiplicity?: string): boolean {

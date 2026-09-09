@@ -17,7 +17,10 @@ import {
 } from "./rm_type_emoji.ts";
 import {
   formatSlotCardinality,
+  isStrictNarrowing,
   type SlotCardinality,
+  OVERLAY_DELTA,
+  constraintOverlayHelp,
 } from "./slot_cardinality.ts";
 
 export const SLOT_LABEL_FIELD_PREFIX = "SLOT_LABEL_";
@@ -54,6 +57,10 @@ export class FieldSlotLabel extends FieldLabelBase {
   max: number | null = 1;
   hasCard = false;
   unmet = false;
+  hasOverlay = false;
+  rmMin = 0;
+  rmMax: number | null = 1;
+  private hasRmCard_ = false;
   private rmType_ = "";
   /** Schema property docs when not using openEHR RM attribute tables. */
   private documentation_ = "";
@@ -69,6 +76,7 @@ export class FieldSlotLabel extends FieldLabelBase {
     attrLabel: string,
     options: {
       card?: SlotCardinality;
+      rmCard?: SlotCardinality;
       rmType?: string;
       documentation?: string;
     } = {},
@@ -80,8 +88,14 @@ export class FieldSlotLabel extends FieldLabelBase {
       this.min = options.card.min;
       this.max = options.card.max;
     }
+    if (options.rmCard) {
+      this.hasRmCard_ = true;
+      this.rmMin = options.rmCard.min;
+      this.rmMax = options.rmCard.max;
+    }
     this.rmType_ = options.rmType ?? "";
     this.documentation_ = (options.documentation ?? "").trim();
+    this.refreshOverlay_();
     this.refreshText_();
   }
 
@@ -97,7 +111,28 @@ export class FieldSlotLabel extends FieldLabelBase {
       this.min = card.min;
       this.max = card.max;
     }
+    this.refreshOverlay_();
     this.refreshText_();
+  }
+
+  setRmCardinality(card: SlotCardinality | undefined): void {
+    if (!card) {
+      this.hasRmCard_ = false;
+    } else {
+      this.hasRmCard_ = true;
+      this.rmMin = card.min;
+      this.rmMax = card.max;
+    }
+    this.refreshOverlay_();
+    this.refreshText_();
+  }
+
+  overlayHelp(): string {
+    if (!this.hasOverlay) return "";
+    return constraintOverlayHelp(
+      { min: this.rmMin, max: this.rmMax },
+      { min: this.min, max: this.max },
+    );
   }
 
   setRmType(rmType: string | undefined): void {
@@ -146,7 +181,20 @@ export class FieldSlotLabel extends FieldLabelBase {
   }
 
   isClickableInFlyout(): boolean {
-    return this.hasAttrHelp_() || this.isAbstractSlot_();
+    return this.hasAttrHelp_() || this.isAbstractSlot_() || this.hasOverlay;
+  }
+
+  private refreshOverlay_(): void {
+    this.hasOverlay = Boolean(
+      this.hasCard &&
+        this.hasRmCard_ &&
+        isStrictNarrowing(
+          { min: this.rmMin, max: this.rmMax },
+          { min: this.min, max: this.max },
+        ),
+    );
+    const help = this.overlayHelp();
+    this.setTooltip?.(help || "");
   }
 
   private isAbstractSlot_(): boolean {
@@ -175,14 +223,22 @@ export class FieldSlotLabel extends FieldLabelBase {
 
   private refreshText_(): void {
     const parts = [this.attrLabel];
-    if (this.hasCard) {
+    if (this.hasOverlay) {
+      parts.push(
+        OVERLAY_DELTA,
+        formatSlotCardinality({ min: this.min, max: this.max }),
+        formatSlotCardinality({ min: this.rmMin, max: this.rmMax }),
+      );
+    } else if (this.hasCard) {
       parts.push(formatSlotCardinality({ min: this.min, max: this.max }));
     }
     const glyph = connectionPointGlyph(this.rmType_ || undefined, true);
     // Abstract ⁇ is drawn as an underlined tspan so only the glyph is linked-looking.
     if (glyph && !this.isAbstractSlot_()) parts.push(glyph);
     this.setValue(parts.join(" "));
-    this.CURSOR = this.hasAttrHelp_() || this.isAbstractSlot_() ? "pointer" : "default";
+    this.CURSOR = this.hasAttrHelp_() || this.isAbstractSlot_() || this.hasOverlay
+      ? "pointer"
+      : "default";
     this.syncClass_();
     this.syncTipAttr_();
     this.updateSize_?.();
@@ -213,11 +269,18 @@ export class FieldSlotLabel extends FieldLabelBase {
     const card = this.hasCard
       ? formatSlotCardinality({ min: this.min, max: this.max })
       : "";
+    const rmCard = this.hasOverlay
+      ? formatSlotCardinality({ min: this.rmMin, max: this.rmMax })
+      : "";
     const concreteGlyph = !abstract
       ? (connectionPointGlyph(this.rmType_ || undefined, true) ?? "")
       : "";
     const fullParts = [this.attrLabel];
-    if (card) fullParts.push(card);
+    if (this.hasOverlay) {
+      fullParts.push(OVERLAY_DELTA, card, rmCard);
+    } else if (card) {
+      fullParts.push(card);
+    }
     if (abstract && glyph) fullParts.push(glyph);
     else if (concreteGlyph) fullParts.push(concreteGlyph);
     const full = fullParts.join(" ");
@@ -243,12 +306,21 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("text-anchor", "start");
     el.setAttribute("x", "0");
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
-    this.rebuildCaption_(el, card, abstract ? glyph : concreteGlyph, abstract, bodyPx, glyphPx);
+    this.rebuildCaption_(
+      el,
+      card,
+      rmCard,
+      abstract ? glyph : concreteGlyph,
+      abstract,
+      bodyPx,
+      glyphPx,
+    );
   }
 
   private rebuildCaption_(
     el: SVGTextElement,
     card: string,
+    rmCard: string,
     glyph: string,
     abstractGlyph: boolean,
     bodyPx: number,
@@ -285,7 +357,9 @@ export class FieldSlotLabel extends FieldLabelBase {
       el.appendChild(tspan);
       this.attrTspan_ = tspan;
     }
-    if (card) {
+    if (this.hasOverlay && card) {
+      appendOverlayTspans(el, this, card, rmCard, bodyPx);
+    } else if (card) {
       const cardNode = document.createTextNode(` ${card}`);
       el.appendChild(cardNode);
     }
@@ -335,6 +409,7 @@ export function appendSlotLabel(
   attrLabel: string,
   options: {
     card?: SlotCardinality;
+    rmCard?: SlotCardinality;
     rmType?: string;
     documentation?: string;
   } = {},
@@ -344,6 +419,7 @@ export function appendSlotLabel(
   if (existing && isSlotLabelField(existing)) {
     existing.attrLabel = attrLabel;
     existing.setCardinality(options.card);
+    existing.setRmCardinality(options.rmCard);
     existing.setRmType(options.rmType);
     existing.setDocumentation(options.documentation);
     return;
@@ -371,6 +447,87 @@ function cssClass(unmet: boolean, abstractSlot: boolean): string {
   if (unmet) parts.push("blockly-slot-label--unmet");
   if (abstractSlot) parts.push("blockly-slot-label--abstract");
   return parts.join(" ");
+}
+
+function appendOverlayTspans(
+  el: SVGTextElement,
+  field: FieldSlotLabel,
+  effective: string,
+  rm: string,
+  bodyPx: number,
+): void {
+  const help = field.overlayHelp();
+  const add = (className: string, text: string, leadingSpace: boolean): void => {
+    if (leadingSpace) el.appendChild(document.createTextNode(" "));
+    const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
+    tspan.setAttribute("class", className);
+    tspan.textContent = text;
+    tspan.style.setProperty("font-size", `${bodyPx}px`, "important");
+    if (help) {
+      tspan.style.cursor = "pointer";
+      tspan.setAttribute("title", help);
+      tspan.addEventListener("mousedown", (event) => event.stopPropagation());
+      tspan.addEventListener("click", (event) => {
+        event.stopPropagation();
+        dismissSpecHelpPopup();
+        pinOverlayHelpTip(field, tspan);
+      });
+    }
+    el.appendChild(tspan);
+  };
+  add("blockly-slot-overlay-delta", OVERLAY_DELTA, true);
+  add("blockly-slot-overlay-effective", effective, true);
+  add("blockly-slot-overlay-rm", rm, true);
+}
+
+const OVERLAY_TIP_ID = "blockly-slot-overlay-tip";
+
+function pinOverlayHelpTip(field: FieldSlotLabel, anchor: Element): void {
+  if (typeof document === "undefined") return;
+  Blockly.Tooltip?.hide?.();
+  const text = field.overlayHelp();
+  if (!text) return;
+  let tip = document.getElementById(OVERLAY_TIP_ID);
+  if (tip && tip.dataset.anchor === field.pinId) {
+    dismissOverlayHelpTip();
+    return;
+  }
+  dismissOverlayHelpTip();
+  dismissSlotLabelTip();
+  tip = document.createElement("div");
+  tip.id = OVERLAY_TIP_ID;
+  tip.className = "blockly-rm-emoji-tip";
+  tip.dataset.anchor = field.pinId;
+  tip.textContent = text;
+  document.body.appendChild(tip);
+  anchorFloating(anchor, tip, {
+    placement: "bottom-start",
+    offset: 6,
+    fitSize: true,
+  });
+  const dismiss = (event: Event) => {
+    if (event.target instanceof Node && tip?.contains(event.target)) return;
+    dismissOverlayHelpTip();
+  };
+  const onKey = (event: KeyboardEvent) => {
+    if (event.key === "Escape") dismiss(event);
+  };
+  document.addEventListener("pointerdown", dismiss, true);
+  document.addEventListener("keydown", onKey, true);
+  (tip as HTMLElement & { _dismiss?: () => void })._dismiss = () => {
+    document.removeEventListener("pointerdown", dismiss, true);
+    document.removeEventListener("keydown", onKey, true);
+  };
+}
+
+function dismissOverlayHelpTip(): void {
+  if (typeof document === "undefined") return;
+  const tip = document.getElementById(OVERLAY_TIP_ID);
+  if (!tip) return;
+  const cleanup = (tip as HTMLElement & { _dismiss?: () => void })._dismiss;
+  cleanup?.();
+  stopAnchoring(tip);
+  tip.remove();
 }
 
 let measureCanvas: HTMLCanvasElement | null = null;

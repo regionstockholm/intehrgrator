@@ -160,9 +160,25 @@ Deno.test("OPT XML parse keeps C_DV_ORDINAL.list value+symbol (upstream #79)", (
   );
 });
 
+/** Regression guard for ErikSundvall/ehrtslib#73 — no local vendor patch. */
+Deno.test("OPT XML parse keeps Position C_CODE_PHRASE code_list of 6 (upstream #73)", () => {
+  const parsed = parseTemplateInput(bpOpt);
+  const position = findAmNode(
+    parsed.operationalTemplate?.definition as AmWalkNode | undefined,
+    (n) =>
+      Array.isArray(n.code_list) &&
+      n.code_list.length === 6 &&
+      n.code_list.includes("at1000") &&
+      n.code_list.includes("at1014"),
+  );
+  assert(position, "expected Position C_CODE_PHRASE with six local codes");
+  assertEquals(position.code_list?.length, 6);
+});
+
 type AmWalkNode = {
   rm_type_name?: string;
   list?: unknown[];
+  code_list?: string[];
   attributes?: Array<{ children?: AmWalkNode | AmWalkNode[] }>;
   children?: AmWalkNode | AmWalkNode[];
 };

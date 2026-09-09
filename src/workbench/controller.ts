@@ -1108,6 +1108,11 @@ export class WorkbenchController {
     return getValidAttachments(node.rmType, {
       presentAttributes: present,
       templateConstrained: present,
+      prohibitedAttributes: new Set(
+        (node.attributeConstraints ?? [])
+          .filter((row) => row.prohibited)
+          .map((row) => row.name),
+      ),
     });
   }
 

@@ -6,26 +6,7 @@ import { applyModelLoops } from "@intehrgrator/blockly/mod.ts";
 import { buildDemoToolbox, toolboxBlockTypes } from "@intehrgrator/blockly/toolbox_demo.ts";
 import { msg } from "@intehrgrator/blockly/i18n/custom_msg.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
-
-const REMOVED_FROM_TOOLBOX = [
-  "controls_whileUntil",
-  "controls_repeat_ext",
-  "controls_for",
-  "controls_forEach",
-  "controls_flow_statements",
-  "controls_if",
-  "math_random_int",
-  "math_random_float",
-  "text_print",
-  "lists_setIndex",
-  "lists_repeat",
-  "sheet_set_cell",
-  "sheet_set_xy",
-  "sheet_insert_row",
-  "sheet_delete_row",
-  "sheet_insert_column",
-  "sheet_delete_column",
-] as const;
+import { VMS_REMOVED_BLOCK_TYPES } from "@intehrgrator/blockly/vms.ts";
 
 let ready = false;
 function ensure(): void {
@@ -48,7 +29,7 @@ function drawerTypes(
 
 Deno.test("default toolbox no longer offers verification-hostile blocks", () => {
   const types = toolboxBlockTypes(buildDemoToolbox("en"));
-  for (const type of REMOVED_FROM_TOOLBOX) {
+  for (const type of VMS_REMOVED_BLOCK_TYPES) {
     assert(!types.includes(type), `${type} must not appear in the default toolbox`);
   }
 });

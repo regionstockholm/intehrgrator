@@ -192,6 +192,39 @@ Deno.test("sheet accessors collect sheetNames", () => {
   workspace.dispose();
 });
 
+Deno.test("sheet_lookup in a value slot is a kept expression with sheetNames", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const slot = workspace.newBlock("target_value");
+  slot.setFieldValue("slot/snomed", "SLOT_ID");
+  const lookup = workspace.newBlock("sheet_lookup");
+  lookup.setFieldValue("icd10_snomed", "NAME");
+  const col = workspace.newBlock("text");
+  col.setFieldValue("code", "TEXT");
+  const val = workspace.newBlock("text");
+  val.setFieldValue("I10", "TEXT");
+  const ret = workspace.newBlock("text");
+  ret.setFieldValue("snomed", "TEXT");
+  lookup.getInput("MATCH_COL")!.connection!.connect(col.outputConnection!);
+  lookup.getInput("MATCH_VAL")!.connection!.connect(val.outputConnection!);
+  lookup.getInput("RETURN_COL")!.connection!.connect(ret.outputConnection!);
+  slot.getInput("VALUE")!.connection!.connect(lookup.outputConnection!);
+
+  const ir = workspaceToModelJson(workspace);
+  const mapped = ir.slots.find((s) => s.slotId === "slot/snomed");
+  assertEquals(
+    mapped?.expression,
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+  );
+  assertEquals(ir.sheetNames, ["icd10_snomed"]);
+  assertEquals(
+    ir.unsupported.some((u) => u.blockType === "sheet_lookup"),
+    false,
+    "sheet_lookup is VMS Keep, not unsupported",
+  );
+  workspace.dispose();
+});
+
 Deno.test("Blockly JSON round-trip preserves Mapping Model IR", () => {
   ensure();
   const workspace = new Blockly.Workspace();

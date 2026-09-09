@@ -136,8 +136,8 @@ The primary mapping interaction: enter **Listening Mode** → click a source tre
 _Avoid_: Wildcard mapping (deferred — see `docs/future/wildcard-source-mapping.md`)
 
 **Optional RM Insertion**:
-Adding a valid RM structure not present in the loaded OPT (e.g. `feeder_audit`) via the native Blockly **cogwheel mutator** on a container block (same family as `controls_if` elseif/else). The mini-workspace lists optional attributes; adding one expands the parent and auto-attaches a typed child when the mouth is empty. Removing an optional attribute disconnects its child onto the canvas (does not delete it). Template-mandatory and silent-mandatory mouths stay locked. Attributes the operational template prohibits (`existence` / occurrences `0..0`) are omitted from the mutator. Replaces the former encircled-`+` HTML picker.
-_Avoid_: RM insertion hook, extra fields menu, treating the old `+` popup as current UI, offering template-excluded RM attributes as optional inserts
+Adding a valid RM structure not present in the loaded OPT (e.g. `feeder_audit`) via the native Blockly **cogwheel mutator** on a container block (same family as `controls_if` elseif/else). The mini-workspace lists optional attributes; adding one expands the parent and auto-attaches a typed child when the mouth is empty. Removing an optional attribute disconnects its child onto the canvas (does not delete it). Template-mandatory, AM-mandated (RM-optional made `min ≥ 1`), and silent-mandatory mouths stay on the block and locked — they are not behind this cogwheel. Attributes the operational template prohibits (`existence` / occurrences `0..0`) are omitted from the mutator. Replaces the former encircled-`+` HTML picker.
+_Avoid_: RM insertion hook, extra fields menu, treating the old `+` popup as current UI, offering template-excluded RM attributes as optional inserts, leaving template-mandated attributes only in the mutator
 
 **Block Expansion**:
 When an optional RM structure is chosen in the cogwheel mutator, the parent container block is automatically modified to expose the corresponding statement input, then the new child block is inserted there if the mouth was empty.

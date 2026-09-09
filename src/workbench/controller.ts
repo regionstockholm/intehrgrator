@@ -2,6 +2,9 @@ import type {
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  MappingSlotHatch,
+  MappingUnsupportedBlock,
+  TargetSignatureNode,
   OpenEhrJsonDeserializeMode,
   OutputMode,
   OutputValidation,
@@ -698,10 +701,15 @@ export class WorkbenchController {
   /** Replace the derived Mapping Model from the canonical Blockly workspace JSON. */
   syncFromBlockly(
     blocklyState: unknown,
-    slots: Array<{ slotId: string; rmType: string; expression: string }>,
+    slots: Array<{ slotId: string; rmType: string; expression: string; hatch?: MappingSlotHatch }>,
     loops: MappingLoop[] = [],
     optionalRm?: MappingModel["optionalRm"],
-    options?: { notify?: boolean },
+    options?: {
+      notify?: boolean;
+      targetSignature?: TargetSignatureNode[];
+      unsupported?: MappingUnsupportedBlock[];
+      sheetNames?: string[];
+    },
   ): void {
     if (!this.templateId) return;
     let next = createEmptyModel(this.templateId);
@@ -709,6 +717,9 @@ export class WorkbenchController {
     next.optionalRm = optionalRm ? [...optionalRm] : [...this.model.optionalRm];
     // Canvas is source of truth: empty `loops` means the loops were undone, not "keep previous".
     next.loops = [...loops];
+    next.targetSignature = options?.targetSignature ? [...options.targetSignature] : [];
+    next.unsupported = options?.unsupported ? [...options.unsupported] : [];
+    next.sheetNames = options?.sheetNames ? [...options.sheetNames] : [];
     const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
     for (const item of slots) {
       const targetSlot = targetSlots.get(item.slotId);
@@ -718,6 +729,14 @@ export class WorkbenchController {
         label: targetSlot?.label,
         mandatory: targetSlot?.mandatory,
       });
+      if (item.hatch) {
+        next = {
+          ...next,
+          slots: next.slots.map((slot) =>
+            slot.slotId === item.slotId ? { ...slot, hatch: item.hatch } : slot
+          ),
+        };
+      }
     }
     this.blocklyState = blocklyState;
     this.model = next;

@@ -633,7 +633,12 @@ function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }):
     derived.slots,
     derived.loops,
     derived.optionalRm,
-    { notify: false },
+    {
+      notify: false,
+      targetSignature: derived.targetSignature,
+      unsupported: derived.unsupported,
+      sheetNames: derived.sheetNames,
+    },
   );
   const s = controller.getState();
   const signatureAfter = slotSignatureFrom(s.model.slots, s.model.loops ?? []);
@@ -921,6 +926,11 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           derived.slots,
           derived.loops,
           derived.optionalRm,
+          {
+            targetSignature: derived.targetSignature,
+            unsupported: derived.unsupported,
+            sheetNames: derived.sheetNames,
+          },
         );
       }
       applyPendingDefaultsMap();
@@ -941,6 +951,11 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           derived.slots,
           derived.loops,
           derived.optionalRm,
+          {
+            targetSignature: derived.targetSignature,
+            unsupported: derived.unsupported,
+            sheetNames: derived.sheetNames,
+          },
         );
       }
     }

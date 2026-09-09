@@ -21,7 +21,7 @@ symbolic search) and, for critical subsets, stronger provers.
 | Piece | Role |
 |-------|------|
 | Blockly workspace JSON | Canonical Mapping Specification |
-| Mapping Model (`slots[]`, loops, expressions) | Derived semantic index for codegen, Test Run, validation, AI import |
+| Mapping Model (`slots[]`, `loops[]` grain/`kind`, `targetSignature`, `unsupported`) | Derived semantic index for codegen, Test Run, validation, AI import |
 | Mapping expressions | Sandboxed AST: `xpath*`, `trim`, `concat`, `if`, `switch`, `maps_get`, sheet accessors, `for_each_source` |
 | Source formats | JSON, XML, openEHR (via `fontoxpath` / Source Format Handler) |
 | Target instance formats | openEHR template (OPT), JSON Schema, XML Schema, free-form |

@@ -174,7 +174,7 @@ export function applyModelExpressions(
   else runWithoutBlocklyEvents(apply);
 }
 
-/** Wrap each repeating container with `for_each_source` when the model has loops. */
+/** Wrap each repeating container with `for_each_source` / `for_each_list`. */
 export function applyModelLoops(
   workspace: Blockly.Workspace,
   model: MappingModel,
@@ -182,7 +182,8 @@ export function applyModelLoops(
   for (const loop of model.loops ?? []) {
     const inner = findAttachBlock(workspace, loop.attachSlotId);
     if (!inner) continue;
-    wrapBlockWithForEachSource(workspace, inner, loop);
+    if (loop.kind === "list") wrapBlockWithForEachList(workspace, inner, loop);
+    else wrapBlockWithForEachSource(workspace, inner, loop);
   }
 }
 
@@ -193,7 +194,7 @@ function findAttachBlock(
   let fallback: Blockly.Block | null = null;
   for (const block of workspace.getAllBlocks(false)) {
     if (block.getFieldValue("SLOT_ID") !== slotId) continue;
-    if (block.type === "for_each_source") continue;
+    if (block.type === "for_each_source" || block.type === "for_each_list") continue;
     if (block.previousConnection) return block;
     fallback = block;
   }
@@ -211,6 +212,7 @@ function wrapBlockWithForEachSource(
     parent.setFieldValue(loop.path, "PATH");
     return;
   }
+  if (parent?.type === "for_each_list") return;
 
   const wrap = workspace.newBlock("for_each_source");
   wrap.setFieldValue(loop.varName, "VAR");
@@ -244,6 +246,76 @@ function wrapBlockWithForEachSource(
   }
   if (typeof document !== "undefined" && typeof svg.render === "function") {
     svg.render();
+  }
+}
+
+function wrapBlockWithForEachList(
+  workspace: Blockly.Workspace,
+  inner: Blockly.Block,
+  loop: MappingLoop,
+): void {
+  const parent = inner.getParent();
+  if (parent?.type === "for_each_list") {
+    parent.setFieldValue(loop.varName, "VAR");
+    attachListCollection(workspace, parent, loop.collection);
+    return;
+  }
+  if (parent?.type === "for_each_source") return;
+
+  const wrap = workspace.newBlock("for_each_list");
+  wrap.setFieldValue(loop.varName, "VAR");
+  attachListCollection(workspace, wrap, loop.collection);
+  const svg = wrap as BlockSvg;
+  if (typeof document !== "undefined" && typeof svg.initSvg === "function") {
+    svg.initSvg();
+  }
+
+  const wasTop = !parent;
+  const xy = typeof inner.getRelativeToSurfaceXY === "function"
+    ? inner.getRelativeToSurfaceXY()
+    : { x: 0, y: 0 };
+  const prevTarget = inner.previousConnection?.targetConnection ?? null;
+  const nextBlock = inner.getNextBlock();
+  if (inner.previousConnection?.isConnected()) inner.previousConnection.disconnect();
+  if (inner.nextConnection?.isConnected()) inner.nextConnection.disconnect();
+
+  const doConn = wrap.getInput("DO")?.connection;
+  if (doConn && inner.previousConnection) {
+    doConn.connect(inner.previousConnection);
+  }
+  if (prevTarget && wrap.previousConnection) {
+    prevTarget.connect(wrap.previousConnection);
+  }
+  if (nextBlock?.previousConnection && wrap.nextConnection) {
+    wrap.nextConnection.connect(nextBlock.previousConnection);
+  }
+  if (wasTop && typeof wrap.moveBy === "function") {
+    wrap.moveBy(xy.x, xy.y);
+  }
+  if (typeof document !== "undefined" && typeof svg.render === "function") {
+    svg.render();
+  }
+}
+
+function attachListCollection(
+  workspace: Blockly.Workspace,
+  wrap: Blockly.Block,
+  collection: string | undefined,
+): void {
+  if (!collection?.trim()) return;
+  const listInput = wrap.getInput("LIST");
+  if (!listInput?.connection) return;
+  if (listInput.connection.isConnected()) return;
+  try {
+    const expr = astToExpressionBlock(
+      workspace,
+      parseExpression(collection),
+      "string",
+      finalizeBlock,
+    );
+    if (expr.outputConnection) listInput.connection.connect(expr.outputConnection);
+  } catch {
+    // Collection may be an unparsed Keep-list expression; leave the socket empty.
   }
 }
 

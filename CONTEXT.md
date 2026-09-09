@@ -216,7 +216,7 @@ One projected row in the Mapping Spec tab: a compact, indented view of one seman
 _Avoid_: JSON fragment, custom DSL, treating the Spec view as the persistence format
 
 **Mapping Model**:
-Derived semantic index (`templateId`, `targetFormat`, `slotId`, `rmType`, `expression`, optional RM insertions). Rebuilt from Blockly JSON on workspace change; used by validation, AI suggestion import, codegen, and Test Run. Does **not** include Conversion script language.
+Derived semantic index (`templateId`, `targetFormat`, `slots[]` with expressions and optional escape-hatch metadata, `loops[]` with grain/`kind`, nested `targetSignature`, `optionalRm`, `unsupported`, `sheetNames`). Rebuilt from Blockly JSON on workspace change; used by validation, AI suggestion import, codegen, and Test Run. Does **not** include Conversion script language.
 _Avoid_: Mapping schema, parallel IR, structural language
 
 **Generated Export**:

@@ -35,7 +35,7 @@ Deno.test("mapping model expression edit", () => {
 Deno.test("mapping model is a derived index with a versioned target", () => {
   const model = createEmptyModel("t1");
   model.targetFormat = "json-schema";
-  assertEquals(model.modelVersion, 2);
+  assertEquals(model.modelVersion, 3);
   assertEquals(model.targetFormat, "json-schema");
 });
 

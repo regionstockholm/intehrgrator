@@ -199,7 +199,10 @@ export function blockToExpression(block: Block | null): string | null {
     }
     case "lists_getIndex": {
       if (String(block.getFieldValue("MODE") || "GET") !== "GET") return null;
-      const list = blockToExpression(block.getInputTargetBlock("VALUE")) ?? "list()";
+      // DV_* value-set lists are not Mapping Expressions — return null so
+      // TypeScript canvas codegen can emit `new DV_CODED_TEXT` / … instead.
+      const list = blockToExpression(block.getInputTargetBlock("VALUE"));
+      if (list === null) return null;
       const where = String(block.getFieldValue("WHERE") || "FIRST");
       if (where === "FROM_START" || where === "FROM_END") {
         const at = blockToExpression(block.getInputTargetBlock("AT")) ?? "1";

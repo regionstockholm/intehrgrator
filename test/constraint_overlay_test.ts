@@ -99,6 +99,11 @@ function overlayFixtureOpt() {
                 existence: occ(0, 0),
                 children: [],
               },
+              {
+                rm_attribute_name: "state",
+                is_prohibited: true,
+                children: [],
+              },
             ],
           }],
         },
@@ -165,6 +170,11 @@ Deno.test("skeleton records RM vs effective intervals and prohibited attributes"
     observation.children.some((c) => c.rmAttribute === "protocol"),
     false,
   );
+
+  const state = observation.attributeConstraints?.find((c) => c.name === "state");
+  assert(state);
+  assertEquals(state.prohibited, true);
+  assertEquals(state.effectiveCardinality, "0..0");
 
   const dataChild = observation.children.find((c) => c.rmAttribute === "data");
   assertEquals(dataChild?.rmCardinality, "1");
@@ -238,6 +248,15 @@ Deno.test("mandated mouth shows overlay; quiet sibling has no Δ; protocol is mu
     prohibitedLabel.overlayHelp().includes("prohibited"),
     true,
   );
+  const stateRow = container.getInput(prohibitedRmInputName("state"));
+  assert(stateRow, "is_prohibited state appears as a non-addable overlay row");
+  const inputNames = container.inputList.map((input) => input.name);
+  assertEquals(
+    inputNames.indexOf(prohibitedRmInputName("protocol")) <
+      inputNames.indexOf(prohibitedRmInputName("state")),
+    true,
+    "prohibited mutator rows follow RM attribute order (protocol before state)",
+  );
 
   composeOptionalRmExtras(observation, ["protocol"]);
   assertEquals(
@@ -303,6 +322,28 @@ Deno.test("blood-pressure HISTORY.events is an overlay vs RM 0..*", () => {
 
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const historyBlock = workspace.getAllBlocks(false).find(
+    (b) => b.getFieldValue("RM_TYPE") === "HISTORY",
+  );
+  assert(historyBlock);
+  const label = slotLabelOn(historyBlock, "events");
+  assert(label);
+  assertEquals(label.hasOverlay, true);
+  assertEquals(label.min, 1);
+  assertEquals(label.max, null);
+  assertEquals(label.rmMin, 0);
+  assertEquals(label.rmMax, null);
+  workspace.dispose();
+});
+
+Deno.test("HISTORY.events overlay survives Blockly workspace JSON round-trip", () => {
+  ensureBlocks();
+  const { skeleton } = generateSkeleton(bpOpt);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  const saved = Blockly.serialization.workspaces.save(workspace);
+  workspace.clear();
+  Blockly.serialization.workspaces.load(saved as Record<string, unknown>, workspace);
   const historyBlock = workspace.getAllBlocks(false).find(
     (b) => b.getFieldValue("RM_TYPE") === "HISTORY",
   );

@@ -1,7 +1,7 @@
 import type { BlockSvg, WorkspaceSvg } from "blockly/core";
 import type { AllowedOrdinal, AllowedValue, MappingLoop, MappingModel, SkeletonNode } from "../types/mod.ts";
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
-import { blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
+import { attributesFor, blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
 import { termSetById, termSetForMandatedCode, termSetForRmAttribute } from "../core/openehr_term_catalog.ts";
@@ -584,6 +584,7 @@ function buildContainerBlock(
   }
   block.slotCardinalities_ = cards;
   block.rmCardinalities_ = rmCards;
+  const rmAttrOrder = attributesFor(node.rmType).map((attr) => attr.name);
   block.prohibitedAttributes_ = (node.attributeConstraints ?? [])
     .filter((row) => row.prohibited)
     .flatMap((row) => {
@@ -591,7 +592,8 @@ function buildContainerBlock(
       const effective = parseSlotCardinality(row.effectiveCardinality);
       if (!rm || !effective) return [];
       return [{ name: row.name, rm, effective }];
-    });
+    })
+    .sort((a, b) => rmAttrOrder.indexOf(a.name) - rmAttrOrder.indexOf(b.name));
   syncRmAttributeInputs(block, node.rmType, attributes, cards);
 
   if (!isRoot && !block.outputConnection) {

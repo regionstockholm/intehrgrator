@@ -124,7 +124,9 @@ export function intervalFromAmAttribute(attr: unknown): CardinalityInterval | un
   const rec = attr as {
     cardinality?: { interval?: unknown } | unknown;
     existence?: unknown;
+    is_prohibited?: unknown;
   };
+  if (rec.is_prohibited === true) return { min: 0, max: 0 };
   if (rec.cardinality) {
     const card = rec.cardinality as { interval?: unknown };
     const interval = card.interval ?? rec.cardinality;

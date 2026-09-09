@@ -1229,25 +1229,53 @@ type ProhibitedRmRow = {
   effective: SlotCardinality;
 };
 
-function parseMutatorExtraState(
-  state: {
-    extras?: string[];
-    attrs?: string[];
-    prohibited?: ProhibitedRmRow[];
-  } | string | null,
-): { extras: string[]; attrs: string[]; prohibited: ProhibitedRmRow[] } {
-  if (state == null || state === "") return { extras: [], attrs: [], prohibited: [] };
-  const obj = typeof state === "string"
-    ? JSON.parse(state) as {
-      extras?: string[];
-      attrs?: string[];
-      prohibited?: ProhibitedRmRow[];
+type OptionalRmMutatorState = {
+  extras?: string[];
+  attrs?: string[];
+  prohibited?: ProhibitedRmRow[];
+  slotCards?: Record<string, SlotCardinality>;
+  rmCards?: Record<string, SlotCardinality>;
+};
+
+function parseSlotCardMap(raw: unknown): Record<string, SlotCardinality> {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, SlotCardinality> = {};
+  for (const [name, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!value || typeof value !== "object") continue;
+    const rec = value as { min?: unknown; max?: unknown };
+    const min = Number(rec.min ?? 0);
+    if (!Number.isFinite(min)) continue;
+    if (rec.max == null) {
+      out[name] = { min, max: null };
+      continue;
     }
+    const max = Number(rec.max);
+    out[name] = { min, max: Number.isFinite(max) ? max : null };
+  }
+  return out;
+}
+
+function parseMutatorExtraState(
+  state: OptionalRmMutatorState | string | null,
+): {
+  extras: string[];
+  attrs: string[];
+  prohibited: ProhibitedRmRow[];
+  slotCards: Record<string, SlotCardinality>;
+  rmCards: Record<string, SlotCardinality>;
+} {
+  if (state == null || state === "") {
+    return { extras: [], attrs: [], prohibited: [], slotCards: {}, rmCards: {} };
+  }
+  const obj = typeof state === "string"
+    ? JSON.parse(state) as OptionalRmMutatorState
     : state;
   return {
     extras: Array.isArray(obj.extras) ? obj.extras : [],
     attrs: Array.isArray(obj.attrs) ? obj.attrs : [],
     prohibited: Array.isArray(obj.prohibited) ? obj.prohibited : [],
+    slotCards: parseSlotCardMap(obj.slotCards),
+    rmCards: parseSlotCardMap(obj.rmCards),
   };
 }
 
@@ -1468,12 +1496,27 @@ function registerOptionalRmMutator(): void {
       const extras = this.extraInputs_ ?? [];
       xml.setAttribute("extras", JSON.stringify(extras));
       xml.setAttribute("attrs", JSON.stringify(presentAttributeNames(this)));
+      xml.setAttribute("slotCards", JSON.stringify(this.slotCardinalities_ ?? {}));
+      xml.setAttribute("rmCards", JSON.stringify(this.rmCardinalities_ ?? {}));
+      xml.setAttribute("prohibited", JSON.stringify(this.prohibitedAttributes_ ?? []));
       return xml;
     },
     domToMutation: function (this: Blockly.Block, xmlElement: Element) {
       const extras = JSON.parse(xmlElement.getAttribute("extras") || "[]") as string[];
       this.extraInputs_ = extras;
       const attrs = JSON.parse(xmlElement.getAttribute("attrs") || "[]") as string[];
+      this.slotCardinalities_ = parseSlotCardMap(
+        JSON.parse(xmlElement.getAttribute("slotCards") || "{}"),
+      );
+      this.rmCardinalities_ = parseSlotCardMap(
+        JSON.parse(xmlElement.getAttribute("rmCards") || "{}"),
+      );
+      const prohibited = JSON.parse(
+        xmlElement.getAttribute("prohibited") || "[]",
+      ) as ProhibitedRmRow[];
+      if (Array.isArray(prohibited) && prohibited.length) {
+        this.prohibitedAttributes_ = prohibited;
+      }
       restoreMutatorAttributes(this, extras, attrs);
     },
     saveExtraState: function (this: Blockly.Block) {
@@ -1481,18 +1524,22 @@ function registerOptionalRmMutator(): void {
         extras: this.extraInputs_ ?? [],
         attrs: presentAttributeNames(this),
         prohibited: this.prohibitedAttributes_ ?? [],
+        slotCards: this.slotCardinalities_ ?? {},
+        rmCards: this.rmCardinalities_ ?? {},
       };
     },
     loadExtraState: function (
       this: Blockly.Block,
-      state: {
-        extras?: string[];
-        attrs?: string[];
-        prohibited?: ProhibitedRmRow[];
-      } | string | null,
+      state: OptionalRmMutatorState | string | null,
     ) {
       const parsed = parseMutatorExtraState(state);
       this.extraInputs_ = parsed.extras;
+      if (Object.keys(parsed.slotCards).length) {
+        this.slotCardinalities_ = parsed.slotCards;
+      }
+      if (Object.keys(parsed.rmCards).length) {
+        this.rmCardinalities_ = parsed.rmCards;
+      }
       if (parsed.prohibited.length) this.prohibitedAttributes_ = parsed.prohibited;
       restoreMutatorAttributes(this, parsed.extras, parsed.attrs);
     },

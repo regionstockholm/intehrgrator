@@ -17,9 +17,9 @@ import {
 const BLOCKLY_TYPE_GLYPH: Record<string, string> = {
   String: "🔤",
   Number: "🔢",
-  Boolean: "☑️",
+  Boolean: "✓",
   Array: "📋",
-  Map: "🗺️",
+  Map: "↦",
   Source: "📂",
 };
 

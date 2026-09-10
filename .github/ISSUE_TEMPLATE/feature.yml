@@ -1,0 +1,34 @@
+name: Request a feature
+description: Suggest a capability or improvement. Feature requests are welcome.
+title: "[Feature]: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the job you are trying to do. You do not need a design or a patch.
+
+        If something is broken rather than missing, use [Report a problem](https://github.com/regionstockholm/intehrgrator/issues/new?template=bug.yml).
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you want to do that you cannot do today?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context (optional)
+      description: Source/target systems, openEHR template, Example Set, or a screenshot of the mapping.
+  - type: dropdown
+    id: role
+    attributes:
+      label: I am mainly a…
+      options:
+        - Medical informatician
+        - Clinical super user
+        - Business / product
+        - Software developer
+        - Other
+    validations:
+      required: false

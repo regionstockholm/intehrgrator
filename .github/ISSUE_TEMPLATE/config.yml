@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: User tutorial
+    url: https://github.com/regionstockholm/intehrgrator/blob/main/docs/TUTORIAL.md
+    about: How to use the web and desktop workbench.
+  - name: Developer setup
+    url: https://github.com/regionstockholm/intehrgrator/blob/main/README-DEVELOPERS.md
+    about: Deno, tasks, ADRs, and AI/MCP setup.

@@ -106,6 +106,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 | Save as | Open modal to name and persist a manual save to IndexedDB | ✓ |
 | Export Project | Download self-contained `.intehrgrator` bundle | ✓ |
 | Import Project | Load `.intehrgrator` bundle | ✓ |
+| Help | Tutorial, report a problem, request a feature (GitHub Issues) | ✓ |
 
 ### Pane actions
 

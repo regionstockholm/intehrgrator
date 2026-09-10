@@ -65,6 +65,7 @@
       <span id="ui-language-label">Language</span>
       <select id="ui-language-dropdown" aria-label="Application UI language"></select>
     </label>
+    <button id="btn-help" type="button" title="Tutorial, report a problem, request a feature">Help</button>
   </header>
 
   <main
@@ -463,6 +464,39 @@
       <div id="hardcode-defaults-list" class="load-project-list"></div>
       <div class="dialog-actions">
         <button type="button" id="hardcode-defaults-cancel" value="cancel">Cancel</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-help" class="app-dialog app-dialog--wide">
+    <form method="dialog" class="dialog-form">
+      <h2>Help</h2>
+      <p>
+        Three panes: <strong>Source</strong> (schema + examples), <strong>Mapping Editors</strong> (Blockly),
+        <strong>Target &amp; Previews</strong> (script + Test Run). Encircled <strong>i</strong> buttons explain file formats.
+        Feature requests are welcome, not only bugs.
+      </p>
+      <ul class="help-link-list">
+        <li>
+          <a data-help-link="tutorial" href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/TUTORIAL.md">Tutorial</a>
+          — Click-to-Map, Test Run, save/export, AI assist, desktop MCP
+        </li>
+        <li>
+          <a data-help-link="bug" href="https://github.com/regionstockholm/intehrgrator/issues/new?template=bug.yml">Report a problem</a>
+        </li>
+        <li>
+          <a data-help-link="feature" href="https://github.com/regionstockholm/intehrgrator/issues/new?template=feature.yml">Request a feature</a>
+        </li>
+        <li>
+          <a data-help-link="issues" href="https://github.com/regionstockholm/intehrgrator/issues">All GitHub issues</a>
+        </li>
+      </ul>
+      <p class="help-diag-label">This copy (paste into a bug report)</p>
+      <p id="help-version" class="help-diag">unknown build</p>
+      <p id="help-origin" class="help-diag">unknown origin</p>
+      <div class="dialog-actions">
+        <button type="button" id="help-copy-version">Copy version</button>
+        <span class="dialog-actions-spacer"></span>
+        <button type="submit" id="help-close" value="close">Close</button>
       </div>
     </form>
   </dialog>

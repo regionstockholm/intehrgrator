@@ -1096,6 +1096,30 @@ body.sheets-fullscreen::before {
 .import-ai-report--ok { color: var(--success); border-color: var(--success); }
 .import-ai-report--partial { color: var(--text); }
 .import-ai-report--error { color: var(--error); border-color: var(--error); }
+.help-link-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.help-link-list a { color: var(--primary); font-size: 13px; font-weight: 600; }
+.help-link-list li { font-size: 13px; color: var(--text-secondary); }
+.help-diag-label {
+  margin: 4px 0 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+}
+.help-diag {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 12px;
+  color: var(--text);
+  word-break: break-all;
+}
 .dialog-actions-spacer { flex: 1; }
 .dialog-actions {
   display: flex;

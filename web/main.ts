@@ -84,6 +84,7 @@ import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
 import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
 import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
+import { installHelpDialog } from "../src/ui/help_dialog.ts";
 import { runWithoutBlocklyEvents, withBlocklyUndoGroup, replaceCanvasUndoable, CANVAS_SWAP_EVENT_TYPE, setAfterCanvasSwapRun } from "../src/blockly/blockly_events.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
@@ -1211,6 +1212,17 @@ installImportAiDialog({
 });
 installCopyAiMenu();
 installExampleSetsMenu();
+installHelpDialog({
+  dialog: requireEl<HTMLDialogElement>("dialog-help"),
+  openButton: requireEl<HTMLButtonElement>("btn-help"),
+  closeButton: requireEl<HTMLButtonElement>("help-close"),
+  versionEl: requireEl("help-version"),
+  originEl: requireEl("help-origin"),
+  copyButton: requireEl<HTMLButtonElement>("help-copy-version"),
+  getVersionText: () =>
+    statusBuild.textContent?.trim() || `v${APP_VERSION} · ${BUILD_ID} · ${BUILD_TIMESTAMP}`,
+  copyToClipboard: (text) => host.copyToClipboard(text),
+});
 
 function lastAiDelivery(): "inline" | "attach" | "uri" {
   const raw = localStorage.getItem("intehrgrator.aiDelivery");

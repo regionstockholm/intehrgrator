@@ -1,0 +1,43 @@
+name: Report a problem
+description: Something in intEHRgrator did not work as you expected.
+title: "[Bug]: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. **Feature ideas are welcome too** — use [Request a feature](https://github.com/regionstockholm/intehrgrator/issues/new?template=feature.yml) for those.
+
+        In the app, **Help → Copy version** pastes the build string and this session’s address.
+  - type: dropdown
+    id: copy
+    attributes:
+      label: Which copy were you using?
+      options:
+        - Latest web build (regionstockholm.github.io/intehrgrator/ with no /v…/ in the path)
+        - Frozen web version (URL contains /v…/)
+        - Desktop app from GitHub Releases
+        - Built from source (`deno task dev` or `deno task desktop`)
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version from the footer or Help dialog
+      description: Example — `v0.7.2 · abc1234 · 2026-09-10T…` plus the session URL if you copied it.
+      placeholder: v0.7.2 · …
+    validations:
+      required: false
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: files
+    attributes:
+      label: Source, target, or project (optional)
+      description: Template/schema names, Example Set id, or attach a `.intehrgrator` export if it does not contain patient-identifiable data.

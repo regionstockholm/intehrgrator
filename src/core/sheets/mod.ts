@@ -1,5 +1,14 @@
-export type { SheetBag, SheetCell, SheetColumnType, SheetDocument } from "./types.ts";
-export { ROW_NAME_COLUMN } from "./types.ts";
+export type {
+  DecisionColumnMeta,
+  DecisionHitPolicy,
+  DecisionOutputKind,
+  GridKind,
+  SheetBag,
+  SheetCell,
+  SheetColumnType,
+  SheetDocument,
+} from "./types.ts";
+export { DONT_CARE_GLYPHS, ROW_NAME_COLUMN } from "./types.ts";
 export { coordsToA1, indexToLetters, lettersToIndex, parseA1 } from "./a1.ts";
 export {
   cloneSheet,
@@ -28,6 +37,14 @@ export {
   sheetsEqual,
   sheetsToBag,
 } from "./model.ts";
+export {
+  emptyDecisionTable,
+  evaluateDecisionTable,
+  isDecisionTable,
+  isDontCare,
+  lintDecisionTableSnippets,
+  type DecisionTableLintDiagnostic,
+} from "./decision_table.ts";
 export { applyParsedGrid, parseSpreadsheetText, sheetToCsv } from "./csv.ts";
 export {
   applySheetMutator,

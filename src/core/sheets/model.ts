@@ -1,6 +1,9 @@
 import { coordsToA1, indexToLetters, parseA1 } from "./a1.ts";
 import {
   ROW_NAME_COLUMN,
+  type DecisionColumnMeta,
+  type DecisionHitPolicy,
+  type GridKind,
   type SheetBag,
   type SheetCell,
   type SheetColumnType,
@@ -12,6 +15,7 @@ export function emptySheet(name = "Sheet1", cols = 3, rows = 4): SheetDocument {
   const values = Array.from({ length: rows }, () => Array.from({ length: cols }, () => "" as SheetCell));
   return {
     name,
+    kind: "sheet",
     headers,
     values,
     columnTypes: Array.from({ length: cols }, () => "text" as SheetColumnType),
@@ -21,10 +25,14 @@ export function emptySheet(name = "Sheet1", cols = 3, rows = 4): SheetDocument {
 export function cloneSheet(sheet: SheetDocument): SheetDocument {
   return {
     name: sheet.name,
+    kind: sheet.kind,
     headers: [...sheet.headers],
     rowNames: sheet.rowNames ? [...sheet.rowNames] : undefined,
     values: sheet.values.map((row) => [...row]),
     columnTypes: sheet.columnTypes ? [...sheet.columnTypes] : undefined,
+    hitPolicy: sheet.hitPolicy,
+    collectJoin: sheet.collectJoin,
+    decisionColumns: sheet.decisionColumns?.map((c) => ({ ...c })),
   };
 }
 
@@ -65,13 +73,53 @@ export function normalizeSheet(raw: unknown): SheetDocument {
   const values = normalizeValues(rec.values, colCount);
   const columnTypes = normalizeColumnTypes(rec.columnTypes, colCount);
   const rowNames = normalizeRowNames(rec.rowNames, values.length);
+  const kind = normalizeKind(rec.kind);
+  const hitPolicy = normalizeHitPolicy(rec.hitPolicy);
+  const collectJoin = typeof rec.collectJoin === "string" ? rec.collectJoin : undefined;
+  const decisionColumns = normalizeDecisionColumns(rec.decisionColumns, colCount, kind);
   return {
     name,
+    ...(kind ? { kind } : {}),
     headers: paddedHeaders,
     values,
     columnTypes,
     ...(rowNames ? { rowNames } : {}),
+    ...(hitPolicy ? { hitPolicy } : {}),
+    ...(collectJoin != null ? { collectJoin } : {}),
+    ...(decisionColumns ? { decisionColumns } : {}),
   };
+}
+
+function normalizeKind(raw: unknown): GridKind | undefined {
+  if (raw === "decision-table" || raw === "sheet") return raw;
+  return undefined;
+}
+
+function normalizeHitPolicy(raw: unknown): DecisionHitPolicy | undefined {
+  if (raw === "FIRST" || raw === "UNIQUE" || raw === "COLLECT") return raw;
+  return undefined;
+}
+
+function normalizeDecisionColumns(
+  raw: unknown,
+  colCount: number,
+  kind: GridKind | undefined,
+): DecisionColumnMeta[] | undefined {
+  if (!Array.isArray(raw)) {
+    return kind === "decision-table" ? undefined : undefined;
+  }
+  const out: DecisionColumnMeta[] = [];
+  for (let i = 0; i < colCount; i++) {
+    const item = raw[i] as Record<string, unknown> | undefined;
+    const role = item?.role === "output" ? "output" : "condition";
+    if (role === "output") {
+      const outputKind = item?.outputKind === "snippet" ? "snippet" : "value";
+      out.push({ role, outputKind });
+    } else {
+      out.push({ role: "condition" });
+    }
+  }
+  return out;
 }
 
 export function normalizeSheets(raw: unknown): SheetDocument[] {

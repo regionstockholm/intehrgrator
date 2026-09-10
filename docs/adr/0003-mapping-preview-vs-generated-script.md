@@ -2,7 +2,7 @@
 
 Test Run used to always evaluate Mapping Model slot expressions (ADR 0001). **Output mode** now splits that:
 
-- **Mapping preview** — evaluates slot expressions and renders through the Target instance format handler. For **free-form** targets (or legacy `exportTarget: "handlebars"`), renders the **Authored Handlebars Template** via `renderHandlebars(template, sourceData, { slots })`.
+- **Mapping preview** — evaluates slot expressions and renders through the Target instance format handler. For **free-form** targets, renders the **Authored Handlebars Template** via `renderHandlebars(template, sourceData, { slots })`.
 - **TypeScript** — executes the generated Conversion Script with bundled ehrtslib.
 - **Handlebars** (Output mode) — executes the **same Authored Handlebars Template** as Mapping preview (`renderHandlebars` + slot bag). Does **not** execute a generated Handlebars Conversion Script (codegen remains export-only; see grill Q7).
 - **Go Template** — executes the **generated** Go `text/template` script via vendored WASM (`{ Parameters: defaults, Data: source }`). See ADR 0004.

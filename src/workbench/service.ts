@@ -132,9 +132,9 @@ export class WorkbenchService {
     this.loadBundle(importBundle(bytes), ctx);
   }
 
-  loadTemplateContent(filename: string, content: string, ctx?: MutationContext): void {
+  loadTargetContent(filename: string, content: string, ctx?: MutationContext): void {
     this.mutate(() => {
-      this.controller.loadTemplateContent(filename, content);
+      this.controller.loadTargetContent(filename, content);
       this.syncBlocklyFromModel();
     }, { ...ctx, kind: "load_bundle", summary: ctx?.summary ?? `Load template ${filename}` });
   }

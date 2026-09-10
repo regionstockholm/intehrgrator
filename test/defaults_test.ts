@@ -10,11 +10,11 @@ import {
   factoryDefaultsEntries,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
-  migrateMapsCreateWithJson,
   namedMapsFromBlocklyState,
 } from "@intehrgrator/core/defaults/mod.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
+import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { applyExpressionEdit, createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { generateSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { parseExpression, serialize } from "@intehrgrator/core/expression/mod.ts";
@@ -106,64 +106,6 @@ Deno.test("namedMapsFromBlocklyState reads term_pick codes from Defaults Map val
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
 });
 
-Deno.test("namedMapsFromBlocklyState still reads legacy KEY value-input JSON", () => {
-  const state = {
-    blocks: {
-      blocks: [
-        {
-          type: "defaults_block",
-          inputs: {
-            MAP: {
-              block: {
-                type: "maps_create_with",
-                extraState: { itemCount: 2 },
-                inputs: {
-                  KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
-                  VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
-                  KEY1: { shadow: { type: "text", fields: { TEXT: "territory" } } },
-                  VAL1: { shadow: { type: "text", fields: { TEXT: "SE" } } },
-                },
-              },
-            },
-          },
-        },
-      ],
-    },
-  };
-  const maps = namedMapsFromBlocklyState(state);
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
-});
-
-Deno.test("migrateMapsCreateWithJson moves KEY inputs into fields", () => {
-  const block = {
-    type: "maps_create_with",
-    extraState: { itemCount: 1 },
-    inputs: {
-      KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
-      VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
-    },
-  };
-  migrateMapsCreateWithJson(block);
-  assertEquals(block.fields?.KEY0, "language");
-  assertEquals(block.inputs?.KEY0, undefined);
-  assertEquals(
-    (block.inputs?.VAL0 as { shadow?: { fields?: { TEXT?: string } } })?.shadow
-      ?.fields?.TEXT,
-    "sv",
-  );
-  const extracted = mapBlockFromDefaultsJson({
-    type: "maps_create_with",
-    extraState: { itemCount: 1 },
-    inputs: {
-      KEY0: { shadow: { type: "text", fields: { TEXT: "territory" } } },
-      VAL0: { shadow: { type: "text", fields: { TEXT: "SE" } } },
-    },
-  }) as { fields?: Record<string, string>; inputs?: Record<string, unknown> };
-  assertEquals(extracted.fields?.KEY0, "territory");
-  assertEquals(extracted.inputs?.KEY0, undefined);
-});
-
 Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a workspace", () => {
   const block = { type: "maps_create_with", extraState: { itemCount: 0 } };
   assertEquals(mapBlockFromDefaultsJson(block), block);
@@ -197,7 +139,11 @@ Deno.test("Test Run resolves maps_get from Blockly Defaults Map JSON", () => {
     mapsGetExpression("defaults", "language"),
     { rmType: "DV_TEXT", returnType: "string" },
   );
+  const template = '{{slot "s1"}}';
+  const target = getTargetFormatHandler("free-form").load("vitals.txt", template);
   const result = runTest(model, "{}", "json", {
+    target,
+    handlebarsTemplate: template,
     blocklyState: {
       blocks: {
         blocks: [
@@ -221,8 +167,7 @@ Deno.test("Test Run resolves maps_get from Blockly Defaults Map JSON", () => {
     },
   });
   assertEquals(result.ok, true);
-  const output = result.output as { slots?: Record<string, unknown> };
-  assertEquals(output.slots?.s1, "sv");
+  assertEquals(result.output, "sv");
 });
 
 Deno.test("maps_get expression round-trips", () => {
@@ -390,21 +335,20 @@ Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute m
   workspace.dispose();
 });
 
-Deno.test("hydrateDefaultsMapArgument loads legacy KEY-input map JSON", () => {
+Deno.test("hydrateDefaultsMapArgument loads saved map JSON", () => {
   registerMapBlocks();
   const workspace = new Blockly.Workspace();
   ensureDefaultsBlock(workspace, "sv");
   hydrateDefaultsMapArgument(workspace, {
     type: "maps_create_with",
     extraState: { itemCount: 1 },
+    fields: { KEY0: "language" },
     inputs: {
-      KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
       VAL0: { shadow: { type: "text", fields: { TEXT: "xx" } } },
     },
   }, "sv");
   const map = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP");
   assertEquals(map?.getFieldValue("KEY0"), "language");
-  assert(!map?.getInput("KEY0"));
   const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "xx");
   workspace.dispose();

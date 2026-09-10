@@ -5,6 +5,7 @@ import { registerSheetBlocks } from "@intehrgrator/blockly/blocks/sheet_blocks.t
 import { blockToExpression } from "@intehrgrator/blockly/expression_serialize.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
+import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import {
   coordsToA1,
   emptySheet,
@@ -119,10 +120,15 @@ Deno.test("runTest Mapping preview resolves sheet_lookup from options.sheets", (
     }],
     optionalRm: [],
   };
-  const result = runTest(model, '{"icd10":"E11"}', "json", { sheets: [terms] });
+  const template = '{{slot "code"}}';
+  const target = getTargetFormatHandler("free-form").load("out.txt", template);
+  const result = runTest(model, '{"icd10":"E11"}', "json", {
+    target,
+    handlebarsTemplate: template,
+    sheets: [terms],
+  });
   assertEquals(result.ok, true);
-  const output = result.output as { slots?: Record<string, unknown> };
-  assertEquals(output.slots?.code, "44054006");
+  assertEquals(result.output, "44054006");
 });
 
 Deno.test("sheet Blockly accessors serialize to expressions and round-trip JSON", () => {
@@ -171,7 +177,6 @@ Deno.test("project bundle round-trips sheets JSON", () => {
     appVersion: "0.5.0",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
-    template: null,
     target: null,
     sourceSchema: null,
     examples: [],

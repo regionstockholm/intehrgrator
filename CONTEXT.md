@@ -293,7 +293,7 @@ Optional seam for Push/Pull against a licensed Better Form Renderer viewer (asse
 _Avoid_: formTestApi (kintegrate name for the form viewer API)
 
 **Project Bundle**:
-Self-contained saved workspace containing target definition (format-neutral `target` plus legacy `template` for openEHR), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
+Self-contained saved workspace containing target definition (`target`), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
 _Avoid_: Mapping file, saved state
 
 ## Example dialogue

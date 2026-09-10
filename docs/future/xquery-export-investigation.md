@@ -21,7 +21,7 @@ pipelines.
 
 | Piece | Location |
 |-------|----------|
-| `ExportTarget` includes `"xquery"` | `src/types/mod.ts` |
+| Conversion script languages include `"xquery"` | `src/types/mod.ts` |
 | `generateXQuery(model)` + expression emit | `src/core/codegen/xquery.ts` |
 | Adapter registry (`.xq`, `application/xquery`) | `src/core/codegen/mod.ts` |
 | Output Previews select option | `web/index.html` |

@@ -129,7 +129,7 @@ import {
 } from "../src/core/example_sets/mod.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
-import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson, migrateMapsCreateWithJson } from "../src/core/defaults/mod.ts";
+import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson } from "../src/core/defaults/mod.ts";
 import {
   buildHandlebarsPath,
   buildHandlebarsTree,
@@ -377,7 +377,6 @@ async function bootBlockly(): Promise<void> {
 
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
-    migrateMapsCreateWithJson(loadOnce);
     Blockly.serialization.workspaces.load(loadOnce, workspace);
     lockWorkspaceRootsExpanded(workspace);
   }
@@ -906,7 +905,6 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       runWithoutBlocklyEvents(() => {
         if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
         workspace.clear();
-        migrateMapsCreateWithJson(savedState);
         Blockly.serialization.workspaces.load(savedState, workspace);
         if (!findDefaultsBlock(workspace)) {
           ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
@@ -1834,7 +1832,7 @@ function render(): void {
   sheetsPanel?.refresh();
   const generated = afterCanvas.generatedCode || "// Generated Export";
   setEditorDoc(exportEditor, generated, languageForExportTarget(s.settings.exportTarget, generated));
-  const testOutput = afterCanvas.testResult?.output ?? afterCanvas.testResult?.composition;
+  const testOutput = afterCanvas.testResult?.output;
   const testOutputText = testOutput !== undefined
     ? formatTestOutput(testOutput)
     : "// Test Run output";
@@ -1995,7 +1993,7 @@ function installWorkbenchTestApi(): void {
   const api: IntehrgratorTestApi = {
     ready: () => workbenchReady,
     loadTemplate(filename, content) {
-      controller.loadTemplateContent(filename, content);
+      controller.loadTargetContent(filename, content);
     },
     loadSchema(filename, content) {
       controller.loadSchemaContent(filename, content);

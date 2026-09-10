@@ -36,7 +36,7 @@ Deno.test("controller loads template/schema/example from content", async () => {
   );
 
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.loadTargetContent("blood_pressure.opt", opt);
   controller.loadSchemaContent("bp_source_schema.json", schema);
   controller.addExampleContent("bp_example.json", example);
 
@@ -75,7 +75,7 @@ Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", asy
   );
 
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.loadTargetContent("blood_pressure.opt", opt);
   controller.addExampleContent("bp_example.json", example);
 
   const slotId = collectValueSlots(controller.getState().skeleton).find((s) =>
@@ -105,7 +105,7 @@ Deno.test("Import Suggestions maps systolic and regenerates TypeScript", async (
     join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
   );
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.loadTargetContent("blood_pressure.opt", opt);
   controller.addExampleContent("bp_example.json", example);
 
   const slotId = collectValueSlots(controller.getState().skeleton).find((s) =>
@@ -318,7 +318,7 @@ Deno.test("mapNodeToSlot promotes indexed JSON paths onto repeating EVENT slots"
     join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances-series", "bp-series-inst.json"),
   );
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);
+  controller.loadTargetContent("Accident report including vital signs.wt.json", wt);
   controller.addExampleContent("bp-series-inst.json", example);
   const rate = collectValueSlots(controller.getState().skeleton).find((s) =>
     s.slotId.includes("OBSERVATION.pulse.v2") &&
@@ -340,7 +340,7 @@ Deno.test("syncFromBlockly empty loops clears previous loops (canvas undo)", asy
     ),
   );
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);
+  controller.loadTargetContent("Accident report including vital signs.wt.json", wt);
   const rate = collectValueSlots(controller.getState().skeleton).find((s) =>
     s.slotId.includes("OBSERVATION.pulse.v2") &&
     s.slotId.includes("items/at0004/") &&
@@ -361,7 +361,7 @@ Deno.test("controller switches multilingual target ontology language without dro
     ),
   );
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("Accident report including vital signs.wt.json", wt);
+  controller.loadTargetContent("Accident report including vital signs.wt.json", wt);
   const before = controller.getState();
   assertEquals(before.modelLanguages.sort().join(","), "de,en,sv");
   const injury = collectValueSlots(before.skeleton).find((s) =>

@@ -171,14 +171,16 @@ function walkRecords(node: unknown, visit: (rec: Record<string, unknown>) => voi
 Deno.test("Handlebars Test Run can walk source without a structured target", () => {
   const model = createEmptyModel("narrative");
   model.targetFormat = "free-form";
+  const template =
+    "{{toUpperCase patient.name}} score={{patient.score}}{{#if (gte patient.score 5)}} ok{{/if}}";
+  const target = getTargetFormatHandler("free-form").load("narrative.hbs", template);
   const result = runTest(
     model,
     JSON.stringify({ patient: { name: "Ada", score: 7 } }),
     "json",
     {
-      exportTarget: "handlebars",
-      handlebarsTemplate:
-        "{{toUpperCase patient.name}} score={{patient.score}}{{#if (gte patient.score 5)}} ok{{/if}}",
+      target,
+      handlebarsTemplate: template,
     },
   );
   assertEquals(result.ok, true);

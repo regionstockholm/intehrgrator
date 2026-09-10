@@ -1,4 +1,4 @@
-import type { ExportTarget, MappingModel, SkeletonNode } from "../../types/mod.ts";
+import type { ConversionScriptLanguage, MappingModel, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, serialize } from "../expression/mod.ts";
 import { precompileHandlebars } from "../output/handlebars_dialect.ts";
 import { generateXQuery } from "./xquery.ts";
@@ -31,8 +31,8 @@ export interface ExportGenerationOptions {
   skeleton?: SkeletonNode[];
 }
 
-export interface ExportTargetAdapter {
-  readonly id: ExportTarget;
+export interface ConversionScriptAdapter {
+  readonly id: ConversionScriptLanguage;
   readonly extension: string;
   readonly mime: string;
   generate(model: MappingModel, options?: ExportGenerationOptions): string;
@@ -86,7 +86,7 @@ export function generateHandlebars(
   return options.precompile ? precompileHandlebars(source) : source;
 }
 
-const adapters = new Map<ExportTarget, ExportTargetAdapter>([
+const adapters = new Map<ConversionScriptLanguage, ConversionScriptAdapter>([
   ["typescript", {
     id: "typescript",
     extension: "ts",
@@ -119,20 +119,20 @@ const adapters = new Map<ExportTarget, ExportTargetAdapter>([
   }],
 ]);
 
-export function registerExportTargetAdapter(adapter: ExportTargetAdapter): void {
+export function registerConversionScriptAdapter(adapter: ConversionScriptAdapter): void {
   adapters.set(adapter.id, adapter);
 }
 
-export function getExportTargetAdapter(target: ExportTarget): ExportTargetAdapter {
+export function getConversionScriptAdapter(target: ConversionScriptLanguage): ConversionScriptAdapter {
   const adapter = adapters.get(target);
-  if (!adapter) throw new Error(`Unsupported export target: ${target}`);
+  if (!adapter) throw new Error(`Unsupported conversion script language: ${target}`);
   return adapter;
 }
 
 export function generate(
   model: MappingModel,
-  target: ExportTarget,
+  target: ConversionScriptLanguage,
   options?: ExportGenerationOptions,
 ): string {
-  return getExportTargetAdapter(target).generate(model, options);
+  return getConversionScriptAdapter(target).generate(model, options);
 }

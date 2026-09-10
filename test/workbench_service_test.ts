@@ -11,7 +11,7 @@ Deno.test("WorkbenchService importSuggestions updates revision and blockly JSON"
     join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
   );
   const service = new WorkbenchService();
-  service.loadTemplateContent("blood_pressure.opt", opt);
+  service.loadTargetContent("blood_pressure.opt", opt);
   service.addExampleContent("bp_example.json", example);
 
   const slotId = collectValueSlots(service.exportBundle().target?.skeleton ?? []).find((s) =>
@@ -43,7 +43,7 @@ Deno.test("WorkbenchService importSuggestions updates revision and blockly JSON"
 Deno.test("Agent HTTP import-suggestions and undo", async () => {
   const opt = await Deno.readTextFile(join(import.meta.dirname!, "fixtures", "blood_pressure.opt"));
   const service = new WorkbenchService();
-  service.loadTemplateContent("blood_pressure.opt", opt);
+  service.loadTargetContent("blood_pressure.opt", opt);
   const handler = createAgentApiHandler(service);
   const slotId = collectValueSlots(service.exportBundle().target?.skeleton ?? []).find((s) =>
     s.slotId.endsWith("items/at0004/value/value/value")

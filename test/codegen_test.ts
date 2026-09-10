@@ -3,7 +3,7 @@ import { join, toFileUrl } from "@std/path";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   generate,
-  getExportTargetAdapter,
+  getConversionScriptAdapter,
   jsonDollarPathToLookup,
   emitXQueryExpr,
 } from "@intehrgrator/core/codegen/mod.ts";
@@ -89,7 +89,7 @@ Deno.test("xquery codegen emits mapping-result module from Blockly slots", () =>
   assertStringIncludes(xq, "normalize-space");
   assertStringIncludes(xq, "concat(");
 
-  const adapter = getExportTargetAdapter("xquery");
+  const adapter = getConversionScriptAdapter("xquery");
   assertEquals(adapter.extension, "xq");
   assertEquals(adapter.mime, "application/xquery");
 });
@@ -117,13 +117,14 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
   );
 });
 
-Deno.test("test runner evaluates json slot", () => {
+Deno.test("test runner requires a target definition in preview mode", () => {
   const model = applyExpressionEdit(createEmptyModel("vitals"), "s1", 'xpathNumber("$.systolic")', {
     rmType: "DV_QUANTITY",
     returnType: "number",
   });
   const result = runTest(model, JSON.stringify({ systolic: 120 }), "json");
-  assertEquals(result.ok || (result.composition as Record<string, unknown>)?.slots !== undefined, true);
+  assertEquals(result.ok, false);
+  assertEquals(result.error, "No target definition loaded.");
 });
 
 Deno.test("typescript codegen from BP skeleton uses ehrtslib constructors and lookups", async () => {

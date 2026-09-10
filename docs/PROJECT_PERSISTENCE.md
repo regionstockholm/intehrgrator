@@ -10,7 +10,7 @@ The Web Shell persists projects in IndexedDB and can export/import the same data
 
 | Area | Contents |
 |------|----------|
-| Template | OPT content, filename, template id, parsed skeleton metadata |
+| Target | Target definition: format, content, filename, target id, parsed skeleton metadata |
 | Source | Source Schema content + metadata |
 | Examples | Array of example instances `{ id, filename, format, content }`, plus `activeExampleId` |
 | Mapping | Dual serialization — native Blockly workspace data **and** the normalized Mapping Model (see below) |
@@ -27,7 +27,7 @@ The bundle stores the mapping **twice**, by design:
 
    | Field | Purpose |
    |-------|---------|
-   | `modelVersion` | Migration across app releases |
+   | `modelVersion` | Mapping Model schema version (must match the app) |
    | `templateId` | Bind mapping to its OPT |
    | `slots[]` | `{ slotId, rmType, expression, returnType }` — JS-shaped expression strings per [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) |
    | `optionalRm[]` | Inserted optional RM structures and their attachment points |
@@ -35,9 +35,9 @@ The bundle stores the mapping **twice**, by design:
 
    **Not in Mapping Model:** Conversion script language (`exportTarget`) — lives in workspace `settings` (downstream preview/export choice).
 
-**Why both:** Blockly serialization is best for UI restore but brittle across Blockly versions and hard to validate. The Mapping Model enables safe migrations, AI **Import Suggestions** validation (shared `slotId` vocabulary with `AI_SUGGESTION_FORMAT.md`), and a future text-first editor that does not depend on Blockly.
+**Why both:** Blockly serialization is best for UI restore but brittle across Blockly versions and hard to validate. The Mapping Model enables AI **Import Suggestions** validation (shared `slotId` vocabulary with `AI_SUGGESTION_FORMAT.md`), and a future text-first editor that does not depend on Blockly.
 
-**On load:** restore Blockly from native serialization; treat the Mapping Model as the authority for validation and for reconciling imported suggestions. If the two disagree (e.g. after a migration), the Mapping Model wins and the Blockly workspace is regenerated.
+**On load:** restore Blockly from native serialization; treat the Mapping Model as the authority for validation and for reconciling imported suggestions. If the two disagree, the Mapping Model wins and the Blockly workspace is regenerated.
 
 ## Storage
 

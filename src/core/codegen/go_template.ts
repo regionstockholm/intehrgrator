@@ -362,11 +362,9 @@ function emitXmlElement(block: BlockNode): string[] {
     }
     current = current.next?.block;
   }
-  const legacyText = block.inputs?.TEXT?.block;
   const attrs = attrParts.join("");
-  if (body.length || legacyText) {
+  if (body.length) {
     const inner: string[] = [];
-    if (legacyText) inner.push(...emitBlock(legacyText));
     for (const child of body) inner.push(...emitBlock(child));
     return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
   }

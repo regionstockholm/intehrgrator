@@ -117,7 +117,7 @@ Deno.test("runAllTests validates every loaded example for autoplay", async () =>
     join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances", "bp-inst-3-invalid.json"),
   );
   const controller = new WorkbenchController(stubHost());
-  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.loadTargetContent("blood_pressure.opt", opt);
   controller.addExampleContent("bp-inst.json", inst1);
   controller.addExampleContent("bp-inst-3-invalid.json", inst2);
   controller.runAllTests();

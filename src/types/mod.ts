@@ -5,9 +5,6 @@ export const MODEL_VERSION = 3;
 /** Conversion script language. Deliberately separate from Target instance format. */
 export type ConversionScriptLanguage = "typescript" | "java" | "handlebars" | "xquery" | "go-template";
 
-/** @deprecated alias — prefer ConversionScriptLanguage. */
-export type ExportTarget = ConversionScriptLanguage;
-
 export const CONVERSION_SCRIPT_LANGUAGES: readonly ConversionScriptLanguage[] = [
   "typescript",
   "java",
@@ -81,7 +78,6 @@ export interface MappingLoop {
   varName: string;
   /** Absolute source path of the iterated nodes (source loops). Empty for list loops. */
   path: string;
-  /** Defaults to `"source"` when omitted (v2 bundles). */
   kind?: MappingLoopKind;
   /** Mapping Expression for the iterated list (`for_each_list`). */
   collection?: string;
@@ -109,7 +105,7 @@ export interface TargetSignatureNode {
 
 export interface MappingModel {
   modelVersion: number;
-  /** Target definition id. Kept as `templateId` for bundle compatibility. */
+  /** Target definition id. */
   templateId: string;
   targetFormat?: TargetFormatId;
   slots: MappingSlot[];
@@ -286,13 +282,6 @@ export interface ProjectBundle {
   appVersion: string;
   createdAt: string;
   updatedAt: string;
-  /** Legacy v1 openEHR target field; read during migration. */
-  template: {
-    filename: string;
-    templateId: string;
-    content: string;
-    skeleton: SkeletonNode[];
-  } | null;
   target?: {
     format: TargetFormatId;
     filename: string;
@@ -352,8 +341,6 @@ export interface TestResult {
   ok: boolean;
   /** Format-neutral conversion result. */
   output?: unknown;
-  /** @deprecated compatibility alias for openEHR-era callers. */
-  composition?: unknown;
   error?: string;
   warnings: string[];
   outputValidation?: OutputValidation;

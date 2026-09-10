@@ -15,7 +15,7 @@ async function loadBpFixture(service: WorkbenchService): Promise<string> {
   const example = await Deno.readTextFile(
     join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
   );
-  service.loadTemplateContent("blood_pressure.opt", opt);
+  service.loadTargetContent("blood_pressure.opt", opt);
   service.addExampleContent("bp_example.json", example);
   const slotId = collectValueSlots(service.exportBundle().target?.skeleton ?? []).find((s) =>
     s.slotId.endsWith("items/at0004/value/value/value")

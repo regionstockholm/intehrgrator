@@ -127,16 +127,15 @@ Deno.test("registerSourceFormatHandler plugs a new adapter", () => {
   assertEquals(getSourceFormatHandler(extId).evaluate("x", custom.createContext("{}"), "string"), "stubbed");
 });
 
-Deno.test("Test Run goes through Source Format Handler", () => {
+Deno.test("Test Run requires a loaded target definition", () => {
   let model = createEmptyModel("tmpl");
   model = applyExpressionEdit(model, "slot/systolic", 'xpathNumber("$.systolic")', {
     rmType: "DV_QUANTITY",
     returnType: "number",
   });
   const result = runTest(model, JSON.stringify({ systolic: 118 }), "json");
-  assertEquals(result.ok, true);
-  const composition = result.composition as { slots: Record<string, unknown> };
-  assertEquals(composition.slots["slot/systolic"], 118);
+  assertEquals(result.ok, false);
+  assertEquals(result.error, "No target definition loaded.");
 });
 
 Deno.test("prose-prefixed FLAT execute envelope unwraps Data keys", () => {

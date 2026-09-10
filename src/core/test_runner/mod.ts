@@ -1,5 +1,4 @@
 import type {
-  ExportTarget,
   MappingLoop,
   MappingModel,
   OpenEhrJsonDeserializeMode,
@@ -36,8 +35,6 @@ import { validateConvertedOutput } from "../output/template_validation.ts";
 
 export interface RunTestOptions {
   target?: TargetDefinition | null;
-  /** Legacy: `handlebars` still means Mapping preview template render. */
-  exportTarget?: ExportTarget;
   /** Session Output mode. TypeScript executes Generated Export. */
   outputMode?: OutputMode;
   /** Generated Conversion Script text (TypeScript Output mode). */
@@ -66,7 +63,6 @@ export function runTest(
     return {
       ok: false,
       output: message,
-      composition: message,
       error: message.trim(),
       warnings,
     };
@@ -102,7 +98,6 @@ export function runTest(
       return {
         ok: warnings.length === 0,
         output,
-        composition: output,
         warnings,
         outputValidation,
       };
@@ -126,7 +121,6 @@ export function runTest(
       return {
         ok: warnings.length === 0,
         output,
-        composition: output,
         warnings,
         outputValidation,
       };
@@ -158,7 +152,7 @@ export function runTest(
       };
       try {
         const output = executeGoTemplate(code, envelope);
-        return { ok: true, output, composition: output, warnings };
+        return { ok: true, output, warnings };
       } catch (e) {
         const output = `// Go template execution error: ${e instanceof Error ? e.message : String(e)}\n` +
           `// Generated script:\n${code}`;
@@ -174,39 +168,24 @@ export function runTest(
       options.target?.skeleton ?? [],
     );
 
+    if (!options.target) {
+      return {
+        ok: false,
+        error: "No target definition loaded.",
+        warnings,
+      };
+    }
+
     let output: unknown;
-    const useHandlebars = options.exportTarget === "handlebars" ||
-      options.target?.format === "free-form";
-    if (useHandlebars) {
-      const template = options.handlebarsTemplate ?? options.target?.content ?? "";
+    if (options.target.format === "free-form") {
+      const template = options.handlebarsTemplate ?? options.target.content ?? "";
       output = renderHandlebars(template, ctx.data, { slots: slotValues });
-    } else if (options.target) {
+    } else {
       output = getTargetFormatHandler(options.target.format).render({
         definition: options.target,
         slotValues,
       });
-    } else {
-      output = {
-        _type: "COMPOSITION",
-        templateId: model.templateId,
-        slots: slotValues,
-        note: "Legacy Test Run preview — no Target Definition supplied",
-      };
     }
-
-    // `output` is the target-shaped artifact. Slot values are interpolated
-    // into it by the format handler (DV_* fields, JSON properties, XML, …).
-    //
-    // Do not graft a `slots` map onto openEHR COMPOSITION JSON — that is not
-    // an RM attribute and must not appear in Test Run / Better Form output.
-    // For non-openEHR object targets, keep `output` pristine and expose the
-    // evaluated slot map only on the deprecated `composition` alias.
-    const composition = (() => {
-      const isRenderableObject = output && typeof output === "object" && !Array.isArray(output);
-      if (!isRenderableObject) return output;
-      if (!options.target || options.target.format === "openehr-template") return output;
-      return { ...(output as Record<string, unknown>), slots: slotValues };
-    })();
 
     const outputValidation = validateConvertedOutput(output, options.target, {
       deserializeMode: options.openEhrJsonDeserializeMode,
@@ -214,7 +193,6 @@ export function runTest(
     return {
       ok: warnings.length === 0,
       output,
-      composition,
       warnings,
       outputValidation,
     };

@@ -1,6 +1,7 @@
 /**
  * Verifiable Mapping Subset (#35 / #37).
- * Remove-list types stay registered so old Example Sets load; they are not IR.
+ * Removed types stay registered only so Blockly can deserialize leftover JSON
+ * without throwing; they are not in the toolbox or IR.
  */
 
 export const VMS_REMOVED_BLOCK_TYPES = [

@@ -27,10 +27,14 @@ The bundle stores the mapping **twice**, by design:
 
    | Field | Purpose |
    |-------|---------|
-   | `modelVersion` | Migration across app releases |
+   | `modelVersion` | IR shape (`3` = loops `kind`, `targetSignature`, `unsupported`, `sheetNames`) |
    | `templateId` | Bind mapping to its OPT |
-   | `slots[]` | `{ slotId, rmType, expression, returnType }` — JS-shaped expression strings per [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) |
-   | `optionalRm[]` | Inserted optional RM structures and their attachment points |
+   | `slots[]` | `{ slotId, rmType, expression, hatch? }` — JS-shaped expression strings per [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) |
+   | `loops[]` | `for_each_source` / `for_each_list` (`kind`, path or collection, attach slot) |
+   | `targetSignature` | Nested RM / schema tree |
+   | `optionalRm[]` | Inserted optional RM / schema fields and their attachment points |
+   | `unsupported[]` | Escape-hatch, leftover Remove-list, or unknown blocks |
+   | `sheetNames[]` | Sheet documents referenced by accessors or declarations |
    | `specText` | Optional cached text projection of the Mapping Specification |
 
    **Not in Mapping Model:** Conversion script language (`exportTarget`) — lives in workspace `settings` (downstream preview/export choice).

@@ -225,7 +225,7 @@ _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
 **Sync Scope**:
-Blockly workspace JSON (canonical structure) ⇄ Mapping Spec widgets for **safe field edits** (source paths, map name/key, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT) → Mapping Model slots[] (derived index) → codegen / Test Run. The compact projection is not persisted; Download/Upload keep **full Blockly JSON**. Structure, Optional RM Insertion, ids, and coordinates stay Blockly-only. Canvas undo/redo is the single history. Center CodeMirror is **not** Generated Export.
+Blockly workspace JSON (canonical structure) ⇄ Mapping Spec widgets for **safe field edits** (source paths, map name/key, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT) → Mapping Model (derived index: `slots[]`, `loops[]`, `targetSignature`, `optionalRm`, `unsupported`, `sheetNames`) → codegen / Test Run. The compact projection is not persisted; Download/Upload keep **full Blockly JSON**. Structure, Optional RM Insertion, ids, and coordinates stay Blockly-only. Canvas undo/redo is the single history. Center CodeMirror is **not** Generated Export.
 _Avoid_: Full handwritten Blockly JSON as primary editor, custom DSL as middle language
 
 **Web Shell**:

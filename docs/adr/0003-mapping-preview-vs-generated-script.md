@@ -8,6 +8,6 @@ Test Run used to always evaluate Mapping Model slot expressions (ADR 0001). **Ou
 - **Go Template** — executes the **generated** Go `text/template` script via vendored WASM (`{ Parameters: defaults, Data: source }`). See ADR 0004.
 - **Java / XQuery** — generate a script; execution not implemented yet.
 
-Output mode is session-only and defaults to Mapping preview after load. Generated Export and Test Run output are not persisted in the Project Bundle.
+Output mode is session-only and defaults to Mapping preview after load. Generated Export and Test Run output are not persisted in the Project Bundle. The Blockly surface that feeds both paths is the Verifiable Mapping Subset (toolbox + Mapping Model IR; #35 / #37).
 
 **Considered:** executing generated Handlebars scripts in Test Run. Deferred — harden the Authored Template path first (Chunk 7.1); Blockly→Handlebars codegen is a later chunk.

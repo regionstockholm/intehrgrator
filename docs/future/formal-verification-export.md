@@ -1,6 +1,12 @@
 # Formal verification export
 
-**Status:** Proposal — investigation captured 2026-09-05; no codegen or UI yet.
+**Status:** Proposal for a verification-oriented export — investigation
+captured 2026-09-05; no mapping-contract codegen or UI yet. The **Verifiable
+Mapping Subset** (toolbox + Mapping Model IR) has landed (#35, #37). Remaining
+VMS work: [#38](https://github.com/regionstockholm/intehrgrator/issues/38)
+(oracle / golden), [#39](https://github.com/regionstockholm/intehrgrator/issues/39)
+(XQuery loops/tree), [#40](https://github.com/regionstockholm/intehrgrator/issues/40)
+(linter), [#41](https://github.com/regionstockholm/intehrgrator/issues/41) (PBT).
 
 ## Idea
 
@@ -181,14 +187,17 @@ Phased delivery:
 
 ## Architecture (target)
 
+VMS is the authoring + IR surface. Mapping-contract export is still proposed.
+
 ```text
-Blockly workspace JSON
+Blockly workspace JSON  (VMS toolbox — #35)
         │
         ▼
-Mapping Model (slots[], loops, expressions)
+Mapping Model IR (#37): slots[], loops[] (kind), targetSignature,
+                        optionalRm, unsupported, sheetNames
         │
         ├──► TypeScript / Java / Handlebars / XQuery / Go template  (execution)
-        └──► Mapping Contract DSL  (verification)
+        └──► Mapping Contract DSL  (verification — not built)
                     │
                     ├──► Property-based tests (fast-check / Hypothesis)
                     ├──► Output validation (TemplateValidator, JSON Schema, Schematron)
@@ -203,54 +212,54 @@ Mapping Model (slots[], loops, expressions)
 
 ## Blockly and product features that hinder declarative export / verification
 
-Investigation 2026-09-08 against the current Blockly surface, Mapping Model
-extractor (`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
-`typescript_codegen.ts`, `go_template.ts`).
+Investigation 2026-09-08 against the Blockly surface, Mapping Model extractor
+(`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
+`typescript_codegen.ts`, `go_template.ts`). Subsections keep those notes and
+mark what **landed in #35 / #37** versus remaining issues.
 
 ### Summary
 
-| Category | Effect on XQuery / declarative export | Effect on formal verification |
-|----------|--------------------------------------|------------------------------|
-| **Canvas vs Mapping Model gap** | High — XQuery emits flat `slots[]` only; loops and skeleton nesting are open work | High — verifier must choose Blockly walk vs slot index vs preview interpreter |
-| **Template / string DSL blocks** | High — `handlebars()` / `text_code` collapse to opaque strings | High — unbounded string templates are not a decidable logic |
-| **Sheet mutators** | High — not in Mapping Model expressions | High — imperative convert-time state |
-| **Stock imperative Blockly** | High if left in toolbox — do **not** codegen; **remove** while/for/random/print/mutators | High — unbounded / non-deterministic / stateful |
-| **Dynamic source paths** | Medium — literal paths compile; dynamic paths need runtime helpers | Medium — symbolic XPath over JSON/XML is hard to bound |
-| **Optional RM / schema mutators** | Low–medium — structure is partly in `optionalRm[]` | Medium — attachment graph must be part of the contract |
-| **Finite enumerations (`term_pick`)** | Low — easy to emit | **Positive** — ideal for DL-style value constraints |
+| Category | Post-#35/#37 | Remaining |
+|----------|--------------|-----------|
+| **Canvas vs Mapping Model gap** | IR carries `slots[]`, `loops[]`, `targetSignature`, `optionalRm`, `unsupported`, `sheetNames` | Consumers still diverge: XQuery emits `slots[]` only (#39); Mapping preview vs TypeScript vs XQuery share no oracle yet (#38) |
+| **Template / string DSL blocks** | Escape hatch: `slots[].hatch` + `unsupported` reason `escape` | Unbounded strings stay unverified; linter is #40 |
+| **Sheet mutators** | Removed from toolbox; leftover JSON → `unsupported` reason `removed` | Do not codegen; PBT forbids convert-time mutation (#41) |
+| **Stock imperative Blockly** | Removed from toolbox (`src/blockly/vms.ts`) | Leftover JSON deserializes; TypeScript still `undefined`-emits some types (#38) |
+| **Dynamic source paths** | Unchanged | Literal paths for proof obligations; runtime helpers otherwise |
+| **Optional RM / schema mutators** | `optionalRm[]` + nested `targetSignature` | Include in mapping-contract target signature |
+| **Finite enumerations (`term_pick`)** | Unchanged | **Positive** — DL-style value constraints |
 
-### 1. Canvas semantics wider than the Mapping Model
+### 1. Canvas semantics vs Mapping Model IR
 
-The Mapping Model is rebuilt as a **flat** `slots[]` index plus `loops[]` and
-`optionalRm[]` (`workspaceToModelJson` in `src/blockly/mod.ts`). Many canvas
-features exist only in the full Blockly walk:
+**Landed (#37):** `workspaceToModelJson` (`src/blockly/mapping_ir.ts`) extracts
+`slots[]`, `loops[]` (`for_each_source` / `for_each_list` with `kind`,
+path/collection, attachSlotId), nested `targetSignature`, `optionalRm`,
+`unsupported` (escape / removed / unsupported), and `sheetNames`.
+
+**2026-09-08 note (historical):** the index was a flat `slots[]` plus a thin
+`loops[]` / `optionalRm[]`; many canvas features existed only in a Blockly walk.
 
 | Feature | In Mapping Model? | Codegen today |
 |---------|-------------------|---------------|
-| Value-slot expressions (`source_query`, `maps_get`, …) | Yes (`slots[].expression`) | All adapters |
-| `for_each_source` | Yes (`loops[]`) | TypeScript canvas; **not** XQuery slots export |
-| RM / schema tree shape | Partially (`optionalRm[]`, block types on canvas) | TypeScript canvas; XQuery Model B slot manifest only |
-| `lists_getIndex`, `lists_create_with` | **No** | TypeScript canvas only (`emitListsGetIndex`) |
-| Sheet **mutator** statements | **No** | Blockly JS generator stubs only |
-| Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach` | **No** | Toolbox only; TS codegen → `undefined` |
-| `controls_if` | **No** | Go template JSON walk only |
+| Value-slot expressions (`source_query`, `maps_get`, …) | Yes (`slots[].expression`, optional `hatch`) | All adapters |
+| `for_each_source` / `for_each_list` | Yes (`loops[]` with `kind`) | TypeScript canvas; **not** XQuery (#39) |
+| RM / schema tree shape | Yes (`targetSignature[]`, `optionalRm[]`) | TypeScript canvas; XQuery Model B slot manifest only (#39) |
+| `lists_getIndex`, `lists_create_with` | Slot expressions when used in values | TypeScript canvas |
+| Sheet **mutator** statements | `unsupported` reason `removed` | Not in toolbox |
+| Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach`, `controls_if` | `unsupported` reason `removed` | Not in toolbox; leftover JSON may still `undefined`-emit in TS (#38) |
 
-**Why it hurts:** Declarative exports and verifiers want a **closed, compositional
-IR**. Today the “truth” for Test Run is the preview interpreter over slots; for
-TypeScript Output mode it is the Blockly canvas walk; for XQuery it is yet
-another subset. [ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md)
-already flags this seam.
+**Why it still hurts:** Declarative exports and verifiers want one **closed,
+compositional IR consumer**. The IR exists; Mapping preview, TypeScript canvas
+walk, and XQuery slot-manifest still do not share one oracle.
+[ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md) flags that seam;
+unifying it is [#38](https://github.com/regionstockholm/intehrgrator/issues/38).
 
-**Suggestions:**
+**Remaining:**
 
-1. Introduce an explicit **Verifiable Mapping Subset (VMS)** profile: lint the
-   workspace and warn when blocks outside VMS are present before contract export.
-2. **Extend the Mapping Model** to be the single semantic IR: nested target paths,
-   loop bodies, list indexing, and sheet reads — not only flat slot strings.
-3. Make all declarative exports (XQuery, mapping-contract, future DL emit) consume
-   that IR, not ad-hoc canvas walks.
-4. Pick one **verification oracle** (recommend: Mapping preview interpreter +
-   generated TypeScript cross-check) and test equivalence on VMS mappings in CI.
+1. All declarative exports (XQuery, mapping-contract, future DL emit) consume
+   the IR, not ad-hoc canvas walks — XQuery loops/tree is #39.
+2. Pick one **verification oracle** and golden-test equivalence on VMS
+   mappings — #38 (do not decide the oracle in this note).
 
 ### 2. `text_handlebars`, `text_code`, and the Authored Handlebars Template
 
@@ -292,35 +301,40 @@ proving “for all sources” requires quantifying over sheet contents too.
 
 **Suggestions:**
 
-1. In VMS: allow **read-only** sheet accessors with **static** sheet documents
-   bundled in the Project Bundle; forbid mutator blocks (or run mutators only in
-   a documented “setup phase” before the pure `convert` function).
+1. VMS allows **read-only** sheet accessors with **static** sheet documents
+   bundled in the Project Bundle. Mutators are not in the toolbox (#35).
 2. For terminology grids: prefer `maps_create_with` / `term_pick` when the lookup
    table is small and static; reserve `sheet_lookup` for large tables with
    explicit sheet content in the contract precondition.
 3. Emit sheet tables as **finite map literals** in mapping-contract export so
    provers can inline them.
 
-### 4. Stock imperative Blockly in the toolbox
+### 4. Stock imperative Blockly (removed from toolbox)
 
-The toolbox includes `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
-`controls_for`, `controls_forEach`, and `controls_flow_statements`
-(`toolbox_demo.ts`). Only a subset is partially supported in Go template codegen;
-TypeScript canvas codegen silently emits `undefined` for unhandled block types.
+**Landed (#35):** `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
+`controls_for`, `controls_forEach`, `controls_flow_statements`, random, `text_print`,
+list-index mutators, and sheet mutators are **not** in the default toolbox.
+Authoritative lists: [`src/blockly/vms.ts`](../../src/blockly/vms.ts)
+(`VMS_REMOVED_BLOCK_TYPES`). Types stay registered so Blockly can deserialize
+leftover JSON without throwing; they are not IR (recorded `unsupported` reason
+`removed`).
 
-**Why it hurts:** Verification tools need **bounded control flow** or pure
-fold/map comprehensions. While-loops and arbitrary variable mutation are hostile
-to SMT, description logics, and static XQuery typing.
+**2026-09-08 note (historical):** those blocks were still in `toolbox_demo.ts`.
+Only a subset was partially supported in Go template codegen; TypeScript canvas
+codegen silently emitted `undefined` for unhandled types.
 
-**Suggestions:**
+**Why leftover still hurts:** Verification tools need **bounded control flow**
+or pure fold/map comprehensions. While-loops and arbitrary variable mutation are
+hostile to SMT, description logics, and static XQuery typing.
 
-1. **Discourage** stock loops/variables for mapping values — keep `for_each_source`
-   as the single sanctioned iteration primitive (already documented in
-   [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)).
-2. Add workspace lint: flag `controls_whileUntil`, `controls_repeat_ext`,
-   `variables_set`, and procedures if ever enabled.
-3. If conditional mapping is needed, prefer `logic_ternary` / expression `if()`
-   or schema-level `switch` over statement-level `controls_if`.
+**Remaining:**
+
+1. Keep `for_each_source` / `for_each_list` as the sanctioned iteration primitives
+   ([BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)).
+2. Workspace lint for leftover Remove-list JSON and escape hatches is #40.
+3. TypeScript `undefined` emit for unhandled leftover types is #38.
+4. Conditional mapping uses `logic_ternary` / expression `if()` / `switch`, not
+   statement-level `controls_if`.
 
 ### 5. Dynamic and scope-dependent source paths
 
@@ -337,9 +351,9 @@ authors can edit to dynamic forms. Effects:
 1. Verification export should require **literal paths** (or a normal form
   compilable at export time) for slots in the proof obligation; dynamic paths
   remain runtime-only with a warning.
-2. Record loop **grain** explicitly in `loops[]` (source collection path, target
-  repeatable slot, key fields) for contract generation — aligns with grain-
-  correctness literature cited above.
+2. `loops[]` records **kind**, source collection path or list collection
+   expression, and target attach slot. Contract-level grain-correctness rules
+   (fan-trap / chasm-trap) remain open for mapping-contract / #41.
 3. Prefer XPath over ad-hoc JSON `$.` syntax in contracts when targeting XQuery
   engines; keep fontoxpath as the Test Run reference implementation.
 
@@ -347,8 +361,8 @@ authors can edit to dynamic forms. Effects:
 
 Cogwheel mutators (`optional_rm_mutator`, `schema_fields_mutator`, `dv_fields_mutator`)
 add optional RM attributes or schema fields after scaffold load. Presence is
-recorded in `optionalRm[]` but inner mappings are still extracted via the same
-slot scan.
+recorded in `optionalRm[]`; nested shape is in `targetSignature` (optional
+nodes marked). Slot expressions still come from the slot scan.
 
 **Why it hurts:** For description-logic / schema reasoning, the **target shape**
 must be fixed or explicitly enumerated. “Optional fields added ad hoc” expands the
@@ -356,8 +370,8 @@ output signature in ways a verifier must know.
 
 **Suggestions:**
 
-1. Include `optionalRm[]` (and schema optional fields) in mapping-contract
-   **target signature** generation.
+1. Include `optionalRm[]` and nested `targetSignature` (optional nodes marked)
+   in mapping-contract **target signature** generation.
 2. When an optional attachment is added, auto-emit a **completeness** property
    (“if source has X, optional slot Y must be populated”).
 
@@ -388,35 +402,43 @@ rules; JSON-LD / SHACL / description-logic approaches want a fixed target schema
 | OPT / `TemplateValidator` | Strong **postcondition** oracle for openEHR targets |
 | `for_each_source` (vs kintegrate context roots) | Explicit iteration boundary — can compile to `for $x in … return` in XQuery |
 
-### Proposed direction: Verifiable Mapping Subset (VMS)
+### Verifiable Mapping Subset (VMS)
 
-**Do not implement codegen / Mapping Model coverage for hostile stock Blockly.**
-Prefer **removing those blocks from the toolbox** ([issue #35](https://github.com/regionstockholm/intehrgrator/issues/35))
-so agents do not spend effort on `controls_whileUntil`, random numbers, sheet
-mutators, etc. Follow-ups: Mapping Model IR [#37](https://github.com/regionstockholm/intehrgrator/issues/37),
-preview/codegen equivalence [#38](https://github.com/regionstockholm/intehrgrator/issues/38),
-XQuery loops [#39](https://github.com/regionstockholm/intehrgrator/issues/39),
-VMS linter [#40](https://github.com/regionstockholm/intehrgrator/issues/40),
-robustness/metamorphic PBT [#41](https://github.com/regionstockholm/intehrgrator/issues/41).
+**Landed.** Toolbox cut ([#35](https://github.com/regionstockholm/intehrgrator/issues/35))
+and Mapping Model IR ([#37](https://github.com/regionstockholm/intehrgrator/issues/37)).
+Type lists live in [`src/blockly/vms.ts`](../../src/blockly/vms.ts)
+(`VMS_REMOVED_BLOCK_TYPES`, `VMS_ESCAPE_BLOCK_TYPES`). Tests:
+`test/vms_toolbox_test.ts`, `test/mapping_ir_test.ts`.
 
-After that cut, treat remaining constructs as:
+**Remaining:**
+
+| Issue | Work |
+|-------|--------|
+| [#38](https://github.com/regionstockholm/intehrgrator/issues/38) | Unify Mapping preview vs TypeScript vs XQuery (oracle / golden / undefined-emit) |
+| [#39](https://github.com/regionstockholm/intehrgrator/issues/39) | XQuery `for_each_*` + nested tree |
+| [#40](https://github.com/regionstockholm/intehrgrator/issues/40) | Workspace linter for leftover Remove-list JSON and escape hatches |
+| [#41](https://github.com/regionstockholm/intehrgrator/issues/41) | Robustness / metamorphic PBT |
+
+Do **not** add codegen / Mapping Model coverage for Remove-list types. Escape
+hatches stay in the toolbox for Kintegrate / Go snippets (`text_code`,
+`text_handlebars`, Authored Handlebars Template tab) and are marked unverified.
 
 ```text
-VMS allowed (implement fully, including Mapping Model + all exporters):
+VMS allowed (toolbox + IR + exporters):
   source_query_* (prefer literal paths), maps_get, sheet_get_* / sheet_lookup
   (static sheets), trim, concat, text_append, if, switch, math_arithmetic / round /
   modulo / constrain, logic_compare / operation / negate / boolean / ternary,
-  term_pick, for_each_source and for_each_list (documented grain),
+  term_pick, for_each_source and for_each_list (kind + grain via attach slot),
   lists_create_with / getIndex (read-only), target_structure / RM scaffold slots,
   variables_set / variables_get (`let` in the enclosing for_each_* grain, or mapping
   root)
 
-VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified):
+VMS escape hatch (toolbox; IR records hatch / unsupported reason escape):
   text_code, text_handlebars, ad-hoc json_object / xml_element trees,
   dynamic (non-literal) source paths, procedures_defreturn (until function
   harness lands)
 
-VMS remove from toolbox (do not implement):
+VMS remove from toolbox (do not implement; leftover JSON deserializes only):
   controls_whileUntil, controls_repeat_ext, controls_for, stock controls_forEach,
   controls_flow_statements, controls_if (statement; keep logic_ternary),
   math_random_int / math_random_float, text_print,
@@ -424,16 +446,15 @@ VMS remove from toolbox (do not implement):
 ```
 
 A workspace linter ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
-still warns on leftover escape hatches (`text_code`, `text_handlebars`, dynamic paths).
-Removed types leftover in old bundles do not need a load warning — there is no
-published Project Bundle contract yet.
+still warns on leftover escape hatches (`text_code`, `text_handlebars`, dynamic paths)
+and Remove-list types if they appear on the canvas.
 
 ## Open questions
 
 1. **Contract language surface** — YAML vs JSON vs a dedicated `.mapping-contract` extension; alignment with [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
 2. **Source schema as precondition** — how strongly to require a loaded Source Schema vs inferring from examples.
 3. **Loop grain** — whether to adopt grain-correctness style rules for `for_each_source` (see recent data-pipeline formalization literature).
-5. **Execution oracle** — verify against Mapping preview interpreter vs generated TypeScript/XQuery (ADR 0003 seam).
+5. **Execution oracle** — Mapping preview interpreter vs generated TypeScript/XQuery (ADR 0003 seam; remaining in #38).
 6. **Robustness generators** — how complete must Source Schema be before PBT can claim “no valid source crashes convert”?
 7. **Sensitivity vs equivalence classes** — when `switch` maps many codes to one target, how to declare that class so sensitivity checks do not false-fail.
 

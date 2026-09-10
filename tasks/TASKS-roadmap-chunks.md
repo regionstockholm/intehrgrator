@@ -315,7 +315,7 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 
 ## Priority-ordered chunks
 
-**Status as of 2026-09-09:** Chunks **1–8** and **5.1** are done (merged). Next unfinished chunk work is **7.1** (Handlebars Mapping preview hardening), then **9–14**. Formal-verification / VMS work is tracked as GitHub issues **#35–#41** (overlaps Chunk 9). Suggested issue groupings: [`SUGGESTED-ISSUES-roadmap-remaining.md`](./SUGGESTED-ISSUES-roadmap-remaining.md).
+**Status as of 2026-09-10:** Chunks **1–8** and **5.1** are done (merged). Next unfinished chunk work is **7.1** (Handlebars Mapping preview hardening), then **9–14**. VMS toolbox (#35) and Mapping Model IR (#37) are closed. Remaining VMS track is GitHub issues **#38–#41** (overlaps Chunk 9; #38 is TS golden / undefined-emit / preview equivalence, in progress). Suggested issue groupings: [`SUGGESTED-ISSUES-roadmap-remaining.md`](./SUGGESTED-ISSUES-roadmap-remaining.md).
 
 
 | Prio | Chunk                                   | Status | Roadmap items                                                                                                                                            | Why this grouping                                                                          |
@@ -330,7 +330,7 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 | 7    | Template languages (Go + Handlebars CTR)| **done** | G: Go codegen/WASM + Authored Handlebars in Conversion Test Run; Blockly↔Handlebars codegen deferred                                                     | 7.0 merged (PR #22)                                                                        |
 | 7.1  | Handlebars Mapping preview hardening    | **open** | G: fixture-first preview parity with Conversion Test Run (7.6 carry-over)                                                                                | Patch before / alongside later Handlebars work                                             |
 | 8    | Spreadsheet / matrix                    | **done** | C: sheet widget + persist + Blockly accessors/mutators; CSV/Excel paste. FHIR/DMN/decision tables deferred                                               | Maps stay 1D; sheet is the 2D structure                                                    |
-| 9    | Conversion scripts                      | **open** | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI — prefer extending **#35–#41** rather than a duplicate epic             | After mapping/RM is trustworthy; VMS issues are the live track                             |
+| 9    | Conversion scripts                      | **open** | J golden TS/Java/XQuery/Handlebars; K full COMPOSITION XML emit + Saxon/BaseX CI — TS golden is **#38** (in progress); XQuery loops/tree **#39**; do not duplicate a Chunk 9 epic | VMS toolbox+IR landed (#35/#37); remaining work is consumers / oracle / linter / PBT |
 | 10   | Persistence, i18n, versioning           | **open** | B: GitHub save if logged in; full UI i18n; L: source/target version hashes                                                                               | Platform, not mapping semantics                                                            |
 | 11   | Better Form parity                      | **open** | G: ScriptApi / formTestApi / Cypress port                                                                                                                | Licensed optional path                                                                     |
 | 12   | Later hosts                             | **open** | v1 follow-ups: Java Export UI; VS Code host; Autoplay E2E                                                                                                | Explicitly post-v1                                                                         |
@@ -338,7 +338,7 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 | 14   | Human multi-user collaboration          | **open** | D follow-up + DESIGN/ARCHITECTURE docs: CRDT/sync, shared rooms, live co-editing                                                                         | Late; 5.1 lays history/actor/timeline seams only — see ARCHITECTURE-multi-user-collab-prep |
 
 
-Already done (do not re-open unless regression): A small fixes (including `.xml` pickers), maps de-uglify, sheets + Lists & maps, target visualisation pane removal, CLUSTER/SECTION colour/cleanup, Handlebars language + template tab, Go template codegen/WASM, schema-driven JSON/XSD toolboxes, XQuery Model B emit, MCP/observer/attributed history, Constraint Overlay Phase 1 (#46).
+Already done (do not re-open unless regression): A small fixes (including `.xml` pickers), maps de-uglify, sheets + Lists & maps, target visualisation pane removal, CLUSTER/SECTION colour/cleanup, Handlebars language + template tab, Go template codegen/WASM, schema-driven JSON/XSD toolboxes, XQuery Model B emit, MCP/observer/attributed history, Constraint Overlay Phase 1 (#46), VMS toolbox (#35), Mapping Model IR (#37).
 
 ## Tasks
 

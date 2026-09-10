@@ -71,7 +71,7 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
   `text_trim`, `logic_ternary`, variables (`variables_set` / `variables_get` as `let`
   in the current grain). Statement `controls_if`, `while` / numeric `for` / stock
   `controls_forEach`, random, `text_print`, list-index mutators, and sheet mutators
-  are **not** in the default toolbox (see [issue #35](https://github.com/regionstockholm/intehrgrator/issues/35)).
+  are **not** in the default toolbox (lists in [`src/blockly/vms.ts`](../src/blockly/vms.ts); cut in #35).
 - **Logic (list restrictions):** `logic_list_restriction` reads
   “⟨all⟩ of ⟨list⟩ match ⟨condition⟩”. One dropdown covers the Manchester quantifiers
   (`all`/`any`/`none` = ∀/∃/∀¬, emitting `all_of`/`any_of`/`none_of`) and the

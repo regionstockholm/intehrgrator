@@ -38,7 +38,8 @@ structure and was not an interchange format used by other tools.
 Blockly workspace JSON (canonical structure)
                  │
                  ▼
-Mapping Model slots[] (derived semantic index)
+Mapping Model (derived semantic index)
+  slots[], loops[] (kind), targetSignature, optionalRm, unsupported, sheetNames
                  │
         ┌────────┴────────┐
         ▼                 ▼
@@ -47,9 +48,11 @@ Mapping Model slots[] (derived semantic index)
 
 - Blockly JSON owns block structure, fields, inputs, mutation state, ids, and
   workspace coordinates.
-- Mapping Model is rebuilt from value-slot blocks after workspace changes. It
-  remains the small migration-friendly index used by validation, AI
-  suggestions, code generation, and Test Run.
+- Mapping Model is rebuilt by `workspaceToModelJson` after workspace changes.
+  It is the semantic index used by validation, AI suggestions, code
+  generation, and Test Run — not only a flat `slots[]` list. See
+  [`src/blockly/mapping_ir.ts`](../src/blockly/mapping_ir.ts) and
+  [formal-verification-export.md § VMS](future/formal-verification-export.md#verifiable-mapping-subset-vms).
 - Project Bundles persist both. On load, Blockly JSON restores the workspace;
   subsequent changes regenerate the Mapping Model.
 - Click-to-Map updates the Mapping Model and the corresponding Blockly
@@ -92,7 +95,7 @@ Handlebars tab is active and no Target value slot is in Listening Mode.
 
 `MappingModel.modelVersion` is currently `3` (loops with `kind`, nested
 `targetSignature`, explicit `unsupported` / escape-hatch records, `sheetNames`).
-v2 bundles still load; the index is rebuilt from Blockly on workspace change.
+The index is rebuilt from Blockly on workspace change (including `modelVersion` 2 JSON).
 Blockly JSON is persisted in its full native form; UI-only coordinates may
 be filtered in future review projections, but are retained in Project Bundles
 for exact restoration.

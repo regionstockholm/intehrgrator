@@ -1,6 +1,6 @@
 # Suggested GitHub issues — remaining roadmap work
 
-**Date:** 2026-09-09  
+**Date:** 2026-09-09 (snapshot); **VMS update 2026-09-10.**  
 **Sources:** [`docs/ROADMAP.md`](../docs/ROADMAP.md), [`tasks/TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
 **Purpose:** Inspect and edit this list before filing real issues. Do **not** treat unchecked boxes here as tracker state.
 
@@ -10,20 +10,20 @@
 | ---- | ------ |
 | Chunks **1–8** + **5.1** | Done (merged) |
 | Chunk **7.1** (Handlebars Mapping preview) | Still open in task list |
-| Chunks **9–14** | Open; Chunk 9 largely overlaps **#35–#41** |
+| Chunks **9–14** | Open; Chunk 9 overlaps **#38–#41** (toolbox #35 and IR #37 are **closed**) |
 | Constraint Overlay Phase 1 | Done (**#46** closed / PR #48) |
 
 ---
 
-## A. Existing open issues — keep (amendments applied 2026-09-09)
+## A. Existing issues — keep (amendments applied 2026-09-09; VMS cut recorded 2026-09-10)
 
-Bodies updated on GitHub for #35, #37, #38, #39, #49, #51, #52. No body change needed for #21, #40, #41. Triage labels `ready-for-agent` / `needs-triage` / `needs-info` / `ready-for-human` were created on the repo; **#35 is not yet** `ready-for-agent` (waiting on Confirm column ticks).
+Bodies updated on GitHub for #35, #37, #38, #39, #49, #51, #52 (2026-09-09). **#35** (toolbox) and **#37** (IR) are **closed**. Live VMS work starts at **#38**.
 
 | Issue | Verdict |
 | ----- | ------- |
-| **[#35](https://github.com/regionstockholm/intehrgrator/issues/35)** Decide: remove verification-hostile Blockly from the toolbox | **Keep; do first.** Blocks #37–#41 and most Chunk 9 work. Confirm column added on Remove table. |
-| **[#37](https://github.com/regionstockholm/intehrgrator/issues/37)** Extend Mapping Model IR beyond flat `slots[]` | **Keep.** Scope note: IR = Keep/VMS surface after #35. |
-| **[#38](https://github.com/regionstockholm/intehrgrator/issues/38)** Unify Mapping preview vs TypeScript vs XQuery on VMS | **Keep.** Absorbs ROADMAP J (TS) acceptance; Java/Handlebars compare out of scope. |
+| **[#35](https://github.com/regionstockholm/intehrgrator/issues/35)** Decide: remove verification-hostile Blockly from the toolbox | **Closed.** Toolbox cut landed (`src/blockly/vms.ts`). |
+| **[#37](https://github.com/regionstockholm/intehrgrator/issues/37)** Extend Mapping Model IR beyond flat `slots[]` | **Closed.** IR is the Keep/VMS surface (`workspaceToModelJson`). |
+| **[#38](https://github.com/regionstockholm/intehrgrator/issues/38)** Unify Mapping preview vs TypeScript vs XQuery on VMS | **Keep; in progress.** Absorbs ROADMAP J (TS) acceptance; Java/Handlebars compare out of scope. |
 | **[#39](https://github.com/regionstockholm/intehrgrator/issues/39)** XQuery: `for_each_source` + nested structure | **Keep.** Follow-up child section for ROADMAP K (COMPOSITION XML + Saxon/BaseX); no parallel Chunk 9 epic. |
 | **[#40](https://github.com/regionstockholm/intehrgrator/issues/40)** Workspace linter for VMS escape hatches | **Keep.** |
 | **[#41](https://github.com/regionstockholm/intehrgrator/issues/41)** Property-based / metamorphic checks | **Keep.** Separate from S-07 dependency hashes. |
@@ -44,7 +44,7 @@ Edit titles/bodies freely. Proposed order is “good next agents,” not a hard 
 
 **Combines:** ROADMAP G (preview Test Run hardening); TASKS 7.1.1–7.1.7 / 7.6 carry-over.
 
-**Why one issue:** Small, fixture-first, unblocks later Handlebars codegen/example work; independent of VMS/#35.
+**Why one issue:** Small, fixture-first, unblocks later Handlebars codegen/example work; independent of VMS.
 
 **Acceptance sketch:**
 - Kintegrate fixtures assert via `runTest` Mapping preview, not only direct `renderHandlebars`
@@ -173,7 +173,7 @@ Edit titles/bodies freely. Proposed order is “good next agents,” not a hard 
 - Example Set + expected output harness for Handlebars files (after chemo Go example pattern)
 - Non-Blockly editing support only as needed for the harness
 
-**Blocked by:** S-01. Soft-align with #35/#38 if codegen should stay on VMS.
+**Blocked by:** S-01. Soft-align with #38 if codegen should stay on VMS.
 
 ---
 
@@ -248,7 +248,7 @@ Mark post-v1 explicitly.
 
 | Roadmap / task item | Covered by |
 | ------------------- | ---------- |
-| Chunk 9 “golden TS/Java/XQuery” (core of J) | **#35 → #38** (+ expand #38 as above) |
+| Chunk 9 “golden TS/Java/XQuery” (core of J) | **#38** (TS golden / undefined-emit / preview equivalence; #35 closed) |
 | XQuery loops / nested emit | **#39** |
 | Escape-hatch warnings | **#40** |
 | Metamorphic / PBT robustness | **#41** |
@@ -265,11 +265,11 @@ Full COMPOSITION XML + Saxon/BaseX CI: prefer **extending #39** (or a child of #
 
 ## D. Suggested filing order (for agents)
 
-1. **#35** (confirm + implement toolbox cut)  
-2. **S-01** Handlebars preview (parallel to #35 is OK)  
+1. **#38** (VMS oracle / TS golden — toolbox #35 and IR #37 already closed)  
+2. **S-01** Handlebars preview (parallel to #38 is OK)  
 3. **#21** anytime  
 4. **#49 / #51 / #52** UX — parallel, human-facing  
-5. **#37 → #38 → #39 / #40 → #41** VMS chain  
+5. **#39 / #40 → #41** remaining VMS chain  
 6. **S-02 → S-03 → S-04** sheets → decision tables → DMN  
 7. **S-05** FHIR import when terminology workflows need it  
 8. **S-06 / S-07 / S-08** platform (order flexible)  
@@ -284,3 +284,4 @@ Full COMPOSITION XML + Saxon/BaseX CI: prefer **extending #39** (or a child of #
 
 - 2026-09-09: Initial draft after ROADMAP/TASKS tick-off for Chunks 5.1–8 and open-issue cross-check.
 - 2026-09-09: Applied section A suggested edits via `gh issue edit` (#35, #37–#39, #49, #51, #52); created triage labels; removed Suggested edit column.
+- 2026-09-10: Record #35/#37 closed; live VMS work is #38–#41.

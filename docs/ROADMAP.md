@@ -95,6 +95,8 @@
 # conversion script generation
 
 ## J. Golden examples
+TypeScript golden tests, undefined-emit cleanup, and Mapping preview vs TypeScript vs XQuery equivalence on the Verifiable Mapping Subset are **issue #38** (in progress). Java/Handlebars compare stays out of #38. Do not treat the boxes below as done.
+
 - [ ] check if current typescript converter is correct, remove any bugs
 - [ ] compare and improve other formats (Java, xquery, Handlebars etc) 
 - [ ] make cloud environments with java/xquery access test such conversion output too

@@ -37,7 +37,7 @@ The bundle stores the mapping **twice**, by design:
 
 **Why both:** Blockly serialization is best for UI restore but brittle across Blockly versions and hard to validate. The Mapping Model enables safe migrations, AI **Import Suggestions** validation (shared `slotId` vocabulary with `AI_SUGGESTION_FORMAT.md`), and a future text-first editor that does not depend on Blockly.
 
-**On load:** restore Blockly from native serialization; treat the Mapping Model as the authority for validation and for reconciling imported suggestions. If the two disagree (e.g. after a migration), the Mapping Model wins and the Blockly workspace is regenerated.
+**On load:** restore Blockly from native serialization (canonical structure). The Mapping Model is rebuilt from Blockly JSON and used for validation, AI suggestion import, codegen, and Test Run — it is a derived index, not a competing source of truth. If a migration rewrites the Mapping Model, regenerate Blockly from it only when an explicit migration step requires it; normal editing always flows Blockly → Mapping Model.
 
 ## Storage
 

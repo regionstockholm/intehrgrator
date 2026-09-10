@@ -61,7 +61,7 @@ A key-value collection in the Mapping Editor, parallel to a Blockly List. Entrie
 _Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor), **Sheet** (2D grid)
 
 **Sheet** (matrix / spreadsheet):
-A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly accessor/mutator blocks wrap get/set/insert/delete/lookup. Distinct from **Map** and from openEHR `ITEM_TABLE`.
+A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly **accessor** blocks (`sheet_get_*`, `sheet_lookup`) read that grid at convert time. Sheet mutator blocks were removed from the toolbox in the VMS cut (PR #58); types remain registered so old bundles load. Distinct from **Map** and from openEHR `ITEM_TABLE`.
 _Avoid_: table (ambiguous with RM `ITEM_TABLE`), Excel (the desktop app), treating a Sheet as a 1D Map
 
 **Defaults block**:
@@ -218,6 +218,10 @@ _Avoid_: JSON fragment, custom DSL, treating the Spec view as the persistence fo
 **Mapping Model**:
 Derived semantic index (`templateId`, `targetFormat`, `slots[]` with expressions and optional escape-hatch metadata, `loops[]` with grain/`kind`, nested `targetSignature`, `optionalRm`, `unsupported`, `sheetNames`). Rebuilt from Blockly JSON on workspace change; used by validation, AI suggestion import, codegen, and Test Run. Does **not** include Conversion script language.
 _Avoid_: Mapping schema, parallel IR, structural language
+
+**Verifiable Mapping Subset (VMS)**:
+The product profile for mappings that are safe to verify and to codegen consistently: hostile stock Blockly (while/for/random/print, statement `controls_if`, list-index mutators) and sheet mutators are **removed from the toolbox**; escape hatches (`text_code`, `text_handlebars`, ad-hoc JSON/XML trees, procedures) remain but are flagged for lint ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Implemented in `src/blockly/vms.ts` (PR #58, closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35) / [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Golden oracles and preview/codegen equivalence are [#38](https://github.com/regionstockholm/intehrgrator/issues/38)+.
+_Avoid_: treating every Blockly block as VMS, re-adding sheet mutators to the default toolbox
 
 **Generated Export**:
 Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).

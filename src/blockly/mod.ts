@@ -8,6 +8,10 @@ import { registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
+import {
+  registerDecisionTableBlocks,
+  setDecisionTableFocusHandler,
+} from "./blocks/decision_table_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import {
   currentItemName,
@@ -138,6 +142,7 @@ export {
   type DefaultsMapEntryInfo,
 } from "./hardcode_defaults.ts";
 export { setSheetFocusHandler } from "./blocks/sheet_blocks.ts";
+export { setDecisionTableFocusHandler } from "./blocks/decision_table_blocks.ts";
 export {
   canExtractToFunction,
   extractBlockToFunction,
@@ -160,6 +165,7 @@ export function initBlocklyGenerators(): void {
   registerExpressionBlocks();
   registerMapBlocks();
   registerSheetBlocks();
+  registerDecisionTableBlocks();
   registerTextBlocks();
   registerConversionStartBlock();
   registerLogicBlocks();
@@ -301,6 +307,12 @@ function registerGenerators(): void {
     const val = javascriptGenerator.valueToCode(block, "MATCH_VAL", Order.NONE) || '""';
     const ret = javascriptGenerator.valueToCode(block, "RETURN_COL", Order.NONE) || '""';
     return [`sheetLookup(${name}, ${col}, ${val}, ${ret})`, Order.FUNCTION_CALL] as [string, number];
+  };
+  javascriptGenerator.forBlock["decision_table"] = (block) => {
+    const name = JSON.stringify(block.getFieldValue("NAME") || "Decision1");
+    const inputs = javascriptGenerator.valueToCode(block, "INPUTS", Order.NONE) || "{}";
+    const output = JSON.stringify(block.getFieldValue("OUTPUT") || "out");
+    return [`decisionTable(${name}, ${inputs}, ${output})`, Order.FUNCTION_CALL] as [string, number];
   };
   javascriptGenerator.forBlock["sheet_set_cell"] = (block) => {
     const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");

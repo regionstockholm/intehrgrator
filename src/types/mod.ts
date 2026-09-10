@@ -308,7 +308,7 @@ export interface ProjectBundle {
     model: MappingModel;
     /** User-authored Kintegrate-compatible conversion template. */
     handlebarsTemplate?: string;
-    /** Named 2D Sheet documents (widget is a view). */
+    /** Named 2D Sheet / Decision table documents (widget is a view). */
     sheets?: SheetDocument[];
   };
   settings: ProjectSettings;

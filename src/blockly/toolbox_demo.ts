@@ -491,6 +491,25 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategorySheets" },
         contents: [
           { kind: "block", type: "sheet", fields: { NAME: "Sheet1" } },
+          { kind: "block", type: "decision_table_decl", fields: { NAME: "Decision1" } },
+          {
+            kind: "block",
+            type: "decision_table",
+            fields: { NAME: "Decision1", OUTPUT: "out" },
+            inputs: {
+              INPUTS: {
+                block: {
+                  type: "maps_create_with",
+                  extraState: { itemCount: 2 },
+                  fields: { KEY0: "in1", KEY1: "in2" },
+                  inputs: {
+                    VAL0: { shadow: { type: "text", fields: { TEXT: "" } } },
+                    VAL1: { shadow: { type: "text", fields: { TEXT: "" } } },
+                  },
+                },
+              },
+            },
+          },
           {
             kind: "block",
             type: "sheet_lookup",

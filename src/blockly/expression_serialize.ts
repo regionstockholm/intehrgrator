@@ -148,6 +148,12 @@ export function blockToExpression(block: Block | null): string | null {
         ? `sheet_lookup(${JSON.stringify(name)}, ${col}, ${val}, ${ret})`
         : `sheet_lookup(${JSON.stringify(name)}, ${col}, ${val})`;
     }
+    case "decision_table": {
+      const name = String(block.getFieldValue("NAME") || "Decision1");
+      const inputs = blockToExpression(block.getInputTargetBlock("INPUTS")) ?? "map()";
+      const output = String(block.getFieldValue("OUTPUT") || "out");
+      return `decision_table(${JSON.stringify(name)}, ${inputs}, ${JSON.stringify(output)})`;
+    }
     case "maps_create_empty":
       return "map()";
     case "maps_create_with": {

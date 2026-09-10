@@ -1,3 +1,4 @@
+import { evaluateDecisionTable } from "./decision_table.ts";
 import {
   deleteColumn,
   deleteRow,
@@ -27,6 +28,7 @@ export const SHEET_ACCESSOR_NAMES = [
   "sheet_get_header",
   "sheet_get_data",
   "sheet_lookup",
+  "decision_table",
 ] as const;
 
 export type SheetAccessorName = typeof SHEET_ACCESSOR_NAMES[number];
@@ -63,10 +65,24 @@ export function evalSheetCall(
           args[2],
           args.length >= 4 ? args[3] as string | number : undefined,
         );
+      case "decision_table": {
+        const inputs = asInputRecord(args[1]);
+        const outputCol = args.length >= 3 ? String(args[2] ?? "") : undefined;
+        return evaluateDecisionTable(sheet, inputs, outputCol || undefined);
+      }
     }
-  } catch {
+  } catch (err) {
+    // UNIQUE overlap and unknown columns should surface to Test Run.
+    if (name === "decision_table") throw err;
     return null;
   }
+}
+
+function asInputRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
 }
 
 /** Mutators used by Blockly statements / generated scripts; not slot expressions. */

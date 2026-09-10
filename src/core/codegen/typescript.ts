@@ -115,6 +115,7 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
         case "sheet_get_header":
         case "sheet_get_data":
         case "sheet_lookup":
+        case "decision_table":
           ctx.helpers.add("sheets");
           return emitSheetCall(ast.name, args);
         case "xpathNumber":
@@ -311,7 +312,7 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
     "  sourceCtx: SourceContext,",
     "  defaults: Record<string, unknown> = {},",
     ...(parts.helpers.has("sheets")
-      ? ["  sheets: Record<string, { name?: string; headers: string[]; values: unknown[][]; rowNames?: string[] }> = {},"]
+      ? ["  sheets: Record<string, { name?: string; kind?: string; headers: string[]; values: unknown[][]; rowNames?: string[]; hitPolicy?: string; collectJoin?: string; decisionColumns?: Array<{ role: string; outputKind?: string }> }> = {},"]
       : []),
     `)${root !== "unknown" ? `: ${root}` : ""} {`,
   );
@@ -493,6 +494,46 @@ function sheetHelpers(): string[] {
     "    return rec;",
     "  }",
     "  return s.values[y][idx(returnCol)] ?? null;",
+    "}",
+    "function decisionTable(name: string, inputs: Record<string, unknown> = {}, outputCol?: string) {",
+    "  const s = sheetOf(name); if (!s) return null;",
+    "  const dontCare = (c: unknown) => c == null || (typeof c === \"string\" && [\"\", \"—\", \"–\", \"-\", \"*\"].includes(c.trim()));",
+    "  const width = s.headers.length;",
+    "  const meta = (s.decisionColumns ?? []).slice(0, width);",
+    "  while (meta.length < width) meta.push({ role: meta.length === width - 1 && !(s.decisionColumns?.length) ? \"output\" : \"condition\" });",
+    "  if (!(s.decisionColumns?.length) && width > 0) { for (let i = 0; i < width - 1; i++) meta[i] = { role: \"condition\" }; meta[width - 1] = { role: \"output\", outputKind: \"value\" }; }",
+    "  const outIdx = outputCol ? s.headers.indexOf(outputCol) : meta.findIndex((m) => m.role === \"output\");",
+    "  const oi = outIdx >= 0 ? outIdx : Math.max(0, width - 1);",
+    "  const matches: number[] = [];",
+    "  for (let y = 0; y < s.values.length; y++) {",
+    "    let ok = true;",
+    "    for (let x = 0; x < width; x++) {",
+    "      if (meta[x]?.role !== \"condition\") continue;",
+    "      const cell = s.values[y]?.[x];",
+    "      if (dontCare(cell)) continue;",
+    "      if (String(cell ?? \"\") !== String(inputs[s.headers[x]] ?? \"\")) { ok = false; break; }",
+    "    }",
+    "    if (ok) matches.push(y);",
+    "  }",
+    "  if (!matches.length) return null;",
+    "  const policy = s.hitPolicy ?? \"FIRST\";",
+    "  const render = (y: number) => {",
+    "    const cell = s.values[y]?.[oi];",
+    "    const kind = meta[oi]?.outputKind ?? \"value\";",
+    "    if (kind !== \"snippet\") return cell ?? null;",
+    "    const tpl = String(cell ?? \"\");",
+    "    return tpl.replace(/\\{\\{\\s*([\\w.$]+)\\s*\\}\\}/g, (_: string, key: string) => {",
+    "      const parts = key.split(\".\"); let cur: unknown = inputs;",
+    "      for (const p of parts) { if (cur == null || typeof cur !== \"object\") return \"\"; cur = (cur as Record<string, unknown>)[p]; }",
+    "      return cur == null ? \"\" : String(cur);",
+    "    });",
+    "  };",
+    "  if (policy === \"UNIQUE\") {",
+    "    if (matches.length > 1) throw new Error(`UNIQUE decision table \"${name}\" matched ${matches.length} rows`);",
+    "    return render(matches[0]!);",
+    "  }",
+    "  if (policy === \"COLLECT\") return matches.map(render).map((p) => p == null ? \"\" : String(p)).join(s.collectJoin ?? \"; \");",
+    "  return render(matches[0]!);",
     "}",
   ];
 }

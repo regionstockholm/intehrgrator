@@ -3,6 +3,7 @@ import type { IntehrLocale } from "../blockly/i18n/custom_msg.ts";
 export interface SheetsChrome {
   tab: string;
   add: string;
+  addDecision: string;
   rename: string;
   remove: string;
   importCsv: string;
@@ -11,80 +12,121 @@ export interface SheetsChrome {
   exitFullscreen: string;
   empty: string;
   namePrompt: string;
+  decisionNamePrompt: string;
+  hitPolicy: string;
+  kindSheet: string;
+  kindDecision: string;
+  snippetLint: string;
 }
 
 const CHROME: Record<IntehrLocale, SheetsChrome> = {
   en: {
     tab: "Sheets",
     add: "Add sheet",
+    addDecision: "Add decision table",
     rename: "Rename",
     remove: "Delete",
     importCsv: "Import CSV",
     exportCsv: "Export CSV",
     fullscreen: "Fullscreen",
     exitFullscreen: "Exit fullscreen",
-    empty: "No sheets yet. Add a sheet or import a CSV.",
+    empty: "No sheets yet. Add a sheet, a decision table, or import a CSV.",
     namePrompt: "Sheet name",
+    decisionNamePrompt: "Decision table name",
+    hitPolicy: "Hit policy",
+    kindSheet: "Sheet",
+    kindDecision: "Decision table",
+    snippetLint: "Snippet cells (VMS-Mustache)",
   },
   sv: {
     tab: "Kalkylblad",
     add: "Nytt blad",
+    addDecision: "Ny beslutstabell",
     rename: "Byt namn",
     remove: "Ta bort",
     importCsv: "Importera CSV",
     exportCsv: "Exportera CSV",
     fullscreen: "Helskärm",
     exitFullscreen: "Lämna helskärm",
-    empty: "Inga blad ännu. Lägg till ett blad eller importera CSV.",
+    empty: "Inga blad ännu. Lägg till blad, beslutstabell eller importera CSV.",
     namePrompt: "Bladnamn",
+    decisionNamePrompt: "Namn på beslutstabell",
+    hitPolicy: "Träffpolicy",
+    kindSheet: "Blad",
+    kindDecision: "Beslutstabell",
+    snippetLint: "Snippet-celler (VMS-Mustache)",
   },
   de: {
     tab: "Tabellen",
     add: "Blatt hinzufügen",
+    addDecision: "Entscheidungstabelle",
     rename: "Umbenennen",
     remove: "Löschen",
     importCsv: "CSV importieren",
     exportCsv: "CSV exportieren",
     fullscreen: "Vollbild",
     exitFullscreen: "Vollbild beenden",
-    empty: "Noch keine Blätter. Blatt hinzufügen oder CSV importieren.",
+    empty: "Noch keine Blätter. Blatt, Entscheidungstabelle oder CSV.",
     namePrompt: "Blattname",
+    decisionNamePrompt: "Name der Entscheidungstabelle",
+    hitPolicy: "Trefferpolitik",
+    kindSheet: "Blatt",
+    kindDecision: "Entscheidungstabelle",
+    snippetLint: "Snippet-Zellen (VMS-Mustache)",
   },
   es: {
     tab: "Hojas",
     add: "Añadir hoja",
+    addDecision: "Tabla de decisión",
     rename: "Renombrar",
     remove: "Eliminar",
     importCsv: "Importar CSV",
     exportCsv: "Exportar CSV",
     fullscreen: "Pantalla completa",
     exitFullscreen: "Salir de pantalla completa",
-    empty: "Aún no hay hojas. Añada una hoja o importe un CSV.",
+    empty: "Aún no hay hojas. Añada hoja, tabla de decisión o CSV.",
     namePrompt: "Nombre de la hoja",
+    decisionNamePrompt: "Nombre de la tabla de decisión",
+    hitPolicy: "Política de acierto",
+    kindSheet: "Hoja",
+    kindDecision: "Tabla de decisión",
+    snippetLint: "Celdas snippet (VMS-Mustache)",
   },
   ca: {
     tab: "Fulls",
     add: "Afegeix full",
+    addDecision: "Taula de decisió",
     rename: "Canvia el nom",
     remove: "Suprimeix",
     importCsv: "Importa CSV",
     exportCsv: "Exporta CSV",
     fullscreen: "Pantalla completa",
     exitFullscreen: "Surt de pantalla completa",
-    empty: "Encara no hi ha fulls. Afegiu-ne un o importeu un CSV.",
+    empty: "Encara no hi ha fulls. Afegiu full, taula de decisió o CSV.",
     namePrompt: "Nom del full",
+    decisionNamePrompt: "Nom de la taula de decisió",
+    hitPolicy: "Política d'encert",
+    kindSheet: "Full",
+    kindDecision: "Taula de decisió",
+    snippetLint: "Cel·les snippet (VMS-Mustache)",
   },
   fr: {
     tab: "Feuilles",
     add: "Ajouter une feuille",
+    addDecision: "Table de décision",
     rename: "Renommer",
     remove: "Supprimer",
     importCsv: "Importer CSV",
     exportCsv: "Exporter CSV",
     fullscreen: "Plein écran",
     exitFullscreen: "Quitter le plein écran",
-    empty: "Pas encore de feuilles. Ajoutez-en une ou importez un CSV.",
+    empty: "Pas encore de feuilles. Ajoutez feuille, table de décision ou CSV.",
     namePrompt: "Nom de la feuille",
+    decisionNamePrompt: "Nom de la table de décision",
+    hitPolicy: "Politique de hit",
+    kindSheet: "Feuille",
+    kindDecision: "Table de décision",
+    snippetLint: "Cellules snippet (VMS-Mustache)",
   },
 };
 

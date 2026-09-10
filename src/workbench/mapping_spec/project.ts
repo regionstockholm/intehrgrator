@@ -20,6 +20,7 @@ export type SpecLineKind =
   | "dv"
   | "map_lookup"
   | "sheet_lookup"
+  | "decision_table"
   | "literal"
   | "logic"
   | "text_gen"
@@ -36,6 +37,7 @@ export type SpecEditFieldName =
   | "PATH"
   | "VAR"
   | "NAME"
+  | "OUTPUT"
   | "OP"
   | "SET"
   | "CODE"
@@ -48,6 +50,7 @@ export type SpecEditKind =
   | "compare"
   | "map_get"
   | "sheet_lookup"
+  | "decision_table"
   | "number"
   | "boolean"
   | "loop"
@@ -323,6 +326,12 @@ function walkBlock(
 
   if (type === "sheet_lookup") {
     emit(lines, sheetLookupLine(block, indent, attribute, extraAliases, shell), attributeEdit);
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
+    return;
+  }
+
+  if (type === "decision_table") {
+    emit(lines, decisionTableLine(block, indent, attribute, extraAliases, shell), attributeEdit);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
   }
@@ -721,6 +730,36 @@ function sheetLookupLine(
   };
 }
 
+function decisionTableLine(
+  block: BlocklyBlockJson,
+  indent: number,
+  attribute: string | undefined,
+  extraAliases: string[],
+  shell?: string,
+): SpecLine {
+  const name = stringField(block, "NAME") || "Decision1";
+  const output = stringField(block, "OUTPUT") || "out";
+  const aliases = [...extraAliases];
+  const editable: SpecEditableField[] = [
+    { field: "NAME", value: name },
+    { field: "OUTPUT", value: output },
+  ];
+  return {
+    kind: "decision_table",
+    indent,
+    blockId: idOf(block),
+    aliasIds: aliases.length ? aliases : undefined,
+    type: "decision_table",
+    label: name,
+    attribute,
+    shell,
+    editKind: "decision_table",
+    summary: `${name}(locals → ${output})`,
+    editable,
+    info: collectInfo(block),
+  };
+}
+
 function sourceQueryLine(
   block: BlocklyBlockJson,
   indent: number,
@@ -947,6 +986,7 @@ function classify(type: string): SpecLineKind {
   if (type === MAPS_GET) return "map_lookup";
   if (type === "term_pick") return "term_pick";
   if (type === "sheet_lookup") return "sheet_lookup";
+  if (type === "decision_table") return "decision_table";
   if (type === "text_code" || type === "text_handlebars") return "text_gen";
   if (type === "logic_compare" || type === "logic_operation") return "logic";
   if (type === "text" || type === "math_number" || type === "logic_boolean") return "literal";

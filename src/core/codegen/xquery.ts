@@ -7,13 +7,17 @@
  *
  * See docs/future/xquery-export-investigation.md.
  */
-import type { MappingModel, MappingSlot } from "../../types/mod.ts";
+import type { MappingLoop, MappingModel, MappingSlot } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
+import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
+
+interface XqEnv {
+  bind?: Record<string, string>;
+  source?: string;
+}
 
 export function generateXQuery(model: MappingModel): string {
-  const slotBlocks = model.slots.map((slot) =>
-    emitSlot(slot).map((line) => `    ${line}`).join("\n")
-  );
+  const fragments = emitMappingResultChildren(model);
 
   const lines: string[] = [
     'xquery version "3.1";',
@@ -40,19 +44,18 @@ export function generateXQuery(model: MappingModel): string {
     "declare function local:convert($source as item()*) as element(mapping-result) {",
     "  element mapping-result {",
     `    attribute template { ${xqString(model.templateId)} }${
-      slotBlocks.length ? "," : ""
+      fragments.length ? "," : ""
     }`,
   ];
 
-  if (!slotBlocks.length) {
+  if (!fragments.length) {
     lines.push(
       "    (: no mapped slots — map Target value slots in Blockly, then re-export :)",
     );
   } else {
-    for (let i = 0; i < slotBlocks.length; i++) {
-      const block = slotBlocks[i]!;
-      const comma = i < slotBlocks.length - 1 ? "," : "";
-      lines.push(block + comma);
+    for (let i = 0; i < fragments.length; i++) {
+      const comma = i < fragments.length - 1 ? "," : "";
+      lines.push(fragments[i]! + comma);
     }
   }
 
@@ -64,6 +67,81 @@ export function generateXQuery(model: MappingModel): string {
     "",
   );
   return lines.join("\n");
+}
+
+function emitMappingResultChildren(model: MappingModel): string[] {
+  const claimed = new Set<string>();
+  const out: string[] = [];
+  for (const loop of model.loops ?? []) {
+    out.push(emitLoop(model, loop, claimed));
+  }
+  for (const slot of model.slots) {
+    if (claimed.has(slot.slotId)) continue;
+    out.push(emitSlot(slot).map((line) => `    ${line}`).join("\n"));
+  }
+  return out.filter(Boolean);
+}
+
+function emitLoop(model: MappingModel, loop: MappingLoop, claimed: Set<string>): string {
+  const ident = loopVarIdent(loop.varName);
+  const kind = loop.kind ?? "source";
+  const owned = slotsOwnedByLoop(model, loop, claimed);
+  const header =
+    `    (: loop kind=${xqComment(kind)} var=${xqComment(loop.varName)} ` +
+    `path=${xqComment(loop.path)} collection=${xqComment(loop.collection ?? "")} ` +
+    `attach=${xqComment(loop.attachSlotId)} :)`;
+  const sequence = kind === "list"
+    ? emitListCollection(loop.collection)
+    : `local:nodes-at($source, ${xqString(loop.path)})`;
+  if (!owned.length) return header;
+  const env: XqEnv = { bind: { [loop.varName]: ident }, source: `$${ident}` };
+  const slotXml = owned.map((slot, i) => {
+    const lines = emitSlot(slot, env).map((line) => `      ${line}`);
+    const comma = i < owned.length - 1 ? "," : "";
+    return lines.join("\n") + comma;
+  });
+  return [
+    header,
+    `    for $${ident} in ${sequence}`,
+    "    return (",
+    ...slotXml,
+    "    )",
+  ].join("\n");
+}
+
+function emitListCollection(collection: string | undefined): string {
+  if (!collection?.trim()) return "()";
+  try {
+    return emitXQueryExpr(parseExpression(collection));
+  } catch {
+    return "()";
+  }
+}
+
+function loopVarIdent(name: string): string {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "item";
+}
+
+function slotsOwnedByLoop(
+  model: MappingModel,
+  loop: MappingLoop,
+  claimed: Set<string>,
+): MappingSlot[] {
+  const attach = loop.attachSlotId;
+  const prefix = `${attach}/`;
+  const byId = model.slots.filter((slot) =>
+    !claimed.has(slot.slotId) &&
+    (slot.slotId === attach || slot.slotId.startsWith(prefix))
+  );
+  const owned = byId.length
+    ? byId
+    : (model.loops?.length ?? 0) === 1
+    ? model.slots.filter((slot) =>
+      !claimed.has(slot.slotId) && expressionUsesRelativeSourcePath(slot.expression)
+    )
+    : [];
+  for (const slot of owned) claimed.add(slot.slotId);
+  return owned;
 }
 
 function emitHelpers(): string[] {
@@ -106,6 +184,10 @@ function emitHelpers(): string[] {
     "      else $acc?($seg)",
     "    }",
     "  )",
+    "};",
+    "",
+    "declare function local:nodes-at($ctx as item()*, $path as xs:string) as item()* {",
+    "  local:lookup($ctx, $path)",
     "};",
     "",
     "(: --- DV_* constructors (RM XML) --- :)",
@@ -181,10 +263,10 @@ function emitHelpers(): string[] {
   ];
 }
 
-function emitSlot(slot: MappingSlot): string[] {
+function emitSlot(slot: MappingSlot, env: XqEnv = {}): string[] {
   let exprXq: string;
   try {
-    exprXq = emitXQueryExpr(parseExpression(slot.expression));
+    exprXq = emitXQueryExpr(parseExpression(slot.expression), env);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     exprXq = `(: unparseable expression: ${xqComment(msg)} :) ()`;
@@ -202,7 +284,7 @@ function emitSlot(slot: MappingSlot): string[] {
 }
 
 /** Map Mapping Expression AST → XQuery 3.1 fragment (context variable `$source`). */
-export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string> } = {}): string {
+export function emitXQueryExpr(ast: ExprAst, env: XqEnv = {}): string {
   switch (ast.kind) {
     case "literal":
       if (typeof ast.value === "string") return xqString(ast.value);
@@ -265,23 +347,24 @@ export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string
           return `(: ${ast.name} — bind $sheets at convert time :) ()`;
         case "xpathString":
         case "xpath":
-          return emitXPathCall("string-at", ast.args[0]);
+          return emitXPathCall("string-at", ast.args[0], env);
         case "xpathNumber":
-          return emitXPathCall("number-at", ast.args[0]);
+          return emitXPathCall("number-at", ast.args[0], env);
         case "xpathBoolean":
-          return emitXPathCall("boolean-at", ast.args[0]);
+          return emitXPathCall("boolean-at", ast.args[0], env);
         case "xpathNode":
           if (ast.args[0]?.kind === "literal" && typeof ast.args[0].value === "string") {
             const path = ast.args[0].value.trim();
-            if (path.startsWith("/")) return `($source${path})[1]`;
+            const root = env.source ?? "$source";
+            if (path.startsWith("/")) return `(${root}${path})[1]`;
           }
-          return "$source";
+          return env.source ?? "$source";
         case "handlebars":
           return args[0] ?? '""';
         case "map":
           return "map {}";
         default:
-          return emitXPathCall("string-at", ast.args[0]);
+          return emitXPathCall("string-at", ast.args[0], env);
       }
     }
   }
@@ -289,7 +372,7 @@ export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string
 
 function emitQuantifierXq(
   ast: Extract<ExprAst, { kind: "call" }>,
-  env: { bind?: Record<string, string> },
+  env: XqEnv,
 ): string {
   const card = ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly";
   const list = emitXQueryExpr(ast.args[0]!, env);
@@ -298,7 +381,7 @@ function emitQuantifierXq(
   const predAst = card ? ast.args[3] : ast.args[2];
   const varName = varAst?.kind === "literal" ? String(varAst.value) : "item";
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(varName) ? varName : "item";
-  const inner = { bind: { ...env.bind, [varName]: ident } };
+  const inner: XqEnv = { bind: { ...env.bind, [varName]: ident }, source: env.source };
   const pred = predAst ? emitXQueryExpr(predAst, inner) : "true()";
   const counted = `count(for $${ident} in ${list} where ${pred} return $${ident})`;
   switch (ast.name) {
@@ -322,13 +405,15 @@ function emitQuantifierXq(
 function emitXPathCall(
   helper: "string-at" | "number-at" | "boolean-at",
   pathAst: ExprAst | undefined,
+  env: XqEnv = {},
 ): string {
+  const root = env.source ?? "$source";
   if (!pathAst) return "()";
   if (pathAst.kind === "literal" && typeof pathAst.value === "string") {
-    const compiled = compileLiteralPath(pathAst.value, helper);
+    const compiled = compileLiteralPath(pathAst.value, helper, root);
     if (compiled) return compiled;
   }
-  return `local:${helper}($source, ${emitXQueryExpr(pathAst)})`;
+  return `local:${helper}(${root}, ${emitXQueryExpr(pathAst, env)})`;
 }
 
 /**
@@ -338,6 +423,7 @@ function emitXPathCall(
 export function compileLiteralPath(
   path: string,
   helper: "string-at" | "number-at" | "boolean-at",
+  sourceVar = "$source",
 ): string | null {
   const trimmed = path.trim();
   if (!trimmed) return null;
@@ -349,31 +435,35 @@ export function compileLiteralPath(
     : "xs:string";
 
   if (trimmed === "." || trimmed === "./") {
-    return `${cast}(($source)[1])`;
+    return `${cast}((${sourceVar})[1])`;
   }
   if (trimmed.startsWith("./")) {
-    return `${cast}(($source/${trimmed.slice(2)})[1])`;
+    return `${cast}((${sourceVar}/${trimmed.slice(2)})[1])`;
   }
   if (trimmed.startsWith("/")) {
-    return `${cast}(($source${trimmed})[1])`;
+    return `${cast}((${sourceVar}${trimmed})[1])`;
   }
 
   if (trimmed.startsWith("$")) {
-    const lookup = jsonDollarPathToLookup(trimmed);
+    const lookup = jsonDollarPathToLookup(trimmed, sourceVar);
     if (!lookup) return null;
     return `${cast}((${lookup})[1])`;
   }
 
+  if (!trimmed.includes("/")) {
+    const relativeJson = jsonDollarPathToLookup(`$.${trimmed}`, sourceVar);
+    if (relativeJson) return `${cast}((${relativeJson})[1])`;
+  }
   return null;
 }
 
 /** `$.patient.vitals[1].systolic` → `$source?patient?vitals?1?systolic` */
-export function jsonDollarPathToLookup(path: string): string | null {
+export function jsonDollarPathToLookup(path: string, sourceVar = "$source"): string | null {
   let body = path.trim();
   if (!body.startsWith("$")) return null;
   body = body.slice(1);
   if (body.startsWith(".")) body = body.slice(1);
-  if (!body) return "$source";
+  if (!body) return sourceVar;
 
   const segments: string[] = [];
   let i = 0;
@@ -404,7 +494,7 @@ export function jsonDollarPathToLookup(path: string): string | null {
     i = end;
   }
 
-  let expr = "$source";
+  let expr = sourceVar;
   for (const seg of segments) {
     if (/^\d+$/.test(seg)) expr += `?${seg}`;
     else if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(seg)) expr += `?${seg}`;

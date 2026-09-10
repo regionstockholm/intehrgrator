@@ -11,6 +11,7 @@ import {
   hideDefaultMutatorIcon,
   openBlockMutator,
 } from "../dynamic_mutator.ts";
+import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
@@ -256,6 +257,7 @@ export function registerMapBlocks(): void {
       const header = this.appendDummyInput("HEADER").setAlign(
         (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? 0) as number,
       );
+      appendBlockOutputGlyph(header, "Map");
       header.appendField("map");
       appendMutatorCogwheel(header);
       this.setOutput(true, "Map");
@@ -294,12 +296,12 @@ export function registerMapBlocks(): void {
 
   Blockly.Blocks[MAPS_GET] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput("HEADER")
-        .appendField("get")
-        .appendField(new Blockly.FieldTextInput(DEFAULTS_MAP_NAME), "NAME");
-      this.appendValueInput("KEY")
-        .setCheck("String")
-        .appendField("key");
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, null);
+      header.appendField("get").appendField(new Blockly.FieldTextInput(DEFAULTS_MAP_NAME), "NAME");
+      const keyIn = this.appendValueInput("KEY").setCheck("String");
+      appendInputTypeGlyph(keyIn, "String");
+      keyIn.appendField("key");
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "RM_TYPE", "");
       this.setOutput(true, null);
@@ -349,13 +351,13 @@ export function registerMapBlocks(): void {
         INFO_SVG,
         18,
         18,
-        "Defaults Map: convert-time language, territory, encoding, facility, and similar values. Folder: load, save, or download the map as JSON.",
+        "Default context mapping: design-time table of execution-context values (language, territory, time, composer, facility, …). Folder: load, save, or download.",
         () => {
           defaultsMapInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
         },
       );
       this.appendDummyInput("HEADER")
-        .appendField("Defaults Map")
+        .appendField("Default context mapping")
         .appendField(
           new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
             defaultsMapPickHandler?.();

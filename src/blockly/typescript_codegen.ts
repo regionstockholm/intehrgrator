@@ -27,6 +27,11 @@ import { attributesFor, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { LOCATABLE_TYPES } from "../core/rm_mandatory.ts";
 import type { MappingModel } from "../types/mod.ts";
 import {
+  CONVERSION_START_TYPE,
+  TEXT_DOCUMENT_TYPE,
+  isSchemaOrGenericRoot,
+} from "./conversion_start.ts";
+import {
   asStringExpr,
   createTsEmitContext,
   emitTsExpressionSource,
@@ -96,32 +101,23 @@ export function generateTypeScriptFromWorkspace(
   model: MappingModel,
 ): string | null {
   const ctx = createTsEmitContext();
-  const roots = workspace.getTopBlocks(true).filter((block) =>
-    block.type !== DEFAULTS_BLOCK_TYPE &&
-    block.type !== "maps_create_with"
-  );
-  const composition = roots.find((block) => block.type === "composition") ??
-    roots.find((block) => isRmContainerBlockType(block.type));
+  const product = findProductBlock(workspace);
+  if (!product) return null;
 
   let body: string;
   let rootType: string | undefined;
-  if (composition) {
-    const code = emitBlock(composition, ctx, 0);
-    rootType = rmTypeOf(composition);
+  if (product.type === "composition" || isRmContainerBlockType(product.type)) {
+    const code = emitBlock(product, ctx, 0);
+    rootType = rmTypeOf(product);
     if (rootType === "COMPOSITION") {
       body = `const composition = ${code};\nreturn composition;`;
     } else {
       body = `return ${code};`;
     }
-  } else if (model.targetFormat && model.targetFormat !== "openehr-template") {
-    const generic = roots.find((block) =>
-      isSchemaStructureBlock(block) || block.type === "json_object" || block.type === "xml_element"
-    );
-    if (generic) {
-      body = `return ${emitGeneric(generic, ctx, 0)};`;
-    } else {
-      return null;
-    }
+  } else if (product.type === TEXT_DOCUMENT_TYPE) {
+    body = `return ${emitBlock(product, ctx, 0)};`;
+  } else if (isSchemaOrGenericRoot(product) || isSchemaStructureBlock(product)) {
+    body = `return ${emitGeneric(product, ctx, 0)};`;
   } else {
     return null;
   }
@@ -134,6 +130,26 @@ export function generateTypeScriptFromWorkspace(
     rootType,
     source: "blockly",
   });
+}
+
+function findProductBlock(workspace: Workspace): Block | null {
+  const start = workspace.getAllBlocks(false).find((block) => block.type === CONVERSION_START_TYPE);
+  if (start) {
+    return start.getNextBlock();
+  }
+  const roots = workspace.getTopBlocks(true).filter((block) =>
+    block.type !== DEFAULTS_BLOCK_TYPE &&
+    block.type !== "maps_create_with"
+  );
+  return roots.find((block) => block.type === "composition") ??
+    roots.find((block) => isRmContainerBlockType(block.type)) ??
+    roots.find((block) =>
+      isSchemaStructureBlock(block) ||
+      block.type === "json_object" ||
+      block.type === "xml_element" ||
+      block.type === TEXT_DOCUMENT_TYPE
+    ) ??
+    null;
 }
 
 /** Test-only export for VMS undefined guard tests. */
@@ -172,7 +188,17 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
     return emitRmContainer(block, ctx, indent);
   }
   if (isDataValueBlock(block)) return emitDvShell(block, ctx, indent);
-  if (isGenericValueBlockType(block.type) || isSchemaStructureBlock(block)) {
+  if (block.type === TEXT_DOCUMENT_TYPE) {
+    const value = block.getInputTargetBlock("VALUE");
+    return value ? emitBlock(value, ctx, indent) : '""';
+  }
+  if (
+    block.type === "json_object" ||
+    block.type === "json_array" ||
+    block.type === "xml_element" ||
+    isGenericValueBlockType(block.type) ||
+    isSchemaStructureBlock(block)
+  ) {
     return emitGeneric(block, ctx, indent);
   }
   return "undefined /* unhandled block type: " + block.type + " */";
@@ -560,6 +586,13 @@ function emitGeneric(block: Block, ctx: TsEmitContext, indent: number): string {
     if (!isBlankGeneratedExpr(code)) props.push([attr, code]);
   }
   const name = String(block.getFieldValue("NAME") ?? "").trim();
+  if (block.type === "json_object" && !props.length) return "{}";
+  if (block.type === "xml_element") {
+    const tag = JSON.stringify(name || "element");
+    if (!props.length) return `{ $name: ${tag} }`;
+    return formatObjectLiteral([["$name", tag], ...props], indent);
+  }
+  if (block.type === "json_array" && !props.length) return "[]";
   if (name && !props.length) return JSON.stringify(name);
   return formatObjectLiteral(props, indent);
 }

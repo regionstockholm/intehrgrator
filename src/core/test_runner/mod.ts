@@ -18,10 +18,12 @@ import {
   findSkeletonTrail,
 } from "../skeleton/generate_skeleton.ts";
 import { generateTypeScript } from "../codegen/mod.ts";
+import { generateTypeScriptFromBlocklyState } from "../../blockly/typescript_codegen.ts";
 import {
   runGeneratedTypeScript,
   serializedConversionOutput,
 } from "../codegen/run_typescript.ts";
+import { canvasProductAllowsEmptyExample } from "../../blockly/conversion_start.ts";
 import {
   getTargetFormatHandler,
   type TargetDefinition,
@@ -158,6 +160,34 @@ export function runTest(
           `// Generated script:\n${code}`;
         return { ok: false, output, error: e instanceof Error ? e.message : String(e), warnings };
       }
+    }
+
+    const schemaLessCanvas = canvasProductAllowsEmptyExample(options.blocklyState) &&
+      !(options.target?.skeleton?.length);
+    if (schemaLessCanvas && options.blocklyState) {
+      const code = generateTypeScriptFromBlocklyState(
+        options.blocklyState,
+        model,
+        options.target?.skeleton,
+      ) ?? generateTypeScript(model, {
+        handlebarsTemplate: options.handlebarsTemplate,
+        blocklyState: options.blocklyState,
+        skeleton: options.target?.skeleton,
+      });
+      const raw = runGeneratedTypeScript(code, {
+        format,
+        data: ctx.data,
+      }, defaults, undefined, ctx.sheets);
+      const output = serializedConversionOutput(raw);
+      const outputValidation = validateConvertedOutput(output, options.target, {
+        deserializeMode: options.openEhrJsonDeserializeMode,
+      });
+      return {
+        ok: warnings.length === 0,
+        output,
+        warnings,
+        outputValidation,
+      };
     }
 
     const slotValues = evaluateSlotValues(

@@ -57,6 +57,7 @@ export function refreshWorkspaceConstraints(workspace: Workspace): void {
 }
 
 export function blockConstraintMessages(block: Block): string[] {
+  if (block.type === "conversion_start") return [];
   const messages: string[] = [];
   const rmType = (block.getFieldValue("RM_TYPE") || "").toUpperCase();
   if (rmType === "EVENT") {

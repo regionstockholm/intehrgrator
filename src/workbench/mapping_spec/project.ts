@@ -7,6 +7,7 @@
 
 import { isRmContainerBlockType } from "../../blockly/blocks/rm_blocks.ts";
 import { MAPS_CREATE_WITH, MAPS_GET } from "../../core/defaults/extract.ts";
+import { CONVERSION_START_TYPE } from "../../blockly/conversion_start.ts";
 import {
   termPickDropdownOptions,
   termSetDropdownOptions,
@@ -161,8 +162,9 @@ export function projectBlocklyState(
     return toProjection(lines, roots);
   }
 
-  const emitHeaders = topBlocks.length > 1;
-  for (const root of topBlocks) {
+  const productRoots = flattenConversionStartRoots(topBlocks);
+  const emitHeaders = productRoots.length > 1;
+  for (const root of productRoots) {
     const start = lines.length;
     const type = root.type ?? "unknown";
     const label = pickLabel(type, root.fields ?? {});
@@ -200,6 +202,18 @@ function rootHeaderLine(
     editKind: "none",
     info: { root: true, rootId, rootType: type },
   };
+}
+
+function flattenConversionStartRoots(topBlocks: BlocklyBlockJson[]): BlocklyBlockJson[] {
+  const roots: BlocklyBlockJson[] = [];
+  for (const root of topBlocks) {
+    if (root.type === CONVERSION_START_TYPE) {
+      if (root.next?.block) roots.push(root.next.block);
+      continue;
+    }
+    roots.push(root);
+  }
+  return roots;
 }
 
 function filteredFallback(rootId: string): SpecLine[] {

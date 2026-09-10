@@ -22,6 +22,8 @@ import {
 } from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
+import { registerConversionStartBlock, installInstanceRootNotches } from "./conversion_start.ts";
+import { installTypeFitGlyphs } from "./type_fit_glyphs.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
@@ -106,6 +108,17 @@ export {
   restoreDefaultsBlockState,
   serializeDefaultsMapArgument,
 } from "./defaults_canvas.ts";
+export {
+  CONVERSION_START_TYPE,
+  TEXT_DOCUMENT_TYPE,
+  ensureConversionStart,
+  findConversionStart,
+  findInstanceRootBlock,
+  installConversionStartGuard,
+  inferTargetFormatFromBlocklyState,
+  instanceRootTypeFromBlocklyState,
+  canvasProductAllowsEmptyExample,
+} from "./conversion_start.ts";
 export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler } from "./blocks/map_blocks.ts";
 export {
   defaultsMapKeys,
@@ -136,9 +149,12 @@ export function initBlocklyGenerators(): void {
   registerSheetBlocks();
   registerTextBlocks();
   registerLogicBlocks();
+  registerConversionStartBlock();
+  installInstanceRootNotches();
   registerExtractToFunctionMenu();
   registerGenerators();
   registerTypeScriptExportAdapter();
+  installTypeFitGlyphs();
 }
 
 function registerGenerators(): void {

@@ -58,6 +58,12 @@ export function createModestTheme(): Blockly.Theme {
         colourSecondary: "#EFEBE9",
         colourTertiary: "#BCAAA4",
       },
+      hat_blocks: {
+        colourPrimary: "#43A047",
+        colourSecondary: "#A5D6A7",
+        colourTertiary: "#2E7D32",
+        hat: "cap",
+      },
       // intEHRgrator Source accent (source_query uses colour_blocks style)
       colour_blocks: {
         colourPrimary: "#E87722",

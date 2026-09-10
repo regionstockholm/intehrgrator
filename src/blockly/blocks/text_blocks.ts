@@ -1,4 +1,5 @@
 import { Blockly } from "../blockly_core.ts";
+import { CONVERSION_START_TYPE, TEXT_DOCUMENT_TYPE } from "../conversion_start.ts";
 import { FieldDropdownHug } from "../field_dropdown_hug.ts";
 import {
   FieldCodeMirror,
@@ -9,6 +10,7 @@ import { msg, detectLocale } from "../i18n/locale.ts";
 
 export const TEXT_CODE_BLOCK_TYPE = "text_code";
 export const TEXT_HANDLEBARS_BLOCK_TYPE = "text_handlebars";
+export { TEXT_DOCUMENT_TYPE };
 
 const TEXT_COLOUR = "#FFCA28";
 
@@ -53,6 +55,20 @@ export function registerTextBlocks(): void {
       this.setOutput(true, "String");
       this.setColour(TEXT_COLOUR);
       this.setTooltip(m.TEXT_HANDLEBARS_TOOLTIP);
+      this.setStyle?.("text_blocks");
+      this.setInputsInline(false);
+    },
+  };
+
+  Blockly.Blocks[TEXT_DOCUMENT_TYPE] = {
+    init: function (this: Blockly.Block) {
+      this.appendValueInput("VALUE")
+        .setCheck("String")
+        .appendField(m.TEXT_DOCUMENT);
+      this.setPreviousStatement(true, CONVERSION_START_TYPE);
+      this.setNextStatement(false);
+      this.setColour(TEXT_COLOUR);
+      this.setTooltip(m.TEXT_DOCUMENT_TOOLTIP);
       this.setStyle?.("text_blocks");
       this.setInputsInline(false);
     },

@@ -67,7 +67,21 @@ export function rmEmojiFontPx(rmType: string): number {
  * Slots of abstract types (PARTY_PROXY, CONTENT_ITEM, …) use ⁇
  * even when ZipEHR also has an emoji — the popup lists allowed subclasses.
  * Block output still prefers the ZipEHR emoji so the block keeps its identity.
+ * Blockly checks (String, Array, …) reuse ZipEHR rows or the extra table below.
  */
+const BLOCKLY_CHECK_RM: Record<string, string> = {
+  String: "DV_TEXT",
+  Boolean: "DV_BOOLEAN",
+  Number: "C_REAL",
+};
+
+/** Checks with no ZipEHR row — keep these distinct from RM class glyphs. */
+const BLOCKLY_CHECK_GLYPHS: Record<string, string> = {
+  Array: "📋",
+  Map: "🗂️",
+  Source: "📂",
+};
+
 export function connectionPointGlyph(
   rmType: string | undefined,
   forSlot = false,
@@ -77,7 +91,66 @@ export function connectionPointGlyph(
   const emoji = zipehrEmojiForRmType(rmType);
   if (emoji) return emoji;
   if (isAbstractPlaceholderType(rmType)) return ABSTRACT_SLOT_GLYPH;
+  if (BLOCKLY_CHECK_GLYPHS[rmType]) return BLOCKLY_CHECK_GLYPHS[rmType];
+  const mapped = BLOCKLY_CHECK_RM[rmType];
+  if (mapped) return connectionPointGlyph(mapped, forSlot);
   return undefined;
+}
+
+/** Glyph for a Blockly connection check (string, Array, RM type, or union). */
+export function glyphForConnectionCheck(
+  check: string | string[] | null | undefined,
+  forSlot = false,
+): string | undefined {
+  if (check == null) return undefined;
+  if (Array.isArray(check)) {
+    if (check.length === 1) return glyphForConnectionCheck(check[0], forSlot);
+    return ABSTRACT_SLOT_GLYPH;
+  }
+  return connectionPointGlyph(check, forSlot);
+}
+
+/** Hover text for a Blockly check; unions list each allowed type. */
+export function checkConnectionTooltip(
+  check: string | string[] | null | undefined,
+): string {
+  if (check == null) return "";
+  if (Array.isArray(check)) {
+    if (check.length === 1) return checkConnectionTooltip(check[0]);
+    const lines = ["Allowed types:", ""];
+    for (const item of check) {
+      const glyph = glyphForConnectionCheck(item, false) ?? ABSTRACT_SLOT_GLYPH;
+      lines.push(`${glyph} ${item}`);
+    }
+    return lines.join("\n");
+  }
+  const mapped = BLOCKLY_CHECK_RM[check];
+  if (mapped) return `${rmTypeConnectionTooltip(mapped)} (${check})`;
+  if (zipehrEmojiForRmType(check) || isAbstractPlaceholderType(check)) {
+    return rmTypeConnectionTooltip(check);
+  }
+  return check;
+}
+
+/** Field for a Blockly check, including multi-type ⁇ slots. */
+export function createCheckTypeEmojiField(
+  check: string | string[] | null | undefined,
+  forSlot = false,
+): FieldRmTypeEmoji | null {
+  if (check == null) return null;
+  if (Array.isArray(check) && check.length > 1) {
+    const field = new FieldRmTypeEmoji("DATA_VALUE", true);
+    field.setTooltip(checkConnectionTooltip(check));
+    return field;
+  }
+  const key = Array.isArray(check) ? check[0] : check;
+  if (!key || !glyphForConnectionCheck(key, forSlot)) return null;
+  const mapped = BLOCKLY_CHECK_RM[key] ?? key;
+  const field = connectionPointGlyph(mapped, forSlot)
+    ? new FieldRmTypeEmoji(mapped, forSlot)
+    : new FieldRmTypeEmoji(key, forSlot);
+  field.setTooltip(checkConnectionTooltip(check));
+  return field;
 }
 
 export function isAbstractPlaceholderType(rmType: string): boolean {

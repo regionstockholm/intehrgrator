@@ -5,6 +5,8 @@ import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import { findSkeletonNode } from "../schema_catalog.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
+import { wrapBlockTypeInit } from "../type_fit_glyphs.ts";
+import { wrapSchemaInstanceRoot } from "../conversion_start.ts";
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
@@ -150,6 +152,8 @@ function defineStructureBlock(
     };
   }
   Blockly.Blocks[type] = blockDef;
+  wrapBlockTypeInit(type);
+  wrapSchemaInstanceRoot(type);
 }
 
 function defineValueBlock(

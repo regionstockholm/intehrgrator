@@ -45,6 +45,11 @@ import {
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runTest } from "../core/test_runner/mod.ts";
 import {
+  canvasProductAllowsEmptyExample,
+  inferTargetFormatFromBlocklyState,
+  instanceRootTypeFromBlocklyState,
+} from "../blockly/conversion_start.ts";
+import {
   canonicalSyncPath,
   detectSourceFormat,
   ExampleInstanceManager,
@@ -766,6 +771,12 @@ export class WorkbenchController {
   runTestNow(): void {
     const active = this.examples.getActive();
     if (!active) {
+      const state = this.getBlocklyState?.() ?? this.blocklyState;
+      if (canvasProductAllowsEmptyExample(state)) {
+        this.testResult = this.executeTestForExample({ content: "{}", format: "json" });
+        this.notifyChange();
+        return;
+      }
       this.testResult = { ok: false, error: "No active example", warnings: [] };
       this.notifyChange();
       return;
@@ -1270,15 +1281,22 @@ export class WorkbenchController {
   private refreshDerived(): void {
     // Spec view is widgets over the pretty Blockly JSON document.
     this.specText = formatBlocklyState(this.getBlocklyState?.() ?? this.blocklyState);
+    const state = this.getBlocklyState?.() ?? this.blocklyState;
+    if (!this.target) {
+      const inferred = inferTargetFormatFromBlocklyState(state);
+      if (inferred) this.model.targetFormat = inferred;
+    }
     const mode = this.settings.exportTarget;
     if (!isConversionScriptLanguage(mode)) {
       this.generatedCode = MAPPING_PREVIEW_SCRIPT_PLACEHOLDER;
       return;
     }
-    this.generatedCode = mode === "go-template" || this.model.templateId || this.handlebarsTemplate
+    const hasCanvasProduct = Boolean(instanceRootTypeFromBlocklyState(state));
+    this.generatedCode = mode === "go-template" || this.model.templateId || this.handlebarsTemplate ||
+        hasCanvasProduct
       ? generate(this.model, mode, {
         handlebarsTemplate: this.handlebarsTemplate,
-        blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+        blocklyState: state,
         skeleton: this.skeleton,
       })
       : "";

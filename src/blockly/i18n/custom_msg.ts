@@ -43,6 +43,10 @@ export interface IntehrMessages {
   TEXT_HANDLEBARS: string;
   TEXT_HANDLEBARS_WITH: string;
   TEXT_HANDLEBARS_TOOLTIP: string;
+  CONVERSION_START: string;
+  CONVERSION_START_TOOLTIP: string;
+  TEXT_DOCUMENT: string;
+  TEXT_DOCUMENT_TOOLTIP: string;
   FOR_EACH_SOURCE_PREFIX: string;
   FOR_EACH_SOURCE_IN: string;
   FOR_EACH_SOURCE_NODES: string;
@@ -109,6 +113,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_HANDLEBARS_WITH: "with",
     TEXT_HANDLEBARS_TOOLTIP:
       "Render a Handlebars script against a Map or a source subtree.",
+    CONVERSION_START: "Conversion start",
+    CONVERSION_START_TOOLTIP:
+      "Designates the conversion product. Snap onto one Instance root. Not a script trigger.",
+    TEXT_DOCUMENT: "Text document",
+    TEXT_DOCUMENT_TOOLTIP:
+      "Schema-less text Instance root. The product is the String value (code, Handlebars, or a source query).",
     FOR_EACH_SOURCE_PREFIX: "for each",
     FOR_EACH_SOURCE_IN: "in",
     FOR_EACH_SOURCE_NODES: "source nodes",
@@ -178,6 +188,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_HANDLEBARS_WITH: "med",
     TEXT_HANDLEBARS_TOOLTIP:
       "Rendera ett Handlebars-skript mot en Map eller ett källsubträd.",
+    CONVERSION_START: "Konverteringsstart",
+    CONVERSION_START_TOOLTIP:
+      "Markerar konverteringsprodukten. Kopplas på en Instansrot. Inte en skriptstart.",
+    TEXT_DOCUMENT: "Textdokument",
+    TEXT_DOCUMENT_TOOLTIP:
+      "Schemalös text-Instansrot. Produkten är strängvärdet (kod, Handlebars eller en källfråga).",
     FOR_EACH_SOURCE_PREFIX: "för varje",
     FOR_EACH_SOURCE_IN: "i",
     FOR_EACH_SOURCE_NODES: "källnoder",
@@ -247,6 +263,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_HANDLEBARS_WITH: "mit",
     TEXT_HANDLEBARS_TOOLTIP:
       "Handlebars-Skript gegen eine Map oder einen Quellen-Teilbaum ausführen.",
+    CONVERSION_START: "Conversion start",
+    CONVERSION_START_TOOLTIP:
+      "Designates the conversion product. Snap onto one Instance root. Not a script trigger.",
+    TEXT_DOCUMENT: "Text document",
+    TEXT_DOCUMENT_TOOLTIP:
+      "Schema-less text Instance root. The product is the String value (code, Handlebars, or a source query).",
     FOR_EACH_SOURCE_PREFIX: "für jedes",
     FOR_EACH_SOURCE_IN: "in",
     FOR_EACH_SOURCE_NODES: "Quellenknoten",
@@ -316,6 +338,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_HANDLEBARS_WITH: "con",
     TEXT_HANDLEBARS_TOOLTIP:
       "Renderiza un script Handlebars contra un Map o un subárbol de origen.",
+    CONVERSION_START: "Conversion start",
+    CONVERSION_START_TOOLTIP:
+      "Designates the conversion product. Snap onto one Instance root. Not a script trigger.",
+    TEXT_DOCUMENT: "Text document",
+    TEXT_DOCUMENT_TOOLTIP:
+      "Schema-less text Instance root. The product is the String value (code, Handlebars, or a source query).",
     FOR_EACH_SOURCE_PREFIX: "para cada",
     FOR_EACH_SOURCE_IN: "en",
     FOR_EACH_SOURCE_NODES: "nodos de origen",
@@ -385,6 +413,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_HANDLEBARS_WITH: "amb",
     TEXT_HANDLEBARS_TOOLTIP:
       "Renderitza un script Handlebars contra un Map o un subarbre d'origen.",
+    CONVERSION_START: "Conversion start",
+    CONVERSION_START_TOOLTIP:
+      "Designates the conversion product. Snap onto one Instance root. Not a script trigger.",
+    TEXT_DOCUMENT: "Text document",
+    TEXT_DOCUMENT_TOOLTIP:
+      "Schema-less text Instance root. The product is the String value (code, Handlebars, or a source query).",
     FOR_EACH_SOURCE_PREFIX: "per a cada",
     FOR_EACH_SOURCE_IN: "a",
     FOR_EACH_SOURCE_NODES: "nodes d'origen",
@@ -454,6 +488,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_HANDLEBARS_WITH: "avec",
     TEXT_HANDLEBARS_TOOLTIP:
       "Rend un script Handlebars contre une Map ou un sous-arbre source.",
+    CONVERSION_START: "Conversion start",
+    CONVERSION_START_TOOLTIP:
+      "Designates the conversion product. Snap onto one Instance root. Not a script trigger.",
+    TEXT_DOCUMENT: "Text document",
+    TEXT_DOCUMENT_TOOLTIP:
+      "Schema-less text Instance root. The product is the String value (code, Handlebars, or a source query).",
     FOR_EACH_SOURCE_PREFIX: "pour chaque",
     FOR_EACH_SOURCE_IN: "dans",
     FOR_EACH_SOURCE_NODES: "nœuds source",

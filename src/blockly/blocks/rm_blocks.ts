@@ -1,4 +1,5 @@
 import { Blockly } from "../blockly_core.ts";
+import { CONVERSION_START_TYPE } from "../conversion_start.ts";
 import type { BlockSvg } from "blockly/core";
 import "blockly/blocks";
 import { mandatoryAttributesFor } from "../../core/rm_mandatory.ts";
@@ -1010,6 +1011,9 @@ function defineContainerBlock(
       this.setTooltip(`openEHR RM ${options.rmType}`);
       if (isPartyProxyType(options.rmType)) {
         this.setOutput(true, options.nestCheck ?? options.rmType);
+      } else if (options.rmType === "COMPOSITION") {
+        this.setPreviousStatement(true, CONVERSION_START_TYPE);
+        this.setNextStatement(false);
       } else if (options.nestCheck) {
         this.setPreviousStatement(true, options.nestCheck);
         this.setNextStatement(true, options.nestCheck);

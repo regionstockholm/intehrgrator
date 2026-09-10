@@ -108,7 +108,8 @@ function emitBlock(block: BlockNode): string[] {
       break;
     }
     case "defaults_block":
-    case "maps_create_with": {
+    case "maps_create_with":
+    case "conversion_start": {
       break;
     }
     case "controls_if": {
@@ -161,6 +162,10 @@ function emitStatementChain(block: BlockNode): string[] {
   const lines: string[] = [];
   let current: BlockNode | undefined = block;
   while (current) {
+    if (current.type === "conversion_start") {
+      current = current.next?.block;
+      continue;
+    }
     lines.push(...emitBlock(current));
     current = current.next?.block;
   }

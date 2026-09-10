@@ -64,6 +64,8 @@ import {
   relabelWorkspaceFromSkeleton,
   ensureDefaultsBlock,
   findDefaultsBlock,
+  ensureConversionStart,
+  installConversionStartGuard,
   hydrateDefaultsMapArgument,
   serializeDefaultsMapArgument,
   setDefaultsMapPickHandler,
@@ -467,6 +469,7 @@ async function bootBlockly(): Promise<void> {
   });
   installExtractToFunctionOnWorkspace(workspace);
   installBlocklyFloatingOverlays();
+  installConversionStartGuard(workspace);
 
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
@@ -475,6 +478,7 @@ async function bootBlockly(): Promise<void> {
   }
   runWithoutBlocklyEvents(() => {
     ensureDefaultsBlock(workspace, blocklyLocale);
+    ensureConversionStart(workspace);
   });
 
   setDefaultsMapPickHandler(() => {
@@ -968,6 +972,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklySlotSignature = "";
     runWithoutBlocklyEvents(() => {
       ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+      ensureConversionStart(workspace);
     });
     applyPendingDefaultsMap();
     return;
@@ -979,6 +984,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklySlotSignature = "";
       runWithoutBlocklyEvents(() => {
         ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+        ensureConversionStart(workspace);
       });
       applyPendingDefaultsMap();
       return;
@@ -999,6 +1005,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         if (!findDefaultsBlock(workspace)) {
           ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
         }
+        ensureConversionStart(workspace);
         applyModelLoops(workspace, s.model);
         refreshWorkspaceConstraints(workspace);
         relabelWorkspaceFromSkeleton(workspace, s.skeleton);

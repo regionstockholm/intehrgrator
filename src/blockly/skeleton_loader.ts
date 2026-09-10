@@ -57,6 +57,7 @@ import {
 } from "./slot_cardinality.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 import { blocklyCheckForDv } from "./block_checks.ts";
+import { ensureConversionStart, CONVERSION_START_TYPE } from "./conversion_start.ts";
 
 export function loadSkeletonIntoWorkspace(
   workspace: WorkspaceSvg,
@@ -86,6 +87,7 @@ export function loadSkeletonIntoWorkspace(
     }
     applyModelExpressions(workspace, model);
     restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat);
+    ensureConversionStart(workspace);
     placeDefaultsBesideSkeleton(workspace);
     if (!schemaTarget) {
       attachDefaultPointLookups(workspace, skeleton, (parent, insertion) =>
@@ -117,6 +119,10 @@ const lockedRoots = new WeakSet<Blockly.Block>();
 export function lockWorkspaceRootsExpanded(workspace: Blockly.Workspace): void {
   for (const block of workspace.getTopBlocks(false)) {
     lockRootExpanded(block);
+    if (block.type === CONVERSION_START_TYPE) {
+      const next = block.getNextBlock();
+      if (next) lockRootExpanded(next);
+    }
   }
 }
 
@@ -128,6 +134,12 @@ export function setAllBlocksCollapsed(
   collapsed: boolean,
 ): void {
   const roots = new Set(workspace.getTopBlocks(false));
+  for (const top of workspace.getTopBlocks(false)) {
+    if (top.type === CONVERSION_START_TYPE) {
+      const next = top.getNextBlock();
+      if (next) roots.add(next);
+    }
+  }
   const grouped = typeof Blockly.Events.setGroup === "function";
   if (grouped) Blockly.Events.setGroup(true);
   try {

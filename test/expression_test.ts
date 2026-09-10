@@ -17,6 +17,13 @@ Deno.test("if expression", () => {
   assertEquals(ast.kind, "call");
 });
 
+Deno.test("lists_getIndex is a Mapping Expression builtin", () => {
+  const src = 'lists_getIndex(list("I10", "E11"), "FROM_START", 2)';
+  const ast = parseExpression(src);
+  assertEquals(serialize(ast), src);
+  assertEquals(validateExpressionSource(src), null);
+});
+
 Deno.test("switch and literal expressions", () => {
   const src = 'switch(xpathString("/type"), "a", 1, "b", 2, 0)';
   const ast = parseExpression(src);

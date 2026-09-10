@@ -1,6 +1,8 @@
 import type { Block } from "blockly/core";
+import * as enMsg from "blockly/msg/en";
 import type { ExprAst } from "../core/expression/mod.ts";
 import { serialize } from "../core/expression/mod.ts";
+import { Blockly } from "./blockly_core.ts";
 import {
   createSourceQueryBlock,
   returnTypeFromSourceBlock,
@@ -194,6 +196,19 @@ export function blockToExpression(block: Block | null): string | null {
     case "logic_negate": {
       const inner = blockToExpression(block.getInputTargetBlock("BOOL")) ?? "false";
       return `not(${inner})`;
+    }
+    case "lists_getIndex": {
+      if (String(block.getFieldValue("MODE") || "GET") !== "GET") return null;
+      // DV_* value-set lists are not Mapping Expressions — return null so
+      // TypeScript canvas codegen can emit `new DV_CODED_TEXT` / … instead.
+      const list = blockToExpression(block.getInputTargetBlock("VALUE"));
+      if (list === null) return null;
+      const where = String(block.getFieldValue("WHERE") || "FIRST");
+      if (where === "FROM_START" || where === "FROM_END") {
+        const at = blockToExpression(block.getInputTargetBlock("AT")) ?? "1";
+        return `lists_getIndex(${list}, ${JSON.stringify(where)}, ${at})`;
+      }
+      return `lists_getIndex(${list}, ${JSON.stringify(where)})`;
     }
     case "lists_create_with": {
       // Expression-path lists (DL quantifiers) need every item serializable.
@@ -409,6 +424,24 @@ export function astToExpressionBlock(
       );
       return finalize(block);
     }
+    if (ast.name === "lists_getIndex" && ast.args[0]) {
+      ensureStockListMessages();
+      const block = workspace.newBlock("lists_getIndex") as BlockSvg & {
+        updateAt_?: (hasAt: boolean) => void;
+      };
+      block.setFieldValue("GET", "MODE");
+      const where = ast.args[1]?.kind === "literal" ? String(ast.args[1].value) : "FIRST";
+      block.setFieldValue(where, "WHERE");
+      const needsAt = where === "FROM_START" || where === "FROM_END";
+      block.updateAt_?.(needsAt);
+      const list = astToExpressionBlock(workspace, ast.args[0], returnType, finalize);
+      block.getInput("VALUE")?.connection?.connect(list.outputConnection!);
+      if (needsAt && ast.args[2]) {
+        const at = astToExpressionBlock(workspace, ast.args[2], "number", finalize);
+        block.getInput("AT")?.connection?.connect(at.outputConnection!);
+      }
+      return finalize(block);
+    }
     if (ast.name === "list") {
       const block = workspace.newBlock("lists_create_with") as BlockSvg;
       // deno-lint-ignore no-explicit-any
@@ -507,4 +540,12 @@ function guardedRestriction(ast: CallAst): CallAst | null {
   if (serialize(guard.args[0]) !== serialize(body.args[0])) return null;
   if (!bodyName || serialize(guard.args[1]!) !== serialize(bodyName)) return null;
   return body;
+}
+
+function ensureStockListMessages(): void {
+  const Msg = (Blockly as unknown as { Msg?: Record<string, string> }).Msg;
+  if (Msg?.LISTS_GET_INDEX_FIRST) return;
+  const anyMod = enMsg as { default?: Record<string, string> } & Record<string, string>;
+  const table = anyMod.default && typeof anyMod.default === "object" ? anyMod.default : anyMod;
+  Blockly.setLocale(table);
 }

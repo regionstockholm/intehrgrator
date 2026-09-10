@@ -1,19 +1,12 @@
 import * as Blockly from "blockly/core";
 import "blockly/blocks";
 import { javascriptGenerator, Order } from "blockly/javascript";
-import type { MappingLoop, OptionalRmInsertion, SkeletonNode } from "../types/mod.ts";
-import { registerRmBlocks, isDataValueBlock, expressionBlockFromDataValueShell, rmAttributeInputName, optionalRmExtrasOf, optionalRmInputName } from "./blocks/rm_blocks.ts";
-import { isGenericValueBlockType, isSchemaStructureBlock, registerTargetBlocks } from "./blocks/target_blocks.ts";
-import { schemaSlotIdForInput } from "./schema_blocks.ts";
-import {
-  composeSchemaOptionalFields,
-  schemaOptionalExtrasOf,
-  schemaOptionalInputName,
-  setSchemaFieldsMutatorChangeHandler,
-} from "./blocks/schema_mutator.ts";
+import type { SkeletonNode } from "../types/mod.ts";
+import { extractMappingIr, type MappingModelExtract } from "./mapping_ir.ts";
+import { registerRmBlocks, rmAttributeInputName } from "./blocks/rm_blocks.ts";
+import { registerTargetBlocks } from "./blocks/target_blocks.ts";
 import { registerExpressionBlocks } from "./blocks/expression_blocks.ts";
 import { registerMapBlocks } from "./blocks/map_blocks.ts";
-import { MAPS_GET } from "../core/defaults/extract.ts";
 import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import {
@@ -29,7 +22,6 @@ import {
 } from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
-import { blockToExpression } from "./expression_serialize.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
@@ -68,6 +60,7 @@ export {
   type ListeningTarget,
 } from "./listening.ts";
 export { blockToExpression } from "./expression_serialize.ts";
+export type { MappingModelExtract } from "./mapping_ir.ts";
 export {
   createSourceQueryBlock,
   isSourceQueryBlockType,
@@ -205,6 +198,20 @@ function registerGenerators(): void {
     const returned = body ? stripTrailingComma(body) : "null";
     return (
       `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}) => {\n` +
+      `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+      `  return ${returned};\n` +
+      `}),\n`
+    );
+  };
+
+  javascriptGenerator.forBlock["for_each_list"] = (block) => {
+    const name = block.getFieldValue("VAR") || "item";
+    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+    const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
+    const body = javascriptGenerator.statementToCode(block, "DO").trim();
+    const returned = body ? stripTrailingComma(body) : "null";
+    return (
+      `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => {\n` +
       `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
       `  return ${returned};\n` +
       `}),\n`
@@ -464,122 +471,8 @@ function createBlockFromSkeleton(
   return block;
 }
 
-export function workspaceToModelJson(workspace: Blockly.Workspace): {
-  slots: Array<{ slotId: string; rmType: string; expression: string }>;
-  loops: MappingLoop[];
-  optionalRm: OptionalRmInsertion[];
-} {
-  const slots: Array<{ slotId: string; rmType: string; expression: string }> = [];
-  const seen = new Set<string>();
-  for (const block of workspace.getAllBlocks(false)) {
-    if (block.type === MAPS_GET) {
-      const slotId = block.getFieldValue("SLOT_ID");
-      const expression = blockToExpression(block);
-      const rmType = block.getFieldValue("RM_TYPE") || "CODE_PHRASE";
-      if (slotId && expression && !seen.has(slotId)) {
-        seen.add(slotId);
-        slots.push({ slotId, rmType, expression });
-      }
-      continue;
-    }
-    if (block.type === "party_identified") {
-      const slotId = block.getFieldValue("SLOT_ID");
-      const exprBlock = block.getInputTargetBlock(rmAttributeInputName("name"));
-      const expression = blockToExpression(exprBlock);
-      if (slotId && expression && !seen.has(slotId)) {
-        seen.add(slotId);
-        slots.push({ slotId, rmType: "PARTY_IDENTIFIED", expression });
-      }
-      continue;
-    }
-    if (block.type !== "element" && !isGenericValueBlockType(block.type) && !isDataValueBlock(block) &&
-      !isSchemaStructureBlock(block)
-    ) {
-      continue;
-    }
-    if (isSchemaStructureBlock(block)) {
-      for (const input of block.inputList) {
-        if (!input.name.startsWith("TARGET_") && !input.name.startsWith("SCHEMA_OPT_")) continue;
-        if (input.type === 3) continue;
-        const fieldSlot = schemaSlotIdForInput(block, input.name);
-        const exprBlock = block.getInputTargetBlock(input.name);
-        const expression = blockToExpression(exprBlock);
-        if (fieldSlot && expression && !seen.has(fieldSlot)) {
-          seen.add(fieldSlot);
-          const attr = input.name.replace(/^TARGET_|^SCHEMA_OPT_/, "");
-          slots.push({ slotId: fieldSlot, rmType: attr, expression });
-        }
-      }
-      continue;
-    }
-    const slotId = block.getFieldValue("SLOT_ID");
-    const rmType = block.getFieldValue("RM_TYPE") || block.getFieldValue("TARGET_TYPE");
-    const valueBlock = block.getInputTargetBlock("VALUE");
-    const exprBlock = valueBlock && isDataValueBlock(valueBlock)
-      ? expressionBlockFromDataValueShell(valueBlock)
-      : isDataValueBlock(block)
-      ? expressionBlockFromDataValueShell(block)
-      : valueBlock;
-    const expression = blockToExpression(exprBlock);
-    if (slotId && expression && !seen.has(slotId)) {
-      seen.add(slotId);
-      slots.push({ slotId, rmType, expression });
-    }
-  }
-  return {
-    slots,
-    loops: loopsFromWorkspace(workspace),
-    optionalRm: optionalRmFromWorkspace(workspace),
-  };
-}
-
-function optionalRmFromWorkspace(workspace: Blockly.Workspace): OptionalRmInsertion[] {
-  const out: OptionalRmInsertion[] = [];
-  for (const block of workspace.getAllBlocks(false)) {
-    const slotId = block.getFieldValue("SLOT_ID");
-    if (!slotId) continue;
-    const extras = isSchemaStructureBlock(block)
-      ? schemaOptionalExtrasOf(block)
-      : optionalRmExtrasOf(block);
-    if (!extras.length) continue;
-    for (const name of extras) {
-      const input = isSchemaStructureBlock(block)
-        ? block.getInput(schemaOptionalInputName(name))
-        : block.getInput(optionalRmInputName(name)) ??
-          block.getInput(rmAttributeInputName(name));
-      const child = input?.connection?.targetBlock();
-      const rmType = child?.getFieldValue("RM_TYPE") ||
-        child?.getFieldValue("TARGET_TYPE") ||
-        (child ? String(child.type).toUpperCase() : name);
-      out.push({ attachmentSlotId: slotId, rmType, attributeName: name });
-    }
-  }
-  return out;
-}
-
-function loopsFromWorkspace(workspace: Blockly.Workspace): MappingLoop[] {
-  const loops: MappingLoop[] = [];
-  for (const block of workspace.getAllBlocks(false)) {
-    if (block.type !== "for_each_source") continue;
-    const inner = block.getInputTargetBlock("DO");
-    const attachSlotId = firstSlotIdInStack(inner);
-    const varName = String(block.getFieldValue("VAR") || "");
-    const path = String(block.getFieldValue("PATH") || "");
-    if (attachSlotId && varName && path) {
-      loops.push({ attachSlotId, varName, path });
-    }
-  }
-  return loops;
-}
-
-function firstSlotIdInStack(block: Blockly.Block | null): string | null {
-  let current = block;
-  while (current) {
-    const slotId = current.getFieldValue("SLOT_ID");
-    if (slotId) return slotId;
-    current = current.getNextBlock();
-  }
-  return null;
+export function workspaceToModelJson(workspace: Blockly.Workspace): MappingModelExtract {
+  return extractMappingIr(workspace);
 }
 
 function rmObjectStatement(rmType: string, attrs: string[]) {

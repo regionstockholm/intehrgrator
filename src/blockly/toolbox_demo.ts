@@ -6,7 +6,8 @@
  * Adapted from Blockly DevSite landing demo toolbox:
  * https://github.com/RaspberryPiFoundation/blockly-samples/blob/main/examples/devsite-landing-demo/toolbox.js
  *
- * intEHRgrator additions: Source + openEHR types (COMPOSITION / DATA_VALUE) categories, for_each_source in Loops.
+ * intEHRgrator additions: Source + openEHR types (COMPOSITION / DATA_VALUE) categories,
+ * `for_each_source` / `for_each_list` in Loops (stock while/for/forEach removed).
  */
 
 import type { BlocklyOptions } from "blockly/core";
@@ -248,7 +249,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         colour: 262,
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryLogic" },
         contents: [
-          { kind: "block", type: "controls_if" },
           { kind: "block", type: "logic_compare" },
           { kind: "block", type: "logic_operation" },
           { kind: "block", type: "logic_negate" },
@@ -282,28 +282,14 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         colour: 122,
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryLoops" },
         contents: [
-          {
-            kind: "block",
-            type: "controls_repeat_ext",
-            inputs: {
-              TIMES: {
-                shadow: { type: "math_number", fields: { NUM: 10 } },
-              },
-            },
-          },
-          { kind: "block", type: "controls_whileUntil" },
-          {
-            kind: "block",
-            type: "controls_for",
-            inputs: {
-              FROM: { shadow: { type: "math_number", fields: { NUM: 1 } } },
-              TO: { shadow: { type: "math_number", fields: { NUM: 10 } } },
-              BY: { shadow: { type: "math_number", fields: { NUM: 1 } } },
-            },
-          },
-          { kind: "block", type: "controls_forEach" },
           { kind: "block", type: "for_each_source" },
-          { kind: "block", type: "controls_flow_statements" },
+          {
+            kind: "block",
+            type: "for_each_list",
+            inputs: {
+              LIST: { shadow: { type: "lists_create_with", extraState: { itemCount: 0 } } },
+            },
+          },
         ],
       },
       {
@@ -360,15 +346,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
               HIGH: { shadow: { type: "math_number", fields: { NUM: 100 } } },
             },
           },
-          {
-            kind: "block",
-            type: "math_random_int",
-            inputs: {
-              FROM: { shadow: { type: "math_number", fields: { NUM: 1 } } },
-              TO: { shadow: { type: "math_number", fields: { NUM: 100 } } },
-            },
-          },
-          { kind: "block", type: "math_random_float" },
         ],
       },
       {
@@ -456,13 +433,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
               TEXT: { shadow: { type: "text", fields: { TEXT: " abc " } } },
             },
           },
-          {
-            kind: "block",
-            type: "text_print",
-            inputs: {
-              TEXT: { shadow: { type: "text", fields: { TEXT: "abc" } } },
-            },
-          },
         ],
       },
       {
@@ -473,18 +443,10 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         contents: [
           { kind: "block", type: "lists_create_with", extraState: { itemCount: 0 } },
           { kind: "block", type: "lists_create_with", extraState: { itemCount: 3 } },
-          {
-            kind: "block",
-            type: "lists_repeat",
-            inputs: {
-              NUM: { shadow: { type: "math_number", fields: { NUM: 5 } } },
-            },
-          },
           { kind: "block", type: "lists_length" },
           { kind: "block", type: "lists_isEmpty" },
           { kind: "block", type: "lists_indexOf" },
           { kind: "block", type: "lists_getIndex" },
-          { kind: "block", type: "lists_setIndex" },
           { kind: "block", type: "lists_getSublist" },
           {
             kind: "block",
@@ -566,49 +528,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
             inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
           },
           { kind: "block", type: "sheet_get_data", fields: { NAME: "Sheet1" } },
-          {
-            kind: "block",
-            type: "sheet_set_cell",
-            fields: { NAME: "Sheet1" },
-            inputs: {
-              A1: { shadow: { type: "text", fields: { TEXT: "A1" } } },
-              VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
-            },
-          },
-          {
-            kind: "block",
-            type: "sheet_set_xy",
-            fields: { NAME: "Sheet1" },
-            inputs: {
-              X: { shadow: { type: "math_number", fields: { NUM: 0 } } },
-              Y: { shadow: { type: "math_number", fields: { NUM: 0 } } },
-              VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
-            },
-          },
-          {
-            kind: "block",
-            type: "sheet_insert_row",
-            fields: { NAME: "Sheet1" },
-            inputs: { Y: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
-          },
-          {
-            kind: "block",
-            type: "sheet_delete_row",
-            fields: { NAME: "Sheet1" },
-            inputs: { Y: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
-          },
-          {
-            kind: "block",
-            type: "sheet_insert_column",
-            fields: { NAME: "Sheet1" },
-            inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
-          },
-          {
-            kind: "block",
-            type: "sheet_delete_column",
-            fields: { NAME: "Sheet1" },
-            inputs: { X: { shadow: { type: "math_number", fields: { NUM: 0 } } } },
-          },
         ],
       },
       { kind: "sep" },

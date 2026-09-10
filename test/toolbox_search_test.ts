@@ -17,6 +17,7 @@ Deno.test("toolbox contains a search category above the minimap covering custom 
     "observation",
     "maps_create_with",
     "for_each_source",
+    "for_each_list",
     "text_handlebars",
   ]) {
     assert(types.includes(type), `toolbox-search index should include ${type}`);

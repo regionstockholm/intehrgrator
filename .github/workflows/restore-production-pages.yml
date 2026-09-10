@@ -1,0 +1,60 @@
+# One-shot restore: republish production Pages from `main` and drop
+# non-semver frozen dirs (e.g. a `validation-*` tag that matched `v*`).
+# Does not merge to main. workflow_dispatch only.
+
+name: Restore production Pages
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - run: deno task vendor
+      - run: deno task test
+      - run: deno task build
+      - name: Assemble production Pages from main
+        run: deno run -A scripts/assemble-pages.ts main dist dist-pages
+
+      - name: Drop accidental validation-prep Pages subdirectory
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, re, shutil
+          root = pathlib.Path("dist-pages")
+          alpha = root / "validation-prep-alpha.1"
+          if alpha.exists():
+              shutil.rmtree(alpha)
+          manifest_path = root / "versions.json"
+          data = json.loads(manifest_path.read_text())
+          keep = [v for v in data.get("versions", []) if isinstance(v, str) and re.match(r"^v\d", v)]
+          manifest_path.write_text(json.dumps({"versions": keep}, indent=2) + "\n")
+          print("kept", keep)
+          PY
+
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: dist-pages
+      - id: deployment
+        uses: actions/deploy-pages@v5

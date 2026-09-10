@@ -1,0 +1,66 @@
+# GitHub Release for validation-prep tags. Does NOT deploy this repo's GitHub Pages
+# (the live site at regionstockholm.github.io/intehrgrator stays untouched).
+# Preview Web Shell is published to a separate Pages repo.
+
+name: Preview release
+
+on:
+  push:
+    tags:
+      - "validation-prep-*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Vendor ehrtslib
+        run: deno task vendor
+
+      - name: Test
+        run: deno task test
+
+      - name: Build Web Shell
+        run: deno task build
+
+      - name: Compile desktop binaries
+        run: deno task compile:desktop
+
+      - name: Create GitHub Release (prerelease)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          PREVIEW_PAGES="https://regionstockholm.github.io/intehrgrator-validation-prep/"
+          {
+            echo "## intEHRgrator ${TAG} (validation-prep preview)"
+            echo
+            echo "Pre-release from the \`validation-prep\` branch ([issue #35](https://github.com/regionstockholm/intehrgrator/issues/35))."
+            echo "This tag does **not** update \`main\` or the production GitHub Pages site."
+            echo
+            echo "### Web Shell (separate Pages site)"
+            echo
+            echo "- **This preview:** [${PREVIEW_PAGES}](${PREVIEW_PAGES})"
+            echo "- **Production (untouched):** https://regionstockholm.github.io/intehrgrator/"
+            echo "- **Frozen 0.6.5:** https://regionstockholm.github.io/intehrgrator/v0.6.5/"
+          } > /tmp/release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists — uploading assets only"
+          else
+            gh release create "$TAG" \
+              --prerelease \
+              --title "intEHRgrator ${TAG}" \
+              --notes-file /tmp/release-notes.md
+          fi
+          gh release upload "$TAG" dist/release/intEHRgrator-linux-x64.AppImage --clobber
+          gh release upload "$TAG" dist/release/intEHRgrator-windows-x64.zip --clobber
+          gh release upload "$TAG" dist/release/intEHRgrator-macos-x64.zip --clobber
+          gh release upload "$TAG" dist/release/intEHRgrator-macos-arm64.zip --clobber

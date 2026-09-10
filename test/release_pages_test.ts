@@ -32,6 +32,15 @@ Deno.test("normalizeManifest deduplicates and sorts versions", () => {
   );
 });
 
+Deno.test("normalizeManifest keeps only numeric v* release tags", () => {
+  assertEquals(
+    normalizeManifest({
+      versions: ["v0.6.5", "validation-prep-alpha.1", "v0.6.1"],
+    }),
+    { versions: ["v0.6.5", "v0.6.1"] },
+  );
+});
+
 Deno.test("pagesRepoPathDepth counts project path segments", () => {
   assertEquals(pagesRepoPathDepth("https://regionstockholm.github.io/intehrgrator"), 1);
   assertEquals(pagesRepoPathDepth("https://regionstockholm.github.io/intehrgrator/"), 1);

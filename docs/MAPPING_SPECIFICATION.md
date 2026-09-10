@@ -90,9 +90,12 @@ Handlebars tab is active and no Target value slot is in Listening Mode.
 
 ## Versioning
 
-`MappingModel.modelVersion` is currently `2`. Blockly JSON is persisted in its
-full native form; UI-only coordinates may be filtered in future review
-projections, but are retained in Project Bundles for exact restoration.
+`MappingModel.modelVersion` is currently `3` (loops with `kind`, nested
+`targetSignature`, explicit `unsupported` / escape-hatch records, `sheetNames`).
+v2 bundles still load; the index is rebuilt from Blockly on workspace change.
+Blockly JSON is persisted in its full native form; UI-only coordinates may
+be filtered in future review projections, but are retained in Project Bundles
+for exact restoration.
 
 Blockly is pinned through `deno.json`. Major Blockly upgrades must include a
 Project Bundle migration test.

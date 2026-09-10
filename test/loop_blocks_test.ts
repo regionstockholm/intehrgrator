@@ -74,6 +74,7 @@ Deno.test("applyModelLoops wraps the repeating container with for_each_source", 
     attachSlotId: "evt-1",
     varName: "measurements",
     path: "$.measurements",
+    kind: "source",
   }]);
   workspace.dispose();
 });

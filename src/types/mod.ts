@@ -1,6 +1,6 @@
 import type { SheetDocument } from "../core/sheets/types.ts";
 
-export const MODEL_VERSION = 2;
+export const MODEL_VERSION = 3;
 
 /** Conversion script language. Deliberately separate from Target instance format. */
 export type ConversionScriptLanguage = "typescript" | "java" | "handlebars" | "xquery" | "go-template";
@@ -49,6 +49,15 @@ export type TargetFormatId =
   | "xml-schema"
   | "free-form";
 
+export type MappingEscapeKind = "text_code" | "text_handlebars" | "procedures_callreturn";
+
+/** Escape-hatch metadata on a value slot (`text_code` LANG, Handlebars, procedure call). */
+export interface MappingSlotHatch {
+  kind: MappingEscapeKind;
+  /** `text_code` LANG dropdown (plain, handlebars, go-template, …). */
+  lang?: string;
+}
+
 export interface MappingSlot {
   slotId: string;
   rmType: string;
@@ -56,6 +65,7 @@ export interface MappingSlot {
   returnType: string;
   label?: string;
   mandatory?: boolean;
+  hatch?: MappingSlotHatch;
 }
 
 export interface OptionalRmInsertion {
@@ -64,11 +74,37 @@ export interface OptionalRmInsertion {
   attributeName: string;
 }
 
+export type MappingLoopKind = "source" | "list";
+
 export interface MappingLoop {
   attachSlotId: string;
   varName: string;
-  /** Absolute source path of the iterated nodes (e.g. `$.measurements`). */
+  /** Absolute source path of the iterated nodes (source loops). Empty for list loops. */
   path: string;
+  /** Defaults to `"source"` when omitted (v2 bundles). */
+  kind?: MappingLoopKind;
+  /** Mapping Expression for the iterated list (`for_each_list`). */
+  collection?: string;
+}
+
+export type MappingUnsupportedReason = "escape" | "unsupported" | "removed";
+
+/** Block that is not first-class IR — recorded so exporters do not drop it silently. */
+export interface MappingUnsupportedBlock {
+  blockType: string;
+  slotId?: string;
+  reason: MappingUnsupportedReason;
+  /** `text_code` LANG when `reason` is `"escape"`. */
+  lang?: string;
+}
+
+/** Nested RM / schema tree extracted from the canvas. */
+export interface TargetSignatureNode {
+  slotId: string;
+  rmType: string;
+  label?: string;
+  optional?: boolean;
+  children: TargetSignatureNode[];
 }
 
 export interface MappingModel {
@@ -78,8 +114,14 @@ export interface MappingModel {
   targetFormat?: TargetFormatId;
   slots: MappingSlot[];
   optionalRm: OptionalRmInsertion[];
-  /** Repeatable source→target iteration (`for_each_source` / `[*]` paths). */
+  /** Repeatable iteration (`for_each_source` / `for_each_list`). */
   loops?: MappingLoop[];
+  /** Nested target structure (optional RM / schema extras marked `optional`). */
+  targetSignature?: TargetSignatureNode[];
+  /** Escape-hatch, leftover Remove-list, or unknown blocks. */
+  unsupported?: MappingUnsupportedBlock[];
+  /** Sheet documents referenced by accessors or `sheet` declarations. */
+  sheetNames?: string[];
 }
 
 export type SkeletonNodeKind = "container" | "value";

@@ -34,6 +34,7 @@ export type ExprAst =
       | "handlebars"
       | "map"
       | "list"
+      | "lists_getIndex"
       | LogicCompareName
       | LogicBoolName
       | LogicQuantifyName
@@ -59,6 +60,7 @@ const BUILTIN_NAMES = new Set([
   "handlebars",
   "map",
   "list",
+  "lists_getIndex",
   ...LOGIC_COMPARE_NAMES,
   ...LOGIC_BOOL_NAMES,
   ...LOGIC_QUANTIFY_NAMES,

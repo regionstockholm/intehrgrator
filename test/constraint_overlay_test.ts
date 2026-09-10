@@ -191,7 +191,7 @@ Deno.test("mandated mouth shows overlay; quiet sibling has no Δ; protocol is mu
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("overlay_fixture"), null);
 
-  const composition = workspace.getTopBlocks(false).find((b) => b.type === "composition");
+  const composition = workspace.getAllBlocks(false).find((b) => b.type === "composition");
   assert(composition);
   const contextLabel = slotLabelOn(composition, "context");
   assert(contextLabel);

@@ -63,6 +63,9 @@ import {
   relabelWorkspaceFromSkeleton,
   ensureDefaultsBlock,
   findDefaultsBlock,
+  ensureConversionStartOnScaffold,
+  enforceConversionStartUniqueness,
+  CONVERSION_START_TYPE,
   hydrateDefaultsMapArgument,
   serializeDefaultsMapArgument,
   setDefaultsMapPickHandler,
@@ -75,6 +78,7 @@ import {
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
 import { registerServiceWorker } from "./pwa.ts";
+import { mountMappingSpecChrome, type SpecRootLayout } from "../src/ui/mapping_spec_chrome.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
 import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
@@ -205,6 +209,40 @@ const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
 }, "handlebars");
 let activeTextView: "mapping-json" | "handlebars" | "sheets" = "mapping-json";
 let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
+let specChromeUi: ReturnType<typeof mountMappingSpecChrome> | null = null;
+
+function refreshMappingSpecView(blocklyState?: unknown): void {
+  const state = blocklyState ?? Blockly.serialization.workspaces.save(workspace);
+  const layout = specChromeUi?.getLayout() ?? "list";
+  const rootId = layout === "tabs" ? specChromeUi?.getActiveRootId() ?? null : null;
+  setMappingSpecFromBlockly(specEditor, state, specChrome(), { rootId });
+}
+
+function wireMappingSpecLayoutMenu(): void {
+  const chevron = document.getElementById("tab-mapping-json-menu");
+  const menu = document.getElementById("menu-mapping-spec-layout");
+  if (!chevron || !menu) return;
+  const close = () => {
+    menu.hidden = true;
+    chevron.setAttribute("aria-expanded", "false");
+  };
+  chevron.addEventListener("click", (event) => {
+    event.stopPropagation();
+    const open = menu.hidden;
+    menu.hidden = !open;
+    chevron.setAttribute("aria-expanded", open ? "true" : "false");
+  });
+  document.addEventListener("click", (event) => {
+    if (!menu.contains(event.target as Node) && event.target !== chevron) close();
+  });
+  for (const item of menu.querySelectorAll<HTMLButtonElement>("[data-spec-layout]")) {
+    item.addEventListener("click", () => {
+      const layout = item.dataset.specLayout as SpecRootLayout;
+      specChromeUi?.setLayout(layout);
+      close();
+    });
+  }
+}
 type HandlebarsInsertMode = "flat" | "tree";
 const handlebarsInsertToolbar = document.getElementById("handlebars-insert-toolbar");
 
@@ -382,7 +420,14 @@ async function bootBlockly(): Promise<void> {
   }
   runWithoutBlocklyEvents(() => {
     ensureDefaultsBlock(workspace, blocklyLocale);
+    ensureConversionStartOnScaffold(workspace);
   });
+
+  specChromeUi = mountMappingSpecChrome(mappingJsonHost, {
+    getBlocklyState: () => Blockly.serialization.workspaces.save(workspace),
+    onLayoutChange: () => refreshMappingSpecView(),
+  });
+  wireMappingSpecLayoutMenu();
 
   setDefaultsMapPickHandler(() => {
     void openDefaultsMapDialog();
@@ -485,6 +530,16 @@ async function bootBlockly(): Promise<void> {
 
   workspace.addChangeListener((event) => {
     refreshUndoButtons();
+    if (
+      event.type === Blockly.Events.BLOCK_CREATE &&
+      "blockId" in event &&
+      typeof event.blockId === "string"
+    ) {
+      const created = workspace.getBlockById(event.blockId);
+      if (created?.type === CONVERSION_START_TYPE) {
+        enforceConversionStartUniqueness(workspace);
+      }
+    }
     if (event.type === DOCUMENT_SWAP_EVENT_TYPE) return;
     if (event.type === SHEET_CHANGE_EVENT_TYPE) {
       refreshUndoButtons();
@@ -804,11 +859,7 @@ function applyBlockSelection(blockId: string | null, origin: "blockly" | "spec")
     if (origin === "blockly" && blockId) {
       scrollMappingSpecToBlock(specEditor, blockId);
     }
-    setMappingSpecFromBlockly(
-      specEditor,
-      Blockly.serialization.workspaces.save(workspace),
-      specChrome(),
-    );
+    refreshMappingSpecView();
     if (block) {
       const target = listeningTargetFromBlock(block);
       if (target?.kind === "slot") controller.armSlot(target.slotId);
@@ -878,6 +929,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklySlotSignature = "";
     runWithoutBlocklyEvents(() => {
       ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+      ensureConversionStartOnScaffold(workspace);
     });
     applyPendingDefaultsMap();
     return;
@@ -889,6 +941,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklySlotSignature = "";
       runWithoutBlocklyEvents(() => {
         ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+        ensureConversionStartOnScaffold(workspace);
       });
       applyPendingDefaultsMap();
       return;
@@ -909,6 +962,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         if (!findDefaultsBlock(workspace)) {
           ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
         }
+        ensureConversionStartOnScaffold(workspace);
         applyModelLoops(workspace, s.model);
         refreshWorkspaceConstraints(workspace);
         relabelWorkspaceFromSkeleton(workspace, s.skeleton);
@@ -1522,7 +1576,7 @@ async function openDefaultsMapDialog(): Promise<void> {
   if (!entries.length && defaultsMapList.childElementCount === 0) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "No saved Defaults Maps yet. Use Save as, Download, Browse file, or a URL.";
+    empty.textContent = "No saved default context mappings yet. Use Save as, Download, Browse file, or a URL.";
     defaultsMapList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -1558,7 +1612,7 @@ function openHardcodeDefaultsDialog(): void {
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "The Defaults Map has no entries to hardcode yet.";
+    empty.textContent = "The default context mapping has no entries to hardcode yet.";
     hardcodeDefaultsList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -1627,7 +1681,7 @@ document.getElementById("defaults-map-url-load")?.addEventListener("click", () =
 document.getElementById("defaults-map-download")?.addEventListener("click", () => {
   try {
     const mapBlock = serializeDefaultsMapArgument(workspace);
-    if (!mapBlock) throw new Error("No Defaults Map to download");
+    if (!mapBlock) throw new Error("No default context mapping to download");
     void host.downloadText(
       "defaults.map.json",
       JSON.stringify(mapBlock, null, 2),
@@ -1652,7 +1706,7 @@ dialogDefaultsSaveAs.addEventListener("close", () => {
   void (async () => {
     try {
       const mapBlock = serializeDefaultsMapArgument(workspace);
-      if (!mapBlock) throw new Error("No Defaults Map to save");
+      if (!mapBlock) throw new Error("No default context mapping to save");
       await defaultsCatalog.save(defaultsSaveAsNameInput.value, mapBlock);
       dialogDefaultsMap.close();
     } catch (err) {
@@ -1815,11 +1869,7 @@ function render(): void {
   // Blockly apply may have refreshed generatedCode without a re-render.
   const afterCanvas = controller.getState();
 
-  setMappingSpecFromBlockly(
-    specEditor,
-    afterCanvas.blocklyState ?? (workspace ? Blockly.serialization.workspaces.save(workspace) : null),
-    specChrome(),
-  );
+  specChromeUi?.refresh();
   if (handlebarsEditor.state.doc.toString() !== afterCanvas.handlebarsTemplate) {
     updatingHandlebarsEditor = true;
     setEditorDoc(

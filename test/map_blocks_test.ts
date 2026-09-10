@@ -43,7 +43,7 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
     .map((field) => field.getText());
   assertEquals(imageAlts.includes("Load/save"), true);
   assert(
-    imageAlts.some((alt) => alt.includes("convert-time")),
+    imageAlts.some((alt) => alt.includes("execution-context") || alt.includes("design-time")),
     `expected info FieldImage, got ${JSON.stringify(imageAlts)}`,
   );
   workspace.dispose();

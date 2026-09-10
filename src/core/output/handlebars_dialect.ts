@@ -1,8 +1,11 @@
 import Handlebars from "handlebars";
+import { VMS_HBS_ALLOWED_HELPERS } from "./vms_hbs.ts";
 
 export interface HandlebarsRenderOptions {
   strict?: boolean;
   slots?: Readonly<Record<string, unknown>>;
+  /** When true (default), reject helpers outside VMS-Hbs (ADR 0009). */
+  knownHelpersOnly?: boolean;
 }
 
 /** Kintegrate-compatible Handlebars runtime, isolated from global registrations. */
@@ -22,9 +25,6 @@ export function createKintegrateHandlebars(): typeof Handlebars {
     slot(this: unknown, slotId: unknown, options: { data?: { root?: { _slots?: Record<string, unknown> } } }) {
       return options.data?.root?._slots?.[String(slotId)];
     },
-    json(value: unknown) {
-      return new engine.SafeString(JSON.stringify(value));
-    },
   });
   return engine;
 }
@@ -38,11 +38,14 @@ export function renderHandlebars(
   const root = isRecord(source)
     ? { ...source, _slots: options.slots ?? {} }
     : { value: source, _slots: options.slots ?? {} };
+  const knownHelpersOnly = options.knownHelpersOnly ?? true;
   const template = engine.compile(templateSource, {
     strict: options.strict ?? false,
     noEscape: true,
     data: true,
     preventIndent: false,
+    knownHelpers: VMS_HBS_ALLOWED_HELPERS,
+    knownHelpersOnly,
   });
   return template(root, {
     allowProtoMethodsByDefault: false,

@@ -16,6 +16,7 @@ import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_r
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { MODEL_VERSION } from "@intehrgrator/types/mod.ts";
 import type { TargetSignatureNode } from "@intehrgrator/types/mod.ts";
+import { ensureGoTemplateWasm } from "@intehrgrator/core/output/go_template_runtime.ts";
 
 let ready = false;
 function ensure(): void {
@@ -114,8 +115,35 @@ Deno.test("for_each_list extracts kind list and collection expression", () => {
   workspace.dispose();
 });
 
-Deno.test("text_code LANG is recorded as an escape hatch, not a silent drop", () => {
+Deno.test("text_code LANG is recorded as an escape hatch, not a silent drop", async () => {
   ensure();
+  await ensureGoTemplateWasm();
+  const workspace = new Blockly.Workspace();
+  const slot = workspace.newBlock("target_value");
+  slot.setFieldValue("slot/note", "SLOT_ID");
+  slot.setFieldValue("DV_TEXT", "TARGET_TYPE");
+  const code = workspace.newBlock("text_code");
+  code.setFieldValue("go-template", "LANG");
+  // Out-of-dialect Go (call) remains an escape hatch.
+  code.setFieldValue("{{call .Fn}}", "TEXT");
+  slot.getInput("VALUE")!.connection!.connect(code.outputConnection!);
+
+  const ir = workspaceToModelJson(workspace);
+  const mapped = ir.slots.find((s) => s.slotId === "slot/note");
+  assertEquals(mapped?.expression, JSON.stringify("{{call .Fn}}"));
+  assertEquals(mapped?.hatch, { kind: "text_code", lang: "go-template" });
+  assert(
+    ir.unsupported.some((u) =>
+      u.blockType === "text_code" && u.reason === "escape" && u.lang === "go-template"
+    ),
+    `expected text_code escape, got ${JSON.stringify(ir.unsupported)}`,
+  );
+  workspace.dispose();
+});
+
+Deno.test("in-dialect go-template text_code is not an escape hatch", async () => {
+  ensure();
+  await ensureGoTemplateWasm();
   const workspace = new Blockly.Workspace();
   const slot = workspace.newBlock("target_value");
   slot.setFieldValue("slot/note", "SLOT_ID");
@@ -127,13 +155,10 @@ Deno.test("text_code LANG is recorded as an escape hatch, not a silent drop", ()
 
   const ir = workspaceToModelJson(workspace);
   const mapped = ir.slots.find((s) => s.slotId === "slot/note");
-  assertEquals(mapped?.expression, JSON.stringify('{{ index .Data "raw" }}'));
-  assertEquals(mapped?.hatch, { kind: "text_code", lang: "go-template" });
-  assert(
-    ir.unsupported.some((u) =>
-      u.blockType === "text_code" && u.reason === "escape" && u.lang === "go-template"
-    ),
-    `expected text_code escape, got ${JSON.stringify(ir.unsupported)}`,
+  assertEquals(mapped?.hatch, undefined);
+  assertEquals(
+    ir.unsupported.some((u) => u.blockType === "text_code"),
+    false,
   );
   workspace.dispose();
 });
@@ -326,7 +351,25 @@ Deno.test("lists_getIndex in a value slot is a kept expression, not unsupported"
   workspace.dispose();
 });
 
-Deno.test("text_handlebars is recorded as an escape hatch", () => {
+Deno.test("out-of-dialect text_handlebars is recorded as an escape hatch", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const slot = workspace.newBlock("target_value");
+  slot.setFieldValue("slot/note", "SLOT_ID");
+  const render = workspace.newBlock("text_handlebars");
+  const script = workspace.newBlock("text");
+  script.setFieldValue("{{#with patient}}{{name}}{{/with}}", "TEXT");
+  render.getInput("SCRIPT")!.connection!.connect(script.outputConnection!);
+  slot.getInput("VALUE")!.connection!.connect(render.outputConnection!);
+
+  const ir = workspaceToModelJson(workspace);
+  const mapped = ir.slots.find((s) => s.slotId === "slot/note");
+  assertEquals(mapped?.hatch, { kind: "text_handlebars" });
+  assert(ir.unsupported.some((u) => u.blockType === "text_handlebars" && u.reason === "escape"));
+  workspace.dispose();
+});
+
+Deno.test("in-dialect text_handlebars is not an escape hatch", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const slot = workspace.newBlock("target_value");
@@ -340,8 +383,11 @@ Deno.test("text_handlebars is recorded as an escape hatch", () => {
   const ir = workspaceToModelJson(workspace);
   const mapped = ir.slots.find((s) => s.slotId === "slot/note");
   assertEquals(mapped?.expression, 'handlebars("{{name}}", map())');
-  assertEquals(mapped?.hatch, { kind: "text_handlebars" });
-  assert(ir.unsupported.some((u) => u.blockType === "text_handlebars" && u.reason === "escape"));
+  assertEquals(mapped?.hatch, undefined);
+  assertEquals(
+    ir.unsupported.some((u) => u.blockType === "text_handlebars"),
+    false,
+  );
   workspace.dispose();
 });
 
@@ -426,9 +472,10 @@ Deno.test("lung-MDT fixture Blockly extracts unsupported Remove types and round-
     first.unsupported.some((u) => u.blockType === "controls_if" && u.reason === "removed"),
     "leftover statement-if is recorded as removed, not an If IR node",
   );
-  assert(
-    first.unsupported.some((u) => u.blockType === "text_code" && u.reason === "escape" && u.lang),
-    "text_code LANG is recorded as escape",
+  assertEquals(
+    first.unsupported.some((u) => u.blockType === "text_code" && u.reason === "escape"),
+    false,
+    "lung-MDT Handlebars text_code is VMS-Hbs, not an escape hatch",
   );
   assertEquals(first.loops.some((loop) => (loop as { if?: unknown }).if != null), false);
   const saved = Blockly.serialization.workspaces.save(workspace);

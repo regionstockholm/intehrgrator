@@ -52,6 +52,16 @@ export {
   blockConstraintMessages,
 } from "./block_constraints.ts";
 export {
+  blockHatchMessages,
+  isLiteralSourcePath,
+  HATCH_REMOVED,
+  HATCH_PROCEDURES,
+  HATCH_JSON_XML,
+  HATCH_DYNAMIC_PATH,
+  HATCH_OUT_OF_DIALECT_HBS,
+  HATCH_OUT_OF_DIALECT_GO,
+} from "./vms_linter.ts";
+export {
   PLACEHOLDER_SOURCE_PATH,
   isPlaceholderSourcePath,
   listeningTargetFromBlock,

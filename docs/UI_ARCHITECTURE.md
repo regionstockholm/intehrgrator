@@ -291,7 +291,7 @@ The footer status bar has three regions:
 
 Projects are self-contained; see [PROJECT_PERSISTENCE.md](PROJECT_PERSISTENCE.md).
 
-IndexedDB uses two stores: `projects` (legacy/by project id) and `saves` (autosave + manual snapshots).
+IndexedDB uses one store: `saves` (autosave + manual snapshots).
 
 | Storage key | Kind | UI label | Retention |
 |-------------|------|----------|-----------|

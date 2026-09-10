@@ -22,7 +22,7 @@
 
 ## C. Better support for map and table data structures
 - [x] Model blockly support for maps in the style of the blockly list blocks, check for already available implementations based on blockly, - i know such exist. Key/value pairs share a row (Blockly 11 `appendEndRowInput`), so the Defaults Map nested constructor stays compact.
-- [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket). Legacy `KEY{n}` input JSON is migrated on load.
+- [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket).
 - [x] **Chunk 8 — spreadsheet/matrix first:** embed a real sheet widget (Excel/Sheets paste, named column headers, optional row names, typed columns). Persist a project-owned 2D sheet model. Library comparison: [spreadsheet-matrix-libraries.md](future/spreadsheet-matrix-libraries.md). **Then** add Blockly accessor/mutator blocks whose names follow that library’s get/set/insert/delete/header API (cell A1 or x,y; row; column; header; bulk data; lookup-by-content). Maps stay 1D key→value (`maps_get`); sheets are the 2D structure for terminology grids (e.g. later: code + rubric → `DV_CODED_TEXT`).
 - [x] Digest CSV / Excel / Google Sheets **into that sheet** (clipboard paste + file), not into `maps_create_with`.
 - [x] **Keep `maps_*`** for Defaults Map + nested Blockly values (Chunk 8 Q9 step 2, option A). Join Lists + Maps toolbox drawers into **Lists & maps**. Sheets stay a separate drawer. See [`tasks/DESIGN-sheets-vs-maps.md`](../tasks/DESIGN-sheets-vs-maps.md).
@@ -95,10 +95,10 @@
 # conversion script generation
 
 ## J. Golden examples
-TypeScript golden tests, undefined-emit cleanup, and Mapping preview vs TypeScript vs XQuery equivalence on the Verifiable Mapping Subset are **issue #38** (in progress). Java/Handlebars compare stays out of #38. Do not treat the boxes below as done.
+TypeScript golden tests, undefined-emit cleanup, and Mapping preview vs TypeScript vs XQuery IR coverage on the Verifiable Mapping Subset are **issue #38** (ADR 0009). Java/Handlebars compare stays out of #38. Nested COMPOSITION XML / in-app XQuery execution is **#39**.
 
-- [ ] check if current typescript converter is correct, remove any bugs
-- [ ] compare and improve other formats (Java, xquery, Handlebars etc) 
+- [x] check if current typescript converter is correct, remove any bugs (VMS fixtures)
+- [ ] compare and improve other formats (Java, Handlebars etc)
 - [ ] make cloud environments with java/xquery access test such conversion output too
 
 ## K. XQuery conversion script language

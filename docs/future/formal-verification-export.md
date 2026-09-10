@@ -221,10 +221,10 @@ mark what **landed in #35 / #37** versus remaining issues.
 
 | Category | Post-#35/#37 | Remaining |
 |----------|--------------|-----------|
-| **Canvas vs Mapping Model gap** | IR carries `slots[]`, `loops[]`, `targetSignature`, `optionalRm`, `unsupported`, `sheetNames` | Consumers still diverge: XQuery emits `slots[]` only (#39); Mapping preview vs TypeScript vs XQuery share no oracle yet (#38) |
+| **Canvas vs Mapping Model gap** | IR carries `slots[]`, `loops[]`, `targetSignature`, `optionalRm`, `unsupported`, `sheetNames` | Nested COMPOSITION XML XQuery remains #39. Preview ≡ TypeScript golden is ADR 0009 / #38. |
 | **Template / string DSL blocks** | Escape hatch: `slots[].hatch` + `unsupported` reason `escape` | Unbounded strings stay unverified; linter is #40 |
 | **Sheet mutators** | Removed from toolbox; leftover JSON → `unsupported` reason `removed` | Do not codegen; PBT forbids convert-time mutation (#41) |
-| **Stock imperative Blockly** | Removed from toolbox (`src/blockly/vms.ts`) | Leftover JSON deserializes; TypeScript still `undefined`-emits some types (#38) |
+| **Stock imperative Blockly** | Removed from toolbox (`src/blockly/vms.ts`) | Leftover JSON deserializes; unknown types throw in TypeScript codegen (#38) |
 | **Dynamic source paths** | Unchanged | Literal paths for proof obligations; runtime helpers otherwise |
 | **Optional RM / schema mutators** | `optionalRm[]` + nested `targetSignature` | Include in mapping-contract target signature |
 | **Finite enumerations (`term_pick`)** | Unchanged | **Positive** — DL-style value constraints |
@@ -242,24 +242,23 @@ path/collection, attachSlotId), nested `targetSignature`, `optionalRm`,
 | Feature | In Mapping Model? | Codegen today |
 |---------|-------------------|---------------|
 | Value-slot expressions (`source_query`, `maps_get`, …) | Yes (`slots[].expression`, optional `hatch`) | All adapters |
-| `for_each_source` / `for_each_list` | Yes (`loops[]` with `kind`) | TypeScript canvas; **not** XQuery (#39) |
+| `for_each_source` / `for_each_list` | Yes (`loops[]` with `kind`) | TypeScript canvas; XQuery Model B `for` grain (#38); nested RM XML #39 |
 | RM / schema tree shape | Yes (`targetSignature[]`, `optionalRm[]`) | TypeScript canvas; XQuery Model B slot manifest only (#39) |
 | `lists_getIndex`, `lists_create_with` | Slot expressions when used in values | TypeScript canvas |
 | Sheet **mutator** statements | `unsupported` reason `removed` | Not in toolbox |
-| Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach`, `controls_if` | `unsupported` reason `removed` | Not in toolbox; leftover JSON may still `undefined`-emit in TS (#38) |
+| Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach`, `controls_if` | `unsupported` reason `removed` | Not in toolbox; leftover JSON throws in TypeScript codegen (#38) |
 
 **Why it still hurts:** Declarative exports and verifiers want one **closed,
-compositional IR consumer**. The IR exists; Mapping preview, TypeScript canvas
-walk, and XQuery slot-manifest still do not share one oracle.
-[ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md) flags that seam;
-unifying it is [#38](https://github.com/regionstockholm/intehrgrator/issues/38).
+compositional IR consumer**. The IR exists. Mapping preview vs TypeScript on
+VMS mappings is golden-tested (ADR 0009 / #38). XQuery covers IR slots and
+`loops[]` as a Model B slot manifest; nested COMPOSITION XML is #39.
+[ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md) is the seam.
 
 **Remaining:**
 
-1. All declarative exports (XQuery, mapping-contract, future DL emit) consume
-   the IR, not ad-hoc canvas walks — XQuery loops/tree is #39.
-2. Pick one **verification oracle** and golden-test equivalence on VMS
-   mappings — #38 (do not decide the oracle in this note).
+1. All declarative exports (XQuery nested tree, mapping-contract, future DL emit) consume
+   the IR, not ad-hoc canvas walks — XQuery tree is #39.
+2. Verification oracle for VMS mappings is ADR 0009 (Mapping preview ≡ TypeScript).
 
 ### 2. `text_handlebars`, `text_code`, and the Authored Handlebars Template
 
@@ -332,7 +331,7 @@ hostile to SMT, description logics, and static XQuery typing.
 1. Keep `for_each_source` / `for_each_list` as the sanctioned iteration primitives
    ([BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)).
 2. Workspace lint for leftover Remove-list JSON and escape hatches is #40.
-3. TypeScript `undefined` emit for unhandled leftover types is #38.
+3. TypeScript codegen throws for unhandled leftover types instead of emitting `undefined` (#38).
 4. Conditional mapping uses `logic_ternary` / expression `if()` / `switch`, not
    statement-level `controls_if`.
 
@@ -454,7 +453,7 @@ and Remove-list types if they appear on the canvas.
 1. **Contract language surface** — YAML vs JSON vs a dedicated `.mapping-contract` extension; alignment with [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
 2. **Source schema as precondition** — how strongly to require a loaded Source Schema vs inferring from examples.
 3. **Loop grain** — whether to adopt grain-correctness style rules for `for_each_source` (see recent data-pipeline formalization literature).
-5. **Execution oracle** — Mapping preview interpreter vs generated TypeScript/XQuery (ADR 0003 seam; remaining in #38).
+5. **Execution oracle** — Mapping preview vs TypeScript on VMS mappings is ADR 0009 / #38; in-app XQuery execution is not.
 6. **Robustness generators** — how complete must Source Schema be before PBT can claim “no valid source crashes convert”?
 7. **Sensitivity vs equivalence classes** — when `switch` maps many codes to one target, how to declare that class so sensitivity checks do not false-fail.
 

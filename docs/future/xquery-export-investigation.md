@@ -126,8 +126,8 @@ local:convert($source)
 3. **JSON source notes** — document engine-specific map lookup vs `fn:json-doc`.
 4. **Units / coded-text fields** — multi-field DV shells beyond the primary
    expression attribute.
-5. **`for_each_source` / `for_each_list` loops** — present in Mapping Model
-   `loops[]` (#37); XQuery emit of loops and nested tree is
+5. **Nested COMPOSITION XML around loops** — Mapping Model `loops[]` emit as
+   Model B `for $var in … return` slot grain in #38; full nested RM XML remains
    [#39](https://github.com/regionstockholm/intehrgrator/issues/39).
 
 ## Related

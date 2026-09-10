@@ -238,6 +238,6 @@ Possibly modify this to make maxinal use if XPATH 3.1 built in functions support
 ## Further Notes
 
 - **Issue tracker:** Publish this PRD to `regionstockholm/intehrgrator` with label `ready-for-agent` when `gh` or Jira is available.
-- **Related docs:** All design decisions in `docs/` and `CONTEXT.md` supersede `INITIAL_PROMPT.md` body details and `old-clippings.md`.
+- **Related docs:** All design decisions in `docs/` and `CONTEXT.md` supersede `docs/historical-archive/INITIAL_PROMPT.md` body details and `docs/historical-archive/old-clippings.md`.
 - **Mockup:** `docs/assets/prototype-ui-v1-consolidated.png`
 - **Deferred features:** `docs/future/` (wildcard mapping, integrated AI, text-first editor, XQuery export investigation)

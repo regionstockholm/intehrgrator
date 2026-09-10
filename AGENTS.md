@@ -25,28 +25,18 @@
 
 ## Development process guidance
 
-- If asked to make a `PRD` (Product Requirements Document) based on a prompt,
-  then follow the instructions in
-  https://raw.githubusercontent.com/snarktank/ai-dev-tasks/refs/heads/main/create-prd.md
-- If asked to create a `task list` then look in the /tasks subdirectory for a
-  PRD file to base it on. If there are several PRD files that don't already have
-  associated task lists, then ask user for disambiguation. Then follow
-  instructions in
-  https://raw.githubusercontent.com/snarktank/ai-dev-tasks/refs/heads/main/generate-tasks.md
-  using the PRD file as input. Refer to PRD in task list document.
-- Put PRDs and task lists in a /tasks subdirectory
-- The task list file(s) should contain a section called "Instructions for
-  Completing Tasks" with the following content:
+Use the **Matt Pocock skills** in `.cursor/skills/` (see [README-DEVELOPERS.md](README-DEVELOPERS.md#matt-pocock-skills-recommended-workflow)) rather than external PRD/task-list generators.
 
-```
-**IMPORTANT:** As you complete each task, you must check it off in this markdown file by changing `- [ ]` to `- [x]`. This helps track progress and ensures you don't skip any steps. 
-Example:
-- `- [ ] 1.1 Read file` → `- [x] 1.1 Read file` (after completing)
+| Goal | Skill |
+|------|-------|
+| Shape a feature before coding | `to-spec`, `grill-with-docs`, `grilling` |
+| Break a spec into tickets | `to-tickets` (GitHub issues with blocking edges) |
+| Implement with tests | `implement` (drives `tdd` internally) |
+| Incoming bugs / requests | `triage` |
+| Hard bugs | `diagnosing-bugs` |
+| Pre-merge review | `code-review` |
 
-Update the file after completing each sub-task, not just after completing an entire parent task. If implementation steps happen to fulfil several things at once then ticking off several boxes is OK.
-
-If running in interactive mode (e.g. Gemini CLI) then stop after each parent task and let user review. If running in autonomus batch mode e.g. dispatched to Jules, then just stop if user input is crucial in order to understand further steps.
-```
+PRDs and task lists live under **`docs/planning/`** (not a top-level `/tasks` directory). When creating a task list markdown file, include an **Instructions for Completing Tasks** section that tells implementers to check off `- [ ]` → `- [x]` as they work.
 
 ## Development tooling guidance
 

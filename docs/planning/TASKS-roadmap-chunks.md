@@ -195,7 +195,7 @@ Context from product direction:
 **C** — **Separate stacks** — “Undo my edit” (Blockly) vs “Undo last agent change” (API).  
 **D** — Extend **Blockly custom events** (`DocumentSwapEvent`, future slot events) with an `actor` field so one stack serves both.
 
-➡️ **Adopted direction:** **Joint undo/redo history** with actor on every entry, plus **UI affordances like C** (“Undo my edit” / “Undo last agent change” / walk full timeline). **Feasible without CRDT in Phase 1** — see design investigation [`tasks/DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md). Phase 1: append-only attributed history log + unify UI/service session + debounced Blockly commits into same log. Phase 2+: CRDT on **Mapping Model slots** (Automerge / Yjs / Loro — do not reinvent) when human multi-user live co-editing is required.
+➡️ **Adopted direction:** **Joint undo/redo history** with actor on every entry, plus **UI affordances like C** (“Undo my edit” / “Undo last agent change” / walk full timeline). **Feasible without CRDT in Phase 1** — see design investigation [`docs/design/DESIGN-multi-agent-undo-crdt.md`](../design/DESIGN-multi-agent-undo-crdt.md). Phase 1: append-only attributed history log + unify UI/service session + debounced Blockly commits into same log. Phase 2+: CRDT on **Mapping Model slots** (Automerge / Yjs / Loro — do not reinvent) when human multi-user live co-editing is required.
 
 ---
 
@@ -206,7 +206,7 @@ Context from product direction:
 **C** — **Serial queue** per project — one mutation at a time globally.  
 **D** — **Merge report** — apply non-conflicting slot updates; return conflicts for human/agent retry (like partial import).
 
-➡️ **Adopted (from design investigation):** **Phase 5.1: A + D** — revision + 409; slot-level **merge report** for batch agent writes (reuse partial-import pattern). **Phase 5.2 optional: + B** slot leases. **Phase 6+ multi-user humans: + CRDT on model.** Avoid global serial queue (C). Details: [`tasks/DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md#q7-recommendation-after-analysis).
+➡️ **Adopted (from design investigation):** **Phase 5.1: A + D** — revision + 409; slot-level **merge report** for batch agent writes (reuse partial-import pattern). **Phase 5.2 optional: + B** slot leases. **Phase 6+ multi-user humans: + CRDT on model.** Avoid global serial queue (C). Details: [`docs/design/DESIGN-multi-agent-undo-crdt.md`](../design/DESIGN-multi-agent-undo-crdt.md#q7-recommendation-after-analysis).
 
 ---
 
@@ -245,7 +245,7 @@ Shortcut menu items (“Undo my last edit”, “Undo last agent change”) rema
 
 ❓ **Q5** - **Human multi-user roadmap:**
 
-➡️ **Adopted: yes, near end of roadmap.** Chunk 5.1 = **architecture-only prep** in [`tasks/ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md). Full CRDT/sync deferred to **Chunk 14**.
+➡️ **Adopted: yes, near end of roadmap.** Chunk 5.1 = **architecture-only prep** in [`docs/design/ARCHITECTURE-multi-user-collab-prep.md`](../design/ARCHITECTURE-multi-user-collab-prep.md). Full CRDT/sync deferred to **Chunk 14**.
 
 ---
 
@@ -284,8 +284,8 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 - `src/web/agent_bridge.ts` — push agent highlight events to UI without scrolling main workspace
 - `src/blockly/workspace_snapshot.ts` — live observer window (multi-agent SVG layers)
 - `web/main.ts` — Open canvas → observer mode; undo menu shows actor
-- `tasks/DESIGN-multi-agent-undo-crdt.md` — undo/history feasibility, library evaluation
-- `tasks/ARCHITECTURE-multi-user-collab-prep.md` — Chunk 14 prep (5.1 lays seams only)
+- `docs/design/DESIGN-multi-agent-undo-crdt.md` — undo/history feasibility, library evaluation
+- `docs/design/ARCHITECTURE-multi-user-collab-prep.md` — Chunk 14 prep (5.1 lays seams only)
 - `docs/AGENT_WORKFLOW.md` — multi-agent setup, colours, observer window
 - `CONTEXT.md` — Agent actor, observer canvas, attributed undo
 

@@ -75,4 +75,4 @@ One way of describing the AM/RM relation in openEHR is: The AM is a bit like a s
 | [docs/assets/prototype-ui-v1-consolidated.png](docs/assets/prototype-ui-v1-consolidated.png) | Consolidated v1 UI mockup |
 | [docs/future/](docs/future/) | Deferred features |
 
-> [old-clippings.md](old-clippings.md) is **superseded** — kept for historical reference only.
+> [old-clippings.md](./old-clippings.md) is **superseded** — kept for historical reference only.

@@ -2,7 +2,7 @@
  * Constraint Overlay Phase 1: RM vs effective OPT on Attribute mouths and
  * prohibited Optional RM Insertion rows.
  *
- * @see tasks/prd-constraint-overlay-on-rm-blocks.md
+ * @see docs/planning/prd-constraint-overlay-on-rm-blocks.md
  * @see docs/adr/0007-constraint-overlay-on-rm-block-mouths.md
  */
 import { assert, assertEquals } from "@std/assert";

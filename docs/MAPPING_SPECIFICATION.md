@@ -48,7 +48,7 @@ Mapping Model slots[] (derived semantic index)
 - Blockly JSON owns block structure, fields, inputs, mutation state, ids, and
   workspace coordinates.
 - Mapping Model is rebuilt from value-slot blocks after workspace changes. It
-  remains the small migration-friendly index used by validation, AI
+  is the small semantic index used by validation, AI
   suggestions, code generation, and Test Run.
 - Project Bundles persist both. On load, Blockly JSON restores the workspace;
   subsequent changes regenerate the Mapping Model.
@@ -92,10 +92,10 @@ Handlebars tab is active and no Target value slot is in Listening Mode.
 
 `MappingModel.modelVersion` is currently `3` (loops with `kind`, nested
 `targetSignature`, explicit `unsupported` / escape-hatch records, `sheetNames`).
-v2 bundles still load; the index is rebuilt from Blockly on workspace change.
+The index is rebuilt from Blockly on workspace change.
 Blockly JSON is persisted in its full native form; UI-only coordinates may
 be filtered in future review projections, but are retained in Project Bundles
 for exact restoration.
 
-Blockly is pinned through `deno.json`. Major Blockly upgrades must include a
-Project Bundle migration test.
+Blockly is pinned through `deno.json`. A major Blockly upgrade must include a
+Project Bundle round-trip test of the current format.

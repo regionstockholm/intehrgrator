@@ -292,7 +292,7 @@ export class WorkbenchController {
     }
   }
 
-  /** Backwards-compatible alias used by the Workbench Test API. */
+  /** Load a target file (OPT, schema, or free-form). Used by the Workbench Test API. */
   loadTemplateContent(filename: string, content: string): void {
     this.loadTargetContent(filename, content);
   }
@@ -1389,7 +1389,6 @@ export class WorkbenchController {
       return {
         ok: false,
         output: message,
-        composition: message,
         error: message.trim(),
         warnings: [],
       };
@@ -1397,7 +1396,6 @@ export class WorkbenchController {
     return runTest(this.model, example.content, example.format, {
       target: this.target,
       outputMode: mode,
-      exportTarget: this.target?.format === "free-form" ? "handlebars" : undefined,
       generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
@@ -1424,14 +1422,6 @@ export class WorkbenchController {
       appVersion: APP_VERSION,
       createdAt: now,
       updatedAt: now,
-      template: this.target?.format === "openehr-template"
-        ? {
-          filename: this.templateFilename,
-          templateId: this.templateId,
-          content: this.templateContent,
-          skeleton: this.skeleton,
-        }
-        : null,
       target: this.target
         ? {
           format: this.target.format,
@@ -1461,7 +1451,7 @@ export class WorkbenchController {
         handlebarsTemplate: this.handlebarsTemplate,
         sheets: cloneSheets(this.sheets),
       },
-      settings: { ...this.settings, exportTarget: "typescript" },
+      settings: { ...this.settings },
       urlHistory: this.captureUrlHistory(),
     };
   }
@@ -1473,10 +1463,7 @@ export class WorkbenchController {
       ...bundle.settings,
       exportTarget: "preview",
     };
-    this.model = {
-      ...bundle.mapping.model,
-      modelVersion: bundle.mapping.model.modelVersion ?? 1,
-    };
+    this.model = { ...bundle.mapping.model };
     this.blocklyState = bundle.mapping.blocklyState;
     this.handlebarsTemplate = bundle.mapping.handlebarsTemplate ?? "";
     this.sheets = normalizeSheets(bundle.mapping.sheets ?? []);

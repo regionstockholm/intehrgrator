@@ -31,7 +31,6 @@ conversion script language whose output is often not openEHR.
 - JSON Schema and XSD targets use the same Target value slot interaction as
   openEHR.
 - Handlebars is not assumed to produce openEHR.
-- Project Bundles persist a format-neutral `target`; the legacy `template` field
-  is read for older saves only.
+- Project Bundles persist a format-neutral `target`.
 - Better Form Renderer binaries remain optional, locally installed licensed
   assets and are never committed.

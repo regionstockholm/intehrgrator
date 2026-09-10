@@ -135,8 +135,8 @@ Deno.test("Test Run goes through Source Format Handler", () => {
   });
   const result = runTest(model, JSON.stringify({ systolic: 118 }), "json");
   assertEquals(result.ok, true);
-  const composition = result.composition as { slots: Record<string, unknown> };
-  assertEquals(composition.slots["slot/systolic"], 118);
+  const output = result.output as { slots: Record<string, unknown> };
+  assertEquals(output.slots["slot/systolic"], 118);
 });
 
 Deno.test("prose-prefixed FLAT execute envelope unwraps Data keys", () => {

@@ -291,7 +291,7 @@ The footer status bar has three regions:
 
 Projects are self-contained; see [PROJECT_PERSISTENCE.md](PROJECT_PERSISTENCE.md).
 
-IndexedDB uses two stores: `projects` (legacy/by project id) and `saves` (autosave + manual snapshots).
+IndexedDB uses a `saves` store (autosave + manual snapshots).
 
 | Storage key | Kind | UI label | Retention |
 |-------------|------|----------|-----------|
@@ -301,7 +301,7 @@ IndexedDB uses two stores: `projects` (legacy/by project id) and `saves` (autosa
 - **Save as** writes a manual save to the `saves` store.
 - **Load Project** reads from `saves` (autosave + recent manual list).
 - **Export Project** downloads a `.intehrgrator` file containing the OPT, source/example content, Blockly workspace, settings, and metadata.
-- **Import Project** restores the bundle after validating app/project version and template id (marks workspace dirty).
+- **Import Project** restores the bundle after validating bundle version and mapping shape (marks workspace dirty).
 - Browser file paths are not used as durable references in v1.
 
 ## Color Scheme (Karolinska-inspired)

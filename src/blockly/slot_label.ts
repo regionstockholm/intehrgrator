@@ -424,7 +424,7 @@ export function appendSlotLabel(
     existing.setDocumentation(options.documentation);
     return;
   }
-  // Prefer a clean row: drop legacy split name / card / emoji fields.
+  // Replace split name / card / emoji fields with one overlay caption.
   for (const field of [...input.fieldRow]) {
     const fname = String(field.name ?? "");
     if (

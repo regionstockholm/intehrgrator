@@ -1832,7 +1832,7 @@ function render(): void {
   sheetsPanel?.refresh();
   const generated = afterCanvas.generatedCode || "// Generated Export";
   setEditorDoc(exportEditor, generated, languageForExportTarget(s.settings.exportTarget, generated));
-  const testOutput = afterCanvas.testResult?.output ?? afterCanvas.testResult?.composition;
+  const testOutput = afterCanvas.testResult?.output;
   const testOutputText = testOutput !== undefined
     ? formatTestOutput(testOutput)
     : "// Test Run output";

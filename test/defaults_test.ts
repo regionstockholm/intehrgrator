@@ -105,35 +105,6 @@ Deno.test("namedMapsFromBlocklyState reads term_pick codes from Defaults Map val
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
 });
 
-Deno.test("namedMapsFromBlocklyState still reads legacy KEY value-input JSON", () => {
-  const state = {
-    blocks: {
-      blocks: [
-        {
-          type: "defaults_block",
-          inputs: {
-            MAP: {
-              block: {
-                type: "maps_create_with",
-                extraState: { itemCount: 2 },
-                inputs: {
-                  KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
-                  VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
-                  KEY1: { shadow: { type: "text", fields: { TEXT: "territory" } } },
-                  VAL1: { shadow: { type: "text", fields: { TEXT: "SE" } } },
-                },
-              },
-            },
-          },
-        },
-      ],
-    },
-  };
-  const maps = namedMapsFromBlocklyState(state);
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
-});
-
 Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a workspace", () => {
   const block = { type: "maps_create_with", extraState: { itemCount: 0 } };
   assertEquals(mapBlockFromDefaultsJson(block), block);

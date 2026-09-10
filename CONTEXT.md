@@ -61,7 +61,7 @@ A key-value collection in the Mapping Editor, parallel to a Blockly List. Entrie
 _Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor), **Sheet** (2D grid)
 
 **Sheet** (matrix / spreadsheet):
-A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly **accessor** blocks (`sheet_get_*`, `sheet_lookup`) read that grid at convert time. Sheet mutator blocks were removed from the toolbox in the VMS cut (PR #58); types remain registered so old bundles load. Distinct from **Map** and from openEHR `ITEM_TABLE`.
+A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly **accessor** blocks (`sheet_get_*`, `sheet_lookup`) read that grid at convert time. Sheet mutator blocks were removed from the toolbox in the VMS cut (PR #58). Distinct from **Map** and from openEHR `ITEM_TABLE`.
 _Avoid_: table (ambiguous with RM `ITEM_TABLE`), Excel (the desktop app), treating a Sheet as a 1D Map
 
 **Defaults block**:
@@ -297,7 +297,7 @@ Optional seam for Push/Pull against a licensed Better Form Renderer viewer (asse
 _Avoid_: formTestApi (kintegrate name for the form viewer API)
 
 **Project Bundle**:
-Self-contained saved workspace containing target definition (format-neutral `target` plus legacy `template` for openEHR), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
+Self-contained saved workspace containing target definition (`target`), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
 _Avoid_: Mapping file, saved state
 
 ## Example dialogue

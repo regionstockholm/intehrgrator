@@ -127,7 +127,7 @@ Deno.test("autosave writes a distinct IndexedDB slot and clears dirty", async ()
   const record = host.saves.get(AUTOSAVE_STORAGE_KEY);
   assert(record, "autosave record should exist");
   assertEquals(record.kind, "autosave");
-  assert(record.bundle.template?.templateId.includes("blood_pressure"));
+  assert(record.bundle.target?.targetId.includes("blood_pressure"));
   assertEquals(record.bundle.sourceSchema?.filename, "bp_source_schema.json");
   assertEquals(record.bundle.examples.length, 1);
 });
@@ -198,7 +198,7 @@ Deno.test("New Project clears workspace but exportBundle of a prior save stays i
   assertEquals(empty.examples.length, 0);
   assertEquals(empty.saveStatus.dirty, false);
 
-  assert(saved.template?.content.includes("blood_pressure") || saved.template?.templateId);
+  assert(saved.target?.content.includes("blood_pressure") || saved.target?.targetId);
   const roundTrip: ProjectBundle = importBundle(exportBundle(saved));
   assertEquals(roundTrip.projectId, saved.projectId);
 });

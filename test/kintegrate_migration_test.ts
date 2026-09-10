@@ -90,7 +90,6 @@ Deno.test("Workbench-style Test Run: intro free-form Handlebars dialect", async 
   model.targetFormat = "free-form";
   const result = runTest(model, source, "json", {
     target,
-    exportTarget: "handlebars",
     handlebarsTemplate: template,
   });
   assertEquals(result.ok, true);
@@ -105,7 +104,6 @@ Deno.test("Workbench-style Test Run: MDK openEHR-as-source + Handlebars", async 
   model.targetFormat = "free-form";
   const result = runTest(model, source, "openehr-structured-json", {
     target,
-    exportTarget: "handlebars",
     handlebarsTemplate: template,
   });
   assertEquals(result.ok, true);
@@ -169,7 +167,6 @@ Deno.test("Workbench-style Test Run: emergency-ward free-form Handlebars", async
   model.targetFormat = "free-form";
   const result = runTest(model, source, "openehr-structured-json", {
     target,
-    exportTarget: "handlebars",
     handlebarsTemplate: template,
   });
   assertEquals(result.ok, true);

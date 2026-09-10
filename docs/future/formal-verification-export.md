@@ -214,7 +214,7 @@ extractor (`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
 | **Canvas vs Mapping Model gap** | Medium — Mapping Model has `loops[]` / `targetSignature`; XQuery still emits flat `slots[]` only ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)) | Medium — preview vs codegen oracle still open ([#38](https://github.com/regionstockholm/intehrgrator/issues/38)) |
 | **Template / string DSL blocks** | High — `handlebars()` / `text_code` collapse to opaque strings | High — unbounded string templates are not a decidable logic |
 | **Sheet mutators** | **Removed** from toolbox (VMS); not in Mapping Model expressions | High if re-enabled — imperative convert-time state |
-| **Stock imperative Blockly** | **Removed** from toolbox (VMS) — types load for old bundles only | High if re-enabled — unbounded / non-deterministic / stateful |
+| **Stock imperative Blockly** | **Removed** from toolbox (VMS) | High if re-enabled — unbounded / non-deterministic / stateful |
 | **Dynamic source paths** | Medium — literal paths compile; dynamic paths need runtime helpers | Medium — symbolic XPath over JSON/XML is hard to bound |
 | **Optional RM / schema mutators** | Low–medium — structure is partly in `optionalRm[]` | Medium — attachment graph must be part of the contract |
 | **Finite enumerations (`term_pick`)** | Low — easy to emit | **Positive** — ideal for DL-style value constraints |
@@ -232,7 +232,7 @@ still exist only in the full Blockly walk:
 | `for_each_source` | Yes (`loops[]`) | TypeScript canvas; **not** XQuery slots export |
 | RM / schema tree shape | Partially (`optionalRm[]`, block types on canvas) | TypeScript canvas; XQuery Model B slot manifest only |
 | `lists_getIndex`, `lists_create_with` | **No** | TypeScript canvas only (`emitListsGetIndex`) |
-| Sheet **mutator** statements | **No** (removed from toolbox) | Blockly JS generator stubs only; old bundles may still load them |
+| Sheet **mutator** statements | **No** (removed from toolbox) | Blockly JS generator stubs only |
 | Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach` | **No** | Toolbox only; TS codegen → `undefined` |
 | `controls_if` | **No** | Go template JSON walk only |
 
@@ -314,8 +314,8 @@ VMS cut (PR #58) removed `controls_if`, `controls_whileUntil`,
 `controls_repeat_ext`, `controls_for`, stock `controls_forEach`,
 `controls_flow_statements`, random, `text_print`, list-index mutators, and sheet
 mutators from the default toolbox (`VMS_REMOVED_BLOCK_TYPES` in
-`src/blockly/vms.ts`). Types stay registered so old bundles load; they are not
-in the IR surface. Go template codegen still partially supports some statement
+`src/blockly/vms.ts`). Types stay registered but are not offered in the default
+toolbox; they are not in the IR surface. Go template codegen still partially supports some statement
 blocks; TypeScript canvas codegen silently emits `undefined` for unhandled types.
 
 **Why it mattered:** Verification tools need **bounded control flow** or pure
@@ -434,8 +434,6 @@ VMS remove from toolbox (do not implement):
 
 A workspace linter ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
 still warns on leftover escape hatches (`text_code`, `text_handlebars`, dynamic paths).
-Removed types leftover in old bundles do not need a load warning — there is no
-published Project Bundle contract yet.
 
 ## Open questions
 

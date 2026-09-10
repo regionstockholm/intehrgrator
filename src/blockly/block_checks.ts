@@ -31,7 +31,7 @@ export function blocklyCheckForDv(rmType: string): string | string[] | null {
   if (isDataValueType(rmType) || rmType === "CODE_PHRASE") {
     return [rmType];
   }
-  // Fallback for unknown: keep legacy primitive check for tests that still expect it
+  // Fallback for unknown RM types: treat as a mapping primitive.
   const primitive = blocklyCheckForReturnType(returnTypeForDv(rmType));
   return primitive ? [primitive] : null;
 }

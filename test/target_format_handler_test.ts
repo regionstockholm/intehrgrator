@@ -176,7 +176,7 @@ Deno.test("Handlebars Test Run can walk source without a structured target", () 
     JSON.stringify({ patient: { name: "Ada", score: 7 } }),
     "json",
     {
-      exportTarget: "handlebars",
+      outputMode: "handlebars",
       handlebarsTemplate:
         "{{toUpperCase patient.name}} score={{patient.score}}{{#if (gte patient.score 5)}} ok{{/if}}",
     },

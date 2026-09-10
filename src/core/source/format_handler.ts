@@ -97,7 +97,6 @@ const openEhrHandlers: SourceFormatHandler[] = [
   createJsonHandler("openehr-flat-json"),
   createJsonHandler("openehr-structured-json"),
   createJsonHandler("openehr-web-template", loadOpenEhrWebTemplateSchema),
-  // Alias used in architecture review / kintegrate migration docs.
   createJsonHandler("openehr-composition"),
 ];
 
@@ -107,7 +106,7 @@ const handlers = new Map<string, SourceFormatHandler>([
   ...openEhrHandlers.map((handler) => [handler.id, handler] as const),
 ]);
 
-/** Register or replace a format adapter (e.g. future `openehr-composition`). */
+/** Register or replace a format adapter. */
 export function registerSourceFormatHandler(handler: SourceFormatHandler): void {
   handlers.set(handler.id, handler);
 }

@@ -119,14 +119,12 @@ function mapFromCreateWith(block: BlocklyBlockJson | undefined): Record<string, 
   if (!block || block.type !== MAPS_CREATE_WITH) return out;
   const fieldKeys = Object.keys(block.fields ?? {}).filter((name) => /^KEY\d+$/.test(name));
   const valKeys = Object.keys(block.inputs ?? {}).filter((name) => /^VAL\d+$/.test(name));
-  const inputKeys = Object.keys(block.inputs ?? {}).filter((name) => /^KEY\d+$/.test(name));
   const fromNames = (names: string[]) =>
     names.length ? Math.max(...names.map((name) => Number(name.slice(3)))) + 1 : 0;
   const count = Math.max(
     Number(block.extraState?.itemCount ?? 0),
     fromNames(fieldKeys),
     fromNames(valKeys),
-    fromNames(inputKeys),
   );
   for (let i = 0; i < count; i++) {
     const key = keyFromPair(block, i);
@@ -142,7 +140,7 @@ function keyFromPair(block: BlocklyBlockJson, index: number): unknown {
   if (typeof fromField === "number" || typeof fromField === "boolean") {
     return String(fromField);
   }
-  return literalFromInput(block.inputs?.[`KEY${index}`]);
+  return "";
 }
 
 function literalFromInput(

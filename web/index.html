@@ -188,9 +188,24 @@
         <div class="mapping-bottom">
           <div class="mapping-editor-tabs" role="tablist" aria-label="Mapping editor text views">
             <div class="mapping-editor-tab-group">
-              <button id="tab-mapping-json" class="mapping-editor-tab active" type="button">Mapping Spec</button>
-              <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
+              <div class="split-btn mapping-editor-tab-split">
+                <button id="tab-mapping-json" class="mapping-editor-tab split-btn-main active" type="button">Mapping Spec</button>
+                <button
+                  id="tab-mapping-json-menu"
+                  class="mapping-editor-tab split-btn-chevron"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="menu-mapping-spec-view"
+                  aria-label="Mapping Spec view options"
+                >▾</button>
+                <div id="menu-mapping-spec-view" class="split-btn-menu" hidden role="menu">
+                  <button type="button" class="split-btn-menu-item" role="menuitem" data-spec-view="list">Long list</button>
+                  <button type="button" class="split-btn-menu-item" role="menuitem" data-spec-view="tabs">Tabbed roots</button>
+                </div>
+              </div>
               <button id="tab-sheets" class="mapping-editor-tab" type="button">Sheets</button>
+              <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
             </div>
             <button
               id="btn-download-spec"
@@ -215,6 +230,7 @@
               Upload
             </button>
           </div>
+          <div id="spec-root-tabs" class="spec-root-tabs" hidden role="tablist" aria-label="Mapping Spec roots"></div>
           <div id="handlebars-insert-toolbar" class="handlebars-insert-toolbar" hidden>
             <span class="handlebars-insert-label">Tree insert</span>
             <label class="handlebars-insert-option">

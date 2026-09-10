@@ -58,6 +58,11 @@ export function mountSheetsPanel(
   const select = document.createElement("select");
   select.className = "sheets-select";
   select.setAttribute("aria-label", "Sheet");
+  const tabs = document.createElement("div");
+  tabs.className = "sheets-tabs";
+  tabs.setAttribute("role", "tablist");
+  tabs.setAttribute("aria-label", "Sheets");
+  tabs.hidden = true;
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "pane-btn";
@@ -80,7 +85,7 @@ export function mountSheetsPanel(
   fileInput.type = "file";
   fileInput.accept = ".csv,.tsv,.txt";
   fileInput.hidden = true;
-  toolbar.append(select, addBtn, renameBtn, deleteBtn, importBtn, exportBtn, fullBtn, fileInput);
+  toolbar.append(tabs, select, addBtn, renameBtn, deleteBtn, importBtn, exportBtn, fullBtn, fileInput);
 
   const emptyEl = document.createElement("p");
   emptyEl.className = "sheets-empty";
@@ -224,6 +229,31 @@ export function mountSheetsPanel(
     else if (sheets[0]) select.value = sheets[0].name;
   };
 
+  const fillTabs = (sheets: SheetDocument[]): void => {
+    const useTabs = sheets.length > 1;
+    tabs.hidden = !useTabs;
+    select.hidden = useTabs;
+    tabs.innerHTML = "";
+    if (!useTabs) return;
+    const current = select.value || sheets[0]?.name;
+    for (const sheet of sheets) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "sheets-tab" + (sheet.name === current ? " active" : "");
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", sheet.name === current ? "true" : "false");
+      tab.textContent = sheet.name;
+      tab.addEventListener("click", () => {
+        if (sheet.name === activeName && widgetMatches(sheet)) return;
+        select.value = sheet.name;
+        activeName = sheet.name;
+        bindSheet(sheet);
+        fillTabs(host.getSheets());
+      });
+      tabs.append(tab);
+    }
+  };
+
   const refresh = (): void => {
     if (destroyed) return;
     const sheets = host.getSheets();
@@ -234,6 +264,7 @@ export function mountSheetsPanel(
     deleteBtn.disabled = !has;
     exportBtn.disabled = !has;
     fillSelect(sheets);
+    fillTabs(sheets);
     if (!has) {
       destroyGrid();
       activeName = "";
@@ -260,6 +291,7 @@ export function mountSheetsPanel(
     }
     select.value = name;
     activeName = name;
+    fillTabs(sheets);
     const sheet = findSheet(sheets, name);
     if (!sheet) return;
     // Refocus / Sheets tab: keep the live grid if data already matches (avoids destroy/rebuild flicker).

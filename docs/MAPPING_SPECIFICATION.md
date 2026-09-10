@@ -7,6 +7,9 @@ The canonical Mapping Specification is Blockly workspace JSON from
 The Mapping Editor **Mapping Spec** tab shows a **compact projection** of
 the Blockly workspace: one row per semantic mapping (containers, source
 paths, map lookups, literals, text-generation, flattened conditions).
+A horizontal divider sits above each canvas root (Defaults block,
+composition / schema root, extracted function, …). The Mapping Spec ▾
+menu switches that long list for VS Code-style tabs, one tab per root.
 Layout chrome such as `x`/`y` is omitted; an ⓘ control on the row still
 reveals those details. When a block fills a named attribute slot
 (`language`, `magnitude`, ELEMENT `value`, …), the widget shows that

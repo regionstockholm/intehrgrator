@@ -34,6 +34,7 @@ export class MappingSpecWidget extends WidgetType {
   }
 
   override get estimatedHeight(): number {
+    if (this.line.kind === "header") return 22;
     if (this.line.editKind === "code") {
       const text = this.line.editable?.find((f) => f.field === "TEXT")?.value ?? "";
       const rows = Math.min(CODE_MAX_ROWS, Math.max(3, text.split("\n").length));
@@ -54,6 +55,7 @@ export class MappingSpecWidget extends WidgetType {
       JSON.stringify(this.line.editable) === JSON.stringify(other.line.editable) &&
       JSON.stringify(this.line.attributeEdit) === JSON.stringify(other.line.attributeEdit) &&
       JSON.stringify(this.line.aliasIds) === JSON.stringify(other.line.aliasIds) &&
+      this.line.rootId === other.line.rootId &&
       JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
       this.warning === other.warning &&
       this.selected === other.selected
@@ -63,6 +65,17 @@ export class MappingSpecWidget extends WidgetType {
   override toDOM(): HTMLElement {
     const row = document.createElement("span");
     row.className = `spec-widget spec-widget--${this.line.kind}`;
+    if (this.line.kind === "header") {
+      if (this.line.blockId) row.dataset.blockId = this.line.blockId;
+      if (this.selected) row.classList.add("spec-widget--selected");
+      const rule = document.createElement("span");
+      rule.className = "spec-widget-rule";
+      const title = document.createElement("span");
+      title.className = "spec-widget-root-title";
+      title.textContent = this.line.label || this.line.type;
+      row.append(rule, title);
+      return row;
+    }
     if (this.line.editKind === "code") row.classList.add("spec-widget--multiline");
     if (this.selected) row.classList.add("spec-widget--selected");
     row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
@@ -478,7 +491,7 @@ function badgeLabel(line: SpecLine): string {
   }
   switch (line.kind) {
     case "header":
-      return "spec";
+      return "root";
     case "source_query":
       return "source";
     case "dv":

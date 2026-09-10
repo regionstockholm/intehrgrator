@@ -63,6 +63,12 @@ export interface SpecEditableField {
   options?: Array<[string, string]>;
 }
 
+export interface SpecRootSection {
+  id: string;
+  type: string;
+  label: string;
+}
+
 export interface SpecLine {
   kind: SpecLineKind;
   indent: number;
@@ -70,6 +76,8 @@ export interface SpecLine {
   blockId?: string;
   /** Skipped wrapper / nested-logic ids that should scroll/highlight this row. */
   aliasIds?: string[];
+  /** Top-level canvas stack this row belongs to (defaults, composition, function, …). */
+  rootId?: string;
   type: string;
   label: string;
   /**
@@ -96,6 +104,12 @@ export interface SpecLine {
 export interface SpecProjection {
   text: string;
   lines: SpecLine[];
+  roots: SpecRootSection[];
+}
+
+export interface ProjectBlocklyOptions {
+  /** When set, only that top-level stack is projected (tabbed Mapping Spec view). */
+  rootId?: string | null;
 }
 
 interface BlocklyBlockJson {
@@ -128,25 +142,68 @@ const COMPARE_OP: Record<string, string> = {
   GTE: "≥",
 };
 
-export function projectBlocklyState(state: unknown): SpecProjection {
+export function projectBlocklyState(
+  state: unknown,
+  options: ProjectBlocklyOptions = {},
+): SpecProjection {
   const lines: SpecLine[] = [];
+  const roots: SpecRootSection[] = [];
 
   if (state == null || typeof state !== "object") {
     lines.push(emptyLine("(empty workspace)", {}));
-    return toProjection(lines);
+    return toProjection(lines, roots);
   }
 
   const workspace = state as BlocklyWorkspaceJson;
-  const roots = workspace.blocks?.blocks ?? [];
-  if (!roots.length) {
+  const topBlocks = workspace.blocks?.blocks ?? [];
+  if (!topBlocks.length) {
     lines.push(emptyLine("(no blocks)", { languageVersion: workspace.blocks?.languageVersion }));
-    return toProjection(lines);
+    return toProjection(lines, roots);
   }
 
-  for (const root of roots) {
+  const emitHeaders = topBlocks.length > 1;
+  for (const root of topBlocks) {
+    const start = lines.length;
+    const type = root.type ?? "unknown";
+    const label = pickLabel(type, root.fields ?? {});
+    const rootId = idOf(root) ?? `root-${start}`;
+    if (emitHeaders) emit(lines, rootHeaderLine(root, rootId, type, label));
     walkBlock(root, 0, lines);
+    for (let i = start; i < lines.length; i++) {
+      lines[i]!.rootId = rootId;
+    }
+    roots.push({ id: rootId, type, label });
   }
-  return toProjection(lines);
+
+  if (options.rootId) {
+    const filtered = lines.filter((line) =>
+      line.rootId === options.rootId && line.kind !== "header"
+    );
+    return toProjection(filtered.length ? filtered : filteredFallback(options.rootId), roots);
+  }
+  return toProjection(lines, roots);
+}
+
+function rootHeaderLine(
+  root: BlocklyBlockJson,
+  rootId: string,
+  type: string,
+  label: string,
+): SpecLine {
+  return {
+    kind: "header",
+    indent: 0,
+    rootId,
+    type: "root",
+    label,
+    summary: label,
+    editKind: "none",
+    info: { root: true, rootId, rootType: type },
+  };
+}
+
+function filteredFallback(rootId: string): SpecLine[] {
+  return [emptyLine("(no blocks)", { rootId })];
 }
 
 function emptyLine(label: string, info: Record<string, unknown>): SpecLine {
@@ -951,8 +1008,11 @@ export interface BlocklyJsonDocument {
 }
 
 /** Compact Spec text plus widget ranges, one range per projected line. */
-export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
-  const projection = projectBlocklyState(state);
+export function blocklyJsonDocument(
+  state: unknown,
+  options: ProjectBlocklyOptions = {},
+): BlocklyJsonDocument {
+  const projection = projectBlocklyState(state, options);
   const text = projection.text;
   const widgets: BlocklyJsonDocument["widgets"] = [];
   let offset = 0;
@@ -968,9 +1028,12 @@ export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
   return { text, widgets };
 }
 
-function toProjection(lines: SpecLine[]): SpecProjection {
+function toProjection(lines: SpecLine[], roots: SpecRootSection[] = []): SpecProjection {
   const text = lines
     .map((line) => {
+      if (line.kind === "header") {
+        return `── ${line.label || line.type}`;
+      }
       const pad = "  ".repeat(line.indent);
       const parts = [line.type];
       if (line.summary) parts.push(line.summary);
@@ -979,7 +1042,7 @@ function toProjection(lines: SpecLine[]): SpecProjection {
       return line.attribute ? `${pad}${line.attribute}  ${body}` : `${pad}${body}`;
     })
     .join("\n");
-  return { text, lines };
+  return { text, lines, roots };
 }
 
 function isSourceQuery(type: string): boolean {

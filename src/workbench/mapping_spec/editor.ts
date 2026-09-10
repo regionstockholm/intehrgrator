@@ -11,6 +11,7 @@ import { foldGutter, foldKeymap, foldService } from "@codemirror/language";
 import {
   blocklyJsonDocument,
   type BlocklyJsonDocument,
+  type ProjectBlocklyOptions,
   type SpecLine,
 } from "./project.ts";
 import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler } from "./widgets.ts";
@@ -518,8 +519,9 @@ export function setMappingSpecFromBlockly(
   view: EditorView,
   blocklyState: unknown,
   chrome: SpecChrome = emptyChrome,
+  options: ProjectBlocklyOptions = {},
 ): void {
-  const next = blocklyJsonDocument(blocklyState);
+  const next = blocklyJsonDocument(blocklyState, options);
   const current = view.state.doc.toString();
   if (current === next.text) {
     setMappingSpecChrome(view, chrome);

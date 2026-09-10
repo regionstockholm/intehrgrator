@@ -23,6 +23,7 @@ import {
 import {
   createMappingSpecEditor,
   mappingSpecDocumentText,
+  projectBlocklyState,
   setMappingSpecFromBlockly,
   scrollMappingSpecToBlock,
   type SpecChrome,
@@ -169,6 +170,9 @@ const validationDeserializeSelect = document.getElementById(
 ) as HTMLSelectElement;
 const validationModeWrap = document.getElementById("validation-mode-wrap")!;
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
+const mappingJsonMenuBtn = document.getElementById("tab-mapping-json-menu") as HTMLButtonElement | null;
+const mappingSpecViewMenu = document.getElementById("menu-mapping-spec-view");
+const specRootTabsEl = document.getElementById("spec-root-tabs");
 const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
 const sheetsTab = document.getElementById("tab-sheets") as HTMLButtonElement;
 const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
@@ -204,6 +208,10 @@ const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
   if (!updatingHandlebarsEditor) controller.setHandlebarsTemplate(text);
 }, "handlebars");
 let activeTextView: "mapping-json" | "handlebars" | "sheets" = "mapping-json";
+let specViewMode: "list" | "tabs" = localStorage.getItem("intehr-spec-view") === "tabs"
+  ? "tabs"
+  : "list";
+let specActiveRootId: string | null = null;
 let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
 type HandlebarsInsertMode = "flat" | "tree";
 const handlebarsInsertToolbar = document.getElementById("handlebars-insert-toolbar");
@@ -256,12 +264,97 @@ function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {
   if (handlebarsInsertToolbar) handlebarsInsertToolbar.hidden = !showHandlebars;
   downloadSpecBtn.hidden = showHandlebars || showSheets;
   if (uploadSpecBtn) uploadSpecBtn.hidden = showHandlebars || showSheets;
+  if (specRootTabsEl) {
+    specRootTabsEl.hidden = view !== "mapping-json" || specViewMode !== "tabs";
+  }
   if (showSheets) sheetsPanel?.refresh();
+}
+
+function currentSpecBlocklyState(): unknown {
+  return workspace ? Blockly.serialization.workspaces.save(workspace) : null;
+}
+
+function refreshMappingSpec(): void {
+  const state = currentSpecBlocklyState();
+  const projection = projectBlocklyState(state);
+  if (specViewMode === "tabs") {
+    const ids = projection.roots.map((root) => root.id);
+    if (!specActiveRootId || !ids.includes(specActiveRootId)) {
+      specActiveRootId = ids[0] ?? null;
+    }
+  }
+  setMappingSpecFromBlockly(
+    specEditor,
+    state,
+    specChrome(),
+    specViewMode === "tabs" ? { rootId: specActiveRootId } : {},
+  );
+  renderSpecRootTabs(projection.roots);
+}
+
+function renderSpecRootTabs(roots: Array<{ id: string; type: string; label: string }>): void {
+  if (!specRootTabsEl) return;
+  const show = activeTextView === "mapping-json" && specViewMode === "tabs" && roots.length > 0;
+  specRootTabsEl.hidden = !show;
+  specRootTabsEl.innerHTML = "";
+  if (!show) return;
+  for (const root of roots) {
+    const tab = document.createElement("button");
+    tab.type = "button";
+    tab.className = "spec-root-tab" + (root.id === specActiveRootId ? " active" : "");
+    tab.setAttribute("role", "tab");
+    tab.setAttribute("aria-selected", root.id === specActiveRootId ? "true" : "false");
+    tab.textContent = root.label || root.type;
+    tab.title = root.type;
+    tab.addEventListener("click", () => {
+      specActiveRootId = root.id;
+      refreshMappingSpec();
+    });
+    specRootTabsEl.appendChild(tab);
+  }
+}
+
+function ensureSpecRootForBlock(blockId: string): void {
+  if (specViewMode !== "tabs") return;
+  const projection = projectBlocklyState(currentSpecBlocklyState());
+  const line = projection.lines.find((row) =>
+    row.blockId === blockId || (row.aliasIds ?? []).includes(blockId)
+  );
+  if (line?.rootId) specActiveRootId = line.rootId;
+}
+
+function setSpecViewMode(mode: "list" | "tabs"): void {
+  specViewMode = mode;
+  localStorage.setItem("intehr-spec-view", mode);
+  refreshMappingSpec();
 }
 
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
 sheetsTab?.addEventListener("click", () => showTextView("sheets"));
+if (mappingJsonMenuBtn && mappingSpecViewMenu instanceof HTMLElement) {
+  const specSplit = mappingJsonMenuBtn.closest(".mapping-editor-tab-split") as HTMLElement | null;
+  installAnchoredMenu({
+    menu: mappingSpecViewMenu,
+    trigger: mappingJsonMenuBtn,
+    roots: specSplit ? [specSplit] : [],
+    referenceEls: specSplit ? [specSplit] : [mappingJsonMenuBtn],
+    minWidth: specSplit ?? mappingJsonMenuBtn,
+    onBeforeOpen: () => {
+      for (const item of mappingSpecViewMenu.querySelectorAll<HTMLButtonElement>("[data-spec-view]")) {
+        item.setAttribute(
+          "aria-checked",
+          item.dataset.specView === specViewMode ? "true" : "false",
+        );
+      }
+    },
+  });
+  mappingSpecViewMenu.addEventListener("click", (event) => {
+    const item = (event.target as HTMLElement).closest("[data-spec-view]") as HTMLButtonElement | null;
+    const mode = item?.dataset.specView;
+    if (mode === "list" || mode === "tabs") setSpecViewMode(mode);
+  });
+}
 downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
 uploadSpecBtn?.addEventListener("click", () =>
   void withUndoableDocumentReplace(() => controller.importBlocklyDefinition())
@@ -801,14 +894,11 @@ function applyBlockSelection(blockId: string | null, origin: "blockly" | "spec")
       }
       panToBlock(block as BlockSvg);
     }
+    if (blockId) ensureSpecRootForBlock(blockId);
+    refreshMappingSpec();
     if (origin === "blockly" && blockId) {
       scrollMappingSpecToBlock(specEditor, blockId);
     }
-    setMappingSpecFromBlockly(
-      specEditor,
-      Blockly.serialization.workspaces.save(workspace),
-      specChrome(),
-    );
     if (block) {
       const target = listeningTargetFromBlock(block);
       if (target?.kind === "slot") controller.armSlot(target.slotId);
@@ -1815,11 +1905,7 @@ function render(): void {
   // Blockly apply may have refreshed generatedCode without a re-render.
   const afterCanvas = controller.getState();
 
-  setMappingSpecFromBlockly(
-    specEditor,
-    afterCanvas.blocklyState ?? (workspace ? Blockly.serialization.workspaces.save(workspace) : null),
-    specChrome(),
-  );
+  refreshMappingSpec();
   if (handlebarsEditor.state.doc.toString() !== afterCanvas.handlebarsTemplate) {
     updatingHandlebarsEditor = true;
     setEditorDoc(

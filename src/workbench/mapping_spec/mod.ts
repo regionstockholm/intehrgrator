@@ -3,12 +3,14 @@ export {
   projectBlocklyState,
   slotAttributeFromInputName,
   type BlocklyJsonDocument,
+  type ProjectBlocklyOptions,
   type SpecEditFieldName,
   type SpecEditKind,
   type SpecEditableField,
   type SpecLine,
   type SpecLineKind,
   type SpecProjection,
+  type SpecRootSection,
 } from "./project.ts";
 
 export {

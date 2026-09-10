@@ -492,3 +492,44 @@ Deno.test("projectBlocklyState exposes editable TERM_PICK set and code with cata
   assertEquals(codeOptions.some(([, value]) => value === "not-a-language"), false);
   assertEquals(codeOptions.some(([, value]) => value === TERM_PICK_NONE), true);
 });
+
+Deno.test("projectBlocklyState inserts a header divider above each canvas root", () => {
+  const projection = projectBlocklyState({
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        { type: "defaults_block", id: "def", fields: {} },
+        {
+          type: "composition",
+          id: "comp",
+          fields: { NAME: "Blood pressure", RM_TYPE: "COMPOSITION" },
+        },
+        { type: "procedures_defnoreturn", id: "fn", fields: { NAME: "helper" } },
+      ],
+    },
+  });
+  const headers = projection.lines.filter((line) => line.kind === "header");
+  assertEquals(headers.length, 3);
+  assertEquals(headers.map((line) => line.rootId), ["def", "comp", "fn"]);
+  assertEquals(headers[1]?.label, "Blood pressure");
+  assertEquals(headers[2]?.label, "helper");
+  assertEquals(projection.roots.map((root) => root.id), ["def", "comp", "fn"]);
+  assertStringIncludes(projection.text, "── Blood pressure");
+  const onlyComp = projectBlocklyState({
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        { type: "defaults_block", id: "def", fields: {} },
+        {
+          type: "composition",
+          id: "comp",
+          fields: { NAME: "Blood pressure", RM_TYPE: "COMPOSITION" },
+        },
+      ],
+    },
+  }, { rootId: "comp" });
+  assertEquals(onlyComp.lines.every((line) => line.rootId === "comp"), true);
+  assertEquals(onlyComp.lines.some((line) => line.blockId === "def"), false);
+  assertEquals(onlyComp.lines.some((line) => line.kind === "header"), false);
+});
+

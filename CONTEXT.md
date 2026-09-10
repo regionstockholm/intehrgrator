@@ -77,7 +77,7 @@ A Blockly value block that retrieves an entry from a named **Map** (including th
 _Avoid_: `defaults_get` as a separate block type, connecting a Map constructor into multiple slots
 
 **Mapping Editor**:
-The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top; the bottom slice (adjustable) holds **Mapping Specification**, **Handlebars Template**, and **Sheets** tabs. **Sheets** embeds a spreadsheet widget (Excel/Sheets paste, CSV import/export, optional fullscreen) bound to project-owned Sheet JSON. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
+The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top; the bottom slice (adjustable) holds **Mapping Specification**, **Sheets**, and **Handlebars Template** tabs. Mapping Spec can show canvas roots as a long list (horizontal divider above each root) or as VS Code-style root tabs via the Mapping Spec ▾ menu. **Sheets** embeds a spreadsheet widget (Excel/Sheets paste, CSV import/export, optional fullscreen) bound to project-owned Sheet JSON; multiple Sheets use a tab strip. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
 _Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library), Target value slots rail / Slots Pane (removed)
 
 **Target & Previews**:

@@ -1,7 +1,7 @@
 # Suggested GitHub issues — remaining roadmap work
 
 **Date:** 2026-09-09  
-**Sources:** [`docs/ROADMAP.md`](../docs/ROADMAP.md), [`tasks/TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
+**Sources:** [`docs/ROADMAP.md`](../ROADMAP.md), [`docs/planning/TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
 **Purpose:** Inspect and edit this list before filing real issues. Do **not** treat unchecked boxes here as tracker state.
 
 ## Snapshot

@@ -22,6 +22,19 @@ export function registerGoTemplateWasm(
   wasmExecutor = executor;
 }
 
+/** After WASM load, expose check for VMS-Go lint (ADR 0009 / #40). */
+export function goTemplateCheckRaw(templateSource: string): string {
+  const check = (globalThis as { goTextTemplateCheck?: (t: string) => string })
+    .goTextTemplateCheck;
+  if (typeof check !== "function") {
+    return JSON.stringify({
+      ok: false,
+      diagnostics: [{ message: "goTextTemplateCheck is not available" }],
+    });
+  }
+  return check(templateSource);
+}
+
 export function isGoTemplateWasmLoaded(): boolean {
   return wasmExecutor !== null;
 }
@@ -83,6 +96,9 @@ async function instantiateGoTemplateWasm(): Promise<void> {
     throw new Error("Go WASM module did not export goTextTemplateExecute");
   }
   wasmExecutor = execute;
+  // Ensure VMS-Go checker can resolve without a separate register call.
+  const { registerGoTemplateCheck } = await import("./vms_go.ts");
+  registerGoTemplateCheck(goTemplateCheckRaw);
 }
 
 async function ensureWasmExec(): Promise<void> {

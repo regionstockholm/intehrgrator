@@ -14,6 +14,7 @@ import {
   StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
+import { vmsTemplateLintExtensions } from "./template_lint.ts";
 
 /** Languages we can highlight. `"none"` still gets folding chrome, but no parser. */
 export type EditorLanguage =
@@ -26,7 +27,10 @@ export type EditorLanguage =
   | "go-template"
   | "none";
 
-/** Dropdown pairs for Blockly (`[label, value]`). */
+/**
+ * Code text (`text_code`) LANG dropdown — no JavaScript/TypeScript (ADR 0009 / #40).
+ * Generated Export TypeScript viewer still uses `languageSupport("typescript")`.
+ */
 export const EDITOR_LANGUAGE_OPTIONS: Array<[string, EditorLanguage]> = [
   ["Plain", "none"],
   ["Handlebars", "handlebars"],
@@ -34,11 +38,10 @@ export const EDITOR_LANGUAGE_OPTIONS: Array<[string, EditorLanguage]> = [
   ["JSON", "json"],
   ["XML", "xml"],
   ["HTML", "html"],
-  ["JavaScript", "javascript"],
-  ["TypeScript", "typescript"],
 ];
 
 const languageOf = new WeakMap<EditorView, Compartment>();
+const lintOf = new WeakMap<EditorView, Compartment>();
 const currentLanguage = new WeakMap<EditorView, EditorLanguage>();
 
 const handlebarsLanguage = StreamLanguage.define({
@@ -131,6 +134,7 @@ function mountEditor(
   extra: Extension[],
 ): EditorView {
   const languageConf = new Compartment();
+  const lintConf = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -138,12 +142,14 @@ function mountEditor(
       extensions: [
         ...editorChromeExtensions,
         languageConf.of(languageSupport(language)),
+        lintConf.of(vmsTemplateLintExtensions(language)),
         editorTheme,
         ...extra,
       ],
     }),
   });
   languageOf.set(view, languageConf);
+  lintOf.set(view, lintConf);
   currentLanguage.set(view, language);
   return view;
 }
@@ -156,6 +162,7 @@ export function createInlineEditor(
   onChange: (text: string) => void,
 ): EditorView {
   const languageConf = new Compartment();
+  const lintConf = new Compartment();
   const view = new EditorView({
     parent,
     state: EditorState.create({
@@ -168,6 +175,7 @@ export function createInlineEditor(
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         keymap.of([...defaultKeymap, ...historyKeymap]),
         languageConf.of(languageSupport(language)),
+        lintConf.of(vmsTemplateLintExtensions(language)),
         EditorView.theme({
           "&": { height: "100%", fontSize: "12px", backgroundColor: "#fff" },
           ".cm-editor": { height: "100%" },
@@ -184,6 +192,7 @@ export function createInlineEditor(
     }),
   });
   languageOf.set(view, languageConf);
+  lintOf.set(view, lintConf);
   currentLanguage.set(view, language);
   return view;
 }
@@ -221,8 +230,12 @@ export function setEditorDoc(
     const compartment = languageOf.get(view);
     if (compartment) {
       effects.push(compartment.reconfigure(languageSupport(language)));
-      currentLanguage.set(view, language);
     }
+    const lintCompartment = lintOf.get(view);
+    if (lintCompartment) {
+      effects.push(lintCompartment.reconfigure(vmsTemplateLintExtensions(language)));
+    }
+    currentLanguage.set(view, language);
   }
   const current = view.state.doc.toString();
   if (current === doc && effects.length === 0) return;

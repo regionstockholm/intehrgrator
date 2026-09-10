@@ -420,10 +420,14 @@ VMS allowed (implement fully, including Mapping Model + all exporters):
   variables_set / variables_get (`let` in the enclosing for_each_* grain, or mapping
   root)
 
-VMS escape hatch (keep in toolbox for Kintegrate / Go snippets; mark unverified):
-  text_code, text_handlebars, ad-hoc json_object / xml_element trees,
+VMS escape hatch (keep in toolbox; mark unverified):
+  out-of-dialect Handlebars or Go template, ad-hoc json_object / xml_element trees,
   dynamic (non-literal) source paths, procedures_defreturn (until function
   harness lands)
+
+VMS-Hbs / VMS-Go (Handlebars Template, text_handlebars, text_code LANG=handlebars|go-template):
+  in-dialect per ADR 0009 — not a hatch; lint + closed helper/FuncMap whitelist
+
 
 VMS remove from toolbox (do not implement):
   controls_whileUntil, controls_repeat_ext, controls_for, stock controls_forEach,
@@ -433,7 +437,9 @@ VMS remove from toolbox (do not implement):
 ```
 
 A workspace linter ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
-still warns on leftover escape hatches (`text_code`, `text_handlebars`, dynamic paths).
+warns on leftover Blockly hatches and on **out-of-dialect** Handlebars / Go template.
+In-dialect **VMS-Hbs** / **VMS-Go** is VMS ([ADR 0009](../adr/0009-verifiable-template-dialects.md),
+[proposal](../proposals/verifiable-template-snippets.md)).
 
 ## Open questions
 

@@ -26,6 +26,7 @@ import {
   isCardinalityMet,
   type SlotCardinality,
 } from "./slot_cardinality.ts";
+import { blockHatchMessages } from "./vms_linter.ts";
 
 export const ABSTRACT_EVENT_WARNING =
   "EVENT is abstract. Choose POINT_EVENT or INTERVAL_EVENT — runtime instances cannot be the abstract EVENT class.";
@@ -75,6 +76,9 @@ export function blockConstraintMessages(block: Block): string[] {
       `${unmet.attr} needs ${formatSlotCardinality(unmet.card)} (has ${unmet.count})`,
     );
   }
+
+  // VMS hatch / dialect warnings (#40) share the Constraint warning triangle.
+  messages.push(...blockHatchMessages(block));
   return messages;
 }
 

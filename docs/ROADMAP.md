@@ -95,7 +95,7 @@
 # conversion script generation
 
 ## J. Golden examples
-- [ ] check if current typescript converter is correct, remove any bugs
+- [x] check if current typescript converter is correct, remove any bugs (VMS BP golden: preview ≡ TS; CODE_PHRASE defaults wrapping; math_round/modulo/constrain — issue #38)
 - [ ] compare and improve other formats (Java, xquery, Handlebars etc) 
 - [ ] make cloud environments with java/xquery access test such conversion output too
 

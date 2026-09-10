@@ -81,6 +81,7 @@ Deno.test("xquery codegen emits mapping-result module from Blockly slots", () =>
   assertStringIncludes(xq, 'xquery version "3.1"');
   assertStringIncludes(xq, "vitals");
   assertStringIncludes(xq, "element mapping-result");
+  assertStringIncludes(xq, "element slots");
   assertStringIncludes(xq, 'attribute id { "s1" }');
   assertStringIncludes(xq, "local:as-value");
   assertStringIncludes(xq, "DV_QUANTITY");

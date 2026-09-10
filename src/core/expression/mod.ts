@@ -26,6 +26,9 @@ export type ExprAst =
       | "xpathBoolean"
       | "trim"
       | "concat"
+      | "round"
+      | "modulo"
+      | "constrain"
       | "if"
       | "switch"
       | "var"
@@ -53,6 +56,9 @@ const BUILTIN_NAMES = new Set([
   "xpathNode",
   "trim",
   "concat",
+  "round",
+  "modulo",
+  "constrain",
   "if",
   "switch",
   "var",

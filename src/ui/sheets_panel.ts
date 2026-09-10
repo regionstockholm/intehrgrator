@@ -55,6 +55,10 @@ export function mountSheetsPanel(
   root.innerHTML = "";
   const toolbar = document.createElement("div");
   toolbar.className = "sheets-toolbar";
+  const tabsEl = document.createElement("div");
+  tabsEl.className = "sheets-tabs";
+  tabsEl.setAttribute("role", "tablist");
+  tabsEl.setAttribute("aria-label", "Sheets");
   const select = document.createElement("select");
   select.className = "sheets-select";
   select.setAttribute("aria-label", "Sheet");
@@ -80,7 +84,7 @@ export function mountSheetsPanel(
   fileInput.type = "file";
   fileInput.accept = ".csv,.tsv,.txt";
   fileInput.hidden = true;
-  toolbar.append(select, addBtn, renameBtn, deleteBtn, importBtn, exportBtn, fullBtn, fileInput);
+  toolbar.append(tabsEl, select, addBtn, renameBtn, deleteBtn, importBtn, exportBtn, fullBtn, fileInput);
 
   const emptyEl = document.createElement("p");
   emptyEl.className = "sheets-empty";
@@ -222,6 +226,29 @@ export function mountSheetsPanel(
     }
     if (sheets.some((s) => s.name === current)) select.value = current;
     else if (sheets[0]) select.value = sheets[0].name;
+    const multi = sheets.length > 1;
+    tabsEl.hidden = !multi;
+    select.hidden = multi;
+    tabsEl.replaceChildren();
+    if (multi) {
+      const selected = select.value || activeName;
+      for (const sheet of sheets) {
+        const tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "sheets-tab" + (sheet.name === selected ? " active" : "");
+        tab.textContent = sheet.name;
+        tab.setAttribute("role", "tab");
+        tab.setAttribute("aria-selected", sheet.name === selected ? "true" : "false");
+        tab.addEventListener("click", () => {
+          select.value = sheet.name;
+          activeName = sheet.name;
+          const doc = findSheet(host.getSheets(), sheet.name);
+          if (doc) bindSheet(doc);
+          fillSelect(host.getSheets());
+        });
+        tabsEl.append(tab);
+      }
+    }
   };
 
   const refresh = (): void => {

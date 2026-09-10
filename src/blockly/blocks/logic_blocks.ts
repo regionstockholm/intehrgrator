@@ -1,6 +1,7 @@
 import { Blockly } from "../blockly_core.ts";
 import { FieldDropdownHug } from "../field_dropdown_hug.ts";
 import { detectLocale, msg } from "../i18n/locale.ts";
+import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
 
 const LOGIC_COLOUR = "#D1C4E9";
 const LIST_COLOUR = "#4DB6AC";
@@ -143,8 +144,12 @@ export function registerLogicBlocks(): void {
       this.itemName_ = DEFAULT_ITEM_NAME;
       this.countValue_ = 1;
       this.guardValue_ = false;
-      this.appendValueInput("LIST")
-        .setCheck(LIST_CHECK)
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, "Boolean");
+      const listInput = this.appendValueInput("LIST")
+        .setCheck(LIST_CHECK);
+      appendInputTypeGlyph(listInput, LIST_CHECK);
+      listInput
         .appendField(
           new FieldDropdownHug(
             [
@@ -165,9 +170,10 @@ export function registerLogicBlocks(): void {
           "OP",
         )
         .appendField(m.LOGIC_OF, "OF_LABEL");
-      this.appendValueInput("PRED")
-        .setCheck("Boolean")
-        .appendField(m.LOGIC_MATCH, "MATCH_LABEL");
+      const predInput = this.appendValueInput("PRED")
+        .setCheck("Boolean");
+      appendInputTypeGlyph(predInput, "Boolean");
+      predInput.appendField(m.LOGIC_MATCH, "MATCH_LABEL");
       this.setInputsInline(false);
       this.setOutput(true, "Boolean");
       this.setColour(LOGIC_COLOUR);
@@ -275,9 +281,10 @@ export function registerLogicBlocks(): void {
 
   Blockly.Blocks[LOGIC_CURRENT_ITEM_BLOCK] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput()
-        .appendField(new FieldItemDropdown(currentItemOptions), "VAR");
-      this.setOutput(true, null);
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, "Boolean");
+      header.appendField(new FieldItemDropdown(currentItemOptions), "VAR");
+      this.setOutput(true, "Boolean");
       this.setColour(LOGIC_COLOUR);
       this.setTooltip(m.LOGIC_CURRENT_ITEM_TOOLTIP);
       this.setStyle?.("logic_blocks");
@@ -286,8 +293,12 @@ export function registerLogicBlocks(): void {
 
   Blockly.Blocks[LISTS_SET_OPERATION_BLOCK] = {
     init: function (this: Blockly.Block) {
-      this.appendValueInput("A")
-        .setCheck(LIST_CHECK)
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, "Array");
+      const inputA = this.appendValueInput("A")
+        .setCheck(LIST_CHECK);
+      appendInputTypeGlyph(inputA, LIST_CHECK);
+      inputA
         .appendField(
           new FieldDropdownHug(
             [
@@ -304,9 +315,10 @@ export function registerLogicBlocks(): void {
           ),
           "OP",
         );
-      this.appendValueInput("B")
-        .setCheck(LIST_CHECK)
-        .appendField(new Blockly.FieldLabel(m.LOGIC_SET_CONN_AND), "CONN");
+      const inputB = this.appendValueInput("B")
+        .setCheck(LIST_CHECK);
+      appendInputTypeGlyph(inputB, LIST_CHECK);
+      inputB.appendField(new Blockly.FieldLabel(m.LOGIC_SET_CONN_AND), "CONN");
       this.setInputsInline(false);
       this.setOutput(true, "Array");
       this.setColour(LIST_COLOUR);

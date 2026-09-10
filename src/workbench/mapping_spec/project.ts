@@ -66,6 +66,8 @@ export interface SpecEditableField {
 export interface SpecLine {
   kind: SpecLineKind;
   indent: number;
+  /** Top-level canvas root this row belongs to (for tabbed Spec view). */
+  rootId?: string;
   /** Stable Blockly block id when this line maps to a block. */
   blockId?: string;
   /** Skipped wrapper / nested-logic ids that should scroll/highlight this row. */
@@ -118,6 +120,8 @@ interface BlocklyWorkspaceJson {
   variables?: unknown;
 }
 
+let projectingRootId: string | undefined;
+
 const DV_PREFIX = "dv_";
 const COMPARE_OP: Record<string, string> = {
   EQ: "=",
@@ -144,9 +148,75 @@ export function projectBlocklyState(state: unknown): SpecProjection {
   }
 
   for (const root of roots) {
+    if (root.type === "conversion_start") {
+      projectingRootId = idOf(root);
+      emit(lines, {
+        kind: "header",
+        indent: 0,
+        rootId: projectingRootId,
+        type: "conversion_start",
+        label: "Conversion start",
+        summary: "product marker",
+        editKind: "none",
+        info: collectInfo(root),
+      });
+      const instance = root.next?.block;
+      if (instance) {
+        projectingRootId = idOf(instance) ?? projectingRootId;
+        emit(lines, rootDividerLine(instance, projectingRootId!));
+        walkBlock(instance, 0, lines);
+      }
+      continue;
+    }
+    projectingRootId = idOf(root) ?? `root-${lines.length}`;
+    emit(lines, rootDividerLine(root, projectingRootId));
     walkBlock(root, 0, lines);
   }
   return toProjection(lines);
+}
+
+function rootDividerLine(block: BlocklyBlockJson, rootId: string): SpecLine {
+  return {
+    kind: "header",
+    indent: 0,
+    rootId,
+    blockId: idOf(block),
+    type: block.type ?? "root",
+    label: rootLabel(block),
+    summary: rootLabel(block),
+    editKind: "none",
+    info: collectInfo(block),
+  };
+}
+
+function rootLabel(block: BlocklyBlockJson): string {
+  const type = block.type ?? "block";
+  if (type === "defaults_block") return "Default context mapping";
+  if (type === "composition") return "COMPOSITION";
+  if (type.startsWith("procedures_def")) {
+    return stringField(block, "NAME") || "Function";
+  }
+  const name = stringField(block, "NAME") || stringField(block, "RM_TYPE");
+  return name ? `${type} · ${name}` : type;
+}
+
+/** Lines grouped by top-level canvas root (for tabbed Mapping Spec view). */
+export function projectBlocklyStateByRoot(state: unknown): Map<string, SpecLine[]> {
+  const projection = projectBlocklyState(state);
+  const groups = new Map<string, SpecLine[]>();
+  let currentRoot = "";
+  for (const line of projection.lines) {
+    if (line.kind === "header" && line.rootId) {
+      currentRoot = line.rootId;
+      if (!groups.has(currentRoot)) groups.set(currentRoot, []);
+      groups.get(currentRoot)!.push(line);
+      continue;
+    }
+    const rootId = line.rootId ?? currentRoot;
+    if (!groups.has(rootId)) groups.set(rootId, []);
+    groups.get(rootId)!.push(line);
+  }
+  return groups;
 }
 
 function emptyLine(label: string, info: Record<string, unknown>): SpecLine {
@@ -166,6 +236,7 @@ function emit(
   line: SpecLine,
   attributeEdit?: SpecEditableField,
 ): void {
+  if (projectingRootId && !line.rootId) line.rootId = projectingRootId;
   if (attributeEdit) line.attributeEdit = attributeEdit;
   lines.push(line);
 }
@@ -188,6 +259,11 @@ function walkBlock(
   attributeEdit?: SpecEditableField,
 ): void {
   const type = block.type ?? "unknown";
+
+  if (type === "conversion_start") {
+    if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell, attributeEdit);
+    return;
+  }
 
   if (type === "xml_text" || type === "json_value" || type === "target_value") {
     walkInputs(block, indent, lines, attribute, withAlias(extraAliases, idOf(block)), shell, attributeEdit);
@@ -950,10 +1026,27 @@ export interface BlocklyJsonDocument {
   widgets: Array<{ from: number; to: number; line: SpecLine }>;
 }
 
-/** Compact Spec text plus widget ranges, one range per projected line. */
-export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
+/** Spec document filtered to one canvas root (tabbed view). */
+export function blocklyJsonDocumentForRoot(
+  state: unknown,
+  rootId: string,
+): BlocklyJsonDocument {
   const projection = projectBlocklyState(state);
-  const text = projection.text;
+  const lines = projection.lines.filter((line) => line.rootId === rootId);
+  return toBlocklyJsonDocument(lines);
+}
+
+function toBlocklyJsonDocument(lines: SpecLine[]): BlocklyJsonDocument {
+  const text = lines
+    .map((line) => {
+      const pad = "  ".repeat(line.indent);
+      const parts = [line.type];
+      if (line.summary) parts.push(line.summary);
+      else if (line.label && line.label !== line.type) parts.push(line.label);
+      const body = parts.join(" · ");
+      return line.attribute ? `${pad}${line.attribute}  ${body}` : `${pad}${body}`;
+    })
+    .join("\n");
   const widgets: BlocklyJsonDocument["widgets"] = [];
   let offset = 0;
   const rows = text.length ? text.split("\n") : [""];
@@ -962,10 +1055,16 @@ export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
     const from = offset;
     const to = from + row.length;
     offset = to + (i < rows.length - 1 ? 1 : 0);
-    const line = projection.lines[i];
+    const line = lines[i];
     if (line) widgets.push({ from, to, line });
   }
   return { text, widgets };
+}
+
+/** Compact Spec text plus widget ranges, one range per projected line. */
+export function blocklyJsonDocument(state: unknown): BlocklyJsonDocument {
+  const projection = projectBlocklyState(state);
+  return toBlocklyJsonDocument(projection.lines);
 }
 
 function toProjection(lines: SpecLine[]): SpecProjection {

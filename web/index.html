@@ -188,9 +188,24 @@
         <div class="mapping-bottom">
           <div class="mapping-editor-tabs" role="tablist" aria-label="Mapping editor text views">
             <div class="mapping-editor-tab-group">
-              <button id="tab-mapping-json" class="mapping-editor-tab active" type="button">Mapping Spec</button>
-              <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
+              <div class="split-btn split-btn--compact">
+                <button id="tab-mapping-json" class="mapping-editor-tab active split-btn-main" type="button">Mapping Spec</button>
+                <button
+                  id="tab-mapping-json-menu"
+                  class="mapping-editor-tab split-btn-chevron"
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded="false"
+                  aria-controls="menu-mapping-spec-layout"
+                  aria-label="Mapping Spec view options"
+                >▾</button>
+                <div id="menu-mapping-spec-layout" class="split-btn-menu" hidden role="menu">
+                  <button type="button" role="menuitem" data-spec-layout="list">List view (all roots)</button>
+                  <button type="button" role="menuitem" data-spec-layout="tabs">Tabbed view (per root)</button>
+                </div>
+              </div>
               <button id="tab-sheets" class="mapping-editor-tab" type="button">Sheets</button>
+              <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
             </div>
             <button
               id="btn-download-spec"
@@ -403,8 +418,8 @@
   </dialog>
   <dialog id="dialog-defaults-map" class="app-dialog app-dialog--wide">
     <form method="dialog" class="dialog-form">
-      <h2>Defaults Map</h2>
-      <p>Load a saved map, browse a file or URL, download the current map, or save the map plugged into the Defaults block.</p>
+      <h2>Default context mapping</h2>
+      <p>Load a saved map, browse a file or URL, download the current map, or save the map plugged into the Default context mapping block.</p>
       <div id="defaults-map-list" class="load-project-list"></div>
       <label class="dialog-label">
         URL
@@ -422,8 +437,8 @@
   </dialog>
   <dialog id="dialog-defaults-save-as" class="app-dialog">
     <form method="dialog" class="dialog-form">
-      <h2>Save Defaults Map as</h2>
-      <p>Store the current Defaults Map under a name you can pick later.</p>
+      <h2>Save default context mapping as</h2>
+      <p>Store the current default context mapping under a name you can pick later.</p>
       <label class="dialog-label">
         Name
         <input id="defaults-save-as-name" type="text" required placeholder="Clinic defaults" />
@@ -436,13 +451,13 @@
   </dialog>
   <dialog id="dialog-hardcode-defaults" class="app-dialog">
     <form method="dialog" class="dialog-form">
-      <h2>Hardcode Defaults Map entry</h2>
+      <h2>Hardcode default context mapping entry</h2>
       <p>
         Choose a map key to <strong>inline</strong> on the canvas. Every
         <code>get defaults key …</code> lookup for that key is replaced with a copy of
-        the value from this Defaults Map. After that, those slots no longer read the
+        the value from this default context mapping. After that, those slots no longer read the
         convert-time <code>defaults</code> argument — they use the hardcoded block instead.
-        The Defaults Map itself is left unchanged so you can hardcode other keys later
+        The default context mapping itself is left unchanged so you can hardcode other keys later
         or keep the entry for remaining lookups.
       </p>
       <div id="hardcode-defaults-list" class="load-project-list"></div>
@@ -480,9 +495,10 @@
     </form>
   </dialog>
   <span id="defaults-map-block-info" class="info-tip info-tip--anchor-host">
-    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About the Defaults Map">i</button>
+    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About default context mapping">i</button>
     <span id="tip-defaults-map-block" class="info-tip-balloon" role="tooltip">
-      The Defaults Map is a convert-time table of site or message values (language, territory, time, composer, facility, …). Generated Conversion Scripts take it as a <code>defaults</code> argument, so canvas lookups stay reusable instead of baking those literals into the mapping.<br>
+      <strong>Default context mapping</strong> is the design-time table you author on the canvas (language, territory, time, composer, facility, nested objects, …). At <em>convert time</em>, generated Conversion Scripts receive it as a <code>defaults</code> argument. Runtime code can merge that bag with per-message values, other named maps, and Sheet grids — the canvas map is the reusable baseline, not literals baked into every slot.<br>
+      Why design-time? So you can change site language, facility, or encoding once and re-run the same mapping against many source instances without regenerating the script. Map lookups on the canvas read this binding by name; hardcoding inlines one key when you want a fixed literal instead.<br>
       The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
     </span>
   </span>

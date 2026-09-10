@@ -34,6 +34,8 @@ Deno.test("spec warning markers sit at widget positions for constraint warnings"
   assertEquals(markers.length, 1);
   assertEquals(markers[0]?.blockId, "warn");
   assertEquals(markers[0]?.message, "Unmapped mandatory value");
-  const warnWidget = doc.widgets.find((item) => item.line.blockId === "warn");
+  const warnWidget = doc.widgets.find(
+    (item) => item.line.blockId === "warn" && item.line.kind !== "header",
+  );
   assertEquals(markers[0]?.from, warnWidget?.from);
 });

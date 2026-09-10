@@ -33,6 +33,8 @@ import {
   placeDefaultsBesideSkeleton,
   restoreDefaultsBlockState,
 } from "./defaults_canvas.ts";
+import { attachStartToInstanceRoot } from "./conversion_start_canvas.ts";
+import { findInstanceRootUnderStart } from "./instance_root.ts";
 import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
 import { targetChildInputName } from "./blocks/target_blocks.ts";
 import { schemaOptionalInputName, composeSchemaOptionalFields } from "./blocks/schema_mutator.ts";
@@ -87,6 +89,10 @@ export function loadSkeletonIntoWorkspace(
     applyModelExpressions(workspace, model);
     restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat);
     placeDefaultsBesideSkeleton(workspace);
+    const scaffoldRoot = workspace.getTopBlocks(false).find((b) =>
+      b.type !== "defaults_block" && b.type !== "maps_create_with" && b.type !== "conversion_start"
+    );
+    if (scaffoldRoot) attachStartToInstanceRoot(workspace, scaffoldRoot);
     if (!schemaTarget) {
       attachDefaultPointLookups(workspace, skeleton, (parent, insertion) =>
         attachOptionalRmChild(workspace, parent, insertion)
@@ -118,6 +124,8 @@ export function lockWorkspaceRootsExpanded(workspace: Blockly.Workspace): void {
   for (const block of workspace.getTopBlocks(false)) {
     lockRootExpanded(block);
   }
+  const instanceRoot = findInstanceRootUnderStart(workspace);
+  if (instanceRoot) lockRootExpanded(instanceRoot);
 }
 
 /**
@@ -128,6 +136,8 @@ export function setAllBlocksCollapsed(
   collapsed: boolean,
 ): void {
   const roots = new Set(workspace.getTopBlocks(false));
+  const instanceRoot = findInstanceRootUnderStart(workspace);
+  if (instanceRoot) roots.add(instanceRoot);
   const grouped = typeof Blockly.Events.setGroup === "function";
   if (grouped) Blockly.Events.setGroup(true);
   try {

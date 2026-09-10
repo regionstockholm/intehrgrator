@@ -6,6 +6,7 @@ import { findSkeletonNode } from "../schema_catalog.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
+import { applyInstanceRootCap } from "../instance_root.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
 const TARGET_VALUE_COLOUR = "#6B7280";
@@ -130,14 +131,19 @@ function defineStructureBlock(
       const childGroups = this.inputList
         .filter((input) => input.name.startsWith(TARGET_CHILD_PREFIX))
         .map((input) => input.name.slice(TARGET_CHILD_PREFIX.length));
-      return childGroups.length ? { childGroups } : null;
+      const instanceRoot = Boolean((this as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_);
+      const payload: { childGroups?: string[]; instanceRoot?: boolean } = {};
+      if (childGroups.length) payload.childGroups = childGroups;
+      if (instanceRoot) payload.instanceRoot = true;
+      return Object.keys(payload).length ? payload : null;
     };
     blockDef.loadExtraState = function (this: Block, state: unknown) {
       const raw = state && typeof state === "object"
-        ? (state as { childGroups?: unknown }).childGroups
+        ? state as { childGroups?: unknown; instanceRoot?: unknown }
         : undefined;
-      const childGroups = Array.isArray(raw)
-        ? raw.filter((group): group is string => typeof group === "string" && group.length > 0)
+      if (raw?.instanceRoot) applyInstanceRootCap(this);
+      const childGroups = Array.isArray(raw?.childGroups)
+        ? raw!.childGroups.filter((group): group is string => typeof group === "string" && group.length > 0)
         : [];
       const groups = defaultChildGroup && !childGroups.includes(defaultChildGroup)
         ? [defaultChildGroup, ...childGroups]

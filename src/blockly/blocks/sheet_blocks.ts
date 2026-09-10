@@ -1,4 +1,5 @@
 import { Blockly } from "../blockly_core.ts";
+import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
 
 const SHEET_COLOUR = "#00897B";
 const SHEET_DECL_COLOUR = "#00695C";
@@ -84,12 +85,11 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_CELL] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput()
-        .appendField("get")
-        .appendField(nameField(), "NAME")
-        .appendField("cell");
-      this.appendValueInput("A1").setCheck("String");
-      this.setOutput(true, ["String", "Number", "Boolean"]);
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, ["String", "Number", "Boolean"]);
+      header.appendField("get").appendField(nameField(), "NAME").appendField("cell");
+      const a1 = this.appendValueInput("A1").setCheck("String");
+      appendInputTypeGlyph(a1, "String");
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
       this.setTooltip("Get a Sheet cell by A1 reference (e.g. B2).");
@@ -98,9 +98,15 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_XY] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("get").appendField(nameField(), "NAME");
-      this.appendValueInput("X").setCheck("Number").appendField("x");
-      this.appendValueInput("Y").setCheck("Number").appendField("y");
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, ["String", "Number", "Boolean"]);
+      header.appendField("get").appendField(nameField(), "NAME");
+      const xIn = this.appendValueInput("X").setCheck("Number");
+      appendInputTypeGlyph(xIn, "Number");
+      xIn.appendField("x");
+      const yIn = this.appendValueInput("Y").setCheck("Number");
+      appendInputTypeGlyph(yIn, "Number");
+      yIn.appendField("y");
       this.setOutput(true, ["String", "Number", "Boolean"]);
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);

@@ -26,6 +26,7 @@ export function specWarningMarkers(
 ): SpecWarningMarker[] {
   const out: SpecWarningMarker[] = [];
   for (const widget of doc.widgets) {
+    if (widget.line.kind === "header") continue;
     const ids = [widget.line.blockId, ...(widget.line.aliasIds ?? [])].filter(
       (id): id is string => Boolean(id),
     );

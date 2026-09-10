@@ -3,7 +3,12 @@ import {
   blocklyJsonDocument,
   projectBlocklyState,
   slotAttributeFromInputName,
+  type SpecProjection,
 } from "@intehrgrator/workbench/mapping_spec/mod.ts";
+
+function contentSpecLines(projection: SpecProjection) {
+  return projection.lines.filter((line) => line.kind !== "header");
+}
 import {
   TERM_PICK_NONE,
   termPickDropdownOptions,
@@ -248,8 +253,8 @@ Deno.test("projectBlocklyState flattens xml_text + maps_get + text key into one 
       }],
     },
   });
-  assertEquals(projection.lines.map((l) => l.type), ["xml_element", "maps_get"]);
-  const lookup = projection.lines[1];
+  assertEquals(contentSpecLines(projection).map((l) => l.type), ["xml_element", "maps_get"]);
+  const lookup = contentSpecLines(projection)[1];
   assertEquals(lookup?.kind, "map_lookup");
   assertEquals(lookup?.summary, 'defaults["Time"]');
   assertEquals(lookup?.aliasIds?.includes("xt"), true);
@@ -375,11 +380,12 @@ Deno.test("projectBlocklyState flattens xml_attribute to @name on the value", ()
       }],
     },
   });
-  assertEquals(projection.lines.length, 1);
-  assertEquals(projection.lines[0]?.attribute, "@MsgType");
-  assertEquals(projection.lines[0]?.blockId, "t1");
-  assertEquals(projection.lines[0]?.editKind, "text");
-  assertEquals(projection.lines[0]?.attributeEdit, {
+  const lines = contentSpecLines(projection);
+  assertEquals(lines.length, 1);
+  assertEquals(lines[0]?.attribute, "@MsgType");
+  assertEquals(lines[0]?.blockId, "t1");
+  assertEquals(lines[0]?.editKind, "text");
+  assertEquals(lines[0]?.attributeEdit, {
     field: "NAME",
     value: "MsgType",
     targetBlockId: "a1",
@@ -429,11 +435,12 @@ Deno.test("projectBlocklyState flattens sheet_lookup into one editable row", () 
       }],
     },
   });
-  assertEquals(projection.lines.length, 1);
-  assertEquals(projection.lines[0]?.kind, "sheet_lookup");
-  assertEquals(projection.lines[0]?.editKind, "sheet_lookup");
-  assertEquals(projection.lines[0]?.summary, "ICD[code=$.icd → snomed]");
-  assertEquals(projection.lines[0]?.aliasIds?.includes("sv"), true);
+  const lines = contentSpecLines(projection);
+  assertEquals(lines.length, 1);
+  assertEquals(lines[0]?.kind, "sheet_lookup");
+  assertEquals(lines[0]?.editKind, "sheet_lookup");
+  assertEquals(lines[0]?.summary, "ICD[code=$.icd → snomed]");
+  assertEquals(lines[0]?.aliasIds?.includes("sv"), true);
 });
 
 Deno.test("compare rows keep left-to-right field order when the left operand is text", () => {
@@ -457,10 +464,11 @@ Deno.test("compare rows keep left-to-right field order when the left operand is 
       }],
     },
   });
-  const fields = projection.lines[0]?.editable?.map((f) => f.field);
+  const row = contentSpecLines(projection)[0];
+  const fields = row?.editable?.map((f) => f.field);
   assertEquals(fields, ["TEXT", "OP", "EXPRESSION"]);
-  assertEquals(projection.lines[0]?.editable?.[0]?.targetBlockId, "left");
-  assertEquals(projection.lines[0]?.editable?.[2]?.targetBlockId, "right");
+  assertEquals(row?.editable?.[0]?.targetBlockId, "left");
+  assertEquals(row?.editable?.[2]?.targetBlockId, "right");
 });
 
 Deno.test("projectBlocklyState exposes editable TERM_PICK set and code with catalog options", () => {
@@ -479,7 +487,7 @@ Deno.test("projectBlocklyState exposes editable TERM_PICK set and code with cata
       }],
     },
   });
-  const row = projection.lines.find((line) => line.type === "term_pick");
+  const row = contentSpecLines(projection).find((line) => line.type === "term_pick");
   assertEquals(row?.editKind, "term_pick");
   assertEquals(row?.editable?.map((field) => field.field), ["SET", "CODE"]);
   assertEquals(row?.editable?.find((field) => field.field === "SET")?.value, "ISO_639-1");

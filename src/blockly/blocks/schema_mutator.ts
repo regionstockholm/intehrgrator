@@ -22,6 +22,7 @@ import {
 } from "./target_blocks.ts";
 import { specForChild, type SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
+import { applyInstanceRootCap } from "../instance_root.ts";
 
 const TARGET_CHILD_PREFIX = "TARGET_";
 
@@ -92,6 +93,7 @@ function restoreTargetStructureState(
     connection?: "statement" | "value";
     typeCheck?: string;
     xmlAttributes?: string[];
+    instanceRoot?: boolean;
   } | null,
 ): void {
   if (state?.typeCheck) {
@@ -116,6 +118,7 @@ function restoreTargetStructureState(
   block.schemaExtraFields_ = Array.isArray(state?.extras) ? state!.extras! : [];
   block.schemaOptionalSpecs_ = Array.isArray(state?.optionalFields) ? state!.optionalFields! : [];
   block.updateSchemaFields_?.();
+  if (state?.instanceRoot) applyInstanceRootCap(block);
 }
 
 function defineSchemaMutatorQuarks(): void {
@@ -239,7 +242,11 @@ export function registerSchemaFieldsMutator(): void {
         if (typeCheck) payload.typeCheck = typeCheck;
         const xmlAttributes = (this as Block & { schemaXmlAttributes_?: string[] }).schemaXmlAttributes_;
         if (xmlAttributes?.length) payload.xmlAttributes = xmlAttributes;
-        return extras.length || fields?.length || payload.childGroups || typeCheck
+        if ((this as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_) {
+          payload.instanceRoot = true;
+        }
+        return extras.length || fields?.length || payload.childGroups || typeCheck ||
+          payload.instanceRoot
           ? payload
           : null;
       },
@@ -254,6 +261,7 @@ export function registerSchemaFieldsMutator(): void {
           connection?: "statement" | "value";
           typeCheck?: string;
           xmlAttributes?: string[];
+          instanceRoot?: boolean;
         } | string | null,
       ) {
         if (state == null || state === "") {

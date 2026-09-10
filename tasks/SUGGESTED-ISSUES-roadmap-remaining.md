@@ -17,13 +17,13 @@
 
 ## A. Existing issues — keep (amendments applied 2026-09-09; VMS cut recorded 2026-09-10)
 
-Bodies updated on GitHub for #35, #37, #38, #39, #49, #51, #52 (2026-09-09). **#35** (toolbox) and **#37** (IR) are **closed**. Live VMS work starts at **#38**.
+Bodies updated on GitHub for #35, #37, #38, #39, #49, #51, #52 (2026-09-09). **#35** (toolbox) and **#37** (IR) are **closed**. **#38** (oracle) is implemented in ADR 0009. Live VMS work continues at **#39**.
 
 | Issue | Verdict |
 | ----- | ------- |
 | **[#35](https://github.com/regionstockholm/intehrgrator/issues/35)** Decide: remove verification-hostile Blockly from the toolbox | **Closed.** Toolbox cut landed (`src/blockly/vms.ts`). |
 | **[#37](https://github.com/regionstockholm/intehrgrator/issues/37)** Extend Mapping Model IR beyond flat `slots[]` | **Closed.** IR is the Keep/VMS surface (`workspaceToModelJson`). |
-| **[#38](https://github.com/regionstockholm/intehrgrator/issues/38)** Unify Mapping preview vs TypeScript vs XQuery on VMS | **Keep; in progress.** Absorbs ROADMAP J (TS) acceptance; Java/Handlebars compare out of scope. |
+| **[#38](https://github.com/regionstockholm/intehrgrator/issues/38)** Unify Mapping preview vs TypeScript vs XQuery on VMS | **Implemented (ADR 0009).** Preview ≡ TypeScript golden; XQuery covers IR loops; silent `undefined` throws. Java/Handlebars compare still out of scope. |
 | **[#39](https://github.com/regionstockholm/intehrgrator/issues/39)** XQuery: `for_each_source` + nested structure | **Keep.** Follow-up child section for ROADMAP K (COMPOSITION XML + Saxon/BaseX); no parallel Chunk 9 epic. |
 | **[#40](https://github.com/regionstockholm/intehrgrator/issues/40)** Workspace linter for VMS escape hatches | **Keep.** |
 | **[#41](https://github.com/regionstockholm/intehrgrator/issues/41)** Property-based / metamorphic checks | **Keep.** Separate from S-07 dependency hashes. |

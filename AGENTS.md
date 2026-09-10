@@ -23,30 +23,17 @@
   3. ask_question - Ask any question about a GitHub repository and get an
      AI-powered, context-grounded response
 
-## Development process guidance
+## Development process
 
-- If asked to make a `PRD` (Product Requirements Document) based on a prompt,
-  then follow the instructions in
-  https://raw.githubusercontent.com/snarktank/ai-dev-tasks/refs/heads/main/create-prd.md
-- If asked to create a `task list` then look in the /tasks subdirectory for a
-  PRD file to base it on. If there are several PRD files that don't already have
-  associated task lists, then ask user for disambiguation. Then follow
-  instructions in
-  https://raw.githubusercontent.com/snarktank/ai-dev-tasks/refs/heads/main/generate-tasks.md
-  using the PRD file as input. Refer to PRD in task list document.
-- Put PRDs and task lists in a /tasks subdirectory
-- The task list file(s) should contain a section called "Instructions for
-  Completing Tasks" with the following content:
+Use the Matt Pocock engineering skills in `.cursor/skills/` and `.agents/skills/`.
+`/ask-matt` is the router. Typical path: `/grill-with-docs` → `/to-spec` →
+`/to-tickets` → `/implement` (drives `/tdd`). Mapping with the desktop app open:
+the `intehrgrator-mapping` skill. Setup, Deno tasks, MCP, and doc map:
+`README-DEVELOPERS.md`. End-user tutorial: `docs/TUTORIAL.md`.
 
-```
-**IMPORTANT:** As you complete each task, you must check it off in this markdown file by changing `- [ ]` to `- [x]`. This helps track progress and ensures you don't skip any steps. 
-Example:
-- `- [ ] 1.1 Read file` → `- [x] 1.1 Read file` (after completing)
-
-Update the file after completing each sub-task, not just after completing an entire parent task. If implementation steps happen to fulfil several things at once then ticking off several boxes is OK.
-
-If running in interactive mode (e.g. Gemini CLI) then stop after each parent task and let user review. If running in autonomus batch mode e.g. dispatched to Jules, then just stop if user input is crucial in order to understand further steps.
-```
+New specs live as GitHub issues (and ADRs when a decision sticks). Do not
+recreate a `/tasks` directory or the snarktank create-prd / generate-tasks
+workflow. Completed v1 PRDs and chunk lists are in `docs/historical-archive/`.
 
 ## Development tooling guidance
 

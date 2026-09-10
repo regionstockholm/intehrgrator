@@ -2,8 +2,8 @@
 
 **Status:** Draft — do not implement until open questions are resolved  
 **Triage label:** `ready-for-agent` (apply after a revision that closes the questions below)  
-**Glossary:** [CONTEXT.md](../CONTEXT.md)  
-**Related:** [docs/BLOCKLY_INTEGRATION.md](../docs/BLOCKLY_INTEGRATION.md), [docs/UI_ARCHITECTURE.md](../docs/UI_ARCHITECTURE.md)
+**Glossary:** [CONTEXT.md](../../CONTEXT.md)  
+**Related:** [docs/BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md), [docs/UI_ARCHITECTURE.md](../UI_ARCHITECTURE.md)
 
 ---
 

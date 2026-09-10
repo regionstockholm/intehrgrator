@@ -3,9 +3,9 @@
 **Status:** Ready for implementation (Phase 1)  
 **GitHub issue:** [#46](https://github.com/regionstockholm/intehrgrator/issues/46)  
 **Triage label:** `ready-for-agent` (tracker currently has `enhancement` on #46; add the role label when it exists)  
-**Glossary:** [CONTEXT.md](../CONTEXT.md)  
-**ADR:** [0007 — Constraint Overlay is RM vs effective OPT](../docs/adr/0007-constraint-overlay-on-rm-block-mouths.md)  
-**Related:** [prd-openehr-blockly-scaffolding.md](./prd-openehr-blockly-scaffolding.md), [docs/BLOCKLY_INTEGRATION.md](../docs/BLOCKLY_INTEGRATION.md)
+**Glossary:** [CONTEXT.md](../../CONTEXT.md)  
+**ADR:** [0007 — Constraint Overlay is RM vs effective OPT](../adr/0007-constraint-overlay-on-rm-block-mouths.md)  
+**Related:** [prd-openehr-blockly-scaffolding.md](./prd-openehr-blockly-scaffolding.md), [docs/BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)
 
 ---
 

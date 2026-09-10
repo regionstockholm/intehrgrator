@@ -15,12 +15,13 @@ If any of these files don't exist, **proceed silently**. Don't flag their absenc
 
 ```
 /
-├── CONTEXT.md
+├── CONTEXT.md                 glossary (always read)
+├── README.md                  end users
+├── README-DEVELOPERS.md       setup, Deno tasks, AI skills
 ├── docs/
-│   └── adr/
-│       ├── 0001-mapping-and-target-seams.md
-│       ├── 0002-convert-time-defaults.md
-│       └── 0003-mapping-preview-vs-generated-script.md
+│   ├── TUTORIAL.md            end-user walkthrough
+│   ├── adr/                   architecture decisions
+│   └── historical-archive/    superseded prompts/PRDs — not current spec
 └── src/
 ```
 

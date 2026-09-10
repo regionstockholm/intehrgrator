@@ -20,11 +20,11 @@ description: Guide AI agents mapping source data to openEHR (or other targets) v
 5. `POST /api/v1/run-test` — verify `testOk`
 6. Use **`undo`** if the user rejects a change
 
-Full HTTP table: [docs/AGENT_WORKFLOW.md](../docs/AGENT_WORKFLOW.md)
+Full HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md)
 
 ## Suggestion rules (do not paraphrase)
 
-Read [docs/AI_SUGGESTION_FORMAT.md](../docs/AI_SUGGESTION_FORMAT.md).
+Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md).
 
 - Value slots only — no RM container blocks in the envelope
 - **`loops[]`** + relative `EXPRESSION` for repeating containers

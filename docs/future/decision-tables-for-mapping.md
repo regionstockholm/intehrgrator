@@ -198,7 +198,7 @@ Live in the **Sheets** category: same tab, same jspreadsheet widget, same conver
 3. **Range predicates** (`>= 140`, `90..120`) on numeric columns — stolen from DL range tables; important for labs/vitals.
 4. **UNIQUE warning** in the Mapping Editor (yellow **Constraint warning** family): two rows match the same Active Example, or the table is not balanced.
 5. **COLLECT + join** for narrative fragments, plus **snippet output columns** (mixed with value columns on the same row).
-6. **DMN XML import/export** — **not in the first slices.** Logged on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`tasks/TASKS-roadmap-chunks.md`](../../tasks/TASKS-roadmap-chunks.md). Simple tables only (equality/range, FIRST/UNIQUE/COLLECT). Do not take on FEEL as the Mapping Expression language.
+6. **DMN XML import/export** — **not in the first slices.** Logged on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`TASKS-roadmap-chunks.md`](../historical-archive/TASKS-roadmap-chunks.md). Simple tables only (equality/range, FIRST/UNIQUE/COLLECT). Do not take on FEEL as the Mapping Expression language.
 7. **Sibling lung-MDT Example Set** that uses the tables for the complex Note parts — see below. Do not replace the current Handlebars-in-`text_code` set.
 
 ### Blockly
@@ -358,6 +358,6 @@ Resolved 2026-09-08:
 
 4. **Sibling layout A** — `examples/lung-MDT-form-decision-tables/` for mapping + README only; catalog id `lung-mdt-form-to-tc-xml-decision-tables`; reuse XSD / Defaults Map / PROD script by URI. No empty catalog entry until the mapping exists.
 5. **First slice A** — ship **multi-column equality `sheet_lookup`** (still a Sheet, convert-time bag unchanged) before a separately named Decision table. Promote a grid to `kind: decision-table` when predicate cells, don't-care, mixed value/snippet outputs, or a hit policy other than first-match are needed. Lung-MDT sibling set waits on that promotion (imaging TermId + Note snippets are not equality-only).
-6. **DMN A (now)** — do not implement import/export until the internal decision-table JSON is stable. **Parked** on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`tasks/TASKS-roadmap-chunks.md`](../../tasks/TASKS-roadmap-chunks.md) so it is not forgotten. Still no FEEL.
+6. **DMN A (now)** — do not implement import/export until the internal decision-table JSON is stable. **Parked** on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`TASKS-roadmap-chunks.md`](../historical-archive/TASKS-roadmap-chunks.md) so it is not forgotten. Still no FEEL.
 
 No remaining open product questions from this grill.

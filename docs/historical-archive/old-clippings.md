@@ -2,13 +2,13 @@
 >
 > **Canonical sources:**
 > - [INITIAL_PROMPT.md](INITIAL_PROMPT.md) — project goals, two-step process, deliverables
-> - [CONTEXT.md](CONTEXT.md) — domain glossary (resolved terminology)
-> - [docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md) — UI layout, panes, interactions, v1 scope
-> - [docs/BLOCKLY_INTEGRATION.md](docs/BLOCKLY_INTEGRATION.md) — Blockly blocks and generators
-> - [docs/SOURCE_FORMATS.md](docs/SOURCE_FORMATS.md) · [docs/SOURCE_QUERY.md](docs/SOURCE_QUERY.md) — source formats and fontoxpath
-> - [docs/PROJECT_PERSISTENCE.md](docs/PROJECT_PERSISTENCE.md) — Project Bundle / Mapping Model
-> - [docs/AI_SUGGESTION_FORMAT.md](docs/AI_SUGGESTION_FORMAT.md) — copy-paste AI assist format
-> - [docs/future/](docs/future/) — deferred features (wildcard mapping, integrated AI, XSD, text-first editor)
+> - [CONTEXT.md](../../CONTEXT.md) — domain glossary (resolved terminology)
+> - [docs/UI_ARCHITECTURE.md](../UI_ARCHITECTURE.md) — UI layout, panes, interactions, v1 scope
+> - [docs/BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md) — Blockly blocks and generators
+> - [docs/SOURCE_FORMATS.md](../SOURCE_FORMATS.md) · [docs/SOURCE_QUERY.md](../SOURCE_QUERY.md) — source formats and fontoxpath
+> - [docs/PROJECT_PERSISTENCE.md](../PROJECT_PERSISTENCE.md) — Project Bundle / Mapping Model
+> - [docs/AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md) — copy-paste AI assist format
+> - [docs/future/](../future/) — deferred features (wildcard mapping, integrated AI, XSD, text-first editor)
 >
 > Preserved below for historical reference only.
 

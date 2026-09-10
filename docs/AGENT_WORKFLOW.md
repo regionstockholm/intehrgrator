@@ -88,4 +88,4 @@ Always use [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md) version 2 (`inte
 
 - [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md)
 - [UI_TESTING.md](./UI_TESTING.md) — browser Test API (`?testMode=1`) for Playwright only
-- [tasks/DESIGN-multi-agent-undo-crdt.md](../tasks/DESIGN-multi-agent-undo-crdt.md)
+- [DESIGN-multi-agent-undo-crdt.md](design/DESIGN-multi-agent-undo-crdt.md)

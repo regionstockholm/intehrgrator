@@ -2,8 +2,8 @@
 
 **Status:** Ready for implementation  
 **Triage label:** `ready-for-agent` (apply when published to issue tracker)  
-**Glossary:** [CONTEXT.md](../CONTEXT.md)  
-**Design references:** [docs/UI_ARCHITECTURE.md](../docs/UI_ARCHITECTURE.md), [docs/MAPPING_SPECIFICATION.md](../docs/MAPPING_SPECIFICATION.md)
+**Glossary:** [CONTEXT.md](../../CONTEXT.md)  
+**Design references:** [docs/UI_ARCHITECTURE.md](../UI_ARCHITECTURE.md), [docs/MAPPING_SPECIFICATION.md](../MAPPING_SPECIFICATION.md)
 
 ---
 
@@ -231,7 +231,7 @@ Possibly modify this to make maxinal use if XPATH 3.1 built in functions support
 - Deployment, runtime hosting, CDR upload, openEHR REST integration
 - FHIR source formats
 - Full bidirectional CodeMirror editing of RM structure
-- Exporting XQuery programs that perform the full conversion to valid openEHR — see [docs/future/xquery-export-investigation.md](../docs/future/xquery-export-investigation.md)
+- Exporting XQuery programs that perform the full conversion to valid openEHR — see [docs/future/xquery-export-investigation.md](../future/xquery-export-investigation.md)
 - Sectra forms as an input format in addition to generic json/XML - output code that runs in sectra formas and or pipelines 
 - `mapping-interface.pen` wireframe maintenance (superseded by consolidated mockup + docs)
 

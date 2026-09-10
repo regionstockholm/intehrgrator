@@ -1,101 +1,35 @@
 # intEHRgrator
 
-Visual integration workbench for mapping source data (JSON/XML) to openEHR Compositions via Blockly + CodeMirror.
+Visual workbench for mapping source data (JSON, XML, or openEHR) onto a chosen **target** — an openEHR template, a JSON/XML schema, or a free-form text document — and producing a conversion script you can run in your own pipeline.
 
-## Webapp for users
-Go to https://regionstockholm.github.io/intehrgrator/ click (i) - encircled i - at various places in the interface to learn about use.
+Intended for **medical informaticians**, clinical super users, and technically interested business developers. You do not need to install a compiler to try it.
 
-## Desktop app (0.5)
+## Open the workbench
 
-Download a platform build from [Releases](https://github.com/regionstockholm/intehrgrator/releases) and run it locally — no Deno install, no GitHub Pages. The same workbench opens in a native window (OS webview) and talks only to `127.0.0.1`.
+**Web (always the latest `main` build — can change under you):**
+[https://regionstockholm.github.io/intehrgrator/](https://regionstockholm.github.io/intehrgrator/)
 
-**New in 0.5:** **Sheets** in Mapping Editors (jspreadsheet-ce widget, CSV import/export, `sheet_*` Blockly accessors, convert-time `ctx.sheets` bag). Lists and Maps share one toolbox drawer (**Lists & maps**); `maps_*` stay for Defaults Map and nested Blockly values. See [docs/ROADMAP.md](docs/ROADMAP.md) §C and [tasks/DESIGN-sheets-vs-maps.md](tasks/DESIGN-sheets-vs-maps.md).
+**Web (frozen copies of released versions):** each desktop release also publishes an immutable site under a version path, for example `https://regionstockholm.github.io/intehrgrator/v0.7/`. The live list is [versions.json](https://regionstockholm.github.io/intehrgrator/versions.json). Prefer a frozen URL when you are demonstrating, training, or validating a mapping you must be able to reopen later.
 
-**From 0.3:** localhost **Agent API** and stdio **MCP** server for IDE/AI agents, plus an installable mapping skill. See [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) and [.cursor/skills/intehrgrator-mapping/SKILL.md](.cursor/skills/intehrgrator-mapping/SKILL.md).
+**Desktop (runs only on `127.0.0.1`, no GitHub Pages):** download a platform build from [Releases](https://github.com/regionstockholm/intehrgrator/releases). Unzip/run next to the other files in the archive (on Windows, keep `intEHRgrator.exe` beside `intEHRgrator.dll`). Linux AppImage: `chmod +x` first.
 
-| Asset | Platform |
-| --- | --- |
-| `intEHRgrator-windows-x64.zip` | Windows x64 (WebView2) |
-| `intEHRgrator-linux-x64.AppImage` | Linux x64 |
-| `intEHRgrator-macos-x64.zip` | macOS Intel |
-| `intEHRgrator-macos-arm64.zip` | macOS Apple Silicon |
+## Learn it
 
-On Windows, unzip and run `intEHRgrator.exe` **next to** `intEHRgrator.dll` (do not copy the exe alone). On Linux, `chmod +x` the AppImage.
+1. Click **Help** in the toolbar (tutorial, issue reporting, this copy’s version).
+2. Click the encircled **i** next to Schema, Examples, target Open, and Output mode for short format notes.
+3. Read the [end-user tutorial](docs/TUTORIAL.md) — three panes, Click-to-Map, Test Run, save/export, and AI assist.
 
-Rebuild from source:
+Fastest first run: **Example Sets ▾** and pick a catalogued set.
 
-```bash
-deno task compile:desktop   # Windows / Linux AppImage / macOS .app → dist/release/
-deno task desktop           # build + run in a native window (needs Deno 2.9+)
-```
+## Something wrong — or a feature you want?
 
-## Quick start for developers
+GitHub Issues are the inbox. You do **not** need to be a developer. **Feature requests are welcome** as well as bugs.
 
-```bash
-deno task vendor   # clone/update ehrtslib + examples from origin/main into vendor/
-deno task test     # unit tests (no browser)
-deno task test:ui  # Playwright: Click-to-Map + Test Run (see docs/UI_TESTING.md)
-deno task build    # outputs static site to dist/
-deno task dev      # serve dist/ on http://localhost:5173
-```
+- In the app: **Help** → **Report a problem** or **Request a feature**
+- On GitHub: [new issue](https://github.com/regionstockholm/intehrgrator/issues/new/choose)
 
-### GitHub Pages
+Paste the version string from the footer (or **Help → Copy version**) into the report. Frozen web copies put the version in the URL (`/v0.7/` and so on).
 
-The Web Shell is published on every push to `main` via the **Deploy GitHub Pages** workflow (also runnable manually from Actions). Ensure **Settings → Pages → Build and deployment → Source** is **GitHub Actions**.
+## Developers
 
-Bleeding-edge builds stay at the site root. Each desktop release from `deno task release` also publishes an immutable copy under a version subdirectory (for example `https://regionstockholm.github.io/intehrgrator/v0.5/`). Available frozen versions are listed in [`versions.json`](https://regionstockholm.github.io/intehrgrator/versions.json) on the live site.
-
-```bash
-deno task release -- --version 0.6.0   # bump, tag, push; Actions publishes desktop + Pages /v0.6/
-deno task release -- --current         # tag the version already in deno.json
-```
-
-CI (`vendor` → test → build) always checks out **ehrtslib `origin/main`**, so upstream module moves fail tests instead of shipping against a stale pin.
-
-Open `dist/index.html` (or use `deno task dev`) to use the Web Shell locally.
-
-## Implementation layout
-
-| Path | Role |
-|------|------|
-| `src/core/` | OPT skeleton, Mapping Model, spec, source query, codegen, persistence, AI |
-| `src/blockly/` | openEHR Blockly blocks + generators |
-| `src/workbench/` | UI controller, tree views, CodeMirror setup |
-| `src/host/` | `HostAdapter` + browser implementation |
-| `src/desktop/` | `deno desktop` entry: local HTTP + native window |
-| `web/` | HTML/CSS entry; bundled to `dist/bundle.js` |
-| `test/` | Deno unit tests + OPT fixtures |
-| `test/ui/` | Playwright UI tests (Workbench Test API) |
-| `src/ui_test/` | Workbench Test API types / helpers |
-
-## Documentation
-
-| | |
-|---|---|
-| **Glossary** | [CONTEXT.md](CONTEXT.md) |
-| **Project prompt** | [INITIAL_PROMPT.md](INITIAL_PROMPT.md) |
-| **PRD (v1)** | [tasks/PRD-intehrgrator-v1.md](tasks/PRD-intehrgrator-v1.md) · [tasks/TASKS-intehrgrator-v1.md](tasks/TASKS-intehrgrator-v1.md) |
-| **UI design** | [docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md) · [mockup](docs/assets/prototype-ui-v1-consolidated.png) |
-| **UI testing** | [docs/UI_TESTING.md](docs/UI_TESTING.md) |
-| **Blockly** | [docs/BLOCKLY_INTEGRATION.md](docs/BLOCKLY_INTEGRATION.md) |
-| **Mapping spec** | [docs/MAPPING_SPECIFICATION.md](docs/MAPPING_SPECIFICATION.md) |
-| **Source data** | [docs/SOURCE_FORMATS.md](docs/SOURCE_FORMATS.md) · [docs/SOURCE_QUERY.md](docs/SOURCE_QUERY.md) |
-| **Persistence** | [docs/PROJECT_PERSISTENCE.md](docs/PROJECT_PERSISTENCE.md) |
-| **AI assist** | [docs/AI_SUGGESTION_FORMAT.md](docs/AI_SUGGESTION_FORMAT.md) |
-| **Agent / MCP** | [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) · [.cursor/skills/intehrgrator-mapping/SKILL.md](.cursor/skills/intehrgrator-mapping/SKILL.md) |
-| **Deferred** | [docs/future/](docs/future/) |
-| **Agents** | [AGENTS.md](AGENTS.md) |
-
-**RM Blockly coverage:** Party identity slots on `PARTY_IDENTIFIED` / `PARTY_RELATED` include `name`, `identifiers` (`List<DV_IDENTIFIER>` via `dv_identifier` / `lists_create_with`), and `external_ref` (`PARTY_REF` shell). Full Demographics product scope (e.g. standalone demographic compositions, `PARTY` records beyond these RM shells) is **not yet implemented**.
-
-> [old-clippings.md](old-clippings.md) is superseded by INITIAL_PROMPT.md and the docs above.
-
-## Libraries
-
-- [ErikSundvall/ehrtslib](https://github.com/ErikSundvall/ehrtslib) — openEHR TypeScript (RM, Test Run)
-- [Ehrlibs/openEHR-model-examples](https://github.com/Ehrlibs/openEHR-model-examples) — demo archetypes/templates (`deno task vendor` → `vendor/openEHR-model-examples/`)
-- [openEHR/archie](https://github.com/openEHR/archie) — openEHR Java (export target)
-- [FontoXML/fontoxpath](https://github.com/FontoXML/fontoxpath) — XPath 3.1 queries on JSON/XML sources
-- [fast-xml-parser](https://github.com/NaturalIntelligence/fast-xml-parser) — openEHR RM XML (aligned with ehrtslib)
-
-DeepWiki indexes for ehrtslib, archie, and openEHR specs — see [AGENTS.md](AGENTS.md).
+Build, Deno tasks, ADRs, glossary, and AI/MCP setup: [README-DEVELOPERS.md](README-DEVELOPERS.md).

@@ -1,7 +1,7 @@
 # Suggested GitHub issues — remaining roadmap work
 
 **Date:** 2026-09-09  
-**Sources:** [`docs/ROADMAP.md`](../docs/ROADMAP.md), [`tasks/TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
+**Sources:** [`docs/ROADMAP.md`](../ROADMAP.md), [`TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
 **Purpose:** Inspect and edit this list before filing real issues. Do **not** treat unchecked boxes here as tracker state.
 
 ## Snapshot
@@ -59,7 +59,7 @@ Edit titles/bodies freely. Proposed order is “good next agents,” not a hard 
 
 ### S-02 — Multi-column equality `sheet_lookup`
 
-**Combines:** ROADMAP C multi-column lookup; TASKS Chunk 8 “(later) multi-column equality”; first slice of [`docs/future/decision-tables-for-mapping.md`](../docs/future/decision-tables-for-mapping.md).
+**Combines:** ROADMAP C multi-column lookup; TASKS Chunk 8 “(later) multi-column equality”; first slice of [`docs/future/decision-tables-for-mapping.md`](../future/decision-tables-for-mapping.md).
 
 **Why separate from decision tables:** Still a Sheet (data grid), not predicates/hit policies. Small Blockly + model + codegen change.
 
@@ -220,7 +220,7 @@ Mark post-v1 explicitly.
 
 ### S-14 — Human multi-user collaboration (Chunk 14)
 
-**Combines:** ROADMAP B/D multi-user; Chunk 14; [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md).
+**Combines:** ROADMAP B/D multi-user; Chunk 14; [`ARCHITECTURE-multi-user-collab-prep.md`](../architecture/ARCHITECTURE-multi-user-collab-prep.md).
 
 **Why one late epic:** CRDT/sync spike + rooms; 5.1 already laid actor/history seams. Do not start until single-user VMS/platform work is calm.
 

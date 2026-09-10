@@ -61,6 +61,7 @@ const VALUE_BLOCK_TYPES = new Set([
   "maps_create_empty",
   "maps_get",
   "sheet_lookup",
+  "decision_table",
   "sheet_get_cell",
   "sheet_get_xy",
   "sheet_get_row",

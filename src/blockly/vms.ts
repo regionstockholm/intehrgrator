@@ -79,6 +79,7 @@ export const VMS_EXPRESSION_BLOCK_TYPES = [
   "sheet_get_header",
   "sheet_get_data",
   "sheet_lookup",
+  "decision_table",
   "lists_getIndex",
   "lists_create_with",
 ] as const;

@@ -299,6 +299,8 @@ export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string
         case "sheet_get_data":
         case "sheet_lookup":
           return `(: ${ast.name} — bind $sheets at convert time :) ()`;
+        case "decision_table":
+          return `(: decision_table — bind $sheets / evaluate Decision table at convert time :) ()`;
         case "xpathString":
         case "xpath":
           return emitXPathCall("string-at", ast.args[0]);

@@ -41,4 +41,6 @@ Deno.test("Lists and Maps share one toolbox drawer; Sheets stays separate", () =
   assert(sheets, "Sheets remains its own drawer");
   const sheetTypes = (sheets?.contents ?? []).map((block) => block.type);
   assert(sheetTypes.includes("sheet"), "Sheets drawer still has sheet blocks");
+  assert(sheetTypes.includes("decision_table"), "Sheets drawer includes decision_table");
+  assert(sheetTypes.includes("decision_table_decl"), "Sheets drawer includes decision_table_decl");
 });

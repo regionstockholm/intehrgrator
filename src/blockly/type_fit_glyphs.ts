@@ -17,6 +17,7 @@ import {
   slotEmojiFieldName,
 } from "./rm_type_emoji.ts";
 import { isSlotLabelField } from "./slot_label.ts";
+import { isSourceQueryBlockType } from "./source_query.ts";
 
 const VALUE_INPUT = Blockly.inputs?.inputTypes?.VALUE ?? 1;
 const STATEMENT_INPUT = Blockly.inputs?.inputTypes?.STATEMENT ?? 3;
@@ -83,6 +84,8 @@ export function applyTypeFitChrome(block: Blockly.Block): void {
 
 function applyOutputGlyph(block: Blockly.Block): void {
   if (!block.outputConnection) return;
+  // Source query labels already carry the type emoji (🔤 source, 🔢 source, …).
+  if (isSourceQueryBlockType(block.type)) return;
   if (block.getField(BLOCK_OUT_EMOJI_FIELD)) return;
   const header = block.getInput("HEADER") ?? block.inputList[0];
   if (!header) return;

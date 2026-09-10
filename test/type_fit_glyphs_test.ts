@@ -42,6 +42,15 @@ Deno.test("logic_list_restriction shows output and slot type-fit glyphs", () => 
   workspace.dispose();
 });
 
+Deno.test("source query blocks keep the type emoji in the label, not a second output glyph", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const str = workspace.newBlock("source_query");
+  assertEquals(str.getField(BLOCK_OUT_EMOJI_FIELD), null);
+  assertEquals(str.inputList[0]?.fieldRow[0]?.getText()?.startsWith("🔤 "), true);
+  workspace.dispose();
+});
+
 Deno.test("lists_create_with uses a header mutator cog instead of the stock icon", () => {
   ensure();
   const workspace = new Blockly.Workspace();

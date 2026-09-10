@@ -85,6 +85,21 @@ export function blockToExpression(block: Block | null): string | null {
       const op = opMap[block.getFieldValue("OP")] ?? "+";
       return `(${a ?? "0"} ${op} ${b ?? "0"})`;
     }
+    case "math_round": {
+      const num = blockToExpression(block.getInputTargetBlock("NUM")) ?? "0";
+      return `round(${num})`;
+    }
+    case "math_modulo": {
+      const a = blockToExpression(block.getInputTargetBlock("DIVIDEND")) ?? "0";
+      const b = blockToExpression(block.getInputTargetBlock("DIVISOR")) ?? "1";
+      return `modulo(${a}, ${b})`;
+    }
+    case "math_constrain": {
+      const value = blockToExpression(block.getInputTargetBlock("VALUE")) ?? "0";
+      const low = blockToExpression(block.getInputTargetBlock("LOW")) ?? "0";
+      const high = blockToExpression(block.getInputTargetBlock("HIGH")) ?? "0";
+      return `constrain(${value}, ${low}, ${high})`;
+    }
     case "variables_get": {
       const name = block.getField("VAR")?.getText() ?? "v";
       return `var(${JSON.stringify(name)})`;

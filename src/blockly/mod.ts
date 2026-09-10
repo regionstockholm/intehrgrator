@@ -81,7 +81,6 @@ export {
   openBlockMutator,
   composeOptionalRmExtras,
   setOptionalRmMutatorChangeHandler,
-  setOptionalRmPickHandler,
   applyEventRmType,
   applyItemStructureRmType,
   isEventFamilyType,

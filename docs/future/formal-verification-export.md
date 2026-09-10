@@ -1,6 +1,6 @@
 # Formal verification export
 
-**Status:** Proposal — investigation captured 2026-09-05; no codegen or UI yet.
+**Status:** Proposal — investigation captured 2026-09-05; no verification codegen or UI yet. **Verifiable Mapping Subset (VMS)** profile landed in PR #58 (closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35) / [#37](https://github.com/regionstockholm/intehrgrator/issues/37)); golden oracles and equivalence work remain [#38](https://github.com/regionstockholm/intehrgrator/issues/38)+.
 
 ## Idea
 
@@ -211,19 +211,20 @@ extractor (`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
 
 | Category | Effect on XQuery / declarative export | Effect on formal verification |
 |----------|--------------------------------------|------------------------------|
-| **Canvas vs Mapping Model gap** | High — XQuery emits flat `slots[]` only; loops and skeleton nesting are open work | High — verifier must choose Blockly walk vs slot index vs preview interpreter |
+| **Canvas vs Mapping Model gap** | Medium — Mapping Model has `loops[]` / `targetSignature`; XQuery still emits flat `slots[]` only ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)) | Medium — preview vs codegen oracle still open ([#38](https://github.com/regionstockholm/intehrgrator/issues/38)) |
 | **Template / string DSL blocks** | High — `handlebars()` / `text_code` collapse to opaque strings | High — unbounded string templates are not a decidable logic |
-| **Sheet mutators** | High — not in Mapping Model expressions | High — imperative convert-time state |
-| **Stock imperative Blockly** | High if left in toolbox — do **not** codegen; **remove** while/for/random/print/mutators | High — unbounded / non-deterministic / stateful |
+| **Sheet mutators** | **Removed** from toolbox (VMS); not in Mapping Model expressions | High if re-enabled — imperative convert-time state |
+| **Stock imperative Blockly** | **Removed** from toolbox (VMS) | High if re-enabled — unbounded / non-deterministic / stateful |
 | **Dynamic source paths** | Medium — literal paths compile; dynamic paths need runtime helpers | Medium — symbolic XPath over JSON/XML is hard to bound |
 | **Optional RM / schema mutators** | Low–medium — structure is partly in `optionalRm[]` | Medium — attachment graph must be part of the contract |
 | **Finite enumerations (`term_pick`)** | Low — easy to emit | **Positive** — ideal for DL-style value constraints |
 
 ### 1. Canvas semantics wider than the Mapping Model
 
-The Mapping Model is rebuilt as a **flat** `slots[]` index plus `loops[]` and
-`optionalRm[]` (`workspaceToModelJson` in `src/blockly/mod.ts`). Many canvas
-features exist only in the full Blockly walk:
+The Mapping Model is rebuilt from Blockly JSON as `slots[]`, `loops[]` (with
+grain/`kind`), nested `targetSignature`, `optionalRm[]`, and `unsupported[]`
+(`workspaceToModelJson` in `src/blockly/mapping_ir.ts`). Some canvas features
+still exist only in the full Blockly walk:
 
 | Feature | In Mapping Model? | Codegen today |
 |---------|-------------------|---------------|
@@ -231,7 +232,7 @@ features exist only in the full Blockly walk:
 | `for_each_source` | Yes (`loops[]`) | TypeScript canvas; **not** XQuery slots export |
 | RM / schema tree shape | Partially (`optionalRm[]`, block types on canvas) | TypeScript canvas; XQuery Model B slot manifest only |
 | `lists_getIndex`, `lists_create_with` | **No** | TypeScript canvas only (`emitListsGetIndex`) |
-| Sheet **mutator** statements | **No** | Blockly JS generator stubs only |
+| Sheet **mutator** statements | **No** (removed from toolbox) | Blockly JS generator stubs only |
 | Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach` | **No** | Toolbox only; TS codegen → `undefined` |
 | `controls_if` | **No** | Go template JSON walk only |
 
@@ -241,16 +242,20 @@ TypeScript Output mode it is the Blockly canvas walk; for XQuery it is yet
 another subset. [ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md)
 already flags this seam.
 
-**Suggestions:**
+**Implemented (PR #58):** VMS profile in `src/blockly/vms.ts` — hostile stock
+Blockly and sheet mutators removed from the toolbox; Mapping Model IR extended
+with `loops[]`, `targetSignature`, and `unsupported[]`.
 
-1. Introduce an explicit **Verifiable Mapping Subset (VMS)** profile: lint the
-   workspace and warn when blocks outside VMS are present before contract export.
-2. **Extend the Mapping Model** to be the single semantic IR: nested target paths,
-   loop bodies, list indexing, and sheet reads — not only flat slot strings.
-3. Make all declarative exports (XQuery, mapping-contract, future DL emit) consume
-   that IR, not ad-hoc canvas walks.
-4. Pick one **verification oracle** (recommend: Mapping preview interpreter +
-   generated TypeScript cross-check) and test equivalence on VMS mappings in CI.
+**Follow-ups:**
+
+1. Pick one **verification oracle** (recommend: Mapping preview interpreter +
+   generated TypeScript cross-check) and test equivalence on VMS mappings in CI
+   ([#38](https://github.com/regionstockholm/intehrgrator/issues/38)).
+2. Make all declarative exports (XQuery, mapping-contract, future DL emit) consume
+   the Mapping Model IR, not ad-hoc canvas walks ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)).
+3. Lint the workspace and warn on VMS escape hatches before contract export
+   ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)).
+4. Property-based / metamorphic robustness checks ([#41](https://github.com/regionstockholm/intehrgrator/issues/41)).
 
 ### 2. `text_handlebars`, `text_code`, and the Authored Handlebars Template
 
@@ -290,37 +295,41 @@ XQuery export currently stubs all sheet calls as `(: … :) ()`.
 `sheet_lookup` depends on tabular data that may be edited outside the mapping;
 proving “for all sources” requires quantifying over sheet contents too.
 
+**Implemented (VMS):** sheet mutators removed from the toolbox; read-only
+`sheet_get_*` / `sheet_lookup` remain.
+
 **Suggestions:**
 
-1. In VMS: allow **read-only** sheet accessors with **static** sheet documents
-   bundled in the Project Bundle; forbid mutator blocks (or run mutators only in
-   a documented “setup phase” before the pure `convert` function).
+1. Allow **read-only** sheet accessors with **static** sheet documents bundled
+   in the Project Bundle; do not re-offer mutator blocks in the default toolbox.
 2. For terminology grids: prefer `maps_create_with` / `term_pick` when the lookup
    table is small and static; reserve `sheet_lookup` for large tables with
    explicit sheet content in the contract precondition.
 3. Emit sheet tables as **finite map literals** in mapping-contract export so
    provers can inline them.
 
-### 4. Stock imperative Blockly in the toolbox
+### 4. Stock imperative Blockly (removed from toolbox)
 
-The toolbox includes `controls_if`, `controls_whileUntil`, `controls_repeat_ext`,
-`controls_for`, `controls_forEach`, and `controls_flow_statements`
-(`toolbox_demo.ts`). Only a subset is partially supported in Go template codegen;
-TypeScript canvas codegen silently emits `undefined` for unhandled block types.
+VMS cut (PR #58) removed `controls_if`, `controls_whileUntil`,
+`controls_repeat_ext`, `controls_for`, stock `controls_forEach`,
+`controls_flow_statements`, random, `text_print`, list-index mutators, and sheet
+mutators from the default toolbox (`VMS_REMOVED_BLOCK_TYPES` in
+`src/blockly/vms.ts`). Types stay registered but are not offered in the default
+toolbox; they are not in the IR surface. Go template codegen still partially supports some statement
+blocks; TypeScript canvas codegen silently emits `undefined` for unhandled types.
 
-**Why it hurts:** Verification tools need **bounded control flow** or pure
+**Why it mattered:** Verification tools need **bounded control flow** or pure
 fold/map comprehensions. While-loops and arbitrary variable mutation are hostile
 to SMT, description logics, and static XQuery typing.
 
-**Suggestions:**
+**Residual guidance:**
 
-1. **Discourage** stock loops/variables for mapping values — keep `for_each_source`
-   as the single sanctioned iteration primitive (already documented in
-   [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)).
-2. Add workspace lint: flag `controls_whileUntil`, `controls_repeat_ext`,
-   `variables_set`, and procedures if ever enabled.
-3. If conditional mapping is needed, prefer `logic_ternary` / expression `if()`
-   or schema-level `switch` over statement-level `controls_if`.
+1. Keep `for_each_source` / `for_each_list` as the sanctioned iteration primitives
+   ([BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md)).
+2. Workspace lint ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
+   should still flag VMS escape hatches and any re-enabled hostile types.
+3. For conditional mapping, prefer `logic_ternary` / expression `if()` or
+   `switch` over statement-level `controls_if`.
 
 ### 5. Dynamic and scope-dependent source paths
 
@@ -388,12 +397,12 @@ rules; JSON-LD / SHACL / description-logic approaches want a fixed target schema
 | OPT / `TemplateValidator` | Strong **postcondition** oracle for openEHR targets |
 | `for_each_source` (vs kintegrate context roots) | Explicit iteration boundary — can compile to `for $x in … return` in XQuery |
 
-### Proposed direction: Verifiable Mapping Subset (VMS)
+### Implemented VMS: Verifiable Mapping Subset
 
-**Do not implement codegen / Mapping Model coverage for hostile stock Blockly.**
-Prefer **removing those blocks from the toolbox** ([issue #35](https://github.com/regionstockholm/intehrgrator/issues/35))
-so agents do not spend effort on `controls_whileUntil`, random numbers, sheet
-mutators, etc. Follow-ups: Mapping Model IR [#37](https://github.com/regionstockholm/intehrgrator/issues/37),
+**Landed in PR #58** (closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35),
+[#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Hostile stock
+Blockly and sheet mutators were **removed from the toolbox**; Mapping Model IR
+was extended beyond flat `slots[]`. Follow-ups:
 preview/codegen equivalence [#38](https://github.com/regionstockholm/intehrgrator/issues/38),
 XQuery loops [#39](https://github.com/regionstockholm/intehrgrator/issues/39),
 VMS linter [#40](https://github.com/regionstockholm/intehrgrator/issues/40),

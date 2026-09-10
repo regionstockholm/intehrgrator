@@ -14,6 +14,9 @@ export function generateXQuery(model: MappingModel): string {
   const slotBlocks = model.slots.map((slot) =>
     emitSlot(slot).map((line) => `    ${line}`).join("\n")
   );
+  const loopBlocks = (model.loops ?? []).map((loop) =>
+    emitLoop(loop).map((line) => `    ${line}`).join("\n")
+  );
 
   const lines: string[] = [
     'xquery version "3.1";',
@@ -40,20 +43,32 @@ export function generateXQuery(model: MappingModel): string {
     "declare function local:convert($source as item()*) as element(mapping-result) {",
     "  element mapping-result {",
     `    attribute template { ${xqString(model.templateId)} }${
-      slotBlocks.length ? "," : ""
+      loopBlocks.length || slotBlocks.length ? "," : ""
     }`,
   ];
+
+  if (loopBlocks.length) {
+    lines.push("    element loops {");
+    for (let i = 0; i < loopBlocks.length; i++) {
+      const block = loopBlocks[i]!;
+      const comma = i < loopBlocks.length - 1 ? "," : slotBlocks.length ? "," : "";
+      lines.push(block + comma);
+    }
+    lines.push("    }" + (slotBlocks.length ? "," : ""));
+  }
 
   if (!slotBlocks.length) {
     lines.push(
       "    (: no mapped slots — map Target value slots in Blockly, then re-export :)",
     );
   } else {
+    lines.push("    element slots {");
     for (let i = 0; i < slotBlocks.length; i++) {
       const block = slotBlocks[i]!;
       const comma = i < slotBlocks.length - 1 ? "," : "";
       lines.push(block + comma);
     }
+    lines.push("    }");
   }
 
   lines.push(
@@ -64,6 +79,21 @@ export function generateXQuery(model: MappingModel): string {
     "",
   );
   return lines.join("\n");
+}
+
+function emitLoop(loop: import("../../types/mod.ts").MappingLoop): string[] {
+  const attrs = [
+    `attribute attach-slot-id { ${xqString(loop.attachSlotId)} }`,
+    `attribute var-name { ${xqString(loop.varName)} }`,
+    `attribute kind { ${xqString(loop.kind ?? "source")} }`,
+  ];
+  if (loop.path) attrs.push(`attribute path { ${xqString(loop.path)} }`);
+  if (loop.collection) attrs.push(`attribute collection { ${xqString(loop.collection)} }`);
+  return [
+    "element loop {",
+    ...attrs.map((line, index) => `  ${line}${index < attrs.length - 1 ? "," : ""}`),
+    "}",
+  ];
 }
 
 function emitHelpers(): string[] {
@@ -218,6 +248,12 @@ export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string
           return `normalize-space(${args[0]})`;
         case "concat":
           return `concat(${args.join(", ")})`;
+        case "round":
+          return `round(${args[0]})`;
+        case "modulo":
+          return `(${args[0]} mod ${args[1]})`;
+        case "constrain":
+          return `(if (${args[0]} lt ${args[1]}) then ${args[1]} else if (${args[0]} gt ${args[2]}) then ${args[2]} else ${args[0]})`;
         case "if":
           return `(if (${args[0]}) then ${args[1]} else ${args[2]})`;
         case "switch":

@@ -67,11 +67,14 @@ categories **Source**, **Data values**, and **Sheets**, with `@blockly/toolbox-s
 (`kind: "search"`) at the top so Search covers every `kind: "block"` drawer
 including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and Sheets. See [Attribution](#attribution).
 
-- **Stock Blockly (VMS cut):** `math_arithmetic`, `text_join`, `text_append`,
-  `text_trim`, `logic_ternary`, variables (`variables_set` / `variables_get` as `let`
-  in the current grain). Statement `controls_if`, `while` / numeric `for` / stock
-  `controls_forEach`, random, `text_print`, list-index mutators, and sheet mutators
-  are **not** in the default toolbox (see [issue #35](https://github.com/regionstockholm/intehrgrator/issues/35)).
+- **Stock Blockly (VMS landed, PR #58):** `math_arithmetic`, `text_join`,
+  `text_append`, `text_trim`, `logic_ternary`, variables (`variables_set` /
+  `variables_get` as `let` in the current grain). Statement `controls_if`, `while` /
+  numeric `for` / stock `controls_forEach`, random, `text_print`, list-index
+  mutators, and sheet mutators are **not** in the default toolbox
+  (`VMS_REMOVED_BLOCK_TYPES` in `src/blockly/vms.ts`; closed
+  [issue #35](https://github.com/regionstockholm/intehrgrator/issues/35)). **Sheets**
+  drawer ships read-only accessors (`sheet_get_*`, `sheet_lookup`) only.
 - **Logic (list restrictions):** `logic_list_restriction` reads
   “⟨all⟩ of ⟨list⟩ match ⟨condition⟩”. One dropdown covers the Manchester quantifiers
   (`all`/`any`/`none` = ∀/∃/∀¬, emitting `all_of`/`any_of`/`none_of`) and the

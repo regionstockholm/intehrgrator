@@ -10,23 +10,23 @@
 | ---- | ------ |
 | Chunks **1–8** + **5.1** | Done (merged) |
 | Chunk **7.1** (Handlebars Mapping preview) | Still open in task list |
-| Chunks **9–14** | Open; Chunk 9 largely overlaps **#35–#41** |
+| Chunks **9–14** | Open; Chunk 9 core is **#38–#41** (VMS profile **#35** / IR **#37** done) |
 | Constraint Overlay Phase 1 | Done (**#46** closed / PR #48) |
 
 ---
 
 ## A. Existing open issues — keep (amendments applied 2026-09-09)
 
-Bodies updated on GitHub for #35, #37, #38, #39, #49, #51, #52. No body change needed for #21, #40, #41. Triage labels `ready-for-agent` / `needs-triage` / `needs-info` / `ready-for-human` were created on the repo; **#35 is not yet** `ready-for-agent` (waiting on Confirm column ticks).
+Bodies updated on GitHub for #35, #37, #38, #39, #49, #51, #52. No body change needed for #21, #40, #41. Triage labels `ready-for-agent` / `needs-triage` / `needs-info` / `ready-for-human` were created on the repo.
 
 | Issue | Verdict |
 | ----- | ------- |
-| **[#35](https://github.com/regionstockholm/intehrgrator/issues/35)** Decide: remove verification-hostile Blockly from the toolbox | **Keep; do first.** Blocks #37–#41 and most Chunk 9 work. Confirm column added on Remove table. |
-| **[#37](https://github.com/regionstockholm/intehrgrator/issues/37)** Extend Mapping Model IR beyond flat `slots[]` | **Keep.** Scope note: IR = Keep/VMS surface after #35. |
-| **[#38](https://github.com/regionstockholm/intehrgrator/issues/38)** Unify Mapping preview vs TypeScript vs XQuery on VMS | **Keep.** Absorbs ROADMAP J (TS) acceptance; Java/Handlebars compare out of scope. |
-| **[#39](https://github.com/regionstockholm/intehrgrator/issues/39)** XQuery: `for_each_source` + nested structure | **Keep.** Follow-up child section for ROADMAP K (COMPOSITION XML + Saxon/BaseX); no parallel Chunk 9 epic. |
-| **[#40](https://github.com/regionstockholm/intehrgrator/issues/40)** Workspace linter for VMS escape hatches | **Keep.** |
-| **[#41](https://github.com/regionstockholm/intehrgrator/issues/41)** Property-based / metamorphic checks | **Keep.** Separate from S-07 dependency hashes. |
+| **[#35](https://github.com/regionstockholm/intehrgrator/issues/35)** Decide: remove verification-hostile Blockly from the toolbox | **Done** (PR #58). |
+| **[#37](https://github.com/regionstockholm/intehrgrator/issues/37)** Extend Mapping Model IR beyond flat `slots[]` | **Done** (PR #58). |
+| **[#38](https://github.com/regionstockholm/intehrgrator/issues/38)** Unify Mapping preview vs TypeScript vs XQuery on VMS | **Keep; VMS frontier #1.** Absorbs ROADMAP J (TS) acceptance; Java/Handlebars compare out of scope. |
+| **[#39](https://github.com/regionstockholm/intehrgrator/issues/39)** XQuery: `for_each_source` + nested structure | **Keep; VMS frontier #2.** Follow-up child section for ROADMAP K (COMPOSITION XML + Saxon/BaseX); no parallel Chunk 9 epic. |
+| **[#40](https://github.com/regionstockholm/intehrgrator/issues/40)** Workspace linter for VMS escape hatches | **Keep; VMS frontier #3.** |
+| **[#41](https://github.com/regionstockholm/intehrgrator/issues/41)** Property-based / metamorphic checks | **Keep; VMS frontier #4.** Separate from S-07 dependency hashes. |
 | **[#21](https://github.com/regionstockholm/intehrgrator/issues/21)** Remove ehrtslib vendor `code_list` patch | **Keep.** Optional contract assert already in body. |
 | **[#49](https://github.com/regionstockholm/intehrgrator/issues/49)** Scaffolding rule updates + defaults / TERM_PICK UX | **Keep.** Full-object Defaults scaffolding clarified. |
 | **[#51](https://github.com/regionstockholm/intehrgrator/issues/51)** Mapping Spec / Sheets editor chrome (tabs, dividers, button order) | **Keep.** Multi-sheet tabs called out as the Sheets gap. |
@@ -44,7 +44,7 @@ Edit titles/bodies freely. Proposed order is “good next agents,” not a hard 
 
 **Combines:** ROADMAP G (preview Test Run hardening); TASKS 7.1.1–7.1.7 / 7.6 carry-over.
 
-**Why one issue:** Small, fixture-first, unblocks later Handlebars codegen/example work; independent of VMS/#35.
+**Why one issue:** Small, fixture-first, unblocks later Handlebars codegen/example work; independent of the VMS chain (#38+).
 
 **Acceptance sketch:**
 - Kintegrate fixtures assert via `runTest` Mapping preview, not only direct `renderHandlebars`
@@ -173,7 +173,7 @@ Edit titles/bodies freely. Proposed order is “good next agents,” not a hard 
 - Example Set + expected output harness for Handlebars files (after chemo Go example pattern)
 - Non-Blockly editing support only as needed for the harness
 
-**Blocked by:** S-01. Soft-align with #35/#38 if codegen should stay on VMS.
+**Blocked by:** S-01. Soft-align with #38 if codegen should stay on VMS.
 
 ---
 
@@ -248,7 +248,7 @@ Mark post-v1 explicitly.
 
 | Roadmap / task item | Covered by |
 | ------------------- | ---------- |
-| Chunk 9 “golden TS/Java/XQuery” (core of J) | **#35 → #38** (+ expand #38 as above) |
+| Chunk 9 “golden TS/Java/XQuery” (core of J) | **#38** (+ expand #38 as above); **#35/#37 done** |
 | XQuery loops / nested emit | **#39** |
 | Escape-hatch warnings | **#40** |
 | Metamorphic / PBT robustness | **#41** |
@@ -265,18 +265,17 @@ Full COMPOSITION XML + Saxon/BaseX CI: prefer **extending #39** (or a child of #
 
 ## D. Suggested filing order (for agents)
 
-1. **#35** (confirm + implement toolbox cut)  
-2. **S-01** Handlebars preview (parallel to #35 is OK)  
+1. **#38 → #39 → #40 → #41** VMS frontier (toolbox cut + IR extension done in PR #58)  
+2. **S-01** Handlebars preview (parallel to VMS chain is OK)  
 3. **#21** anytime  
 4. **#49 / #51 / #52** UX — parallel, human-facing  
-5. **#37 → #38 → #39 / #40 → #41** VMS chain  
-6. **S-02 → S-03 → S-04** sheets → decision tables → DMN  
-7. **S-05** FHIR import when terminology workflows need it  
-8. **S-06 / S-07 / S-08** platform (order flexible)  
-9. **S-09 / S-10** Better Forms + Handlebars codegen  
-10. **S-11** a11y visual language  
-11. **S-12** TakeCare vendor extras  
-12. **S-13 / S-14** late hosts + multi-user  
+5. **S-02 → S-03 → S-04** sheets → decision tables → DMN  
+6. **S-05** FHIR import when terminology workflows need it  
+7. **S-06 / S-07 / S-08** platform (order flexible)  
+8. **S-09 / S-10** Better Forms + Handlebars codegen  
+9. **S-11** a11y visual language  
+10. **S-12** TakeCare vendor extras  
+11. **S-13 / S-14** late hosts + multi-user  
 
 ---
 
@@ -284,3 +283,4 @@ Full COMPOSITION XML + Saxon/BaseX CI: prefer **extending #39** (or a child of #
 
 - 2026-09-09: Initial draft after ROADMAP/TASKS tick-off for Chunks 5.1–8 and open-issue cross-check.
 - 2026-09-09: Applied section A suggested edits via `gh issue edit` (#35, #37–#39, #49, #51, #52); created triage labels; removed Suggested edit column.
+- 2026-09-10: Marked **#35/#37** done (PR #58); VMS frontier reordered to **#38 → #39 → #40 → #41**.

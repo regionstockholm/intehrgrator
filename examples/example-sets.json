@@ -18,7 +18,7 @@
     {
       "id": "dummy-json-vitals-mapped",
       "title": "Dummy vitals with mapping",
-      "description": "Same dummy files plus a stub Blockly mapping and a Defaults Map.",
+      "description": "Same dummy files plus a VMS Blockly mapping (source queries for systolic and diastolic) and a Defaults Map. Used as the preview ≡ TypeScript golden (issue #38).",
       "source": {
         "schema": "./dummy-json-vitals/source.schema.json",
         "instances": [

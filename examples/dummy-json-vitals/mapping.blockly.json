@@ -1,6 +1,87 @@
 {
   "blocks": {
     "languageVersion": 0,
-    "blocks": []
+    "blocks": [
+      {
+        "type": "schema_DummyVitalsTarget",
+        "id": "L3pv*o)?R]@$7rX.DJj#",
+        "x": 20,
+        "y": 228,
+        "extraState": {
+          "extras": [],
+          "attrs": [
+            "systolic",
+            "diastolic"
+          ],
+          "fields": [
+            {
+              "name": "systolic",
+              "kind": "value",
+              "check": "Number",
+              "card": {
+                "min": 1,
+                "max": 1
+              },
+              "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.systolic"
+            },
+            {
+              "name": "diastolic",
+              "kind": "value",
+              "check": "Number",
+              "card": {
+                "min": 1,
+                "max": 1
+              },
+              "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.diastolic"
+            }
+          ],
+          "connection": "statement",
+          "typeCheck": "schema_DummyVitalsTarget"
+        },
+        "fields": {
+          "NAME": "DummyVitalsTarget",
+          "TARGET_TYPE": "object",
+          "SLOT_ID": "https://example.invalid/dummy-json-vitals/target.schema.json:$"
+        },
+        "inputs": {
+          "TARGET_systolic": {
+            "block": {
+              "type": "source_query_number",
+              "id": "#]f.K*wVM.=~JY:ar7u)",
+              "fields": {
+                "EXPRESSION": "$.systolic"
+              }
+            }
+          },
+          "TARGET_diastolic": {
+            "block": {
+              "type": "source_query_number",
+              "id": "Rf3zBPIA0l-IuF=jl6DZ",
+              "fields": {
+                "EXPRESSION": "$.diastolic"
+              }
+            }
+          }
+        }
+      },
+      {
+        "type": "defaults_block",
+        "id": "*{|~Wy!osuIHy`%SuZWo",
+        "x": 20,
+        "y": 20,
+        "deletable": false,
+        "inputs": {
+          "MAP": {
+            "block": {
+              "type": "maps_create_with",
+              "id": "ScEG?b]]DXYD)r#H!0~S",
+              "extraState": {
+                "itemCount": 0
+              }
+            }
+          }
+        }
+      }
+    ]
   }
 }

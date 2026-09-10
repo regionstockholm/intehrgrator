@@ -31,9 +31,8 @@ Use the Matt Pocock engineering skills in `.cursor/skills/` and `.agents/skills/
 the `intehrgrator-mapping` skill. Setup, Deno tasks, MCP, and doc map:
 `README-DEVELOPERS.md`. End-user tutorial: `docs/TUTORIAL.md`.
 
-New specs live as GitHub issues (and ADRs when a decision sticks). Do not
-recreate a `/tasks` directory or the snarktank create-prd / generate-tasks
-workflow. Completed v1 PRDs and chunk lists are in `docs/historical-archive/`.
+New specs live as GitHub issues (and ADRs when a decision sticks). Completed
+v1 PRDs and chunk lists are in `docs/historical-archive/`.
 
 ## Development tooling guidance
 

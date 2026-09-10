@@ -459,7 +459,7 @@ intEHRgrator already leans **model-authoritative for agents** (`map-slot`, `impo
 
 6. **Observer / highlight** (grill Q2–Q5): orthogonal; use `affectedSlotIds` / block IDs from history for pulse highlights.
 
-**Explicitly defer:** CRDT library integration, slot leases, human multi-user WebSocket room. **Prep only:** see [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md).
+**Explicitly defer:** CRDT library integration, slot leases, human multi-user WebSocket room. **Prep only:** see [`ARCHITECTURE-multi-user-collab-prep.md`](../architecture/ARCHITECTURE-multi-user-collab-prep.md).
 
 ### History retention (grill round 2)
 
@@ -531,7 +531,7 @@ ProjectBundle
 | History commits | **Semantic** (attach/detach/add/remove, mapping fields) — not time debounce, not x/y |
 | Undo modes | Timeline scrub + **destructive rollback** (confirm) + **best-effort patch** (+ optional AI via MCP) |
 | Retention | No cap; disk on desktop; web warns before purge |
-| Human multi-user | **Chunk 14**; prep in [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md) |
+| Human multi-user | **Chunk 14**; prep in [`ARCHITECTURE-multi-user-collab-prep.md`](../architecture/ARCHITECTURE-multi-user-collab-prep.md) |
 
 ---
 

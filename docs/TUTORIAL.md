@@ -2,6 +2,8 @@
 
 A short tour of the workbench. Terms in **bold** match the [glossary](../CONTEXT.md). Click the encircled **i** in the UI for format notes; use **Help** in the toolbar for this tutorial and to report a problem or request a feature.
 
+The web copy is local-first (this browser’s IndexedDB). Desktop talks only to `127.0.0.1`. Nothing is uploaded unless you fetch a URL, load GitHub content, or export a project.
+
 ## 1. Open a copy
 
 | Copy | When to use it |
@@ -89,7 +91,7 @@ Right-click a defaults lookup when you want that key **hardcoded** as a literal 
 
 ## 9. Tell us what broke — or what you need
 
-**Help** → **Report a problem** or **Request a feature**. Both open GitHub Issues. Feature requests are welcome. Include the copied version string.
+**Help** → **Report a problem** or **Request a feature**. Both open GitHub Issues (free account). Feature requests are welcome. Include the copied version string. Do not paste patient-identifiable data.
 
 ---
 

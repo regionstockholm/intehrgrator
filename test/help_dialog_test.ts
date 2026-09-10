@@ -49,13 +49,17 @@ Deno.test("Help dialog, issue templates, and end-user docs stay aligned", async 
   assertStringIncludes(readme, HELP_LINKS.versionsJson);
   assertStringIncludes(readme, "Feature requests are welcome");
   assertStringIncludes(readme, "README-DEVELOPERS.md");
+  assertStringIncludes(readme, "IndexedDB");
+  assertStringIncludes(readme, HELP_LINKS.chooseIssue);
   assert(!readme.includes("snarktank"));
   assert(!readme.includes("New in 0.5"));
+  assert(!readme.includes("Desktop app (0.5)"));
 
   assertStringIncludes(tutorial, "Click-to-Map");
   assertStringIncludes(tutorial, "Appendix A");
   assertStringIncludes(tutorial, "intehrgrator-mapping");
   assertStringIncludes(tutorial, "INTEHR_AGENT_URL");
+  assertStringIncludes(tutorial, "patient-identifiable");
 
   assertStringIncludes(developers, "https://docs.deno.com/runtime/getting_started/installation/");
   assertStringIncludes(developers, "deno task vendor");
@@ -63,11 +67,25 @@ Deno.test("Help dialog, issue templates, and end-user docs stay aligned", async 
   assertStringIncludes(developers, "docs/adr/");
   assertStringIncludes(developers, "mattpocock/skills");
   assertStringIncludes(developers, "DeepWiki");
+  assertStringIncludes(developers, "deno task check");
 
   assertStringIncludes(agents, "/grill-with-docs");
   assertStringIncludes(agents, "Matt Pocock");
-  assert(!agents.includes("snarktank/ai-dev-tasks"));
+  assert(!agents.includes("snarktank"));
   assert(!agents.includes("create-prd.md"));
+
+  const contributing = await read("CONTRIBUTING.md");
+  assertStringIncludes(contributing, "README-DEVELOPERS.md");
+
+  const designUndo = await read("docs/design/DESIGN-multi-agent-undo-crdt.md");
+  assertStringIncludes(
+    designUndo,
+    "(../architecture/ARCHITECTURE-multi-user-collab-prep.md)",
+  );
+  assert(!designUndo.includes("(./ARCHITECTURE-multi-user-collab-prep.md)"));
+  await Deno.stat(
+    join(root, "docs/architecture/ARCHITECTURE-multi-user-collab-prep.md"),
+  );
 
   try {
     await Deno.stat(join(root, "tasks"));

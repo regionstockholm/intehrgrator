@@ -62,7 +62,7 @@ GitHub Pages: push to `main` deploys the cutting-edge site root. `deno task rele
 
 Product roadmap: [docs/ROADMAP.md](docs/ROADMAP.md). Live design notes: [docs/design/](docs/design/), [docs/architecture/](docs/architecture/). Deferred ideas: [docs/future/](docs/future/). Doc index: [docs/README.md](docs/README.md).
 
-Superseded prompts, v1 PRD/task lists, and old chunk checklists: [docs/historical-archive/](docs/historical-archive/). **Do not implement from the archive.** New specs belong in GitHub Issues (and ADRs when a decision sticks) — not a `/tasks` directory.
+Superseded prompts, v1 PRDs, and old chunk checklists: [docs/historical-archive/](docs/historical-archive/). **Do not implement from the archive.** New specs belong in GitHub Issues (and ADRs when a decision sticks).
 
 ## AI-assisted development
 
@@ -81,7 +81,7 @@ npx skills@latest add mattpocock/skills --agent cursor --skill '*' --yes --copy
 
 Lowercase `--agent cursor`. Use `--skill '*'` or repeat `--skill <name>` (comma-separated lists are not supported).
 
-Always-on agent notes: [AGENTS.md](AGENTS.md) (DeepWiki, Deno preference, Cloud Agent image). Issue tracker conventions: [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md). Triage labels: [docs/agents/triage-labels.md](docs/agents/triage-labels.md).
+Always-on agent notes: [AGENTS.md](AGENTS.md) (DeepWiki, Deno preference, Cloud Agent image). Issue tracker conventions: [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md). Triage labels: [docs/agents/triage-labels.md](docs/agents/triage-labels.md). GitHub’s contributing pointer is [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ### MCP connections worth enabling
 
@@ -93,6 +93,16 @@ Always-on agent notes: [AGENTS.md](AGENTS.md) (DeepWiki, Deno preference, Cloud 
 
 Prefer primary docs and these MCPs over training-data guesses for library APIs.
 
+## Before you open a pull request
+
+```bash
+deno task lint
+deno task test
+deno task check
+```
+
+Playwright (`deno task test:ui`) needs a built `dist/` — [UI_TESTING.md](docs/UI_TESTING.md). CI on `main` and `cursor/**` runs `vendor` → `test` → `build`.
+
 ## Layout
 
 | Path | Role |
@@ -100,9 +110,11 @@ Prefer primary docs and these MCPs over training-data guesses for library APIs.
 | `src/core/` | OPT skeleton, Mapping Model, spec, source query, codegen, persistence, AI |
 | `src/blockly/` | openEHR Blockly blocks + generators |
 | `src/workbench/` | UI controller, tree views, CodeMirror |
+| `src/ui/` | Shared dialogs (Help, …) |
 | `src/host/` | `HostAdapter` + browser implementation |
 | `src/desktop/` | `deno desktop` entry: local HTTP + native window |
 | `src/agent/` | Agent API HTTP + MCP stdio |
+| `src/ui_test/` | Workbench Test API types / helpers |
 | `web/` | HTML/CSS entry; bundled to `dist/` |
 | `test/` | Deno unit tests + OPT fixtures |
 | `test/ui/` | Playwright UI tests |

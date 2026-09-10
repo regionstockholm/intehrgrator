@@ -3,7 +3,7 @@
 | Audience | Start here |
 | --- | --- |
 | Medical informaticians and other end users | [README.md](../README.md) · [TUTORIAL.md](TUTORIAL.md) |
-| Contributors and AI agents | [README-DEVELOPERS.md](../README-DEVELOPERS.md) · [CONTEXT.md](../CONTEXT.md) |
+| Contributors and AI agents | [README-DEVELOPERS.md](../README-DEVELOPERS.md) · [CONTRIBUTING.md](../CONTRIBUTING.md) · [CONTEXT.md](../CONTEXT.md) |
 
 ## Current
 

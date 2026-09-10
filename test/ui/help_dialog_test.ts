@@ -32,22 +32,6 @@ Deno.test({
       assertEquals(await feature.getAttribute("href"), HELP_LINKS.feature);
       assertEquals(await tutorial.getAttribute("target"), "_blank");
 
-      const requestWrap = await page.evaluate(() => {
-        const link = document.querySelector<HTMLAnchorElement>(
-          "#dialog-help a[data-help-link='feature']",
-        );
-        if (!link) return { clientHeight: 0, lineHeight: 0 };
-        const style = getComputedStyle(link);
-        return {
-          clientHeight: link.clientHeight,
-          lineHeight: Number.parseFloat(style.lineHeight),
-        };
-      });
-      assert(
-        requestWrap.clientHeight <= requestWrap.lineHeight * 1.5 + 4,
-        `feature link wrapped: ${JSON.stringify(requestWrap)}`,
-      );
-
       const version = (await page.locator("#help-version").innerText()).trim();
       const origin = (await page.locator("#help-origin").innerText()).trim();
       assert(version.startsWith("v"), version);

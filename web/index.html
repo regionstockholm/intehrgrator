@@ -419,8 +419,12 @@
   </dialog>
   <dialog id="dialog-defaults-map" class="app-dialog app-dialog--wide">
     <form method="dialog" class="dialog-form">
-      <h2>Defaults Map</h2>
-      <p>Load a saved map, browse a file or URL, download the current map, or save the map plugged into the Defaults block.</p>
+      <h2>Default context mapping</h2>
+      <p>
+        Load or save the design-time stand-in for the convert-time <code>defaults</code> argument.
+        At runtime a generated script combines that argument with the source record (and Sheets).
+        Pick a saved mapping, browse a file or URL, download the current map, or save the map plugged into the Defaults block.
+      </p>
       <div id="defaults-map-list" class="load-project-list"></div>
       <label class="dialog-label">
         URL
@@ -438,8 +442,8 @@
   </dialog>
   <dialog id="dialog-defaults-save-as" class="app-dialog">
     <form method="dialog" class="dialog-form">
-      <h2>Save Defaults Map as</h2>
-      <p>Store the current Defaults Map under a name you can pick later.</p>
+      <h2>Save default context mapping as</h2>
+      <p>Store the current default context mapping under a name you can pick later.</p>
       <label class="dialog-label">
         Name
         <input id="defaults-save-as-name" type="text" required placeholder="Clinic defaults" />
@@ -452,13 +456,13 @@
   </dialog>
   <dialog id="dialog-hardcode-defaults" class="app-dialog">
     <form method="dialog" class="dialog-form">
-      <h2>Hardcode Defaults Map entry</h2>
+      <h2>Hardcode default context mapping entry</h2>
       <p>
         Choose a map key to <strong>inline</strong> on the canvas. Every
         <code>get defaults key …</code> lookup for that key is replaced with a copy of
-        the value from this Defaults Map. After that, those slots no longer read the
+        the value from this default context mapping. After that, those slots no longer read the
         convert-time <code>defaults</code> argument — they use the hardcoded block instead.
-        The Defaults Map itself is left unchanged so you can hardcode other keys later
+        The default context mapping itself is left unchanged so you can hardcode other keys later
         or keep the entry for remaining lookups.
       </p>
       <div id="hardcode-defaults-list" class="load-project-list"></div>
@@ -496,10 +500,15 @@
     </form>
   </dialog>
   <span id="defaults-map-block-info" class="info-tip info-tip--anchor-host">
-    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About the Defaults Map">i</button>
+    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About default context mapping">i</button>
     <span id="tip-defaults-map-block" class="info-tip-balloon" role="tooltip">
-      The Defaults Map is a convert-time table of site or message values (language, territory, time, composer, facility, …). Generated Conversion Scripts take it as a <code>defaults</code> argument, so canvas lookups stay reusable instead of baking those literals into the mapping.<br>
-      The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
+      <strong>Default context mapping</strong> is the design-time stand-in for convert-time execution context.
+      A generated Conversion Script does not bake language, territory, composer, facility, or similar values into the mapping.
+      Instead it takes a <code>defaults</code> argument — a Map that may hold scalars <em>and</em> nested maps/objects (a whole party, a CODE_PHRASE, extra site keys).
+      The host that later runs the script combines three bags: the source record, this <code>defaults</code> argument, and named Sheets.
+      Different clinics or messages pass a different context map without regenerating the mapping.<br><br>
+      Something is needed on the canvas at design time so scaffolding can wire <em>Default points</em> (lookups by key), Test Run can resolve those lookups against a real Map, and you can see which context keys the mapping depends on.
+      The folder opens load/save: pick a mapping saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON.
     </span>
   </span>
   <script src="./wasm/wasm_exec.js"></script>

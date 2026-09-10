@@ -120,7 +120,7 @@ When the loaded target is `json-schema` or `xml-schema`:
 - **Canvas scaffold:** mandatory schema fields only at load; optional fields via the
   `schema_fields_mutator` cogwheel on `target_structure` (same UX family as openEHR
   optional RM mutators). Mapping Model `optionalRm[]` records added optional fields.
-- **Defaults Map:** an empty `maps_create_with` is placed for JSON/XSD targets — no
+- **Default context mapping:** an empty `maps_create_with` is placed for JSON/XSD targets — no
   openEHR default-point scaffolding.
 
 Relevant files: `src/blockly/toolbox_demo.ts`, `src/blockly/blocks/schema_mutator.ts`,

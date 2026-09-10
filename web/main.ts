@@ -1612,7 +1612,7 @@ async function openDefaultsMapDialog(): Promise<void> {
   if (!entries.length && defaultsMapList.childElementCount === 0) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "No saved Defaults Maps yet. Use Save as, Download, Browse file, or a URL.";
+    empty.textContent = "No saved default context mappings yet. Use Save as, Download, Browse file, or a URL.";
     defaultsMapList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -1648,7 +1648,7 @@ function openHardcodeDefaultsDialog(): void {
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "The Defaults Map has no entries to hardcode yet.";
+    empty.textContent = "The default context mapping has no entries to hardcode yet.";
     hardcodeDefaultsList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -1717,7 +1717,7 @@ document.getElementById("defaults-map-url-load")?.addEventListener("click", () =
 document.getElementById("defaults-map-download")?.addEventListener("click", () => {
   try {
     const mapBlock = serializeDefaultsMapArgument(workspace);
-    if (!mapBlock) throw new Error("No Defaults Map to download");
+    if (!mapBlock) throw new Error("No default context mapping to download");
     void host.downloadText(
       "defaults.map.json",
       JSON.stringify(mapBlock, null, 2),
@@ -1742,7 +1742,7 @@ dialogDefaultsSaveAs.addEventListener("close", () => {
   void (async () => {
     try {
       const mapBlock = serializeDefaultsMapArgument(workspace);
-      if (!mapBlock) throw new Error("No Defaults Map to save");
+      if (!mapBlock) throw new Error("No default context mapping to save");
       await defaultsCatalog.save(defaultsSaveAsNameInput.value, mapBlock);
       dialogDefaultsMap.close();
     } catch (err) {

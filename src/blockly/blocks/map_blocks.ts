@@ -26,7 +26,7 @@ const INFO_SVG = "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="#fff" stroke="#005c53"/><text x="9" y="13" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="12" fill="#005c53">i</text></svg>',
   );
-/** Pin / hardcode: inline a Defaults Map entry into canvas lookups. */
+/** Pin / hardcode: inline a default context mapping entry into canvas lookups. */
 const HARDCODE_SVG = "data:image/svg+xml," +
   encodeURIComponent(
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><rect x="3.5" y="7" width="11" height="8" rx="1.5" fill="#fff" stroke="#5f6368"/><path d="M6 7V5.5a3 3 0 0 1 6 0V7" fill="none" stroke="#5f6368" stroke-width="1.4"/><circle cx="9" cy="11.5" r="1.2" fill="#5f6368"/></svg>',
@@ -46,19 +46,19 @@ function fieldClickAnchor(field: ClickableField): Element | null {
   return field.getClickTarget_?.() ?? field.getSvgRoot?.() ?? field.fieldGroup_ ?? null;
 }
 
-/** Workbench registers the Defaults Map catalog / file picker. */
+/** Workbench registers the default context mapping catalog / file picker. */
 export function setDefaultsMapPickHandler(handler: (() => void) | null): void {
   defaultsMapPickHandler = handler;
 }
 
-/** Workbench registers the Defaults Map (i) balloon. */
+/** Workbench registers the default context mapping (i) balloon. */
 export function setDefaultsMapInfoHandler(
   handler: ((anchor: Element | null) => void) | null,
 ): void {
   defaultsMapInfoHandler = handler;
 }
 
-/** Workbench registers the hardcode / inline Defaults Map entry dialog. */
+/** Workbench registers the hardcode / inline default context mapping entry dialog. */
 export function setDefaultsMapHardcodeHandler(handler: (() => void) | null): void {
   defaultsMapHardcodeHandler = handler;
 }
@@ -349,13 +349,13 @@ export function registerMapBlocks(): void {
         INFO_SVG,
         18,
         18,
-        "Defaults Map: convert-time language, territory, encoding, facility, and similar values. Folder: load, save, or download the map as JSON.",
+        "Default context mapping: design-time stand-in for the convert-time defaults argument (language, territory, nested maps/objects, …). Folder: load, save, or download as JSON.",
         () => {
           defaultsMapInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
         },
       );
       this.appendDummyInput("HEADER")
-        .appendField("Defaults Map")
+        .appendField("Default context mapping")
         .appendField(
           new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
             defaultsMapPickHandler?.();
@@ -378,7 +378,7 @@ export function registerMapBlocks(): void {
         .appendField("map");
       this.setColour(DEFAULTS_COLOUR);
       this.setTooltip(
-        "Binds a Map as the named defaults table. Lookups use maps_get by name, not a wire.",
+        "Binds a Map as the named defaults execution context. Lookups use maps_get by name, not a wire. At convert time the host passes this Map (or a replacement) together with the source record.",
       );
       this.setDeletable(false);
       this.setMovable(true);

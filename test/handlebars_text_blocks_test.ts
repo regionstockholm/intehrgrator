@@ -174,7 +174,7 @@ Deno.test("CodeMirror language dropdown includes Handlebars and installed highli
   assertEquals(ids.includes("json"), true);
   assertEquals(ids.includes("xml"), true);
   assertEquals(ids.includes("html"), true);
-  assertEquals(ids.includes("javascript"), true);
-  assertEquals(ids.includes("typescript"), true);
+  assertEquals(ids.includes("javascript"), false);
+  assertEquals(ids.includes("typescript"), false);
   assertEquals(ids.includes("none"), true);
 });

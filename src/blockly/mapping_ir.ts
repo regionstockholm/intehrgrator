@@ -27,6 +27,7 @@ import { blockToExpression } from "./expression_serialize.ts";
 import { SHEET_ACCESSOR_TYPES, SHEET_BLOCK_TYPE } from "./blocks/sheet_blocks.ts";
 import { MAPS_GET } from "../core/defaults/extract.ts";
 import { isVmsEscapeBlockType, isVmsRemovedBlockType } from "./vms.ts";
+import { isTemplateEscapeHatch } from "./vms_linter.ts";
 
 export interface MappingModelExtract {
   slots: Array<{
@@ -307,8 +308,27 @@ function unsupportedFromWorkspace(
 
   for (const block of workspace.getAllBlocks(false)) {
     if (block.isShadow?.()) continue;
-    if (isVmsRemovedBlockType(block.type)) record(block, "removed");
-    else if (isVmsEscapeBlockType(block.type)) record(block, "escape");
+    if (isVmsRemovedBlockType(block.type)) {
+      record(block, "removed");
+      continue;
+    }
+    if (block.type === "text_code") {
+      const lang = String(block.getFieldValue("LANG") || "");
+      const text = String(block.getFieldValue("TEXT") || "");
+      if (isTemplateEscapeHatch("text_code", lang, text)) record(block, "escape");
+      continue;
+    }
+    if (block.type === "text_handlebars") {
+      const script = block.getInputTargetBlock("SCRIPT");
+      const text = script
+        ? String(script.getFieldValue("TEXT") || "")
+        : "";
+      if (isTemplateEscapeHatch("text_handlebars", undefined, text)) {
+        record(block, "escape");
+      }
+      continue;
+    }
+    if (isVmsEscapeBlockType(block.type)) record(block, "escape");
   }
 
   const mapped = new Set(slots.map((s) => s.slotId));
@@ -346,9 +366,17 @@ function enclosingSlotId(block: Block): string | undefined {
 function hatchFromExprTree(block: Block | null): MappingSlotHatch | undefined {
   if (!block) return undefined;
   if (block.type === "text_code") {
-    return { kind: "text_code", lang: String(block.getFieldValue("LANG") || "") || undefined };
+    const lang = String(block.getFieldValue("LANG") || "") || undefined;
+    const text = String(block.getFieldValue("TEXT") || "");
+    if (!isTemplateEscapeHatch("text_code", lang, text)) return undefined;
+    return { kind: "text_code", lang };
   }
-  if (block.type === "text_handlebars") return { kind: "text_handlebars" };
+  if (block.type === "text_handlebars") {
+    const script = block.getInputTargetBlock("SCRIPT");
+    const text = script ? String(script.getFieldValue("TEXT") || "") : "";
+    if (!isTemplateEscapeHatch("text_handlebars", undefined, text)) return undefined;
+    return { kind: "text_handlebars" };
+  }
   if (block.type === "procedures_callreturn") return { kind: "procedures_callreturn" };
   for (const input of block.inputList) {
     const child = block.getInputTargetBlock(input.name);

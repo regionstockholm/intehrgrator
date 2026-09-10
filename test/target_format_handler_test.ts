@@ -126,12 +126,22 @@ Deno.test("Kintegrate Handlebars helpers and openEHR keys remain compatible", ()
     buildHandlebarsTree('$.akutmall.abcde[1].spo[1]["|numerator"]'),
     "{{#with akutmall}}\n  {{#each abcde}}\n    {{#each spo}}\n      {{[|numerator]}}\n    {{/each}}\n  {{/each}}\n{{/with}}",
   );
-  assertStringIncludes(
-    renderHandlebars("{{{json (slot \"target:name\")}}}", {}, {
+  assertEquals(
+    renderHandlebars("{{slot \"target:name\"}}", {}, {
       slots: { "target:name": "Ada" },
     }),
-    '"Ada"',
+    "Ada",
   );
+  // ADR 0009: json / {{{…}}} are outside VMS-Hbs — convert hard-gates via knownHelpersOnly.
+  let threw = false;
+  try {
+    renderHandlebars("{{{json (slot \"target:name\")}}}", {}, {
+      slots: { "target:name": "Ada" },
+    });
+  } catch {
+    threw = true;
+  }
+  assertEquals(threw, true);
 });
 
 Deno.test("openEHR Test Run emits string locatable identity, not silent-mandatory DV_TEXT", async () => {

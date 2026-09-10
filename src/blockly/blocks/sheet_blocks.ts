@@ -1,5 +1,13 @@
 import { Blockly } from "../blockly_core.ts";
-import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
+import {
+  appendBlockOutputGlyph,
+  appendInputTypeGlyph,
+  inputAlignLeft,
+  inputAlignRight,
+} from "../block_type_glyph.ts";
+
+/** Sheet table / row / column values (Blockly check stays `Array`). */
+const SHEET_TABLE_GLYPH = "Sheet";
 
 const SHEET_COLOUR = "#00897B";
 const SHEET_DECL_COLOUR = "#00695C";
@@ -85,10 +93,10 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_CELL] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputGlyph(header, ["String", "Number", "Boolean"]);
       header.appendField("get").appendField(nameField(), "NAME").appendField("cell");
-      const a1 = this.appendValueInput("A1").setCheck("String");
+      const a1 = this.appendValueInput("A1").setAlign(inputAlignRight()).setCheck("String");
       appendInputTypeGlyph(a1, "String");
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -98,15 +106,13 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_XY] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       appendBlockOutputGlyph(header, ["String", "Number", "Boolean"]);
       header.appendField("get").appendField(nameField(), "NAME");
-      const xIn = this.appendValueInput("X").setCheck("Number");
+      const xIn = this.appendValueInput("X").setAlign(inputAlignRight()).setCheck("Number").appendField("x");
       appendInputTypeGlyph(xIn, "Number");
-      xIn.appendField("x");
-      const yIn = this.appendValueInput("Y").setCheck("Number");
+      const yIn = this.appendValueInput("Y").setAlign(inputAlignRight()).setCheck("Number").appendField("y");
       appendInputTypeGlyph(yIn, "Number");
-      yIn.appendField("y");
       this.setOutput(true, ["String", "Number", "Boolean"]);
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -116,8 +122,11 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_ROW] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("get row of").appendField(nameField(), "NAME");
-      this.appendValueInput("Y").setCheck("Number").appendField("y");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, SHEET_TABLE_GLYPH);
+      header.appendField("get row of").appendField(nameField(), "NAME");
+      const yIn = this.appendValueInput("Y").setAlign(inputAlignRight()).setCheck("Number").appendField("y");
+      appendInputTypeGlyph(yIn, "Number");
       this.setOutput(true, "Array");
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -126,8 +135,11 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_COLUMN] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("get column of").appendField(nameField(), "NAME");
-      this.appendValueInput("X").setCheck("Number").appendField("x");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, SHEET_TABLE_GLYPH);
+      header.appendField("get column of").appendField(nameField(), "NAME");
+      const xIn = this.appendValueInput("X").setAlign(inputAlignRight()).setCheck("Number").appendField("x");
+      appendInputTypeGlyph(xIn, "Number");
       this.setOutput(true, "Array");
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -136,8 +148,11 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_HEADER] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("header of").appendField(nameField(), "NAME");
-      this.appendValueInput("X").setCheck("Number").appendField("x");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, "String");
+      header.appendField("header of").appendField(nameField(), "NAME");
+      const xIn = this.appendValueInput("X").setAlign(inputAlignRight()).setCheck("Number").appendField("x");
+      appendInputTypeGlyph(xIn, "Number");
       this.setOutput(true, "String");
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -146,7 +161,9 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_GET_DATA] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("data of").appendField(nameField(), "NAME");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, SHEET_TABLE_GLYPH);
+      header.appendField("data of").appendField(nameField(), "NAME");
       this.setOutput(true, "Array");
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -155,10 +172,15 @@ export function registerSheetBlocks(): void {
 
   Blockly.Blocks[SHEET_LOOKUP] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput().appendField("lookup").appendField(nameField(), "NAME");
-      this.appendValueInput("MATCH_COL").setCheck(["String", "Number"]).appendField("where");
-      this.appendValueInput("MATCH_VAL").appendField("=");
-      this.appendValueInput("RETURN_COL").setCheck(["String", "Number"]).appendField("return");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, ["String", "Number", "Boolean"]);
+      header.appendField("lookup").appendField(nameField(), "NAME");
+      const matchCol = this.appendValueInput("MATCH_COL").setAlign(inputAlignRight()).setCheck(["String", "Number"]).appendField("where");
+      appendInputTypeGlyph(matchCol, ["String", "Number"]);
+      const matchVal = this.appendValueInput("MATCH_VAL").setAlign(inputAlignRight()).appendField("=");
+      appendInputTypeGlyph(matchVal, null);
+      const returnCol = this.appendValueInput("RETURN_COL").setAlign(inputAlignRight()).setCheck(["String", "Number"]).appendField("return");
+      appendInputTypeGlyph(returnCol, ["String", "Number"]);
       this.setOutput(true, ["String", "Number", "Boolean"]);
       this.setColour(SHEET_COLOUR);
       this.setInputsInline(true);
@@ -194,8 +216,10 @@ export function registerSheetBlocks(): void {
   Blockly.Blocks[SHEET_SET_ROW] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput().appendField("set row of").appendField(nameField(), "NAME");
-      this.appendValueInput("Y").setCheck("Number").appendField("y");
-      this.appendValueInput("VALUE").setCheck("Array").appendField("to");
+      const yIn = this.appendValueInput("Y").setAlign(inputAlignRight()).setCheck("Number").appendField("y");
+      appendInputTypeGlyph(yIn, "Number");
+      const valueIn = this.appendValueInput("VALUE").setAlign(inputAlignRight()).setCheck("Array").appendField("to");
+      appendInputTypeGlyph(valueIn, SHEET_TABLE_GLYPH);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(SHEET_COLOUR);
@@ -206,8 +230,10 @@ export function registerSheetBlocks(): void {
   Blockly.Blocks[SHEET_SET_COLUMN] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput().appendField("set column of").appendField(nameField(), "NAME");
-      this.appendValueInput("X").setCheck("Number").appendField("x");
-      this.appendValueInput("VALUE").setCheck("Array").appendField("to");
+      const xIn = this.appendValueInput("X").setAlign(inputAlignRight()).setCheck("Number").appendField("x");
+      appendInputTypeGlyph(xIn, "Number");
+      const valueIn = this.appendValueInput("VALUE").setAlign(inputAlignRight()).setCheck("Array").appendField("to");
+      appendInputTypeGlyph(valueIn, SHEET_TABLE_GLYPH);
       this.setPreviousStatement(true, null);
       this.setNextStatement(true, null);
       this.setColour(SHEET_COLOUR);

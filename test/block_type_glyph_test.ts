@@ -6,7 +6,8 @@ Deno.test("glyphForBlocklyCheck maps Blockly primitives", () => {
   assertEquals(typeof glyphForBlocklyCheck("String"), "string");
   assertEquals(typeof glyphForBlocklyCheck("Number"), "string");
   assertEquals(glyphForBlocklyCheck("Boolean"), "✓");
-  assertEquals(glyphForBlocklyCheck("Array"), "📋");
+  assertEquals(glyphForBlocklyCheck("Array"), "☰");
+  assertEquals(glyphForBlocklyCheck("Sheet"), "⊞");
   assertEquals(glyphForBlocklyCheck("Map"), "↦");
 });
 

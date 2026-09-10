@@ -1111,5 +1111,14 @@ export function collectValueSlots(nodes: SkeletonNode[]): SkeletonNode[] {
 }
 
 export function slotReturnType(node: Pick<SkeletonNode, "rmType">): string {
+  const t = node.rmType.toLowerCase();
+  if (t === "boolean") return "boolean";
+  if (
+    t === "number" || t === "integer" || t === "int" || t === "decimal" ||
+    t === "float" || t === "double" || t === "long" || t === "unsignedlong" ||
+    t === "unsignedint"
+  ) {
+    return "number";
+  }
   return returnTypeForDv(node.rmType);
 }

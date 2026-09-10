@@ -11,7 +11,8 @@ import {
 } from "@intehrgrator/blockly/mod.ts";
 import { rmAttributeInputName, syncRmAttributeInputs } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { composeSchemaOptionalFields, schemaOptionalInputName } from "@intehrgrator/blockly/blocks/schema_mutator.ts";
-import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
+import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
+import { collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { MODEL_VERSION } from "@intehrgrator/types/mod.ts";
@@ -449,4 +450,34 @@ Deno.test("lung-MDT fixture Blockly extracts unsupported Remove types and round-
   assertEquals(second.slots, first.slots);
   assertEquals(second.targetSignature, first.targetSignature);
   loaded.dispose();
+});
+
+Deno.test("JSON Schema primitive slots extract schema rmType, not the field name", async () => {
+  ensure();
+  const schemaText = await Deno.readTextFile(
+    join(import.meta.dirname!, "../examples/dummy-json-vitals/target.schema.json"),
+  );
+  const target = getTargetFormatHandler("json-schema").load("target.schema.json", schemaText);
+  const systolic = collectValueSlots(target.skeleton).find((slot) => slot.label === "systolic");
+  assert(systolic, "expected systolic slot");
+  let model = createEmptyModel(target.targetId);
+  model = applyExpressionEdit(model, systolic.slotId, 'xpathNumber("$.systolic")', {
+    rmType: systolic.rmType,
+    returnType: "number",
+    label: systolic.label,
+  });
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(
+    workspace,
+    target.skeleton,
+    model,
+    null,
+    "en",
+    "json-schema",
+  );
+  const ir = workspaceToModelJson(workspace);
+  const slot = ir.slots.find((item) => item.slotId === systolic.slotId);
+  assertEquals(slot?.rmType, "number");
+  assertEquals(slot?.expression, 'xpathNumber("$.systolic")');
+  workspace.dispose();
 });

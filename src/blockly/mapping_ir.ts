@@ -22,8 +22,10 @@ import {
 } from "./blocks/rm_blocks.ts";
 import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
 import { schemaSlotIdForInput } from "./schema_blocks.ts";
+import { findSkeletonNode } from "./schema_catalog.ts";
 import { isSchemaOptionalInput, schemaOptionalExtrasOf, schemaOptionalInputName } from "./blocks/schema_mutator.ts";
 import { blockToExpression } from "./expression_serialize.ts";
+import { isSourceQueryBlockType, returnTypeFromSourceBlock } from "./source_query.ts";
 import { SHEET_ACCESSOR_TYPES, SHEET_BLOCK_TYPE } from "./blocks/sheet_blocks.ts";
 import { MAPS_GET } from "../core/defaults/extract.ts";
 import { isVmsEscapeBlockType, isVmsRemovedBlockType } from "./vms.ts";
@@ -101,10 +103,11 @@ function slotsFromWorkspace(workspace: Workspace): MappingModelExtract["slots"] 
         if (fieldSlot && expression && !seen.has(fieldSlot)) {
           seen.add(fieldSlot);
           const attr = input.name.replace(/^TARGET_|^SCHEMA_OPT_/, "");
+          const rmType = schemaFieldRmType(block, input.name, attr, exprBlock);
           const hatch = hatchFromExprTree(exprBlock);
-          slots.push(hatch ? { slotId: fieldSlot, rmType: attr, expression, hatch } : {
+          slots.push(hatch ? { slotId: fieldSlot, rmType, expression, hatch } : {
             slotId: fieldSlot,
-            rmType: attr,
+            rmType,
             expression,
           });
         }
@@ -151,6 +154,28 @@ function optionalRmFromWorkspace(workspace: Workspace): OptionalRmInsertion[] {
     }
   }
   return out;
+}
+
+/** JSON Schema / XSD primitive slots store the schema type (`number`), not the field name. */
+function schemaFieldRmType(
+  block: Block,
+  inputName: string,
+  attr: string,
+  exprBlock: Block | null,
+): string {
+  const slotId = schemaSlotIdForInput(block, inputName);
+  const fromSkeleton = slotId ? findSkeletonNode(slotId)?.rmType : undefined;
+  if (fromSkeleton) return fromSkeleton;
+  const input = block.getInput(inputName);
+  const check = input?.connection?.getCheck?.() ?? null;
+  const checks = Array.isArray(check) ? check : check ? [check] : [];
+  if (checks.includes("Number")) return "number";
+  if (checks.includes("Boolean")) return "boolean";
+  if (checks.includes("String")) return "string";
+  if (exprBlock && isSourceQueryBlockType(exprBlock.type)) {
+    return returnTypeFromSourceBlock(exprBlock);
+  }
+  return attr;
 }
 
 function loopsFromWorkspace(workspace: Workspace): MappingLoop[] {

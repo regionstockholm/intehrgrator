@@ -18,7 +18,7 @@ import {
   collectAllSlotIds,
   findSkeletonTrail,
 } from "../skeleton/generate_skeleton.ts";
-import { generateTypeScript } from "../codegen/mod.ts";
+import { generate } from "../codegen/mod.ts";
 import {
   runGeneratedTypeScript,
   serializedConversionOutput,
@@ -36,7 +36,7 @@ import { validateConvertedOutput } from "../output/template_validation.ts";
 
 export interface RunTestOptions {
   target?: TargetDefinition | null;
-  /** Legacy: `handlebars` still means Mapping preview template render. */
+  /** Handlebars Output mode / free-form preview template render. */
   exportTarget?: ExportTarget;
   /** Session Output mode. TypeScript executes Generated Export. */
   outputMode?: OutputMode;
@@ -86,7 +86,7 @@ export function runTest(
     ctx.sheets = { ...ctx.sheets, ...sheetsToBag(options.sheets ?? []) };
 
     if (mode === "typescript") {
-      const code = options.generatedCode ?? generateTypeScript(model, {
+      const code = options.generatedCode ?? generate(model, "typescript", {
         handlebarsTemplate: options.handlebarsTemplate,
         blocklyState: options.blocklyState,
         skeleton: options.target?.skeleton,
@@ -228,7 +228,7 @@ export function runTest(
 }
 
 export function previewGeneratedCode(model: MappingModel): string {
-  return generateTypeScript(model);
+  return generate(model, "typescript");
 }
 
 function evaluateSlotValues(

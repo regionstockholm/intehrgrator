@@ -23,8 +23,9 @@ import { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { DEFAULTS_BLOCK_TYPE } from "../core/defaults/extract.ts";
-import { attributesFor, isPrimitiveRmType } from "../core/rm_meta.ts";
+import { attributesFor, baseRmTypeName, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { LOCATABLE_TYPES } from "../core/rm_mandatory.ts";
+import { rmConstrainedTerminologyId } from "../core/rm_terminology.ts";
 import type { MappingModel } from "../types/mod.ts";
 import {
   asStringExpr,
@@ -37,11 +38,11 @@ import {
   indentTsBlock,
   isBlankGeneratedExpr,
   isListAttribute,
+  wrapCodePhraseExpr,
   wrapTypeScriptModule,
   type TsEmitContext,
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
-import { migrateMapsCreateWithJson } from "../core/defaults/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 
 const STATEMENT_INPUT_TYPE = 3;
@@ -77,7 +78,6 @@ export function generateTypeScriptFromBlocklyState(
   const workspace = new Blockly.Workspace();
   try {
     const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
-    migrateMapsCreateWithJson(snapshot);
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -143,6 +143,9 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
   if (fromExpr !== null) return fromExpr;
 
   if (block.type === "for_each_source") return emitForEach(block, ctx, indent);
+  if (block.type === "for_each_list") return emitForEachList(block, ctx, indent);
+  if (block.type === "text_append") return emitTextAppend(block, ctx);
+  if (block.type === "variables_set") return emitVariablesSet(block, ctx);
   if (block.type === TERM_PICK_BLOCK_TYPE) return emitTermPick(block, ctx);
   if (block.type === "code_phrase") return emitCodePhrase(block, ctx, indent);
   if (block.type === "party_ref") return emitPartyRef(block, ctx, indent);
@@ -168,7 +171,7 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
   if (isGenericValueBlockType(block.type) || isSchemaStructureBlock(block)) {
     return emitGeneric(block, ctx, indent);
   }
-  return "undefined";
+  throw new Error(`TypeScript codegen has no emitter for block type "${block.type}"`);
 }
 
 function emitExpressionBlock(block: Block, ctx: TsEmitContext): string | null {
@@ -260,7 +263,25 @@ function emitAttribute(
   const simplified = emitSimplifiedParty(attr, target, ctx, indent);
   if (simplified) return simplified;
   const code = emitBlock(target, ctx, indent + 1);
-  return isBlankGeneratedExpr(code) ? null : code;
+  if (!code || isBlankGeneratedExpr(code)) return null;
+  return wrapRmCodePhraseAttr(parentRmType, attr, code, ctx);
+}
+
+function wrapRmCodePhraseAttr(
+  parentRmType: string,
+  attr: string,
+  code: string,
+  ctx: TsEmitContext,
+): string {
+  let typeName = "";
+  try {
+    const meta = attributesFor(parentRmType).find((item) => item.name === attr);
+    typeName = meta ? baseRmTypeName(meta.typeName) : "";
+  } catch {
+    typeName = "";
+  }
+  if (typeName !== "CODE_PHRASE") return code;
+  return wrapCodePhraseExpr(code, rmConstrainedTerminologyId(parentRmType, attr), ctx);
 }
 
 function emitSimplifiedParty(
@@ -293,7 +314,7 @@ function emitStatementList(
   }
   if (!blocks.length) return null;
   const asArray = asList || blocks.length > 1 ||
-    blocks.some((block) => block.type === "for_each_source");
+    blocks.some((block) => block.type === "for_each_source" || block.type === "for_each_list");
   if (!asArray) {
     const code = emitBlock(blocks[0]!, ctx, indent + 1);
     return isBlankGeneratedExpr(code) ? null : code;
@@ -302,6 +323,8 @@ function emitStatementList(
   for (const block of blocks) {
     const code = block.type === "for_each_source"
       ? emitForEach(block, ctx, 0)
+      : block.type === "for_each_list"
+      ? emitForEachList(block, ctx, 0)
       : emitBlock(block, ctx, 0);
     if (!isBlankGeneratedExpr(code)) parts.push(indentTsBlock(code, indent + 2));
   }
@@ -322,9 +345,42 @@ function emitForEach(block: Block, ctx: TsEmitContext, indent: number): string {
   const bodyBlock = block.getInputTargetBlock("DO");
   const body = bodyBlock
     ? emitBlock(bodyBlock, innerCtx, indent)
-    : "undefined";
+    : "null";
   return "...xpathNodes(" + JSON.stringify(path) + ").map((" + ident + ") => " +
     body + ")";
+}
+
+function emitForEachList(block: Block, ctx: TsEmitContext, indent: number): string {
+  ctx.helpers.add("logic");
+  const name = String(block.getFieldValue("VAR") || "item");
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+  const listBlock = block.getInputTargetBlock("LIST");
+  const listCode = listBlock ? emitBlock(listBlock, ctx, indent) : "[]";
+  const innerCtx: TsEmitContext = {
+    ...ctx,
+    sourceVar: ident,
+    loopVar: ident,
+  };
+  const bodyBlock = block.getInputTargetBlock("DO");
+  const body = bodyBlock ? emitBlock(bodyBlock, innerCtx, indent) : "null";
+  return `...asList(${listCode}).map((${ident}) => { __vars[${JSON.stringify(name)}] = ${ident}; return ${body}; })`;
+}
+
+function emitTextAppend(block: Block, ctx: TsEmitContext): string {
+  ctx.helpers.add("logic");
+  const name = block.getField("VAR")?.getText() ?? "item";
+  const text = block.getInputTargetBlock("TEXT");
+  const textCode = text ? emitBlock(text, ctx, 0) : '""';
+  const key = JSON.stringify(name);
+  return `(__vars[${key}] = String(__vars[${key}] ?? "") + String(${textCode} ?? ""), __vars[${key}])`;
+}
+
+function emitVariablesSet(block: Block, ctx: TsEmitContext): string {
+  ctx.helpers.add("logic");
+  const name = block.getField("VAR")?.getText() ?? "v";
+  const value = block.getInputTargetBlock("VALUE");
+  const valueCode = value ? emitBlock(value, ctx, 0) : "null";
+  return `(__vars[${JSON.stringify(name)}] = ${valueCode})`;
 }
 
 function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
@@ -459,7 +515,7 @@ function emitListsCreate(block: Block, ctx: TsEmitContext): string {
   const items: string[] = [];
   for (let i = 0; i < count; i++) {
     const child = block.getInputTargetBlock(`ADD${i}`);
-    items.push(child ? emitBlock(child, ctx, 1) : "undefined");
+    items.push(child ? emitBlock(child, ctx, 1) : "null");
   }
   return `[${items.join(", ")}]`;
 }
@@ -467,7 +523,7 @@ function emitListsCreate(block: Block, ctx: TsEmitContext): string {
 function emitGeneric(block: Block, ctx: TsEmitContext, indent: number): string {
   if (isGenericValueBlockType(block.type)) {
     const value = block.getInputTargetBlock("VALUE");
-    return value ? emitBlock(value, ctx, indent) : "undefined";
+    return value ? emitBlock(value, ctx, indent) : "null";
   }
   const props: Array<[string, string]> = [];
   for (const input of block.inputList) {
@@ -513,7 +569,7 @@ function isEmptyShadow(block: Block): boolean {
 }
 
 function isEmptyLiteral(code: string): boolean {
-  return code === '""' || code === "''" || code === "undefined" || code === "null";
+  return code === '""' || code === "''" || code === "null";
 }
 
 function stringLiteralValue(code: string): string | null {
@@ -529,4 +585,15 @@ function stringLiteralValue(code: string): string | null {
 
 function escapeTemplate(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+}
+
+/** True when generated Conversion Script uses the JS identifier `undefined` (not in comments/strings). */
+export function generatedTypeScriptHasSilentUndefined(source: string): boolean {
+  const stripped = source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\/\/.*$/gm, "")
+    .replace(/"(?:\\.|[^"\\])*"/g, '""')
+    .replace(/'(?:\\.|[^'\\])*'/g, "''")
+    .replace(/`(?:\\.|[^`\\])*`/g, "``");
+  return /\bundefined\b/.test(stripped);
 }

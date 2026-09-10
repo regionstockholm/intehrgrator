@@ -72,8 +72,6 @@ export {
   workspacePositionFromClient,
 } from "./source_query.ts";
 export { createModestTheme } from "./theme.ts";
-/** @deprecated use createModestTheme */
-export { createModestTheme as createCompactTheme } from "./theme.ts";
 export { registerCompactThrasosRenderer, COMPACT_RENDERER_NAME } from "./compact_renderer.ts";
 export {
   openWorkspaceSnapshotWindow,
@@ -128,6 +126,7 @@ export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
 export {
   generateTypeScriptFromBlocklyState,
   generateTypeScriptFromWorkspace,
+  generatedTypeScriptHasSilentUndefined,
   registerTypeScriptExportAdapter,
 } from "./typescript_codegen.ts";
 

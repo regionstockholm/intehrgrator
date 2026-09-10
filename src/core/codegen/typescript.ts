@@ -559,6 +559,25 @@ export function asStringExpr(expr: string): string {
   return `String(${expr} ?? "")`;
 }
 
+/**
+ * CODE_PHRASE constructors require terse `terminology::code` or an init object.
+ * Defaults Map lookups often store the code alone (`"en"`); wrap with the RM
+ * terminology when known (ISO_639-1 / ISO_3166-1 / IANA_character-sets).
+ */
+export function wrapCodePhraseExpr(
+  expr: string,
+  terminologyId: string | undefined,
+  ctx: TsEmitContext,
+): string {
+  if (isBlankGeneratedExpr(expr)) return expr;
+  if (expr.includes("::") || /\bnew CODE_PHRASE\b/.test(expr)) return expr;
+  if (terminologyId) {
+    return "`" + escapeTemplate(terminologyId) + "::${String(" + expr + ' ?? "")}`';
+  }
+  ctx.types.add("CODE_PHRASE");
+  return `new CODE_PHRASE({ code_string: ${asStringExpr(expr)} })`;
+}
+
 export function asBooleanExpr(expr: string): string {
   if (/^(xpathBoolean|Boolean)\(/.test(expr)) return expr;
   return `Boolean(${expr})`;

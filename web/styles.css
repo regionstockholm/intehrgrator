@@ -1104,7 +1104,7 @@ body.sheets-fullscreen::before {
   flex-direction: column;
   gap: 8px;
 }
-.help-link-list a { color: var(--primary); font-size: 13px; font-weight: 600; }
+.help-link-list a { color: var(--primary); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .help-link-list li { font-size: 13px; color: var(--text-secondary); }
 .help-diag-label {
   margin: 4px 0 0;

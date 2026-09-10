@@ -10,6 +10,7 @@ import {
 import { foldGutter, foldKeymap, foldService } from "@codemirror/language";
 import {
   blocklyJsonDocument,
+  blocklyJsonDocumentForRoot,
   type BlocklyJsonDocument,
   type SpecLine,
 } from "./project.ts";
@@ -514,12 +515,20 @@ export function createMappingSpecEditor(
 }
 
 /** Replace the Spec view from canonical Blockly workspace JSON. */
+export interface MappingSpecViewOptions {
+  /** When set, show only rows for this canvas root (tabbed view). */
+  rootId?: string | null;
+}
+
 export function setMappingSpecFromBlockly(
   view: EditorView,
   blocklyState: unknown,
   chrome: SpecChrome = emptyChrome,
+  viewOptions: MappingSpecViewOptions = {},
 ): void {
-  const next = blocklyJsonDocument(blocklyState);
+  const next = viewOptions.rootId
+    ? blocklyJsonDocumentForRoot(blocklyState, viewOptions.rootId)
+    : blocklyJsonDocument(blocklyState);
   const current = view.state.doc.toString();
   if (current === next.text) {
     setMappingSpecChrome(view, chrome);

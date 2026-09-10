@@ -34,6 +34,7 @@ export class MappingSpecWidget extends WidgetType {
   }
 
   override get estimatedHeight(): number {
+    if (this.line.kind === "header") return 22;
     if (this.line.editKind === "code") {
       const text = this.line.editable?.find((f) => f.field === "TEXT")?.value ?? "";
       const rows = Math.min(CODE_MAX_ROWS, Math.max(3, text.split("\n").length));
@@ -43,6 +44,11 @@ export class MappingSpecWidget extends WidgetType {
   }
 
   override eq(other: MappingSpecWidget): boolean {
+    if (this.line.kind === "header" || other.line.kind === "header") {
+      return this.line.kind === other.line.kind &&
+        this.line.label === other.line.label &&
+        this.line.blockId === other.line.blockId;
+    }
     return (
       this.line.blockId === other.line.blockId &&
       this.line.kind === other.line.kind &&
@@ -61,6 +67,21 @@ export class MappingSpecWidget extends WidgetType {
   }
 
   override toDOM(): HTMLElement {
+    if (this.line.kind === "header") {
+      const divider = document.createElement("div");
+      divider.className = "spec-root-divider";
+      const label = document.createElement("span");
+      label.className = "spec-root-divider-label";
+      label.textContent = this.line.label || this.line.summary || this.line.type;
+      divider.appendChild(label);
+      if (this.line.blockId) divider.dataset.blockId = this.line.blockId;
+      if (this.onSelect && this.line.blockId) {
+        divider.tabIndex = 0;
+        divider.classList.add("spec-root-divider--clickable");
+        divider.addEventListener("click", () => this.onSelect?.(this.line.blockId!));
+      }
+      return divider;
+    }
     const row = document.createElement("span");
     row.className = `spec-widget spec-widget--${this.line.kind}`;
     if (this.line.editKind === "code") row.classList.add("spec-widget--multiline");

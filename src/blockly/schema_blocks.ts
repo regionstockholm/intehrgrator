@@ -18,6 +18,7 @@ import {
   syncSchemaFieldInputs,
   TARGET_CHILD_PREFIX,
 } from "./blocks/target_blocks.ts";
+import { applyInstanceRootCap } from "./instance_root.ts";
 
 export type { SchemaInputSpec };
 export { specForChild, schemaInputSpecs } from "../core/target/schema_block_ids.ts";
@@ -30,6 +31,7 @@ export interface SchemaStructureExtraState {
   childGroups?: string[];
   extras?: string[];
   xmlAttributes?: string[];
+  instanceRoot?: boolean;
 }
 
 export function registerSchemaBlocksFromSkeleton(skeleton: SkeletonNode[]): void {
@@ -84,6 +86,9 @@ export function schemaExtraStateOf(block: Block): SchemaStructureExtraState | nu
     .filter((input) => input.name.startsWith(TARGET_CHILD_PREFIX))
     .map((input) => input.name.slice(TARGET_CHILD_PREFIX.length));
   if (!fields?.length && childGroups.length) payload.childGroups = childGroups;
+  if ((block as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_) {
+    payload.instanceRoot = true;
+  }
   return Object.keys(payload).length ? payload : null;
 }
 
@@ -108,6 +113,7 @@ export function restoreSchemaExtraState(
   block.schemaExtraFields_ = Array.isArray(state?.extras) ? state!.extras! : [];
   block.schemaOptionalSpecs_ = Array.isArray(state?.optionalFields) ? state!.optionalFields! : [];
   block.updateSchemaFields_?.();
+  if (state?.instanceRoot) applyInstanceRootCap(block);
 }
 
 export function schemaSlotIdForInput(block: Block, inputName: string): string | null {

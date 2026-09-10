@@ -106,6 +106,20 @@ export {
   restoreDefaultsBlockState,
   serializeDefaultsMapArgument,
 } from "./defaults_canvas.ts";
+export {
+  attachStartToInstanceRoot,
+  ensureConversionStartOnScaffold,
+  enforceConversionStartUniqueness,
+  findScaffoldInstanceRoot,
+} from "./conversion_start_canvas.ts";
+export {
+  CONVERSION_START_TYPE,
+  TEXT_DOCUMENT_BLOCK_TYPE,
+  registerConversionStartBlock,
+  findInstanceRootUnderStart,
+  inferTargetFormatFromRoot,
+  isInstanceRootBlockType,
+} from "./instance_root.ts";
 export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler } from "./blocks/map_blocks.ts";
 export {
   defaultsMapKeys,
@@ -128,6 +142,8 @@ export {
   registerTypeScriptExportAdapter,
 } from "./typescript_codegen.ts";
 
+import { registerConversionStartBlock } from "./instance_root.ts";
+
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
   registerTargetBlocks();
@@ -135,6 +151,7 @@ export function initBlocklyGenerators(): void {
   registerMapBlocks();
   registerSheetBlocks();
   registerTextBlocks();
+  registerConversionStartBlock();
   registerLogicBlocks();
   registerExtractToFunctionMenu();
   registerGenerators();

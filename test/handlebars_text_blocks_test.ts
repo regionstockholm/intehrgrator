@@ -90,10 +90,12 @@ Deno.test("Text toolbox lists CodeMirror text and Handlebars blocks after stock 
   };
   const text = toolbox.contents.find((cat) => cat.name === msg("en").CAT_TEXT);
   const types = (text?.contents ?? []).map((block) => block.type);
-  assertEquals(types[0], "text");
-  assertEquals(types[1], "text_code");
-  assertEquals(types[2], "text_code");
-  assertEquals(types[3], "text_handlebars");
+  assertEquals(types[0], "conversion_start");
+  assertEquals(types[1], "text_document");
+  assertEquals(types[2], "text");
+  assertEquals(types[3], "text_code");
+  assertEquals(types[4], "text_code");
+  assertEquals(types[5], "text_handlebars");
 });
 
 Deno.test("source_query_node outputs Source and serializes to xpathNode", () => {

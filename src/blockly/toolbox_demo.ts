@@ -57,6 +57,10 @@ function mapsCreateWithToolboxBlock(itemCount: number): Record<string, unknown> 
   };
 }
 
+function conversionStartToolboxBlock(): Record<string, unknown> {
+  return { kind: "block", type: "conversion_start", gap: 8 };
+}
+
 function compositionToolboxBlock(): Record<string, unknown> {
   return {
     kind: "block",
@@ -73,6 +77,7 @@ function compositionToolboxBlock(): Record<string, unknown> {
 
 function openEhrTypeToolboxContents(m: ReturnType<typeof msg>): Array<Record<string, unknown>> {
   return [
+    conversionStartToolboxBlock(),
     { kind: "label", text: m.CAT_OPENEHR_ENTRIES },
     compositionToolboxBlock(),
     { kind: "block", type: "section", gap: 8 },
@@ -171,6 +176,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       colour: 40,
       cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryJson" },
       contents: [
+        conversionStartToolboxBlock(),
         { kind: "block", type: "json_object", gap: 8 },
         { kind: "block", type: "json_array", gap: 8 },
         { kind: "block", type: "json_value", gap: 8 },
@@ -186,6 +192,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       colour: 200,
       cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryXml" },
       contents: [
+        conversionStartToolboxBlock(),
         {
           kind: "block",
           type: "xml_element",
@@ -354,6 +361,8 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         colour: 46,
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryText" },
         contents: [
+          conversionStartToolboxBlock(),
+          { kind: "block", type: "text_document" },
           { kind: "block", type: "text" },
           {
             kind: "block",

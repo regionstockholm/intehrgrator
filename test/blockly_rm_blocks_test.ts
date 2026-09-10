@@ -29,6 +29,12 @@ import {
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
+import { findInstanceRootUnderStart } from "@intehrgrator/blockly/instance_root.ts";
+
+function compositionRoot(workspace: Blockly.Workspace): Blockly.Block | undefined {
+  return findInstanceRootUnderStart(workspace) ??
+    workspace.getTopBlocks(false).find((block) => block.type === "composition");
+}
 import { zipehrEmojiForRmType } from "@intehrgrator/core/rm_emoji.ts";
 import {
   ABSTRACT_SLOT_GLYPH,
@@ -244,7 +250,7 @@ Deno.test("loadSkeletonIntoWorkspace auto-attaches mandatory DV shells", () => {
   );
   assert(observation, "expected observation block");
   assertEquals(observation.type, "observation");
-  const root = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const root = compositionRoot(workspace);
   assertEquals(root?.type, "composition");
   assertEquals(
     workspace.getAllBlocks(false).some((b) => b.type === "rm_structure"),
@@ -273,9 +279,8 @@ Deno.test("imported skeleton starts expanded; collapse-all skips the root", () =
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
 
-  const roots = workspace.getTopBlocks(false);
-  assert(roots.length >= 1, "expected a root block");
-  const root = roots[0];
+  const root = compositionRoot(workspace);
+  assert(root, "expected composition instance root");
   assertEquals(root.isCollapsed(), false);
 
   const nested = workspace.getAllBlocks(false).filter((block) => {
@@ -345,7 +350,12 @@ Deno.test("COMPOSITION toolbox block has mandatory RM slots", () => {
     "CONTENT_ITEM",
   ]);
   assert(block.getInput(rmAttributeInputName("context")), "expected context statement");
-  assertEquals(block.previousConnection, null);
+  assert(block.previousConnection, "COMPOSITION accepts Conversion start on previous notch");
+  const prevCheck = block.previousConnection?.getCheck();
+  assertEquals(
+    prevCheck === "INSTANCE_ROOT" || (Array.isArray(prevCheck) && prevCheck.includes("INSTANCE_ROOT")),
+    true,
+  );
   workspace.dispose();
 });
 
@@ -578,7 +588,7 @@ Deno.test("Optional RM Insertion attaches a typed child without clearing the can
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const root = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const root = compositionRoot(workspace);
   assert(root);
   const beforeIds = new Set(workspace.getAllBlocks(false).map((b) => b.id));
   const child = attachOptionalRmChild(workspace as unknown as Blockly.WorkspaceSvg, root, {
@@ -643,7 +653,7 @@ Deno.test("skeleton canvas plugs language and territory Defaults lookups into CO
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
 
-  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const composition = compositionRoot(workspace);
   assertEquals(composition?.type, "composition");
   const languageInput = composition.getInput(rmAttributeInputName("language"));
   assertEquals(languageInput?.connection?.getCheck(), ["CODE_PHRASE"]);
@@ -686,7 +696,7 @@ Deno.test("skeleton canvas pre-fills COMPOSITION.category from the template", ()
   const { skeleton } = generateSkeleton(persistent);
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const composition = compositionRoot(workspace);
   const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
   assertEquals(category?.type, "term_pick");
   assertEquals(category?.getFieldValue("CODE"), "431");
@@ -715,7 +725,7 @@ Deno.test("optional content observations still scaffold on the canvas", () => {
   }];
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const composition = compositionRoot(workspace);
   const content = composition?.getInputTargetBlock(rmAttributeInputName("content"));
   assertEquals(content?.type, "observation");
   assertEquals(content?.getFieldValue("NAME"), "Blood pressure");
@@ -932,7 +942,7 @@ Deno.test("mandatory containers do not get a warning triangle just for being man
   const { skeleton } = generateSkeleton(fixture);
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
-  const composition = workspace.getTopBlocks(false).find((block) => block.type === "composition");
+  const composition = compositionRoot(workspace);
   assert(composition);
   const warning = (warningTextOf(composition) ?? blockConstraintMessages(composition).join("\n"));
   assertEquals(warning.includes("Mandatory"), false);

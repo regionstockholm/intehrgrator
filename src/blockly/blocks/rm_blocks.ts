@@ -28,6 +28,7 @@ import {
   slotRmTypeForAttr,
 } from "../rm_type_emoji.ts";
 import { FieldSkeletonTitle, humanizeRmType, isSkeletonTitleField } from "../field_skeleton_title.ts";
+import { INSTANCE_ROOT_CONNECTION } from "../instance_root.ts";
 import {
   parseSlotCardinality,
   rmAttributeCardinality,
@@ -1016,6 +1017,9 @@ function defineContainerBlock(
       }
       if (options.expandable) {
         Blockly.Extensions.apply("optional_rm_mutator", this, true);
+      }
+      if (options.rmType === "COMPOSITION") {
+        this.setPreviousStatement(true, INSTANCE_ROOT_CONNECTION);
       }
       enforceOpenEhrBlockLayout(this);
     },

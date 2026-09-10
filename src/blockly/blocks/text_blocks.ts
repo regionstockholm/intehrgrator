@@ -7,8 +7,15 @@ import {
 import { EDITOR_LANGUAGE_OPTIONS } from "../../workbench/codemirror_setup.ts";
 import { msg, detectLocale } from "../i18n/locale.ts";
 
+import {
+  applyInstanceRootCap,
+  TEXT_DOCUMENT_BLOCK_TYPE,
+} from "../instance_root.ts";
+import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
+
 export const TEXT_CODE_BLOCK_TYPE = "text_code";
 export const TEXT_HANDLEBARS_BLOCK_TYPE = "text_handlebars";
+export { TEXT_DOCUMENT_BLOCK_TYPE };
 
 const TEXT_COLOUR = "#FFCA28";
 
@@ -55,6 +62,23 @@ export function registerTextBlocks(): void {
       this.setTooltip(m.TEXT_HANDLEBARS_TOOLTIP);
       this.setStyle?.("text_blocks");
       this.setInputsInline(false);
+    },
+  };
+
+  Blockly.Blocks[TEXT_DOCUMENT_BLOCK_TYPE] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER");
+      appendBlockOutputGlyph(header, "String");
+      header.appendField("Text document");
+      const value = this.appendValueInput("VALUE").setCheck("String");
+      appendInputTypeGlyph(value, "String");
+      value.appendField("content");
+      applyInstanceRootCap(this);
+      this.setColour(TEXT_COLOUR);
+      this.setTooltip(
+        "Free-form text instance root. Plug in Code text, Handlebars text, or a string Source query.",
+      );
+      this.setStyle?.("text_blocks");
     },
   };
 }

@@ -23,6 +23,12 @@ import { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { DEFAULTS_BLOCK_TYPE } from "../core/defaults/extract.ts";
+import {
+  CONVERSION_START_TYPE,
+  findInstanceRootUnderStart,
+  inferTargetFormatFromRoot,
+  TEXT_DOCUMENT_BLOCK_TYPE,
+} from "./instance_root.ts";
 import { attributesFor, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { LOCATABLE_TYPES } from "../core/rm_mandatory.ts";
 import type { MappingModel } from "../types/mod.ts";
@@ -96,16 +102,25 @@ export function generateTypeScriptFromWorkspace(
   model: MappingModel,
 ): string | null {
   const ctx = createTsEmitContext();
+  const instanceRoot = findInstanceRootUnderStart(workspace);
   const roots = workspace.getTopBlocks(true).filter((block) =>
     block.type !== DEFAULTS_BLOCK_TYPE &&
-    block.type !== "maps_create_with"
+    block.type !== "maps_create_with" &&
+    block.type !== CONVERSION_START_TYPE
   );
-  const composition = roots.find((block) => block.type === "composition") ??
-    roots.find((block) => isRmContainerBlockType(block.type));
+  const composition = instanceRoot?.type === "composition" ? instanceRoot
+    : roots.find((block) => block.type === "composition") ??
+      roots.find((block) => isRmContainerBlockType(block.type));
+
+  const targetFormat = model.targetFormat ??
+    (instanceRoot ? inferTargetFormatFromRoot(instanceRoot) : undefined);
 
   let body: string;
   let rootType: string | undefined;
-  if (composition) {
+  if (instanceRoot?.type === TEXT_DOCUMENT_BLOCK_TYPE) {
+    const value = instanceRoot.getInputTargetBlock("VALUE");
+    body = value ? `return ${emitBlock(value, ctx, 0)};` : 'return "";';
+  } else if (composition) {
     const code = emitBlock(composition, ctx, 0);
     rootType = rmTypeOf(composition);
     if (rootType === "COMPOSITION") {
@@ -113,8 +128,14 @@ export function generateTypeScriptFromWorkspace(
     } else {
       body = `return ${code};`;
     }
-  } else if (model.targetFormat && model.targetFormat !== "openehr-template") {
-    const generic = roots.find((block) =>
+  } else if (instanceRoot && (
+    isSchemaStructureBlock(instanceRoot) ||
+    instanceRoot.type === "json_object" ||
+    instanceRoot.type === "xml_element"
+  )) {
+    body = `return ${emitGeneric(instanceRoot, ctx, 0)};`;
+  } else if (targetFormat && targetFormat !== "openehr-template") {
+    const generic = instanceRoot ?? roots.find((block) =>
       isSchemaStructureBlock(block) || block.type === "json_object" || block.type === "xml_element"
     );
     if (generic) {

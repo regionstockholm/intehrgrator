@@ -124,12 +124,12 @@ One of the typed Blockly blocks that hold a **Source Path**: `source_query` (str
 _Avoid_: generic “source block”, xpath block (the expression helpers are different)
 
 **Code text block**:
-Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, Go Template, JSON, XML, HTML, JavaScript, TypeScript). Used for Handlebars or Go `text/template` snippets nested in XML/text slots, and other literal scripts.
+Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, Go Template, JSON, XML, HTML, JavaScript, TypeScript). Handlebars LANG is **VMS-Hbs** (ADR 0009) with debounced lint; Go `text/template` is the ADR 0004 snippet hatch; JS/TS remain hatches.
 _Avoid_: stock `text` block (single-line), Mapping Editor Handlebars Template tab (workspace-level template)
 
 **Handlebars text block**:
-Text-category Blockly block (`text_handlebars`) that takes a Handlebars script (String — typically a **Code text block**) and a context (**Map** or **Source query** node) and emits rendered prose/text.
-_Avoid_: Handlebars Template tab, generated Handlebars Conversion Script
+Text-category Blockly block (`text_handlebars`) that takes a Handlebars script (String — typically a **Code text block**) and a context (**Map** or **Source query** node) and emits rendered prose/text. Script must be **VMS-Hbs**.
+_Avoid_: Handlebars Template tab, generated Handlebars Conversion Script, unrestricted Handlebars.js
 
 **Placeholder source path**:
 The unmapped factory **Source Path** on a **Source query block**: empty, or the default field value `/path`. A real mapped path such as `$.systolic` is not a placeholder.
@@ -220,8 +220,12 @@ Derived semantic index (`templateId`, `targetFormat`, `slots[]` with expressions
 _Avoid_: Mapping schema, parallel IR, structural language
 
 **Verifiable Mapping Subset (VMS)**:
-The product profile for mappings that are safe to verify and to codegen consistently: hostile stock Blockly (while/for/random/print, statement `controls_if`, list-index mutators) and sheet mutators are **removed from the toolbox**; escape hatches (`text_code`, `text_handlebars`, ad-hoc JSON/XML trees, procedures) remain but are flagged for lint ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Implemented in `src/blockly/vms.ts` (PR #58, closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35) / [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Golden oracles and preview/codegen equivalence are [#38](https://github.com/regionstockholm/intehrgrator/issues/38)+.
-_Avoid_: treating every Blockly block as VMS, re-adding sheet mutators to the default toolbox
+The product profile for mappings that are safe to verify and to codegen consistently: hostile stock Blockly (while/for/random/print, statement `controls_if`, list-index mutators) and sheet mutators are **removed from the toolbox**. **VMS-Hbs** Handlebars (ADR 0009) is in-dialect, not a hatch. Remaining hatches (`text_code` in JS/TS/Go, out-of-dialect Handlebars, ad-hoc JSON/XML trees, procedures) are flagged for lint ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Implemented in `src/blockly/vms.ts` (PR #58, closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35) / [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Golden oracles and preview/codegen equivalence are [#38](https://github.com/regionstockholm/intehrgrator/issues/38)+.
+_Avoid_: treating every Blockly block as VMS, re-adding sheet mutators to the default toolbox, treating all Handlebars as unverified
+
+**VMS-Hbs**:
+The Handlebars dialect editors and `renderHandlebars` accept: paths, `#if`/`#unless`/`#each`/`else`, comparison helpers (`eq`/`ne`/…/`and`/`or`), `toLowerCase`/`toUpperCase`, `slot`, `~` whitespace, Mustache-style `{{#path}}` sections. Not the same syntax as **VMS-Mustache** (interpolation + Mustache sections only — for decision-table snippet cells). See [ADR 0009](docs/adr/0009-verifiable-handlebars-dialect.md).
+_Avoid_: full Handlebars.js, `#with`/`lookup`/`#log`/partials, calling the Template tab “Mustache”
 
 **Generated Export**:
 Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
@@ -285,8 +289,8 @@ The application locale for Blockly messages (toolbar setting; later full chrome 
 _Avoid_: Model language, conflating with Defaults Map `language`
 
 **Handlebars Template**:
-User-authored Kintegrate-compatible conversion template stored in `ProjectBundle.mapping.handlebarsTemplate`. **Mapping preview** Test Run renders it for free-form / Kintegrate targets. Distinct from a generated Handlebars Conversion Script (Output mode Handlebars), which is not executed in Conversion Test Run(s) yet.
-_Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format
+User-authored **VMS-Hbs** conversion template stored in `ProjectBundle.mapping.handlebarsTemplate` (ADR 0009). **Mapping preview** Test Run renders it for free-form / Kintegrate targets. Distinct from a generated Handlebars Conversion Script (Output mode Handlebars), which is not executed in Conversion Test Run(s) yet.
+_Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format, calling this tab Mustache
 
 **Output validation**:
 ehrtslib `TemplateValidator` check of a Conversion Test Run instance against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. ✅ on the Conversion Test Run tab if valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor.

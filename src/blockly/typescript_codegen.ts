@@ -41,7 +41,6 @@ import {
   type TsEmitContext,
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
-import { migrateMapsCreateWithJson } from "../core/defaults/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 
 const STATEMENT_INPUT_TYPE = 3;
@@ -77,7 +76,6 @@ export function generateTypeScriptFromBlocklyState(
   const workspace = new Blockly.Workspace();
   try {
     const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
-    migrateMapsCreateWithJson(snapshot);
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -138,11 +136,20 @@ export function generateTypeScriptFromWorkspace(
   });
 }
 
+/** Test-only export for VMS undefined guard tests. */
+export function emitBlockForVmsTest(
+  block: Block,
+  ctx: TsEmitContext = createTsEmitContext(),
+): string {
+  return emitBlock(block, ctx, 0);
+}
+
 function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
   const fromExpr = emitExpressionBlock(block, ctx);
-  if (fromExpr !== null) return fromExpr;
+  if (fromExpr !== null) return wrapCodePhraseSlotEmit(block, fromExpr);
 
   if (block.type === "for_each_source") return emitForEach(block, ctx, indent);
+  if (block.type === "for_each_list") return emitForEachList(block, ctx, indent);
   if (block.type === TERM_PICK_BLOCK_TYPE) return emitTermPick(block, ctx);
   if (block.type === "code_phrase") return emitCodePhrase(block, ctx, indent);
   if (block.type === "party_ref") return emitPartyRef(block, ctx, indent);
@@ -168,7 +175,7 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
   if (isGenericValueBlockType(block.type) || isSchemaStructureBlock(block)) {
     return emitGeneric(block, ctx, indent);
   }
-  return "undefined";
+  return "undefined /* unhandled block type: " + block.type + " */";
 }
 
 function emitExpressionBlock(block: Block, ctx: TsEmitContext): string | null {
@@ -259,8 +266,49 @@ function emitAttribute(
   }
   const simplified = emitSimplifiedParty(attr, target, ctx, indent);
   if (simplified) return simplified;
-  const code = emitBlock(target, ctx, indent + 1);
+  let code = emitBlock(target, ctx, indent + 1);
+  code = wrapCodePhraseAttributeEmit(attr, parentRmType, target, code);
   return isBlankGeneratedExpr(code) ? null : code;
+}
+
+function wrapCodePhraseSlotEmit(block: Block, code: string): string {
+  const rmType = String(block.getFieldValue("RM_TYPE") ?? "").toUpperCase();
+  if (rmType !== "CODE_PHRASE") return code;
+  return wrapCodePhraseValue(code, String(block.getFieldValue("SLOT_ID") ?? ""));
+}
+
+function wrapCodePhraseAttributeEmit(
+  attr: string,
+  parentRmType: string,
+  target: Block,
+  code: string,
+): string {
+  if (isBlankGeneratedExpr(code)) return code;
+  const attrMeta = attributesFor(parentRmType).find((item) => item.name === attr);
+  const attrType = attrMeta?.typeName ? baseRmTypeName(attrMeta.typeName) : "";
+  if (attrType !== "CODE_PHRASE" && target.type !== "code_phrase") return code;
+  if (code.includes("::") || code.includes("CODE_PHRASE")) return code;
+  return wrapCodePhraseValue(code, String(target.getFieldValue("SLOT_ID") ?? ""), attr);
+}
+
+function wrapCodePhraseValue(code: string, slotId: string, attrName = ""): string {
+  if (code.includes("::") || code.includes("CODE_PHRASE")) return code;
+  const term = codePhraseTerminology(slotId, attrName);
+  if (!term) return code;
+  return "`" + escapeTemplate(term) + "::${String(" + code + ' ?? "")}`';
+}
+
+function codePhraseTerminology(slotId: string, attrName: string): string | null {
+  if (slotId.includes("//language/") || attrName === "language") return "ISO_639-1";
+  if (slotId.includes("//territory/") || attrName === "territory") return "ISO_3166-1";
+  if (slotId.includes("//encoding/") || attrName === "encoding") return "Unicode";
+  return null;
+}
+
+function baseRmTypeName(typeName: string): string {
+  const list = typeName.match(/^List<(.+)>$/);
+  if (list) return baseRmTypeName(list[1]!);
+  return typeName;
 }
 
 function emitSimplifiedParty(
@@ -302,6 +350,10 @@ function emitStatementList(
   for (const block of blocks) {
     const code = block.type === "for_each_source"
       ? emitForEach(block, ctx, 0)
+      : block.type === "for_each_list"
+      ? emitForEachList(block, ctx, 0)
+      : block.type === "variables_set"
+      ? emitVariableSet(block, ctx, indent + 1)
       : emitBlock(block, ctx, 0);
     if (!isBlankGeneratedExpr(code)) parts.push(indentTsBlock(code, indent + 2));
   }
@@ -322,9 +374,33 @@ function emitForEach(block: Block, ctx: TsEmitContext, indent: number): string {
   const bodyBlock = block.getInputTargetBlock("DO");
   const body = bodyBlock
     ? emitBlock(bodyBlock, innerCtx, indent)
-    : "undefined";
+    : "null";
   return "...xpathNodes(" + JSON.stringify(path) + ").map((" + ident + ") => " +
     body + ")";
+}
+
+function emitForEachList(block: Block, ctx: TsEmitContext, indent: number): string {
+  const name = String(block.getFieldValue("VAR") || "item");
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+  const listBlock = block.getInputTargetBlock("LIST");
+  const list = listBlock ? emitBlock(listBlock, ctx, indent) : "[]";
+  const innerCtx: TsEmitContext = {
+    ...ctx,
+    loopVar: ident,
+  };
+  const bodyBlock = block.getInputTargetBlock("DO");
+  const body = bodyBlock
+    ? emitBlock(bodyBlock, innerCtx, indent)
+    : "null";
+  return `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => ${body})`;
+}
+
+function emitVariableSet(block: Block, ctx: TsEmitContext, indent: number): string {
+  const name = block.getField("VAR")?.getText() ?? "v";
+  const valueBlock = block.getInputTargetBlock("VALUE");
+  const value = valueBlock ? emitBlock(valueBlock, ctx, indent) : "null";
+  ctx.helpers.add("logic");
+  return `(__vars[${JSON.stringify(name)}] = ${value}, null)`;
 }
 
 function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {

@@ -10,7 +10,6 @@ import {
   factoryDefaultsEntries,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
-  migrateMapsCreateWithJson,
   namedMapsFromBlocklyState,
 } from "@intehrgrator/core/defaults/mod.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
@@ -133,35 +132,6 @@ Deno.test("namedMapsFromBlocklyState still reads legacy KEY value-input JSON", (
   const maps = namedMapsFromBlocklyState(state);
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
   assertEquals(maps[DEFAULTS_MAP_NAME]?.territory, "SE");
-});
-
-Deno.test("migrateMapsCreateWithJson moves KEY inputs into fields", () => {
-  const block = {
-    type: "maps_create_with",
-    extraState: { itemCount: 1 },
-    inputs: {
-      KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
-      VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
-    },
-  };
-  migrateMapsCreateWithJson(block);
-  assertEquals(block.fields?.KEY0, "language");
-  assertEquals(block.inputs?.KEY0, undefined);
-  assertEquals(
-    (block.inputs?.VAL0 as { shadow?: { fields?: { TEXT?: string } } })?.shadow
-      ?.fields?.TEXT,
-    "sv",
-  );
-  const extracted = mapBlockFromDefaultsJson({
-    type: "maps_create_with",
-    extraState: { itemCount: 1 },
-    inputs: {
-      KEY0: { shadow: { type: "text", fields: { TEXT: "territory" } } },
-      VAL0: { shadow: { type: "text", fields: { TEXT: "SE" } } },
-    },
-  }) as { fields?: Record<string, string>; inputs?: Record<string, unknown> };
-  assertEquals(extracted.fields?.KEY0, "territory");
-  assertEquals(extracted.inputs?.KEY0, undefined);
 });
 
 Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a workspace", () => {
@@ -390,15 +360,15 @@ Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute m
   workspace.dispose();
 });
 
-Deno.test("hydrateDefaultsMapArgument loads legacy KEY-input map JSON", () => {
+Deno.test("hydrateDefaultsMapArgument loads maps_create_with field-key JSON", () => {
   registerMapBlocks();
   const workspace = new Blockly.Workspace();
   ensureDefaultsBlock(workspace, "sv");
   hydrateDefaultsMapArgument(workspace, {
     type: "maps_create_with",
     extraState: { itemCount: 1 },
+    fields: { KEY0: "language" },
     inputs: {
-      KEY0: { shadow: { type: "text", fields: { TEXT: "language" } } },
       VAL0: { shadow: { type: "text", fields: { TEXT: "xx" } } },
     },
   }, "sv");

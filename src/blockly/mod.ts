@@ -72,8 +72,6 @@ export {
   workspacePositionFromClient,
 } from "./source_query.ts";
 export { createModestTheme } from "./theme.ts";
-/** @deprecated use createModestTheme */
-export { createModestTheme as createCompactTheme } from "./theme.ts";
 export { registerCompactThrasosRenderer, COMPACT_RENDERER_NAME } from "./compact_renderer.ts";
 export {
   openWorkspaceSnapshotWindow,
@@ -83,7 +81,6 @@ export {
   openBlockMutator,
   composeOptionalRmExtras,
   setOptionalRmMutatorChangeHandler,
-  setOptionalRmPickHandler,
   applyEventRmType,
   applyItemStructureRmType,
   isEventFamilyType,

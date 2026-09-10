@@ -62,6 +62,12 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
           return `String(${args[0]} ?? "").trim()`;
         case "concat":
           return `[${args.join(", ")}].join("")`;
+        case "round":
+          return `Math.round(Number(${args[0]} ?? 0))`;
+        case "modulo":
+          return `(Number(${args[0]} ?? 0) % Number(${args[1]} ?? 1))`;
+        case "constrain":
+          return `(Math.min(Number(${args[2]} ?? 0), Math.max(Number(${args[1]} ?? 0), Number(${args[0]} ?? 0))))`;
         case "if":
           return `(${args[0]} ? ${args[1]} : ${args[2]})`;
         case "switch":

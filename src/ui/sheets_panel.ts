@@ -6,12 +6,16 @@ import jspreadsheet from "jspreadsheet-ce";
 import type { Workspace } from "blockly/core";
 import {
   cloneSheets,
+  emptyDecisionTable,
   emptySheet,
   findSheet,
+  isDecisionTable,
+  lintDecisionTableSnippets,
   normalizeSheet,
   parseSpreadsheetText,
   sheetsEqual,
   sheetToCsv,
+  type DecisionHitPolicy,
   type SheetDocument,
 } from "../core/sheets/mod.ts";
 import { fireSheetChange } from "../workbench/sheet_undo.ts";
@@ -43,7 +47,7 @@ export function mountSheetsPanel(
   },
 ): {
   refresh: () => void;
-  showSheet: (name: string) => void;
+  showSheet: (name: string, kind?: "sheet" | "decision-table") => void;
   setLocale: (locale: string) => void;
   setFullscreen: (on: boolean) => void;
   destroy: () => void;
@@ -65,6 +69,9 @@ export function mountSheetsPanel(
   const addBtn = document.createElement("button");
   addBtn.type = "button";
   addBtn.className = "pane-btn";
+  const addDtBtn = document.createElement("button");
+  addDtBtn.type = "button";
+  addDtBtn.className = "pane-btn";
   const renameBtn = document.createElement("button");
   renameBtn.type = "button";
   renameBtn.className = "pane-btn";
@@ -84,7 +91,39 @@ export function mountSheetsPanel(
   fileInput.type = "file";
   fileInput.accept = ".csv,.tsv,.txt";
   fileInput.hidden = true;
-  toolbar.append(tabsEl, select, addBtn, renameBtn, deleteBtn, importBtn, exportBtn, fullBtn, fileInput);
+  toolbar.append(
+    tabsEl,
+    select,
+    addBtn,
+    addDtBtn,
+    renameBtn,
+    deleteBtn,
+    importBtn,
+    exportBtn,
+    fullBtn,
+    fileInput,
+  );
+
+  const metaBar = document.createElement("div");
+  metaBar.className = "sheets-meta";
+  metaBar.hidden = true;
+  const kindLabel = document.createElement("span");
+  kindLabel.className = "sheets-kind";
+  const hitPolicyLabel = document.createElement("label");
+  hitPolicyLabel.className = "sheets-hit-policy";
+  const hitPolicySelect = document.createElement("select");
+  hitPolicySelect.setAttribute("aria-label", "Hit policy");
+  for (const p of ["FIRST", "UNIQUE", "COLLECT"] as DecisionHitPolicy[]) {
+    const opt = document.createElement("option");
+    opt.value = p;
+    opt.textContent = p;
+    hitPolicySelect.append(opt);
+  }
+  hitPolicyLabel.append(hitPolicySelect);
+  const lintEl = document.createElement("p");
+  lintEl.className = "sheets-snippet-lint";
+  lintEl.hidden = true;
+  metaBar.append(kindLabel, hitPolicyLabel, lintEl);
 
   const emptyEl = document.createElement("p");
   emptyEl.className = "sheets-empty";
@@ -93,7 +132,7 @@ export function mountSheetsPanel(
   const gridEl = document.createElement("div");
   gridEl.className = "sheets-grid";
   gridHost.append(gridEl);
-  root.append(toolbar, emptyEl, gridHost);
+  root.append(toolbar, metaBar, emptyEl, gridHost);
 
   let activeName = "";
   let worksheet: WorksheetInstance | null = null;
@@ -104,12 +143,14 @@ export function mountSheetsPanel(
   const paintChrome = (): void => {
     const t = sheetsChrome(locale);
     addBtn.textContent = t.add;
+    addDtBtn.textContent = t.addDecision;
     renameBtn.textContent = t.rename;
     deleteBtn.textContent = t.remove;
     importBtn.textContent = t.importCsv;
     exportBtn.textContent = t.exportCsv;
     fullBtn.textContent = fullscreen ? t.exitFullscreen : t.fullscreen;
     emptyEl.textContent = t.empty;
+    hitPolicySelect.setAttribute("aria-label", t.hitPolicy);
   };
   paintChrome();
 
@@ -140,7 +181,31 @@ export function mountSheetsPanel(
       values: trimmed,
       columnTypes: existing?.columnTypes,
       rowNames: readRowNames(worksheet, trimmed.length) ?? existing?.rowNames,
+      kind: existing?.kind,
+      hitPolicy: existing?.hitPolicy,
+      collectJoin: existing?.collectJoin,
+      decisionColumns: existing?.decisionColumns,
     });
+  };
+
+  const paintMeta = (sheet: SheetDocument | null): void => {
+    const t = sheetsChrome(locale);
+    if (!sheet || !isDecisionTable(sheet)) {
+      metaBar.hidden = true;
+      lintEl.hidden = true;
+      return;
+    }
+    metaBar.hidden = false;
+    kindLabel.textContent = t.kindDecision;
+    hitPolicySelect.value = sheet.hitPolicy ?? "FIRST";
+    const diags = lintDecisionTableSnippets(sheet);
+    if (diags.length) {
+      lintEl.hidden = false;
+      lintEl.textContent = `${t.snippetLint}: ${diags.map((d) => d.message).join("; ")}`;
+    } else {
+      lintEl.hidden = true;
+      lintEl.textContent = "";
+    }
   };
 
   const commitFromWidget = (): void => {
@@ -204,6 +269,7 @@ export function mountSheetsPanel(
       worksheet = created[0] ?? null;
       if (worksheet) worksheet.ignoreHistory = true;
       sizeGrid();
+      paintMeta(sheet);
     } finally {
       applying = false;
     }
@@ -221,7 +287,10 @@ export function mountSheetsPanel(
     for (const sheet of sheets) {
       const opt = document.createElement("option");
       opt.value = sheet.name;
-      opt.textContent = sheet.name;
+      const t = sheetsChrome(locale);
+      opt.textContent = isDecisionTable(sheet)
+        ? `${sheet.name} (${t.kindDecision})`
+        : sheet.name;
       select.append(opt);
     }
     if (sheets.some((s) => s.name === current)) select.value = current;
@@ -236,7 +305,9 @@ export function mountSheetsPanel(
         const tab = document.createElement("button");
         tab.type = "button";
         tab.className = "sheets-tab" + (sheet.name === selected ? " active" : "");
-        tab.textContent = sheet.name;
+        tab.textContent = isDecisionTable(sheet)
+          ? `${sheet.name} · DT`
+          : sheet.name;
         tab.setAttribute("role", "tab");
         tab.setAttribute("aria-selected", sheet.name === selected ? "true" : "false");
         tab.addEventListener("click", () => {
@@ -264,20 +335,25 @@ export function mountSheetsPanel(
     if (!has) {
       destroyGrid();
       activeName = "";
+      paintMeta(null);
       return;
     }
     const name = select.value || sheets[0]!.name;
     activeName = name;
     const sheet = findSheet(sheets, name) ?? sheets[0]!;
-    if (widgetMatches(sheet)) return;
+    if (widgetMatches(sheet)) {
+      paintMeta(sheet);
+      return;
+    }
     bindSheet(sheet);
   };
 
-  const showSheet = (name: string): void => {
+  const showSheet = (name: string, kind: "sheet" | "decision-table" = "sheet"): void => {
     let sheets = host.getSheets();
     if (!findSheet(sheets, name)) {
       const before = cloneSheets(sheets);
-      const after = [...before, emptySheet(name)];
+      const created = kind === "decision-table" ? emptyDecisionTable(name) : emptySheet(name);
+      const after = [...before, created];
       host.replaceSheets(after);
       fireSheetChange(options.getWorkspace(), before, after, (next) => {
         host.replaceSheets(next, { silent: true });
@@ -291,6 +367,7 @@ export function mountSheetsPanel(
     if (!sheet) return;
     // Refocus / Sheets tab: keep the live grid if data already matches (avoids destroy/rebuild flicker).
     if (widgetMatches(sheet)) {
+      paintMeta(sheet);
       scheduleSizeGrid();
       return;
     }
@@ -301,7 +378,31 @@ export function mountSheetsPanel(
     const t = sheetsChrome(locale);
     const name = globalThis.prompt(t.namePrompt, uniqueName(host.getSheets(), "Sheet"));
     if (!name?.trim()) return;
-    showSheet(name.trim());
+    showSheet(name.trim(), "sheet");
+  });
+  addDtBtn.addEventListener("click", () => {
+    const t = sheetsChrome(locale);
+    const name = globalThis.prompt(
+      t.decisionNamePrompt,
+      uniqueName(host.getSheets(), "Decision"),
+    );
+    if (!name?.trim()) return;
+    showSheet(name.trim(), "decision-table");
+  });
+  hitPolicySelect.addEventListener("change", () => {
+    if (!activeName) return;
+    const before = host.getSheets();
+    const after = before.map((s) =>
+      s.name === activeName
+        ? { ...s, hitPolicy: hitPolicySelect.value as DecisionHitPolicy }
+        : s
+    );
+    host.replaceSheets(after);
+    fireSheetChange(options.getWorkspace(), before, after, (sheets) => {
+      host.replaceSheets(sheets, { silent: true });
+      refresh();
+    });
+    paintMeta(findSheet(after, activeName) ?? null);
   });
   renameBtn.addEventListener("click", () => {
     if (!activeName) return;

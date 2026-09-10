@@ -74,6 +74,7 @@ import {
   hardcodeDefaultsMapKey,
   listDefaultsMapEntries,
   setSheetFocusHandler,
+  setDecisionTableFocusHandler,
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
@@ -442,7 +443,11 @@ async function bootBlockly(): Promise<void> {
   });
   setSheetFocusHandler((name) => {
     showTextView("sheets");
-    sheetsPanel?.showSheet(name);
+    sheetsPanel?.showSheet(name, "sheet");
+  });
+  setDecisionTableFocusHandler((name) => {
+    showTextView("sheets");
+    sheetsPanel?.showSheet(name, "decision-table");
   });
   sheetsPanel = mountSheetsPanel(sheetsHost, {
     getSheets: () => controller.getSheets(),

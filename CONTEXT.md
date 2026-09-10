@@ -61,8 +61,12 @@ A key-value collection in the Mapping Editor, parallel to a Blockly List. Entrie
 _Avoid_: Dictionary, hashmap, JSON object (the object/member stack is a different Blockly metaphor), **Sheet** (2D grid)
 
 **Sheet** (matrix / spreadsheet):
-A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly **accessor** blocks (`sheet_get_*`, `sheet_lookup`) read that grid at convert time. Sheet mutator blocks were removed from the toolbox in the VMS cut (PR #58). Distinct from **Map** and from openEHR `ITEM_TABLE`.
+A named 2D grid in the Mapping Editor: optional unique **column headers** (top), optional unique **row names** (left), cells that need not be unique. Chunk 8 embeds a spreadsheet widget for edit/paste and persists a project-owned grid (headers + values), then Blockly **accessor** blocks (`sheet_get_*`, `sheet_lookup`) read that grid at convert time. Sheet mutator blocks were removed from the toolbox in the VMS cut (PR #58). Distinct from **Map**, **Decision table**, and from openEHR `ITEM_TABLE`.
 _Avoid_: table (ambiguous with RM `ITEM_TABLE`), Excel (the desktop app), treating a Sheet as a 1D Map
+
+**Decision table**:
+A Sheets-adjacent project-owned grid with `kind: decision-table`: **condition** columns (equality + don't-care `—`) and **output** columns (**value** or **VMS-Mustache snippet**). Hit policies **FIRST**, **UNIQUE**, and **COLLECT**. Blockly `decision_table` takes a locals **Map** whose keys match condition columns and snippet bindings — flatten nested/complex sources into those locals (or via `variables_set` / `variables_get`) before eval. Same jspreadsheet widget and convert-time bag as **Sheet**; distinct kind (ADR 0005 / #69). No FEEL; no DMN XML yet.
+_Avoid_: treating as a data **Sheet**, DMN/FEEL, putting branching inside snippet cells
 
 **Defaults block**:
 The unique canvas declaration that binds a **Map** argument as the named Map `defaults`. At most one per workspace; present before a **Template Skeleton** exists so the informatician can edit or add keys, then load a target. **Map lookup**s read that binding by name, not by a wire to the argument. Carries the control to pick or **Save as** a **Defaults Map**. Scaffolding a target **joins** the Template Skeleton and lookups to this block rather than replacing it.

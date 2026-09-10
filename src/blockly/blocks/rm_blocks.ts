@@ -1115,13 +1115,6 @@ export function setOptionalRmMutatorChangeHandler(
   optionalRmMutatorChangeHandler = handler;
 }
 
-/** @deprecated Cogwheel mutator replaced the + picker; opens the mutator bubble. */
-export function setOptionalRmPickHandler(
-  _handler: ((block: Blockly.Block) => void) | null,
-): void {
-  // Cogwheel mutator replaced the + picker.
-}
-
 /** Apply a mutator stack of optional RM extras (used by tests and the workbench seam). */
 export function composeOptionalRmExtras(block: Blockly.Block, names: string[]): void {
   if (!block.decompose || !block.compose) return;

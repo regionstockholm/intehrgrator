@@ -693,11 +693,6 @@ export class WorkbenchController {
     if (this.settings.autoplay) this.scheduleTestRun();
   }
 
-  /** @deprecated Use applySlotExpression — kept for Workbench Test API callers. */
-  applySpecExpression(slotId: string, expression: string): void {
-    this.applySlotExpression(slotId, expression);
-  }
-
   /** Replace the derived Mapping Model from the canonical Blockly workspace JSON. */
   syncFromBlockly(
     blocklyState: unknown,
@@ -1473,17 +1468,11 @@ export class WorkbenchController {
 
   private loadBundle(bundle: ProjectBundle): void {
     this.projectId = bundle.projectId;
-    const rawSettings = bundle.settings as ProjectSettings & { validationStrict?: boolean };
     this.settings = {
       ...DEFAULT_SETTINGS,
-      ...rawSettings,
+      ...bundle.settings,
       exportTarget: "preview",
     };
-    if (!rawSettings.openEhrJsonDeserializeMode && typeof rawSettings.validationStrict === "boolean") {
-      this.settings.openEhrJsonDeserializeMode = rawSettings.validationStrict
-        ? "canonical-strict"
-        : "hybrid";
-    }
     this.model = {
       ...bundle.mapping.model,
       modelVersion: bundle.mapping.model.modelVersion ?? 1,
@@ -1501,15 +1490,7 @@ export class WorkbenchController {
     this.schemaContent = "";
     this.schemaFormat = "json";
     this.schemaError = null;
-    const storedTarget = bundle.target ?? (bundle.template
-      ? {
-        format: "openehr-template" as const,
-        filename: bundle.template.filename,
-        targetId: bundle.template.templateId,
-        content: bundle.template.content,
-        skeleton: bundle.template.skeleton,
-      }
-      : null);
+    const storedTarget = bundle.target;
     if (storedTarget) {
       this.target = storedTarget;
       this.templateFilename = storedTarget.filename;

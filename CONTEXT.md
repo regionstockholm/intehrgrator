@@ -124,7 +124,7 @@ One of the typed Blockly blocks that hold a **Source Path**: `source_query` (str
 _Avoid_: generic “source block”, xpath block (the expression helpers are different)
 
 **Code text block**:
-Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, Go Template, JSON, XML, HTML, JavaScript, TypeScript). Handlebars LANG is **VMS-Hbs** (ADR 0009) with debounced lint; Go `text/template` is the ADR 0004 snippet hatch; JS/TS remain hatches.
+Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, Go Template, JSON, XML, HTML). Handlebars LANG is **VMS-Hbs**; Go Template LANG is **VMS-Go** (ADR 0009) with debounced lint. JavaScript/TypeScript are not offered ([#40](https://github.com/regionstockholm/intehrgrator/issues/40) drops them from the dropdown).
 _Avoid_: stock `text` block (single-line), Mapping Editor Handlebars Template tab (workspace-level template)
 
 **Handlebars text block**:
@@ -220,12 +220,16 @@ Derived semantic index (`templateId`, `targetFormat`, `slots[]` with expressions
 _Avoid_: Mapping schema, parallel IR, structural language
 
 **Verifiable Mapping Subset (VMS)**:
-The product profile for mappings that are safe to verify and to codegen consistently: hostile stock Blockly (while/for/random/print, statement `controls_if`, list-index mutators) and sheet mutators are **removed from the toolbox**. **VMS-Hbs** Handlebars (ADR 0009) is in-dialect, not a hatch. Remaining hatches (`text_code` in JS/TS/Go, out-of-dialect Handlebars, ad-hoc JSON/XML trees, procedures) are flagged for lint ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Implemented in `src/blockly/vms.ts` (PR #58, closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35) / [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Golden oracles and preview/codegen equivalence are [#38](https://github.com/regionstockholm/intehrgrator/issues/38)+.
-_Avoid_: treating every Blockly block as VMS, re-adding sheet mutators to the default toolbox, treating all Handlebars as unverified
+The product profile for mappings that are safe to verify and to codegen consistently: hostile stock Blockly (while/for/random/print, statement `controls_if`, list-index mutators) and sheet mutators are **removed from the toolbox**. **VMS-Hbs** and **VMS-Go** (ADR 0009) are in-dialect, not hatches. Remaining hatches (out-of-dialect templates, ad-hoc JSON/XML trees, procedures) are flagged for lint ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Implemented in `src/blockly/vms.ts` (PR #58, closed [#35](https://github.com/regionstockholm/intehrgrator/issues/35) / [#37](https://github.com/regionstockholm/intehrgrator/issues/37)). Golden oracles and preview/codegen equivalence are [#38](https://github.com/regionstockholm/intehrgrator/issues/38)+.
+_Avoid_: treating every Blockly block as VMS, re-adding sheet mutators to the default toolbox, treating all Handlebars or Go templates as unverified
 
 **VMS-Hbs**:
-The Handlebars dialect editors and `renderHandlebars` accept: paths, `#if`/`#unless`/`#each`/`else`, comparison helpers (`eq`/`ne`/…/`and`/`or`), `toLowerCase`/`toUpperCase`, `slot`, `~` whitespace, Mustache-style `{{#path}}` sections. Not the same syntax as **VMS-Mustache** (interpolation + Mustache sections only — for decision-table snippet cells). See [ADR 0009](docs/adr/0009-verifiable-handlebars-dialect.md).
+The Handlebars dialect editors and `renderHandlebars` accept: paths, `#if`/`#unless`/`#each`/`else`, comparison helpers (`eq`/`ne`/…/`and`/`or`), `toLowerCase`/`toUpperCase`, `slot`, `~` whitespace, Mustache-style `{{#path}}` sections. Not the same syntax as **VMS-Mustache** or **VMS-Go**. See [ADR 0009](docs/adr/0009-verifiable-template-dialects.md).
 _Avoid_: full Handlebars.js, `#with`/`lookup`/`#log`/partials, calling the Template tab “Mustache”
+
+**VMS-Go**:
+The Go `text/template` dialect `text_code` (LANG=`go-template`) and the WASM runtime accept: `{{.Path}}`, `{{index .Data "literal"}}`, `if`/`else`/`range`, comparison builtins, curated FuncMap (`replace`, `regexReplaceAll`, `trim`, `quote`, `lower`, `upper`, `substr`, `int`), acyclic `define`/`template` with literal names. Not Mustache and not VMS-Hbs. See [ADR 0009](docs/adr/0009-verifiable-template-dialects.md).
+_Avoid_: `call`, `with`, Helm `include`, full Sprig, JS/TS in `text_code`
 
 **Generated Export**:
 Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).

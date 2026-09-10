@@ -421,13 +421,12 @@ VMS allowed (implement fully, including Mapping Model + all exporters):
   root)
 
 VMS escape hatch (keep in toolbox; mark unverified):
-  text_code LANG other than handlebars/plain, out-of-dialect Handlebars,
-  ad-hoc json_object / xml_element trees,
+  out-of-dialect Handlebars or Go template, ad-hoc json_object / xml_element trees,
   dynamic (non-literal) source paths, procedures_defreturn (until function
   harness lands)
 
-VMS-Hbs (Handlebars Template, text_handlebars, text_code LANG=handlebars):
-  in-dialect per ADR 0009 — not a hatch; lint + knownHelpersOnly
+VMS-Hbs / VMS-Go (Handlebars Template, text_handlebars, text_code LANG=handlebars|go-template):
+  in-dialect per ADR 0009 — not a hatch; lint + closed helper/FuncMap whitelist
 
 
 VMS remove from toolbox (do not implement):
@@ -438,9 +437,9 @@ VMS remove from toolbox (do not implement):
 ```
 
 A workspace linter ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
-warns on leftover Blockly hatches and on **out-of-dialect** Handlebars.
-In-dialect **VMS-Hbs** is VMS ([ADR 0009](../adr/0009-verifiable-handlebars-dialect.md),
-[proposal](../proposals/verifiable-mustache-handlebars-snippets.md)).
+warns on leftover Blockly hatches and on **out-of-dialect** Handlebars / Go template.
+In-dialect **VMS-Hbs** / **VMS-Go** is VMS ([ADR 0009](../adr/0009-verifiable-template-dialects.md),
+[proposal](../proposals/verifiable-template-snippets.md)).
 
 ## Open questions
 

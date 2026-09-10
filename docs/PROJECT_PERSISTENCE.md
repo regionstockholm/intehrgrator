@@ -1,7 +1,5 @@
 # Project Persistence
 
-## v1 Decision
-
 Projects are saved as **self-contained workspaces**.
 
 The Web Shell persists projects in IndexedDB and can export/import the same data as a single `.intehrgrator` file. A saved project must be enough to resume authoring and run examples without asking the user to re-load the original template/source files.
@@ -10,40 +8,26 @@ The Web Shell persists projects in IndexedDB and can export/import the same data
 
 | Area | Contents |
 |------|----------|
-| Template | OPT content, filename, template id, parsed skeleton metadata |
+| Target | Format-neutral `target` (OPT, JSON Schema, XML Schema, or free-form): content, filename, id, parsed skeleton |
 | Source | Source Schema content + metadata |
 | Examples | Array of example instances `{ id, filename, format, content }`, plus `activeExampleId` |
-| Mapping | Dual serialization — native Blockly workspace data **and** the normalized Mapping Model (see below) |
-| Editor / settings | Workspace preferences: **Conversion script language** (`exportTarget`), theme, validation; Mapping Specification cache — separate from Mapping Model |
-| AI assist | Last generated slot manifest and imported suggestion report, if useful for review |
+| Mapping | Native Blockly workspace JSON (canonical) and a derived Mapping Model snapshot |
+| Settings | Theme, validation, model language. **Output mode** is session-only and is not restored |
 | Metadata | Project id, app version, created/updated timestamps |
 
-## Mapping Serialization (dual)
+Generated Export and Test Run output are **not** stored — they are rebuilt from the Mapping Specification after load.
 
-The bundle stores the mapping **twice**, by design:
+## Mapping serialization
 
-1. **Native Blockly serialization** — exact visual workspace restore (block positions, expansions, collapsed state). Source of truth for re-opening the editor.
-2. **Normalized Mapping Model** — versioned JSON; drives Mapping Specification text and codegen input:
+The bundle stores Blockly workspace JSON as the structural Mapping Specification. A Mapping Model snapshot travels with it (`modelVersion`, `templateId`, `slots[]`, `optionalRm[]`, `loops[]`, …) for AI **Import Suggestions** and codegen. On load, Blockly JSON restores the canvas; later workspace changes rebuild the Mapping Model.
 
-   | Field | Purpose |
-   |-------|---------|
-   | `modelVersion` | Migration across app releases |
-   | `templateId` | Bind mapping to its OPT |
-   | `slots[]` | `{ slotId, rmType, expression, returnType }` — JS-shaped expression strings per [MAPPING_SPECIFICATION.md](MAPPING_SPECIFICATION.md) |
-   | `optionalRm[]` | Inserted optional RM structures and their attachment points |
-   | `specText` | Optional cached text projection of the Mapping Specification |
-
-   **Not in Mapping Model:** Conversion script language (`exportTarget`) — lives in workspace `settings` (downstream preview/export choice).
-
-**Why both:** Blockly serialization is best for UI restore but brittle across Blockly versions and hard to validate. The Mapping Model enables safe migrations, AI **Import Suggestions** validation (shared `slotId` vocabulary with `AI_SUGGESTION_FORMAT.md`), and a future text-first editor that does not depend on Blockly.
-
-**On load:** restore Blockly from native serialization; treat the Mapping Model as the authority for validation and for reconciling imported suggestions. If the two disagree (e.g. after a migration), the Mapping Model wins and the Blockly workspace is regenerated.
+**Not in Mapping Model:** Conversion script language / Output mode.
 
 ## Storage
 
-- **IndexedDB**: primary Web Shell persistence.
+- **IndexedDB**: primary Web Shell persistence (`saves` store: autosave + manual snapshots).
 - **`.intehrgrator` export**: portable JSON bundle for sharing, backup, or moving between browsers.
-- **Import**: validates app/project version, template id, and bundle shape before loading.
+- **Import**: validates bundle version and mapping model shape before loading.
 
 ## Non-goals
 

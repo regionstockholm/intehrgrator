@@ -309,7 +309,7 @@ Deno.test("project bundle round-trip", () => {
     appVersion: "0.1.0",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    template: null,
+    target: null,
     sourceSchema: null,
     examples: [],
     activeExampleId: null,

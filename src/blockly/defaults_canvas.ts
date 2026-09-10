@@ -9,7 +9,6 @@ import {
   MAPS_CREATE_WITH,
   MAPS_GET,
   mapsGetExpression,
-  migrateMapsCreateWithJson,
 } from "../core/defaults/mod.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
 import {
@@ -59,7 +58,6 @@ export function createFactoryMapBlock(
     return createEmptyMapBlock(workspace);
   }
   const state = factoryDefaultsMapBlockState(uiLanguage);
-  migrateMapsCreateWithJson(state);
   const appended = Blockly.serialization.blocks.append(
     state,
     workspace,
@@ -130,7 +128,6 @@ export function restoreDefaultsBlockState(
 ): void {
   if (state && typeof Blockly.serialization?.blocks?.append === "function") {
     try {
-      migrateMapsCreateWithJson(state);
       Blockly.serialization.blocks.append(state, workspace);
       const block = findDefaultsBlock(workspace);
       block?.setDeletable(false);
@@ -339,7 +336,6 @@ export function hydrateDefaultsMapArgument(
     input?.connection?.connect(map.outputConnection!);
     return;
   }
-  migrateMapsCreateWithJson(mapBlockState);
   const appended = Blockly.serialization.blocks.append(
     mapBlockState as Record<string, unknown>,
     workspace,

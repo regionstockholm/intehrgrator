@@ -292,7 +292,7 @@ export class WorkbenchController {
     }
   }
 
-  /** Backwards-compatible alias used by the Workbench Test API. */
+  /** Load a target file (OPT, schema, or free-form). Used by the Workbench Test API. */
   loadTemplateContent(filename: string, content: string): void {
     this.loadTargetContent(filename, content);
   }
@@ -1394,7 +1394,6 @@ export class WorkbenchController {
       return {
         ok: false,
         output: message,
-        composition: message,
         error: message.trim(),
         warnings: [],
       };
@@ -1402,7 +1401,6 @@ export class WorkbenchController {
     return runTest(this.model, example.content, example.format, {
       target: this.target,
       outputMode: mode,
-      exportTarget: this.target?.format === "free-form" ? "handlebars" : undefined,
       generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
@@ -1429,14 +1427,6 @@ export class WorkbenchController {
       appVersion: APP_VERSION,
       createdAt: now,
       updatedAt: now,
-      template: this.target?.format === "openehr-template"
-        ? {
-          filename: this.templateFilename,
-          templateId: this.templateId,
-          content: this.templateContent,
-          skeleton: this.skeleton,
-        }
-        : null,
       target: this.target
         ? {
           format: this.target.format,
@@ -1466,28 +1456,19 @@ export class WorkbenchController {
         handlebarsTemplate: this.handlebarsTemplate,
         sheets: cloneSheets(this.sheets),
       },
-      settings: { ...this.settings, exportTarget: "typescript" },
+      settings: { ...this.settings },
       urlHistory: this.captureUrlHistory(),
     };
   }
 
   private loadBundle(bundle: ProjectBundle): void {
     this.projectId = bundle.projectId;
-    const rawSettings = bundle.settings as ProjectSettings & { validationStrict?: boolean };
     this.settings = {
       ...DEFAULT_SETTINGS,
-      ...rawSettings,
+      ...bundle.settings,
       exportTarget: "preview",
     };
-    if (!rawSettings.openEhrJsonDeserializeMode && typeof rawSettings.validationStrict === "boolean") {
-      this.settings.openEhrJsonDeserializeMode = rawSettings.validationStrict
-        ? "canonical-strict"
-        : "hybrid";
-    }
-    this.model = {
-      ...bundle.mapping.model,
-      modelVersion: bundle.mapping.model.modelVersion ?? 1,
-    };
+    this.model = { ...bundle.mapping.model };
     this.blocklyState = bundle.mapping.blocklyState;
     this.handlebarsTemplate = bundle.mapping.handlebarsTemplate ?? "";
     this.sheets = normalizeSheets(bundle.mapping.sheets ?? []);
@@ -1501,15 +1482,7 @@ export class WorkbenchController {
     this.schemaContent = "";
     this.schemaFormat = "json";
     this.schemaError = null;
-    const storedTarget = bundle.target ?? (bundle.template
-      ? {
-        format: "openehr-template" as const,
-        filename: bundle.template.filename,
-        targetId: bundle.template.templateId,
-        content: bundle.template.content,
-        skeleton: bundle.template.skeleton,
-      }
-      : null);
+    const storedTarget = bundle.target ?? null;
     if (storedTarget) {
       this.target = storedTarget;
       this.templateFilename = storedTarget.filename;

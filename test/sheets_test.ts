@@ -171,7 +171,6 @@ Deno.test("project bundle round-trips sheets JSON", () => {
     appVersion: "0.5.0",
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
-    template: null,
     target: null,
     sourceSchema: null,
     examples: [],

@@ -84,7 +84,7 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Loop | `for_each_source` | `VAR`, `PATH` (absolute multi-node path). Statement block — **only** in `loops[]`, not as a value `suggestions[].block`. Leave `DO` empty. |
 | Var | `variables_get` | `VAR` = loop variable name (whole node as value; rare). |
 | Map lookup | `maps_get` | `NAME` = map name; input `KEY` = key expression (literal `text` or dynamic `source_query`). |
-| Map literal | `maps_create_with`, `maps_create_empty` | Inline key/value table: `KEY0`… + `VAL0`… inputs; `extraState.itemCount`. Emits `map("k1", v1, …)`. |
+| Map literal | `maps_create_with`, `maps_create_empty` | Inline key/value table: `KEY0`… fields + `VAL0`… value sockets; `extraState.itemCount`. Emits `map("k1", v1, …)`. |
 | Literal | `text`, `math_number`, `logic_boolean` | `TEXT` / `NUM` / `BOOL` (`TRUE`\|`FALSE`) |
 | Text | `text_trim`, `text_join` | `MODE`; `text_join` may need `extraState.itemCount` + `ADD0`… |
 | Math | `math_arithmetic` | `OP`: `ADD`\|`MINUS`\|`MULTIPLY`\|`DIVIDE`; inputs `A`,`B` |

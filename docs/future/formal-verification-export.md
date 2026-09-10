@@ -425,8 +425,6 @@ VMS remove from toolbox (do not implement):
 
 A workspace linter ([#40](https://github.com/regionstockholm/intehrgrator/issues/40))
 still warns on leftover escape hatches (`text_code`, `text_handlebars`, dynamic paths).
-Removed types leftover in old bundles do not need a load warning — there is no
-published Project Bundle contract yet.
 
 ## Open questions
 

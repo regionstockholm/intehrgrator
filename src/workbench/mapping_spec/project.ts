@@ -257,7 +257,7 @@ function walkBlock(
     return;
   }
 
-  if (type === "text" || type === "text_literal") {
+  if (type === "text") {
     emit(lines, textLine(block, indent, attribute, extraAliases, shell, "text"), attributeEdit);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
@@ -269,13 +269,13 @@ function walkBlock(
     return;
   }
 
-  if (type === "math_number" || type === "number_literal") {
+  if (type === "math_number") {
     emit(lines, numberLine(block, indent, attribute, extraAliases, shell), attributeEdit);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
   }
 
-  if (type === "logic_boolean" || type === "boolean_literal") {
+  if (type === "logic_boolean") {
     emit(lines, booleanLine(block, indent, attribute, extraAliases, shell), attributeEdit);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
@@ -454,7 +454,7 @@ function compareLine(
       targetBlockId: idOf(a),
     });
     pushAlias(aliases, idOf(a));
-  } else if (a && (a.type === "text" || a.type === "text_literal")) {
+  } else if (a && a.type === "text") {
     left = JSON.stringify(stringField(a, "TEXT"));
     editable.unshift({ field: "TEXT", value: stringField(a, "TEXT"), targetBlockId: idOf(a) });
     pushAlias(aliases, idOf(a));
@@ -462,7 +462,7 @@ function compareLine(
     left = a.type ?? "?";
     pushAlias(aliases, idOf(a));
   }
-  if (b && (b.type === "text" || b.type === "text_literal")) {
+  if (b && b.type === "text") {
     right = JSON.stringify(stringField(b, "TEXT"));
     editable.push({ field: "TEXT", value: stringField(b, "TEXT"), targetBlockId: idOf(b) });
     pushAlias(aliases, idOf(b));
@@ -474,7 +474,7 @@ function compareLine(
       targetBlockId: idOf(b),
     });
     pushAlias(aliases, idOf(b));
-  } else if (b && (b.type === "math_number" || b.type === "number_literal")) {
+  } else if (b && b.type === "math_number") {
     right = stringField(b, "NUM") || "0";
     editable.push({ field: "NUM", value: right, targetBlockId: idOf(b) });
     pushAlias(aliases, idOf(b));
@@ -542,7 +542,7 @@ function mapsGetLine(
   const editable: SpecEditableField[] = [{ field: "NAME", value: name }];
   const aliases = [...extraAliases];
   let keyLabel = "?";
-  if (keyNode && (keyNode.type === "text" || keyNode.type === "text_literal")) {
+  if (keyNode && keyNode.type === "text") {
     keyLabel = stringField(keyNode, "TEXT");
     editable.push({
       field: "TEXT",
@@ -586,7 +586,7 @@ function bindValueInput(
   if (!node) return "?";
   const id = idOf(node);
   if (id) aliases.push(id);
-  if (node.type === "text" || node.type === "text_literal") {
+  if (node.type === "text") {
     const text = stringField(node, "TEXT");
     editable.push({ field: "TEXT", value: text, targetBlockId: id });
     return text;
@@ -596,7 +596,7 @@ function bindValueInput(
     editable.push({ field: "EXPRESSION", value: expr, targetBlockId: id });
     return expr;
   }
-  if (node.type === "math_number" || node.type === "number_literal") {
+  if (node.type === "math_number") {
     const num = stringField(node, "NUM") || "0";
     editable.push({ field: "NUM", value: num, targetBlockId: id });
     return num;

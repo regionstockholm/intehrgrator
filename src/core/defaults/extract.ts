@@ -52,7 +52,6 @@ export function mapsGetExpression(mapName: string, key: string): string {
  */
 export function mapBlockFromDefaultsJson(parsed: unknown): unknown | null {
   if (!parsed || typeof parsed !== "object") return null;
-  migrateMapsCreateWithJson(parsed);
   const rec = parsed as BlocklyBlockJson & BlocklyWorkspaceJson;
   if (rec.type === MAPS_CREATE_WITH) return parsed;
   if (rec.type === DEFAULTS_BLOCK_TYPE) {
@@ -109,56 +108,6 @@ function literalBlock(value: unknown): BlocklyBlockJson {
   return { type: "text", fields: { TEXT: String(value ?? "") } };
 }
 
-/**
- * Rewrite legacy `maps_create_with` JSON that stored keys as `KEY{n}` value
- * inputs (nested `text` blocks) into `fields.KEY{n}` plus `VAL{n}` sockets.
- * Safe to call on full workspace JSON, a Defaults block, or a map block.
- */
-export function migrateMapsCreateWithJson<T>(state: T): T {
-  walkMigrate(state);
-  return state;
-}
-
-function walkMigrate(node: unknown): void {
-  if (!node || typeof node !== "object") return;
-  if (Array.isArray(node)) {
-    for (const item of node) walkMigrate(item);
-    return;
-  }
-  const rec = node as BlocklyBlockJson & BlocklyWorkspaceJson & {
-    block?: unknown;
-    shadow?: unknown;
-  };
-  if (rec.type === MAPS_CREATE_WITH) migrateOneMapCreateWith(rec);
-  if (rec.inputs) walkMigrate(rec.inputs);
-  if (rec.next) walkMigrate(rec.next);
-  if (rec.blocks) walkMigrate(rec.blocks);
-  if (rec.block) walkMigrate(rec.block);
-  if (rec.shadow) walkMigrate(rec.shadow);
-}
-
-function migrateOneMapCreateWith(block: BlocklyBlockJson): void {
-  const inputs = block.inputs;
-  if (!inputs) return;
-  const fields = block.fields ?? (block.fields = {});
-  for (const name of Object.keys(inputs)) {
-    if (/^ROW\d+$/.test(name) || name === "HEADER_END") {
-      delete inputs[name];
-      continue;
-    }
-    const match = /^KEY(\d+)$/.exec(name);
-    if (!match) continue;
-    const fieldName = `KEY${match[1]}`;
-    if (fields[fieldName] == null || fields[fieldName] === "") {
-      const lit = literalFromInput(inputs[name]);
-      if (typeof lit === "string" || typeof lit === "number" || typeof lit === "boolean") {
-        fields[fieldName] = String(lit);
-      }
-    }
-    delete inputs[name];
-  }
-}
-
 function topBlocks(state: unknown): BlocklyBlockJson[] {
   if (!state || typeof state !== "object") return [];
   const blocks = (state as BlocklyWorkspaceJson).blocks?.blocks;
@@ -170,14 +119,12 @@ function mapFromCreateWith(block: BlocklyBlockJson | undefined): Record<string, 
   if (!block || block.type !== MAPS_CREATE_WITH) return out;
   const fieldKeys = Object.keys(block.fields ?? {}).filter((name) => /^KEY\d+$/.test(name));
   const valKeys = Object.keys(block.inputs ?? {}).filter((name) => /^VAL\d+$/.test(name));
-  const inputKeys = Object.keys(block.inputs ?? {}).filter((name) => /^KEY\d+$/.test(name));
   const fromNames = (names: string[]) =>
     names.length ? Math.max(...names.map((name) => Number(name.slice(3)))) + 1 : 0;
   const count = Math.max(
     Number(block.extraState?.itemCount ?? 0),
     fromNames(fieldKeys),
     fromNames(valKeys),
-    fromNames(inputKeys),
   );
   for (let i = 0; i < count; i++) {
     const key = keyFromPair(block, i);
@@ -193,7 +140,7 @@ function keyFromPair(block: BlocklyBlockJson, index: number): unknown {
   if (typeof fromField === "number" || typeof fromField === "boolean") {
     return String(fromField);
   }
-  return literalFromInput(block.inputs?.[`KEY${index}`]);
+  return "";
 }
 
 function literalFromInput(

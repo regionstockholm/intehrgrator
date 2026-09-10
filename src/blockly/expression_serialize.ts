@@ -149,30 +149,6 @@ export function blockToExpression(block: Block | null): string | null {
       const context = blockToExpression(block.getInputTargetBlock("CONTEXT")) ?? "map()";
       return `handlebars(${script}, ${context})`;
     }
-    // Legacy custom block types (read-only for older workspaces)
-    case "text_literal":
-      return JSON.stringify(block.getFieldValue("TEXT") ?? "");
-    case "number_literal":
-      return String(block.getFieldValue("NUM") ?? 0);
-    case "boolean_literal":
-      return block.getFieldValue("BOOL") === "TRUE" ? "true" : "false";
-    case "trim": {
-      const inner = blockToExpression(block.getInputTargetBlock("TEXT"));
-      return inner ? `trim(${inner})` : 'trim("")';
-    }
-    case "concat": {
-      const a = blockToExpression(block.getInputTargetBlock("A"));
-      const b = blockToExpression(block.getInputTargetBlock("B"));
-      return `concat(${a ?? '""'}, ${b ?? '""'})`;
-    }
-    case "if_then_else": {
-      const cond = blockToExpression(block.getInputTargetBlock("COND"));
-      const thenV = blockToExpression(block.getInputTargetBlock("THEN"));
-      const elseV = blockToExpression(block.getInputTargetBlock("ELSE"));
-      return `if(${cond ?? "false"}, ${thenV ?? "null"}, ${elseV ?? "null"})`;
-    }
-    case "mapping_var_get":
-      return `var(${JSON.stringify(block.getFieldValue("VAR") ?? "v")})`;
     case "logic_compare": {
       const a = blockToExpression(block.getInputTargetBlock("A")) ?? "false";
       const b = blockToExpression(block.getInputTargetBlock("B")) ?? "false";

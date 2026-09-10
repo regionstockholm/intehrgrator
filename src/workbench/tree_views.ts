@@ -41,7 +41,7 @@ function parseSourceDragPayloadFromTransfer(dt: DataTransfer | null): SourceDrag
       };
     }
   } catch {
-    // plain path fallback (legacy / Playwright text-only drops)
+    // plain path fallback (Playwright text-only drops)
   }
   if (raw.startsWith("$") || raw.startsWith("/")) {
     return { path: raw, format: "json", origin: "instance" };

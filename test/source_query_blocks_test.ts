@@ -54,7 +54,7 @@ Deno.test("source query labels use type emoji in front of the localized source w
   workspace.dispose();
 });
 
-Deno.test("source_query keeps RETURN_TYPE for old workspaces without a visible string box", () => {
+Deno.test("source_query stores RETURN_TYPE as a hidden field", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const str = workspace.newBlock("source_query");

@@ -81,8 +81,7 @@ function defineSourceQueryBlock(
         .appendField(sourceQueryFieldLabel(returnType, label))
         .appendField(new Blockly.FieldTextInput("/path"), "EXPRESSION");
       if (type === "source_query") {
-        // Serializable zero-size label: older workspaces stored RETURN_TYPE here.
-        // A FieldTextInput would draw a second "string" box beside the path.
+        // Hidden serializable field so source_query does not draw a second type box.
         row.appendField(createHiddenSerializableField(returnType), "RETURN_TYPE");
       }
       this.setOutput(true, blocklyCheckForReturnType(returnType));

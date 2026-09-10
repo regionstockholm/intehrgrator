@@ -331,7 +331,7 @@ async function runTestAndSnapshot(filename: string, extra: Record<string, unknow
       testOk: snap.testResult?.ok,
       testError: snap.testResult?.error,
       testWarnings: snap.testResult?.warnings,
-      slotValues: (snap.testResult?.composition as { slots?: unknown } | undefined)?.slots,
+      slotValues: undefined,
       pulse,
       ...extra,
     }, null, 2),

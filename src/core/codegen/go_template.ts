@@ -362,11 +362,9 @@ function emitXmlElement(block: BlockNode): string[] {
     }
     current = current.next?.block;
   }
-  const legacyText = block.inputs?.TEXT?.block;
   const attrs = attrParts.join("");
-  if (body.length || legacyText) {
+  if (body.length) {
     const inner: string[] = [];
-    if (legacyText) inner.push(...emitBlock(legacyText));
     for (const child of body) inner.push(...emitBlock(child));
     return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
   }
@@ -378,14 +376,13 @@ function xmlTagName(block: BlockNode): string {
   const path = slot.includes(":") ? slot.slice(slot.indexOf(":") + 1) : slot;
   const fromPath = path.split("/").filter((part) => part && !part.startsWith("@")).pop();
   if (fromPath) return fromPath;
-  const name = String(block.fields?.NAME ?? block.fields?.TAG ?? "element").trim();
+  const name = String(block.fields?.NAME ?? "element").trim();
   return name || "element";
 }
 
 function firstChildStatement(block: BlockNode): BlockNode | undefined {
   const inputs = block.inputs ?? {};
   if (inputs.TARGET_children?.block) return inputs.TARGET_children.block;
-  if (inputs.CHILDREN?.block) return inputs.CHILDREN.block;
   for (const [key, value] of Object.entries(inputs)) {
     if (key.startsWith("TARGET_") && value?.block) return value.block;
   }

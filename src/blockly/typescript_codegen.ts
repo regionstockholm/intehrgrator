@@ -41,7 +41,6 @@ import {
   type TsEmitContext,
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
-import { migrateMapsCreateWithJson } from "../core/defaults/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 
 const STATEMENT_INPUT_TYPE = 3;
@@ -77,7 +76,6 @@ export function generateTypeScriptFromBlocklyState(
   const workspace = new Blockly.Workspace();
   try {
     const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
-    migrateMapsCreateWithJson(snapshot);
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);

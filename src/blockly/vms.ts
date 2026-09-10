@@ -1,6 +1,6 @@
 /**
  * Verifiable Mapping Subset (#35 / #37).
- * Remove-list types stay registered so old Example Sets load; they are not IR.
+ * These types are not in the toolbox and are not first-class IR.
  */
 
 export const VMS_REMOVED_BLOCK_TYPES = [

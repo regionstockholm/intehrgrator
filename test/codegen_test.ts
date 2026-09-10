@@ -123,7 +123,7 @@ Deno.test("test runner evaluates json slot", () => {
     returnType: "number",
   });
   const result = runTest(model, JSON.stringify({ systolic: 120 }), "json");
-  assertEquals(result.ok || (result.composition as Record<string, unknown>)?.slots !== undefined, true);
+  assertEquals(result.ok || (result.output as Record<string, unknown>)?.slots !== undefined, true);
 });
 
 Deno.test("typescript codegen from BP skeleton uses ehrtslib constructors and lookups", async () => {

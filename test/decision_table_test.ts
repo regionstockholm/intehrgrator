@@ -17,7 +17,7 @@ import {
 } from "@intehrgrator/core/sheets/mod.ts";
 import { checkVmsMustache } from "@intehrgrator/core/output/vms_hbs.ts";
 import { generateTypeScript } from "@intehrgrator/core/codegen/mod.ts";
-import { generateXQuery } from "@intehrgrator/core/codegen/xquery.ts";
+import { generateXQuery, XQueryExportError } from "@intehrgrator/core/codegen/xquery.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
 
 /** Fixture: laterality × finding → value + VMS-Mustache snippet (don't-care on unused). */
@@ -237,12 +237,11 @@ Deno.test("TypeScript codegen emits decisionTable helper call", () => {
   assertEquals(code.includes("function decisionTable"), true);
 });
 
-Deno.test("XQuery codegen mentions decision_table bind stub or flatten", () => {
+Deno.test("XQuery export rejects decision_table with a clear export error", () => {
   const model = baseModel(
     'decision_table("findings", map("finding", "effusion", "laterality", "left"), "term_id")',
   );
-  const xq = generateXQuery(model);
-  assertEquals(xq.includes("decision_table"), true);
+  assertThrows(() => generateXQuery(model), XQueryExportError, "decision_table");
 });
 
 Deno.test("Test Run evaluates decision_table against project sheets", () => {

@@ -52,6 +52,7 @@
     "setup:better-forms": "deno run -A scripts/setup-better-forms.ts",
     "convert:kintegrate-hbs": "deno run -A scripts/convert-kintegrate-hbs-to-blockly.ts",
     "test": "deno test -A --no-check --parallel --ignore=test/ui test/",
+    "test:xquery-engine": "deno test -A --no-check test/xquery_engine_test.ts",
     "test:ui": "deno run -A scripts/ui-test.ts",
     "wasm:go-template": "deno run -A scripts/build-go-template-wasm.ts",
     "lint": "deno lint src test scripts",

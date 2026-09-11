@@ -1,8 +1,11 @@
 # XQuery Conversion Script Language
 
-**Status:** Implemented (R1 / partial R2) — Conversion script language `xquery`
+**Status:** Implemented (R1 / R2 partial) — Conversion script language `xquery`
 emits a self-contained `.xq` from the Mapping Model (Blockly-derived slots).
-Full COMPOSITION tree emit and engine golden runs remain open.
+`for_each_source` / `for_each_list` compile to `for $var in … return` loop
+bodies ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)).
+Full COMPOSITION tree emit remains open; optional BaseX golden runs are
+documented in [agents/xquery-engine.md](../agents/xquery-engine.md).
 
 Captured from design discussion 2026-07-02; productised 2026-08-02.
 
@@ -121,12 +124,16 @@ local:convert($source)
 
 1. **Full COMPOSITION emit (Model A/C)** — walk Template Skeleton / `targetPath`
    when exporting, not only flat `MappingModel.slots`.
-2. **Engine golden tests** — run generated `.xq` under Saxon-HE or BaseX in CI.
+2. **Engine golden tests** — optional BaseX run in `test/xquery_engine_test.ts`;
+   Saxon-HE alternative documented in [agents/xquery-engine.md](../agents/xquery-engine.md).
 3. **JSON source notes** — document engine-specific map lookup vs `fn:json-doc`.
 4. **Units / coded-text fields** — multi-field DV shells beyond the primary
    expression attribute.
-5. **`for_each_source` loops** — not in Mapping Model slots yet; emit when the
-   derived index gains iteration structure.
+5. **`for_each_source` loops** — **shipped** ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)):
+   `loops[]` emit `for $var in … return` with loop-scoped slot manifests;
+   top-level slots stay in `<slots>`. Sheet accessors fail export (no silent `()`).
+6. **Engine golden tests** — optional `test/xquery_engine_test.ts` when BaseX is
+   installed; see [agents/xquery-engine.md](../agents/xquery-engine.md).
 
 ## Related
 

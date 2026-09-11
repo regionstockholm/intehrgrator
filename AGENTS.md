@@ -79,6 +79,11 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
   `web/wasm/go_texttemplate.wasm` and `wasm_exec.js`). The Web Shell loads
   those files at runtime; ordinary lint/test/run does not need a Go toolchain.
   Rebuild only when `go/texttemplate` changes.
+- Optional XQuery engine checks (issue #39): install BaseX with
+  `bash scripts/install-basex.sh` when you need to execute generated `.xq`.
+  Java 17+ is already on PATH. See `docs/XQUERY_ENGINE.md` (skip vs golden,
+  `$source` JSON maps, egress to `files.basex.org`). `deno task test` stays
+  green without BaseX.
 
 ## Agent skills
 

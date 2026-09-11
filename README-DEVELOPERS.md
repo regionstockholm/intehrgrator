@@ -9,6 +9,7 @@ Technical setup and architecture pointers for contributors and AI-assisted devel
 - **[Deno](https://docs.deno.com/runtime/getting_started/installation/)** 2.9+ — the project runtime, task runner, test runner, and desktop packager. We use Deno instead of Node/npm for installs, linting, testing, and builds.
 - **Go 1.22+** (optional) — only to rebuild the vendored Go `text/template` WASM (`deno task wasm:go-template`).
 - **Playwright** (optional) — installed automatically by `deno task test:ui` for browser tests.
+- **Java 17+** and **BaseX** (optional) — execute generated XQuery Conversion Scripts. Cloud VMs already have a JDK; `bash scripts/install-basex.sh` installs BaseX into `$HOME/basex` (no root). `deno task test` stays green without it. See [docs/XQUERY_ENGINE.md](docs/XQUERY_ENGINE.md).
 
 ```bash
 git clone https://github.com/regionstockholm/intehrgrator.git
@@ -75,6 +76,7 @@ CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module change
 | Planning | [GitHub Issues](https://github.com/regionstockholm/intehrgrator/issues) — see [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) |
 | Archived roadmap | [docs/historical-archive/ROADMAP.md](docs/historical-archive/ROADMAP.md) |
 | Deferred ideas | [docs/future/](docs/future/) |
+| XQuery engine oracle (BaseX) | [docs/XQUERY_ENGINE.md](docs/XQUERY_ENGINE.md) |
 
 ## AI-assisted development
 

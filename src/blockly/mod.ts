@@ -25,6 +25,7 @@ import {
   restrictionRequiresItems,
 } from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
+import { registerGoTemplateExportAdapter } from "./go_template_codegen.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
@@ -152,6 +153,11 @@ export {
 } from "./extract_function.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
 export {
+  generateGoTemplateFromBlocklyState,
+  generateGoTemplateFromWorkspace,
+  registerGoTemplateExportAdapter,
+} from "./go_template_codegen.ts";
+export {
   generateTypeScriptFromBlocklyState,
   generateTypeScriptFromWorkspace,
   registerTypeScriptExportAdapter,
@@ -172,6 +178,7 @@ export function initBlocklyGenerators(): void {
   registerExtractToFunctionMenu();
   registerGenerators();
   registerTypeScriptExportAdapter();
+  registerGoTemplateExportAdapter();
 }
 
 function registerGenerators(): void {

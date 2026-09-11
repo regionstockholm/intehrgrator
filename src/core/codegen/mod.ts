@@ -14,7 +14,12 @@ export {
   generateXQuery,
   jsonDollarPathToLookup,
 } from "./xquery.ts";
-export { generateGoTemplate } from "./go_template.ts";
+export {
+  generateGoTemplate,
+  generateFromSlots,
+  generateGoTemplateFromBlocklyJson,
+  goTemplateHeader,
+} from "./go_template.ts";
 export {
   emitTsExpression,
   generateTypeScriptFromSkeleton,

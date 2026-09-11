@@ -418,6 +418,61 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-bottom-color: var(--primary);
   font-weight: 600;
 }
+.sheets-flash .sheets-grid-host,
+.sheets-flash .sheets-tab.active {
+  animation: sheets-highlight 1.2s ease;
+}
+@keyframes sheets-highlight {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 121, 107, 0); }
+  25%, 55% { box-shadow: 0 0 0 3px rgba(0, 121, 107, 0.75); }
+}
+.sheets-output-cols {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.sheets-output-col {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+}
+.sheets-output-col select {
+  font-size: 11px;
+}
+.blockly-grid-preview {
+  width: 118px;
+  height: 52px;
+  overflow: hidden;
+  background: #f7faf9;
+  border: 1px solid rgba(0,0,0,0.28);
+  border-radius: 3px;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.blockly-grid-preview table {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 7px;
+  line-height: 1.15;
+  font-family: "Google Sans", system-ui, sans-serif;
+}
+.blockly-grid-preview th,
+.blockly-grid-preview td {
+  border: 1px solid #c5d5d3;
+  padding: 0 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 38px;
+}
+.blockly-grid-preview th {
+  background: #e6f2ef;
+  font-weight: 600;
+}
 .handlebars-insert-toolbar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px;
   margin: 0 0 6px; padding: 4px 6px; font-size: 11px; color: var(--text-secondary);

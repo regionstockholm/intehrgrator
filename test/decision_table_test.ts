@@ -3,6 +3,8 @@ import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import "blockly/blocks";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
 import { registerDecisionTableBlocks } from "@intehrgrator/blockly/blocks/decision_table_blocks.ts";
+import { setWorkspaceSheetsProvider } from "@intehrgrator/blockly/sheets_bridge.ts";
+import { syncDecisionTableBlocksFromSheets } from "@intehrgrator/blockly/decision_table_sync.ts";
 import { blockToExpression } from "@intehrgrator/blockly/expression_serialize.ts";
 import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_runtime.ts";
 import { parseExpression, validateExpressionSource } from "@intehrgrator/core/expression/mod.ts";
@@ -222,7 +224,38 @@ Deno.test("Blockly decision_table block serializes to Mapping Expression", () =>
       blockToExpression(block),
       'decision_table("findings", map("finding", "effusion", "laterality", "left"), "clause")',
     );
+    assertEquals(block.getInputsInline(), false);
+    const check = block.getInput("INPUTS")?.connection?.getCheck();
+    assertEquals(Array.isArray(check) ? check.includes("Map") : check === "Map", true);
   } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("schema sync rewrites locals Map keys from Decision table headers", () => {
+  registerMapBlocks();
+  registerDecisionTableBlocks();
+  const sheet = emptyDecisionTable("Decision1");
+  sheet.headers[0] = "age";
+  sheet.headers[1] = "weight";
+  setWorkspaceSheetsProvider(() => [sheet]);
+  const workspace = new Blockly.Workspace();
+  try {
+    const block = workspace.newBlock("decision_table");
+    const map = workspace.newBlock("maps_create_with") as Blockly.Block & {
+      itemCount_: number;
+      updateShape_: () => void;
+    };
+    map.itemCount_ = 2;
+    map.updateShape_();
+    map.setFieldValue("in1", "KEY0");
+    map.setFieldValue("in2", "KEY1");
+    block.getInput("INPUTS")?.connection?.connect(map.outputConnection!);
+    syncDecisionTableBlocksFromSheets(workspace, [sheet]);
+    assertEquals(map.getFieldValue("KEY0"), "age");
+    assertEquals(map.getFieldValue("KEY1"), "weight");
+  } finally {
+    setWorkspaceSheetsProvider(null);
     workspace.dispose();
   }
 });

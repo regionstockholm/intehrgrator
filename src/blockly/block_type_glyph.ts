@@ -98,6 +98,24 @@ export function appendBlockOutputGlyph(
   );
 }
 
+/** Update an existing HEADER output glyph after `setOutput` changes the check. */
+export function setBlockOutputGlyph(
+  block: Block,
+  check: string | string[] | null,
+): void {
+  const field = block.getField(BLOCK_OUT_EMOJI_FIELD) as
+    | { setValue?: (v: string) => void; setTooltip?: (t: string) => void }
+    | null;
+  const glyph = glyphForBlocklyCheck(check, false) ?? "";
+  field?.setValue?.(glyph);
+  field?.setTooltip?.(blocklyCheckTooltip(check));
+}
+
+export function setBlockOutputCheck(block: Block, check: string): void {
+  block.setOutput(true, check);
+  setBlockOutputGlyph(block, check);
+}
+
 /** Socket glyph appended to an input row. */
 export function appendInputTypeGlyph(
   input: Input,

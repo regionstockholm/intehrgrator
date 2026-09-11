@@ -5,6 +5,7 @@ import {
   inputAlignLeft,
   inputAlignRight,
 } from "../block_type_glyph.ts";
+import { FieldGridPreview, registerFieldGridPreview } from "../field_grid_preview.ts";
 
 /** Sheet table / row / column values (Blockly check stays `Array`). */
 const SHEET_TABLE_GLYPH = "Sheet";
@@ -52,10 +53,12 @@ export const SHEET_MUTATOR_TYPES = [
   SHEET_DELETE_COLUMN,
 ] as const;
 
-let sheetFocusHandler: ((name: string) => void) | null = null;
+let sheetFocusHandler: ((name: string, opts?: { highlight?: boolean }) => void) | null = null;
 
 /** Workbench shows the Sheets tab and selects this named Sheet. */
-export function setSheetFocusHandler(handler: ((name: string) => void) | null): void {
+export function setSheetFocusHandler(
+  handler: ((name: string, opts?: { highlight?: boolean }) => void) | null,
+): void {
   sheetFocusHandler = handler;
 }
 
@@ -72,21 +75,23 @@ function initAndRender(block: Blockly.Block): void {
 
 export function registerSheetBlocks(): void {
   if (Blockly.Blocks[SHEET_GET_CELL]) return;
+  registerFieldGridPreview();
 
   Blockly.Blocks[SHEET_BLOCK_TYPE] = {
     init: function (this: Blockly.Block) {
       const field = nameField("Sheet1");
       this.appendDummyInput()
         .appendField("sheet")
-        .appendField(field, "NAME");
+        .appendField(field, "NAME")
+        .appendField(new FieldGridPreview(), "GRID_PREVIEW");
       this.setColour(SHEET_DECL_COLOUR);
-      this.setTooltip("Named Sheet. Select to open the Sheets editor.");
+      this.setTooltip("Named Sheet. Select or click the miniature to open the Sheets editor.");
       this.setPreviousStatement(false);
       this.setNextStatement(false);
     },
     onchange: function (this: Blockly.Block, event: { type?: string; newElementId?: string }) {
       if (event?.type === "selected" && event.newElementId === this.id) {
-        sheetFocusHandler?.(String(this.getFieldValue("NAME") || "Sheet1"));
+        sheetFocusHandler?.(String(this.getFieldValue("NAME") || "Sheet1"), { highlight: true });
       }
     },
   };

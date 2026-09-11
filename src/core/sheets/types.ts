@@ -13,10 +13,15 @@ export type DecisionColumnRole = "condition" | "output";
 /** Output cells: plain values/codes, or VMS-Mustache snippet fragments. */
 export type DecisionOutputKind = "value" | "snippet";
 
+/** Blockly check for a value output column (snippet outputs are always string). */
+export type DecisionValueType = "string" | "number" | "boolean";
+
 export interface DecisionColumnMeta {
   role: DecisionColumnRole;
   /** Present when `role` is `output`. Defaults to `value`. */
   outputKind?: DecisionOutputKind;
+  /** Present when `role` is `output` and `outputKind` is `value`. Defaults to `string`. */
+  valueType?: DecisionValueType;
 }
 
 export interface SheetDocument {

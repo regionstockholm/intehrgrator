@@ -75,6 +75,10 @@ import {
   listDefaultsMapEntries,
   setSheetFocusHandler,
   setDecisionTableFocusHandler,
+  setDecisionTableInfoHandler,
+  setWorkspaceSheetsProvider,
+  setGridPreviewActivateHandler,
+  installDecisionTableSync,
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
@@ -441,14 +445,25 @@ async function bootBlockly(): Promise<void> {
   setDefaultsMapHardcodeHandler(() => {
     openHardcodeDefaultsDialog();
   });
-  setSheetFocusHandler((name) => {
+  setSheetFocusHandler((name, opts) => {
     showTextView("sheets");
-    sheetsPanel?.showSheet(name, "sheet");
+    sheetsPanel?.showSheet(name, "sheet", { highlight: opts?.highlight ?? true });
   });
-  setDecisionTableFocusHandler((name) => {
+  setDecisionTableFocusHandler((name, opts) => {
     showTextView("sheets");
-    sheetsPanel?.showSheet(name, "decision-table");
+    sheetsPanel?.showSheet(name, "decision-table", { highlight: opts?.highlight ?? true });
   });
+  setGridPreviewActivateHandler((blockType, name) => {
+    showTextView("sheets");
+    const kind = blockType === "decision_table_decl" ? "decision-table" : "sheet";
+    sheetsPanel?.showSheet(name, kind, { highlight: true });
+  });
+  setDecisionTableInfoHandler((anchor) => {
+    const tip = document.getElementById("decision-table-block-info");
+    if (!(tip instanceof HTMLElement)) return;
+    openInfoTipAt(tip, anchor ?? tip.querySelector(".info-tip-btn") ?? tip);
+  });
+  setWorkspaceSheetsProvider(() => controller.getSheets());
   sheetsPanel = mountSheetsPanel(sheetsHost, {
     getSheets: () => controller.getSheets(),
     replaceSheets: (sheets, opts) => controller.replaceSheets(sheets, opts),
@@ -457,6 +472,11 @@ async function bootBlockly(): Promise<void> {
     getWorkspace: () => workspace,
     getLocale: () => blocklyLocale,
   });
+  installDecisionTableSync(
+    workspace,
+    () => controller.getSheets(),
+    (sheets) => controller.replaceSheets(sheets),
+  );
   if (sheetsTab) sheetsTab.textContent = sheetsChrome(blocklyLocale).tab;
 
   attachWorkspaceMinimap(workspace, blocklyMount);

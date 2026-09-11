@@ -114,7 +114,10 @@ function normalizeDecisionColumns(
     const role = item?.role === "output" ? "output" : "condition";
     if (role === "output") {
       const outputKind = item?.outputKind === "snippet" ? "snippet" : "value";
-      out.push({ role, outputKind });
+      const valueType = item?.valueType === "number" || item?.valueType === "boolean"
+        ? item.valueType
+        : "string";
+      out.push({ role, outputKind, valueType: outputKind === "snippet" ? "string" : valueType });
     } else {
       out.push({ role: "condition" });
     }
@@ -290,6 +293,7 @@ export function insertColumn(sheet: SheetDocument, x = 0, count = 1): SheetDocum
   for (let i = 0; i < n; i++) {
     next.headers.splice(at + i, 0, indexToLetters(next.headers.length));
     next.columnTypes?.splice(at + i, 0, "text");
+    next.decisionColumns?.splice(at + i, 0, { role: "condition" });
     for (const row of next.values) row.splice(at + i, 0, "");
   }
   return next;
@@ -301,6 +305,7 @@ export function deleteColumn(sheet: SheetDocument, x = 0, count = 1): SheetDocum
   const n = Math.max(1, count);
   next.headers.splice(x, n);
   next.columnTypes?.splice(x, n);
+  next.decisionColumns?.splice(x, n);
   for (const row of next.values) row.splice(x, n);
   return next;
 }

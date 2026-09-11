@@ -450,6 +450,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-radius: 3px;
   cursor: pointer;
   box-sizing: border-box;
+  pointer-events: auto;
 }
 .blockly-grid-preview table {
   width: 100%;

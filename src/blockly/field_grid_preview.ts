@@ -56,6 +56,7 @@ export class FieldGridPreview extends FieldBase {
     this.foreignObject_.setAttribute("y", "0");
     this.foreignObject_.setAttribute("width", String(PREVIEW_W));
     this.foreignObject_.setAttribute("height", String(PREVIEW_H));
+    this.foreignObject_.style.pointerEvents = "all";
     this.host_ = document.createElement("div");
     this.host_.className = "blockly-grid-preview";
     this.host_.setAttribute("role", "button");
@@ -66,10 +67,10 @@ export class FieldGridPreview extends FieldBase {
     const activate = (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
-      this.openSheet_();
+      this.activate();
     };
+    // pointerdown only — a paired click listener would flash the Sheets pane twice.
     this.host_.addEventListener("pointerdown", activate);
-    this.host_.addEventListener("click", activate);
     this.host_.addEventListener("keydown", (event: KeyboardEvent) => {
       if (event.key === "Enter" || event.key === " ") activate(event);
     });
@@ -130,7 +131,8 @@ export class FieldGridPreview extends FieldBase {
     this.host_.replaceChildren(table);
   }
 
-  private openSheet_(): void {
+  /** Open the named document in the Sheets tab and flash the lower pane. */
+  activate(): void {
     const block = this.getSourceBlock?.();
     if (!block) return;
     const fallback = block.type === "decision_table_decl" ? "Decision1" : "Sheet1";

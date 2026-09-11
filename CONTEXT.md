@@ -1,6 +1,6 @@
 # Integration Workbench (intEHRgrator)
 
-A visual mapping tool for healthcare informaticians to author conversion logic from source data either generic (JSON, XML) or openEHR Compositions (canonical/FLAT/STRUCTURED and other formats supported by ehrtslib) into a chosen **Target instance format** — instances adhering to openEHR templates, JSON Schema, XML Schema, or free-form text — with **Conversion script languages** TypeScript, Java, or Handlebars.
+A visual mapping tool for healthcare informaticians to author conversion logic from source data either generic (JSON, XML) or openEHR Compositions (canonical/FLAT/STRUCTURED and other formats supported by ehrtslib) into a chosen **Target instance format** — instances adhering to openEHR templates, JSON Schema, XML Schema, or free-form text — with **Conversion script languages** TypeScript, Java, Handlebars, XQuery, or Go template.
 
 ## Language
 
@@ -90,7 +90,7 @@ _UI labels:_ pane title **Target & Previews**; sections **Generated conversion s
 _Avoid_: Output Previews (old pane title), Right pane (ambiguous — could mean mapping), test pane alone, Slots Pane / slot rail (removed; Target value slots live on the Blockly canvas)
 
 **Output mode**:
-The **Target & Previews** header select: **Mapping preview**, or a **Conversion script language** (TypeScript, Java, Handlebars, XQuery). Chooses what those two sections show. Mapping preview is not a script dialect. Session-only — after app start or Project Bundle load the select is Mapping preview; a Conversion script language is chosen only for the current session.
+The **Target & Previews** header select: **Mapping preview**, or a **Conversion script language** (TypeScript, Java, Handlebars, XQuery, Go Template). Chooses what those two sections show. Mapping preview is not a script dialect. Session-only — after app start or Project Bundle load the select is Mapping preview; a Conversion script language is chosen only for the current session.
 _UI label:_ first option **Mapping preview**.
 _Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle
 
@@ -99,7 +99,7 @@ Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against
 _Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
 **Test Run**:
-When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript or Go Template: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run
 
@@ -108,7 +108,7 @@ When enabled, Test Run re-executes automatically (debounced) after mapping edits
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Returns the single **Instance root** under **Conversion start** (openEHR Composition is one possible shape, not the only one).
+Executable TypeScript, Java, Handlebars, XQuery, or Go template produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Returns the single **Instance root** under **Conversion start** (openEHR Composition is one possible shape, not the only one).
 _Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script
 
 **Template Skeleton**:
@@ -236,7 +236,7 @@ The Go `text/template` dialect `text_code` (LANG=`go-template`) and the WASM run
 _Avoid_: `call`, `with`, Helm `include`, full Sprig, JS/TS in `text_code`
 
 **Generated Export**:
-Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
+Executable TypeScript, Java, Handlebars, XQuery, or Go template produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). TypeScript and Go template walk the Blockly canvas (the **Instance root** under **Conversion start**) when a workspace snapshot is available. Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)). Go template stays codegen-only — no Authored Template tab ([ADR 0004](docs/adr/0004-go-template-codegen-only.md)).
 _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
@@ -289,7 +289,7 @@ _Avoid_: anonymous agent rows when registration is available
 _Avoid_: auto-scrolling the main canvas by default while a human is editing elsewhere
 
 **Conversion script language** (older docs said Export dialect / Export Target; code key `exportTarget` was a persisted setting — no longer saved):
-An **Output mode** value that generates a Conversion Script (`typescript` | `java` | `handlebars` | `xquery`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format and from Mapping preview. Not stored in the Project Bundle.
+An **Output mode** value that generates a Conversion Script (`typescript` | `java` | `handlebars` | `xquery` | `go-template`). Downstream of the Mapping Model — Blockly blocks and mappings are language-agnostic. Distinct from Target instance format and from Mapping preview. Not stored in the Project Bundle.
 _Avoid_: Export dialect, Export Target (prefer this term), Target language alone, conflating with Target instance format or Mapping preview
 
 **UI language**:

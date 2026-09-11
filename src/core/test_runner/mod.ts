@@ -17,7 +17,7 @@ import {
   collectAllSlotIds,
   findSkeletonTrail,
 } from "../skeleton/generate_skeleton.ts";
-import { generateTypeScript } from "../codegen/mod.ts";
+import { generate, generateTypeScript } from "../codegen/mod.ts";
 import {
   runGeneratedTypeScript,
   serializedConversionOutput,
@@ -28,7 +28,6 @@ import {
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
 import { executeGoTemplate, isGoTemplateWasmLoaded } from "../output/go_template_runtime.ts";
-import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
 import { sheetsToBag } from "../sheets/mod.ts";
 import { validateConvertedOutput } from "../output/template_validation.ts";
@@ -37,11 +36,13 @@ export interface RunTestOptions {
   target?: TargetDefinition | null;
   /** Session Output mode. TypeScript executes Generated Export. */
   outputMode?: OutputMode;
-  /** Generated Conversion Script text (TypeScript Output mode). */
+  /** Generated Conversion Script text (TypeScript / Go Template Output mode). */
   generatedCode?: string;
   handlebarsTemplate?: string;
   /** Blockly workspace JSON used to materialize the Defaults Map. */
   blocklyState?: unknown;
+  /** Template Skeleton for Blockly canvas codegen (Go template / TypeScript). */
+  skeleton?: import("../../types/mod.ts").SkeletonNode[];
   /** Convert-time Defaults Map overlay (wins over Blockly named `defaults`). */
   defaults?: Record<string, unknown>;
   /** Convert-time named Sheets (ADR 0005). */
@@ -129,11 +130,14 @@ export function runTest(
     if (mode === "go-template") {
       const code = options.generatedCode?.trim()
         ? options.generatedCode
-        : generateGoTemplate(model, { blocklyState: options.blocklyState });
+        : generate(model, "go-template", {
+          blocklyState: options.blocklyState,
+          skeleton: options.skeleton ?? options.target?.skeleton,
+        });
       if (!code.trim() || code.split("\n").every((line) => line.startsWith("{{- /*") || !line.trim())) {
         return {
           ok: false,
-          output: "// No Go template code generated. Add XML blocks to the Blockly canvas.\n",
+          output: "// No Go template code generated. Map a Conversion start product on the Blockly canvas.\n",
           error: "No Go template code generated.",
           warnings,
         };

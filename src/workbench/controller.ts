@@ -1399,6 +1399,7 @@ export class WorkbenchController {
       generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      skeleton: this.skeleton,
       sheets: cloneSheets(this.sheets),
       openEhrJsonDeserializeMode: this.settings.openEhrJsonDeserializeMode,
     });

@@ -9,8 +9,16 @@ import {
   isGoTemplateWasmLoaded,
 } from "@intehrgrator/core/output/go_template_runtime.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
-import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
+import {
+  initBlocklyGenerators,
+  loadSkeletonIntoWorkspace,
+} from "@intehrgrator/blockly/mod.ts";
+import { attachStartToInstanceRoot } from "@intehrgrator/blockly/conversion_start_canvas.ts";
 import { registerSchemaBlocksFromSkeleton } from "@intehrgrator/blockly/schema_blocks.ts";
+import {
+  collectValueSlots,
+  generateSkeleton,
+} from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
 
@@ -389,3 +397,209 @@ Deno.test("Go template Test Run uses instance Parameters when no defaults overla
   assertEquals(result.ok, true, String(result.error ?? result.output));
   assertEquals(String(result.output).trim(), "194002287086");
 });
+
+function mappedBpGoWorkspace(): {
+  model: MappingModel;
+  skeleton: ReturnType<typeof generateSkeleton>["skeleton"];
+  workspace: import("blockly/core").Workspace;
+  state: unknown;
+} {
+  initBlocklyGenerators();
+  const opt = Deno.readTextFileSync(join(root, "test/fixtures/blood_pressure.opt"));
+  const { templateId, skeleton } = generateSkeleton(opt);
+  const systolic = collectValueSlots(skeleton).find((slot) =>
+    slot.slotId.endsWith("items/at0004/value/value/value")
+  );
+  if (!systolic) throw new Error("expected systolic value slot");
+  let model = createEmptyModel(templateId);
+  model.targetFormat = "openehr-template";
+  model = applyExpressionEdit(model, systolic.slotId, 'xpathNumber("$.systolic")', {
+    rmType: systolic.rmType,
+    returnType: "number",
+    label: systolic.label,
+  });
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, model);
+  const state = Blockly.serialization.workspaces.save(workspace);
+  return { model, skeleton, workspace, state };
+}
+
+Deno.test("go-template codegen from Blockly openEHR canvas emits COMPOSITION JSON", () => {
+  const { model, skeleton, workspace, state } = mappedBpGoWorkspace();
+  try {
+    const output = generate(model, "go-template", { blocklyState: state, skeleton });
+    assert(output.includes('"_type": "COMPOSITION"'), "instance root is COMPOSITION JSON");
+    assert(output.includes("OBSERVATION") || output.includes("DV_QUANTITY"), "walks nested RM blocks");
+    assert(
+      output.includes('index .Data "systolic"') || output.includes("$.systolic"),
+      "mapped systolic source query is in the script",
+    );
+    assertEquals(output.includes("unsupported block: composition"), false);
+    assertEquals(output.includes("unsupported block: conversion_start"), false);
+    assertEquals(output.includes("new COMPOSITION"), false, "Go template is text, not ehrtslib");
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("Go template Output mode executes Blockly COMPOSITION mapping", async () => {
+  await ensureGoTemplateWasm();
+  const { model, skeleton, workspace, state } = mappedBpGoWorkspace();
+  try {
+    const result = runTest(model, JSON.stringify({ systolic: 120 }), "json", {
+      outputMode: "go-template",
+      blocklyState: state,
+      skeleton,
+    });
+    assertEquals(result.ok, true, String(result.error ?? result.output));
+    const parsed = JSON.parse(String(result.output)) as { _type?: string };
+    assertEquals(parsed._type, "COMPOSITION");
+    assert(String(result.output).includes("120"), "systolic magnitude from source");
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("go-template codegen from JSON Schema Blockly canvas emits JSON object", () => {
+  initBlocklyGenerators();
+  const schema = JSON.stringify({
+    $id: "patient-summary",
+    type: "object",
+    required: ["name"],
+    properties: {
+      name: { type: "string" },
+      age: { type: "integer" },
+    },
+  });
+  const target = getTargetFormatHandler("json-schema").load("summary.json", schema);
+  const nameSlot = collectValueSlots(target.skeleton).find((slot) =>
+    /name/i.test(slot.slotId) || /name/i.test(slot.label ?? "")
+  );
+  if (!nameSlot) throw new Error("expected name slot");
+  let model = createEmptyModel(target.targetId);
+  model.targetFormat = "json-schema";
+  model = applyExpressionEdit(model, nameSlot.slotId, 'xpathString("$.name")', {
+    rmType: nameSlot.rmType,
+    returnType: "string",
+    label: nameSlot.label,
+  });
+  const workspace = new Blockly.Workspace();
+  try {
+    loadSkeletonIntoWorkspace(workspace, target.skeleton, model);
+    const state = Blockly.serialization.workspaces.save(workspace);
+    const output = generate(model, "go-template", {
+      blocklyState: state,
+      skeleton: target.skeleton,
+    });
+    assert(output.includes('"name"'), "JSON property name");
+    assert(
+      output.includes('index .Data "name"') || output.includes("$.name"),
+      "mapped source query",
+    );
+    assertEquals(output.includes("<name>"), false, "JSON schema is not XML");
+    assertEquals(output.includes("unsupported block:"), false);
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("go-template codegen walks Conversion start product only", () => {
+  initBlocklyGenerators();
+  const workspace = new Blockly.Workspace();
+  try {
+    const root = workspace.newBlock("json_object");
+    attachStartToInstanceRoot(workspace, root);
+    const leak = workspace.newBlock("xml_element");
+    leak.setFieldValue("Leak", "NAME");
+    const model = createEmptyModel("");
+    model.targetFormat = "json-schema";
+    const state = Blockly.serialization.workspaces.save(workspace);
+    const output = generate(model, "go-template", { blocklyState: state });
+    assertEquals(output.includes("<Leak"), false, "floating XML is not the product");
+    assertEquals(output.includes("unsupported block: conversion_start"), false);
+    assert(output.includes("{"), "JSON object product");
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("go-template codegen emits range for for_each_source", () => {
+  initBlocklyGenerators();
+  const workspace = new Blockly.Workspace();
+  try {
+    const root = workspace.newBlock("xml_element");
+    root.setFieldValue("Items", "NAME");
+    const loop = workspace.newBlock("for_each_source");
+    loop.setFieldValue("item", "VAR");
+    loop.setFieldValue("$.rows", "PATH");
+    const text = workspace.newBlock("xml_text");
+    const query = workspace.newBlock("source_query");
+    query.setFieldValue("label", "EXPRESSION");
+    text.getInput("VALUE")?.connection?.connect(query.outputConnection!);
+    loop.getInput("DO")?.connection?.connect(text.previousConnection!);
+    root.getInput("TARGET_children")?.connection?.connect(loop.previousConnection!);
+    attachStartToInstanceRoot(workspace, root);
+    const model = createEmptyModel("");
+    model.targetFormat = "xml-schema";
+    const state = Blockly.serialization.workspaces.save(workspace);
+    const output = generate(model, "go-template", { blocklyState: state });
+    assert(output.includes("range"), "for_each_source → range");
+    assert(output.includes("<Items>"));
+    assertEquals(output.includes("unsupported block: for_each_source"), false);
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("go-template generate() after Blockly init still emits chemo XML", () => {
+  initBlocklyGenerators();
+  const text = Deno.readTextFileSync(
+    join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+  );
+  const blocklyState = JSON.parse(text);
+  const xsd = Deno.readTextFileSync(
+    join(root, "examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  );
+  const target = getTargetFormatHandler("xml-schema").load(
+    "TakeCare-CasenoteWrite-edit01.xsd",
+    xsd,
+  );
+  const model = createEmptyModel("chemo-symptoms");
+  model.targetFormat = "xml-schema";
+  const output = generate(model, "go-template", {
+    blocklyState,
+    skeleton: target.skeleton,
+  });
+  assert(output.includes("<ProfdocHISMessage"), "root message");
+  assert(output.includes(".Parameters.PatientId"), "PatId reads PatientId default");
+  assert(output.includes('{{- define "cleanAndQuoteFreeTextInput"'), "PROD free-text helper define");
+  assertEquals(output.includes("unsupported block: defaults_block"), false);
+  assertEquals(output.includes("unsupported block: schema_ProfdocHISMessage"), false);
+});
+
+Deno.test("go-template codegen from Text document instance root emits interpolated text", () => {
+  initBlocklyGenerators();
+  const workspace = new Blockly.Workspace();
+  try {
+    const root = workspace.newBlock("text_document");
+    const query = workspace.newBlock("source_query");
+    query.setFieldValue("$.note", "EXPRESSION");
+    root.getInput("VALUE")?.connection?.connect(query.outputConnection!);
+    attachStartToInstanceRoot(workspace, root);
+    const model = createEmptyModel("");
+    model.targetFormat = "free-form";
+    const state = Blockly.serialization.workspaces.save(workspace);
+    const output = generate(model, "go-template", { blocklyState: state });
+    assert(
+      output.includes('index .Data "note"') || output.includes("$.note"),
+      "source query is interpolated",
+    );
+    assertEquals(output.includes('"_type": "COMPOSITION"'), false);
+    assertEquals(output.includes("<"), false, "text product is not XML");
+    assertEquals(output.includes("unsupported block: text_document"), false);
+  } finally {
+    workspace.dispose();
+  }
+});
+
+

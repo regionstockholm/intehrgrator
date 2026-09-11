@@ -14,7 +14,7 @@ export {
   generateXQuery,
   jsonDollarPathToLookup,
 } from "./xquery.ts";
-export { generateGoTemplate } from "./go_template.ts";
+export { generateGoTemplate, goIndexExpr, emitGoExpr } from "./go_template.ts";
 export {
   emitTsExpression,
   generateTypeScriptFromSkeleton,
@@ -25,7 +25,7 @@ export {
 export interface ExportGenerationOptions {
   handlebarsTemplate?: string;
   precompile?: boolean;
-  /** Canonical Blockly workspace JSON — preferred input for TypeScript export. */
+  /** Canonical Blockly workspace JSON — preferred input for TypeScript and Go template canvas codegen. */
   blocklyState?: unknown;
   /** Template Skeleton used when Blockly state is not available. */
   skeleton?: SkeletonNode[];

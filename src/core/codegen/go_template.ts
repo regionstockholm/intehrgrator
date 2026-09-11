@@ -1,12 +1,18 @@
 /**
- * Go text/template codegen from Mapping Model + Blockly workspace.
+ * Go text/template codegen from Mapping Model + raw Blockly JSON.
+ *
+ * Preferred path is the Blockly canvas walker (`src/blockly/go_template_codegen.ts`)
+ * registered as the `go-template` export adapter — Conversion start, RM JSON,
+ * JSON Schema, XML, and `for_each_source`. This module is the slot / JSON-state
+ * fallback (TakeCare XML snapshots, empty canvas).
  *
  * Emits Go text/template syntax with a curated Sprig-subset FuncMap:
  * replace, regexReplaceAll, trim, quote, lower, substr, int, ge.
  *
  * Execute context shape: { Parameters: defaults, Data: sourceInstance }.
- * Source queries become {{ index .Data "flat/path|value" }}.
- * Defaults Map lookups become {{ .Parameters.Key }}.
+ * Source queries become {{ index .Data "vitals" "systolic" }} (JSON) or a
+ * single index key for FLAT/`|` and `/…` paths. Defaults Map lookups become
+ * {{ .Parameters.Key }}.
  */
 import type { ExprAst } from "../expression/mod.ts";
 import type { MappingModel } from "../../types/mod.ts";
@@ -108,7 +114,17 @@ function emitBlock(block: BlockNode): string[] {
       break;
     }
     case "defaults_block":
-    case "maps_create_with": {
+    case "maps_create_with":
+    case "conversion_start": {
+      break;
+    }
+    case "for_each_source": {
+      lines.push(...emitForEachSource(block));
+      break;
+    }
+    case "json_object":
+    case "json_array": {
+      lines.push(...emitJsonStructure(block));
       break;
     }
     case "controls_if": {
@@ -132,7 +148,7 @@ function emitBlock(block: BlockNode): string[] {
     case "source_query_boolean":
     case "source_query_node": {
       const expr = String(block.fields?.EXPRESSION ?? "");
-      lines.push(`{{ index .Data ${goQuote(expr)} }}`);
+      lines.push(`{{ ${goIndexExpr(expr)} }}`);
       break;
     }
     case "maps_get": {
@@ -174,7 +190,7 @@ function emitValueExpression(block: BlockNode): string[] {
     case "source_query_boolean":
     case "source_query_node": {
       const expr = String(block.fields?.EXPRESSION ?? "");
-      return [`{{ index .Data ${goQuote(expr)} }}`];
+      return [`{{ ${goIndexExpr(expr)} }}`];
     }
     case "maps_get": {
       const name = String(block.fields?.NAME ?? "defaults");
@@ -276,7 +292,7 @@ function emitInlineValue(block: BlockNode): string {
     case "source_query_boolean":
     case "source_query_node": {
       const expr = String(block.fields?.EXPRESSION ?? "");
-      return `(index .Data ${goQuote(expr)})`;
+      return `(${goIndexExpr(expr)})`;
     }
     case "maps_get": {
       const name = String(block.fields?.NAME ?? "defaults");
@@ -335,7 +351,56 @@ function emitXmlOrSchemaElement(block: BlockNode): string[] {
 
 function isXmlStructureBlockType(type: string): boolean {
   return type === "xml_element" || type === "target_structure" || type.startsWith("schema_") ||
-    type === "controls_if" || type === "for_each_source" || type === "for_each_list";
+    type === "controls_if" || type === "for_each_source" || type === "for_each_list" ||
+    type === "json_object" || type === "json_array";
+}
+
+function emitForEachSource(block: BlockNode): string[] {
+  const name = String(block.fields?.VAR ?? "item").trim() || "item";
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "item";
+  const path = String(block.fields?.PATH ?? "/");
+  const coll = goIndexExpr(path);
+  const body = block.inputs?.DO?.block;
+  const lines = [`{{- range $i, $${ident} := (${coll}) }}`];
+  if (body) lines.push(...emitStatementChain(body));
+  lines.push(`{{- end }}`);
+  return lines;
+}
+
+function emitJsonStructure(block: BlockNode): string[] {
+  const isArray = block.type === "json_array";
+  const props: string[] = [];
+  const inputs = block.inputs ?? {};
+  for (const [key, value] of Object.entries(inputs)) {
+    if (!key.startsWith("TARGET_") && !key.startsWith("SCHEMA_OPT_")) continue;
+    const fieldName = key.replace(/^TARGET_|^SCHEMA_OPT_/, "");
+    const child = inputChild(value);
+    if (!child) continue;
+    const rendered = emitValueExpression(child).join("");
+    if (isArray) props.push(rendered);
+    else props.push(`${JSON.stringify(fieldName)}: ${jsonishValue(child, rendered)}`);
+  }
+  if (isArray) return [`[${props.join(", ")}]`];
+  if (!props.length) return ["{}"];
+  return ["{", props.map((p) => `  ${p}`).join(",\n"), "}"];
+}
+
+function jsonishValue(block: BlockNode, rendered: string): string {
+  if (block.type === "math_number" || block.type === "source_query_number" ||
+    block.type === "logic_boolean" || block.type === "json_null" ||
+    block.type === "json_object" || block.type === "json_array" ||
+    block.type.startsWith("schema_")) {
+    return rendered.startsWith("{{") || rendered.startsWith("{") || rendered.startsWith("[") ||
+        rendered === "true" || rendered === "false" || rendered === "null" ||
+        /^-?\d/.test(rendered)
+      ? rendered
+      : `{{ ${stripDelimiters(rendered)} }}`;
+  }
+  if (rendered.startsWith("{{") && rendered.includes("| quote")) return rendered;
+  if (rendered.startsWith("{{")) {
+    return `{{ ${stripDelimiters(rendered)} | quote }}`;
+  }
+  return JSON.stringify(rendered);
 }
 
 function xmlName(value: string): string {
@@ -419,28 +484,89 @@ function stripDelimiters(expr: string): string {
   return expr.replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "");
 }
 
-function goQuote(s: string): string {
+export function goQuote(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
-function sanitizeGoField(name: string): string {
+export function sanitizeGoField(name: string): string {
   return name.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
-export function emitGoExpr(ast: ExprAst): string {
+export interface GoExprOptions {
+  /** Root pipeline for relative / JSON paths (`.Data` or `$item`). */
+  loopRoot?: string;
+}
+
+/** `$.a.b[0].c` → `index .Data "a" "b" 0 "c"`; FLAT/`|` keys stay one index. */
+export function goIndexExpr(path: string, root = ".Data"): string {
+  const trimmed = path.trim();
+  if (!trimmed || trimmed === "$" || trimmed === "$.") return root;
+  if (trimmed.startsWith("/") || trimmed.includes("|")) {
+    return `index ${root} ${goQuote(trimmed)}`;
+  }
+  let body = trimmed;
+  if (body.startsWith("$.")) body = body.slice(2);
+  else if (body.startsWith("$")) body = body.slice(1);
+  const segments = parseJsonPathSegments(body);
+  if (!segments.length) return root;
+  const args = segments.map((seg) => typeof seg === "number" ? String(seg) : goQuote(seg));
+  return `index ${root} ${args.join(" ")}`;
+}
+
+function parseJsonPathSegments(body: string): Array<string | number> {
+  const segments: Array<string | number> = [];
+  let i = 0;
+  while (i < body.length) {
+    if (body[i] === ".") {
+      i++;
+      continue;
+    }
+    if (body[i] === "[") {
+      const close = body.indexOf("]", i + 1);
+      if (close < 0) break;
+      const token = body.slice(i + 1, close);
+      if (/^\d+$/.test(token)) segments.push(Number(token));
+      else if (
+        (token.startsWith('"') && token.endsWith('"')) ||
+        (token.startsWith("'") && token.endsWith("'"))
+      ) {
+        segments.push(token.slice(1, -1));
+      } else {
+        segments.push(token);
+      }
+      i = close + 1;
+      continue;
+    }
+    let end = i;
+    while (end < body.length && !".[".includes(body[end]!)) end++;
+    if (end > i) segments.push(body.slice(i, end));
+    i = end;
+  }
+  return segments;
+}
+
+function xpathRoot(path: string, options?: GoExprOptions): string {
+  const trimmed = path.trim();
+  const relative = Boolean(trimmed) && !trimmed.startsWith("$") && !trimmed.startsWith("/");
+  if (relative && options?.loopRoot) return options.loopRoot;
+  return ".Data";
+}
+
+export function emitGoExpr(ast: ExprAst, options?: GoExprOptions): string {
   switch (ast.kind) {
     case "literal":
-      if (typeof ast.value === "string") return `index .Data ${goQuote(ast.value)}`;
+      if (typeof ast.value === "string") return goQuote(ast.value);
+      if (typeof ast.value === "boolean") return ast.value ? "true" : "false";
       return String(ast.value);
     case "call": {
       switch (ast.name) {
-        case "xpathString": /* falls through */
-        case "xpathNumber": /* falls through */
-        case "xpathBoolean": /* falls through */
-        case "xpathNode": /* falls through */
+        case "xpathString":
+        case "xpathNumber":
+        case "xpathBoolean":
+        case "xpathNode":
         case "xpath": {
           const path = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
-          return `index .Data ${goQuote(path)}`;
+          return goIndexExpr(path, xpathRoot(path, options));
         }
         case "maps_get": {
           const mapName = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "defaults";
@@ -448,24 +574,30 @@ export function emitGoExpr(ast: ExprAst): string {
           if (mapName === "defaults") return `.Parameters.${sanitizeGoField(key)}`;
           return `index .${sanitizeGoField(mapName)} ${goQuote(key)}`;
         }
-        case "trim": return `${emitGoExpr(ast.args[0]!)} | trim`;
-        case "concat": return ast.args.map((a) => `{{ ${emitGoExpr(a)} }}`).join("");
+        case "trim":
+          return `${emitGoExpr(ast.args[0]!, options)} | trim`;
+        case "concat":
+          return ast.args.map((a) => `{{ ${emitGoExpr(a, options)} }}`).join("");
         case "if": {
-          const cond = emitGoExpr(ast.args[0]!);
-          const then = emitGoExpr(ast.args[1]!);
-          const els = ast.args[2] ? emitGoExpr(ast.args[2]) : '""';
+          const cond = emitGoExpr(ast.args[0]!, options);
+          const then = emitGoExpr(ast.args[1]!, options);
+          const els = ast.args[2] ? emitGoExpr(ast.args[2], options) : '""';
           return `if ${cond} }}{{ ${then} }}{{ else }}{{ ${els} }}{{ end`;
         }
         case "eq":
-          return `eq ${emitGoExpr(ast.args[0]!)} ${emitGoExpr(ast.args[1]!)}`;
+          return `eq ${emitGoExpr(ast.args[0]!, options)} ${emitGoExpr(ast.args[1]!, options)}`;
         case "ne":
-          return `ne ${emitGoExpr(ast.args[0]!)} ${emitGoExpr(ast.args[1]!)}`;
+          return `ne ${emitGoExpr(ast.args[0]!, options)} ${emitGoExpr(ast.args[1]!, options)}`;
         case "and":
-          return `and (${emitGoExpr(ast.args[0]!)}) (${emitGoExpr(ast.args[1]!)})`;
+          return `and (${emitGoExpr(ast.args[0]!, options)}) (${emitGoExpr(ast.args[1]!, options)})`;
         case "or":
-          return `or (${emitGoExpr(ast.args[0]!)}) (${emitGoExpr(ast.args[1]!)})`;
+          return `or (${emitGoExpr(ast.args[0]!, options)}) (${emitGoExpr(ast.args[1]!, options)})`;
         case "not":
-          return `not (${emitGoExpr(ast.args[0]!)})`;
+          return `not (${emitGoExpr(ast.args[0]!, options)})`;
+        case "var": {
+          const name = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "item";
+          return `$${sanitizeGoField(name)}`;
+        }
         default:
           return `/* unsupported: ${ast.name} */`;
       }

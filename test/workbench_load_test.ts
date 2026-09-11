@@ -4,6 +4,12 @@ import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
 import { collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
+import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
+import {
+  initBlocklyGenerators,
+  loadSkeletonIntoWorkspace,
+} from "@intehrgrator/blockly/mod.ts";
+import { ensureGoTemplateWasm } from "@intehrgrator/core/output/go_template_runtime.ts";
 
 function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
@@ -383,4 +389,43 @@ Deno.test("controller switches multilingual target ontology language without dro
     after.model.slots.find((s) => s.slotId === injury.slotId)?.expression,
     expression,
   );
+});
+
+Deno.test("controller Go Template Output mode walks Blockly COMPOSITION canvas", async () => {
+  await ensureGoTemplateWasm();
+  initBlocklyGenerators();
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const example = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.addExampleContent("bp_example.json", example);
+
+  const slotId = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.slotId.endsWith("items/at0004/value/value/value")
+  )?.slotId;
+  assert(slotId);
+  controller.mapNodeToSlot(slotId, "$.systolic", "json");
+
+  const workspace = new Blockly.Workspace();
+  try {
+    const state = controller.getState();
+    loadSkeletonIntoWorkspace(workspace, state.skeleton, state.model);
+    controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
+    controller.setExportTarget("go-template");
+    const after = controller.getState();
+    assertStringIncludes(after.generatedCode, '"_type": "COMPOSITION"');
+    assertStringIncludes(after.generatedCode, "index .Data");
+    assertEquals(after.generatedCode.includes("new COMPOSITION"), false);
+    assertEquals(after.generatedCode.includes("unsupported block: composition"), false);
+    assertEquals(after.testResult?.ok, true, String(after.testResult?.error ?? after.testResult?.output));
+    const parsed = JSON.parse(String(after.testResult?.output)) as { _type?: string };
+    assertEquals(parsed._type, "COMPOSITION");
+    assertStringIncludes(String(after.testResult?.output), "120");
+  } finally {
+    workspace.dispose();
+  }
 });

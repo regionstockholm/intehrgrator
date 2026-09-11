@@ -26,6 +26,7 @@ import {
 } from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
+import { registerGoTemplateExportAdapter } from "./go_template_codegen.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
@@ -156,6 +157,11 @@ export {
   generateTypeScriptFromWorkspace,
   registerTypeScriptExportAdapter,
 } from "./typescript_codegen.ts";
+export {
+  generateGoTemplateFromBlocklyState,
+  generateGoTemplateFromWorkspace,
+  registerGoTemplateExportAdapter,
+} from "./go_template_codegen.ts";
 
 import { registerConversionStartBlock } from "./instance_root.ts";
 
@@ -172,6 +178,7 @@ export function initBlocklyGenerators(): void {
   registerExtractToFunctionMenu();
   registerGenerators();
   registerTypeScriptExportAdapter();
+  registerGoTemplateExportAdapter();
 }
 
 function registerGenerators(): void {

@@ -537,6 +537,14 @@
       The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
     </span>
   </span>
+  <span id="decision-table-block-info" class="info-tip info-tip--anchor-host">
+    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-decision-table-block" aria-label="About decision tables">i</button>
+    <span id="tip-decision-table-block" class="info-tip-balloon" role="tooltip">
+      <strong>Decision table</strong> is a named rule grid in the Sheets tab: condition columns (equality, don't-care <code>—</code>) and output columns (plain values or VMS-Mustache snippets). The grid owns column names and types; this block’s locals Map keys stay in sync.<br>
+      Plug a Map of locals on the right (keys = condition headers). The output dropdown returns one typed column (🔤 string, 🔢 number, ✓ boolean), or <em>all outputs</em> as a Map (↦). Switching that type may unplug the block; canvas undo/redo restores it.<br>
+      Hit policy (FIRST / UNIQUE / COLLECT) is on the Sheets tab. Flatten nested sources into the locals Map (or via variables) before eval.
+    </span>
+  </span>
   <script src="./wasm/wasm_exec.js"></script>
   <script type="module" src="./bundle.js"></script>
 </body>

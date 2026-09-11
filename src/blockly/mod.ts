@@ -10,7 +10,6 @@ import { registerMapBlocks } from "./blocks/map_blocks.ts";
 import { registerSheetBlocks } from "./blocks/sheet_blocks.ts";
 import {
   registerDecisionTableBlocks,
-  setDecisionTableFocusHandler,
 } from "./blocks/decision_table_blocks.ts";
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import {
@@ -143,7 +142,10 @@ export {
   type DefaultsMapEntryInfo,
 } from "./hardcode_defaults.ts";
 export { setSheetFocusHandler } from "./blocks/sheet_blocks.ts";
-export { setDecisionTableFocusHandler } from "./blocks/decision_table_blocks.ts";
+export { setDecisionTableFocusHandler, setDecisionTableInfoHandler } from "./blocks/decision_table_blocks.ts";
+export { setWorkspaceSheetsProvider } from "./sheets_bridge.ts";
+export { setGridPreviewActivateHandler } from "./field_grid_preview.ts";
+export { installDecisionTableSync, syncDecisionTableBlocksFromSheets } from "./decision_table_sync.ts";
 export {
   canExtractToFunction,
   extractBlockToFunction,

@@ -5,6 +5,7 @@
 import jspreadsheet from "jspreadsheet-ce";
 import type { Workspace } from "blockly/core";
 import {
+  addDecisionColumn,
   cloneSheets,
   emptyDecisionTable,
   emptySheet,
@@ -13,13 +14,24 @@ import {
   lintDecisionTableSnippets,
   normalizeSheet,
   parseSpreadsheetText,
+  setDecisionOutputKind,
+  setDecisionValueType,
   sheetsEqual,
   sheetToCsv,
+  trimDecisionTableSpareColumns,
   type DecisionHitPolicy,
+  type DecisionOutputKind,
+  type DecisionValueType,
   type SheetDocument,
 } from "../core/sheets/mod.ts";
 import { fireSheetChange } from "../workbench/sheet_undo.ts";
 import { jspreadsheetDictionary, sheetsChrome } from "./sheets_i18n.ts";
+import {
+  retargetDecisionTableNames,
+  syncDecisionTableBlocksFromSheets,
+} from "../blockly/decision_table_sync.ts";
+import { refreshGridPreviewFields } from "../blockly/field_grid_preview.ts";
+import { DECISION_TYPE_SWITCH_MESSAGE } from "../blockly/blocks/decision_table_blocks.ts";
 
 type WorksheetInstance = {
   getData: () => unknown[][];
@@ -47,7 +59,7 @@ export function mountSheetsPanel(
   },
 ): {
   refresh: () => void;
-  showSheet: (name: string, kind?: "sheet" | "decision-table") => void;
+  showSheet: (name: string, kind?: "sheet" | "decision-table", opts?: { highlight?: boolean }) => void;
   setLocale: (locale: string) => void;
   setFullscreen: (on: boolean) => void;
   destroy: () => void;
@@ -123,7 +135,15 @@ export function mountSheetsPanel(
   const lintEl = document.createElement("p");
   lintEl.className = "sheets-snippet-lint";
   lintEl.hidden = true;
-  metaBar.append(kindLabel, hitPolicyLabel, lintEl);
+  const outputColsEl = document.createElement("div");
+  outputColsEl.className = "sheets-output-cols";
+  const addCondBtn = document.createElement("button");
+  addCondBtn.type = "button";
+  addCondBtn.className = "pane-btn";
+  const addOutBtn = document.createElement("button");
+  addOutBtn.type = "button";
+  addOutBtn.className = "pane-btn";
+  metaBar.append(kindLabel, hitPolicyLabel, addCondBtn, addOutBtn, outputColsEl, lintEl);
 
   const emptyEl = document.createElement("p");
   emptyEl.className = "sheets-empty";
@@ -151,6 +171,8 @@ export function mountSheetsPanel(
     fullBtn.textContent = fullscreen ? t.exitFullscreen : t.fullscreen;
     emptyEl.textContent = t.empty;
     hitPolicySelect.setAttribute("aria-label", t.hitPolicy);
+    addCondBtn.textContent = t.addCondition;
+    addOutBtn.textContent = t.addOutput;
   };
   paintChrome();
 
@@ -175,7 +197,7 @@ export function mountSheetsPanel(
     );
     const trimmed = trimTrailingEmptyRows(values);
     const existing = findSheet(host.getSheets(), name);
-    return normalizeSheet({
+    const doc = normalizeSheet({
       name,
       headers,
       values: trimmed,
@@ -186,6 +208,7 @@ export function mountSheetsPanel(
       collectJoin: existing?.collectJoin,
       decisionColumns: existing?.decisionColumns,
     });
+    return isDecisionTable(doc) ? trimDecisionTableSpareColumns(doc) : doc;
   };
 
   const paintMeta = (sheet: SheetDocument | null): void => {
@@ -193,11 +216,56 @@ export function mountSheetsPanel(
     if (!sheet || !isDecisionTable(sheet)) {
       metaBar.hidden = true;
       lintEl.hidden = true;
+      outputColsEl.replaceChildren();
       return;
     }
     metaBar.hidden = false;
     kindLabel.textContent = t.kindDecision;
     hitPolicySelect.value = sheet.hitPolicy ?? "FIRST";
+    outputColsEl.replaceChildren();
+    const meta = sheet.decisionColumns ?? [];
+    sheet.headers.forEach((header, i) => {
+      if (meta[i]?.role !== "output") return;
+      const wrap = document.createElement("label");
+      wrap.className = "sheets-output-col";
+      wrap.append(document.createTextNode(`${header} `));
+      const kindSel = document.createElement("select");
+      kindSel.setAttribute("aria-label", `${header} ${t.outputKind}`);
+      for (const k of ["value", "snippet"] as DecisionOutputKind[]) {
+        const opt = document.createElement("option");
+        opt.value = k;
+        opt.textContent = k === "snippet" ? t.kindSnippet : t.kindValue;
+        kindSel.append(opt);
+      }
+      kindSel.value = meta[i]?.outputKind === "snippet" ? "snippet" : "value";
+      kindSel.addEventListener("change", () => {
+        commitSheetDoc(setDecisionOutputKind(sheet, i, kindSel.value as DecisionOutputKind));
+      });
+      const typeSel = document.createElement("select");
+      typeSel.setAttribute("aria-label", `${header} ${t.outputType}`);
+      for (const k of ["string", "number", "boolean"] as DecisionValueType[]) {
+        const opt = document.createElement("option");
+        opt.value = k;
+        opt.textContent = k;
+        typeSel.append(opt);
+      }
+      typeSel.value = meta[i]?.valueType === "number" || meta[i]?.valueType === "boolean"
+        ? meta[i]!.valueType!
+        : "string";
+      typeSel.disabled = kindSel.value === "snippet";
+      typeSel.addEventListener("change", () => {
+        const nextType = typeSel.value as DecisionValueType;
+        if (!confirmValueTypeSwitch()) {
+          typeSel.value = meta[i]?.valueType === "number" || meta[i]?.valueType === "boolean"
+            ? meta[i]!.valueType!
+            : "string";
+          return;
+        }
+        commitSheetDoc(setDecisionValueType(sheet, i, nextType));
+      });
+      wrap.append(kindSel, typeSel);
+      outputColsEl.append(wrap);
+    });
     const diags = lintDecisionTableSnippets(sheet);
     if (diags.length) {
       lintEl.hidden = false;
@@ -206,6 +274,27 @@ export function mountSheetsPanel(
       lintEl.hidden = true;
       lintEl.textContent = "";
     }
+  };
+
+  const notifyBlockly = (sheets: SheetDocument[]): void => {
+    const ws = options.getWorkspace();
+    syncDecisionTableBlocksFromSheets(ws, sheets);
+    refreshGridPreviewFields(ws);
+  };
+
+  const commitSheetDoc = (nextDoc: SheetDocument): void => {
+    const before = host.getSheets();
+    const after = before.map((s) => s.name === nextDoc.name ? nextDoc : s);
+    if (findSheet(after, nextDoc.name) == null) after.push(nextDoc);
+    if (sheetsEqual(before, after)) return;
+    host.replaceSheets(after);
+    fireSheetChange(options.getWorkspace(), before, after, (sheets) => {
+      host.replaceSheets(sheets, { silent: true });
+      refresh();
+      notifyBlockly(sheets);
+    });
+    notifyBlockly(after);
+    refresh();
   };
 
   const commitFromWidget = (): void => {
@@ -220,7 +309,9 @@ export function mountSheetsPanel(
     fireSheetChange(options.getWorkspace(), before, after, (sheets) => {
       host.replaceSheets(sheets, { silent: true });
       refresh();
+      notifyBlockly(sheets);
     });
+    notifyBlockly(after);
   };
 
   const bindSheet = (sheet: SheetDocument): void => {
@@ -236,17 +327,20 @@ export function mountSheetsPanel(
         ? sheet.rowNames.map((title) => ({ title }))
         : undefined;
       const viewport = gridViewport();
+      const dt = isDecisionTable(sheet);
       const created = jspreadsheet(gridEl, {
         worksheets: [{
           data: sheet.values.length ? sheet.values : [[""]],
           columns,
           ...(rowTitles ? { rows: rowTitles } : {}),
           minDimensions: [
-            Math.max(sheet.headers.length, viewport.cols),
-            Math.max(sheet.values.length, viewport.rows),
+            dt ? Math.max(sheet.headers.length, 1) : Math.max(sheet.headers.length, viewport.cols),
+            dt ? Math.max(sheet.values.length, 3) : Math.max(sheet.values.length, viewport.rows),
           ],
           minSpareRows: 0,
           minSpareCols: 0,
+          allowInsertColumn: !dt,
+          allowDeleteColumn: !dt,
           tableOverflow: true,
           tableWidth: viewport.widthPx,
           tableHeight: viewport.heightPx,
@@ -348,7 +442,18 @@ export function mountSheetsPanel(
     bindSheet(sheet);
   };
 
-  const showSheet = (name: string, kind: "sheet" | "decision-table" = "sheet"): void => {
+  const flashHighlight = (): void => {
+    root.classList.remove("sheets-flash");
+    void root.offsetWidth;
+    root.classList.add("sheets-flash");
+    globalThis.setTimeout(() => root.classList.remove("sheets-flash"), 4000);
+  };
+
+  const showSheet = (
+    name: string,
+    kind: "sheet" | "decision-table" = "sheet",
+    opts: { highlight?: boolean } = {},
+  ): void => {
     let sheets = host.getSheets();
     if (!findSheet(sheets, name)) {
       const before = cloneSheets(sheets);
@@ -358,20 +463,23 @@ export function mountSheetsPanel(
       fireSheetChange(options.getWorkspace(), before, after, (next) => {
         host.replaceSheets(next, { silent: true });
         refresh();
+        notifyBlockly(next);
       });
       sheets = after;
+      notifyBlockly(after);
     }
     select.value = name;
     activeName = name;
+    fillSelect(host.getSheets());
     const sheet = findSheet(sheets, name);
     if (!sheet) return;
-    // Refocus / Sheets tab: keep the live grid if data already matches (avoids destroy/rebuild flicker).
     if (widgetMatches(sheet)) {
       paintMeta(sheet);
       scheduleSizeGrid();
-      return;
+    } else {
+      bindSheet(sheet);
     }
-    bindSheet(sheet);
+    if (opts.highlight) flashHighlight();
   };
 
   addBtn.addEventListener("click", () => {
@@ -388,6 +496,16 @@ export function mountSheetsPanel(
     );
     if (!name?.trim()) return;
     showSheet(name.trim(), "decision-table");
+  });
+  addCondBtn.addEventListener("click", () => {
+    const sheet = findSheet(host.getSheets(), activeName);
+    if (!sheet || !isDecisionTable(sheet)) return;
+    commitSheetDoc(addDecisionColumn(sheet, "condition"));
+  });
+  addOutBtn.addEventListener("click", () => {
+    const sheet = findSheet(host.getSheets(), activeName);
+    if (!sheet || !isDecisionTable(sheet)) return;
+    commitSheetDoc(addDecisionColumn(sheet, "output"));
   });
   hitPolicySelect.addEventListener("change", () => {
     if (!activeName) return;
@@ -415,7 +533,10 @@ export function mountSheetsPanel(
     fireSheetChange(options.getWorkspace(), before, after, (sheets) => {
       host.replaceSheets(sheets, { silent: true });
       refresh();
+      notifyBlockly(sheets);
     });
+    retargetDecisionTableNames(options.getWorkspace(), activeName, nextName);
+    notifyBlockly(after);
     activeName = nextName;
     refresh();
   });
@@ -585,6 +706,11 @@ export function mountSheetsPanel(
 function applyDictionary(locale: string): void {
   const dict = jspreadsheetDictionary(locale);
   if (Object.keys(dict).length) jspreadsheet.setDictionary(dict);
+}
+
+function confirmValueTypeSwitch(): boolean {
+  if (typeof globalThis.confirm !== "function") return true;
+  return globalThis.confirm(DECISION_TYPE_SWITCH_MESSAGE);
 }
 
 function uniqueName(sheets: SheetDocument[], base: string): string {

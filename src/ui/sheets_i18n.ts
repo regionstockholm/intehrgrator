@@ -4,6 +4,12 @@ export interface SheetsChrome {
   tab: string;
   add: string;
   addDecision: string;
+  addCondition: string;
+  addOutput: string;
+  outputKind: string;
+  outputType: string;
+  kindValue: string;
+  kindSnippet: string;
   rename: string;
   remove: string;
   importCsv: string;
@@ -24,6 +30,12 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     tab: "Sheets",
     add: "Add sheet",
     addDecision: "Add decision table",
+    addCondition: "Add condition",
+    addOutput: "Add output",
+    outputKind: "column kind",
+    outputType: "column type",
+    kindValue: "value",
+    kindSnippet: "snippet",
     rename: "Rename",
     remove: "Delete",
     importCsv: "Import CSV",
@@ -42,6 +54,12 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     tab: "Kalkylblad",
     add: "Nytt blad",
     addDecision: "Ny beslutstabell",
+    addCondition: "Nytt villkor",
+    addOutput: "Ny utdata",
+    outputKind: "kolumntyp",
+    outputType: "datatyp",
+    kindValue: "värde",
+    kindSnippet: "snippet",
     rename: "Byt namn",
     remove: "Ta bort",
     importCsv: "Importera CSV",
@@ -60,6 +78,12 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     tab: "Tabellen",
     add: "Blatt hinzufügen",
     addDecision: "Entscheidungstabelle",
+    addCondition: "Bedingung",
+    addOutput: "Ausgabe",
+    outputKind: "Spaltenart",
+    outputType: "Datentyp",
+    kindValue: "Wert",
+    kindSnippet: "Snippet",
     rename: "Umbenennen",
     remove: "Löschen",
     importCsv: "CSV importieren",
@@ -78,6 +102,12 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     tab: "Hojas",
     add: "Añadir hoja",
     addDecision: "Tabla de decisión",
+    addCondition: "Añadir condición",
+    addOutput: "Añadir salida",
+    outputKind: "tipo de columna",
+    outputType: "tipo de dato",
+    kindValue: "valor",
+    kindSnippet: "snippet",
     rename: "Renombrar",
     remove: "Eliminar",
     importCsv: "Importar CSV",
@@ -96,6 +126,12 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     tab: "Fulls",
     add: "Afegeix full",
     addDecision: "Taula de decisió",
+    addCondition: "Afegeix condició",
+    addOutput: "Afegeix sortida",
+    outputKind: "tipus de columna",
+    outputType: "tipus de dada",
+    kindValue: "valor",
+    kindSnippet: "snippet",
     rename: "Canvia el nom",
     remove: "Suprimeix",
     importCsv: "Importa CSV",
@@ -114,6 +150,12 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     tab: "Feuilles",
     add: "Ajouter une feuille",
     addDecision: "Table de décision",
+    addCondition: "Ajouter une condition",
+    addOutput: "Ajouter une sortie",
+    outputKind: "sorte de colonne",
+    outputType: "type",
+    kindValue: "valeur",
+    kindSnippet: "snippet",
     rename: "Renommer",
     remove: "Supprimer",
     importCsv: "Importer CSV",

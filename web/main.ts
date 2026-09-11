@@ -75,6 +75,10 @@ import {
   listDefaultsMapEntries,
   setSheetFocusHandler,
   setDecisionTableFocusHandler,
+  setDecisionTableInfoHandler,
+  setWorkspaceSheetsProvider,
+  setGridPreviewActivateHandler,
+  installDecisionTableSync,
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
@@ -282,6 +286,15 @@ let suppressBlocklyModelSync = false;
 let applyingDocumentUndo = false;
 let documentReplaceDepth = 0;
 
+function flashSheetsChrome(): void {
+  const tab = sheetsTab;
+  if (!(tab instanceof HTMLElement)) return;
+  tab.classList.remove("sheets-flash");
+  void tab.offsetWidth;
+  tab.classList.add("sheets-flash");
+  globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 4000);
+}
+
 function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {
   activeTextView = view;
   const showHandlebars = view === "handlebars";
@@ -441,14 +454,28 @@ async function bootBlockly(): Promise<void> {
   setDefaultsMapHardcodeHandler(() => {
     openHardcodeDefaultsDialog();
   });
-  setSheetFocusHandler((name) => {
+  setSheetFocusHandler((name, opts) => {
     showTextView("sheets");
-    sheetsPanel?.showSheet(name, "sheet");
+    sheetsPanel?.showSheet(name, "sheet", { highlight: opts?.highlight ?? true });
+    if (opts?.highlight ?? true) flashSheetsChrome();
   });
-  setDecisionTableFocusHandler((name) => {
+  setDecisionTableFocusHandler((name, opts) => {
     showTextView("sheets");
-    sheetsPanel?.showSheet(name, "decision-table");
+    sheetsPanel?.showSheet(name, "decision-table", { highlight: opts?.highlight ?? true });
+    if (opts?.highlight ?? true) flashSheetsChrome();
   });
+  setGridPreviewActivateHandler((blockType, name) => {
+    showTextView("sheets");
+    const kind = blockType === "decision_table_decl" ? "decision-table" : "sheet";
+    sheetsPanel?.showSheet(name, kind, { highlight: true });
+    flashSheetsChrome();
+  });
+  setDecisionTableInfoHandler((anchor) => {
+    const tip = document.getElementById("decision-table-block-info");
+    if (!(tip instanceof HTMLElement)) return;
+    openInfoTipAt(tip, anchor ?? tip.querySelector(".info-tip-btn") ?? tip);
+  });
+  setWorkspaceSheetsProvider(() => controller.getSheets());
   sheetsPanel = mountSheetsPanel(sheetsHost, {
     getSheets: () => controller.getSheets(),
     replaceSheets: (sheets, opts) => controller.replaceSheets(sheets, opts),
@@ -457,6 +484,11 @@ async function bootBlockly(): Promise<void> {
     getWorkspace: () => workspace,
     getLocale: () => blocklyLocale,
   });
+  installDecisionTableSync(
+    workspace,
+    () => controller.getSheets(),
+    (sheets) => controller.replaceSheets(sheets),
+  );
   if (sheetsTab) sheetsTab.textContent = sheetsChrome(blocklyLocale).tab;
 
   attachWorkspaceMinimap(workspace, blocklyMount);
@@ -561,10 +593,14 @@ async function bootBlockly(): Promise<void> {
       applyBlockSelection(blockId, "blockly");
       if (blockId) {
         const clicked = workspace.getBlockById(blockId);
-        if (clicked?.type === "sheet") {
-          const name = String(clicked.getFieldValue("NAME") || "Sheet1");
+        if (clicked?.type === "sheet" || clicked?.type === "decision_table_decl") {
+          const name = String(clicked.getFieldValue("NAME") || "");
+          const kind = clicked.type === "decision_table_decl" ? "decision-table" : "sheet";
           showTextView("sheets");
-          sheetsPanel?.showSheet(name);
+          sheetsPanel?.showSheet(name || (kind === "decision-table" ? "Decision1" : "Sheet1"), kind, {
+            highlight: true,
+          });
+          flashSheetsChrome();
         }
       }
       return;

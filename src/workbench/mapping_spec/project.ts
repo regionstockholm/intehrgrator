@@ -754,7 +754,7 @@ function decisionTableLine(
     attribute,
     shell,
     editKind: "decision_table",
-    summary: `${name}(locals → ${output})`,
+    summary: `${name}(locals → ${output === "*" ? "all outputs" : output})`,
     editable,
     info: collectInfo(block),
   };

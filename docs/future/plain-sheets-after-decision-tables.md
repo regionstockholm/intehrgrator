@@ -1,6 +1,6 @@
 # Plain Sheets after decision tables
 
-**Status:** Investigation 2026-09-11. Not a removal ticket.
+**Status:** Investigation 2026-09-11. Tracker: [#82](https://github.com/regionstockholm/intehrgrator/issues/82). Not a removal ticket.
 
 **Verdict:** Keep data **Sheets**. Do not remove `kind: sheet`, `sheet_lookup`, or the Sheets tab’s “add sheet” path. Decision tables (#69) occupy the combinational-rule job. They do not replace 1-key terminology / code lists, FHIR-style concept maps, CSV paste of data, or convert-time lookup tables (ADR 0005). Empty-cell meaning alone makes collapsing the two kinds unsafe.
 

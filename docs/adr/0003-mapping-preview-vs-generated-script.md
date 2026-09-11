@@ -21,7 +21,7 @@ On the **Verifiable Mapping Subset (VMS)**, CI treats these paths as cross-check
 | **Primary execution oracle** | Mapping preview (`runTest` + `outputMode: "preview"`) | Evaluates Mapping Model slots + loops, sheets, and Target format render. Default Test Run truth for authors. |
 | **Cross-check oracle** | Generated TypeScript (`outputMode: "typescript"`) | Executable today via bundled ehrtslib/fontoxpath. Golden tests require normalized clinical output ≡ preview on VMS fixtures (`test/vms_golden_test.ts`). |
 | **Structural postcondition** | ehrtslib `TemplateValidator` | Wired in `validateConvertedOutput()` after preview/TS runs. |
-| **Declarative parity (static)** | XQuery Model B slot manifest | `generate(model, "xquery")` must list the same `slots[]` ids and `loops[]` metadata as the Mapping Model IR; in-app `.xq` execution remains future work. |
+| **Declarative parity (static)** | XQuery mapping-result + `for` from `loops[]` | `generate(model, "xquery")` must list the same `slots[]` ids and emit `for $var in …` for IR loops; in-app `.xq` execution remains future work. Optional BaseX check: [XQUERY_ENGINE.md](../XQUERY_ENGINE.md). |
 | **Deferred external oracle** | Archie (Java) | Preferred when a Java toolchain is available for independent openEHR validation; not required for current CI. |
 
 When preview and TypeScript disagree on a VMS mapping, treat it as a **mapping bug** (robustness violation per formal-verification-export.md), not an author workflow choice.

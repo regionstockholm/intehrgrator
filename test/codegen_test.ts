@@ -8,6 +8,8 @@ import {
   emitXQueryExpr,
 } from "@intehrgrator/core/codegen/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
+import type { MappingModel } from "@intehrgrator/types/mod.ts";
+import { MODEL_VERSION } from "@intehrgrator/types/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
   runGeneratedTypeScript,
@@ -87,6 +89,7 @@ Deno.test("xquery codegen emits mapping-result module from Blockly slots", () =>
   assertStringIncludes(xq, "DV_QUANTITY");
   assertStringIncludes(xq, "$source?systolic");
   assertStringIncludes(xq, "declare variable $defaults");
+  assertStringIncludes(xq, "declare variable $sheets");
   assertStringIncludes(xq, "normalize-space");
   assertStringIncludes(xq, "concat(");
 
@@ -110,12 +113,163 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
   );
   assertEquals(
     emitXQueryExpr(parseExpression('maps_get("defaults", "language")')),
-    '(if ("defaults" eq "defaults") then map:get($defaults, "language") else ())',
+    'map:get($defaults, "language")',
   );
   assertEquals(
     emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
-    '(: sheet_lookup — bind $sheets at convert time :) ()',
+    'local:sheet-lookup("t", "code", "I10", "snomed")',
   );
+  assertEquals(
+    jsonDollarPathToLookup("$.measurements[*].pulse"),
+    "$source?measurements?*?pulse",
+  );
+  assertEquals(
+    emitXQueryExpr(parseExpression('xpathNumber("pulse")'), { ctx: "$measurements" }),
+    "xs:decimal(($measurements?pulse)[1])",
+  );
+});
+
+function loopingVitalsModel(): MappingModel {
+  return {
+    modelVersion: MODEL_VERSION,
+    templateId: "vitals-series",
+    targetFormat: "openehr-template",
+    slots: [
+      {
+        slotId: "slot/sys",
+        rmType: "DV_QUANTITY",
+        expression: 'xpathNumber("$.systolic")',
+        returnType: "number",
+        label: "Systolic",
+      },
+      {
+        slotId: "slot/rate",
+        rmType: "DV_QUANTITY",
+        expression: 'xpathNumber("pulse")',
+        returnType: "number",
+        label: "Pulse",
+      },
+    ],
+    optionalRm: [],
+    loops: [{
+      attachSlotId: "evt-1",
+      varName: "measurements",
+      path: "$.measurements",
+      kind: "source",
+    }],
+    targetSignature: [{
+      slotId: "comp",
+      rmType: "COMPOSITION",
+      children: [{
+        slotId: "evt-1",
+        rmType: "EVENT",
+        children: [{ slotId: "slot/rate", rmType: "DV_QUANTITY", children: [] }],
+      }],
+    }],
+  };
+}
+
+Deno.test("xquery codegen emits for-each from for_each_source loops, not only flat slot metadata", () => {
+  const xq = generate(loopingVitalsModel(), "xquery");
+  assertStringIncludes(xq, "for $measurements in");
+  assertStringIncludes(xq, "local:unbox($source?measurements)");
+  assertStringIncludes(xq, "$measurements?pulse");
+  assertStringIncludes(xq, "$source?systolic");
+  assertEquals(xq.includes("$source?pulse"), false);
+  assertEquals(xq.includes("element loops"), false);
+  assertStringIncludes(xq, 'attribute slot-id { "evt-1" }');
+  assertStringIncludes(xq, "element target");
+  assertStringIncludes(xq, "element node");
+});
+
+Deno.test("xquery codegen keeps relative leftover slots inside the looped node", () => {
+  const model = loopingVitalsModel();
+  model.slots.push({
+    slotId: "slot/orphan-rate",
+    rmType: "DV_QUANTITY",
+    expression: 'xpathNumber("pulse")',
+    returnType: "number",
+  });
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, 'attribute id { "slot/orphan-rate" }');
+  assertStringIncludes(xq, "$measurements?pulse");
+  assertStringIncludes(xq, "for $measurements in");
+});
+
+Deno.test("xquery codegen inlines literal paths and documents dynamic path helpers", () => {
+  const model: MappingModel = {
+    ...createEmptyModel("dyn"),
+    slots: [{
+      slotId: "s1",
+      rmType: "DV_TEXT",
+      expression: 'xpathString(concat("$.", "unit"))',
+      returnType: "string",
+    }],
+  };
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "local:string-at");
+  assertStringIncludes(xq, "dynamic source path");
+  assertStringIncludes(xq, "DYNAMIC-XML-PATH");
+  assertStringIncludes(
+    emitXQueryExpr(parseExpression('xpathString("/patient/name")')),
+    "$source/patient/name",
+  );
+});
+
+Deno.test("xquery codegen binds $sheets for sheet accessors instead of empty sequence", () => {
+  const model = applyExpressionEdit(
+    createEmptyModel("terms"),
+    "s1",
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+    { rmType: "DV_TEXT", returnType: "string" },
+  );
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "declare variable $sheets as map(*) external := map {};");
+  assertStringIncludes(xq, 'local:sheet-lookup("icd10_snomed", "code", "I10", "snomed")');
+  assertEquals(xq.includes("bind $sheets at convert time :) ()"), false);
+  assertEquals(/\(\)\s*$/m.test(xq.split("local:as-value")[1]?.split("\n")[0] ?? "x"), false);
+});
+
+Deno.test("xquery codegen does not emit VMS-removed block types", () => {
+  const model: MappingModel = {
+    ...createEmptyModel("vms"),
+    slots: [{
+      slotId: "s1",
+      rmType: "DV_TEXT",
+      expression: 'xpathString("$.name")',
+      returnType: "string",
+    }],
+    unsupported: [{ blockType: "controls_whileUntil", reason: "removed" }],
+  };
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "VMS-removed block controls_whileUntil skipped");
+  assertEquals(xq.includes("controls_whileUntil skipped") && xq.includes("while ("), false);
+  assertEquals(xq.includes("math:random"), false);
+  assertEquals(xq.includes("local:sheet-set-"), false);
+});
+
+Deno.test("xquery codegen emits for_each_list over the collection expression", () => {
+  const model: MappingModel = {
+    ...createEmptyModel("codes"),
+    slots: [{
+      slotId: "slot/code",
+      rmType: "DV_TEXT",
+      expression: 'var("code")',
+      returnType: "string",
+    }],
+    loops: [{
+      attachSlotId: "slot/code",
+      varName: "code",
+      path: "",
+      kind: "list",
+      collection: 'list("I10", "E11")',
+    }],
+  };
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "for $code in");
+  assertStringIncludes(xq, '"I10"');
+  assertStringIncludes(xq, '"E11"');
+  assertStringIncludes(xq, "$code");
 });
 
 Deno.test("test runner evaluates json slot", () => {

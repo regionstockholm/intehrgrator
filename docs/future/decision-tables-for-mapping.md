@@ -177,7 +177,7 @@ Two emission strategies:
 |----------------------------|-----------|--------|
 | **TypeScript** | Yes — best | Already emits `if`, `switch`, `sheetLookup`. Add `decisionTable(...)` helper next to sheet accessors. Fully executable in Conversion Test Run. |
 | **Java** | Yes in principle, **not today** | `generateJava` is still a stub (comments of slot expressions, empty `Composition`). When Archie emit exists, same helper-or-flatten choice as TypeScript. |
-| **XQuery** | Flatten (B) first | `if` / `switch` emit; **`sheet_*` is a comment stub** (`(: sheet_lookup — bind $sheets :) ()`). A table helper needs a `$tables` external (like `$source` / `$defaults`) — worthwhile but extra work. Nested `if`/`switch` from compiled rows works in XQuery 3.1 without that. |
+| **XQuery** | Yes for FIRST/UNIQUE/COLLECT values | `local:decision-table` against convert-time `$sheets` (ADR 0005). Snippet interpolation is still TypeScript-first. |
 | **Handlebars** | Partial | Authored templates can call a custom helper if Mapping preview’s Handlebars runtime registers one. **Blockly→Handlebars codegen is deferred.** Flattening to nested `{{#if}}` is ugly but portable. Prefer: evaluate the table in the Mapping Model / Test Run, pass the **already-chosen string** into the template context. |
 | **Go `text/template`** | Partial | `controls_if` and expression `if` emit; `sheet_lookup` / `switch` are **unsupported** in `emitGoExpr`. Nested `{{if}}` from flattened rows works. Better: put the table in `.Parameters` / a convert-time bag and add a small FuncMap helper (same family as the curated Sprig subset). |
 

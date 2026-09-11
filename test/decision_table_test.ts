@@ -242,7 +242,7 @@ Deno.test("XQuery codegen mentions decision_table bind stub or flatten", () => {
     'decision_table("findings", map("finding", "effusion", "laterality", "left"), "term_id")',
   );
   const xq = generateXQuery(model);
-  assertEquals(xq.includes("decision_table"), true);
+  assertEquals(xq.includes("local:decision-table"), true);
 });
 
 Deno.test("Test Run evaluates decision_table against project sheets", () => {

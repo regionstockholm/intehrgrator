@@ -211,7 +211,7 @@ extractor (`workspaceToModelJson`), and codegen adapters (`xquery.ts`,
 
 | Category | Effect on XQuery / declarative export | Effect on formal verification |
 |----------|--------------------------------------|------------------------------|
-| **Canvas vs Mapping Model gap** | Medium — Mapping Model has `loops[]` / `targetSignature`; XQuery still emits flat `slots[]` only ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)) | Medium — preview vs codegen oracle still open ([#38](https://github.com/regionstockholm/intehrgrator/issues/38)) |
+| **Canvas vs Mapping Model gap** | Low–medium — XQuery emits `for` from `loops[]` and a pruned `targetSignature` tree ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)); full COMPOSITION XML still open | Medium — preview vs codegen oracle still open ([#38](https://github.com/regionstockholm/intehrgrator/issues/38)) |
 | **Template / string DSL blocks** | High — `handlebars()` / `text_code` collapse to opaque strings | High — unbounded string templates are not a decidable logic |
 | **Sheet mutators** | **Removed** from toolbox (VMS); not in Mapping Model expressions | High if re-enabled — imperative convert-time state |
 | **Stock imperative Blockly** | **Removed** from toolbox (VMS) | High if re-enabled — unbounded / non-deterministic / stateful |
@@ -229,8 +229,8 @@ still exist only in the full Blockly walk:
 | Feature | In Mapping Model? | Codegen today |
 |---------|-------------------|---------------|
 | Value-slot expressions (`source_query`, `maps_get`, …) | Yes (`slots[].expression`) | All adapters |
-| `for_each_source` | Yes (`loops[]`) | TypeScript canvas; **not** XQuery slots export |
-| RM / schema tree shape | Partially (`optionalRm[]`, block types on canvas) | TypeScript canvas; XQuery Model B slot manifest only |
+| `for_each_source` | Yes (`loops[]`) | TypeScript canvas; XQuery `for $var in … return` |
+| RM / schema tree shape | Partially (`optionalRm[]`, `targetSignature`) | TypeScript canvas; XQuery pruned `element node` tree (not full COMPOSITION XML) |
 | `lists_getIndex`, `lists_create_with` | **No** | TypeScript canvas only (`emitListsGetIndex`) |
 | Sheet **mutator** statements | **No** (removed from toolbox) | Blockly JS generator stubs only |
 | Stock `controls_whileUntil`, `controls_repeat_ext`, `controls_forEach` | **No** | Toolbox only; TS codegen → `undefined` |
@@ -455,7 +455,8 @@ In-dialect **VMS-Hbs** / **VMS-Go** is VMS ([ADR 0009](../adr/0009-verifiable-te
 - [textual-mapping-languages.md](textual-mapping-languages.md) — authoring languages (distinct from this verification export)
 - [decision-tables-for-mapping.md](decision-tables-for-mapping.md) — mapping-local rule grids (UNIQUE/COLLECT); UNIQUE rows are contract-ready invariants
 - [function-test-harnesses.md](function-test-harnesses.md) — unit tests of **Blockly Function**s and decision-table-shaped oracles; specified points under PBT
-- [xquery-export-investigation.md](xquery-export-investigation.md) — declarative export precedent; documents slot-manifest limits and open loop emit
+- [xquery-export-investigation.md](xquery-export-investigation.md) — declarative export; `for` from `loops[]` shipped; full COMPOSITION XML still open
+- [XQUERY_ENGINE.md](../XQUERY_ENGINE.md) — optional BaseX runner for generated `.xq`
 - [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md) — block categories and `for_each_source` policy
 - [ADR 0004](../adr/0004-go-template-codegen-only.md) — Blockly canvas as source of truth vs flat Mapping Model
 - [MAPPING_SPECIFICATION.md](../MAPPING_SPECIFICATION.md) — Mapping Model pipeline

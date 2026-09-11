@@ -1,8 +1,9 @@
 # XQuery Conversion Script Language
 
 **Status:** Implemented (R1 / partial R2) — Conversion script language `xquery`
-emits a self-contained `.xq` from the Mapping Model (Blockly-derived slots).
-Full COMPOSITION tree emit and engine golden runs remain open.
+emits a self-contained `.xq` from the Mapping Model (slots, `for` from
+`loops[]`, pruned `targetSignature`). Full COMPOSITION RM XML remains open.
+Engine golden against BaseX is skip-if-missing (`docs/XQUERY_ENGINE.md`).
 
 Captured from design discussion 2026-07-02; productised 2026-08-02.
 
@@ -27,16 +28,19 @@ pipelines.
 | Output Previews select option | `web/index.html` |
 | Tests | `test/codegen_test.ts` |
 
-### Emission model (Model B — slot manifest)
+### Emission model (Model B — slot manifest + IR loops)
 
 `generate(model, "xquery")` produces an XQuery 3.1 module that:
 
-1. Declares `external` variable `$source` (XML node or XPath 3.1 map).
+1. Declares `external` variables `$source`, `$defaults`, and `$sheets`.
 2. Compiles each Mapping Model slot expression to XQuery (`xpath*` → path
    navigation / lookup; `trim` → `normalize-space`; `concat` / `if` / …).
-3. Wraps values in typed `DV_*` element constructors (`local:dv-quantity`, …).
-4. Returns a `<mapping-result template="…">` document with one `<slot>` per
-   mapped Target value slot.
+3. Emits `for $var in local:unbox(…)` from `loops[]` (`for_each_source` /
+   `for_each_list`); relative Source Paths compile against the loop variable.
+4. Wraps a pruned `targetSignature` as nested `element node` (not full
+   COMPOSITION RM XML).
+5. Wraps values in typed `DV_*` element constructors (`local:dv-quantity`, …).
+6. Returns a `<mapping-result template="…">` document.
 
 Literal fontoxpath JSON paths such as `$.patient.systolic` compile to
 `$source?patient?systolic`. Literal XML paths such as `/patient/name` compile
@@ -119,14 +123,17 @@ local:convert($source)
 
 ## Remaining work
 
-1. **Full COMPOSITION emit (Model A/C)** — walk Template Skeleton / `targetPath`
-   when exporting, not only flat `MappingModel.slots`.
-2. **Engine golden tests** — run generated `.xq` under Saxon-HE or BaseX in CI.
-3. **JSON source notes** — document engine-specific map lookup vs `fn:json-doc`.
-4. **Units / coded-text fields** — multi-field DV shells beyond the primary
+1. **Full COMPOSITION emit (Model A/C)** — walk Template Skeleton into RM XML,
+   not only pruned `element node` / slot manifest. Child of #39.
+2. **Engine golden tests in CI** — always-on BaseX (or Saxon-HE) job; the
+   skip-if-missing runner in `test/xquery_engine_test.ts` is the seam.
+   Install and bind notes: [XQUERY_ENGINE.md](../XQUERY_ENGINE.md).
+3. **Units / coded-text fields** — multi-field DV shells beyond the primary
    expression attribute.
-5. **`for_each_source` loops** — not in Mapping Model slots yet; emit when the
-   derived index gains iteration structure.
+
+`for_each_source` / `for_each_list` → `for $x in … return` shipped with #39.
+JSON `$source` must be an XPath 3.1 map (`parse-json` / `json-doc`), not
+BaseX default JSON-as-XML.
 
 ## Related
 
@@ -134,4 +141,4 @@ local:convert($source)
 - [SOURCE_QUERY.md](../SOURCE_QUERY.md) — fontoxpath and typed evaluators
 - [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md) — dual generators pattern
 - [CONTEXT.md](../../CONTEXT.md) — Conversion script language glossary
-- [ADR 0001](../adr/0001-mapping-and-target-seams.md) — seams
+- [XQUERY_ENGINE.md](../XQUERY_ENGINE.md) — BaseX oracle, cloud install, JSON bind

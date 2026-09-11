@@ -1,7 +1,7 @@
 > **⚠️ SUPERSEDED** — This file is an early brainstorming draft. Do not use it for implementation decisions.
 >
 > **Canonical sources:**
-> - [INITIAL_PROMPT.md](INITIAL_PROMPT.md) — project goals, two-step process, deliverables
+> - [INITIAL_PROMPT.md](INITIAL_PROMPT.md) (this archive) — project goals, two-step process, deliverables
 > - [CONTEXT.md](CONTEXT.md) — domain glossary (resolved terminology)
 > - [docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md) — UI layout, panes, interactions, v1 scope
 > - [docs/BLOCKLY_INTEGRATION.md](docs/BLOCKLY_INTEGRATION.md) — Blockly blocks and generators

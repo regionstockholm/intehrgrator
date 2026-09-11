@@ -3,15 +3,15 @@
 ## Documentation guidance
 
 - Always prefer reading and analyzing original documentation of latest version
-  of libraries and projects rather than random search hits or training data 
+  of libraries and projects rather than random search hits or training data
   that may be of lower quality or based on outdated versions.
 - It is good to offload some tasks to external MCP (Model Context Protocol)
-  you may need to ask user to add certain MCP servers to you configuration 
-  (please do ask user if you can not to it yourself).
+  you may need to ask user to add certain MCP servers to your configuration
+  (please do ask user if you can not do it yourself).
 - Deepwiki.com is a great source for outsourcing analysis of any project on
   github. If possible, delegate your questions about the library to the Deepwiki
   MCP server. Successful connections to the Deepwiki server has been established
-  using all the methods described above, so if conenction fails stop and ask
+  using all the methods described above, so if connection fails stop and ask
   user for help, don't try to invent other ways to call MCP servers. If you are
   a local agent (e.g. Gemini CLI), you should have direct access to the Deepwiki
   MCP tools already (configured by user), if not install that or ask user for help.
@@ -25,34 +25,36 @@
 
 ## Development process guidance
 
-- If asked to make a `PRD` (Product Requirements Document) based on a prompt,
-  then follow the instructions in
-  https://raw.githubusercontent.com/snarktank/ai-dev-tasks/refs/heads/main/create-prd.md
-- If asked to create a `task list` then look in the /tasks subdirectory for a
-  PRD file to base it on. If there are several PRD files that don't already have
-  associated task lists, then ask user for disambiguation. Then follow
-  instructions in
-  https://raw.githubusercontent.com/snarktank/ai-dev-tasks/refs/heads/main/generate-tasks.md
-  using the PRD file as input. Refer to PRD in task list document.
-- Put PRDs and task lists in a /tasks subdirectory
-- The task list file(s) should contain a section called "Instructions for
-  Completing Tasks" with the following content:
+Use the **Matt Pocock engineering skills** shipped in this repo (`.cursor/skills/`,
+`.agents/skills/`). Refresh with:
 
-```
-**IMPORTANT:** As you complete each task, you must check it off in this markdown file by changing `- [ ]` to `- [x]`. This helps track progress and ensures you don't skip any steps. 
-Example:
-- `- [ ] 1.1 Read file` → `- [x] 1.1 Read file` (after completing)
+`npx skills@latest add mattpocock/skills --agent cursor --skill '*' --yes --copy`
 
-Update the file after completing each sub-task, not just after completing an entire parent task. If implementation steps happen to fulfil several things at once then ticking off several boxes is OK.
+Pick the skill that matches the task:
 
-If running in interactive mode (e.g. Gemini CLI) then stop after each parent task and let user review. If running in autonomus batch mode e.g. dispatched to Jules, then just stop if user input is crucial in order to understand further steps.
-```
+| Skill | Use when |
+|-------|----------|
+| `domain-modeling` | Editing CONTEXT.md, ADRs, or terminology |
+| `implement` | Building a feature from a spec or issue |
+| `tdd` | Test-first development |
+| `diagnosing-bugs` | Reproducible bugs needing runtime evidence |
+| `code-review` | Reviewing changes against standards and spec |
+| `triage` | GitHub issue triage |
+| `research` | Primary-source investigation → markdown file |
+| `prototype` | Throwaway design validation |
+| `grilling` | Stress-testing a plan or decision |
+
+Project-specific: `intehrgrator-mapping` for desktop Agent API / MCP mapping work.
+
+For specs and design documents, use `docs/prd/` and `docs/design/`.
+Planning lives in **GitHub Issues** ([docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)).
+Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 
 ## Development tooling guidance
 
 - When working with Javascript or Typescript based projects prefer using Deno
   for management over using Node.js and NPM. Deno is installed in the local
-  environment, but Jules and other agents runnunf in cloud environments might
+  environment, but Jules and other agents running in cloud environments might
   need to install Deno in its VM before using it.
 - The local environment is a Windows machine without admin privileges,
   Powershell is available. It uses [Scoop](https://scoop.sh/) for package

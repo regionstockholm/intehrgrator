@@ -1,3 +1,5 @@
+> **⚠️ ARCHIVED** — Planning now lives in [GitHub Issues](https://github.com/regionstockholm/intehrgrator/issues). Kept for historical reference only.
+
 ## A. small fixes
 - [x] .xml som ok filnamn i diverse file pickers
 - [x] Komprimera bredd-åtgång inuti blockly genom att göra text tvåradig: lägg klassnamn och at-kod (at0001 etc.) i liten fontstorlek under själva namnet på noden istället för före respektive efter, fetstila namn. minska whitespace/marginal mellan saker inuti blocket  
@@ -16,7 +18,7 @@
 - [ ] Full application UI i18n — toolbar UI language already switches Blockly/stock messages; later translate the rest of the chrome (pane titles, buttons, tips, status) from the same setting. Keep model/ontology language (Target pane) separate.
 - [ ] Anpassa för färgblindhet. Gör färger/mönster för in --> konv --> ut och använd konsekvent i syntax highlighting, blockfärg mm
 - [ ] Synk highlight mellan mappning och conversion test run (ev conversion script)
-- [ ] **Human multi-user collaboration** (late): live co-editing, CRDT/sync — Chunk 14; architecture prep in [`tasks/ARCHITECTURE-multi-user-collab-prep.md`](../tasks/ARCHITECTURE-multi-user-collab-prep.md)
+- [ ] **Human multi-user collaboration** (late): live co-editing, CRDT/sync — Chunk 14; architecture prep in [`ARCHITECTURE-multi-user-collab-prep.md`](../design/ARCHITECTURE-multi-user-collab-prep.md)
 - [x] add https://raspberrypifoundation.github.io/blockly-samples/plugins/toolbox-search/test/index.html
 - [x] add markers in right scroll gutter of mapping spec codemirror so that all locations of errors can be found
 
@@ -25,7 +27,7 @@
 - [x] De-uglify the maps implementation to look more like App Inventor / BlockPy: keys in a column of text fields, values as right-edge connectors that take ordinary Blockly blocks (`text`, `math_number`, source queries, nested maps). Layout follows App Inventor `dictionaries_create_with` (stacked, not inline, `Align.RIGHT`) plus Blockly JSON-object members (`FieldTextInput` + `:` + value socket).
 - [x] **Chunk 8 — spreadsheet/matrix first:** embed a real sheet widget (Excel/Sheets paste, named column headers, optional row names, typed columns). Persist a project-owned 2D sheet model. Library comparison: [spreadsheet-matrix-libraries.md](future/spreadsheet-matrix-libraries.md). **Then** add Blockly sheet blocks following the library’s get/header/lookup API. **Toolbox (VMS, PR #58):** read-only accessors (`sheet_get_*`, `sheet_lookup`) only; mutators are not in the default toolbox. Maps stay 1D key→value (`maps_get`); sheets are the 2D structure for terminology grids (e.g. later: code + rubric → `DV_CODED_TEXT`).
 - [x] Digest CSV / Excel / Google Sheets **into that sheet** (clipboard paste + file), not into `maps_create_with`.
-- [x] **Keep `maps_*`** for Defaults Map + nested Blockly values (Chunk 8 Q9 step 2, option A). Join Lists + Maps toolbox drawers into **Lists & maps**. Sheets stay a separate drawer. See [`tasks/DESIGN-sheets-vs-maps.md`](../tasks/DESIGN-sheets-vs-maps.md).
+- [x] **Keep `maps_*`** for Defaults Map + nested Blockly values (Chunk 8 Q9 step 2, option A). Join Lists + Maps toolbox drawers into **Lists & maps**. Sheets stay a separate drawer. See [`DESIGN-sheets-vs-maps.md`](../design/DESIGN-sheets-vs-maps.md).
 - [ ] FHIR ConceptMap / ValueSet → sheet/map import — **deferred** (after the sheet widget + Blockly accessors exist)
 - [ ] **Multi-column equality `sheet_lookup`** (AND of several header=`value` pairs, first match). First slice of [decision-tables-for-mapping.md](future/decision-tables-for-mapping.md); still a Sheet, not a Decision table.
 - [ ] **Decision tables** (Sheets-adjacent `kind`): predicate cells, don't-care, hit policy FIRST then UNIQUE/COLLECT, mixed **value** and **snippet** output columns. Sibling Example Set `examples/lung-MDT-form-decision-tables/` (catalog id `lung-mdt-form-to-tc-xml-decision-tables`) — do not replace `examples/lung-MDT-form/`.

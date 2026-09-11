@@ -1211,6 +1211,37 @@ installImportAiDialog({
 });
 installCopyAiMenu();
 installExampleSetsMenu();
+installHelpMenu();
+
+const HELP_TUTORIAL_URL =
+  "https://github.com/regionstockholm/intehrgrator/blob/main/docs/TUTORIAL.md";
+const HELP_ISSUES_URL =
+  "https://github.com/regionstockholm/intehrgrator/issues/new/choose";
+
+function installHelpMenu(): void {
+  const chevron = document.getElementById("btn-help-menu");
+  const main = document.getElementById("btn-help");
+  const menu = document.getElementById("menu-help");
+  if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) {
+    return;
+  }
+
+  const handle = installAnchoredMenu({
+    menu,
+    trigger: chevron,
+    roots: [main],
+    referenceEls: [main, chevron],
+    minWidth: main.parentElement ?? chevron,
+  });
+
+  main.addEventListener("click", () => {
+    globalThis.open(HELP_TUTORIAL_URL, "_blank", "noopener,noreferrer");
+  });
+
+  menu.querySelectorAll<HTMLAnchorElement>("a.split-btn-menu-link").forEach((link) => {
+    link.addEventListener("click", () => handle.close());
+  });
+}
 
 function lastAiDelivery(): "inline" | "attach" | "uri" {
   const raw = localStorage.getItem("intehrgrator.aiDelivery");

@@ -1,6 +1,8 @@
 # Tasks: Roadmap implementation chunks
 
-Based on [docs/ROADMAP.md](../docs/ROADMAP.md) (current `main`, including 2026-08-27 additions) and [PRD-intehrgrator-v1.md](./PRD-intehrgrator-v1.md). Glossary: [CONTEXT.md](../CONTEXT.md).
+> **⚠️ ARCHIVED** — Chunk tracking moved to [GitHub Issues](https://github.com/regionstockholm/intehrgrator/issues). Kept for historical reference only.
+
+Based on [ROADMAP.md](./ROADMAP.md) and [PRD-intehrgrator-v1.md](../prd/PRD-intehrgrator-v1.md). Glossary: [CONTEXT.md](../../CONTEXT.md).
 
 ## Instructions for Completing Tasks
 
@@ -195,7 +197,7 @@ Context from product direction:
 **C** — **Separate stacks** — “Undo my edit” (Blockly) vs “Undo last agent change” (API).  
 **D** — Extend **Blockly custom events** (`DocumentSwapEvent`, future slot events) with an `actor` field so one stack serves both.
 
-➡️ **Adopted direction:** **Joint undo/redo history** with actor on every entry, plus **UI affordances like C** (“Undo my edit” / “Undo last agent change” / walk full timeline). **Feasible without CRDT in Phase 1** — see design investigation [`tasks/DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md). Phase 1: append-only attributed history log + unify UI/service session + debounced Blockly commits into same log. Phase 2+: CRDT on **Mapping Model slots** (Automerge / Yjs / Loro — do not reinvent) when human multi-user live co-editing is required.
+➡️ **Adopted direction:** **Joint undo/redo history** with actor on every entry, plus **UI affordances like C** (“Undo my edit” / “Undo last agent change” / walk full timeline). **Feasible without CRDT in Phase 1** — see design investigation [`DESIGN-multi-agent-undo-crdt.md`](../design/DESIGN-multi-agent-undo-crdt.md). Phase 1: append-only attributed history log + unify UI/service session + debounced Blockly commits into same log. Phase 2+: CRDT on **Mapping Model slots** (Automerge / Yjs / Loro — do not reinvent) when human multi-user live co-editing is required.
 
 ---
 
@@ -206,7 +208,7 @@ Context from product direction:
 **C** — **Serial queue** per project — one mutation at a time globally.  
 **D** — **Merge report** — apply non-conflicting slot updates; return conflicts for human/agent retry (like partial import).
 
-➡️ **Adopted (from design investigation):** **Phase 5.1: A + D** — revision + 409; slot-level **merge report** for batch agent writes (reuse partial-import pattern). **Phase 5.2 optional: + B** slot leases. **Phase 6+ multi-user humans: + CRDT on model.** Avoid global serial queue (C). Details: [`tasks/DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md#q7-recommendation-after-analysis).
+➡️ **Adopted (from design investigation):** **Phase 5.1: A + D** — revision + 409; slot-level **merge report** for batch agent writes (reuse partial-import pattern). **Phase 5.2 optional: + B** slot leases. **Phase 6+ multi-user humans: + CRDT on model.** Avoid global serial queue (C). Details: [`docs/design/DESIGN-multi-agent-undo-crdt.md`](../design/DESIGN-multi-agent-undo-crdt.md#q7-recommendation-after-analysis).
 
 ---
 
@@ -245,7 +247,7 @@ Shortcut menu items (“Undo my last edit”, “Undo last agent change”) rema
 
 ❓ **Q5** - **Human multi-user roadmap:**
 
-➡️ **Adopted: yes, near end of roadmap.** Chunk 5.1 = **architecture-only prep** in [`tasks/ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md). Full CRDT/sync deferred to **Chunk 14**.
+➡️ **Adopted: yes, near end of roadmap.** Chunk 5.1 = **architecture-only prep** in [`ARCHITECTURE-multi-user-collab-prep.md`](../design/ARCHITECTURE-multi-user-collab-prep.md). Full CRDT/sync deferred to **Chunk 14**.
 
 ---
 
@@ -284,8 +286,8 @@ Asked after grill round 2 history semantics. User answers **adopted** 2026-08-31
 - `src/web/agent_bridge.ts` — push agent highlight events to UI without scrolling main workspace
 - `src/blockly/workspace_snapshot.ts` — live observer window (multi-agent SVG layers)
 - `web/main.ts` — Open canvas → observer mode; undo menu shows actor
-- `tasks/DESIGN-multi-agent-undo-crdt.md` — undo/history feasibility, library evaluation
-- `tasks/ARCHITECTURE-multi-user-collab-prep.md` — Chunk 14 prep (5.1 lays seams only)
+- `docs/design/DESIGN-multi-agent-undo-crdt.md` — undo/history feasibility, library evaluation
+- `docs/design/ARCHITECTURE-multi-user-collab-prep.md` — Chunk 14 prep (5.1 lays seams only)
 - `docs/AGENT_WORKFLOW.md` — multi-agent setup, colours, observer window
 - `CONTEXT.md` — Agent actor, observer canvas, attributed undo
 
@@ -644,7 +646,7 @@ Chunk 7 merged in PR #22 with **7.6** left open. Grill Q13 already adopted fixtu
 
 ## Grill round 1 (Chunk 8 frontier — spreadsheet/matrix)
 
-Asked after the user rejected a “paste into 1D maps” MVP. **Adopted 2026-09-04.** Library comparison: [`docs/future/spreadsheet-matrix-libraries.md`](../docs/future/spreadsheet-matrix-libraries.md). Maps second-step options: [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md).
+Asked after the user rejected a “paste into 1D maps” MVP. **Adopted 2026-09-04.** Library comparison: [`spreadsheet-matrix-libraries.md`](../future/spreadsheet-matrix-libraries.md). Maps second-step options: [`DESIGN-sheets-vs-maps.md`](../design/DESIGN-sheets-vs-maps.md).
 
 **Settled (user 2026-09-04):** proper spreadsheet/matrix support **first**; initial Blockly accessor/mutator set is derived from the **selected library’s API**; **FHIR is deferred**.
 
@@ -750,7 +752,7 @@ Include in Chunk 8:
 
 ➡️ **Adopted: mostly B, then step 2 = A.** If maps are used in **code or example sets** as 2-column terminology lookups, **replace with sheets**. **Do not delete `maps_*`.** Defaults Map and map **values** can be entire Blockly structures — that stays.
 
-**Step 2 (2026-09-04):** keep maps; join Lists + Maps toolbox drawers into **Lists & maps**; Sheets remain a separate category. Recorded in [`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md) and `docs/ROADMAP.md` §C.
+**Step 2 (2026-09-04):** keep maps; join Lists + Maps toolbox drawers into **Lists & maps**; Sheets remain a separate category. Recorded in [`DESIGN-sheets-vs-maps.md`](../design/DESIGN-sheets-vs-maps.md) and `docs/ROADMAP.md` §C.
 
 ---
 
@@ -776,7 +778,7 @@ Include in Chunk 8:
 ### Chunk 8 implementation notes (adopted 2026-09-04)
 
 - **Order:** jspreadsheet-ce (Q1, including native import/export/fullscreen/i18n/Excel paste + host undo) → persist Sheet JSON (Q2) → embed widget in Mapping Editors with scrollbars, adjustable split, modal/fullscreen (Q3, Q7) → Blockly accessors/mutators (Q5) → Test Run/codegen bag (Q8).
-- **Maps:** keep `maps_*`; replace terminology-style usage in code/prompts; Defaults + nested Blockly map values stay. Step 2 adopted: option A + joint **Lists & maps** toolbox category ([`DESIGN-sheets-vs-maps.md`](./DESIGN-sheets-vs-maps.md)).
+- **Maps:** keep `maps_*`; replace terminology-style usage in code/prompts; Defaults + nested Blockly map values stay. Step 2 adopted: option A + joint **Lists & maps** toolbox category ([`DESIGN-sheets-vs-maps.md`](../design/DESIGN-sheets-vs-maps.md)).
 - **Defer:** FHIR; Excel formulas/merge/style; per-cell nested Blockly; `DV_CODED_TEXT` composite helper; deleting `maps_*`.
 - **Do not** paste into `maps_create_with` as the 2D representation.
 

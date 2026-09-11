@@ -2,6 +2,8 @@
 
 Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
+**Planning:** Roadmap and chunk task lists ([`docs/historical-archive/ROADMAP.md`](../historical-archive/ROADMAP.md), [`TASKS-roadmap-chunks.md`](../historical-archive/TASKS-roadmap-chunks.md)) are archived. New work is tracked as GitHub issues — use labels and dependencies (see Wayfinding below) instead of editing markdown checklists.
+
 ## Conventions
 
 - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.

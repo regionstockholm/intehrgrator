@@ -1,6 +1,7 @@
 import { assertEquals, assert } from "@std/assert";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { generate, generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
+import { initBlocklyGenerators, generateGoTemplateFromBlocklyState } from "@intehrgrator/blockly/mod.ts";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
@@ -9,7 +10,6 @@ import {
   isGoTemplateWasmLoaded,
 } from "@intehrgrator/core/output/go_template_runtime.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
-import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 import { registerSchemaBlocksFromSkeleton } from "@intehrgrator/blockly/schema_blocks.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
@@ -375,6 +375,77 @@ Deno.test("Go template WASM executes index/Parameters and the chemo mapping", as
   assert(xml.includes("<PatId>"), "PatId element");
   assert(xml.includes("194002287086"), "Parameters.PatientId");
   assert(xml.includes("<TermId>13700</TermId>") || xml.includes("13700"), "always-present UID keyword");
+});
+
+Deno.test("go-template Blockly walker emits loops and expression blocks", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("test");
+  const blocklyState = {
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        {
+          type: "for_each_source",
+          fields: { VAR: "item", PATH: "$.vitals" },
+          inputs: {
+            DO: {
+              block: {
+                type: "xml_text",
+                inputs: {
+                  VALUE: {
+                    block: {
+                      type: "logic_ternary",
+                      inputs: {
+                        IF: { block: { type: "logic_boolean", fields: { BOOL: "TRUE" } } },
+                        THEN: { block: { type: "text", fields: { TEXT: "yes" } } },
+                        ELSE: { block: { type: "text", fields: { TEXT: "no" } } },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      ],
+    },
+  };
+  const fromAdapter = generate(model, "go-template", { blocklyState });
+  const fromWalker = generateGoTemplateFromBlocklyState(blocklyState, model);
+  assert(fromAdapter.includes("{{- range "), "adapter should emit range for for_each_source");
+  assert(!fromAdapter.includes("unsupported block: for_each_source"), "for_each_source supported");
+  assert(!fromAdapter.includes("value: logic_ternary"), "logic_ternary supported");
+  assert(fromWalker?.includes("{{- range "), "Blockly walker emits range");
+});
+
+Deno.test("go-template JSON walker emits expression value blocks without unsupported markers", () => {
+  const model = createEmptyModel("test");
+  const output = generateGoTemplate(model, {
+    blocklyState: {
+      blocks: {
+        blocks: [
+          {
+            type: "xml_text",
+            inputs: {
+              VALUE: {
+                block: {
+                  type: "text_join",
+                  extraState: { itemCount: 2 },
+                  inputs: {
+                    ADD0: { block: { type: "text", fields: { TEXT: "a" } } },
+                    ADD1: { block: { type: "text", fields: { TEXT: "b" } } },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  });
+  assert(!output.includes("value: text_join"), "text_join should serialize to concat");
+  assert(output.includes("a"), "concat emits literal parts");
+  assert(output.includes("b"), "concat emits literal parts");
 });
 
 Deno.test("Go template Test Run uses instance Parameters when no defaults overlay", async () => {

@@ -7,10 +7,24 @@
  * Execute context shape: { Parameters: defaults, Data: sourceInstance }.
  * Source queries become {{ index .Data "flat/path|value" }}.
  * Defaults Map lookups become {{ .Parameters.Key }}.
+ *
+ * Full Blockly canvas walking (loops, expressions, JSON/XML/schema trees) lives
+ * in `src/blockly/go_template_codegen.ts` and replaces this adapter when a
+ * workspace snapshot is available.
  */
 import type { ExprAst } from "../expression/mod.ts";
 import type { MappingModel } from "../../types/mod.ts";
-import { parseExpression } from "../expression/mod.ts";
+import { parseExpression, isQuantifyCall } from "../expression/mod.ts";
+import { isRelativeAuthoringPath } from "../mapping_model/loops.ts";
+
+export interface GoEmitContext {
+  /** When set, relative xpath paths evaluate against the loop item (`.`). */
+  loopVar?: string;
+}
+
+export function createGoEmitContext(loopVar?: string): GoEmitContext {
+  return loopVar ? { loopVar } : {};
+}
 
 export function generateGoTemplate(
   model: MappingModel,
@@ -34,18 +48,18 @@ function generateFromSlots(model: MappingModel): string {
   const lines: string[] = [];
   for (const slot of model.slots) {
     const ast = parseExpression(slot.expression);
-    const goExpr = emitGoExpr(ast);
+    const goExpr = emitGoExpressionTemplate(ast);
     lines.push(`{{- /* ${slot.label ?? slot.slotId} */ -}}`);
-    lines.push(`{{ ${goExpr} }}`);
+    lines.push(goExpr);
   }
   return lines.join("\n");
 }
 
-function generateFromBlockly(blocklyState: unknown, model: MappingModel): string {
+function generateFromBlockly(blocklyState: unknown, _model: MappingModel): string {
   const state = blocklyState as { blocks?: { blocks?: unknown[] } };
   const blocks = state?.blocks?.blocks;
   if (!Array.isArray(blocks) || blocks.length === 0) {
-    return generateFromSlots(model);
+    return generateFromSlots(_model);
   }
   return emitBlockTree(blocks).join("\n");
 }
@@ -55,7 +69,7 @@ interface BlockInput {
   shadow?: BlockNode;
 }
 
-interface BlockNode {
+export interface BlockNode {
   type: string;
   id?: string;
   fields?: Record<string, unknown>;
@@ -68,39 +82,39 @@ interface BlockNode {
     hasElse?: boolean;
     xmlAttributes?: string[];
     fields?: Array<{ name: string; xmlKind?: string }>;
+    itemCount?: number;
   };
 }
 
 /** Blockly serializes unused default values as shadows; maps_get KEY is typically a shadow. */
-function inputChild(input: BlockInput | undefined): BlockNode | undefined {
+export function inputChild(input: BlockInput | undefined): BlockNode | undefined {
   return input?.block ?? input?.shadow;
 }
 
-function emitBlockTree(blocks: unknown[]): string[] {
+export function emitBlockTree(blocks: unknown[], ctx: GoEmitContext = createGoEmitContext()): string[] {
   const lines: string[] = [];
   for (const block of blocks) {
-    lines.push(...emitStatementChain(block as BlockNode));
+    lines.push(...emitStatementChain(block as BlockNode, ctx));
   }
   return lines;
 }
 
-function emitBlock(block: BlockNode): string[] {
+export function emitBlock(block: BlockNode, ctx: GoEmitContext = createGoEmitContext()): string[] {
   const lines: string[] = [];
   if (!block) return lines;
 
   switch (block.type) {
     case "xml_element":
     case "target_structure": {
-      lines.push(...emitXmlOrSchemaElement(block));
+      lines.push(...emitXmlOrSchemaElement(block, ctx));
       break;
     }
     case "xml_text": {
-      const value = block.inputs?.VALUE?.block;
+      const value = inputChild(block.inputs?.VALUE);
       if (value) {
-        lines.push(...emitValueExpression(value));
+        lines.push(...emitValueExpression(value, ctx));
       } else {
-        const text = String(block.fields?.TEXT ?? "");
-        lines.push(text);
+        lines.push(String(block.fields?.TEXT ?? ""));
       }
       break;
     }
@@ -108,11 +122,30 @@ function emitBlock(block: BlockNode): string[] {
       break;
     }
     case "defaults_block":
-    case "maps_create_with": {
+    case "maps_create_with":
+    case "variables_set": {
       break;
     }
     case "controls_if": {
-      lines.push(...emitControlsIf(block));
+      lines.push(...emitControlsIf(block, ctx));
+      break;
+    }
+    case "for_each_source": {
+      lines.push(...emitForEachSource(block, ctx));
+      break;
+    }
+    case "for_each_list": {
+      lines.push(...emitForEachList(block, ctx));
+      break;
+    }
+    case "json_object":
+    case "json_array": {
+      lines.push(...emitJsonStructure(block, ctx));
+      break;
+    }
+    case "text_document": {
+      const value = inputChild(block.inputs?.VALUE);
+      if (value) lines.push(...emitValueExpression(value, ctx));
       break;
     }
     case "text":
@@ -121,10 +154,8 @@ function emitBlock(block: BlockNode): string[] {
       break;
     }
     case "text_handlebars": {
-      const script = block.inputs?.SCRIPT?.block;
-      if (script) {
-        lines.push(...emitValueExpression(script));
-      }
+      const script = inputChild(block.inputs?.SCRIPT);
+      if (script) lines.push(...emitValueExpression(script, ctx));
       break;
     }
     case "source_query":
@@ -132,23 +163,27 @@ function emitBlock(block: BlockNode): string[] {
     case "source_query_boolean":
     case "source_query_node": {
       const expr = String(block.fields?.EXPRESSION ?? "");
-      lines.push(`{{ index .Data ${goQuote(expr)} }}`);
+      lines.push(emitGoExpressionTemplate(
+        parseExpression(`xpathString(${JSON.stringify(expr)})`),
+        ctx,
+      ));
       break;
     }
     case "maps_get": {
       const name = String(block.fields?.NAME ?? "defaults");
       const key = inputChild(block.inputs?.KEY);
       const keyStr = key ? extractTextValue(key) : "";
-      if (name === "defaults" || name === "Parameters") {
-        lines.push(`{{ .Parameters.${sanitizeGoField(keyStr)} }}`);
-      } else {
-        lines.push(`{{ index .${sanitizeGoField(name)} ${goQuote(keyStr)} }}`);
-      }
+      lines.push(emitGoExpressionTemplate(
+        parseExpression(`maps_get(${JSON.stringify(name)}, ${JSON.stringify(keyStr)})`),
+        ctx,
+      ));
       break;
     }
     default:
       if (block.type.startsWith("schema_")) {
-        lines.push(...emitXmlOrSchemaElement(block));
+        lines.push(...emitXmlOrSchemaElement(block, ctx));
+      } else if (block.type.startsWith("json_")) {
+        lines.push(...emitJsonStructure(block, ctx));
       } else {
         lines.push(`{{- /* unsupported block: ${block.type} */ -}}`);
       }
@@ -157,34 +192,24 @@ function emitBlock(block: BlockNode): string[] {
   return lines;
 }
 
-function emitStatementChain(block: BlockNode): string[] {
+export function emitStatementChain(
+  block: BlockNode,
+  ctx: GoEmitContext = createGoEmitContext(),
+): string[] {
   const lines: string[] = [];
   let current: BlockNode | undefined = block;
   while (current) {
-    lines.push(...emitBlock(current));
+    lines.push(...emitBlock(current, ctx));
     current = current.next?.block;
   }
   return lines;
 }
 
-function emitValueExpression(block: BlockNode): string[] {
+export function emitValueExpression(
+  block: BlockNode,
+  ctx: GoEmitContext = createGoEmitContext(),
+): string[] {
   switch (block.type) {
-    case "source_query":
-    case "source_query_number":
-    case "source_query_boolean":
-    case "source_query_node": {
-      const expr = String(block.fields?.EXPRESSION ?? "");
-      return [`{{ index .Data ${goQuote(expr)} }}`];
-    }
-    case "maps_get": {
-      const name = String(block.fields?.NAME ?? "defaults");
-      const key = inputChild(block.inputs?.KEY);
-      const keyStr = key ? extractTextValue(key) : "";
-      if (name === "defaults" || name === "Parameters") {
-        return [`{{ .Parameters.${sanitizeGoField(keyStr)} }}`];
-      }
-      return [`{{ index .${sanitizeGoField(name)} ${goQuote(keyStr)} }}`];
-    }
     case "text":
       return [String(block.fields?.TEXT ?? "")];
     case "text_code":
@@ -193,115 +218,267 @@ function emitValueExpression(block: BlockNode): string[] {
       return [String(block.fields?.NUM ?? "0")];
     case "logic_boolean":
       return [block.fields?.BOOL === "TRUE" ? "true" : "false"];
+    case "source_query":
+    case "source_query_number":
+    case "source_query_boolean":
+    case "source_query_node": {
+      const expr = String(block.fields?.EXPRESSION ?? "");
+      return [emitGoExpressionTemplate(
+        parseExpression(`xpathString(${JSON.stringify(expr)})`),
+        ctx,
+      )];
+    }
+    case "maps_get": {
+      const name = String(block.fields?.NAME ?? "defaults");
+      const key = inputChild(block.inputs?.KEY);
+      const keyStr = key ? extractTextValue(key) : "";
+      return [emitGoExpressionTemplate(
+        parseExpression(`maps_get(${JSON.stringify(name)}, ${JSON.stringify(keyStr)})`),
+        ctx,
+      )];
+    }
     case "text_changeCase": {
-      const inner = block.inputs?.TEXT?.block;
+      const inner = inputChild(block.inputs?.TEXT);
       const caseType = String(block.fields?.CASE ?? "LOWERCASE");
       if (inner) {
-        const innerExpr = emitValueExpression(inner).join("");
+        const innerExpr = emitValueExpression(inner, ctx).join("");
         if (caseType === "LOWERCASE") return [`{{ ${stripDelimiters(innerExpr)} | lower }}`];
         if (caseType === "UPPERCASE") return [`{{ ${stripDelimiters(innerExpr)} | upper }}`];
       }
-      return emitValueExpression(inner!);
+      return inner ? emitValueExpression(inner, ctx) : [];
     }
     case "text_trim": {
-      const inner = block.inputs?.TEXT?.block;
+      const inner = inputChild(block.inputs?.TEXT);
       if (inner) {
-        const innerExpr = emitValueExpression(inner).join("");
+        const innerExpr = emitValueExpression(inner, ctx).join("");
         return [`{{ ${stripDelimiters(innerExpr)} | trim }}`];
       }
       return [];
     }
-    default:
+    default: {
+      const fromSerialized = emitValueFromSerialized(block, ctx);
+      if (fromSerialized) return fromSerialized;
       return [`{{- /* value: ${block.type} */ -}}`];
+    }
   }
 }
 
-function emitControlsIf(block: BlockNode): string[] {
+function emitValueFromSerialized(block: BlockNode, ctx: GoEmitContext): string[] | null {
+  const serialized = blockNodeToExpression(block);
+  if (!serialized) return null;
+  return [emitGoExpressionTemplate(parseExpression(serialized), ctx)];
+}
+
+/** Best-effort Mapping Expression serialization for Blockly JSON nodes (JSON walker). */
+function blockNodeToExpression(block: BlockNode): string | null {
+  switch (block.type) {
+    case "text":
+    case "text_code":
+      return JSON.stringify(String(block.fields?.TEXT ?? ""));
+    case "math_number":
+      return String(block.fields?.NUM ?? 0);
+    case "logic_boolean":
+      return block.fields?.BOOL === "TRUE" ? "true" : "false";
+    case "source_query":
+    case "source_query_number":
+    case "source_query_boolean":
+    case "source_query_node": {
+      const expr = String(block.fields?.EXPRESSION ?? "");
+      const fn = block.type === "source_query_number" ? "xpathNumber"
+        : block.type === "source_query_boolean" ? "xpathBoolean"
+        : block.type === "source_query_node" ? "xpathNode"
+        : "xpathString";
+      return `${fn}(${JSON.stringify(expr)})`;
+    }
+    case "maps_get": {
+      const name = String(block.fields?.NAME ?? "defaults");
+      const key = inputChild(block.inputs?.KEY);
+      const keyStr = key ? extractTextValue(key) : "";
+      return `maps_get(${JSON.stringify(name)}, ${JSON.stringify(keyStr)})`;
+    }
+    case "text_trim": {
+      const inner = inputChild(block.inputs?.TEXT);
+      const expr = inner ? blockNodeToExpression(inner) : '""';
+      return expr ? `trim(${expr})` : null;
+    }
+    case "text_join": {
+      const count = block.extraState?.itemCount ?? 2;
+      const parts: string[] = [];
+      for (let i = 0; i < count; i++) {
+        const child = inputChild(block.inputs?.[`ADD${i}`]);
+        parts.push(child ? blockNodeToExpression(child) ?? '""' : '""');
+      }
+      if (!parts.length) return '""';
+      if (parts.length === 1) return parts[0]!;
+      return `concat(${parts.join(", ")})`;
+    }
+    case "logic_ternary": {
+      const cond = blockNodeToExpression(inputChild(block.inputs?.IF) ?? { type: "" });
+      const thenV = blockNodeToExpression(inputChild(block.inputs?.THEN) ?? { type: "" });
+      const elseV = blockNodeToExpression(inputChild(block.inputs?.ELSE) ?? { type: "" });
+      return `if(${cond ?? "false"}, ${thenV ?? "null"}, ${elseV ?? "null"})`;
+    }
+    case "logic_compare": {
+      const op = String(block.fields?.OP ?? "EQ");
+      const a = blockNodeToExpression(inputChild(block.inputs?.A) ?? { type: "" });
+      const b = blockNodeToExpression(inputChild(block.inputs?.B) ?? { type: "" });
+      const fn = { EQ: "eq", NEQ: "ne", LT: "lt", LTE: "le", GT: "gt", GTE: "ge" }[op] ?? "eq";
+      return `${fn}(${a ?? "null"}, ${b ?? "null"})`;
+    }
+    case "logic_operation": {
+      const op = String(block.fields?.OP ?? "AND");
+      const a = blockNodeToExpression(inputChild(block.inputs?.A) ?? { type: "" });
+      const b = blockNodeToExpression(inputChild(block.inputs?.B) ?? { type: "" });
+      const fn = op === "OR" ? "or" : "and";
+      return `${fn}(${a ?? "false"}, ${b ?? "false"})`;
+    }
+    case "logic_negate": {
+      const inner = blockNodeToExpression(inputChild(block.inputs?.BOOL) ?? { type: "" });
+      return `not(${inner ?? "false"})`;
+    }
+    case "math_arithmetic": {
+      const op = String(block.fields?.OP ?? "ADD");
+      const a = blockNodeToExpression(inputChild(block.inputs?.A) ?? { type: "" });
+      const b = blockNodeToExpression(inputChild(block.inputs?.B) ?? { type: "" });
+      const symbol = { ADD: "+", MINUS: "-", MULTIPLY: "*", DIVIDE: "/" }[op] ?? "+";
+      return `(${a ?? "0"} ${symbol} ${b ?? "0"})`;
+    }
+    case "variables_get":
+      return `var(${JSON.stringify(String(block.fields?.VAR ?? "v"))})`;
+    default:
+      return null;
+  }
+}
+
+function emitForEachSource(block: BlockNode, ctx: GoEmitContext): string[] {
+  const varName = String(block.fields?.VAR ?? "item");
+  const path = String(block.fields?.PATH ?? "");
+  const rangeExpr = loopRangeExpr(path);
+  const body = inputChild(block.inputs?.DO);
+  const lines = [`{{- range ${rangeExpr} }}`];
+  const innerCtx = createGoEmitContext(varName);
+  if (body) lines.push(...emitStatementChain(body, innerCtx));
+  lines.push(`{{- end }}`);
+  return lines;
+}
+
+function emitForEachList(block: BlockNode, ctx: GoEmitContext): string[] {
+  const varName = String(block.fields?.VAR ?? "item");
+  const list = inputChild(block.inputs?.LIST);
+  const listExpr = list
+    ? stripDelimiters(emitValueExpression(list, ctx).join(""))
+    : "index .Data \"\"";
+  const body = inputChild(block.inputs?.DO);
+  const lines = [`{{- range ${listExpr} }}`];
+  const innerCtx = createGoEmitContext(varName);
+  if (body) lines.push(...emitStatementChain(body, innerCtx));
+  lines.push(`{{- end }}`);
+  return lines;
+}
+
+function loopRangeExpr(path: string): string {
+  const trimmed = path.trim();
+  if (trimmed.startsWith("$.")) {
+    const body = trimmed.replace(/^\$\.?/, "").replace(/\[(\d+|\*)\]/g, ".$1");
+    const segments = body.split(".").filter(Boolean);
+    if (!segments.length) return "index .Data \"\"";
+    let expr = ".Data";
+    for (const seg of segments) {
+      expr = `index ${expr} ${goQuote(seg)}`;
+    }
+    return expr;
+  }
+  return `index .Data ${goQuote(trimmed)}`;
+}
+
+function emitJsonStructure(block: BlockNode, ctx: GoEmitContext): string[] {
+  if (block.type === "json_array") {
+    const items: string[] = [];
+    const count = block.extraState?.itemCount ?? 0;
+    for (let i = 0; i < count; i++) {
+      const child = inputChild(block.inputs?.[`ADD${i}`]);
+      if (child) items.push(...emitValueExpression(child, ctx));
+    }
+    return [`[${items.join(", ")}]`];
+  }
+  const props: string[] = [];
+  for (const [key, value] of Object.entries(block.inputs ?? {})) {
+    if (!key.startsWith("TARGET_") && !key.startsWith("SCHEMA_OPT_")) continue;
+    const fieldName = key.replace(/^TARGET_|^SCHEMA_OPT_/, "");
+    const child = inputChild(value);
+    if (!child) continue;
+    if (isXmlStructureBlockType(child.type) || child.type.startsWith("json_")) {
+      props.push(`"${fieldName}": ${emitBlock(child, ctx).join("")}`);
+      continue;
+    }
+    props.push(`"${fieldName}": ${emitValueExpression(child, ctx).join("")}`);
+  }
+  return [`{${props.join(", ")}}`];
+}
+
+function emitControlsIf(block: BlockNode, ctx: GoEmitContext): string[] {
   const lines: string[] = [];
-  const elseCount = (block as BlockNode & { extraState?: { elseIfCount?: number; hasElse?: boolean } })
-    .extraState;
+  const elseCount = block.extraState;
   const ifCount = (elseCount?.elseIfCount ?? 0) + 1;
 
   for (let i = 0; i < ifCount; i++) {
-    const cond = block.inputs?.[`IF${i}`]?.block;
-    const body = block.inputs?.[`DO${i}`]?.block;
+    const cond = inputChild(block.inputs?.[`IF${i}`]);
+    const body = inputChild(block.inputs?.[`DO${i}`]);
     const keyword = i === 0 ? "if" : "else if";
-    const condStr = cond ? emitConditionExpression(cond) : "true";
+    const condStr = cond ? emitConditionExpression(cond, ctx) : "true";
     lines.push(`{{- ${keyword} ${condStr} }}`);
-    if (body) lines.push(...emitStatementChain(body));
+    if (body) lines.push(...emitStatementChain(body, ctx));
   }
 
   if (elseCount?.hasElse) {
-    const elseBody = block.inputs?.ELSE?.block;
+    const elseBody = inputChild(block.inputs?.ELSE);
     lines.push(`{{- else }}`);
-    if (elseBody) lines.push(...emitStatementChain(elseBody));
+    if (elseBody) lines.push(...emitStatementChain(elseBody, ctx));
   }
 
   lines.push(`{{- end }}`);
   return lines;
 }
 
-function emitConditionExpression(block: BlockNode): string {
+function emitConditionExpression(block: BlockNode, ctx: GoEmitContext): string {
   switch (block.type) {
     case "logic_compare": {
       const op = String(block.fields?.OP ?? "EQ");
-      const a = block.inputs?.A?.block;
-      const b = block.inputs?.B?.block;
-      const aStr = a ? emitInlineValue(a) : '""';
-      const bStr = b ? emitInlineValue(b) : '""';
+      const a = inputChild(block.inputs?.A);
+      const b = inputChild(block.inputs?.B);
+      const aStr = a ? emitInlineValue(a, ctx) : '""';
+      const bStr = b ? emitInlineValue(b, ctx) : '""';
       const goOp = { EQ: "eq", NEQ: "ne", LT: "lt", LTE: "le", GT: "gt", GTE: "ge" }[op] ?? "eq";
       return `${goOp} ${aStr} ${bStr}`;
     }
     case "logic_operation": {
       const op = String(block.fields?.OP ?? "AND").toLowerCase();
-      const a = block.inputs?.A?.block;
-      const b = block.inputs?.B?.block;
-      const aStr = a ? `(${emitConditionExpression(a)})` : "true";
-      const bStr = b ? `(${emitConditionExpression(b)})` : "true";
+      const a = inputChild(block.inputs?.A);
+      const b = inputChild(block.inputs?.B);
+      const aStr = a ? `(${emitConditionExpression(a, ctx)})` : "true";
+      const bStr = b ? `(${emitConditionExpression(b, ctx)})` : "true";
       return `${op} ${aStr} ${bStr}`;
     }
     case "logic_negate": {
-      const inner = block.inputs?.BOOL?.block;
-      return inner ? `not (${emitConditionExpression(inner)})` : "true";
+      const inner = inputChild(block.inputs?.BOOL);
+      return inner ? `not (${emitConditionExpression(inner, ctx)})` : "true";
     }
     default:
-      return emitInlineValue(block);
+      return emitInlineValue(block, ctx);
   }
 }
 
-function emitInlineValue(block: BlockNode): string {
-  switch (block.type) {
-    case "source_query":
-    case "source_query_number":
-    case "source_query_boolean":
-    case "source_query_node": {
-      const expr = String(block.fields?.EXPRESSION ?? "");
-      return `(index .Data ${goQuote(expr)})`;
-    }
-    case "maps_get": {
-      const name = String(block.fields?.NAME ?? "defaults");
-      const key = inputChild(block.inputs?.KEY);
-      const keyStr = key ? extractTextValue(key) : "";
-      if (name === "defaults" || name === "Parameters") {
-        return `.Parameters.${sanitizeGoField(keyStr)}`;
-      }
-      return `(index .${sanitizeGoField(name)} ${goQuote(keyStr)})`;
-    }
-    case "text":
-      return goQuote(String(block.fields?.TEXT ?? ""));
-    case "text_code":
-      return goQuote(String(block.fields?.TEXT ?? ""));
-    case "math_number":
-      return String(block.fields?.NUM ?? "0");
-    case "logic_boolean":
-      return block.fields?.BOOL === "TRUE" ? "true" : "false";
-    default:
-      return `""`;
+function emitInlineValue(block: BlockNode, ctx: GoEmitContext): string {
+  const serialized = blockNodeToExpression(block);
+  if (serialized) {
+    const ast = parseExpression(serialized);
+    return emitGoExpr(ast, ctx);
   }
+  return `""`;
 }
 
-function emitXmlOrSchemaElement(block: BlockNode): string[] {
-  if (block.type === "xml_element") return emitXmlElement(block);
+function emitXmlOrSchemaElement(block: BlockNode, ctx: GoEmitContext): string[] {
+  if (block.type === "xml_element") return emitXmlElement(block, ctx);
   const tag = xmlTagName(block);
   const xmlAttributes = new Set([
     ...(block.extraState?.xmlAttributes ?? []),
@@ -309,7 +486,7 @@ function emitXmlOrSchemaElement(block: BlockNode): string[] {
       .filter((field) => field.xmlKind === "attribute")
       .map((field) => field.name),
   ]);
-  const attrParts: string[] = [...emitStaticAttributes(block)];
+  const attrParts: string[] = [...emitStaticAttributes(block, ctx)];
   const inner: string[] = [];
   const inputs = block.inputs ?? {};
   for (const [key, value] of Object.entries(inputs)) {
@@ -318,15 +495,15 @@ function emitXmlOrSchemaElement(block: BlockNode): string[] {
     const child = inputChild(value);
     if (!child) continue;
     if (xmlAttributes.has(fieldName) || child.type === "xml_attribute") {
-      const val = emitValueExpression(child).join("");
+      const val = emitValueExpression(child, ctx).join("");
       attrParts.push(` ${fieldName}="${val}"`);
       continue;
     }
     if (isXmlStructureBlockType(child.type)) {
-      inner.push(...emitStatementChain(child));
+      inner.push(...emitStatementChain(child, ctx));
       continue;
     }
-    inner.push(`<${xmlName(fieldName)}>`, ...emitValueExpression(child), `</${xmlName(fieldName)}>`);
+    inner.push(`<${xmlName(fieldName)}>`, ...emitValueExpression(child, ctx), `</${xmlName(fieldName)}>`);
   }
   const attrs = attrParts.join("");
   if (inner.length) return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
@@ -335,7 +512,8 @@ function emitXmlOrSchemaElement(block: BlockNode): string[] {
 
 function isXmlStructureBlockType(type: string): boolean {
   return type === "xml_element" || type === "target_structure" || type.startsWith("schema_") ||
-    type === "controls_if" || type === "for_each_source" || type === "for_each_list";
+    type === "controls_if" || type === "for_each_source" || type === "for_each_list" ||
+    type === "json_object" || type === "json_array";
 }
 
 function xmlName(value: string): string {
@@ -343,10 +521,10 @@ function xmlName(value: string): string {
   return /^[A-Za-z_]/.test(safe) ? safe : `_${safe}`;
 }
 
-function emitXmlElement(block: BlockNode): string[] {
+function emitXmlElement(block: BlockNode, ctx: GoEmitContext): string[] {
   const tag = xmlTagName(block);
   const bodyHead = firstChildStatement(block);
-  const attrParts: string[] = [...emitStaticAttributes(block)];
+  const attrParts: string[] = [...emitStaticAttributes(block, ctx)];
   const body: BlockNode[] = [];
   let current: BlockNode | undefined = bodyHead;
   while (current) {
@@ -354,7 +532,7 @@ function emitXmlElement(block: BlockNode): string[] {
       const name = String(current.fields?.NAME ?? "").trim();
       if (name) {
         const valBlock = inputChild(current.inputs?.VALUE);
-        const val = valBlock ? emitValueExpression(valBlock).join("") : "";
+        const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
         attrParts.push(` ${name}="${val}"`);
       }
     } else {
@@ -365,7 +543,7 @@ function emitXmlElement(block: BlockNode): string[] {
   const attrs = attrParts.join("");
   if (body.length) {
     const inner: string[] = [];
-    for (const child of body) inner.push(...emitBlock(child));
+    for (const child of body) inner.push(...emitBlock(child, ctx));
     return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
   }
   return [`<${tag}${attrs} />`];
@@ -389,7 +567,7 @@ function firstChildStatement(block: BlockNode): BlockNode | undefined {
   return undefined;
 }
 
-function emitStaticAttributes(block: BlockNode): string[] {
+function emitStaticAttributes(block: BlockNode, ctx: GoEmitContext): string[] {
   const attrs: string[] = [];
   for (const attr of block.extraState?.attributes ?? []) {
     const name = String(attr.name ?? "").trim();
@@ -401,7 +579,7 @@ function emitStaticAttributes(block: BlockNode): string[] {
     const name = String(block.fields[`ATTR_NAME${i}`]);
     const valBlock = inputChild(block.inputs?.[`ATTR_VALUE${i}`]);
     const val = valBlock
-      ? emitValueExpression(valBlock).join("")
+      ? emitValueExpression(valBlock, ctx).join("")
       : String(block.fields?.[`ATTR_VALUE${i}`] ?? "");
     attrs.push(` ${name}="${val}"`);
     i++;
@@ -415,63 +593,166 @@ function extractTextValue(block: BlockNode): string {
   return String(block.fields?.TEXT ?? block.fields?.EXPRESSION ?? "");
 }
 
-function stripDelimiters(expr: string): string {
-  return expr.replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "");
+export function stripDelimiters(expr: string): string {
+  return expr.replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "").replace(/^\{\{-?\s*/, "").replace(/\s*-?\}\}$/, "");
 }
 
-function goQuote(s: string): string {
+export function goQuote(s: string): string {
   return `"${s.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
 }
 
-function sanitizeGoField(name: string): string {
+export function sanitizeGoField(name: string): string {
   return name.replace(/[^a-zA-Z0-9_]/g, "_");
 }
 
-export function emitGoExpr(ast: ExprAst): string {
+export function emitGoExpressionTemplate(
+  ast: ExprAst,
+  ctx: GoEmitContext = createGoEmitContext(),
+): string {
   switch (ast.kind) {
     case "literal":
-      if (typeof ast.value === "string") return `index .Data ${goQuote(ast.value)}`;
+      if (typeof ast.value === "string") return goQuote(ast.value);
       return String(ast.value);
+    case "binary":
+      return `{{ ${emitGoExpr(ast, ctx)} }}`;
+    case "call":
+      if (ast.name === "concat") {
+        return ast.args.map((arg) => emitGoExpressionTemplate(arg, ctx)).join("");
+      }
+      if (ast.name === "if") {
+        const cond = emitGoExpr(ast.args[0]!, ctx);
+        const thenPart = emitGoExpressionTemplate(ast.args[1]!, ctx);
+        const elsePart = ast.args[2]
+          ? emitGoExpressionTemplate(ast.args[2]!, ctx)
+          : "";
+        return `{{- if ${cond} -}}${thenPart}{{- else -}}${elsePart}{{- end -}}`;
+      }
+      return `{{ ${emitGoExpr(ast, ctx)} }}`;
+  }
+}
+
+export function emitGoExpr(ast: ExprAst, ctx: GoEmitContext = createGoEmitContext()): string {
+  switch (ast.kind) {
+    case "literal":
+      if (typeof ast.value === "string") return goQuote(ast.value);
+      if (typeof ast.value === "boolean") return ast.value ? "true" : "false";
+      return String(ast.value);
+    case "binary": {
+      const left = emitGoExpr(ast.left, ctx);
+      const right = emitGoExpr(ast.right, ctx);
+      const op = ast.op === "&&" ? "and" : ast.op === "||" ? "or" : ast.op;
+      return `(${left} ${op} ${right})`;
+    }
     case "call": {
+      if (isQuantifyCall(ast.name)) return emitQuantifierGo(ast, ctx);
+      const args = ast.args.map((arg) => emitGoExpr(arg, ctx));
       switch (ast.name) {
-        case "xpathString": /* falls through */
-        case "xpathNumber": /* falls through */
-        case "xpathBoolean": /* falls through */
-        case "xpathNode": /* falls through */
-        case "xpath": {
-          const path = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
-          return `index .Data ${goQuote(path)}`;
-        }
+        case "xpathString":
+        case "xpathNumber":
+        case "xpathBoolean":
+        case "xpathNode":
+        case "xpath":
+          return emitXPathGo(ast.args[0], ctx);
         case "maps_get": {
           const mapName = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "defaults";
           const key = ast.args[1]?.kind === "literal" ? String(ast.args[1].value) : "";
-          if (mapName === "defaults") return `.Parameters.${sanitizeGoField(key)}`;
+          if (mapName === "defaults" || mapName === "Parameters") {
+            return `.Parameters.${sanitizeGoField(key)}`;
+          }
           return `index .${sanitizeGoField(mapName)} ${goQuote(key)}`;
         }
-        case "trim": return `${emitGoExpr(ast.args[0]!)} | trim`;
-        case "concat": return ast.args.map((a) => `{{ ${emitGoExpr(a)} }}`).join("");
-        case "if": {
-          const cond = emitGoExpr(ast.args[0]!);
-          const then = emitGoExpr(ast.args[1]!);
-          const els = ast.args[2] ? emitGoExpr(ast.args[2]) : '""';
-          return `if ${cond} }}{{ ${then} }}{{ else }}{{ ${els} }}{{ end`;
-        }
+        case "trim":
+          return `(${args[0]} | trim)`;
+        case "concat":
+          return args.join("");
+        case "round":
+          return `int ${args[0]}`;
+        case "modulo":
+          return `(${args[0]} % ${args[1]})`;
+        case "constrain":
+          return `(if ge ${args[0]} ${args[2]} then ${args[2]} else (if le ${args[0]} ${args[1]} then ${args[1]} else ${args[0]}))`;
+        case "if":
+          return `if ${args[0]} ${args[1]} ${args[2] ?? '""'}`;
+        case "switch":
+          return args[0] ?? '""';
+        case "var":
+          return `.`;
         case "eq":
-          return `eq ${emitGoExpr(ast.args[0]!)} ${emitGoExpr(ast.args[1]!)}`;
+          return `eq (${args[0]}) (${args[1]})`;
         case "ne":
-          return `ne ${emitGoExpr(ast.args[0]!)} ${emitGoExpr(ast.args[1]!)}`;
+          return `ne (${args[0]}) (${args[1]})`;
+        case "lt":
+          return `lt (${args[0]}) (${args[1]})`;
+        case "le":
+          return `le (${args[0]}) (${args[1]})`;
+        case "gt":
+          return `gt (${args[0]}) (${args[1]})`;
+        case "ge":
+          return `ge (${args[0]}) (${args[1]})`;
         case "and":
-          return `and (${emitGoExpr(ast.args[0]!)}) (${emitGoExpr(ast.args[1]!)})`;
+          return `and (${args[0]}) (${args[1]})`;
         case "or":
-          return `or (${emitGoExpr(ast.args[0]!)}) (${emitGoExpr(ast.args[1]!)})`;
+          return `or (${args[0]}) (${args[1]})`;
         case "not":
-          return `not (${emitGoExpr(ast.args[0]!)})`;
+          return `not (${args[0]})`;
+        case "add":
+          return `(${args[0]} + ${args[1]})`;
+        case "subtract":
+          return `(${args[0]} - ${args[1]})`;
+        case "multiply":
+          return `(${args[0]} * ${args[1]})`;
+        case "divide":
+          return `(${args[0]} / ${args[1]})`;
+        case "list":
+          return `[${args.join(", ")}]`;
+        case "intersection":
+        case "union":
+        case "difference":
+          return `/* ${ast.name} not available in Go template */`;
+        case "sheet_get_cell":
+        case "sheet_get_xy":
+        case "sheet_get_row":
+        case "sheet_get_column":
+        case "sheet_get_header":
+        case "sheet_get_data":
+        case "sheet_lookup":
+        case "decision_table":
+          return `index .Sheets ${goQuote(ast.name)}`;
+        case "handlebars":
+          return args[0] ?? '""';
+        case "map":
+          return `{${args.join(", ")}}`;
         default:
           return `/* unsupported: ${ast.name} */`;
       }
-      break;
     }
-    case "binary":
-      return `/* binary ${ast.op} not supported in Go template */`;
   }
+}
+
+function emitXPathGo(pathArg: ExprAst | undefined, ctx: GoEmitContext): string {
+  const path = pathArg?.kind === "literal" ? String(pathArg.value) : "";
+  if (ctx.loopVar && isRelativeAuthoringPath(path)) {
+    if (path === ".") return ".";
+    return `(index . ${goQuote(path)})`;
+  }
+  if (path.startsWith("$.")) {
+    return `(${jsonPathToGoIndex(path)})`;
+  }
+  return `(index .Data ${goQuote(path)})`;
+}
+
+function jsonPathToGoIndex(path: string): string {
+  const body = path.replace(/^\$\.?/, "").replace(/\[(\d+|\*)\]/g, ".$1");
+  const segments = body.split(".").filter(Boolean);
+  if (!segments.length) return `index .Data ""`;
+  let expr = ".Data";
+  for (const seg of segments) {
+    expr = `index ${expr} ${goQuote(seg)}`;
+  }
+  return expr;
+}
+
+function emitQuantifierGo(ast: Extract<ExprAst, { kind: "call" }>, ctx: GoEmitContext): string {
+  const args = ast.args.map((arg) => emitGoExpr(arg, ctx));
+  return `/* ${ast.name}(${args.join(", ")}) */ false`;
 }

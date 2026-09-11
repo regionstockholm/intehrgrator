@@ -547,7 +547,7 @@ ProjectBundle
 - `src/agent/revision.ts` — FNV revision over mapping payload
 - `src/web/agent_bridge.ts` — UI poll sync from service
 - `web/main.ts` — Blockly change listener, undo buttons wired to workspace stack
-- `docs/planning/TASKS-roadmap-chunks.md` — Chunk 5 follow-up grill Q6/Q7
+- `docs/historical-archive/TASKS-roadmap-chunks.md` — Chunk 5 follow-up grill Q6/Q7 (archived)
 - `docs/design/ARCHITECTURE-multi-user-collab-prep.md` — Chunk 14 architecture prep
 
 ### External

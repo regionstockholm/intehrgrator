@@ -1,7 +1,9 @@
 # Suggested GitHub issues — remaining roadmap work
 
+> **⚠️ ARCHIVED** — This was a staging list for filing GitHub issues. **Live planning is now [GitHub Issues](https://github.com/regionstockholm/intehrgrator/issues)** — see [docs/agents/issue-tracker.md](../agents/issue-tracker.md).
+
 **Date:** 2026-09-09  
-**Sources:** [`docs/ROADMAP.md`](../ROADMAP.md), [`docs/planning/TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
+**Sources:** [ROADMAP.md](./ROADMAP.md), [TASKS-roadmap-chunks.md](./TASKS-roadmap-chunks.md), open GitHub issues (cross-checked).  
 **Purpose:** Inspect and edit this list before filing real issues. Do **not** treat unchecked boxes here as tracker state.
 
 ## Snapshot
@@ -220,7 +222,7 @@ Mark post-v1 explicitly.
 
 ### S-14 — Human multi-user collaboration (Chunk 14)
 
-**Combines:** ROADMAP B/D multi-user; Chunk 14; [`ARCHITECTURE-multi-user-collab-prep.md`](./ARCHITECTURE-multi-user-collab-prep.md).
+**Combines:** ROADMAP B/D multi-user; Chunk 14; [`ARCHITECTURE-multi-user-collab-prep.md`](../design/ARCHITECTURE-multi-user-collab-prep.md).
 
 **Why one late epic:** CRDT/sync spike + rooms; 5.1 already laid actor/history seams. Do not start until single-user VMS/platform work is calm.
 

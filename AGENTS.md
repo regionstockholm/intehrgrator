@@ -46,8 +46,9 @@ Pick the skill that matches the task:
 
 Project-specific: `intehrgrator-mapping` for desktop Agent API / MCP mapping work.
 
-For specs and planning documents, use `docs/prd/`, `docs/design/`, and
-`docs/planning/`. Superseded drafts live in `docs/historical-archive/`.
+For specs and design documents, use `docs/prd/` and `docs/design/`.
+Planning lives in **GitHub Issues** ([docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)).
+Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 
 ## Development tooling guidance
 

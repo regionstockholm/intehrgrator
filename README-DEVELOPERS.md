@@ -55,7 +55,7 @@ CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module change
 | `test/ui/` | Playwright tests (Workbench Test API) |
 | `docs/adr/` | Architecture Decision Records |
 | `docs/design/` | Design investigations |
-| `docs/planning/` | Roadmap chunk tracking |
+| `docs/planning/` | v1 implementation task list (archived chunks in `docs/historical-archive/`) |
 | `docs/historical-archive/` | Superseded drafts |
 
 ## Architecture docs
@@ -72,7 +72,8 @@ CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module change
 | AI suggestion format | [docs/AI_SUGGESTION_FORMAT.md](docs/AI_SUGGESTION_FORMAT.md) |
 | Agent / MCP workflow | [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) |
 | UI testing | [docs/UI_TESTING.md](docs/UI_TESTING.md) |
-| Roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
+| Planning | [GitHub Issues](https://github.com/regionstockholm/intehrgrator/issues) — see [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) |
+| Archived roadmap | [docs/historical-archive/ROADMAP.md](docs/historical-archive/ROADMAP.md) |
 | Deferred ideas | [docs/future/](docs/future/) |
 
 ## AI-assisted development

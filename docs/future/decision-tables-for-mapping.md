@@ -33,7 +33,7 @@ These overlap the “compact logic” space. A new construct must beat them, not
 | Mapping Expression `if(cond, then, else)` | Ternary in a Target value slot. TypeScript and XQuery emit this; Go template emits `{{if}}`. | Nested ternaries become unreadable; no completeness; no shared table across slots. |
 | Mapping Expression `switch(...)` | Multi-way on one discriminant. TypeScript and XQuery emit it. | One input; no don't-care matrix. Go template `emitGoExpr` does not emit `switch` or sheet accessors today. |
 | Blockly `controls_if` | Statement-level branching. Go template codegen walks it (TakeCare XML / narrative path). | Same as a hand-drawn **decision tree**. Hard to review for missing combinations. |
-| **Handlebars Template** / `text_handlebars` / **Code text block** | Authored prose with interpolation; Kintegrate path; Go snippets inside XML. | Conditionals in templates (`#if`) scale worse than a table; Blockly→Handlebars codegen is still deferred ([ROADMAP](../ROADMAP.md) §G). |
+| **Handlebars Template** / `text_handlebars` / **Code text block** | Authored prose with interpolation; Kintegrate path; Go snippets inside XML. | Conditionals in templates (`#if`) scale worse than a table; Blockly→Handlebars codegen is still deferred ([archived ROADMAP §G](../historical-archive/ROADMAP.md)). |
 
 `sheet_lookup` is documented in code as: first row where `matchColumn` equals `matchValue`; return one column or the whole row (`src/core/sheets/model.ts`). That is a **limited-entry lookup table**, not a decision table.
 
@@ -198,7 +198,7 @@ Live in the **Sheets** category: same tab, same jspreadsheet widget, same conver
 3. **Range predicates** (`>= 140`, `90..120`) on numeric columns — stolen from DL range tables; important for labs/vitals.
 4. **UNIQUE warning** in the Mapping Editor (yellow **Constraint warning** family): two rows match the same Active Example, or the table is not balanced.
 5. **COLLECT + join** for narrative fragments, plus **snippet output columns** (mixed with value columns on the same row).
-6. **DMN XML import/export** — **not in the first slices.** Logged on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`docs/planning/TASKS-roadmap-chunks.md`](../planning/TASKS-roadmap-chunks.md). Simple tables only (equality/range, FIRST/UNIQUE/COLLECT). Do not take on FEEL as the Mapping Expression language.
+6. **DMN XML import/export** — **not in the first slices.** Logged on [archived ROADMAP §C](../historical-archive/ROADMAP.md) and Chunk 8 later-items in [TASKS-roadmap-chunks.md](../historical-archive/TASKS-roadmap-chunks.md). Simple tables only (equality/range, FIRST/UNIQUE/COLLECT). Do not take on FEEL as the Mapping Expression language.
 7. **Sibling lung-MDT Example Set** that uses the tables for the complex Note parts — see below. Do not replace the current Handlebars-in-`text_code` set.
 
 ### Blockly
@@ -220,7 +220,7 @@ Offer a “show missing combinations” action for Boolean/enum columns. Skip it
 - Treat a Decision table as an **ITEM_TABLE** or as a **Map**.
 - Bake table rows into Generated Export as the only mode (contradicts ADR 0005 for site-editable grids). Flattened `if`s are an *adapter fallback*, not the store.
 - Expect tables alone to replace Handlebars/Go template for long-form narrative.
-- Require full DMN/FEEL in the first slices — hit-policy *ideas* are enough. **DMN XML import/export** is a later [ROADMAP §C](../ROADMAP.md) item, after internal table JSON is stable.
+- Require full DMN/FEEL in the first slices — hit-policy *ideas* are enough. **DMN XML import/export** is a later [archived ROADMAP §C](../historical-archive/ROADMAP.md) item, after internal table JSON is stable.
 - Rewrite or replace [`examples/lung-MDT-form/`](../../examples/lung-MDT-form/) or catalog id `lung-mdt-form-to-tc-xml`. The decision-table mapping is a **sibling Example Set**.
 
 ---
@@ -358,6 +358,6 @@ Resolved 2026-09-08:
 
 4. **Sibling layout A** — `examples/lung-MDT-form-decision-tables/` for mapping + README only; catalog id `lung-mdt-form-to-tc-xml-decision-tables`; reuse XSD / Defaults Map / PROD script by URI. No empty catalog entry until the mapping exists.
 5. **First slice A** — ship **multi-column equality `sheet_lookup`** (still a Sheet, convert-time bag unchanged) before a separately named Decision table. Promote a grid to `kind: decision-table` when predicate cells, don't-care, mixed value/snippet outputs, or a hit policy other than first-match are needed. Lung-MDT sibling set waits on that promotion (imaging TermId + Note snippets are not equality-only).
-6. **DMN A (now)** — do not implement import/export until the internal decision-table JSON is stable. **Parked** on [ROADMAP §C](../ROADMAP.md) and Chunk 8 later-items in [`docs/planning/TASKS-roadmap-chunks.md`](../planning/TASKS-roadmap-chunks.md) so it is not forgotten. Still no FEEL.
+6. **DMN A (now)** — do not implement import/export until the internal decision-table JSON is stable. **Parked** on [archived ROADMAP §C](../historical-archive/ROADMAP.md) and Chunk 8 later-items in [TASKS-roadmap-chunks.md](../historical-archive/TASKS-roadmap-chunks.md) so it is not forgotten. Still no FEEL.
 
 No remaining open product questions from this grill.

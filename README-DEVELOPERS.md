@@ -12,7 +12,7 @@ Technical setup and architecture pointers for contributors and AI-assisted devel
 
 ## How to run locally
 
-install deno
+install deno, and then:
 
 ```bash
 git clone https://github.com/regionstockholm/intehrgrator.git
@@ -21,6 +21,10 @@ deno task vendor   # clone/update ehrtslib + examples into vendor/
 deno task build 
 deno task dev`  # start and serve on `http://localhost:5173`
 ```
+
+## Tests
+
+TODO: describe which tests exist and how to run them etc
 
 ## Deno tasks
 

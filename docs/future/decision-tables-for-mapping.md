@@ -1,6 +1,6 @@
 # Decision tables (and trees/graphs) as mapping constructs
 
-**Status:** Future investigation — no Blockly type, Mapping Model builtin, or codegen yet. Captured 2026-09-07; scheduling choice **C** recorded the same day (codes/values *and* narrative; values first, COLLECT/snippets as soon as a narrative Example Set needs them).
+**Status:** Design source for the construct shipped in [#69](https://github.com/regionstockholm/intehrgrator/issues/69) (`kind: decision-table`). Captured 2026-09-07; scheduling choice **C** recorded the same day (codes/values *and* narrative; values first, COLLECT/snippets as soon as a narrative Example Set needs them). Sibling Example Sets remain [#70](https://github.com/regionstockholm/intehrgrator/issues/70). **Data Sheets stay** — see [plain-sheets-after-decision-tables.md](plain-sheets-after-decision-tables.md).
 
 **Verdict:** A **mapping-local decision table** is a strong candidate for a later Sheets-adjacent construct. A row should be able to emit **plain values** (TermIds, codes) **and/or template snippets** (Handlebars / Go `text/template` fragments) from the same inputs. Full **decision trees / graphs**, openEHR **Decision Language** modules, and **GDL2** guidelines are a poor fit as Mapping Editor blocks. They solve clinical decision support and process logic, not conversion. Steal compact table ideas from those specs; do not implement those languages.
 

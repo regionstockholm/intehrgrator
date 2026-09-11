@@ -140,6 +140,7 @@ export function registerDecisionTableBlocks(): void {
       this.setNextStatement(false);
     },
     onchange: function (this: Blockly.Block, event: { type?: string; newElementId?: string }) {
+      if (this.isInFlyout) return;
       if (event?.type === "selected" && event.newElementId === this.id) {
         decisionTableFocusHandler?.(String(this.getFieldValue("NAME") || "Decision1"), {
           highlight: true,
@@ -183,6 +184,7 @@ export function registerDecisionTableBlocks(): void {
       );
     },
     onchange: function (this: Blockly.Block, event: { type?: string; name?: string; newElementId?: string }) {
+      if (this.isInFlyout) return;
       if (event?.type === "selected" && event.newElementId === this.id) {
         decisionTableFocusHandler?.(String(this.getFieldValue("NAME") || "Decision1"), {
           highlight: true,

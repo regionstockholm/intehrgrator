@@ -90,6 +90,7 @@ export function registerSheetBlocks(): void {
       this.setNextStatement(false);
     },
     onchange: function (this: Blockly.Block, event: { type?: string; newElementId?: string }) {
+      if (this.isInFlyout) return;
       if (event?.type === "selected" && event.newElementId === this.id) {
         sheetFocusHandler?.(String(this.getFieldValue("NAME") || "Sheet1"), { highlight: true });
       }

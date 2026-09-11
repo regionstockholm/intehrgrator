@@ -418,21 +418,15 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   border-bottom-color: var(--primary);
   font-weight: 600;
 }
-.sheets-flash .sheets-grid-host,
-.sheets-flash .sheets-tab.active,
-.sheets-panel.sheets-flash,
-#tab-sheets.sheets-flash {
-  animation: sheets-highlight 2.2s ease;
+.sheets-panel.sheets-flash .sheets-grid-host {
+  outline: 4px solid #00796b;
+  outline-offset: -4px;
+  background-color: #c5ebe3;
 }
-@keyframes sheets-highlight {
-  0%, 100% {
-    box-shadow: inset 0 0 0 0 rgba(0, 121, 107, 0);
-    background-color: transparent;
-  }
-  8%, 70% {
-    box-shadow: inset 0 0 0 4px #00796b;
-    background-color: #c5ebe3;
-  }
+.sheets-panel.sheets-flash .sheets-tab.active,
+#tab-sheets.sheets-flash {
+  background-color: #c5ebe3;
+  box-shadow: inset 0 -3px 0 #00796b;
 }
 .sheets-output-cols {
   display: flex;

@@ -21,7 +21,11 @@ concurrency:
 jobs:
   deploy:
     # release.yml owns Pages deploy when `deno task release` pushes main + tag together.
-    if: github.event_name == 'workflow_dispatch' || !startsWith(github.event.head_commit.message, 'chore: release')
+    # head_commit is often null on merge/push webhooks — treat that as a normal main deploy.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.head_commit == null ||
+      !startsWith(github.event.head_commit.message, 'chore: release')
     runs-on: ubuntu-latest
     environment:
       name: github-pages

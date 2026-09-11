@@ -2,20 +2,46 @@
  * XQuery conversion script language — Mapping Model → self-contained `.xq`.
  *
  * Emits a Model B slot-manifest program: each Blockly-mapped slot becomes an
- * XQuery binding with typed DV_* XML constructors. Full COMPOSITION nesting
- * remains a follow-up once skeleton metadata is available at export time.
+ * XQuery binding with typed DV_* XML constructors. `for_each_source` /
+ * `for_each_list` compile to `for $var in … return` iteration over loop-scoped
+ * slots. Full COMPOSITION nesting remains a follow-up once skeleton metadata is
+ * available at export time.
  *
  * See docs/future/xquery-export-investigation.md.
  */
-import type { MappingModel, MappingSlot } from "../../types/mod.ts";
+import type {
+  MappingLoop,
+  MappingModel,
+  MappingSlot,
+  TargetSignatureNode,
+} from "../../types/mod.ts";
+import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 
+export class XQueryExportError extends Error {
+  override name = "XQueryExportError";
+}
+
+export interface XQueryEmitEnv {
+  bind?: Record<string, string>;
+  /** Context node for xpath* — defaults to `$source`; loop bodies use the loop var. */
+  sourceVar?: string;
+}
+
+const SHEET_ACCESSOR_RE =
+  /\b(sheet_get_(?:cell|xy|row|column|header|data)|sheet_lookup|decision_table)\s*\(/;
+
 export function generateXQuery(model: MappingModel): string {
-  const slotBlocks = model.slots.map((slot) =>
-    emitSlot(slot).map((line) => `    ${line}`).join("\n")
+  validateExportModel(model);
+
+  const loops = model.loops ?? [];
+  const { loopSlots, topLevelSlots } = partitionSlots(model.slots, loops, model.targetSignature);
+
+  const loopBlocks = loops.map((loop) =>
+    emitLoop(loop, loopSlots.get(loop.attachSlotId) ?? []).map((line) => `    ${line}`).join("\n")
   );
-  const loopBlocks = (model.loops ?? []).map((loop) =>
-    emitLoop(loop).map((line) => `    ${line}`).join("\n")
+  const slotBlocks = topLevelSlots.map((slot) =>
+    emitSlot(slot).map((line) => `    ${line}`).join("\n")
   );
 
   const lines: string[] = [
@@ -57,11 +83,11 @@ export function generateXQuery(model: MappingModel): string {
     lines.push("    }" + (slotBlocks.length ? "," : ""));
   }
 
-  if (!slotBlocks.length) {
+  if (!slotBlocks.length && !loopBlocks.length) {
     lines.push(
       "    (: no mapped slots — map Target value slots in Blockly, then re-export :)",
     );
-  } else {
+  } else if (slotBlocks.length) {
     lines.push("    element slots {");
     for (let i = 0; i < slotBlocks.length; i++) {
       const block = slotBlocks[i]!;
@@ -81,7 +107,121 @@ export function generateXQuery(model: MappingModel): string {
   return lines.join("\n");
 }
 
-function emitLoop(loop: import("../../types/mod.ts").MappingLoop): string[] {
+function validateExportModel(model: MappingModel): void {
+  for (const block of model.unsupported ?? []) {
+    if (block.reason === "removed") {
+      throw new XQueryExportError(
+        `Cannot export XQuery: Blockly block type "${block.blockType}" was removed from the ` +
+          "verifiable mapping subset (#35). Remove it from the canvas before exporting.",
+      );
+    }
+  }
+
+  for (const slot of model.slots) {
+    if (SHEET_ACCESSOR_RE.test(slot.expression)) {
+      throw new XQueryExportError(
+        `Cannot export XQuery: slot "${slot.slotId}" uses Sheet accessors ` +
+          `(${slot.expression}). Bind a $sheets map at runtime or remove Sheet lookups before export.`,
+      );
+    }
+  }
+}
+
+function partitionSlots(
+  slots: MappingSlot[],
+  loops: MappingLoop[],
+  signature?: TargetSignatureNode[],
+): { loopSlots: Map<string, MappingSlot[]>; topLevelSlots: MappingSlot[] } {
+  const loopSlots = new Map<string, MappingSlot[]>();
+  for (const loop of loops) {
+    loopSlots.set(loop.attachSlotId, []);
+  }
+
+  const topLevelSlots: MappingSlot[] = [];
+  for (const slot of slots) {
+    if (!expressionUsesRelativeSourcePath(slot.expression)) {
+      topLevelSlots.push(slot);
+      continue;
+    }
+    const loop = resolveLoopForSlot(slot, loops, signature);
+    if (!loop) {
+      topLevelSlots.push(slot);
+      continue;
+    }
+    const bucket = loopSlots.get(loop.attachSlotId) ?? [];
+    bucket.push(slot);
+    loopSlots.set(loop.attachSlotId, bucket);
+  }
+
+  return { loopSlots, topLevelSlots };
+}
+
+function resolveLoopForSlot(
+  slot: MappingSlot,
+  loops: MappingLoop[],
+  signature?: TargetSignatureNode[],
+): MappingLoop | undefined {
+  const relativeLoops = loops.filter((loop) => slotMatchesLoop(slot.slotId, loop, signature));
+  if (relativeLoops.length === 1) return relativeLoops[0];
+  if (relativeLoops.length > 1) {
+    return relativeLoops.find((loop) => {
+      const ids = signatureSlotIds(loop.attachSlotId, signature);
+      return ids?.has(slot.slotId);
+    }) ?? relativeLoops[0];
+  }
+  return loops.length === 1 ? loops[0] : undefined;
+}
+
+function slotMatchesLoop(
+  slotId: string,
+  loop: MappingLoop,
+  signature?: TargetSignatureNode[],
+): boolean {
+  const ids = signatureSlotIds(loop.attachSlotId, signature);
+  if (ids) return ids.has(slotId);
+  return slotId === loop.attachSlotId ||
+    slotId.startsWith(`${loop.attachSlotId}/`) ||
+    slotId.startsWith(`${loop.attachSlotId}//`);
+}
+
+function signatureSlotIds(
+  attachSlotId: string,
+  signature?: TargetSignatureNode[],
+): Set<string> | undefined {
+  if (!signature?.length) return undefined;
+  const node = findSignatureNode(signature, attachSlotId);
+  if (!node) return undefined;
+  return new Set(collectSignatureSlotIds(node));
+}
+
+function findSignatureNode(
+  nodes: TargetSignatureNode[],
+  slotId: string,
+): TargetSignatureNode | undefined {
+  for (const node of nodes) {
+    if (node.slotId === slotId) return node;
+    const nested = findSignatureNode(node.children, slotId);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
+function collectSignatureSlotIds(node: TargetSignatureNode): string[] {
+  const ids = [node.slotId];
+  for (const child of node.children) {
+    ids.push(...collectSignatureSlotIds(child));
+  }
+  return ids;
+}
+
+function emitLoop(loop: MappingLoop, slots: MappingSlot[]): string[] {
+  const ident = loopVarIdent(loop.varName);
+  const sequence = compileLoopSequence(loop);
+  const env: XQueryEmitEnv = {
+    sourceVar: `$${ident}`,
+    bind: { [loop.varName]: ident },
+  };
+
   const attrs = [
     `attribute attach-slot-id { ${xqString(loop.attachSlotId)} }`,
     `attribute var-name { ${xqString(loop.varName)} }`,
@@ -89,16 +229,85 @@ function emitLoop(loop: import("../../types/mod.ts").MappingLoop): string[] {
   ];
   if (loop.path) attrs.push(`attribute path { ${xqString(loop.path)} }`);
   if (loop.collection) attrs.push(`attribute collection { ${xqString(loop.collection)} }`);
-  return [
+
+  const slotLines: string[] = [];
+  if (slots.length) {
+    slotLines.push("  element slots {");
+    for (let i = 0; i < slots.length; i++) {
+      const block = emitSlot(slots[i]!, env).map((line) => `    ${line}`).join("\n");
+      const comma = i < slots.length - 1 ? "," : "";
+      slotLines.push(block + comma);
+    }
+    slotLines.push("  }");
+  }
+
+  const body = [
     "element loop {",
-    ...attrs.map((line, index) => `  ${line}${index < attrs.length - 1 ? "," : ""}`),
+    ...attrs.map((line, index) => `  ${line}${index < attrs.length - 1 || slotLines.length ? "," : ""}`),
+    ...slotLines,
     "}",
   ];
+
+  return [
+    `for $${ident} in ${sequence}`,
+    "return",
+    ...body.map((line) => `  ${line}`),
+  ];
+}
+
+function loopVarIdent(varName: string): string {
+  return /^[A-Za-z_][A-Za-z0-9_]*$/.test(varName) ? varName : "item";
+}
+
+/** Compile a loop collection path to an XQuery sequence expression. */
+export function compileLoopSequence(loop: MappingLoop): string {
+  if (loop.kind === "list") {
+    if (!loop.collection) {
+      return "(: for_each_list without collection expression :) ()";
+    }
+    return emitXQueryExpr(parseExpression(loop.collection));
+  }
+
+  const path = loop.path.trim();
+  if (!path) {
+    return "(: for_each_source without PATH :) ()";
+  }
+
+  if (path.startsWith("$.")) {
+    const base = path.replace(/\[\*\]$/, "");
+    const lookup = jsonDollarPathToLookup(base);
+    if (lookup) {
+      return `local:iterable-sequence(${lookup})`;
+    }
+    return `local:lookup-sequence($source, ${xqString(path)})`;
+  }
+
+  if (path.startsWith("/")) {
+    return `$source${path}`;
+  }
+
+  return `local:lookup-sequence($source, ${xqString(path)})`;
 }
 
 function emitHelpers(): string[] {
   return [
     "(: --- Source access (fontoxpath-authored paths → XQuery 3.1) --- :)",
+    "",
+    "declare function local:iterable-sequence($nodes as item()*) as item()* {",
+    "  if ($nodes instance of array(*)) then $nodes?*",
+    "  else $nodes",
+    "};",
+    "",
+    "declare function local:lookup-sequence($ctx as item()*, $path as xs:string) as item()* {",
+    "  (: Dynamic or non-literal loop paths — prefer compile-time $. / / paths from export :) ",
+    "  if (starts-with($path, \"$\"))",
+    "  then let $nodes := local:json-lookup($ctx, $path)",
+    "       return if ($nodes instance of array(*)) then $nodes?* else $nodes",
+    "  else error(",
+    '    QName("http://intehrgrator.local/xquery", "DYNAMIC-LOOP-PATH"),',
+    '    "Prefer compile-time literal loop PATH from intEHRgrator export; got: " || $path',
+    "  )",
+    "};",
     "",
     "declare function local:string-at($ctx as item()*, $path as xs:string) as xs:string? {",
     "  let $value := local:lookup($ctx, $path)",
@@ -211,10 +420,10 @@ function emitHelpers(): string[] {
   ];
 }
 
-function emitSlot(slot: MappingSlot): string[] {
+function emitSlot(slot: MappingSlot, env: XQueryEmitEnv = {}): string[] {
   let exprXq: string;
   try {
-    exprXq = emitXQueryExpr(parseExpression(slot.expression));
+    exprXq = emitXQueryExpr(parseExpression(slot.expression), env);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     exprXq = `(: unparseable expression: ${xqComment(msg)} :) ()`;
@@ -232,7 +441,8 @@ function emitSlot(slot: MappingSlot): string[] {
 }
 
 /** Map Mapping Expression AST → XQuery 3.1 fragment (context variable `$source`). */
-export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string> } = {}): string {
+export function emitXQueryExpr(ast: ExprAst, env: XQueryEmitEnv = {}): string {
+  const sourceVar = env.sourceVar ?? "$source";
   switch (ast.kind) {
     case "literal":
       if (typeof ast.value === "string") return xqString(ast.value);
@@ -298,28 +508,34 @@ export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string
         case "sheet_get_header":
         case "sheet_get_data":
         case "sheet_lookup":
-          return `(: ${ast.name} — bind $sheets at convert time :) ()`;
+          throw new XQueryExportError(
+            `${ast.name} requires a $sheets map binding — export validation should have caught this`,
+          );
         case "decision_table":
-          return `(: decision_table — bind $sheets / evaluate Decision table at convert time :) ()`;
+          throw new XQueryExportError(
+            "decision_table requires Sheet/runtime evaluation — not supported in XQuery export",
+          );
         case "xpathString":
         case "xpath":
-          return emitXPathCall("string-at", ast.args[0]);
+          return emitXPathCall("string-at", ast.args[0], env);
         case "xpathNumber":
-          return emitXPathCall("number-at", ast.args[0]);
+          return emitXPathCall("number-at", ast.args[0], env);
         case "xpathBoolean":
-          return emitXPathCall("boolean-at", ast.args[0]);
+          return emitXPathCall("boolean-at", ast.args[0], env);
         case "xpathNode":
           if (ast.args[0]?.kind === "literal" && typeof ast.args[0].value === "string") {
             const path = ast.args[0].value.trim();
-            if (path.startsWith("/")) return `($source${path})[1]`;
+            if (path.startsWith("/")) return `(${sourceVar}${path})[1]`;
+            const lookup = compileRelativeLookup(path, sourceVar);
+            if (lookup) return `(${lookup})[1]`;
           }
-          return "$source";
+          return sourceVar;
         case "handlebars":
           return args[0] ?? '""';
         case "map":
           return "map {}";
         default:
-          return emitXPathCall("string-at", ast.args[0]);
+          return emitXPathCall("string-at", ast.args[0], env);
       }
     }
   }
@@ -327,7 +543,7 @@ export function emitXQueryExpr(ast: ExprAst, env: { bind?: Record<string, string
 
 function emitQuantifierXq(
   ast: Extract<ExprAst, { kind: "call" }>,
-  env: { bind?: Record<string, string> },
+  env: XQueryEmitEnv,
 ): string {
   const card = ast.name === "at_least" || ast.name === "at_most" || ast.name === "exactly";
   const list = emitXQueryExpr(ast.args[0]!, env);
@@ -336,7 +552,7 @@ function emitQuantifierXq(
   const predAst = card ? ast.args[3] : ast.args[2];
   const varName = varAst?.kind === "literal" ? String(varAst.value) : "item";
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(varName) ? varName : "item";
-  const inner = { bind: { ...env.bind, [varName]: ident } };
+  const inner = { ...env, bind: { ...env.bind, [varName]: ident } };
   const pred = predAst ? emitXQueryExpr(predAst, inner) : "true()";
   const counted = `count(for $${ident} in ${list} where ${pred} return $${ident})`;
   switch (ast.name) {
@@ -360,13 +576,15 @@ function emitQuantifierXq(
 function emitXPathCall(
   helper: "string-at" | "number-at" | "boolean-at",
   pathAst: ExprAst | undefined,
+  env: XQueryEmitEnv,
 ): string {
+  const sourceVar = env.sourceVar ?? "$source";
   if (!pathAst) return "()";
   if (pathAst.kind === "literal" && typeof pathAst.value === "string") {
-    const compiled = compileLiteralPath(pathAst.value, helper);
+    const compiled = compileLiteralPath(pathAst.value, helper, sourceVar);
     if (compiled) return compiled;
   }
-  return `local:${helper}($source, ${emitXQueryExpr(pathAst)})`;
+  return `local:${helper}(${sourceVar}, ${emitXQueryExpr(pathAst, env)})`;
 }
 
 /**
@@ -376,6 +594,7 @@ function emitXPathCall(
 export function compileLiteralPath(
   path: string,
   helper: "string-at" | "number-at" | "boolean-at",
+  sourceVar = "$source",
 ): string | null {
   const trimmed = path.trim();
   if (!trimmed) return null;
@@ -387,31 +606,71 @@ export function compileLiteralPath(
     : "xs:string";
 
   if (trimmed === "." || trimmed === "./") {
-    return `${cast}(($source)[1])`;
+    return `${cast}((${sourceVar})[1])`;
   }
   if (trimmed.startsWith("./")) {
-    return `${cast}(($source/${trimmed.slice(2)})[1])`;
+    return `${cast}((${sourceVar}/${trimmed.slice(2)})[1])`;
   }
   if (trimmed.startsWith("/")) {
-    return `${cast}(($source${trimmed})[1])`;
+    return `${cast}((${sourceVar}${trimmed})[1])`;
   }
 
   if (trimmed.startsWith("$")) {
-    const lookup = jsonDollarPathToLookup(trimmed);
+    const lookup = jsonDollarPathToLookup(trimmed, sourceVar);
     if (!lookup) return null;
     return `${cast}((${lookup})[1])`;
   }
 
+  const relative = compileRelativeLookup(trimmed, sourceVar);
+  if (relative) return `${cast}((${relative})[1])`;
+
   return null;
 }
 
+function compileRelativeLookup(path: string, sourceVar: string): string | null {
+  const trimmed = path.trim();
+  if (!trimmed || trimmed.startsWith("$") || trimmed.startsWith("/")) return null;
+  if (trimmed === "." || trimmed === "./") return sourceVar;
+
+  const body = trimmed.replace(/^\.\//, "");
+  const segments: string[] = [];
+  let i = 0;
+  while (i < body.length) {
+    if (body[i] === ".") {
+      i++;
+      continue;
+    }
+    if (body[i] === "[") {
+      const close = body.indexOf("]", i + 1);
+      if (close < 0) return null;
+      const token = body.slice(i + 1, close);
+      if (/^\d+$/.test(token)) segments.push(token);
+      else return null;
+      i = close + 1;
+      continue;
+    }
+    let end = i;
+    while (end < body.length && !".[".includes(body[end]!)) end++;
+    segments.push(body.slice(i, end));
+    i = end;
+  }
+
+  let expr = sourceVar;
+  for (const seg of segments) {
+    if (/^\d+$/.test(seg)) expr += `[${seg}]`;
+    else if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(seg)) expr += `?${seg}`;
+    else expr += `?(${xqString(seg)})`;
+  }
+  return expr;
+}
+
 /** `$.patient.vitals[1].systolic` → `$source?patient?vitals?1?systolic` */
-export function jsonDollarPathToLookup(path: string): string | null {
+export function jsonDollarPathToLookup(path: string, root = "$source"): string | null {
   let body = path.trim();
   if (!body.startsWith("$")) return null;
   body = body.slice(1);
   if (body.startsWith(".")) body = body.slice(1);
-  if (!body) return "$source";
+  if (!body) return root;
 
   const segments: string[] = [];
   let i = 0;
@@ -442,7 +701,7 @@ export function jsonDollarPathToLookup(path: string): string | null {
     i = end;
   }
 
-  let expr = "$source";
+  let expr = root;
   for (const seg of segments) {
     if (/^\d+$/.test(seg)) expr += `?${seg}`;
     else if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(seg)) expr += `?${seg}`;

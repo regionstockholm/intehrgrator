@@ -3,7 +3,7 @@
 **Status:** Ready for implementation  
 **Triage label:** `ready-for-agent` (apply when published to issue tracker)  
 **Glossary:** [CONTEXT.md](../CONTEXT.md)  
-**Design references:** [docs/UI_ARCHITECTURE.md](../docs/UI_ARCHITECTURE.md), [docs/MAPPING_SPECIFICATION.md](../docs/MAPPING_SPECIFICATION.md)
+**Design references:** [docs/UI_ARCHITECTURE.md](../UI_ARCHITECTURE.md), [docs/MAPPING_SPECIFICATION.md](../MAPPING_SPECIFICATION.md)
 
 ---
 

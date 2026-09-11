@@ -7,7 +7,7 @@ Chunk 5.1 ships **joint attributed history**, multi-agent MCP presence, and sess
 **Related:**
 
 - [`DESIGN-multi-agent-undo-crdt.md`](./DESIGN-multi-agent-undo-crdt.md) — undo/history feasibility, library evaluation
-- [`TASKS-roadmap-chunks.md`](./TASKS-roadmap-chunks.md) — Chunk 14 (when scheduled)
+- [`TASKS-roadmap-chunks.md`](../historical-archive/TASKS-roadmap-chunks.md) — Chunk 14 (archived; track via GitHub Issues)
 
 ---
 

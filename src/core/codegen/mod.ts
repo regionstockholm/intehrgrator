@@ -10,9 +10,11 @@ import {
 
 export {
   compileLiteralPath,
+  compileLoopSequence,
   emitXQueryExpr,
   generateXQuery,
   jsonDollarPathToLookup,
+  XQueryExportError,
 } from "./xquery.ts";
 export { generateGoTemplate } from "./go_template.ts";
 export {

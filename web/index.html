@@ -61,6 +61,41 @@
     <button id="btn-export-project" type="button">Export Project</button>
     <button id="btn-import-project" type="button">Import Project</button>
     <button id="btn-better-form" type="button" hidden title="Requires licensed Better renderer (deno task setup:better-forms)">Open Better form</button>
+    <div class="split-btn toolbar-split-btn">
+      <button id="btn-help" class="split-btn-main" type="button" title="Tutorial and issue reporting">Help</button>
+      <button
+        id="btn-help-menu"
+        class="split-btn-chevron"
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded="false"
+        aria-controls="menu-help"
+        aria-label="Help menu"
+      >▾</button>
+      <div id="menu-help" class="split-btn-menu" hidden role="menu">
+        <a
+          class="split-btn-menu-item split-btn-menu-link"
+          role="menuitem"
+          href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/TUTORIAL.md"
+          target="_blank"
+          rel="noopener noreferrer"
+        >User tutorial</a>
+        <a
+          class="split-btn-menu-item split-btn-menu-link"
+          role="menuitem"
+          href="https://github.com/regionstockholm/intehrgrator/issues/new/choose"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Report a bug</a>
+        <a
+          class="split-btn-menu-item split-btn-menu-link"
+          role="menuitem"
+          href="https://github.com/regionstockholm/intehrgrator/issues/new/choose"
+          target="_blank"
+          rel="noopener noreferrer"
+        >Request a feature</a>
+      </div>
+    </div>
     <label class="toolbar-lang" for="ui-language-dropdown">
       <span id="ui-language-label">Language</span>
       <select id="ui-language-dropdown" aria-label="Application UI language"></select>

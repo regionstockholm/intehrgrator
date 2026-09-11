@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes, assert } from "@std/assert";
+import { assertEquals, assertStringIncludes, assert, assertThrows } from "@std/assert";
 import { join, toFileUrl } from "@std/path";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
@@ -6,7 +6,10 @@ import {
   getExportTargetAdapter,
   jsonDollarPathToLookup,
   emitXQueryExpr,
+  compileLoopSequence,
+  XQueryExportError,
 } from "@intehrgrator/core/codegen/mod.ts";
+import { upsertLoop } from "@intehrgrator/core/mapping_model/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
@@ -112,9 +115,64 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
     emitXQueryExpr(parseExpression('maps_get("defaults", "language")')),
     '(if ("defaults" eq "defaults") then map:get($defaults, "language") else ())',
   );
+  assertThrows(
+    () => emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
+    XQueryExportError,
+    "$sheets",
+  );
+});
+
+Deno.test("xquery export fails with clear message when slots use sheet accessors", () => {
+  const model = applyExpressionEdit(
+    createEmptyModel("terms"),
+    "s1",
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+    { rmType: "DV_TEXT", returnType: "string" },
+  );
+  assertThrows(
+    () => generate(model, "xquery"),
+    XQueryExportError,
+    "$sheets",
+  );
+});
+
+Deno.test("xquery export emits for_each_source iteration with relative loop paths", () => {
+  let model = createEmptyModel("pulse-series");
+  model = upsertLoop(model, {
+    attachSlotId: "evt-1",
+    varName: "measurements",
+    path: "$.measurements",
+    kind: "source",
+  });
+  model = applyExpressionEdit(model, "slot/rate", 'xpathNumber("pulse")', {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+    label: "Rate",
+  });
+  model = applyExpressionEdit(model, "slot/time", 'xpathString("timestamp")', {
+    rmType: "DV_DATE_TIME",
+    returnType: "string",
+    label: "Time",
+  });
+  model = applyExpressionEdit(model, "slot/patient", 'xpathString("$.patient.id")', {
+    rmType: "DV_TEXT",
+    returnType: "string",
+    label: "Patient",
+  });
+
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "for $measurements in local:iterable-sequence($source?measurements)");
+  assertStringIncludes(xq, "element loops");
+  assertStringIncludes(xq, 'attribute attach-slot-id { "evt-1" }');
+  assertStringIncludes(xq, 'attribute id { "slot/rate" }');
+  assertStringIncludes(xq, "$measurements?pulse");
+  assertStringIncludes(xq, "$measurements?timestamp");
+  assertStringIncludes(xq, 'attribute id { "slot/patient" }');
+  assertStringIncludes(xq, "$source?patient?id");
+  assertEquals(xq.includes('attribute id { "slot/rate" }'), xq.indexOf("element loops") < xq.indexOf('attribute id { "slot/rate" }'));
   assertEquals(
-    emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
-    '(: sheet_lookup — bind $sheets at convert time :) ()',
+    compileLoopSequence({ attachSlotId: "e", varName: "items", path: "$.readings[*]", kind: "source" }),
+    "local:iterable-sequence($source?readings)",
   );
 });
 

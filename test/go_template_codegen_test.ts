@@ -437,6 +437,8 @@ Deno.test("go-template codegen from Blockly openEHR canvas emits COMPOSITION JSO
     assertEquals(output.includes("unsupported block: composition"), false);
     assertEquals(output.includes("unsupported block: conversion_start"), false);
     assertEquals(output.includes("new COMPOSITION"), false, "Go template is text, not ehrtslib");
+    assert(output.includes('"_type": "PARTY_SELF"'), "subject default point is ITS-JSON PARTY_SELF");
+    assertEquals(output.includes(".Parameters.subject | quote"), false);
   } finally {
     workspace.dispose();
   }
@@ -452,8 +454,13 @@ Deno.test("Go template Output mode executes Blockly COMPOSITION mapping", async 
       skeleton,
     });
     assertEquals(result.ok, true, String(result.error ?? result.output));
-    const parsed = JSON.parse(String(result.output)) as { _type?: string };
+    const parsed = JSON.parse(String(result.output)) as {
+      _type?: string;
+      content?: Array<{ subject?: { _type?: string } }>;
+    };
     assertEquals(parsed._type, "COMPOSITION");
+    assertEquals(parsed.content?.[0]?.subject?._type, "PARTY_SELF");
+    assertEquals(String(result.output).includes("map[rmType:"), false);
     assert(String(result.output).includes("120"), "systolic magnitude from source");
   } finally {
     workspace.dispose();

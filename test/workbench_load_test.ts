@@ -422,8 +422,12 @@ Deno.test("controller Go Template Output mode walks Blockly COMPOSITION canvas",
     assertEquals(after.generatedCode.includes("new COMPOSITION"), false);
     assertEquals(after.generatedCode.includes("unsupported block: composition"), false);
     assertEquals(after.testResult?.ok, true, String(after.testResult?.error ?? after.testResult?.output));
-    const parsed = JSON.parse(String(after.testResult?.output)) as { _type?: string };
+    const parsed = JSON.parse(String(after.testResult?.output)) as {
+      _type?: string;
+      content?: Array<{ subject?: { _type?: string } }>;
+    };
     assertEquals(parsed._type, "COMPOSITION");
+    assertEquals(parsed.content?.[0]?.subject?._type, "PARTY_SELF");
     assertStringIncludes(String(after.testResult?.output), "120");
   } finally {
     workspace.dispose();

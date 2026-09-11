@@ -410,7 +410,7 @@ function emitJson(block: Block, ctx: GoEmitContext, indent: number): string {
   if (block.type === "party_self") return jsonObject([["_type", jsonString("PARTY_SELF")]], indent);
   if (block.type === "party_proxy") {
     const kind = block.getInputTargetBlock(RM_SPECIALIZATION_INPUT);
-    if (kind) return emitJson(kind, ctx, indent);
+    if (kind && kind.type !== "maps_get") return emitJson(kind, ctx, indent);
     return jsonObject([["_type", jsonString("PARTY_SELF")]], indent);
   }
   if (block.type === "party_ref") return emitPartyRef(block, ctx, indent);
@@ -617,6 +617,9 @@ function emitRmAttribute(
   }
   const target = block.getInputTargetBlock(inputName);
   if (!target || target.isShadow()) return null;
+  if (target.type === "maps_get" && isPartyProxyAttribute(parentRmType, attr)) {
+    return jsonObject([["_type", jsonString("PARTY_SELF")]], indent + 1);
+  }
   if (target.type === "lists_create_with") return emitListsCreate(target, ctx, indent + 1);
   if (isListAttribute(parentRmType, attr)) {
     const code = emitJson(target, ctx, indent + 1);
@@ -626,6 +629,13 @@ function emitRmAttribute(
   let code = emitJson(target, ctx, indent + 1);
   code = wrapCodePhraseAttribute(attr, parentRmType, target, code, ctx, indent + 1);
   return isBlank(code) ? null : code;
+}
+
+function isPartyProxyAttribute(parentRmType: string, attr: string): boolean {
+  const attrMeta = attributesFor(parentRmType).find((item) => item.name === attr);
+  const attrType = attrMeta?.typeName ? baseRmTypeName(attrMeta.typeName) : "";
+  return attrType === "PARTY_PROXY" || attrType === "PARTY_SELF" ||
+    attrType === "PARTY_IDENTIFIED" || attrType === "PARTY_RELATED";
 }
 
 function wrapCodePhraseAttribute(

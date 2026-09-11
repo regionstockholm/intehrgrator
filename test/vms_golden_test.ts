@@ -154,6 +154,8 @@ Deno.test("XQuery export lists the same slot ids and loop metadata as Mapping Mo
     }
     if ((model.loops ?? []).length) {
       assertStringIncludes(xq, "element loops");
+      assertStringIncludes(xq, "for $");
+      assertStringIncludes(xq, "return");
     }
   } finally {
     workspace.dispose();

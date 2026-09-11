@@ -289,7 +289,9 @@ and Test Run (`evalSheetCall`). **Mutators** (`sheet_set_*`, `sheet_insert_row`,
 `sheet_delete_*`, …) mutate a convert-time `SheetBag` (`applySheetMutator`) and
 are **statement blocks**, not slot expressions.
 
-XQuery export currently stubs all sheet calls as `(: … :) ()`.
+XQuery export binds convert-time `$sheets` and emits `local:sheet-lookup` /
+`local:decision-table` (no silent `()` stub). Missing sheet names still yield
+an empty sequence at run time, same as TypeScript `sheetLookup`.
 
 **Why it hurts:** Mutators introduce **imperative state** and order dependence.
 `sheet_lookup` depends on tabular data that may be edited outside the mapping;

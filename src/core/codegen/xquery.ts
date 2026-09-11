@@ -26,7 +26,7 @@ export interface XqEmitEnv {
   warnings: string[];
 }
 
-export function createXqEmitEnv(ctx = "$source"): XqEmitEnv {
+function createXqEmitEnv(ctx = "$source"): XqEmitEnv {
   return { ctx, bind: {}, warnings: [] };
 }
 
@@ -60,7 +60,7 @@ export function generateXQuery(model: MappingModel): string {
   }
 
   if (env.warnings.length) {
-    lines.push("(: Export warnings — dynamic paths use local:*-at runtime helpers :)");
+    lines.push("(: Conversion script warnings — dynamic paths use local:*-at runtime helpers :)");
     for (const warning of env.warnings) {
       lines.push(`(:  - ${xqComment(warning)} :)`);
     }
@@ -261,11 +261,9 @@ function assignSlotsToLoops(model: MappingModel): Map<string, MappingLoop> {
   );
   if (leftover.length && loops.length) {
     for (const slot of leftover) {
-      const named = loops.find((loop) =>
-        slot.expression.includes(`var(${JSON.stringify(loop.varName)})`) ||
-        slot.expression.includes(`var("${loop.varName}")`)
-      );
-      assigned.set(slot.slotId, named ?? loops[0]!);
+      const named = loops.find((loop) => slotUsesLoopVar(slot, loop));
+      if (named) assigned.set(slot.slotId, named);
+      else if (loops.length === 1) assigned.set(slot.slotId, loops[0]!);
     }
   }
   return assigned;
@@ -273,10 +271,12 @@ function assignSlotsToLoops(model: MappingModel): Map<string, MappingLoop> {
 
 function slotBelongsToSomeLoop(slot: MappingSlot, loops: MappingLoop[]): boolean {
   if (expressionUsesRelativeSourcePath(slot.expression)) return true;
-  return loops.some((loop) =>
-    slot.expression.includes(`var(${JSON.stringify(loop.varName)})`) ||
-    slot.expression.includes(`var("${loop.varName}")`)
-  );
+  return loops.some((loop) => slotUsesLoopVar(slot, loop));
+}
+
+function slotUsesLoopVar(slot: MappingSlot, loop: MappingLoop): boolean {
+  return slot.expression.includes(`var(${JSON.stringify(loop.varName)})`) ||
+    slot.expression.includes(`var("${loop.varName}")`);
 }
 
 function signatureDepth(model: MappingModel, slotId: string): number {

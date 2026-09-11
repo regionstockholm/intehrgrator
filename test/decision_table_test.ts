@@ -237,7 +237,7 @@ Deno.test("TypeScript codegen emits decisionTable helper call", () => {
   assertEquals(code.includes("function decisionTable"), true);
 });
 
-Deno.test("XQuery codegen mentions decision_table bind stub or flatten", () => {
+Deno.test("XQuery codegen emits local:decision-table against $sheets", () => {
   const model = baseModel(
     'decision_table("findings", map("finding", "effusion", "laterality", "left"), "term_id")',
   );

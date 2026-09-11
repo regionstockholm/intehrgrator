@@ -196,6 +196,30 @@ Deno.test("xquery codegen keeps relative leftover slots inside the looped node",
   assertStringIncludes(xq, "for $measurements in");
 });
 
+Deno.test("xquery codegen does not assign leftover relative slots to the first of two loops", () => {
+  const model = loopingVitalsModel();
+  model.loops = [
+    ...(model.loops ?? []),
+    {
+      attachSlotId: "other",
+      varName: "readings",
+      path: "$.readings",
+      kind: "source",
+    },
+  ];
+  model.slots.push({
+    slotId: "slot/orphan-note",
+    rmType: "DV_TEXT",
+    expression: 'xpathString("note")',
+    returnType: "string",
+  });
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, 'attribute id { "slot/orphan-note" }');
+  assertStringIncludes(xq, "$source?note");
+  assertEquals(xq.includes("$measurements?note"), false);
+  assertEquals(xq.includes("$readings?note"), false);
+});
+
 Deno.test("xquery codegen inlines literal paths and documents dynamic path helpers", () => {
   const model: MappingModel = {
     ...createEmptyModel("dyn"),

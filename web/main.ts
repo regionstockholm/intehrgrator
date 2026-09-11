@@ -286,6 +286,15 @@ let suppressBlocklyModelSync = false;
 let applyingDocumentUndo = false;
 let documentReplaceDepth = 0;
 
+function flashSheetsChrome(): void {
+  const tab = sheetsTab;
+  if (!(tab instanceof HTMLElement)) return;
+  tab.classList.remove("sheets-flash");
+  void tab.offsetWidth;
+  tab.classList.add("sheets-flash");
+  globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 1500);
+}
+
 function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {
   activeTextView = view;
   const showHandlebars = view === "handlebars";
@@ -448,15 +457,18 @@ async function bootBlockly(): Promise<void> {
   setSheetFocusHandler((name, opts) => {
     showTextView("sheets");
     sheetsPanel?.showSheet(name, "sheet", { highlight: opts?.highlight ?? true });
+    if (opts?.highlight ?? true) flashSheetsChrome();
   });
   setDecisionTableFocusHandler((name, opts) => {
     showTextView("sheets");
     sheetsPanel?.showSheet(name, "decision-table", { highlight: opts?.highlight ?? true });
+    if (opts?.highlight ?? true) flashSheetsChrome();
   });
   setGridPreviewActivateHandler((blockType, name) => {
     showTextView("sheets");
     const kind = blockType === "decision_table_decl" ? "decision-table" : "sheet";
     sheetsPanel?.showSheet(name, kind, { highlight: true });
+    flashSheetsChrome();
   });
   setDecisionTableInfoHandler((anchor) => {
     const tip = document.getElementById("decision-table-block-info");

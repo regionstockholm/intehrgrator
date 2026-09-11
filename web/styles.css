@@ -425,8 +425,9 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .sheets-panel.sheets-flash .sheets-tab.active,
 #tab-sheets.sheets-flash {
-  background-color: #c5ebe3;
-  box-shadow: inset 0 -3px 0 #00796b;
+  background: #00796b !important;
+  color: #fff !important;
+  box-shadow: inset 0 -3px 0 #004d40;
 }
 .sheets-output-cols {
   display: flex;

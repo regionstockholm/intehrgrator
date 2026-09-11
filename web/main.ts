@@ -292,7 +292,7 @@ function flashSheetsChrome(): void {
   tab.classList.remove("sheets-flash");
   void tab.offsetWidth;
   tab.classList.add("sheets-flash");
-  globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 2300);
+  globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 4000);
 }
 
 function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {
@@ -593,10 +593,14 @@ async function bootBlockly(): Promise<void> {
       applyBlockSelection(blockId, "blockly");
       if (blockId) {
         const clicked = workspace.getBlockById(blockId);
-        if (clicked?.type === "sheet") {
-          const name = String(clicked.getFieldValue("NAME") || "Sheet1");
+        if (clicked?.type === "sheet" || clicked?.type === "decision_table_decl") {
+          const name = String(clicked.getFieldValue("NAME") || "");
+          const kind = clicked.type === "decision_table_decl" ? "decision-table" : "sheet";
           showTextView("sheets");
-          sheetsPanel?.showSheet(name);
+          sheetsPanel?.showSheet(name || (kind === "decision-table" ? "Decision1" : "Sheet1"), kind, {
+            highlight: true,
+          });
+          flashSheetsChrome();
         }
       }
       return;

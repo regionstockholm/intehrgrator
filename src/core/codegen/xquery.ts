@@ -741,7 +741,7 @@ function emitSheetCallXq(name: string, args: string[]): string {
   return `local:${fn}(${args.join(", ")})`;
 }
 
-function emitMapLiteralXq(ast: Extract<ExprAst, { kind: "call" }>, args: string[]): string {
+function emitMapLiteralXq(_ast: Extract<ExprAst, { kind: "call" }>, args: string[]): string {
   const entries: string[] = [];
   for (let i = 0; i + 1 < args.length; i += 2) {
     entries.push(`map:entry(${args[i]}, ${args[i + 1]})`);

@@ -36,10 +36,13 @@ export BASEX_HOME="$HOME/basex"
 export PATH="$BASEX_HOME/bin:$PATH"
 ```
 
-Override the zip with `BASEX_ZIP_URL` if needed. Default is the pinned
-`https://files.basex.org/releases/12.4/BaseX.zip` (the `BaseX-latest.zip` alias
-404s; dated names under `/releases/latest/` change). `BASEX_HOME` / `BASEX_BIN`
-are the env vars the test runner reads; it also looks in `$HOME/basex/bin`.
+Override the zip with `BASEX_ZIP_URL` if needed. Default is the pinned 12.4
+archive `https://files.basex.org/releases/12.4/BaseX124.zip` (version folders
+use `BaseX124.zip`, not `BaseX.zip`). Official current zip:
+`https://files.basex.org/releases/BaseX.zip`. Developer snapshot:
+`https://files.basex.org/releases/BaseX-latest.zip` (not the `latest/`
+subdirectory, which 404s). `BASEX_HOME` / `BASEX_BIN` are the env vars the
+test runner reads; it also looks in `$HOME/basex/bin`.
 
 3. Allow egress to `files.basex.org` (and `docs.basex.org` if you need to
    re-check CLI flags). The zip is ~13 MB.

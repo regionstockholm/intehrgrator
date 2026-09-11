@@ -9,9 +9,11 @@ if ! command -v java >/dev/null 2>&1; then
 fi
 
 DEST="${BASEX_HOME:-$HOME/basex}"
-# Pin a known-good release. files.basex.org/releases/BaseX-latest.zip 404s;
-# dated snapshot names under /releases/latest/ change. Override with BASEX_ZIP_URL.
-ZIP_URL="${BASEX_ZIP_URL:-https://files.basex.org/releases/12.4/BaseX.zip}"
+# Pin BaseX 12.4. Version folders use BaseX124.zip (not BaseX.zip).
+# Official alias: https://files.basex.org/releases/BaseX.zip
+# Snapshot (changes): https://files.basex.org/releases/BaseX-latest.zip
+# Do not use …/releases/latest/BaseX-latest.zip — that 404s.
+ZIP_URL="${BASEX_ZIP_URL:-https://files.basex.org/releases/12.4/BaseX124.zip}"
 
 print_env() {
   echo "export BASEX_HOME=$DEST"

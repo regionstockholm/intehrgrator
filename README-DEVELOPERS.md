@@ -10,10 +10,16 @@ Technical setup and architecture pointers for contributors and AI-assisted devel
 - **Go 1.22+** (optional) — only to rebuild the vendored Go `text/template` WASM (`deno task wasm:go-template`).
 - **Playwright** (optional) — installed automatically by `deno task test:ui` for browser tests.
 
+## How to run locally
+
+install deno
+
 ```bash
 git clone https://github.com/regionstockholm/intehrgrator.git
 cd intehrgrator
 deno task vendor   # clone/update ehrtslib + examples into vendor/
+deno task build 
+deno task dev`  # start and serve on `http://localhost:5173`
 ```
 
 ## Deno tasks
@@ -21,7 +27,7 @@ deno task vendor   # clone/update ehrtslib + examples into vendor/
 | Task | Purpose |
 |------|---------|
 | `deno task vendor` | Refresh `vendor/ehrtslib` and example archetypes from upstream |
-| `deno task dev` | Build and serve on `http://localhost:5173` |
+| `deno task dev` | (Build and?) serve on `http://localhost:5173` |
 | `deno task build` | Static site → `dist/` (+ desktop www staging) |
 | `deno task test` | Unit tests (`test/`, parallel, no browser) |
 | `deno task test:ui` | Playwright UI tests — see [docs/UI_TESTING.md](docs/UI_TESTING.md) |

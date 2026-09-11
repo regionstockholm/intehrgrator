@@ -292,7 +292,7 @@ function flashSheetsChrome(): void {
   tab.classList.remove("sheets-flash");
   void tab.offsetWidth;
   tab.classList.add("sheets-flash");
-  globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 1500);
+  globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 2300);
 }
 
 function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {

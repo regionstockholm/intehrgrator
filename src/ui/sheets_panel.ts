@@ -446,7 +446,7 @@ export function mountSheetsPanel(
     root.classList.remove("sheets-flash");
     void root.offsetWidth;
     root.classList.add("sheets-flash");
-    globalThis.setTimeout(() => root.classList.remove("sheets-flash"), 1400);
+    globalThis.setTimeout(() => root.classList.remove("sheets-flash"), 2300);
   };
 
   const showSheet = (

@@ -114,8 +114,104 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
   );
   assertEquals(
     emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
-    '(: sheet_lookup — bind $sheets at convert time :) ()',
+    'local:sheet-lookup("t", "code", "I10", "snomed")',
   );
+});
+
+Deno.test("xquery export emits for_each_source iteration with relative slot paths", () => {
+  let model = createEmptyModel("vitals-series");
+  model.loops = [{
+    attachSlotId: "evt-1",
+    varName: "measurements",
+    path: "$.measurements",
+    kind: "source",
+  }];
+  model = applyExpressionEdit(model, "slot/rate", 'xpathNumber("pulse")', {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+    label: "Pulse",
+  });
+  model.targetSignature = [{
+    slotId: "evt-1",
+    rmType: "EVENT",
+    children: [{ slotId: "slot/rate", rmType: "DV_QUANTITY", children: [] }],
+  }];
+
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "element loops");
+  assertStringIncludes(xq, "for $measurements in local:as-node-sequence(($source?measurements))");
+  assertStringIncludes(xq, "attribute attach-slot-id { \"evt-1\" }");
+  assertStringIncludes(xq, 'attribute id { "slot/rate" }');
+  assertStringIncludes(xq, "xs:decimal(($measurements?pulse)[1])");
+  assertEquals(xq.includes("element slots"), true);
+  assertEquals(xq.includes('attribute id { "slot/rate" }'), true);
+});
+
+Deno.test("xquery export emits for_each_list iteration", () => {
+  let model = createEmptyModel("codes");
+  model.loops = [{
+    attachSlotId: "slot/code",
+    varName: "code",
+    path: "",
+    kind: "list",
+    collection: 'list("I10", "E11")',
+  }];
+  model = applyExpressionEdit(model, "slot/text", 'xpathString("code")', {
+    rmType: "DV_TEXT",
+    returnType: "string",
+  });
+  model.targetSignature = [{
+    slotId: "slot/code",
+    rmType: "ELEMENT",
+    children: [{ slotId: "slot/text", rmType: "DV_TEXT", children: [] }],
+  }];
+
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, 'attribute kind { "list" }');
+  assertStringIncludes(xq, "for $code in (\"I10\", \"E11\")");
+});
+
+Deno.test("xquery export fails when sheet accessors are used without sheetNames", () => {
+  const model = applyExpressionEdit(
+    createEmptyModel("terms"),
+    "s1",
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+    { rmType: "DV_TEXT", returnType: "string" },
+  );
+  let threw = false;
+  try {
+    generate(model, "xquery");
+  } catch (e) {
+    threw = true;
+    assertStringIncludes(String(e), "sheetNames");
+  }
+  assertEquals(threw, true);
+});
+
+Deno.test("xquery export declares $sheets when sheet accessors and sheetNames are present", () => {
+  const model = applyExpressionEdit(
+    createEmptyModel("terms"),
+    "s1",
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+    { rmType: "DV_TEXT", returnType: "string" },
+  );
+  model.sheetNames = ["icd10_snomed"];
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "declare variable $sheets");
+  assertStringIncludes(xq, "local:sheet-lookup");
+});
+
+Deno.test("xquery export rejects removed Blockly types from unsupported[]", () => {
+  const model = createEmptyModel("t1");
+  model.unsupported = [{ blockType: "controls_whileUntil", reason: "removed" }];
+  let threw = false;
+  try {
+    generate(model, "xquery");
+  } catch (e) {
+    threw = true;
+    assertStringIncludes(String(e), "controls_whileUntil");
+  }
+  assertEquals(threw, true);
 });
 
 Deno.test("test runner evaluates json slot", () => {

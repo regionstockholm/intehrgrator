@@ -10,10 +10,14 @@ import {
 
 export {
   compileLiteralPath,
+  compileSourceNodesPath,
   emitXQueryExpr,
   generateXQuery,
+  groupSlotsForXQuery,
   jsonDollarPathToLookup,
+  XQueryExportError,
 } from "./xquery.ts";
+export type { XQueryGenerationOptions, XQuerySlotGroups } from "./xquery.ts";
 export { generateGoTemplate } from "./go_template.ts";
 export {
   emitTsExpression,
@@ -109,7 +113,7 @@ const adapters = new Map<ExportTarget, ExportTargetAdapter>([
     id: "xquery",
     extension: "xq",
     mime: "application/xquery",
-    generate: generateXQuery,
+    generate: (model, options) => generateXQuery(model, options),
   }],
   ["go-template", {
     id: "go-template",

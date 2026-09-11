@@ -121,12 +121,13 @@ local:convert($source)
 
 1. **Full COMPOSITION emit (Model A/C)** — walk Template Skeleton / `targetPath`
    when exporting, not only flat `MappingModel.slots`.
-2. **Engine golden tests** — run generated `.xq` under Saxon-HE or BaseX in CI.
+2. **Engine golden tests** — optional harness under `test/xquery_engine_test.ts`
+   + `docs/agents/xquery-engine-tests.md` (BaseX primary; skips when CLI absent).
 3. **JSON source notes** — document engine-specific map lookup vs `fn:json-doc`.
 4. **Units / coded-text fields** — multi-field DV shells beyond the primary
    expression attribute.
-5. **`for_each_source` loops** — not in Mapping Model slots yet; emit when the
-   derived index gains iteration structure.
+5. **`for_each_source` / `for_each_list` loops** — **Implemented (#39)** — IR `loops[]`
+   compiles to `for $x in … return` inside `<mapping-result><loops>`.
 
 ## Related
 

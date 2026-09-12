@@ -390,7 +390,8 @@ Deno.test("go-template Blockly walker emits loops and expression blocks", () => 
           inputs: {
             DO: {
               block: {
-                type: "xml_text",
+                type: "xml_element",
+                fields: { NAME: "flag" },
                 inputs: {
                   VALUE: {
                     block: {

@@ -283,8 +283,6 @@ export class FieldSlotLabel extends FieldLabelBase {
     }
     if (abstract && glyph) fullParts.push(glyph);
     else if (concreteGlyph) fullParts.push(concreteGlyph);
-    const full = fullParts.join(" ");
-    // Caption body stays 12px; only the type glyph may be larger.
     const bodyPx = 12;
     const glyphPx = this.rmType_
       ? (abstract
@@ -293,10 +291,17 @@ export class FieldSlotLabel extends FieldLabelBase {
         ? 13
         : rmEmojiFontPx(this.rmType_))
       : bodyPx;
-    const glyphExtra = (abstract && glyph) || concreteGlyph
-      ? Math.max(0, glyphPx - bodyPx) * 0.6
+    const bodyText = [this.attrLabel, this.hasOverlay ? `${OVERLAY_DELTA} ${card} ${rmCard}` : card]
+      .filter(Boolean)
+      .join(" ");
+    const bodyW = measureCaptionWidth(bodyText, bodyPx, false);
+    const glyphW = (abstract && glyph)
+      ? measureCaptionWidth(glyph, glyphPx, true)
+      : concreteGlyph
+      ? measureGlyphSpanWidth(concreteGlyph, glyphPx)
       : 0;
-    this.size_.width = measureCaptionWidth(full, bodyPx, abstract) + Math.ceil(glyphExtra);
+    const gap = glyphW > 0 ? 4 : 0;
+    this.size_.width = bodyW + gap + glyphW + 4;
     this.size_.height = Math.max(14, bodyPx, abstract ? glyphPx : bodyPx);
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
@@ -531,6 +536,24 @@ function dismissOverlayHelpTip(): void {
 }
 
 let measureCanvas: HTMLCanvasElement | null = null;
+
+function measureGlyphSpanWidth(text: string, fontPx: number): number {
+  if (!text) return 0;
+  if (typeof document !== "undefined") {
+    try {
+      measureCanvas ??= document.createElement("canvas");
+      const ctx = measureCanvas.getContext("2d");
+      if (ctx) {
+        ctx.font = `${fontPx}px "Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", sans-serif`;
+        const w = ctx.measureText(text).width;
+        if (w > 0) return Math.ceil(w) + 2;
+      }
+    } catch {
+      // Headless fallthrough.
+    }
+  }
+  return Math.ceil(fontPx * 1.05 * Math.max(1, Array.from(text).length)) + 2;
+}
 
 function measureCaptionWidth(text: string, fontPx: number, abstract: boolean): number {
   if (!text) return 0;

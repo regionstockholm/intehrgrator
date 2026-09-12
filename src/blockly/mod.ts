@@ -73,6 +73,7 @@ export {
   hasPlaceholderSourceQuery,
   type ListeningTarget,
 } from "./listening.ts";
+export { findSlotIdAtPoint } from "./source_drop.ts";
 export { blockToExpression } from "./expression_serialize.ts";
 export type { MappingModelExtract } from "./mapping_ir.ts";
 export {

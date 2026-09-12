@@ -135,16 +135,17 @@ export function appendInputTypeGlyph(
   input.appendField(field, name);
 }
 
-/** Prepends a HEADER row with the block output glyph (openEHR-style). */
+/** Prepends the block output glyph on the first row (avoids an extra HEADER line). */
 export function ensureBlockOutputHeaderGlyph(block: Block): void {
   if (!block.outputConnection) return;
-  if (block.getInput("HEADER")) return;
-  const header = block.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+  if (block.getField(BLOCK_OUT_EMOJI_FIELD)) return;
   const first = block.inputList[0];
-  if (first && first.name !== "HEADER") {
-    block.moveInputBefore("HEADER", first.name);
+  if (!first) return;
+  if (first.name === "HEADER") {
+    appendBlockOutputGlyph(first, block.outputConnection.getCheck());
+    return;
   }
-  appendBlockOutputGlyph(header, block.outputConnection.getCheck());
+  appendBlockOutputGlyph(first.setAlign(inputAlignLeft()), block.outputConnection.getCheck());
 }
 
 /** Appends socket glyphs as the last field on each value input. */

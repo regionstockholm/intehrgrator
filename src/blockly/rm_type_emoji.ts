@@ -256,7 +256,7 @@ function measureGlyphWidth(text: string, fontPx: number): number {
       if (ctx) {
         ctx.font = `${fontPx}px ${EMOJI_FONT}`;
         const w = ctx.measureText(text).width;
-        if (w > 0) return Math.ceil(w);
+        if (w > 0) return Math.ceil(w) + 2;
       }
     } catch {
       // Headless / canvas-less runtimes fall through.

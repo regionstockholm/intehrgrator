@@ -39,7 +39,6 @@ import {
   highlightListeningSlot,
   slotIdFromBlock,
   listeningTargetFromBlock,
-  owningValueSlotId,
   warningTextOf,
   createModestTheme,
   buildDemoToolbox,
@@ -58,6 +57,7 @@ import {
   isEventFamilyType,
   isItemStructureFamilyType,
   workspacePositionFromClient,
+  findSlotIdAtPoint,
   registerCompactThrasosRenderer,
   openWorkspaceSnapshotWindow,
   relabelWorkspaceFromSkeleton,
@@ -1469,7 +1469,7 @@ function initBlocklySourceDrop(): void {
     lastAppliedPath = payload.path;
     lastAppliedAt = now;
     try {
-      const slotId = findSlotIdAtPoint(clientX, clientY);
+      const slotId = findSlotIdAtPoint(workspace, clientX, clientY);
       if (slotId) {
         controller.mapNodeToSlot(slotId, payload.path, payload.format);
         return true;
@@ -1518,28 +1518,6 @@ function placeSourceBlockFromDrop(
   const { x, y } = workspacePositionFromClient(workspace, clientX, clientY);
   placeSourceQueryBlock(workspace, xpath, returnType, x, y);
   controller.setStatusMessage(`Added source ${xpath}`);
-}
-
-function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
-  let best: { slotId: string; area: number } | null = null;
-  for (const block of workspace.getAllBlocks(false)) {
-    const svg = block as BlockSvg;
-    const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
-    if (!root) continue;
-    const rect = root.getBoundingClientRect();
-    if (
-      clientX < rect.left || clientX > rect.right ||
-      clientY < rect.top || clientY > rect.bottom
-    ) {
-      continue;
-    }
-    let slotId = slotIdFromBlock(block);
-    if (!slotId) slotId = owningValueSlotId(block);
-    if (!slotId) continue;
-    const area = rect.width * rect.height;
-    if (!best || area < best.area) best = { slotId, area };
-  }
-  return best?.slotId ?? null;
 }
 
 function initFileDropTargets(): void {

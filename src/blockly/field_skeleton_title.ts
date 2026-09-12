@@ -155,7 +155,7 @@ export class FieldSkeletonTitle extends FieldLabelBase {
     const meta = this.metaText_();
     const nameW = measureTextWidth(name, NAME_FONT_PX, true);
     const metaW = meta ? measureTextWidth(meta, META_FONT_PX, false) : 0;
-    this.size_.width = Math.max(nameW, metaW);
+    this.size_.width = Math.max(nameW, metaW) + 6;
     this.size_.height = meta ? NAME_LINE_PX + LINE_GAP_PX + META_LINE_PX : NAME_LINE_PX;
     this.layout_();
   }

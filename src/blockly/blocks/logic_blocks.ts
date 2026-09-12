@@ -209,18 +209,18 @@ export function registerLogicBlocks(): void {
     },
 
     setGuardRow_: function (this: RestrictionBlock, show: boolean) {
-      const existing = this.getInput("EMPTY");
-      if (show === Boolean(existing)) return;
+      const predInput = this.getInput("PRED");
+      const field = this.getField("NONEMPTY");
+      if (show === Boolean(field)) return;
       if (show) {
-        this.appendDummyInput("EMPTY")
-          .appendField(new Blockly.FieldCheckbox(this.guardValue_), "NONEMPTY")
+        predInput
+          ?.appendField(new Blockly.FieldCheckbox(this.guardValue_), "NONEMPTY")
           .appendField(m.LOGIC_REQUIRE_ITEMS, "NONEMPTY_LABEL");
-        // The item name, when shown, stays the last line of the sentence.
-        if (this.getInput("ITEM")) this.moveInputBefore("EMPTY", "ITEM");
         return;
       }
       this.guardValue_ = isFieldChecked(this, "NONEMPTY");
-      this.removeInput("EMPTY", true);
+      predInput?.removeField("NONEMPTY", true);
+      predInput?.removeField("NONEMPTY_LABEL", true);
     },
 
     /** The item name is only needed for nesting, so it stays hidden by default. */
@@ -240,7 +240,7 @@ export function registerLogicBlocks(): void {
     saveExtraState: function (this: RestrictionBlock): RestrictionExtraState | null {
       const state: RestrictionExtraState = {};
       if (this.getField("N")) state.count = true;
-      if (this.getInput("EMPTY")) state.guard = true;
+      if (this.getField("NONEMPTY")) state.guard = true;
       if (this.getInput("ITEM")) state.itemNamed = true;
       const name = restrictionItemName(this);
       if (name !== DEFAULT_ITEM_NAME) state.itemName = name;
@@ -327,7 +327,7 @@ export function registerLogicBlocks(): void {
         .setCheck(LIST_CHECK)
         .appendField(new Blockly.FieldLabel(m.LOGIC_SET_CONN_AND), "CONN");
       appendInputTypeGlyph(inputB, LIST_CHECK);
-      this.setInputsInline(false);
+      this.setInputsInline(true);
       this.setOutput(true, "Array");
       this.setColour(LIST_COLOUR);
       this.setTooltip(m.LOGIC_SET_TOOLTIP);

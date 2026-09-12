@@ -16,7 +16,8 @@ import {
   RM_ATTR_INPUT_PREFIX,
   RM_SPECIALIZATION_INPUT,
 } from "./blocks/rm_blocks.ts";
-import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
+import { isGenericValueBlockType, isSchemaStructureBlock, targetChildInputName } from "./blocks/target_blocks.ts";
+import { xmlDeclarationOf, xmlNamespacesOf } from "./blocks/xml_blocks.ts";
 import { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 import { DEFAULTS_BLOCK_TYPE } from "../core/defaults/extract.ts";
 import {
@@ -144,6 +145,14 @@ function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
   if (block.type === "xml_text") {
     const value = block.getInputTargetBlock("VALUE");
     return value ? emitExpressionBlock(value, ctx) ?? emitBlock(value, ctx, indent) : [];
+  }
+  if (block.type === "xml_cdata") {
+    const value = block.getInputTargetBlock("VALUE");
+    const inner = value ? (emitExpressionBlock(value, ctx) ?? emitBlock(value, ctx, indent)).join("") : "";
+    return [`<![CDATA[${inner}]]>`];
+  }
+  if (block.type === "xml_document") {
+    return emitXmlDocument(block, ctx);
   }
   if (block.type === "text_document") {
     const value = block.getInputTargetBlock("VALUE");
@@ -398,19 +407,26 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
   const inner: string[] = [];
 
   if (block.type === "xml_element") {
-    let current: Block | null = block.getInputTargetBlock("TARGET_children");
-    while (current) {
-      if (current.type === "xml_attribute") {
-        const name = String(current.getFieldValue("NAME") ?? "").trim();
+    const textBlock = block.getInputTargetBlock(targetChildInputName("text"));
+    if (textBlock) {
+      inner.push(...(emitExpressionBlock(textBlock, ctx) ?? emitBlock(textBlock, ctx, 0)));
+    }
+    let attr = block.getInputTargetBlock(targetChildInputName("attributes"));
+    while (attr) {
+      if (attr.type === "xml_attribute") {
+        const name = String(attr.getFieldValue("NAME") ?? "").trim();
         if (name) {
-          const val = current.getInputTargetBlock("VALUE");
+          const val = attr.getInputTargetBlock("VALUE");
           const rendered = val ? (emitExpressionBlock(val, ctx) ?? emitBlock(val, ctx, 0)).join("") : "";
           attrParts.push(` ${name}="${rendered}"`);
         }
-      } else {
-        inner.push(...emitBlock(current, ctx, 0));
       }
-      current = current.getNextBlock();
+      attr = attr.getNextBlock();
+    }
+    let child = block.getInputTargetBlock(targetChildInputName("children"));
+    while (child) {
+      inner.push(...emitBlock(child, ctx, 0));
+      child = child.getNextBlock();
     }
   } else {
     for (const input of block.inputList) {
@@ -437,9 +453,24 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
   return [`<${tag}${attrs}></${tag}>`];
 }
 
+function emitXmlDocument(block: Block, ctx: GoEmitContext): string[] {
+  const decl = xmlDeclarationOf(block);
+  const standalone = decl.standalone ? ` standalone="${decl.standalone}"` : "";
+  const lines = [`<?xml version="${decl.version}" encoding="${decl.encoding}"${standalone}?>`];
+  const root = block.getInputTargetBlock(targetChildInputName("root"));
+  if (!root) return lines;
+  const body = emitBlock(root, ctx, 0);
+  const nsAttrs = xmlNamespacesOf(block).map((ns) => ` xmlns:${ns.prefix}="${ns.uri}"`).join("");
+  if (nsAttrs && body[0]?.startsWith("<") && !body[0].startsWith("<?")) {
+    body[0] = body[0].replace(/^(<\w+)/, `$1${nsAttrs}`);
+  }
+  lines.push(...body);
+  return lines;
+}
+
 function isStructureBlock(type: string): boolean {
-  return type === "xml_element" || type.startsWith("schema_") || type === "controls_if" ||
-    type === "for_each_source" || type === "for_each_list";
+  return type === "xml_element" || type === "xml_document" || type.startsWith("schema_") ||
+    type === "controls_if" || type === "for_each_source" || type === "for_each_list";
 }
 
 function xmlTagName(block: Block): string {

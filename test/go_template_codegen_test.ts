@@ -32,17 +32,10 @@ function xmlNoteWithQuery(path: string) {
   return {
     type: "xml_element",
     fields: { NAME: "Note" },
-    extraState: { childGroups: ["children"] },
+    extraState: { childGroups: ["text", "attributes", "children"] },
     inputs: {
-      TARGET_children: {
-        block: {
-          type: "xml_text",
-          inputs: {
-            VALUE: {
-              block: { type: "source_query", fields: { EXPRESSION: path } },
-            },
-          },
-        },
+      TARGET_text: {
+        block: { type: "source_query", fields: { EXPRESSION: path } },
       },
     },
   };

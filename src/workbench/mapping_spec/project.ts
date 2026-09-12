@@ -268,7 +268,7 @@ function walkBlock(
     return;
   }
 
-  if (type === "xml_text" || type === "json_value" || type === "target_value") {
+  if (type === "xml_text" || type === "xml_cdata" || type === "json_value" || type === "target_value") {
     walkInputs(block, indent, lines, attribute, withAlias(extraAliases, idOf(block)), shell, attributeEdit);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
@@ -965,7 +965,8 @@ export function slotAttributeFromInputName(inputName: string): string | undefine
 
 function classify(type: string): SpecLineKind {
   if (isSourceQuery(type)) return "source_query";
-  if (type === "element" || type === "target_value" || type === "json_value" || type === "xml_text") {
+  if (type === "element" || type === "target_value" || type === "json_value" || type === "xml_text" ||
+    type === "xml_cdata") {
     return "value";
   }
   if (
@@ -974,6 +975,7 @@ function classify(type: string): SpecLineKind {
     type === "json_object" ||
     type === "json_array" ||
     type === "xml_element" ||
+    type === "xml_document" ||
     type === "defaults_block" ||
     type === "for_each_source" ||
     type === "controls_if" ||

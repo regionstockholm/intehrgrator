@@ -33,6 +33,7 @@ export const VMS_ESCAPE_BLOCK_TYPES = [
   "procedures_defreturn",
   "json_object",
   "xml_element",
+  "xml_document",
 ] as const;
 
 const REMOVED = new Set<string>(VMS_REMOVED_BLOCK_TYPES);

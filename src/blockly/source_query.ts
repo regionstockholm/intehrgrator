@@ -1,6 +1,6 @@
 import type { Block } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
-import { blocklyCheckForReturnType } from "./block_checks.ts";
+import { BOOLEAN_TYPE_GLYPH } from "./block_type_glyph.ts";
 
 type BlockSvg = import("blockly/core").BlockSvg;
 type Workspace = import("blockly/core").Workspace;
@@ -20,7 +20,7 @@ export type SourceReturnType = "string" | "number" | "boolean" | "node";
 export const SOURCE_TYPE_EMOJI: Record<SourceReturnType, string> = {
   string: "🔤",
   number: "🔢",
-  boolean: "☑️",
+  boolean: BOOLEAN_TYPE_GLYPH,
   node: "📂",
 };
 

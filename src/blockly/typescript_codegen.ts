@@ -48,6 +48,7 @@ import {
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
+import { upgradeXmlBlocklyState } from "../core/xml_upgrade.ts";
 
 const STATEMENT_INPUT_TYPE = 3;
 
@@ -81,7 +82,9 @@ export function generateTypeScriptFromBlocklyState(
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
   try {
-    const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    const snapshot = upgradeXmlBlocklyState(
+      JSON.parse(JSON.stringify(state)),
+    ) as Record<string, unknown>;
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -131,12 +134,14 @@ export function generateTypeScriptFromWorkspace(
   } else if (instanceRoot && (
     isSchemaStructureBlock(instanceRoot) ||
     instanceRoot.type === "json_object" ||
-    instanceRoot.type === "xml_element"
+    instanceRoot.type === "xml_element" ||
+    instanceRoot.type === "xml_document"
   )) {
     body = `return ${emitGeneric(instanceRoot, ctx, 0)};`;
   } else if (targetFormat && targetFormat !== "openehr-template") {
     const generic = instanceRoot ?? roots.find((block) =>
-      isSchemaStructureBlock(block) || block.type === "json_object" || block.type === "xml_element"
+      isSchemaStructureBlock(block) || block.type === "json_object" ||
+      block.type === "xml_element" || block.type === "xml_document"
     );
     if (generic) {
       body = `return ${emitGeneric(generic, ctx, 0)};`;

@@ -37,6 +37,19 @@ import { parseExpression } from "../core/expression/mod.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { generateGoTemplate } from "../core/codegen/go_template.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
+import { upgradeXmlBlocklyState } from "../core/xml_upgrade.ts";
+import {
+  injectXmlnsOnOpenTag,
+  wrapXmlCdata,
+  xmlDeclarationLine,
+  XML_ATTRIBUTES_INPUT,
+  XML_CHILDREN_INPUT,
+  XML_DOCUMENT_TYPE,
+  XML_ELEMENT_TYPE,
+  XML_ROOT_INPUT,
+  XML_TEXT_INPUT,
+  type XmlNamespaceDecl,
+} from "../core/xml_shape.ts";
 
 const STATEMENT_INPUT_TYPE = 3;
 
@@ -67,7 +80,9 @@ export function generateGoTemplateFromBlocklyState(
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
   try {
-    const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    const snapshot = upgradeXmlBlocklyState(
+      JSON.parse(JSON.stringify(state)),
+    ) as Record<string, unknown>;
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -107,14 +122,16 @@ export function generateGoTemplateFromWorkspace(
   } else if (instanceRoot && (
     isSchemaStructureBlock(instanceRoot) ||
     instanceRoot.type === "json_object" ||
-    instanceRoot.type === "xml_element"
+    instanceRoot.type === XML_ELEMENT_TYPE ||
+    instanceRoot.type === XML_DOCUMENT_TYPE
   )) {
     body = emitGeneric(instanceRoot, ctx, 0);
   } else if (instanceRoot?.type === "composition" || isRmContainerBlockType(instanceRoot?.type ?? "")) {
     body = emitRmAsJson(instanceRoot, ctx, 0);
   } else {
     const generic = instanceRoot ?? roots.find((block) =>
-      isSchemaStructureBlock(block) || block.type === "json_object" || block.type === "xml_element"
+      isSchemaStructureBlock(block) || block.type === "json_object" ||
+      block.type === XML_ELEMENT_TYPE || block.type === XML_DOCUMENT_TYPE
     );
     if (generic) {
       body = emitGeneric(generic, ctx, 0);
@@ -141,9 +158,11 @@ function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
   if (block.type === "variables_set") return [];
   if (block.type === "defaults_block" || block.type === "maps_create_with") return [];
 
-  if (block.type === "xml_text") {
-    const value = block.getInputTargetBlock("VALUE");
-    return value ? emitExpressionBlock(value, ctx) ?? emitBlock(value, ctx, indent) : [];
+  if (block.type === "xml_text" || block.type === "xml_cdata") {
+    return emitXmlTextishLive(block, ctx, indent);
+  }
+  if (block.type === XML_DOCUMENT_TYPE) {
+    return emitXmlDocumentLive(block, ctx);
   }
   if (block.type === "text_document") {
     const value = block.getInputTargetBlock("VALUE");
@@ -268,7 +287,10 @@ function emitGeneric(block: Block, ctx: GoEmitContext, indent: number): string[]
     const value = block.getInputTargetBlock("VALUE");
     return value ? emitBlock(value, ctx, indent) : [];
   }
-  if (block.type === "xml_element" || block.type.startsWith("schema_")) {
+  if (
+    block.type === XML_ELEMENT_TYPE || block.type.startsWith("schema_") ||
+    block.type === XML_DOCUMENT_TYPE
+  ) {
     return emitXmlOrSchema(block, ctx);
   }
   if (block.type === "json_object" || block.type === "json_array") {
@@ -385,28 +407,113 @@ function emitDvAsJson(block: Block, ctx: GoEmitContext, indent: number): string[
   return [`{${props.join(", ")}}`];
 }
 
+function emitXmlTextishLive(block: Block, ctx: GoEmitContext, indent: number): string[] {
+  const value = block.getInputTargetBlock(XML_TEXT_INPUT) ?? block.getInputTargetBlock("VALUE");
+  const rendered = value
+    ? (emitExpressionBlock(value, ctx) ?? emitBlock(value, ctx, indent)).join("")
+    : String(block.getFieldValue("TEXT") ?? "");
+  if (block.type === "xml_cdata") return [wrapXmlCdata(rendered)];
+  return rendered ? [rendered] : [];
+}
+
+function emitXmlDocumentLive(block: Block, ctx: GoEmitContext): string[] {
+  const extra = extraStateOf(block);
+  const extras = extra.extras ?? block.xmlDocExtras_ ?? [];
+  const declaration = extra.declaration !== false &&
+    (extras.length === 0 || extras.includes("declaration") || extra.declaration === true ||
+      Boolean(block.getField("VERSION")));
+  const lines: string[] = [];
+  if (declaration) {
+    lines.push(xmlDeclarationLine({
+      version: String(block.getFieldValue("VERSION") || extra.version || "1.0"),
+      encoding: String(block.getFieldValue("ENCODING") || extra.encoding || "UTF-8"),
+      standalone: String(block.getFieldValue("STANDALONE") || extra.standalone || ""),
+    }));
+  }
+  const root = block.getInputTargetBlock(XML_ROOT_INPUT);
+  if (!root) return lines;
+  const emitted = emitBlock(root, ctx, 0);
+  const namespaces = namespacesFromLiveDocument(block, extra);
+  if (namespaces.length && emitted[0]) {
+    emitted[0] = injectXmlnsOnOpenTag(emitted[0], namespaces);
+  }
+  lines.push(...emitted);
+  return lines;
+}
+
+function extraStateOf(block: Block): {
+  xmlAttributes?: string[];
+  fields?: Array<{ name: string; xmlKind?: string }>;
+  declaration?: boolean;
+  version?: string;
+  encoding?: string;
+  standalone?: string;
+  namespaces?: XmlNamespaceDecl[];
+  extras?: string[];
+} {
+  return (block as Block & { extraState_?: {
+    xmlAttributes?: string[];
+    fields?: Array<{ name: string; xmlKind?: string }>;
+    declaration?: boolean;
+    version?: string;
+    encoding?: string;
+    standalone?: string;
+    namespaces?: XmlNamespaceDecl[];
+    extras?: string[];
+  } }).extraState_ ?? {};
+}
+
+function namespacesFromLiveDocument(
+  block: Block,
+  extra: { namespaces?: XmlNamespaceDecl[] },
+): XmlNamespaceDecl[] {
+  if (block.xmlNamespaces_?.length) return block.xmlNamespaces_;
+  if (extra.namespaces?.length) return extra.namespaces;
+  const out: XmlNamespaceDecl[] = [];
+  let i = 0;
+  while (block.getField(`PREFIX_ns${i}`) || block.getField(`URI_ns${i}`)) {
+    out.push({
+      prefix: String(block.getFieldValue(`PREFIX_ns${i}`) ?? ""),
+      uri: String(block.getFieldValue(`URI_ns${i}`) ?? ""),
+    });
+    i++;
+  }
+  return out;
+}
+
+function emitXmlAttributeLive(block: Block, ctx: GoEmitContext): string {
+  const name = String(block.getFieldValue("NAME") ?? "").trim();
+  if (!name) return "";
+  const val = block.getInputTargetBlock(XML_TEXT_INPUT) ?? block.getInputTargetBlock("VALUE");
+  const rendered = val ? (emitExpressionBlock(val, ctx) ?? emitBlock(val, ctx, 0)).join("") : "";
+  return ` ${name}="${rendered}"`;
+}
+
 function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
+  if (block.type === XML_DOCUMENT_TYPE) return emitXmlDocumentLive(block, ctx);
   const tag = xmlTagName(block);
+  const extra = extraStateOf(block);
   const xmlAttributes = new Set<string>();
-  const extra = (block as Block & { extraState_?: { xmlAttributes?: string[]; fields?: Array<{ name: string; xmlKind?: string }> } }).extraState_;
-  for (const name of extra?.xmlAttributes ?? []) xmlAttributes.add(name);
-  for (const field of extra?.fields ?? []) {
+  for (const name of extra.xmlAttributes ?? []) xmlAttributes.add(name);
+  for (const field of extra.fields ?? []) {
     if (field.xmlKind === "attribute") xmlAttributes.add(field.name);
   }
 
   const attrParts: string[] = [];
   const inner: string[] = [];
 
-  if (block.type === "xml_element") {
-    let current: Block | null = block.getInputTargetBlock("TARGET_children");
+  if (block.type === XML_ELEMENT_TYPE) {
+    let attr = block.getInputTargetBlock(XML_ATTRIBUTES_INPUT);
+    while (attr) {
+      if (attr.type === "xml_attribute") attrParts.push(emitXmlAttributeLive(attr, ctx));
+      attr = attr.getNextBlock();
+    }
+    const text = block.getInputTargetBlock(XML_TEXT_INPUT);
+    if (text) inner.push(...(emitExpressionBlock(text, ctx) ?? emitBlock(text, ctx, 0)));
+    let current: Block | null = block.getInputTargetBlock(XML_CHILDREN_INPUT);
     while (current) {
       if (current.type === "xml_attribute") {
-        const name = String(current.getFieldValue("NAME") ?? "").trim();
-        if (name) {
-          const val = current.getInputTargetBlock("VALUE");
-          const rendered = val ? (emitExpressionBlock(val, ctx) ?? emitBlock(val, ctx, 0)).join("") : "";
-          attrParts.push(` ${name}="${rendered}"`);
-        }
+        attrParts.push(emitXmlAttributeLive(current, ctx));
       } else {
         inner.push(...emitBlock(current, ctx, 0));
       }
@@ -438,7 +545,7 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
 }
 
 function isStructureBlock(type: string): boolean {
-  return type === "xml_element" || type.startsWith("schema_") || type === "controls_if" ||
+  return type === XML_ELEMENT_TYPE || type.startsWith("schema_") || type === "controls_if" ||
     type === "for_each_source" || type === "for_each_list";
 }
 

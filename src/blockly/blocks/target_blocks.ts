@@ -7,21 +7,22 @@ import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
+import { registerXmlBlocks, XML_BLOCK_TYPES } from "./xml_blocks.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
 const TARGET_VALUE_COLOUR = "#6B7280";
 const JSON_COLOUR = "#D97706";
-const XML_COLOUR = "#0284C7";
 export const TARGET_CHILD_PREFIX = "TARGET_";
 
 export const JSON_BLOCK_TYPES = ["json_object", "json_array", "json_value", "json_boolean", "json_null"] as const;
-export const XML_BLOCK_TYPES = ["xml_element", "xml_text", "xml_attribute"] as const;
+export { XML_BLOCK_TYPES };
 export const GENERIC_VALUE_BLOCK_TYPES = [
   "target_value",
   "json_value",
   "json_boolean",
   "json_null",
   "xml_text",
+  "xml_cdata",
   "xml_attribute",
 ] as const;
 
@@ -54,6 +55,7 @@ export function applySchemaConnectionMode(
 
 export function registerTargetBlocks(): void {
   registerSchemaFieldsMutator();
+  registerXmlBlocks();
   defineStructureBlock("target_structure", "target", TARGET_STRUCTURE_COLOUR, "Target structure", {
     withSchemaMutator: true,
   });
@@ -64,14 +66,6 @@ export function registerTargetBlocks(): void {
   defineValueBlock("json_value", "JSON value", JSON_COLOUR, "Generic JSON value");
   defineValueBlock("json_boolean", "JSON boolean", JSON_COLOUR, "Generic JSON boolean");
   defineValueBlock("json_null", "JSON null", JSON_COLOUR, "Generic JSON null");
-
-  defineStructureBlock("xml_element", "element", XML_COLOUR, "Generic XML element", {
-    editableName: true,
-    namePrefix: "XML",
-    defaultChildGroup: "children",
-  });
-  defineValueBlock("xml_text", "XML text", XML_COLOUR, "Generic XML text node");
-  defineXmlAttribute();
 }
 
 export function isSchemaStructureBlock(block: { type: string }): boolean {
@@ -177,26 +171,6 @@ function defineValueBlock(
       this.setNextStatement(true);
       this.setColour(colour);
       this.setTooltip(tooltip);
-      this.setInputsInline(true);
-    },
-  };
-}
-
-function defineXmlAttribute(): void {
-  if (Blockly.Blocks.xml_attribute) return;
-  Blockly.Blocks.xml_attribute = {
-    init: function (this: Block) {
-      this.appendDummyInput("HEADER")
-        .appendField("XML attr")
-        .appendField(new Blockly.FieldTextInput("attr"), "NAME");
-      appendHiddenSerializable(this, "TARGET_TYPE", "");
-      this.appendValueInput("VALUE").setCheck(null).appendField("value");
-      appendHiddenSerializable(this, "SLOT_ID", "");
-      appendHiddenSerializable(this, "MANDATORY", "");
-      this.setPreviousStatement(true);
-      this.setNextStatement(true);
-      this.setColour(XML_COLOUR);
-      this.setTooltip("XML attribute on the parent element");
       this.setInputsInline(true);
     },
   };

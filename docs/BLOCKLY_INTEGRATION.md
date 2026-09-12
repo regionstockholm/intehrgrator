@@ -111,8 +111,11 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
 When the loaded target is `json-schema` or `xml-schema`:
 
 - **Always-visible drawers:** **JSON** (`json_object`, `json_array`, `json_value`,
-  `json_boolean`, `json_null`) and **XML** (`xml_element`, `xml_text`, `xml_attribute`)
-  for ad-hoc structure editing outside the loaded schema.
+  `json_boolean`, `json_null`) and **XML** (`xml_document`, `xml_element`,
+  `xml_text`, `xml_cdata`, `xml_attribute`)
+  for ad-hoc structure editing outside the loaded schema. `xml_element` has a
+  single text slot, a stacked attributes mouth, and nested children; `xml_document`
+  is the instance root that emits `<?xml …?>` plus namespaces.
 - **Target schema drawer:** one flyout level of unique complex types from the
   loaded schema (no nested tree of parent/child categories). Multiple skeleton
   roots, if present, each get a single named category. Prefilled `schema_*` /

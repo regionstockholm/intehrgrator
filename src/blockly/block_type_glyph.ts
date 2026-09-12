@@ -59,7 +59,7 @@ export function glyphForBlocklyCheck(
   return glyphForSingleCheck(check, forSlot);
 }
 
-function glyphForSingleCheck(check: string, forSlot = false): string | undefined {
+function glyphForSingleCheck(check: string, _forSlot = false): string | undefined {
   const zipehr = zipehrEmojiForRmType(check);
   if (zipehr) return zipehr;
   if (BLOCKLY_TYPE_GLYPH[check]) return BLOCKLY_TYPE_GLYPH[check];

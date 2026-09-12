@@ -375,7 +375,7 @@ function blockNodeToExpression(block: BlockNode): string | null {
   }
 }
 
-function emitForEachSource(block: BlockNode, ctx: GoEmitContext): string[] {
+function emitForEachSource(block: BlockNode, _ctx: GoEmitContext): string[] {
   const varName = String(block.fields?.VAR ?? "item");
   const path = String(block.fields?.PATH ?? "");
   const rangeExpr = loopRangeExpr(path);

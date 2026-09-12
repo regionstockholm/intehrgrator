@@ -12,7 +12,6 @@ import { blockToExpression } from "./expression_serialize.ts";
 import {
   isDataValueBlock,
   isRmContainerBlockType,
-  rmAttributeInputName,
   RM_ATTR_INPUT_PREFIX,
   RM_SPECIALIZATION_INPUT,
 } from "./blocks/rm_blocks.ts";
@@ -201,7 +200,7 @@ function emitExpressionBlock(block: Block, ctx: GoEmitContext): string[] | null 
   return [emitGoExpressionTemplate(parseExpression(serialized), ctx)];
 }
 
-function emitForEachSource(block: Block, ctx: GoEmitContext): string[] {
+function emitForEachSource(block: Block, _ctx: GoEmitContext): string[] {
   const path = String(block.getFieldValue("PATH") || "");
   const varName = String(block.getFieldValue("VAR") || "item");
   const rangeExpr = loopRangeExpr(path);

@@ -296,7 +296,10 @@ export class FieldSlotLabel extends FieldLabelBase {
     const glyphExtra = (abstract && glyph) || concreteGlyph
       ? Math.max(0, glyphPx - bodyPx) * 0.6
       : 0;
-    this.size_.width = measureCaptionWidth(full, bodyPx, abstract) + Math.ceil(glyphExtra);
+    this.size_.width = measureCaptionWidth(full, bodyPx, abstract, {
+      glyphText: abstract ? glyph : concreteGlyph,
+      glyphPx,
+    }) + Math.ceil(glyphExtra);
     this.size_.height = Math.max(14, bodyPx, abstract ? glyphPx : bodyPx);
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
@@ -532,25 +535,40 @@ function dismissOverlayHelpTip(): void {
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
-function measureCaptionWidth(text: string, fontPx: number, abstract: boolean): number {
+function measureCaptionWidth(
+  text: string,
+  fontPx: number,
+  abstract: boolean,
+  options: { glyphText?: string; glyphPx?: number } = {},
+): number {
   if (!text) return 0;
   const family = abstract
     ? '"Google Sans", "Segoe UI", sans-serif'
     : '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Google Sans", sans-serif';
+  const glyphFamily =
+    '"Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji", "Google Sans", sans-serif';
   if (typeof document !== "undefined") {
     try {
       measureCanvas ??= document.createElement("canvas");
       const ctx = measureCanvas.getContext("2d");
       if (ctx) {
+        const glyph = options.glyphText ?? "";
+        const bodyText = glyph && text.endsWith(glyph)
+          ? text.slice(0, text.length - glyph.length).trimEnd()
+          : text;
         ctx.font = `${fontPx}px ${family}`;
-        const w = ctx.measureText(text).width;
-        if (w > 0) return Math.ceil(w) + 2;
+        let w = bodyText ? ctx.measureText(bodyText).width : 0;
+        if (glyph) {
+          ctx.font = `${options.glyphPx ?? fontPx}px ${glyphFamily}`;
+          w += ctx.measureText(` ${glyph}`).width;
+        }
+        if (w > 0) return Math.ceil(w) + 4;
       }
     } catch {
       // Headless fallthrough.
     }
   }
-  return Math.ceil(fontPx * 0.55 * text.length) + 2;
+  return Math.ceil(fontPx * 0.55 * text.length) + 4;
 }
 
 const PIN_ID = "blockly-slot-label-tip";

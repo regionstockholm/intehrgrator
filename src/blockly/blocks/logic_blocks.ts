@@ -209,18 +209,20 @@ export function registerLogicBlocks(): void {
     },
 
     setGuardRow_: function (this: RestrictionBlock, show: boolean) {
-      const existing = this.getInput("EMPTY");
+      const listInput = this.getInput("LIST");
+      if (!listInput) return;
+      const existing = this.getField("NONEMPTY");
       if (show === Boolean(existing)) return;
       if (show) {
-        this.appendDummyInput("EMPTY")
+        listInput
           .appendField(new Blockly.FieldCheckbox(this.guardValue_), "NONEMPTY")
           .appendField(m.LOGIC_REQUIRE_ITEMS, "NONEMPTY_LABEL");
-        // The item name, when shown, stays the last line of the sentence.
-        if (this.getInput("ITEM")) this.moveInputBefore("EMPTY", "ITEM");
+        if (this.getInput("ITEM")) this.moveInputBefore("ITEM", "PRED");
         return;
       }
       this.guardValue_ = isFieldChecked(this, "NONEMPTY");
-      this.removeInput("EMPTY", true);
+      listInput.removeField("NONEMPTY", true);
+      listInput.removeField("NONEMPTY_LABEL", true);
     },
 
     /** The item name is only needed for nesting, so it stays hidden by default. */
@@ -240,7 +242,7 @@ export function registerLogicBlocks(): void {
     saveExtraState: function (this: RestrictionBlock): RestrictionExtraState | null {
       const state: RestrictionExtraState = {};
       if (this.getField("N")) state.count = true;
-      if (this.getInput("EMPTY")) state.guard = true;
+      if (this.getField("NONEMPTY")) state.guard = true;
       if (this.getInput("ITEM")) state.itemNamed = true;
       const name = restrictionItemName(this);
       if (name !== DEFAULT_ITEM_NAME) state.itemName = name;

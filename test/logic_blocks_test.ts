@@ -124,11 +124,11 @@ Deno.test("the empty-list guard is offered only where the operator holds vacuous
   const block = restrictionOverEmptyList(workspace, "ALL");
   for (const op of ["ALL", "NONE", "AT_MOST"]) {
     block.setFieldValue(op, "OP");
-    assert(block.getInput("EMPTY"), `${op} is true on an empty list, so it needs the guard`);
+    assert(block.getField("NONEMPTY"), `${op} is true on an empty list, so it needs the guard`);
   }
   for (const op of ["ANY", "AT_LEAST", "EXACTLY"]) {
     block.setFieldValue(op, "OP");
-    assertEquals(block.getInput("EMPTY"), null, `${op} already excludes the empty list`);
+    assertEquals(block.getField("NONEMPTY"), null, `${op} already excludes the empty list`);
   }
   workspace.dispose();
 });

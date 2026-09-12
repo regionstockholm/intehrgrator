@@ -46,6 +46,7 @@ export {
   setAllBlocksCollapsed,
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
+export { findSlotIdAtPoint, blockDropTargetClientRect } from "./slot_hit_test.ts";
 export { applySkeletonBlockLabels, relabelWorkspaceFromSkeleton } from "./block_labels.ts";
 export {
   refreshWorkspaceConstraints,

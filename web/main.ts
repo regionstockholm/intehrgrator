@@ -40,6 +40,7 @@ import {
   slotIdFromBlock,
   listeningTargetFromBlock,
   owningValueSlotId,
+  findSlotIdAtPoint,
   warningTextOf,
   createModestTheme,
   buildDemoToolbox,
@@ -718,6 +719,7 @@ function handleSourceSelection(
     return;
   }
   controller.bindFromNode(path, format);
+  controller.notifyChange();
 }
 
 function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }): void {
@@ -867,10 +869,10 @@ function specChrome(): SpecChrome {
 
 function panToBlock(block: BlockSvg): void {
   const ws = workspace as Blockly.WorkspaceSvg & {
-    centerOnBlock?: (id: string) => void;
+    centerOnBlock?: (id: string, blockOnly?: boolean) => void;
   };
   if (typeof ws.centerOnBlock === "function" && block.id) {
-    ws.centerOnBlock(block.id);
+    ws.centerOnBlock(block.id, true);
     return;
   }
   if (typeof block.getRelativeToSurfaceXY === "function" && typeof ws.scroll === "function") {
@@ -1469,9 +1471,10 @@ function initBlocklySourceDrop(): void {
     lastAppliedPath = payload.path;
     lastAppliedAt = now;
     try {
-      const slotId = findSlotIdAtPoint(clientX, clientY);
+      const slotId = findSlotIdAtPointOnCanvas(clientX, clientY);
       if (slotId) {
         controller.mapNodeToSlot(slotId, payload.path, payload.format);
+        controller.notifyChange();
         return true;
       }
       placeSourceBlockFromDrop(payload, clientX, clientY);
@@ -1520,26 +1523,10 @@ function placeSourceBlockFromDrop(
   controller.setStatusMessage(`Added source ${xpath}`);
 }
 
-function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
-  let best: { slotId: string; area: number } | null = null;
-  for (const block of workspace.getAllBlocks(false)) {
-    const svg = block as BlockSvg;
-    const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
-    if (!root) continue;
-    const rect = root.getBoundingClientRect();
-    if (
-      clientX < rect.left || clientX > rect.right ||
-      clientY < rect.top || clientY > rect.bottom
-    ) {
-      continue;
-    }
-    let slotId = slotIdFromBlock(block);
-    if (!slotId) slotId = owningValueSlotId(block);
-    if (!slotId) continue;
-    const area = rect.width * rect.height;
-    if (!best || area < best.area) best = { slotId, area };
-  }
-  return best?.slotId ?? null;
+function findSlotIdAtPointOnCanvas(clientX: number, clientY: number): string | null {
+  return findSlotIdAtPoint(workspace, clientX, clientY, {
+    mountRect: blocklyMount.getBoundingClientRect(),
+  });
 }
 
 function initFileDropTargets(): void {
@@ -2193,7 +2180,15 @@ function installWorkbenchTestApi(): void {
     },
     getBlockClientRect(blockId) {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
-      const root = block && typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
+      if (!block) return null;
+      const path = block.pathObject?.svgPath;
+      if (path && typeof path.getBoundingClientRect === "function") {
+        const rect = path.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) {
+          return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+        }
+      }
+      const root = typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
       if (!root) return null;
       const rect = root.getBoundingClientRect();
       return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };

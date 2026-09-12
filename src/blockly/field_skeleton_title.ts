@@ -155,7 +155,7 @@ export class FieldSkeletonTitle extends FieldLabelBase {
     const meta = this.metaText_();
     const nameW = measureTextWidth(name, NAME_FONT_PX, true);
     const metaW = meta ? measureTextWidth(meta, META_FONT_PX, false) : 0;
-    this.size_.width = Math.max(nameW, metaW);
+    this.size_.width = Math.max(nameW, metaW) + 4;
     this.size_.height = meta ? NAME_LINE_PX + LINE_GAP_PX + META_LINE_PX : NAME_LINE_PX;
     this.layout_();
   }
@@ -272,7 +272,7 @@ function measureTextWidth(text: string, fontPx: number, bold: boolean): number {
       if (ctx) {
         ctx.font = `${bold ? "700" : "400"} ${fontPx}px ${TEXT_FONT}`;
         const w = ctx.measureText(text).width;
-        if (w > 0) return Math.ceil(w);
+        if (w > 0) return Math.ceil(w) + 4;
       }
     } catch {
       // Headless / canvas-less runtimes fall through.

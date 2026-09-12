@@ -118,6 +118,18 @@ export function emitBlock(block: BlockNode, ctx: GoEmitContext = createGoEmitCon
       }
       break;
     }
+    case "xml_cdata": {
+      const value = inputChild(block.inputs?.VALUE);
+      const inner = value
+        ? emitValueExpression(value, ctx).join("")
+        : String(block.fields?.TEXT ?? "");
+      lines.push(`<![CDATA[${inner}]]>`);
+      break;
+    }
+    case "xml_document": {
+      lines.push(...emitXmlDocument(block, ctx));
+      break;
+    }
     case "xml_attribute": {
       break;
     }
@@ -254,6 +266,13 @@ export function emitValueExpression(
         return [`{{ ${stripDelimiters(innerExpr)} | trim }}`];
       }
       return [];
+    }
+    case "xml_cdata": {
+      const value = inputChild(block.inputs?.VALUE);
+      const inner = value
+        ? emitValueExpression(value, ctx).join("")
+        : String(block.fields?.TEXT ?? "");
+      return [`<![CDATA[${inner}]]>`];
     }
     default: {
       const fromSerialized = emitValueFromSerialized(block, ctx);
@@ -523,30 +542,105 @@ function xmlName(value: string): string {
 
 function emitXmlElement(block: BlockNode, ctx: GoEmitContext): string[] {
   const tag = xmlTagName(block);
-  const bodyHead = firstChildStatement(block);
   const attrParts: string[] = [...emitStaticAttributes(block, ctx)];
-  const body: BlockNode[] = [];
-  let current: BlockNode | undefined = bodyHead;
-  while (current) {
-    if (current.type === "xml_attribute") {
-      const name = String(current.fields?.NAME ?? "").trim();
-      if (name) {
-        const valBlock = inputChild(current.inputs?.VALUE);
-        const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
-        attrParts.push(` ${name}="${val}"`);
+  const inner: string[] = [];
+
+  const legacyHead = firstChildStatement(block);
+  if (legacyHead) {
+    let current: BlockNode | undefined = legacyHead;
+    while (current) {
+      if (current.type === "xml_attribute") {
+        const name = String(current.fields?.NAME ?? "").trim();
+        if (name) {
+          const valBlock = inputChild(current.inputs?.VALUE);
+          const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
+          attrParts.push(` ${name}="${val}"`);
+        }
+      } else {
+        inner.push(...emitBlock(current, ctx));
       }
-    } else {
-      body.push(current);
+      current = current.next?.block;
     }
-    current = current.next?.block;
+  } else {
+    const attrStack = inputChild(block.inputs?.TARGET_attributes);
+    let current: BlockNode | undefined = attrStack;
+    while (current) {
+      if (current.type === "xml_attribute") {
+        const name = String(current.fields?.NAME ?? "").trim();
+        if (name) {
+          const valBlock = inputChild(current.inputs?.VALUE);
+          const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
+          attrParts.push(` ${name}="${val}"`);
+        }
+      }
+      current = current.next?.block;
+    }
+    const textValue = inputChild(block.inputs?.TARGET_text);
+    if (textValue) inner.push(...emitValueExpression(textValue, ctx));
   }
+
   const attrs = attrParts.join("");
-  if (body.length) {
-    const inner: string[] = [];
-    for (const child of body) inner.push(...emitBlock(child, ctx));
-    return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
-  }
+  if (inner.length) return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
   return [`<${tag}${attrs} />`];
+}
+
+function emitXmlDocument(block: BlockNode, ctx: GoEmitContext): string[] {
+  const version = String(block.fields?.VERSION ?? block.extraState?.version ?? "1.0");
+  const encoding = String(block.fields?.ENCODING ?? block.extraState?.encoding ?? "UTF-8");
+  const standalone = String(block.fields?.STANDALONE ?? block.extraState?.standalone ?? "");
+  const standaloneAttr = standalone ? ` standalone="${standalone}"` : "";
+  const lines = [`<?xml version="${version}" encoding="${encoding}"${standaloneAttr}?>`];
+  const root = inputChild(block.inputs?.TARGET_root) ?? firstChildStatement(block);
+  if (root) {
+    const rootAttrs = emitStaticAttributes(block, ctx);
+    if (rootAttrs.length && root.type === "xml_element") {
+      const tag = xmlTagName(root);
+      const bodyHead = firstChildStatement(root);
+      const attrParts = [...rootAttrs];
+      const inner: string[] = [];
+      if (bodyHead) {
+        let current: BlockNode | undefined = bodyHead;
+        while (current) {
+          if (current.type === "xml_attribute") {
+            const name = String(current.fields?.NAME ?? "").trim();
+            if (name) {
+              const valBlock = inputChild(current.inputs?.VALUE);
+              const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
+              attrParts.push(` ${name}="${val}"`);
+            }
+          } else {
+            inner.push(...emitBlock(current, ctx));
+          }
+          current = current.next?.block;
+        }
+      } else {
+        const attrStack = inputChild(root.inputs?.TARGET_attributes);
+        let current: BlockNode | undefined = attrStack;
+        while (current) {
+          if (current.type === "xml_attribute") {
+            const name = String(current.fields?.NAME ?? "").trim();
+            if (name) {
+              const valBlock = inputChild(current.inputs?.VALUE);
+              const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
+              attrParts.push(` ${name}="${val}"`);
+            }
+          }
+          current = current.next?.block;
+        }
+        const textValue = inputChild(root.inputs?.TARGET_text);
+        if (textValue) inner.push(...emitValueExpression(textValue, ctx));
+      }
+      const attrs = attrParts.join("");
+      if (inner.length) {
+        lines.push(`<${tag}${attrs}>`, ...inner, `</${tag}>`);
+      } else {
+        lines.push(`<${tag}${attrs} />`);
+      }
+      return lines;
+    }
+    lines.push(...emitBlock(root, ctx));
+  }
+  return lines;
 }
 
 function xmlTagName(block: BlockNode): string {
@@ -561,9 +655,6 @@ function xmlTagName(block: BlockNode): string {
 function firstChildStatement(block: BlockNode): BlockNode | undefined {
   const inputs = block.inputs ?? {};
   if (inputs.TARGET_children?.block) return inputs.TARGET_children.block;
-  for (const [key, value] of Object.entries(inputs)) {
-    if (key.startsWith("TARGET_") && value?.block) return value.block;
-  }
   return undefined;
 }
 

@@ -7,6 +7,12 @@ import { appendSlotLabel } from "../slot_label.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
+import { appendMutatorCogwheel, hideDefaultMutatorIcon } from "../dynamic_mutator.ts";
+import {
+  readXmlDocumentExtraState,
+  writeXmlDocumentExtraState,
+  type XmlDocumentExtraState,
+} from "./xml_mutator.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
 const TARGET_VALUE_COLOUR = "#6B7280";
@@ -15,13 +21,22 @@ const XML_COLOUR = "#0284C7";
 export const TARGET_CHILD_PREFIX = "TARGET_";
 
 export const JSON_BLOCK_TYPES = ["json_object", "json_array", "json_value", "json_boolean", "json_null"] as const;
-export const XML_BLOCK_TYPES = ["xml_element", "xml_text", "xml_attribute"] as const;
+export const XML_BLOCK_TYPES = [
+  "xml_document",
+  "xml_element",
+  "xml_text",
+  "xml_cdata",
+  "xml_attribute",
+] as const;
+export const XML_ELEMENT_TEXT_INPUT = "TARGET_text";
+export const XML_ELEMENT_ATTR_INPUT = "TARGET_attributes";
 export const GENERIC_VALUE_BLOCK_TYPES = [
   "target_value",
   "json_value",
   "json_boolean",
   "json_null",
   "xml_text",
+  "xml_cdata",
   "xml_attribute",
 ] as const;
 
@@ -68,9 +83,11 @@ export function registerTargetBlocks(): void {
   defineStructureBlock("xml_element", "element", XML_COLOUR, "Generic XML element", {
     editableName: true,
     namePrefix: "XML",
-    defaultChildGroup: "children",
+    defaultChildGroups: ["attributes", "text"],
   });
+  defineXmlDocument();
   defineValueBlock("xml_text", "XML text", XML_COLOUR, "Generic XML text node");
+  defineValueBlock("xml_cdata", "XML CDATA", XML_COLOUR, "Generic XML CDATA section");
   defineXmlAttribute();
 }
 
@@ -92,10 +109,13 @@ function defineStructureBlock(
     editableName?: boolean;
     namePrefix?: string;
     defaultChildGroup?: string;
+    defaultChildGroups?: string[];
   },
 ): void {
   if (Blockly.Blocks[type]) return;
   const defaultChildGroup = options?.defaultChildGroup;
+  const defaultChildGroups = options?.defaultChildGroups ??
+    (defaultChildGroup ? [defaultChildGroup] : []);
   const blockDef: Record<string, unknown> = {
     init: function (this: Block) {
       const header = this.appendDummyInput("HEADER");
@@ -107,7 +127,9 @@ function defineStructureBlock(
       }
       appendHiddenSerializable(this, "TARGET_TYPE", "");
       appendHiddenSerializable(this, "SLOT_ID", "");
-      if (defaultChildGroup) {
+      if (type === "xml_element" && defaultChildGroups.length) {
+        syncXmlElementInputs(this, defaultChildGroups);
+      } else if (defaultChildGroup) {
         this.appendStatementInput(targetChildInputName(defaultChildGroup))
           .setAlign(inputAlignRight())
           .appendField(defaultChildGroup);
@@ -145,17 +167,163 @@ function defineStructureBlock(
       const childGroups = Array.isArray(raw?.childGroups)
         ? raw!.childGroups.filter((group): group is string => typeof group === "string" && group.length > 0)
         : [];
-      const groups = defaultChildGroup && !childGroups.includes(defaultChildGroup)
+      const groups = defaultChildGroups.length
+        ? defaultChildGroups
+        : defaultChildGroup && !childGroups.includes(defaultChildGroup)
         ? [defaultChildGroup, ...childGroups]
         : childGroups.length
         ? childGroups
         : defaultChildGroup
         ? [defaultChildGroup]
         : [];
-      syncTargetChildInputs(this, groups);
+      if (type === "xml_element") syncXmlElementInputs(this, groups);
+      else syncTargetChildInputs(this, groups);
     };
   }
   Blockly.Blocks[type] = blockDef;
+}
+
+function syncXmlElementInputs(block: Block, groups: string[]): void {
+  for (const input of [...block.inputList]) {
+    if (input.name.startsWith(TARGET_CHILD_PREFIX)) block.removeInput(input.name);
+  }
+  const legacyChildren = groups.includes("children");
+  if (legacyChildren) {
+    block.appendStatementInput(targetChildInputName("children"))
+      .setAlign(inputAlignRight())
+      .appendField("children");
+    return;
+  }
+  if (groups.includes("attributes")) {
+    block.appendStatementInput(XML_ELEMENT_ATTR_INPUT)
+      .setAlign(inputAlignRight())
+      .setCheck("xml_attribute")
+      .appendField("attributes");
+  }
+  if (groups.includes("text")) {
+    block.appendValueInput(XML_ELEMENT_TEXT_INPUT)
+      .setAlign(inputAlignRight())
+      .appendField("text");
+  }
+}
+
+function defineXmlDocument(): void {
+  if (Blockly.Blocks.xml_document) return;
+  Blockly.Blocks.xml_document = {
+    init: function (this: Block) {
+      const header = this.appendDummyInput("HEADER");
+      header.appendField("XML document");
+      appendMutatorCogwheel(header);
+      header
+        .appendField("version")
+        .appendField(new Blockly.FieldTextInput("1.0"), "VERSION")
+        .appendField("encoding")
+        .appendField(new Blockly.FieldTextInput("UTF-8"), "ENCODING");
+      this.appendDummyInput("STANDALONE_ROW")
+        .appendField("standalone")
+        .appendField(
+          new Blockly.FieldDropdown([
+            ["(none)", ""],
+            ["yes", "yes"],
+            ["no", "no"],
+          ]),
+          "STANDALONE",
+        );
+      appendHiddenSerializable(this, "TARGET_TYPE", "");
+      appendHiddenSerializable(this, "SLOT_ID", "");
+      this.appendStatementInput("TARGET_root")
+        .setAlign(inputAlignRight())
+        .setCheck(["xml_element", "target_structure"])
+        .appendField("root");
+      this.setColour(XML_COLOUR);
+      this.setTooltip("XML prolog and root element");
+      this.setStyle?.("xml_blocks");
+      if (Blockly.icons?.MutatorIcon) {
+        this.setMutator(new Blockly.icons.MutatorIcon(["xml_document_mutator_item"], this));
+        hideDefaultMutatorIcon(this);
+      }
+    },
+    saveExtraState: function (this: Block) {
+      const state = readXmlDocumentExtraState(this);
+      const payload: XmlDocumentExtraState = {};
+      if (state.version !== "1.0") payload.version = state.version;
+      if (state.encoding !== "UTF-8") payload.encoding = state.encoding;
+      if (state.standalone) payload.standalone = state.standalone;
+      if (state.attributes?.length) payload.attributes = state.attributes;
+      return Object.keys(payload).length ? payload : null;
+    },
+    loadExtraState: function (this: Block, state: unknown) {
+      const raw = state && typeof state === "object"
+        ? state as XmlDocumentExtraState
+        : {};
+      writeXmlDocumentExtraState(this, {
+        version: raw.version ?? "1.0",
+        encoding: raw.encoding ?? "UTF-8",
+        standalone: raw.standalone ?? "",
+        attributes: raw.attributes ?? [],
+      });
+      if (raw.version) this.setFieldValue(raw.version, "VERSION");
+      if (raw.encoding) this.setFieldValue(raw.encoding, "ENCODING");
+      if (raw.standalone !== undefined) this.setFieldValue(raw.standalone ?? "", "STANDALONE");
+    },
+    decompose: function (this: Block, workspace: Blockly.Workspace) {
+      const container = workspace.newBlock("xml_document_mutator_container");
+      container.initSvg?.();
+      let connection = container.getInput("STACK")?.connection ?? null;
+      for (const attr of readXmlDocumentExtraState(this).attributes ?? []) {
+        const item = workspace.newBlock("xml_document_mutator_item");
+        item.initSvg?.();
+        item.setFieldValue(attr.name.replace(/^xmlns:?/, ""), "PREFIX");
+        item.setFieldValue(attr.value, "URI");
+        if (connection) connection.connect(item.previousConnection!);
+        connection = item.nextConnection;
+      }
+      return container;
+    },
+    compose: function (this: Block, container: Block) {
+      const attributes: Array<{ name: string; value: string }> = [];
+      let item: Block | null = container.getInputTargetBlock("STACK");
+      while (item) {
+        if (!item.isInsertionMarker()) {
+          const prefix = String(item.getFieldValue("PREFIX") ?? "").trim();
+          const uri = String(item.getFieldValue("URI") ?? "").trim();
+          if (uri) {
+            attributes.push({
+              name: prefix ? `xmlns:${prefix}` : "xmlns",
+              value: uri,
+            });
+          }
+        }
+        item = item.getNextBlock();
+      }
+      writeXmlDocumentExtraState(this, {
+        ...readXmlDocumentExtraState(this),
+        attributes,
+      });
+    },
+  };
+
+  if (!Blockly.Blocks.xml_document_mutator_container) {
+    Blockly.Blocks.xml_document_mutator_container = {
+      init: function (this: Block) {
+        this.appendDummyInput().appendField("namespaces");
+        this.appendStatementInput("STACK");
+      },
+    };
+  }
+  if (!Blockly.Blocks.xml_document_mutator_item) {
+    Blockly.Blocks.xml_document_mutator_item = {
+      init: function (this: Block) {
+        this.appendDummyInput()
+          .appendField("xmlns")
+          .appendField(new Blockly.FieldTextInput(""), "PREFIX")
+          .appendField("=")
+          .appendField(new Blockly.FieldTextInput("http://example.com/ns"), "URI");
+        this.setPreviousStatement(true);
+        this.setNextStatement(true);
+      },
+    };
+  }
 }
 
 function defineValueBlock(

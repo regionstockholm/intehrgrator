@@ -195,12 +195,21 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         conversionStartToolboxBlock(),
         {
           kind: "block",
+          type: "xml_document",
+          gap: 8,
+          extraState: {
+            attributes: [{ name: "xmlns", value: "http://example.com/ns" }],
+          },
+        },
+        {
+          kind: "block",
           type: "xml_element",
           gap: 8,
-          extraState: { childGroups: ["children"] },
+          extraState: { childGroups: ["attributes", "text"] },
           fields: { NAME: "element" },
         },
         { kind: "block", type: "xml_text", gap: 8 },
+        { kind: "block", type: "xml_cdata", gap: 8 },
         {
           kind: "block",
           type: "xml_attribute",

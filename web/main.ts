@@ -84,8 +84,10 @@ import {
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
 import { upgradeXmlBlocklyState } from "../src/core/xml_upgrade.ts";
 import {
+  blockOwnClientRect,
   isSourceDropSlotBlock,
   isUsableSourceDropPoint,
+  pointInRect,
 } from "../src/blockly/source_drop.ts";
 import { registerServiceWorker } from "./pwa.ts";
 import { mountMappingSpecChrome, type SpecRootLayout } from "../src/ui/mapping_spec_chrome.ts";
@@ -874,20 +876,19 @@ function specChrome(): SpecChrome {
 }
 
 function panToBlock(block: BlockSvg): void {
-  const ws = workspace as Blockly.WorkspaceSvg & {
-    centerOnBlock?: (id: string) => void;
-  };
+  const ws = workspace as Blockly.WorkspaceSvg;
   if (typeof ws.centerOnBlock === "function" && block.id) {
-    ws.centerOnBlock(block.id);
+    ws.centerOnBlock(block.id, true);
     return;
   }
   if (typeof block.getRelativeToSurfaceXY === "function" && typeof ws.scroll === "function") {
     const xy = block.getRelativeToSurfaceXY();
+    const hw = typeof block.getHeightWidth === "function" ? block.getHeightWidth() : { width: 0, height: 0 };
     const metrics = typeof ws.getMetrics === "function" ? ws.getMetrics() : null;
     if (metrics) {
       ws.scroll(
-        xy.x - metrics.viewWidth / 2 + metrics.absoluteLeft,
-        xy.y - metrics.viewHeight / 2 + metrics.absoluteTop,
+        xy.x + hw.width / 2 - metrics.viewWidth / 2 + metrics.absoluteLeft,
+        xy.y + hw.height / 2 - metrics.viewHeight / 2 + metrics.absoluteTop,
       );
     }
   }
@@ -1553,18 +1554,18 @@ function placeSourceBlockFromDrop(
 
 function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
   let best: { slotId: string; area: number } | null = null;
+  const scale = (workspace as Blockly.WorkspaceSvg).scale ?? 1;
   for (const block of workspace.getAllBlocks(false)) {
     if (!isSourceDropSlotBlock(block)) continue;
     const svg = block as BlockSvg;
     const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
     if (!root) continue;
-    const rect = root.getBoundingClientRect();
-    if (
-      clientX < rect.left || clientX > rect.right ||
-      clientY < rect.top || clientY > rect.bottom
-    ) {
-      continue;
-    }
+    const full = root.getBoundingClientRect();
+    const hw = typeof svg.getHeightWidth === "function"
+      ? svg.getHeightWidth()
+      : { width: full.width, height: full.height };
+    const rect = blockOwnClientRect(full, hw, scale);
+    if (!pointInRect(clientX, clientY, rect)) continue;
     let slotId = slotIdFromBlock(block);
     if (!slotId) slotId = owningValueSlotId(block);
     if (!slotId) continue;
@@ -2227,8 +2228,13 @@ function installWorkbenchTestApi(): void {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
       const root = block && typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
       if (!root) return null;
-      const rect = root.getBoundingClientRect();
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      const full = root.getBoundingClientRect();
+      const hw = typeof block.getHeightWidth === "function"
+        ? block.getHeightWidth()
+        : { width: full.width, height: full.height };
+      const scale = (workspace as Blockly.WorkspaceSvg).scale ?? 1;
+      const rect = blockOwnClientRect(full, hw, scale);
+      return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     },
     clickBlock(blockId) {
       applyBlockSelection(blockId, "blockly");

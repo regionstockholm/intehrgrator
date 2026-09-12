@@ -40,7 +40,7 @@ Deno.test("typed source_query blocks are registered with String/Number/Boolean o
 Deno.test("source query labels use type emoji in front of the localized source word", () => {
   assertEquals(sourceQueryFieldLabel("string", "källa"), "🔤 källa");
   assertEquals(sourceQueryFieldLabel("number", "source"), "🔢 source");
-  assertEquals(sourceQueryFieldLabel("boolean", "source"), "☑️ source");
+  assertEquals(sourceQueryFieldLabel("boolean", "source"), "✓ source");
 
   ensure();
   const workspace = new Blockly.Workspace();

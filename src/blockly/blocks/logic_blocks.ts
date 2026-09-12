@@ -6,6 +6,7 @@ import {
   appendInputTypeGlyph,
   inputAlignLeft,
   inputAlignRight,
+  prependBlockOutputGlyph,
   registerStockBlocklyGlyphs,
 } from "../block_type_glyph.ts";
 
@@ -150,8 +151,6 @@ export function registerLogicBlocks(): void {
       this.itemName_ = DEFAULT_ITEM_NAME;
       this.countValue_ = 1;
       this.guardValue_ = false;
-      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
-      appendBlockOutputGlyph(header, "Boolean");
       const listInput = this.appendValueInput("LIST")
         .setAlign(inputAlignRight())
         .setCheck(LIST_CHECK)
@@ -175,6 +174,7 @@ export function registerLogicBlocks(): void {
           "OP",
         )
         .appendField(m.LOGIC_OF, "OF_LABEL");
+      prependBlockOutputGlyph(listInput, "Boolean");
       appendInputTypeGlyph(listInput, LIST_CHECK);
       const predInput = this.appendValueInput("PRED")
         .setAlign(inputAlignRight())
@@ -300,8 +300,6 @@ export function registerLogicBlocks(): void {
 
   Blockly.Blocks[LISTS_SET_OPERATION_BLOCK] = {
     init: function (this: Blockly.Block) {
-      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
-      appendBlockOutputGlyph(header, "Array");
       const inputA = this.appendValueInput("A")
         .setAlign(inputAlignRight())
         .setCheck(LIST_CHECK)
@@ -321,6 +319,7 @@ export function registerLogicBlocks(): void {
           ),
           "OP",
         );
+      prependBlockOutputGlyph(inputA, "Array");
       appendInputTypeGlyph(inputA, LIST_CHECK);
       const inputB = this.appendValueInput("B")
         .setAlign(inputAlignRight())

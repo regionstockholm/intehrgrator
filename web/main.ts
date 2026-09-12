@@ -82,6 +82,11 @@ import {
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
+import { upgradeXmlBlocklyState } from "../src/core/xml_upgrade.ts";
+import {
+  isSourceDropSlotBlock,
+  isUsableSourceDropPoint,
+} from "../src/blockly/source_drop.ts";
 import { registerServiceWorker } from "./pwa.ts";
 import { mountMappingSpecChrome, type SpecRootLayout } from "../src/ui/mapping_spec_chrome.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
@@ -429,7 +434,10 @@ async function bootBlockly(): Promise<void> {
 
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
-    Blockly.serialization.workspaces.load(loadOnce, workspace);
+    Blockly.serialization.workspaces.load(
+      upgradeXmlBlocklyState(loadOnce) as Record<string, unknown>,
+      workspace,
+    );
     lockWorkspaceRootsExpanded(workspace);
   }
   runWithoutBlocklyEvents(() => {
@@ -999,7 +1007,10 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       runWithoutBlocklyEvents(() => {
         if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
         workspace.clear();
-        Blockly.serialization.workspaces.load(savedState, workspace);
+        Blockly.serialization.workspaces.load(
+          upgradeXmlBlocklyState(savedState) as Record<string, unknown>,
+          workspace,
+        );
         if (!findDefaultsBlock(workspace)) {
           ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
         }
@@ -1452,6 +1463,8 @@ initFileDropTargets();
 function initBlocklySourceDrop(): void {
   let lastAppliedAt = 0;
   let lastAppliedPath = "";
+  let lastOverX = 0;
+  let lastOverY = 0;
   const applyPayloadAtPoint = (
     payload: { path: string; format: string; schemaType?: string },
     clientX: number,
@@ -1482,10 +1495,15 @@ function initBlocklySourceDrop(): void {
     }
   };
 
+  const rememberOver = (event: DragEvent) => {
+    lastOverX = event.clientX;
+    lastOverY = event.clientY;
+  };
   const onDragOver = (event: DragEvent) => {
     if (!parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag()) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    rememberOver(event);
   };
   const onDrop = (event: DragEvent) => {
     const payload = parseSourceDragPayload(event.dataTransfer);
@@ -1495,10 +1513,23 @@ function initBlocklySourceDrop(): void {
   };
   // Blockly's SVG does not reliably receive HTML5 drop. dragend still has
   // client coordinates, so finish the gesture from the pointer position.
+  document.addEventListener("dragover", (event) => {
+    if (!getActiveSourceDrag()) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    rememberOver(event);
+  }, true);
   document.addEventListener("dragend", (event) => {
     const payload = getActiveSourceDrag();
     if (!payload) return;
-    applyPayloadAtPoint(payload, event.clientX, event.clientY);
+    const mountRect = blocklyMount.getBoundingClientRect();
+    let x = event.clientX;
+    let y = event.clientY;
+    if (!isUsableSourceDropPoint(x, y, mountRect)) {
+      x = lastOverX;
+      y = lastOverY;
+    }
+    applyPayloadAtPoint(payload, x, y);
   }, true);
 
   const opts = { capture: true };
@@ -1523,6 +1554,7 @@ function placeSourceBlockFromDrop(
 function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
   let best: { slotId: string; area: number } | null = null;
   for (const block of workspace.getAllBlocks(false)) {
+    if (!isSourceDropSlotBlock(block)) continue;
     const svg = block as BlockSvg;
     const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
     if (!root) continue;

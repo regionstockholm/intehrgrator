@@ -14,15 +14,19 @@ import {
   ABSTRACT_SLOT_GLYPH,
   BLOCK_OUT_EMOJI_FIELD,
   createRmTypeEmojiField,
+  createTypeGlyphField,
   rmTypeConnectionTooltip,
   slotEmojiFieldName,
 } from "./rm_type_emoji.ts";
+
+/** Same mark Blockly FieldCheckbox uses (U+2713). */
+export const BOOLEAN_TYPE_GLYPH = "✓";
 
 /** Blockly output / socket check → display glyph. */
 const BLOCKLY_TYPE_GLYPH: Record<string, string> = {
   String: "🔤",
   Number: "🔢",
-  Boolean: "✓",
+  Boolean: BOOLEAN_TYPE_GLYPH,
   Array: "☰",
   /** Display-only: sheet row/column/data (socket check stays `Array`). */
   Sheet: "⊞",
@@ -77,25 +81,36 @@ export function blocklyCheckTooltip(
   return glyph ? `${glyph} ${check}` : check;
 }
 
-/** Output-tab glyph from a Blockly check string. */
-export function appendBlockOutputGlyph(
-  header: Input,
-  check: string | string[] | null,
-): void {
+function appendGlyphField(input: Input, check: string | string[] | null, atStart: boolean): void {
   const glyph = glyphForBlocklyCheck(check, false);
   if (!glyph) return;
   const rmField = createRmTypeEmojiField(
     Array.isArray(check) ? (check[0] ?? "") : (check ?? ""),
     false,
   );
-  if (rmField && glyph !== ABSTRACT_SLOT_GLYPH) {
-    header.appendField(rmField, BLOCK_OUT_EMOJI_FIELD);
+  const field = rmField && glyph !== ABSTRACT_SLOT_GLYPH
+    ? rmField
+    : createTypeGlyphField(glyph, blocklyCheckTooltip(check));
+  if (atStart && typeof input.insertFieldAt === "function") {
+    input.insertFieldAt(0, field, BLOCK_OUT_EMOJI_FIELD);
     return;
   }
-  header.appendField(
-    new Blockly.FieldLabel(glyph, "blockly-rm-emoji"),
-    BLOCK_OUT_EMOJI_FIELD,
-  );
+  input.appendField(field, BLOCK_OUT_EMOJI_FIELD);
+}
+
+/** Output-tab glyph from a Blockly check string. */
+export function appendBlockOutputGlyph(
+  header: Input,
+  check: string | string[] | null,
+): void {
+  appendGlyphField(header, check, false);
+}
+
+export function prependBlockOutputGlyph(
+  input: Input,
+  check: string | string[] | null,
+): void {
+  appendGlyphField(input, check, true);
 }
 
 /** Update an existing HEADER output glyph after `setOutput` changes the check. */
@@ -130,21 +145,24 @@ export function appendInputTypeGlyph(
     existing.setTooltip(blocklyCheckTooltip(check));
     return;
   }
-  const field = new Blockly.FieldLabel(glyph, glyph === ABSTRACT_SLOT_GLYPH ? "blockly-rm-emoji blockly-rm-emoji-abstract" : "blockly-rm-emoji");
-  field.setTooltip(blocklyCheckTooltip(check));
+  const field = createTypeGlyphField(glyph, blocklyCheckTooltip(check));
+  if (glyph === ABSTRACT_SLOT_GLYPH) {
+    field.setClass?.("blockly-rm-emoji blockly-rm-emoji-abstract");
+  }
   input.appendField(field, name);
 }
 
-/** Prepends a HEADER row with the block output glyph (openEHR-style). */
+/** Puts the output glyph on the first existing input so it does not add a row. */
 export function ensureBlockOutputHeaderGlyph(block: Block): void {
   if (!block.outputConnection) return;
-  if (block.getInput("HEADER")) return;
-  const header = block.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+  if (block.getField(BLOCK_OUT_EMOJI_FIELD)) return;
   const first = block.inputList[0];
-  if (first && first.name !== "HEADER") {
-    block.moveInputBefore("HEADER", first.name);
+  if (!first) {
+    const header = block.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+    appendBlockOutputGlyph(header, block.outputConnection.getCheck());
+    return;
   }
-  appendBlockOutputGlyph(header, block.outputConnection.getCheck());
+  prependBlockOutputGlyph(first, block.outputConnection.getCheck());
 }
 
 /** Appends socket glyphs as the last field on each value input. */

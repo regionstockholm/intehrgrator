@@ -529,6 +529,32 @@
       </div>
     </form>
   </dialog>
+  <dialog id="dialog-recommended-version" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Not on the recommended version</h2>
+      <p id="recommended-version-message"></p>
+      <p>
+        <a id="recommended-version-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+      </p>
+      <p>
+        Prefer to experiment? The bleeding-edge build (updated on every change to <code>main</code>)
+        is always at <a id="recommended-version-bleeding-edge-link" href="#" target="_blank" rel="noopener noreferrer">the site root</a>.
+      </p>
+      <p>
+        New here? Read the
+        <a id="recommended-version-tutorial-link" href="#" target="_blank" rel="noopener noreferrer">tutorial</a>
+        or the
+        <a id="recommended-version-readme-link" href="#" target="_blank" rel="noopener noreferrer">README</a>.
+      </p>
+      <label class="dialog-label dialog-label--checkbox">
+        <input id="recommended-version-dont-show-again" type="checkbox" />
+        Don't show this again for this version
+      </label>
+      <div class="dialog-actions">
+        <button type="submit" id="recommended-version-dismiss" value="confirm">Dismiss</button>
+      </div>
+    </form>
+  </dialog>
   <span id="defaults-map-block-info" class="info-tip info-tip--anchor-host">
     <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About default context mapping">i</button>
     <span id="tip-defaults-map-block" class="info-tip-balloon" role="tooltip">

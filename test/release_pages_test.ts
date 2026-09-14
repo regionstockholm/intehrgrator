@@ -1,11 +1,13 @@
 import { assertEquals, assertRejects } from "@std/assert";
-import { join } from "@std/path";
+import { dirname, join } from "@std/path";
+import { ensureDir } from "@std/fs";
 import {
   assembleMainPagesSite,
   assembleReleasePagesSite,
   flattenWgetNest,
   normalizeManifest,
   pagesRepoPathDepth,
+  pickRecommendedVersion,
   versionHasIndex,
   VERSIONS_MANIFEST,
 } from "../scripts/pages_site.ts";
@@ -39,6 +41,53 @@ Deno.test("normalizeManifest keeps only numeric v* release tags", () => {
     }),
     { versions: ["v0.6.5", "v0.6.1"] },
   );
+});
+
+Deno.test("normalizeManifest keeps recommended when it is a published version", () => {
+  assertEquals(
+    normalizeManifest({ versions: ["v0.7", "v0.6"], recommended: "v0.6" }),
+    { versions: ["v0.7", "v0.6"], recommended: "v0.6" },
+  );
+});
+
+Deno.test("normalizeManifest drops recommended when it is not a published version", () => {
+  assertEquals(
+    normalizeManifest({ versions: ["v0.7", "v0.6"], recommended: "v0.5" }),
+    { versions: ["v0.7", "v0.6"] },
+  );
+});
+
+Deno.test("normalizeManifest ignores a non-string recommended field", () => {
+  assertEquals(
+    normalizeManifest({ versions: ["v0.7"], recommended: 3 }),
+    { versions: ["v0.7"] },
+  );
+});
+
+Deno.test("pickRecommendedVersion prefers a still-published override", () => {
+  assertEquals(
+    pickRecommendedVersion(["v0.7", "v0.6", "v0.5"], { override: "v0.6", previous: "v0.5" }),
+    "v0.6",
+  );
+});
+
+Deno.test("pickRecommendedVersion falls back to previous when override is stale", () => {
+  assertEquals(
+    pickRecommendedVersion(["v0.7", "v0.6"], { override: "v0.5", previous: "v0.6" }),
+    "v0.6",
+  );
+});
+
+Deno.test("pickRecommendedVersion defaults to the newest version when nothing else applies", () => {
+  assertEquals(pickRecommendedVersion(["v0.7", "v0.6"]), "v0.7");
+  assertEquals(
+    pickRecommendedVersion(["v0.7", "v0.6"], { override: "v0.5", previous: "v0.4" }),
+    "v0.7",
+  );
+});
+
+Deno.test("pickRecommendedVersion returns undefined with no versions", () => {
+  assertEquals(pickRecommendedVersion([]), undefined);
 });
 
 Deno.test("pagesRepoPathDepth counts project path segments", () => {
@@ -87,6 +136,7 @@ Deno.test("assembleMainPagesSite copies root dist and writes manifest", async ()
   });
 
   assertEquals(manifest.versions, []);
+  assertEquals(manifest.recommended, undefined);
   assertEquals(await Deno.readTextFile(join(outDir, "index.html")), "<html>main</html>");
   assertEquals(
     JSON.parse(await Deno.readTextFile(join(outDir, VERSIONS_MANIFEST))).versions,
@@ -203,9 +253,92 @@ Deno.test("assembleReleasePagesSite adds new version and drops broken listed one
       outDir,
     });
     assertEquals(manifest.versions, ["v0.6.1"]);
+    assertEquals(manifest.recommended, "v0.6.1");
     assertEquals(await Deno.readTextFile(join(outDir, "v0.6.1", "index.html")), "<html>v0.6.1</html>");
     assertEquals(await versionHasIndex(outDir, "v0.6"), false);
     assertEquals(await Deno.readTextFile(join(outDir, "index.html")), "<html>live</html>");
+  } finally {
+    await live.shutdown();
+  }
+});
+
+async function serveLiveSite(
+  files: Record<string, string>,
+): Promise<{ baseUrl: string; shutdown: () => Promise<void> }> {
+  const nestedRoot = await Deno.makeTempDir();
+  const projectDir = join(nestedRoot, "intehrgrator");
+  for (const [rel, contents] of Object.entries(files)) {
+    const filePath = join(projectDir, rel);
+    await ensureDir(dirname(filePath));
+    await Deno.writeTextFile(filePath, contents);
+  }
+  const server = Deno.serve({ port: 0, hostname: "127.0.0.1" }, async (req) => {
+    const url = new URL(req.url);
+    let rel = decodeURIComponent(url.pathname);
+    if (rel.endsWith("/")) rel += "index.html";
+    try {
+      const data = await Deno.readFile(join(nestedRoot, rel));
+      return new Response(data, { status: 200 });
+    } catch {
+      return new Response("missing", { status: 404 });
+    }
+  });
+  return {
+    baseUrl: `http://127.0.0.1:${server.addr.port}/intehrgrator`,
+    shutdown: () => server.shutdown(),
+  };
+}
+
+Deno.test("assembleReleasePagesSite keeps a still-published recommended tag over the newest", async () => {
+  const live = await serveLiveSite({
+    "index.html": "<html>live</html>",
+    "versions.json": JSON.stringify({ versions: ["v0.6"], recommended: "v0.6" }),
+    "v0.6/index.html": "<html>v0.6</html>",
+  });
+
+  const dir = await Deno.makeTempDir();
+  const versionDist = join(dir, "version-dist");
+  const outDir = join(dir, "out");
+  await Deno.mkdir(versionDist, { recursive: true });
+  await Deno.writeTextFile(join(versionDist, "index.html"), "<html>v0.7</html>");
+
+  try {
+    const manifest = await assembleReleasePagesSite({
+      baseUrl: live.baseUrl,
+      versionTag: "v0.7",
+      versionDist,
+      outDir,
+    });
+    assertEquals(manifest.versions, ["v0.7", "v0.6"]);
+    // v0.6 remains the pinned recommendation even though v0.7 just shipped.
+    assertEquals(manifest.recommended, "v0.6");
+  } finally {
+    await live.shutdown();
+  }
+});
+
+Deno.test("assembleReleasePagesSite honors a recommendedOverride even over the previous pin", async () => {
+  const live = await serveLiveSite({
+    "index.html": "<html>live</html>",
+    "versions.json": JSON.stringify({ versions: ["v0.6"], recommended: "v0.6" }),
+    "v0.6/index.html": "<html>v0.6</html>",
+  });
+
+  const dir = await Deno.makeTempDir();
+  const versionDist = join(dir, "version-dist");
+  const outDir = join(dir, "out");
+  await Deno.mkdir(versionDist, { recursive: true });
+  await Deno.writeTextFile(join(versionDist, "index.html"), "<html>v0.7</html>");
+
+  try {
+    const manifest = await assembleReleasePagesSite({
+      baseUrl: live.baseUrl,
+      versionTag: "v0.7",
+      versionDist,
+      outDir,
+      recommendedOverride: "v0.7",
+    });
+    assertEquals(manifest.recommended, "v0.7");
   } finally {
     await live.shutdown();
   }

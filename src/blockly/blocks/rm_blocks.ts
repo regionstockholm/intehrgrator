@@ -40,7 +40,8 @@ import {
   appendHiddenSerializable,
   createHiddenSerializableField,
 } from "../hidden_serializable_field.ts";
-import { registerTermPickBlock } from "./term_pick.ts";
+import { createTermPickBlock, registerTermPickBlock } from "./term_pick.ts";
+import { termSetForRmAttribute } from "../../core/openehr_term_catalog.ts";
 import {
   appendMutatorCogwheel,
   namesFromMutatorStack,
@@ -411,8 +412,15 @@ export function syncRmAttributeInputs(
  * Switch an EVENT-family block between EVENT / POINT_EVENT / INTERVAL_EVENT
  * without dropping already-attached children. Extra INTERVAL_EVENT fields
  * appear when needed; filled extras are kept if the user switches away.
+ *
+ * `mandatedMathFunction` — only when a template/archetype picks a single
+ * math_function code; otherwise the scaffolded term_pick stays on "choose…".
  */
-export function applyEventRmType(block: Blockly.Block, newType: string): void {
+export function applyEventRmType(
+  block: Blockly.Block,
+  newType: string,
+  options?: { mandatedMathFunction?: string },
+): void {
   const next = (newType || "").toUpperCase();
   if (!isEventFamilyType(next)) return;
 
@@ -435,8 +443,38 @@ export function applyEventRmType(block: Blockly.Block, newType: string): void {
   const show = eventAttributesToShow(next, connected);
   const cards = { ...(block.slotCardinalities_ ?? {}) };
   syncRmAttributeInputs(block, next, show, cards);
+  if (next === "INTERVAL_EVENT") {
+    ensureIntervalEventMathFunctionScaffold(block, options?.mandatedMathFunction);
+  }
   if (typeof block.render === "function" && typeof document !== "undefined") {
     block.render();
+  }
+}
+
+/**
+ * Attach a built-in math_function term_pick when the mouth is empty.
+ * Leaves CODE at "choose…" unless the template mandated a single code.
+ */
+export function ensureIntervalEventMathFunctionScaffold(
+  block: Blockly.Block,
+  mandatedCode?: string,
+): void {
+  if (String(block.getFieldValue("RM_TYPE") || "").toUpperCase() !== "INTERVAL_EVENT") {
+    return;
+  }
+  const input = block.getInput(rmAttributeInputName("math_function"));
+  if (!input?.connection || input.connection.isConnected()) return;
+  const termSet = termSetForRmAttribute("INTERVAL_EVENT", "math_function");
+  if (!termSet || !block.workspace) return;
+  const pick = createTermPickBlock(
+    block.workspace,
+    termSet,
+    mandatedCode,
+  );
+  try {
+    input.connection.connect(pick.outputConnection!);
+  } catch {
+    pick.dispose(false);
   }
 }
 
@@ -996,6 +1034,9 @@ function defineContainerBlock(
         this.setPreviousStatement(true, INSTANCE_ROOT_CONNECTION);
       }
       enforceOpenEhrBlockLayout(this);
+      if (options.rmType === "INTERVAL_EVENT") {
+        ensureIntervalEventMathFunctionScaffold(this);
+      }
     },
   };
 }
@@ -1200,6 +1241,8 @@ type ProhibitedRmRow = {
 type OptionalRmMutatorState = {
   extras?: string[];
   attrs?: string[];
+  /** RM class at save time — fields load after extraState, so restore needs this. */
+  rmType?: string;
   prohibited?: ProhibitedRmRow[];
   slotCards?: Record<string, SlotCardinality>;
   rmCards?: Record<string, SlotCardinality>;
@@ -1228,12 +1271,20 @@ function parseMutatorExtraState(
 ): {
   extras: string[];
   attrs: string[];
+  rmType: string;
   prohibited: ProhibitedRmRow[];
   slotCards: Record<string, SlotCardinality>;
   rmCards: Record<string, SlotCardinality>;
 } {
   if (state == null || state === "") {
-    return { extras: [], attrs: [], prohibited: [], slotCards: {}, rmCards: {} };
+    return {
+      extras: [],
+      attrs: [],
+      rmType: "",
+      prohibited: [],
+      slotCards: {},
+      rmCards: {},
+    };
   }
   const obj = typeof state === "string"
     ? JSON.parse(state) as OptionalRmMutatorState
@@ -1241,22 +1292,47 @@ function parseMutatorExtraState(
   return {
     extras: Array.isArray(obj.extras) ? obj.extras : [],
     attrs: Array.isArray(obj.attrs) ? obj.attrs : [],
+    rmType: typeof obj.rmType === "string" ? obj.rmType : "",
     prohibited: Array.isArray(obj.prohibited) ? obj.prohibited : [],
     slotCards: parseSlotCardMap(obj.slotCards),
     rmCards: parseSlotCardMap(obj.rmCards),
   };
 }
 
+/**
+ * Fields are applied after `loadExtraState`, so prefer the saved rmType.
+ * Infer INTERVAL_EVENT from its exclusive attrs when older saves omit rmType.
+ */
+function rmTypeForMutatorRestore(
+  block: Blockly.Block,
+  savedRmType: string,
+  attrs: string[],
+): string {
+  const saved = (savedRmType || "").toUpperCase();
+  if (saved) return saved;
+  const current = rmTypeOfBlock(block);
+  if (
+    isEventFamilyType(current) &&
+    attrs.some((name) =>
+      name === "math_function" || name === "width" || name === "sample_count"
+    )
+  ) {
+    return "INTERVAL_EVENT";
+  }
+  return current;
+}
+
 function restoreMutatorAttributes(
   block: Blockly.Block,
   extras: string[],
   attrs: string[],
+  savedRmType = "",
 ): void {
   block.extraInputs_ = extras;
   if (attrs.length) {
     syncRmAttributeInputs(
       block,
-      rmTypeOfBlock(block),
+      rmTypeForMutatorRestore(block, savedRmType, attrs),
       attrs,
       block.slotCardinalities_,
     );
@@ -1464,6 +1540,7 @@ function registerOptionalRmMutator(): void {
       const extras = this.extraInputs_ ?? [];
       xml.setAttribute("extras", JSON.stringify(extras));
       xml.setAttribute("attrs", JSON.stringify(presentAttributeNames(this)));
+      xml.setAttribute("rmType", rmTypeOfBlock(this));
       xml.setAttribute("slotCards", JSON.stringify(this.slotCardinalities_ ?? {}));
       xml.setAttribute("rmCards", JSON.stringify(this.rmCardinalities_ ?? {}));
       xml.setAttribute("prohibited", JSON.stringify(this.prohibitedAttributes_ ?? []));
@@ -1485,12 +1562,14 @@ function registerOptionalRmMutator(): void {
       if (Array.isArray(prohibited) && prohibited.length) {
         this.prohibitedAttributes_ = prohibited;
       }
-      restoreMutatorAttributes(this, extras, attrs);
+      const savedRmType = xmlElement.getAttribute("rmType") || "";
+      restoreMutatorAttributes(this, extras, attrs, savedRmType);
     },
     saveExtraState: function (this: Blockly.Block) {
       return {
         extras: this.extraInputs_ ?? [],
         attrs: presentAttributeNames(this),
+        rmType: rmTypeOfBlock(this),
         prohibited: this.prohibitedAttributes_ ?? [],
         slotCards: this.slotCardinalities_ ?? {},
         rmCards: this.rmCardinalities_ ?? {},
@@ -1509,7 +1588,7 @@ function registerOptionalRmMutator(): void {
         this.rmCardinalities_ = parsed.rmCards;
       }
       if (parsed.prohibited.length) this.prohibitedAttributes_ = parsed.prohibited;
-      restoreMutatorAttributes(this, parsed.extras, parsed.attrs);
+      restoreMutatorAttributes(this, parsed.extras, parsed.attrs, parsed.rmType);
     },
     decompose: function (this: Blockly.Block, workspace: Blockly.Workspace) {
       const labels = new Map(optionalRmMutatorChoices(this));

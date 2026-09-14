@@ -3,7 +3,7 @@
  * hug their sockets. One routine for RM, XML, schema, lists, maps, and stock
  * blocks so alignment cannot drift per block type.
  */
-import type { Block } from "blockly/core";
+import type { Block, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 
 /** Blockly Align.LEFT — header chrome hugs the left edge. */
@@ -29,6 +29,28 @@ export function enforceMouthCaptionLayout(block: Block): void {
     if (input.name === "HEADER") continue;
     if (input.connection) input.setAlign(inputAlignRight());
   }
+}
+
+/**
+ * Ensure a LEFT-aligned dummy `HEADER` exists as the first input and is ready
+ * for class chrome (output glyph / title). Pulls an existing HEADER to the top
+ * when it was appended later. Shared so lists/maps/logic cannot drift from RM.
+ */
+export function ensureClassChromeHeader(block: Block): Input {
+  let header = block.getInput("HEADER");
+  if (!header) {
+    header = block.appendDummyInput("HEADER");
+  }
+  header.setAlign(inputAlignLeft());
+  const first = block.inputList[0];
+  if (first && first.name !== "HEADER") {
+    try {
+      block.moveInputBefore("HEADER", first.name);
+    } catch {
+      // Some Blockly stubs lack moveInputBefore; HEADER still left-aligned.
+    }
+  }
+  return header;
 }
 
 /** Stock list constructors whose captions should hug mouths like RM slots. */

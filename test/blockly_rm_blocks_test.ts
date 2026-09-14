@@ -59,7 +59,7 @@ import {
   isSlotCardinalityField,
 } from "@intehrgrator/blockly/slot_cardinality.ts";
 import { createTermPickBlock } from "@intehrgrator/blockly/blocks/term_pick.ts";
-import { termSetById, termSetForMandatedCode } from "@intehrgrator/core/openehr_term_catalog.ts";
+import { TERM_PICK_NONE, termSetById, termSetForMandatedCode, termSetForRmAttribute } from "@intehrgrator/core/openehr_term_catalog.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   attributesFor,
@@ -1029,6 +1029,29 @@ Deno.test("EVENT block warns while abstract and can switch subtype without dropp
   assertEquals(event.getInputTargetBlock(rmAttributeInputName("data"))?.id, data.id);
   assert(event.getInput(rmAttributeInputName("width")), "INTERVAL_EVENT.width should appear");
   assert(event.getInput(rmAttributeInputName("math_function")), "INTERVAL_EVENT.math_function should appear");
+  const mathPick = event.getInputTargetBlock(rmAttributeInputName("math_function"));
+  assertEquals(mathPick?.type, "term_pick");
+  assertEquals(mathPick?.getFieldValue("CODE"), TERM_PICK_NONE);
+  workspace.dispose();
+});
+
+Deno.test("INTERVAL_EVENT math_function scaffold uses mandated code only when provided", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const set = termSetForRmAttribute("INTERVAL_EVENT", "math_function");
+  assert(set && set.codes.length > 0, "event_math_function catalog");
+  const mandated = set.codes[0]!.code;
+  const event = workspace.newBlock("event");
+  applyEventRmType(event, "INTERVAL_EVENT", { mandatedMathFunction: mandated });
+  const mathPick = event.getInputTargetBlock(rmAttributeInputName("math_function"));
+  assertEquals(mathPick?.type, "term_pick");
+  assertEquals(mathPick?.getFieldValue("CODE"), mandated);
+  // Re-applying must not replace an already-attached pick.
+  applyEventRmType(event, "INTERVAL_EVENT");
+  assertEquals(
+    event.getInputTargetBlock(rmAttributeInputName("math_function"))?.id,
+    mathPick?.id,
+  );
   workspace.dispose();
 });
 

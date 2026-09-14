@@ -23,6 +23,7 @@ import {
 import { specForChild, type SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
+import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
 
 const TARGET_CHILD_PREFIX = "TARGET_";
 
@@ -320,6 +321,7 @@ export function registerSchemaFieldsMutator(): void {
         for (const name of this.schemaExtraFields_ ?? []) {
           appendSchemaFieldInput(this, specForOptionalExtra(this, name), schemaOptionalInputName(name));
         }
+        enforceMouthCaptionLayout(this);
       },
     },
     bindSchemaMutator,

@@ -34,7 +34,8 @@ import {
   rmAttributeCardinality,
   type SlotCardinality,
 } from "../slot_cardinality.ts";
-import { appendSlotLabel, isSlotLabelField } from "../slot_label.ts";
+import { appendSlotLabel } from "../slot_label.ts";
+import { enforceMouthCaptionLayout, inputAlignLeft, inputAlignRight } from "../mouth_layout.ts";
 import {
   appendHiddenSerializable,
   createHiddenSerializableField,
@@ -50,36 +51,12 @@ import {
 
 export { openBlockMutator };
 
-/** Blockly Align.LEFT (-1) — class header (emoji / title / cog) hugs the left edge. */
-function inputAlignLeft(): number {
-  return (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? -1) as number;
-}
-
-/** Blockly Align.RIGHT (1) — slot captions sit just left of their mouth / socket. */
-function inputAlignRight(): number {
-  return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
-}
-
 /**
  * Keep class chrome on its own left-aligned top row; slot captions hug mouths.
- * Call after init / shape sync so JSON `inputsInline: true` cannot merge HEADER
- * onto a right-aligned value row.
+ * Shared with XML / lists / schema via `enforceMouthCaptionLayout`.
  */
 export function enforceOpenEhrBlockLayout(block: Blockly.Block): void {
-  block.setInputsInline(false);
-  const header = block.getInput("HEADER");
-  if (header) header.setAlign(inputAlignLeft());
-  for (const input of block.inputList) {
-    if (input.name === "HEADER") continue;
-    const hasSlotCaption = input.fieldRow.some((field) => isSlotLabelField(field));
-    const isAttrMouth = input.name.startsWith(RM_ATTR_INPUT_PREFIX) ||
-      input.name.startsWith(OPTIONAL_INPUT_PREFIX) ||
-      input.name.startsWith(DV_FIELD_PREFIX) ||
-      input.name.startsWith(OPTIONAL_DV_FIELD_PREFIX) ||
-      input.name === "VALUE" ||
-      input.name === RM_SPECIALIZATION_INPUT;
-    if (hasSlotCaption || isAttrMouth) input.setAlign(inputAlignRight());
-  }
+  enforceMouthCaptionLayout(block);
 }
 
 export const EVENT_KIND_OPTIONS: Array<[string, string]> = [
@@ -1159,14 +1136,12 @@ function defineCodePhraseBlock(): void {
       header.appendField(new FieldSkeletonTitle("CODE_PHRASE", humanizeRmType("CODE_PHRASE")), "NAME");
       const code = this.appendValueInput(dvFieldInputName("code_string"))
         .setAlign(inputAlignRight())
-        .setCheck("String")
-        .appendField("code");
-      appendSlotTypeEmoji(code, "String");
+        .setCheck("String");
+      appendSlotLabel(code, "code", { rmType: "String" });
       const terminology = this.appendValueInput(dvFieldInputName("terminology_id"))
         .setAlign(inputAlignRight())
-        .setCheck("String")
-        .appendField("terminology");
-      appendSlotTypeEmoji(terminology, "String");
+        .setCheck("String");
+      appendSlotLabel(terminology, "terminology", { rmType: "String" });
       this.setOutput(true, "CODE_PHRASE");
       this.setColour(DV_COLOUR);
       enforceOpenEhrBlockLayout(this);
@@ -1200,9 +1175,11 @@ function appendDvFieldInput(
       : "String");
   const input = block.appendValueInput(name)
     .setAlign(inputAlignRight())
-    .setCheck(check)
-    .appendField(attr.name);
-  appendSlotTypeEmoji(input, baseRmTypeName(attr.typeName));
+    .setCheck(check);
+  appendSlotLabel(input, attr.name, {
+    card: rmAttributeCardinality(rmTypeOfBlock(block) || attr.typeName, attr.name) ?? undefined,
+    rmType: baseRmTypeName(attr.typeName),
+  });
 }
 
 function ensureDvFieldVisible(block: Blockly.Block, attrName: string): void {

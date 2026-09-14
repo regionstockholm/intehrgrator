@@ -12,8 +12,8 @@ import {
   registerDynamicFlyoutMutator,
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
-import { inputAlignLeft, inputAlignRight } from "../block_type_glyph.ts";
 import { appendSlotLabel } from "../slot_label.ts";
+import { enforceMouthCaptionLayout, inputAlignLeft, inputAlignRight } from "../mouth_layout.ts";
 import {
   XML_ATTRIBUTE_CHECK,
   XML_ATTRIBUTE_TYPE,
@@ -63,19 +63,9 @@ export const XML_BLOCK_TYPES = [
   XML_DOCUMENT_TYPE,
 ] as const;
 
-/**
- * Keep header chrome left; mouth captions hug sockets (openEHR slot style).
- * External (non-inline) rows are required so Align.RIGHT padding can pull
- * captions against statement/value mouths instead of leaving a mid-block gap.
- */
+/** Keep header chrome left; mouth captions hug sockets (shared layout). */
 function enforceXmlMouthLayout(block: Block): void {
-  block.setInputsInline(false);
-  const header = block.getInput("HEADER");
-  if (header) header.setAlign(inputAlignLeft());
-  for (const input of block.inputList) {
-    if (input.name === "HEADER") continue;
-    if (input.connection) input.setAlign(inputAlignRight());
-  }
+  enforceMouthCaptionLayout(block);
 }
 
 export function registerXmlBlocks(): void {

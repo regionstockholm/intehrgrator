@@ -188,7 +188,7 @@ function applyCompactConstants(constants: any): void {
 }
 
 // deno-lint-ignore no-explicit-any
-function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
+export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
   if (!row?.elements) return;
   let hasClassChrome = false;
   let hasSlotCaption = false;
@@ -203,15 +203,15 @@ function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number):
     if (field.name === BLOCK_OUT_EMOJI_FIELD) hasClassChrome = true;
     if (field.name === "MUTATOR_COG") hasClassChrome = true;
   }
-  // Mixed rows (inline HEADER + value): prefer left so class chrome is not
-  // shoved toward the socket; prefer external rows via setInputsInline(false).
-  // Mouth rows (statement / external value) without class chrome always hug
-  // the socket — plain FieldLabels need this too, not only FieldSlotLabel.
+  // Mouth rows always hug the socket — including stock lists whose cog sits
+  // on the first ADD row (that cog is not HEADER chrome). Dummy HEADER rows
+  // without a mouth stay left.
   const isMouthRow = Boolean(
     row.hasStatement || row.hasExternalInput || row.hasInlineInput,
   );
-  if (hasClassChrome) row.align = alignLeft;
-  else if (hasSlotCaption || isMouthRow) row.align = alignRight;
+  if (isMouthRow) row.align = alignRight;
+  else if (hasClassChrome) row.align = alignLeft;
+  else if (hasSlotCaption) row.align = alignRight;
 }
 
 /**
@@ -220,7 +220,12 @@ function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number):
  */
 // deno-lint-ignore no-explicit-any
 export function shouldPinSlotCaptionToMouth_(row: any, elem: any): boolean {
-  if (!row || !elem?.field || !isSlotLabelField(elem.field)) return false;
+  if (!row || !elem?.field) return false;
+  const field = elem.field;
+  if (isSkeletonTitleField(field)) return false;
+  if (isRmTypeEmojiField(field) && field.name === BLOCK_OUT_EMOJI_FIELD) return false;
+  if (field.name === BLOCK_OUT_EMOJI_FIELD) return false;
+  if (field.name === "MUTATOR_COG") return false;
   return Boolean(row.hasStatement || row.hasExternalInput || row.hasInlineInput);
 }
 

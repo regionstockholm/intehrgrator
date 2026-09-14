@@ -2,10 +2,9 @@ import { Blockly } from "../blockly_core.ts";
 import {
   appendBlockOutputGlyph,
   appendInputTypeGlyph,
-  inputAlignLeft,
-  inputAlignRight,
   setBlockOutputCheck,
 } from "../block_type_glyph.ts";
+import { inputAlignLeft, inputAlignRight, enforceMouthCaptionLayout } from "../mouth_layout.ts";
 import { FieldGridPreview, registerFieldGridPreview } from "../field_grid_preview.ts";
 import { workspaceSheet } from "../sheets_bridge.ts";
 import {
@@ -182,6 +181,7 @@ export function registerDecisionTableBlocks(): void {
       this.setTooltip(
         "Evaluate a Decision table. Locals Map keys match condition columns. Choose an output column or all outputs.",
       );
+      enforceMouthCaptionLayout(this);
     },
     onchange: function (this: Blockly.Block, event: { type?: string; name?: string; newElementId?: string }) {
       if (this.isInFlyout) return;

@@ -12,6 +12,7 @@ import {
   TEXT_DOCUMENT_BLOCK_TYPE,
 } from "../instance_root.ts";
 import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
+import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
 
 export const TEXT_CODE_BLOCK_TYPE = "text_code";
 export const TEXT_HANDLEBARS_BLOCK_TYPE = "text_handlebars";
@@ -62,6 +63,7 @@ export function registerTextBlocks(): void {
       this.setTooltip(m.TEXT_HANDLEBARS_TOOLTIP);
       this.setStyle?.("text_blocks");
       this.setInputsInline(false);
+      enforceMouthCaptionLayout(this);
     },
   };
 
@@ -78,6 +80,7 @@ export function registerTextBlocks(): void {
       this.setTooltip(
         "Free-form text instance root. Plug in Code text, Handlebars text, or a string Source query.",
       );
+      enforceMouthCaptionLayout(this);
       this.setStyle?.("text_blocks");
     },
   };

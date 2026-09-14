@@ -8,6 +8,7 @@ import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mut
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
 import { registerXmlBlocks, XML_BLOCK_TYPES } from "./xml_blocks.ts";
+import { enforceMouthCaptionLayout, inputAlignRight } from "../mouth_layout.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
 const TARGET_VALUE_COLOUR = "#6B7280";
@@ -113,6 +114,7 @@ function defineStructureBlock(
       if (options?.withSchemaMutator) {
         Blockly.Extensions.apply(SCHEMA_FIELDS_MUTATOR, this, true);
       }
+      enforceMouthCaptionLayout(this);
     },
   };
   if (!options?.withSchemaMutator) {
@@ -172,14 +174,12 @@ function defineValueBlock(
       this.setColour(colour);
       this.setTooltip(tooltip);
       this.setInputsInline(true);
+      enforceMouthCaptionLayout(this);
     },
   };
 }
 
 /** Blockly Align.RIGHT — attribute captions sit just left of their mouth. */
-function inputAlignRight(): number {
-  return (Blockly.inputs?.Align?.RIGHT ?? 1) as number;
-}
 
 export function appendSchemaFieldInput(
   block: Block,

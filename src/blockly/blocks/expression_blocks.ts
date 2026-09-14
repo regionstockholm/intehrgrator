@@ -7,6 +7,7 @@ import {
   sourceBlockTypeForReturnType,
   sourceQueryFieldLabel,
 } from "../source_query.ts";
+import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
 
 const LOOP_COLOUR = "#A5D6A7";
 const SOURCE_COLOUR = "#E87722";
@@ -44,6 +45,7 @@ export function registerExpressionBlocks(): void {
       this.setTooltip(m.FOR_EACH_SOURCE_TOOLTIP);
       this.setStyle?.("loop_blocks");
       this.setInputsInline(false);
+      enforceMouthCaptionLayout(this);
     },
   };
 
@@ -65,6 +67,7 @@ export function registerExpressionBlocks(): void {
       this.setTooltip(m.FOR_EACH_LIST_TOOLTIP);
       this.setStyle?.("loop_blocks");
       this.setInputsInline(true);
+      enforceMouthCaptionLayout(this);
     },
   };
 }

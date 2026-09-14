@@ -12,6 +12,7 @@ import {
   openBlockMutator,
 } from "../dynamic_mutator.ts";
 import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
+import { enforceMouthCaptionLayout, inputAlignRight } from "../mouth_layout.ts";
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
@@ -68,10 +69,6 @@ type MapCreateBlock = Blockly.Block & {
   itemCount_: number;
   updateShape_: () => void;
 };
-
-function inputAlignRight(): number {
-  return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
-}
 
 function keyField(defaultText = ""): Blockly.FieldTextInput {
   return new Blockly.FieldTextInput(defaultText, undefined, { spellcheck: false });
@@ -146,6 +143,7 @@ function updateMapCreateShape(block: MapCreateBlock): void {
   for (const name of order) {
     if (block.getInput(name)) block.moveInputBefore(name, null);
   }
+  enforceMouthCaptionLayout(block);
 }
 
 function defineMapsMutatorQuarks(): void {

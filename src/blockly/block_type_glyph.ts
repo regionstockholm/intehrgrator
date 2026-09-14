@@ -20,10 +20,10 @@ import {
 } from "./rm_type_emoji.ts";
 import {
   blockTypeUsesMouthLayout,
-  enforceMouthLayout,
+  enforceMouthCaptionLayout,
   inputAlignLeft,
   inputAlignRight,
-} from "./block_layout.ts";
+} from "./mouth_layout.ts";
 
 export { inputAlignLeft, inputAlignRight };
 
@@ -204,20 +204,20 @@ export function registerStockBlocklyGlyphs(): void {
       originalInit.call(this);
       ensureBlockOutputHeaderGlyph(this);
       decorateValueInputGlyphs(this);
-      if (blockTypeUsesMouthLayout(type)) enforceMouthLayout(this);
+      if (blockTypeUsesMouthLayout(type)) enforceMouthCaptionLayout(this);
     };
     const originalUpdate = def.updateShape_ as ((this: Block) => void) | undefined;
     if (typeof originalUpdate === "function" && blockTypeUsesMouthLayout(type)) {
       def.updateShape_ = function (this: Block) {
         originalUpdate.call(this);
-        enforceMouthLayout(this);
+        enforceMouthCaptionLayout(this);
       };
     }
     const originalUpdateAt = def.updateAt_ as ((this: Block, hasAt: boolean) => void) | undefined;
     if (typeof originalUpdateAt === "function" && blockTypeUsesMouthLayout(type)) {
       def.updateAt_ = function (this: Block, hasAt: boolean) {
         originalUpdateAt.call(this, hasAt);
-        enforceMouthLayout(this);
+        enforceMouthCaptionLayout(this);
       };
     }
     stockGlyphPatches.add(type);

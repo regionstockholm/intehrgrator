@@ -1,29 +1,27 @@
 /**
- * Shared Blockly mouth layout: class chrome stays left; every connected
- * input hugs its socket (Align.RIGHT, not inline).
- *
- * RM, XML, schema, Maps, and stock list constructors all call this so slot
- * captions do not drift depending on which block factory built the row.
+ * Shared Blockly mouth/caption layout: class chrome stays left, slot captions
+ * hug their sockets. One routine for RM, XML, schema, lists, maps, and stock
+ * blocks so alignment cannot drift per block type.
  */
 import type { Block } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 
-/** Blockly Align.LEFT — header chrome (emoji / title / cog). */
+/** Blockly Align.LEFT — header chrome hugs the left edge. */
 export function inputAlignLeft(): number {
   return (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? -1) as number;
 }
 
-/** Blockly Align.RIGHT — slot captions sit just left of their mouth / socket. */
+/** Blockly Align.RIGHT — captions sit just left of their mouth / socket. */
 export function inputAlignRight(): number {
   return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
 }
 
 /**
- * Keep HEADER on its own left-aligned top row; every connected input hugs
- * its socket. Call after init / mutator shape sync so saved
- * `inputsInline: true` cannot merge chrome onto a value row.
+ * Keep HEADER left-aligned; every connected input hugs its mouth.
+ * Call after init / shape sync so JSON `inputsInline: true` cannot merge
+ * HEADER onto a right-aligned value row.
  */
-export function enforceMouthLayout(block: Block): void {
+export function enforceMouthCaptionLayout(block: Block): void {
   block.setInputsInline(false);
   const header = block.getInput("HEADER");
   if (header) header.setAlign(inputAlignLeft());

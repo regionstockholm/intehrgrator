@@ -35,7 +35,7 @@ import {
   type SlotCardinality,
 } from "../slot_cardinality.ts";
 import { appendSlotLabel } from "../slot_label.ts";
-import { enforceMouthLayout, inputAlignLeft, inputAlignRight } from "../block_layout.ts";
+import { enforceMouthCaptionLayout, inputAlignLeft, inputAlignRight } from "../mouth_layout.ts";
 import {
   appendHiddenSerializable,
   createHiddenSerializableField,
@@ -51,9 +51,9 @@ import {
 
 export { openBlockMutator };
 
-/** RM alias of `enforceMouthLayout` (HEADER left; connected inputs hug mouths). */
+/** RM alias of {@link enforceMouthCaptionLayout}. */
 export function enforceOpenEhrBlockLayout(block: Blockly.Block): void {
-  enforceMouthLayout(block);
+  enforceMouthCaptionLayout(block);
 }
 
 export const EVENT_KIND_OPTIONS: Array<[string, string]> = [

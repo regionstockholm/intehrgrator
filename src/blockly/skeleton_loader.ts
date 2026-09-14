@@ -21,9 +21,8 @@ import {
   optionalRmInputName,
   rmAttributeInputName,
   syncRmAttributeInputs,
-  isRmContainerBlockType,
 } from "./blocks/rm_blocks.ts";
-import { enforceMouthLayout, blockTypeUsesMouthLayout } from "./block_layout.ts";
+import { enforceMouthCaptionLayout } from "./mouth_layout.ts";
 import { createTermPickBlock, isTermPickBlock } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
@@ -101,22 +100,7 @@ export function loadSkeletonIntoWorkspace(
     applyModelOptionalSchemaFields(workspace, model);
     setAllBlocksCollapsed(workspace, false);
     for (const block of workspace.getAllBlocks(false)) {
-      if (
-        isRmContainerBlockType(block.type) ||
-        isDataValueBlock(block) ||
-        block.type === "element" ||
-        block.type === "party_ref" ||
-        block.type === "code_phrase" ||
-        blockTypeUsesMouthLayout(block.type) ||
-        block.type.startsWith("xml_") ||
-        block.type.startsWith("json_") ||
-        block.type.startsWith("schema_") ||
-        block.type === "target_value" ||
-        block.type === "maps_create_with" ||
-        block.type === "maps_get"
-      ) {
-        enforceMouthLayout(block);
-      }
+      enforceMouthCaptionLayout(block);
     }
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);

@@ -13,7 +13,7 @@ import {
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
 import { inputAlignLeft, inputAlignRight } from "../block_type_glyph.ts";
-import { enforceMouthLayout } from "../block_layout.ts";
+import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import {
   XML_ATTRIBUTE_CHECK,
@@ -70,7 +70,7 @@ export const XML_BLOCK_TYPES = [
  * captions against statement/value mouths instead of leaving a mid-block gap.
  */
 function enforceXmlMouthLayout(block: Block): void {
-  enforceMouthLayout(block);
+  enforceMouthCaptionLayout(block);
 }
 
 export function registerXmlBlocks(): void {
@@ -136,7 +136,7 @@ function defineXmlText(): void {
       this.setOutput(true, "String");
       this.setColour(XML_COLOUR);
       this.setTooltip("XML text node (character data)");
-      enforceMouthLayout(this);
+      enforceMouthCaptionLayout(this);
     },
   };
 }
@@ -157,7 +157,7 @@ function defineXmlAttribute(): void {
       this.setNextStatement(true, XML_ATTRIBUTE_CHECK);
       this.setColour(XML_COLOUR);
       this.setTooltip("XML attribute on the parent element");
-      enforceMouthLayout(this);
+      enforceMouthCaptionLayout(this);
     },
   };
 }
@@ -172,7 +172,7 @@ function defineXmlCdata(): void {
       this.setOutput(true, "String");
       this.setColour(XML_COLOUR);
       this.setTooltip("XML CDATA section — emitted as <![CDATA[ … ]]> without character escaping");
-      enforceMouthLayout(this);
+      enforceMouthCaptionLayout(this);
     },
   };
 }
@@ -420,7 +420,7 @@ export function registerXmlDocumentMutator(): void {
             .appendField(new Blockly.FieldTextInput(stored.uri), `URI_${name}`);
           this.moveInputBefore(inputName, before);
         }
-        enforceMouthLayout(this);
+        enforceMouthCaptionLayout(this);
       },
       syncNamespacesFromFields_: function (this: XmlDocumentBlock) {
         const extras = this.xmlDocExtras_ ?? [];

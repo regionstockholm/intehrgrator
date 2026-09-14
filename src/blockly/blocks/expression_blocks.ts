@@ -2,7 +2,7 @@ import { Blockly } from "../blockly_core.ts";
 import { blocklyCheckForReturnType } from "../block_checks.ts";
 import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 import { msg, detectLocale } from "../i18n/locale.ts";
-import { enforceMouthLayout } from "../block_layout.ts";
+import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
 import {
   type SourceReturnType,
   sourceBlockTypeForReturnType,
@@ -44,7 +44,7 @@ export function registerExpressionBlocks(): void {
       this.setColour(LOOP_COLOUR);
       this.setTooltip(m.FOR_EACH_SOURCE_TOOLTIP);
       this.setStyle?.("loop_blocks");
-      enforceMouthLayout(this);
+      enforceMouthCaptionLayout(this);
     },
   };
 
@@ -65,7 +65,7 @@ export function registerExpressionBlocks(): void {
       this.setColour(LOOP_COLOUR);
       this.setTooltip(m.FOR_EACH_LIST_TOOLTIP);
       this.setStyle?.("loop_blocks");
-      enforceMouthLayout(this);
+      enforceMouthCaptionLayout(this);
     },
   };
 }

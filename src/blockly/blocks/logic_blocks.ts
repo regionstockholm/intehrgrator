@@ -4,11 +4,10 @@ import { detectLocale, msg } from "../i18n/locale.ts";
 import {
   appendBlockOutputGlyph,
   appendInputTypeGlyph,
-  inputAlignLeft,
-  inputAlignRight,
   prependBlockOutputGlyph,
   registerStockBlocklyGlyphs,
 } from "../block_type_glyph.ts";
+import { inputAlignLeft, inputAlignRight, enforceMouthCaptionLayout } from "../mouth_layout.ts";
 
 const LOGIC_COLOUR = "#D1C4E9";
 const LIST_COLOUR = "#4DB6AC";
@@ -186,6 +185,7 @@ export function registerLogicBlocks(): void {
       this.setColour(LOGIC_COLOUR);
       this.setTooltip(m.LOGIC_RESTRICTION_TOOLTIP);
       this.setStyle?.("logic_blocks");
+      enforceMouthCaptionLayout(this);
     },
 
     /** Threshold field and empty-list guard both follow the chosen operator. */
@@ -331,6 +331,7 @@ export function registerLogicBlocks(): void {
       this.setColour(LIST_COLOUR);
       this.setTooltip(m.LOGIC_SET_TOOLTIP);
       this.setStyle?.("list_blocks");
+      enforceMouthCaptionLayout(this);
     },
   };
 

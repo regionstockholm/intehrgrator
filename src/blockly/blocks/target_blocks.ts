@@ -4,7 +4,7 @@ import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
 import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import { findSkeletonNode } from "../schema_catalog.ts";
 import { appendSlotLabel } from "../slot_label.ts";
-import { enforceMouthLayout, inputAlignRight } from "../block_layout.ts";
+import { enforceMouthCaptionLayout, inputAlignRight } from "../mouth_layout.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
@@ -114,6 +114,7 @@ function defineStructureBlock(
       if (options?.withSchemaMutator) {
         Blockly.Extensions.apply(SCHEMA_FIELDS_MUTATOR, this, true);
       }
+      enforceMouthCaptionLayout(this);
     },
   };
   if (!options?.withSchemaMutator) {
@@ -173,7 +174,7 @@ function defineValueBlock(
       this.setNextStatement(true);
       this.setColour(colour);
       this.setTooltip(tooltip);
-      enforceMouthLayout(this);
+      enforceMouthCaptionLayout(this);
     },
   };
 }

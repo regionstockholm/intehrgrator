@@ -1101,6 +1101,12 @@ body.sheets-fullscreen::before {
   font-size: 12px;
   color: var(--text-secondary);
 }
+.dialog-label--checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+.dialog-label--checkbox input { flex: none; padding: 0; }
 .dialog-label input,
 .dialog-label textarea {
   font-size: 14px;

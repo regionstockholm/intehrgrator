@@ -160,6 +160,7 @@ import {
   type IntehrgratorTestApi,
   type WorkbenchTestSnapshot,
 } from "../src/ui_test/test_api.ts";
+import { maybeShowRecommendedVersionPopup } from "../src/ui/recommended_version_popup.ts";
 
 const host = createHostAdapter();
 const controller = new WorkbenchController(host, { urlStorage: localStorage });
@@ -1271,6 +1272,33 @@ const HELP_TUTORIAL_URL =
   "https://github.com/regionstockholm/intehrgrator/blob/main/docs/TUTORIAL.md";
 const HELP_ISSUES_URL =
   "https://github.com/regionstockholm/intehrgrator/issues/new/choose";
+const HELP_README_URL =
+  "https://github.com/regionstockholm/intehrgrator/blob/main/README.md";
+
+function installRecommendedVersionPopup(): void {
+  const dialog = document.getElementById("dialog-recommended-version") as HTMLDialogElement | null;
+  const message = document.getElementById("recommended-version-message");
+  const recommendedLink = document.getElementById("recommended-version-link") as HTMLAnchorElement | null;
+  const bleedingEdgeLink = document.getElementById(
+    "recommended-version-bleeding-edge-link",
+  ) as HTMLAnchorElement | null;
+  const tutorialLink = document.getElementById("recommended-version-tutorial-link") as HTMLAnchorElement | null;
+  const readmeLink = document.getElementById("recommended-version-readme-link") as HTMLAnchorElement | null;
+  const dismissButton = document.getElementById("recommended-version-dismiss") as HTMLButtonElement | null;
+  const dontShowAgainCheckbox = document.getElementById(
+    "recommended-version-dont-show-again",
+  ) as HTMLInputElement | null;
+  if (
+    !dialog || !message || !recommendedLink || !bleedingEdgeLink || !tutorialLink || !readmeLink ||
+    !dismissButton
+  ) {
+    return;
+  }
+  void maybeShowRecommendedVersionPopup(
+    { dialog, message, recommendedLink, bleedingEdgeLink, tutorialLink, readmeLink, dismissButton, dontShowAgainCheckbox },
+    { tutorialUrl: HELP_TUTORIAL_URL, readmeUrl: HELP_README_URL },
+  );
+}
 
 function installHelpMenu(): void {
   const chevron = document.getElementById("btn-help-menu");
@@ -2320,6 +2348,7 @@ async function main(): Promise<void> {
   // Installing this lightweight seam unconditionally keeps the E2E harness stable.
   installWorkbenchTestApi();
   registerServiceWorker();
+  installRecommendedVersionPopup();
   const wasmReady = ensureGoTemplateWasm().catch((err) => {
     console.warn("Go template WASM not loaded:", err);
   });

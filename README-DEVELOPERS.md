@@ -48,6 +48,8 @@ TODO: describe which tests exist and how to run them etc
 
 Every push to `main` deploys the bleeding-edge web shell. `deno task release` also publishes an immutable copy under `/vX.Y/` and updates [versions.json](https://regionstockholm.github.io/intehrgrator/versions.json).
 
+`versions.json` also carries a `recommended` field naming the tag (e.g. `"v0.7.5"`) the Web Shell suggests end users stick to. It defaults to the newest published release tag on every deploy, but a still-published previous recommendation is preserved across deploys unless overridden. To pin an older release as recommended (e.g. while a new one is still shaking out), commit a `RECOMMENDED_VERSION` file at the repo root containing just the tag; `scripts/assemble-pages.ts` reads it (or the `RECOMMENDED_VERSION` env var) on the next Pages deploy. Visiting any non-recommended version of the deployed site (including the bleeding-edge root) shows a popup linking to the recommended version, the tutorial, and the README.
+
 CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module changes fail tests instead of shipping stale pins.
 
 ## Repository layout

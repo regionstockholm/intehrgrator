@@ -163,8 +163,13 @@ function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number):
   }
   // Mixed rows (inline HEADER + value): prefer left so class chrome is not
   // shoved toward the socket; prefer external rows via setInputsInline(false).
-  if (hasSlotCaption && !hasClassChrome) row.align = alignRight;
-  else if (hasClassChrome) row.align = alignLeft;
+  // Mouth rows (statement / external value) without class chrome always hug
+  // the socket — plain FieldLabels need this too, not only FieldSlotLabel.
+  const isMouthRow = Boolean(
+    row.hasStatement || row.hasExternalInput || row.hasInlineInput,
+  );
+  if (hasClassChrome) row.align = alignLeft;
+  else if (hasSlotCaption || isMouthRow) row.align = alignRight;
 }
 
 /**

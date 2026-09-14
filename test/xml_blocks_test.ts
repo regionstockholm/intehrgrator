@@ -75,6 +75,35 @@ Deno.test("xml_element mouths: attributes stack, one text slot, nested children"
   ws.dispose();
 });
 
+Deno.test("xml_element mouth captions hug sockets (right-aligned slot labels)", () => {
+  ensure();
+  const ws = new Blockly.Workspace();
+  const el = ws.newBlock(XML_ELEMENT_TYPE);
+  assertEquals(el.getInputsInline(), false, "external rows so Align.RIGHT can pad");
+  const AlignRight = Blockly.inputs.Align.RIGHT;
+  const AlignLeft = Blockly.inputs.Align.LEFT;
+  assertEquals(el.getInput("HEADER")?.align, AlignLeft);
+  for (const name of [XML_ATTRIBUTES_INPUT, XML_TEXT_INPUT, XML_CHILDREN_INPUT]) {
+    const input = el.getInput(name);
+    assert(input, name);
+    assertEquals(input.align, AlignRight, `${name} align`);
+    assert(
+      input.fieldRow.some((f) => (f as { isSlotLabelField?: boolean }).isSlotLabelField),
+      `${name} uses FieldSlotLabel`,
+    );
+  }
+  const doc = ws.newBlock(XML_DOCUMENT_TYPE);
+  assertEquals(doc.getInputsInline(), false);
+  assertEquals(doc.getInput(XML_ROOT_INPUT)?.align, AlignRight);
+  assert(
+    doc.getInput(XML_ROOT_INPUT)?.fieldRow.some(
+      (f) => (f as { isSlotLabelField?: boolean }).isSlotLabelField,
+    ),
+    "document element mouth uses FieldSlotLabel",
+  );
+  ws.dispose();
+});
+
 Deno.test("xml_document is an instance root with declaration fields by default", () => {
   ensure();
   const ws = new Blockly.Workspace();

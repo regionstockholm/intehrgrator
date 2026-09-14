@@ -12,6 +12,8 @@ import {
   registerDynamicFlyoutMutator,
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
+import { inputAlignLeft, inputAlignRight } from "../block_type_glyph.ts";
+import { appendSlotLabel } from "../slot_label.ts";
 import {
   XML_ATTRIBUTE_CHECK,
   XML_ATTRIBUTE_TYPE,
@@ -61,9 +63,19 @@ export const XML_BLOCK_TYPES = [
   XML_DOCUMENT_TYPE,
 ] as const;
 
-/** Blockly Align.RIGHT — attribute captions sit just left of their mouth. */
-function inputAlignRight(): number {
-  return (Blockly.inputs?.Align?.RIGHT ?? 1) as number;
+/**
+ * Keep header chrome left; mouth captions hug sockets (openEHR slot style).
+ * External (non-inline) rows are required so Align.RIGHT padding can pull
+ * captions against statement/value mouths instead of leaving a mid-block gap.
+ */
+function enforceXmlMouthLayout(block: Block): void {
+  block.setInputsInline(false);
+  const header = block.getInput("HEADER");
+  if (header) header.setAlign(inputAlignLeft());
+  for (const input of block.inputList) {
+    if (input.name === "HEADER") continue;
+    if (input.connection) input.setAlign(inputAlignRight());
+  }
 }
 
 export function registerXmlBlocks(): void {
@@ -79,28 +91,29 @@ function defineXmlElement(): void {
   if (Blockly.Blocks[XML_ELEMENT_TYPE]) return;
   Blockly.Blocks[XML_ELEMENT_TYPE] = {
     init: function (this: Block) {
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       header.appendField("XML").appendField(new Blockly.FieldTextInput("element"), "NAME");
       appendHiddenSerializable(this, "TARGET_TYPE", "");
       appendHiddenSerializable(this, "SLOT_ID", "");
-      this.appendStatementInput(XML_ATTRIBUTES_INPUT)
+      const attrs = this.appendStatementInput(XML_ATTRIBUTES_INPUT)
         .setAlign(inputAlignRight())
-        .setCheck(XML_ATTRIBUTE_CHECK)
-        .appendField("attributes");
-      this.appendValueInput(XML_TEXT_INPUT)
+        .setCheck(XML_ATTRIBUTE_CHECK);
+      appendSlotLabel(attrs, "attributes", { rmType: XML_ATTRIBUTE_TYPE });
+      const text = this.appendValueInput(XML_TEXT_INPUT)
         .setAlign(inputAlignRight())
-        .setCheck("String")
-        .appendField("text");
-      this.appendStatementInput(XML_CHILDREN_INPUT)
+        .setCheck("String");
+      appendSlotLabel(text, "text", { rmType: "String" });
+      const children = this.appendStatementInput(XML_CHILDREN_INPUT)
         .setAlign(inputAlignRight())
-        .setCheck([...XML_NEST_CHECK])
-        .appendField("children");
+        .setCheck([...XML_NEST_CHECK]);
+      appendSlotLabel(children, "children", { rmType: XML_ELEMENT_TYPE });
       this.setPreviousStatement(true, [...XML_NEST_CHECK]);
       this.setNextStatement(true, [...XML_NEST_CHECK]);
       this.setColour(XML_COLOUR);
       this.setTooltip(
         "XML element: one text slot, stacked attributes, and nested child elements.",
       );
+      enforceXmlMouthLayout(this);
     },
     saveExtraState: function (this: Block) {
       const instanceRoot = Boolean((this as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_);
@@ -178,13 +191,13 @@ function defineXmlDocument(): void {
     init: function (this: XmlDocumentBlock) {
       this.xmlDocExtras_ = [DECL_ATTR];
       this.xmlNamespaces_ = [];
-      const header = this.appendDummyInput("HEADER");
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
       header.appendField("XML document");
       appendHiddenSerializable(this, "TARGET_TYPE", "xml-document");
-      this.appendStatementInput(XML_ROOT_INPUT)
+      const root = this.appendStatementInput(XML_ROOT_INPUT)
         .setAlign(inputAlignRight())
-        .setCheck(XML_ELEMENT_TYPE)
-        .appendField("element");
+        .setCheck(XML_ELEMENT_TYPE);
+      appendSlotLabel(root, "element", { rmType: XML_ELEMENT_TYPE });
       applyXmlInstanceRootCap(this);
       this.setColour(XML_COLOUR);
       this.setTooltip(
@@ -192,6 +205,7 @@ function defineXmlDocument(): void {
       );
       Blockly.Extensions.apply(XML_DOCUMENT_MUTATOR, this, true);
       this.updateXmlDocumentShape_?.();
+      enforceXmlMouthLayout(this);
     },
   };
 }

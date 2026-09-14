@@ -33,7 +33,7 @@ const PROCEDURE_TYPES = new Set([
   "procedures_callreturn",
 ]);
 
-const AD_HOC_TREE_TYPES = new Set(["json_object", "xml_element"]);
+const AD_HOC_TREE_TYPES = new Set(["json_object", "xml_element", "xml_document"]);
 
 /** True when EXPRESSION is a static path (JSONPath, XPath, FLAT key, relative). */
 export function isLiteralSourcePath(path: string): boolean {

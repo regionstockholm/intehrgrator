@@ -82,6 +82,13 @@ import {
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
+import {
+  blockOwnClientRect,
+  blockOwnWorkspaceSize,
+  isSourceDropSlotBlock,
+  isUsableSourceDropPoint,
+  pointInRect,
+} from "../src/blockly/source_drop.ts";
 import { registerServiceWorker } from "./pwa.ts";
 import { mountMappingSpecChrome, type SpecRootLayout } from "../src/ui/mapping_spec_chrome.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
@@ -429,7 +436,10 @@ async function bootBlockly(): Promise<void> {
 
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
-    Blockly.serialization.workspaces.load(loadOnce, workspace);
+    Blockly.serialization.workspaces.load(
+      loadOnce as Record<string, unknown>,
+      workspace,
+    );
     lockWorkspaceRootsExpanded(workspace);
   }
   runWithoutBlocklyEvents(() => {
@@ -866,23 +876,28 @@ function specChrome(): SpecChrome {
 }
 
 function panToBlock(block: BlockSvg): void {
-  const ws = workspace as Blockly.WorkspaceSvg & {
-    centerOnBlock?: (id: string) => void;
-  };
-  if (typeof ws.centerOnBlock === "function" && block.id) {
-    ws.centerOnBlock(block.id);
+  const ws = workspace as Blockly.WorkspaceSvg;
+  if (typeof block.getRelativeToSurfaceXY !== "function" || typeof ws.scroll !== "function") {
+    if (typeof ws.centerOnBlock === "function" && block.id) {
+      // blockOnly=true → block.height/width (excludes `next` when those fields are correct)
+      ws.centerOnBlock(block.id, true);
+    }
     return;
   }
-  if (typeof block.getRelativeToSurfaceXY === "function" && typeof ws.scroll === "function") {
-    const xy = block.getRelativeToSurfaceXY();
-    const metrics = typeof ws.getMetrics === "function" ? ws.getMetrics() : null;
-    if (metrics) {
-      ws.scroll(
-        xy.x - metrics.viewWidth / 2 + metrics.absoluteLeft,
-        xy.y - metrics.viewHeight / 2 + metrics.absoluteTop,
-      );
-    }
-  }
+  const xy = block.getRelativeToSurfaceXY();
+  const metrics = typeof ws.getMetrics === "function" ? ws.getMetrics() : null;
+  if (!metrics) return;
+  const scale = ws.scale ?? 1;
+  // Prefer the rendered path size — block.height / getHeightWidth() can still
+  // reflect the full statement stack for some ELEMENT trees.
+  const pathBox = blockOwnPathClientRect(block);
+  const hw = pathBox && pathBox.height > 0
+    ? { width: pathBox.width / scale, height: pathBox.height / scale }
+    : blockOwnWorkspaceSize(block);
+  ws.scroll(
+    -(xy.x + hw.width / 2) * scale + metrics.viewWidth / 2,
+    -(xy.y + hw.height / 2) * scale + metrics.viewHeight / 2,
+  );
 }
 
 function applyBlockSelection(blockId: string | null, origin: "blockly" | "spec"): void {
@@ -999,7 +1014,10 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       runWithoutBlocklyEvents(() => {
         if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
         workspace.clear();
-        Blockly.serialization.workspaces.load(savedState, workspace);
+        Blockly.serialization.workspaces.load(
+          savedState as Record<string, unknown>,
+          workspace,
+        );
         if (!findDefaultsBlock(workspace)) {
           ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
         }
@@ -1452,6 +1470,8 @@ initFileDropTargets();
 function initBlocklySourceDrop(): void {
   let lastAppliedAt = 0;
   let lastAppliedPath = "";
+  let lastOverX = 0;
+  let lastOverY = 0;
   const applyPayloadAtPoint = (
     payload: { path: string; format: string; schemaType?: string },
     clientX: number,
@@ -1482,10 +1502,15 @@ function initBlocklySourceDrop(): void {
     }
   };
 
+  const rememberOver = (event: DragEvent) => {
+    lastOverX = event.clientX;
+    lastOverY = event.clientY;
+  };
   const onDragOver = (event: DragEvent) => {
     if (!parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag()) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    rememberOver(event);
   };
   const onDrop = (event: DragEvent) => {
     const payload = parseSourceDragPayload(event.dataTransfer);
@@ -1495,10 +1520,23 @@ function initBlocklySourceDrop(): void {
   };
   // Blockly's SVG does not reliably receive HTML5 drop. dragend still has
   // client coordinates, so finish the gesture from the pointer position.
+  document.addEventListener("dragover", (event) => {
+    if (!getActiveSourceDrag()) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+    rememberOver(event);
+  }, true);
   document.addEventListener("dragend", (event) => {
     const payload = getActiveSourceDrag();
     if (!payload) return;
-    applyPayloadAtPoint(payload, event.clientX, event.clientY);
+    const mountRect = blocklyMount.getBoundingClientRect();
+    let x = event.clientX;
+    let y = event.clientY;
+    if (!isUsableSourceDropPoint(x, y, mountRect)) {
+      x = lastOverX;
+      y = lastOverY;
+    }
+    applyPayloadAtPoint(payload, x, y);
   }, true);
 
   const opts = { capture: true };
@@ -1520,19 +1558,46 @@ function placeSourceBlockFromDrop(
   controller.setStatusMessage(`Added source ${xpath}`);
 }
 
+function blockOwnPathClientRect(block: BlockSvg): DOMRect | null {
+  // getSvgRoot() may be an outer stack group; the block's own chrome lives on
+  // the `g.blocklyDraggable[data-id=…]` that carries this block's path.
+  const byId = block.id
+    ? document.querySelector(
+      `g.blocklyDraggable[data-id="${CSS.escape(block.id)}"]`,
+    ) as SVGGElement | null
+    : null;
+  const root = typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
+  const host = byId ?? root;
+  if (!host) return null;
+  const path = (
+    host.querySelector(":scope > path.blocklyPath") ??
+    host.querySelector("path.blocklyPath")
+  ) as SVGPathElement | null;
+  const box = path?.getBoundingClientRect?.();
+  if (box && box.width > 0 && box.height > 0) return box;
+  return null;
+}
+
 function findSlotIdAtPoint(clientX: number, clientY: number): string | null {
   let best: { slotId: string; area: number } | null = null;
+  const scale = (workspace as Blockly.WorkspaceSvg).scale ?? 1;
   for (const block of workspace.getAllBlocks(false)) {
+    if (!isSourceDropSlotBlock(block)) continue;
     const svg = block as BlockSvg;
     const root = typeof svg.getSvgRoot === "function" ? svg.getSvgRoot() : null;
     if (!root) continue;
-    const rect = root.getBoundingClientRect();
-    if (
-      clientX < rect.left || clientX > rect.right ||
-      clientY < rect.top || clientY > rect.bottom
-    ) {
-      continue;
-    }
+    const pathBox = blockOwnPathClientRect(svg);
+    const rect = pathBox
+      ? {
+        left: pathBox.left,
+        top: pathBox.top,
+        right: pathBox.right,
+        bottom: pathBox.bottom,
+        width: pathBox.width,
+        height: pathBox.height,
+      }
+      : blockOwnClientRect(root.getBoundingClientRect(), blockOwnWorkspaceSize(svg), scale);
+    if (!pointInRect(clientX, clientY, rect)) continue;
     let slotId = slotIdFromBlock(block);
     if (!slotId) slotId = owningValueSlotId(block);
     if (!slotId) continue;
@@ -2193,10 +2258,17 @@ function installWorkbenchTestApi(): void {
     },
     getBlockClientRect(blockId) {
       const block = workspace.getBlockById(blockId) as BlockSvg | null;
-      const root = block && typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
+      if (!block) return null;
+      const pathBox = blockOwnPathClientRect(block);
+      if (pathBox) {
+        return { x: pathBox.left, y: pathBox.top, width: pathBox.width, height: pathBox.height };
+      }
+      const root = typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
       if (!root) return null;
-      const rect = root.getBoundingClientRect();
-      return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+      const full = root.getBoundingClientRect();
+      const scale = (workspace as Blockly.WorkspaceSvg).scale ?? 1;
+      const rect = blockOwnClientRect(full, blockOwnWorkspaceSize(block), scale);
+      return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     },
     clickBlock(blockId) {
       applyBlockSelection(blockId, "blockly");

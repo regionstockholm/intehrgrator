@@ -193,14 +193,18 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
       cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryXml" },
       contents: [
         conversionStartToolboxBlock(),
+        { kind: "block", type: "xml_document", gap: 8 },
         {
           kind: "block",
           type: "xml_element",
           gap: 8,
-          extraState: { childGroups: ["children"] },
           fields: { NAME: "element" },
+          inputs: {
+            VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
+          },
         },
         { kind: "block", type: "xml_text", gap: 8 },
+        { kind: "block", type: "xml_cdata", gap: 8 },
         {
           kind: "block",
           type: "xml_attribute",

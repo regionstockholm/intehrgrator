@@ -14,8 +14,11 @@ Deno.test({
   async fn() {
     const browser = await chromium.launch({ headless: true });
     try {
-      const context = await browser.newContext();
-      const page = await context.newPage({ viewport: { width: 1400, height: 900 } });
+      // Viewport must be set on the browser context — newPage({ viewport }) is ignored.
+      const context = await browser.newContext({
+        viewport: { width: 1400, height: 900 },
+      });
+      const page = await context.newPage();
       const client = await context.newCDPSession(page);
       await client.send("Network.setCacheDisabled", { cacheDisabled: true });
 

@@ -41,7 +41,7 @@ Adapter seam (`load`, `render`) that turns a target definition into a Template S
 _Avoid_: Target Format Handler (old name), Target parser union
 
 **Instance root**:
-The typed Blockly tree that **Conversion start** designates as the produced instance: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object or XML element, or a **Text document**. Nested constructors inside that tree are not instance roots.
+The typed Blockly tree that **Conversion start** designates as the produced instance: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object, an **XML document** or schema-less **XML element**, or a **Text document**. Nested constructors inside that tree are not instance roots.
 _Avoid_: calling every JSON/XML toolbox block a root, generic file(s) wrapper, treating openEHR CONTRIBUTION as a file format (it is an RM class)
 
 **Conversion start**:
@@ -51,6 +51,18 @@ _Avoid_: when green flag clicked, script trigger, statement order under Start, f
 **Text document**:
 A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). The conversion product is that string (a text file). Distinct from the workspace **Handlebars Template** tab.
 _Avoid_: stock `text` as the file root, treating the Handlebars Template tab as this block
+
+**XML document**:
+The XML **Instance root** for a complete document: XML declaration (version, encoding, optional standalone), namespace declarations via the cogwheel mutator, and one root **XML element**. A schema-less XML element can still be an instance root for a fragment without a declaration.
+_Avoid_: treating every XML element as the document, putting `<?xml?>` in a **Code text block**
+
+**XML element**:
+Ad-hoc Blockly constructor for an XML tag: one text slot, a stacked attributes mouth, and nested child elements. Distinct from XSD-driven schema target blocks.
+_Avoid_: mixing attributes and text in one mouth, XML document (the file root)
+
+**CDATA section**:
+XML character data emitted as `<![CDATA[ … ]]>` instead of escaped text. Plugs into an **XML element** text slot.
+_Avoid_: using **Code text** as the only way to emit CDATA
 
 **Source iteration (`for_each_source`)**:
 Blockly loop that binds each node from a multi-valued Source Path to a named variable. Click-to-Map under a repeating target container stores relative source paths and wraps that container with this block. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Nested inside an **Instance root**; not a conversion driver for many output files.
@@ -216,7 +228,7 @@ A stock Blockly procedure (Functions drawer): a definition block plus call sites
 _Avoid_: TypeScript/Java export function, Conversion script, custom DSL subroutine
 
 **Mapping Spec Widget**:
-One projected row in the Mapping Spec tab: a compact, indented view of one semantic mapping (source path, map lookup, sheet lookup, literal, text generation, flattened condition, or container). Safe Blockly fields are editable in the row (paths, map keys, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT). Wrappers that do not change mapping meaning (`xml_text`, `DV_*` shells, unnamed maps) are omitted; their Blockly ids stay on the visible row. Download/Upload still round-trip the **full Blockly JSON document**.
+One projected row in the Mapping Spec tab: a compact, indented view of one semantic mapping (source path, map lookup, sheet lookup, literal, text generation, flattened condition, or container). Safe Blockly fields are editable in the row (paths, map keys, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT). Wrappers that do not change mapping meaning (`xml_text`, `xml_cdata`, `DV_*` shells, unnamed maps) are omitted; their Blockly ids stay on the visible row. Download/Upload still round-trip the **full Blockly JSON document**.
 _Avoid_: JSON fragment, custom DSL, treating the Spec view as the persistence format
 
 **Mapping Model**:

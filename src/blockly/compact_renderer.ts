@@ -42,11 +42,6 @@ export function registerCompactThrasosRenderer(): string {
     getInRowSpacing_(prev: any, next: any) {
       const spacing = super.getInRowSpacing_(prev, next);
       if (isZeroSizeMeasurable(prev) || isZeroSizeMeasurable(next)) return 0;
-      // Class chrome sits against the left body edge / output notch.
-      if (!prev && isClassChromeMeasurable(next)) return 0;
-      if (isClassChromeMeasurable(next) && !prev?.field) {
-        return Math.min(spacing, 1);
-      }
       if (
         isRmEmojiMeasurable(prev) || isRmEmojiMeasurable(next) ||
         isSlotCardMeasurable(prev) || isSlotCardMeasurable(next) ||
@@ -163,12 +158,18 @@ function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number):
     if (isRmTypeEmojiField(field) && field.name === BLOCK_OUT_EMOJI_FIELD) {
       hasClassChrome = true;
     }
+    if (field.name === BLOCK_OUT_EMOJI_FIELD) hasClassChrome = true;
     if (field.name === "MUTATOR_COG") hasClassChrome = true;
   }
   // Mixed rows (inline HEADER + value): prefer left so class chrome is not
   // shoved toward the socket; prefer external rows via setInputsInline(false).
-  if (hasSlotCaption && !hasClassChrome) row.align = alignRight;
-  else if (hasClassChrome) row.align = alignLeft;
+  // Mouth rows (statement / external value) without class chrome always hug
+  // the socket — plain FieldLabels need this too, not only FieldSlotLabel.
+  const isMouthRow = Boolean(
+    row.hasStatement || row.hasExternalInput || row.hasInlineInput,
+  );
+  if (hasClassChrome) row.align = alignLeft;
+  else if (hasSlotCaption || isMouthRow) row.align = alignRight;
 }
 
 /**
@@ -204,15 +205,6 @@ export function pinnedSlotCaptionCenterline_(row: any, elem: any, constants: any
 // deno-lint-ignore no-explicit-any
 function isRmEmojiMeasurable(elem: any): boolean {
   return isRmTypeEmojiField(elem?.field ?? null);
-}
-
-// deno-lint-ignore no-explicit-any
-function isClassChromeMeasurable(elem: any): boolean {
-  const field = elem?.field;
-  if (!field) return false;
-  if (isRmTypeEmojiField(field) && field.name === BLOCK_OUT_EMOJI_FIELD) return true;
-  if (isSkeletonTitleField(field)) return true;
-  return field.name === "MUTATOR_COG";
 }
 
 // deno-lint-ignore no-explicit-any

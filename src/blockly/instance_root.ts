@@ -15,6 +15,7 @@ export const INSTANCE_ROOT_BLOCK_TYPES = new Set([
   "composition",
   "json_object",
   "xml_element",
+  "xml_document",
   TEXT_DOCUMENT_BLOCK_TYPE,
 ]);
 
@@ -41,7 +42,7 @@ export function inferTargetFormatFromRoot(block: Block): TargetFormatId | undefi
     if (targetType.includes("xml") || type.includes("xml")) return "xml-schema";
     return "json-schema";
   }
-  if (type === "xml_element") return "xml-schema";
+  if (type === "xml_element" || type === "xml_document") return "xml-schema";
   if (type === "json_object") return "json-schema";
   if (type === TEXT_DOCUMENT_BLOCK_TYPE) return "free-form";
   return undefined;

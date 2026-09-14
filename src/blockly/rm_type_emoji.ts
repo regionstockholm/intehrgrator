@@ -118,8 +118,8 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
   private rmType_ = "";
   private forSlot_ = false;
 
-  constructor(rmType: string, forSlot = false) {
-    const glyph = connectionPointGlyph(rmType, forSlot) ?? "";
+  constructor(rmType: string, forSlot = false, glyphOverride?: string) {
+    const glyph = glyphOverride ?? connectionPointGlyph(rmType, forSlot) ?? "";
     super(glyph, cssClassFor(rmType, forSlot), { tooltip: rmTypeConnectionTooltip(rmType) });
     this.rmType_ = rmType;
     this.forSlot_ = forSlot;
@@ -198,7 +198,14 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     el.setAttribute("dy", "0");
     el.setAttribute("y", String(this.size_?.height ? this.size_.height / 2 : px / 2));
     el.setAttribute("text-anchor", "start");
-    el.setAttribute("x", "0");
+    const left = this.glyphLeftBearing_();
+    el.setAttribute("x", String(left));
+  }
+
+  private glyphLeftBearing_(): number {
+    const px = rmEmojiFontPx(this.rmType_);
+    const text = String(this.getText?.() ?? this.getValue?.() ?? "");
+    return measureGlyphLeft(text, px);
   }
 
   private syncCssClasses_(): void {
@@ -247,22 +254,36 @@ function cssClassFor(rmType: string, forSlot = false): string {
 
 let measureCanvas: HTMLCanvasElement | null = null;
 
-function measureGlyphWidth(text: string, fontPx: number): number {
-  if (!text) return 0;
+function measureGlyphMetrics(text: string, fontPx: number): { width: number; left: number } {
+  if (!text) return { width: 0, left: 0 };
+  const fallbackWidth = Math.ceil(fontPx * 1.15 * Math.max(1, Array.from(text).length));
   if (typeof document !== "undefined") {
     try {
       measureCanvas ??= document.createElement("canvas");
       const ctx = measureCanvas.getContext("2d");
       if (ctx) {
         ctx.font = `${fontPx}px ${EMOJI_FONT}`;
-        const w = ctx.measureText(text).width;
-        if (w > 0) return Math.ceil(w);
+        const m = ctx.measureText(text);
+        const left = Math.max(0, Number(m.actualBoundingBoxLeft ?? 0));
+        const right = Number(m.actualBoundingBoxRight ?? m.width);
+        const ink = left + Math.max(right, 0);
+        const width = Math.ceil(Math.max(m.width, ink, fontPx * 0.9) + left + 3);
+        if (width > 0) return { width, left: Math.ceil(left) };
       }
     } catch {
       // Headless / canvas-less runtimes fall through.
     }
   }
-  return Math.ceil(fontPx * 1.05 * Math.max(1, Array.from(text).length));
+  return { width: fallbackWidth, left: 1 };
+}
+
+/** Layout width for a connection glyph, including ink that would otherwise overflow. */
+export function measureGlyphWidth(text: string, fontPx: number): number {
+  return measureGlyphMetrics(text, fontPx).width;
+}
+
+function measureGlyphLeft(text: string, fontPx: number): number {
+  return measureGlyphMetrics(text, fontPx).left;
 }
 
 export function createRmTypeEmojiField(
@@ -271,6 +292,13 @@ export function createRmTypeEmojiField(
 ): FieldRmTypeEmoji | null {
   if (!connectionPointGlyph(rmType, forSlot)) return null;
   return new FieldRmTypeEmoji(rmType, forSlot);
+}
+
+/** Type-fit glyph (✓, ☰, …) sized like ZipEHR connection emojis — not a 12px FieldLabel. */
+export function createTypeGlyphField(glyph: string, tooltip: string): FieldRmTypeEmoji {
+  const field = new FieldRmTypeEmoji("", false, glyph);
+  field.setTooltip(tooltip);
+  return field;
 }
 
 /** First field on HEADER — sits in the upper-left, next to output / previous-statement. */

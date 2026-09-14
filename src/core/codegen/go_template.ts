@@ -16,6 +16,16 @@ import type { ExprAst } from "../expression/mod.ts";
 import type { MappingModel } from "../../types/mod.ts";
 import { parseExpression, isQuantifyCall } from "../expression/mod.ts";
 import { isRelativeAuthoringPath } from "../mapping_model/loops.ts";
+import {
+  injectXmlnsOnOpenTag,
+  wrapXmlCdata,
+  xmlDeclarationLine,
+  XML_ATTRIBUTES_INPUT,
+  XML_CHILDREN_INPUT,
+  XML_ROOT_INPUT,
+  XML_TEXT_INPUT,
+  type XmlNamespaceDecl,
+} from "../xml_shape.ts";
 
 export interface GoEmitContext {
   /** When set, relative xpath paths evaluate against the loop item (`.`). */
@@ -56,8 +66,10 @@ function generateFromSlots(model: MappingModel): string {
 }
 
 function generateFromBlockly(blocklyState: unknown, _model: MappingModel): string {
-  const state = blocklyState as { blocks?: { blocks?: unknown[] } };
-  const blocks = state?.blocks?.blocks;
+  const snapshot = JSON.parse(JSON.stringify(blocklyState)) as {
+    blocks?: { blocks?: unknown[] };
+  };
+  const blocks = snapshot?.blocks?.blocks;
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return generateFromSlots(_model);
   }
@@ -83,6 +95,12 @@ export interface BlockNode {
     xmlAttributes?: string[];
     fields?: Array<{ name: string; xmlKind?: string }>;
     itemCount?: number;
+    declaration?: boolean;
+    version?: string;
+    encoding?: string;
+    standalone?: string;
+    namespaces?: XmlNamespaceDecl[];
+    extras?: string[];
   };
 }
 
@@ -109,13 +127,16 @@ export function emitBlock(block: BlockNode, ctx: GoEmitContext = createGoEmitCon
       lines.push(...emitXmlOrSchemaElement(block, ctx));
       break;
     }
+    case "xml_document": {
+      lines.push(...emitXmlDocument(block, ctx));
+      break;
+    }
     case "xml_text": {
-      const value = inputChild(block.inputs?.VALUE);
-      if (value) {
-        lines.push(...emitValueExpression(value, ctx));
-      } else {
-        lines.push(String(block.fields?.TEXT ?? ""));
-      }
+      lines.push(...emitXmlTextish(block, ctx));
+      break;
+    }
+    case "xml_cdata": {
+      lines.push(...emitXmlTextish(block, ctx));
       break;
     }
     case "xml_attribute": {
@@ -210,6 +231,9 @@ export function emitValueExpression(
   ctx: GoEmitContext = createGoEmitContext(),
 ): string[] {
   switch (block.type) {
+    case "xml_text":
+    case "xml_cdata":
+      return emitXmlTextish(block, ctx);
     case "text":
       return [String(block.fields?.TEXT ?? "")];
     case "text_code":
@@ -350,7 +374,7 @@ function blockNodeToExpression(block: BlockNode): string | null {
   }
 }
 
-function emitForEachSource(block: BlockNode, ctx: GoEmitContext): string[] {
+function emitForEachSource(block: BlockNode, _ctx: GoEmitContext): string[] {
   const varName = String(block.fields?.VAR ?? "item");
   const path = String(block.fields?.PATH ?? "");
   const rangeExpr = loopRangeExpr(path);
@@ -521,32 +545,91 @@ function xmlName(value: string): string {
   return /^[A-Za-z_]/.test(safe) ? safe : `_${safe}`;
 }
 
+function emitXmlTextish(block: BlockNode, ctx: GoEmitContext): string[] {
+  const inner = inputChild(block.inputs?.[XML_TEXT_INPUT]) ?? inputChild(block.inputs?.VALUE);
+  const rendered = inner
+    ? emitValueExpression(inner, ctx).join("")
+    : String(block.fields?.TEXT ?? "");
+  if (block.type === "xml_cdata") return [wrapXmlCdata(rendered)];
+  return rendered ? [rendered] : [];
+}
+
+function emitXmlAttribute(block: BlockNode, ctx: GoEmitContext): string {
+  const name = String(block.fields?.NAME ?? "").trim();
+  if (!name) return "";
+  const valBlock = inputChild(block.inputs?.[XML_TEXT_INPUT]) ?? inputChild(block.inputs?.VALUE);
+  const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
+  return ` ${name}="${val}"`;
+}
+
+function emitXmlDocument(block: BlockNode, ctx: GoEmitContext): string[] {
+  const extra = block.extraState ?? {};
+  const extras = extra.extras ?? [];
+  const declaration = extra.declaration !== false &&
+    (extras.length === 0 || extras.includes("declaration") || extra.declaration === true ||
+      extra.version != null || block.fields?.VERSION != null);
+  const lines: string[] = [];
+  if (declaration) {
+    lines.push(xmlDeclarationLine({
+      version: String(block.fields?.VERSION ?? extra.version ?? "1.0"),
+      encoding: String(block.fields?.ENCODING ?? extra.encoding ?? "UTF-8"),
+      standalone: String(block.fields?.STANDALONE ?? extra.standalone ?? ""),
+    }));
+  }
+  const root = inputChild(block.inputs?.[XML_ROOT_INPUT]) ?? firstChildStatement(block);
+  if (!root) return lines;
+  const emitted = emitStatementChain(root, ctx);
+  const namespaces = namespacesFromDocument(block);
+  if (namespaces.length && emitted[0]) {
+    emitted[0] = injectXmlnsOnOpenTag(emitted[0], namespaces);
+  }
+  lines.push(...emitted);
+  return lines;
+}
+
+function namespacesFromDocument(block: BlockNode): XmlNamespaceDecl[] {
+  if (block.extraState?.namespaces?.length) return block.extraState.namespaces;
+  const out: XmlNamespaceDecl[] = [];
+  let i = 0;
+  while (block.fields?.[`PREFIX_ns${i}`] !== undefined || block.fields?.[`URI_ns${i}`] !== undefined) {
+    out.push({
+      prefix: String(block.fields?.[`PREFIX_ns${i}`] ?? ""),
+      uri: String(block.fields?.[`URI_ns${i}`] ?? ""),
+    });
+    i++;
+  }
+  return out;
+}
+
 function emitXmlElement(block: BlockNode, ctx: GoEmitContext): string[] {
   const tag = xmlTagName(block);
-  const bodyHead = firstChildStatement(block);
   const attrParts: string[] = [...emitStaticAttributes(block, ctx)];
-  const body: BlockNode[] = [];
-  let current: BlockNode | undefined = bodyHead;
+  const inner: string[] = [];
+
+  let attr = block.inputs?.[XML_ATTRIBUTES_INPUT]?.block;
+  while (attr) {
+    if (attr.type === "xml_attribute") attrParts.push(emitXmlAttribute(attr, ctx));
+    attr = attr.next?.block;
+  }
+
+  const text = inputChild(block.inputs?.[XML_TEXT_INPUT]) ?? inputChild(block.inputs?.VALUE);
+  if (text) inner.push(...emitXmlTextishOrValue(text, ctx));
+
+  let current: BlockNode | undefined = block.inputs?.[XML_CHILDREN_INPUT]?.block ??
+    (block.inputs?.[XML_ATTRIBUTES_INPUT] || text ? undefined : firstChildStatement(block));
   while (current) {
-    if (current.type === "xml_attribute") {
-      const name = String(current.fields?.NAME ?? "").trim();
-      if (name) {
-        const valBlock = inputChild(current.inputs?.VALUE);
-        const val = valBlock ? emitValueExpression(valBlock, ctx).join("") : "";
-        attrParts.push(` ${name}="${val}"`);
-      }
-    } else {
-      body.push(current);
-    }
+    inner.push(...emitBlock(current, ctx));
     current = current.next?.block;
   }
+
   const attrs = attrParts.join("");
-  if (body.length) {
-    const inner: string[] = [];
-    for (const child of body) inner.push(...emitBlock(child, ctx));
-    return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
-  }
+  if (inner.length) return [`<${tag}${attrs}>`, ...inner, `</${tag}>`];
   return [`<${tag}${attrs} />`];
+}
+
+function emitXmlTextishOrValue(block: BlockNode, ctx: GoEmitContext): string[] {
+  if (block.type === "xml_text" || block.type === "xml_cdata") return emitXmlTextish(block, ctx);
+  return emitValueExpression(block, ctx);
 }
 
 function xmlTagName(block: BlockNode): string {
@@ -560,9 +643,12 @@ function xmlTagName(block: BlockNode): string {
 
 function firstChildStatement(block: BlockNode): BlockNode | undefined {
   const inputs = block.inputs ?? {};
-  if (inputs.TARGET_children?.block) return inputs.TARGET_children.block;
+  if (inputs[XML_CHILDREN_INPUT]?.block) return inputs[XML_CHILDREN_INPUT].block;
+  if (inputs[XML_ROOT_INPUT]?.block) return inputs[XML_ROOT_INPUT].block;
   for (const [key, value] of Object.entries(inputs)) {
-    if (key.startsWith("TARGET_") && value?.block) return value.block;
+    if (key.startsWith("TARGET_") && key !== XML_ATTRIBUTES_INPUT && value?.block) {
+      return value.block;
+    }
   }
   return undefined;
 }

@@ -131,12 +131,14 @@ export function generateTypeScriptFromWorkspace(
   } else if (instanceRoot && (
     isSchemaStructureBlock(instanceRoot) ||
     instanceRoot.type === "json_object" ||
-    instanceRoot.type === "xml_element"
+    instanceRoot.type === "xml_element" ||
+    instanceRoot.type === "xml_document"
   )) {
     body = `return ${emitGeneric(instanceRoot, ctx, 0)};`;
   } else if (targetFormat && targetFormat !== "openehr-template") {
     const generic = instanceRoot ?? roots.find((block) =>
-      isSchemaStructureBlock(block) || block.type === "json_object" || block.type === "xml_element"
+      isSchemaStructureBlock(block) || block.type === "json_object" ||
+      block.type === "xml_element" || block.type === "xml_document"
     );
     if (generic) {
       body = `return ${emitGeneric(generic, ctx, 0)};`;

@@ -5,7 +5,6 @@ import {
   parseExampleSetCatalog,
   resolveCatalogUri,
 } from "@intehrgrator/core/example_sets/mod.ts";
-import { toFetchableUrl } from "@intehrgrator/host/fetch_url.ts";
 import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 
@@ -13,10 +12,8 @@ const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 const catalogPath = join(root, "examples", "example-sets.json");
 const fixturesDir = join(root, "test", "fixtures");
 const catalogBase = "https://app.test/examples/example-sets.json";
-const ghFixturesBlob =
-  "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/";
-const ghFixturesRaw =
-  "https://raw.githubusercontent.com/regionstockholm/intehrgrator/main/test/fixtures/";
+const localFixtures =
+  "https://app.test/test/fixtures/";
 
 function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
@@ -46,7 +43,7 @@ async function readFixture(rel: string): Promise<string> {
 }
 
 function fixtureUrl(rel: string): string {
-  return toFetchableUrl(`${ghFixturesBlob}${rel}`);
+  return resolveCatalogUri(`../test/fixtures/${rel}`, catalogBase);
 }
 
 async function stubbedCatalogFiles(): Promise<Record<string, { name: string; text: string }>> {
@@ -81,27 +78,27 @@ async function stubbedCatalogFiles(): Promise<Record<string, { name: string; tex
   return files;
 }
 
-Deno.test("parseExampleSetCatalog resolves fixture URIs to GitHub raw URLs", async () => {
+Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the catalog URL", async () => {
   const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 6);
+  assertEquals(catalog.sets.length, 7);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
   assertEquals(vitals.defaults, undefined);
   assertEquals(
     vitals.source.schema,
-    `${ghFixturesRaw}dummy-json-vitals/source.schema.json`,
+    `${localFixtures}dummy-json-vitals/source.schema.json`,
   );
   assertEquals(vitals.source.instances.length, 2);
   const mapped = catalog.sets[1]!;
   assertEquals(
     mapped.mapping,
-    `${ghFixturesRaw}dummy-json-vitals/mapping.blockly.json`,
+    `${localFixtures}dummy-json-vitals/mapping.blockly.json`,
   );
   assertEquals(
     mapped.defaults,
-    `${ghFixturesRaw}dummy-json-vitals/defaults.map.json`,
+    `${localFixtures}dummy-json-vitals/defaults.map.json`,
   );
   const obx = catalog.sets.find((set) => set.id === "obx-mhv1-unmapped-json-to-openehr");
   if (!obx) throw new Error("expected OBX MHV1 example set");
@@ -110,12 +107,12 @@ Deno.test("parseExampleSetCatalog resolves fixture URIs to GitHub raw URLs", asy
   assertEquals(obx.defaults, undefined);
   assertEquals(
     obx.source.schema,
-    `${ghFixturesRaw}Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json`,
+    `${localFixtures}Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json`,
   );
   assertEquals(obx.source.instances.length, 3);
   assertEquals(
     obx.source.instances[0],
-    `${ghFixturesRaw}Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json`,
+    `${localFixtures}Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json`,
   );
   assertEquals(
     obx.target,
@@ -126,22 +123,22 @@ Deno.test("parseExampleSetCatalog resolves fixture URIs to GitHub raw URLs", asy
   assertEquals(chemo.source.schema, undefined);
   assertEquals(
     chemo.target,
-    `${ghFixturesRaw}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
+    `${localFixtures}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
   );
   assertEquals(chemo.source.instances.length, 5);
   assertEquals(
     chemo.mapping,
-    `${ghFixturesRaw}patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json`,
+    `${localFixtures}patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json`,
   );
   const lung = catalog.sets.find((set) => set.id === "lung-mdt-form-to-tc-xml");
   if (!lung) throw new Error("expected lung-MDT example set");
   assertEquals(
     lung.target,
-    `${ghFixturesRaw}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
+    `${localFixtures}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
   );
   assertEquals(
     lung.mapping,
-    `${ghFixturesRaw}lung-MDT-form/mapping/mapping.blockly.json`,
+    `${localFixtures}lung-MDT-form/mapping/mapping.blockly.json`,
   );
 });
 

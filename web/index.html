@@ -105,8 +105,9 @@
   <main
     class="panes"
     data-split="row"
-    data-split-storage="layout-main-panes-v2"
+    data-split-storage="layout-main-panes-v3"
     data-split-sizes="1,2.6,1"
+    data-split-preferred="1"
   >
     <section class="pane source-pane">
       <h2>Source</h2>
@@ -216,8 +217,9 @@
       <div
         class="pane-body"
         data-split="column"
-        data-split-storage="layout-mapping-sections"
+        data-split-storage="layout-mapping-sections-v2"
         data-split-sizes="1.2,1"
+        data-split-preferred="0"
       >
         <div id="blockly-mount" class="blockly-mount"></div>
         <div class="mapping-bottom">
@@ -534,17 +536,17 @@
       <h2>Not on the recommended version</h2>
       <p id="recommended-version-message"></p>
       <p>
-        <a id="recommended-version-link" href="#" target="_blank" rel="noopener noreferrer"></a>
+        <a id="recommended-version-link" href="#"></a>
       </p>
       <p>
         Prefer to experiment? The bleeding-edge build (updated on every change to <code>main</code>)
-        is always at <a id="recommended-version-bleeding-edge-link" href="#" target="_blank" rel="noopener noreferrer">the site root</a>.
+        is always at <a id="recommended-version-bleeding-edge-link" href="#">the site root</a>.
       </p>
       <p>
         New here? Read the
-        <a id="recommended-version-tutorial-link" href="#" target="_blank" rel="noopener noreferrer">tutorial</a>
+        <a id="recommended-version-tutorial-link" href="#">tutorial</a>
         or the
-        <a id="recommended-version-readme-link" href="#" target="_blank" rel="noopener noreferrer">README</a>.
+        <a id="recommended-version-readme-link" href="#">README</a>.
       </p>
       <label class="dialog-label dialog-label--checkbox">
         <input id="recommended-version-dont-show-again" type="checkbox" />

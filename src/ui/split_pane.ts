@@ -11,6 +11,13 @@ export interface SplitGroupOptions {
   storageKey?: string;
   /** Called after a drag resize or container size change. */
   onResize?: () => void;
+  /**
+   * Pane index that should stay the largest when space is tight
+   * (the Blockly mapping canvas).
+   */
+  preferredIndex?: number;
+  /** Minimum fraction of the container the preferred pane should keep. Default 0.5 */
+  preferredMinFrac?: number;
 }
 
 const HANDLE_SIZE = 6;
@@ -45,15 +52,50 @@ function equalSizes(count: number): number[] {
   return Array.from({ length: count }, () => 1 / count);
 }
 
-function clampSizes(sizes: number[], minPx: number, totalPx: number): number[] {
-  if (totalPx <= 0) return sizes;
+/**
+ * Clamp flex ratios so every pane meets `minPx`, optionally keeping
+ * `preferred.index` at least `preferred.minFrac` of the container when the
+ * leftover space allows it.
+ */
+export function clampSplitSizes(
+  sizes: number[],
+  minPx: number,
+  totalPx: number,
+  preferred?: { index: number; minFrac: number },
+): number[] {
+  if (totalPx <= 0 || sizes.length === 0) return sizes;
   const minFrac = minPx / totalPx;
-  const next = [...sizes];
-  for (let i = 0; i < next.length; i++) {
-    next[i] = Math.max(minFrac, next[i] ?? 0);
+  let next = normalize(sizes).map((s) => Math.max(minFrac, s));
+  next = normalize(next);
+  if (
+    preferred &&
+    preferred.index >= 0 &&
+    preferred.index < next.length &&
+    Number.isFinite(preferred.minFrac)
+  ) {
+    const othersMin = minFrac * Math.max(0, next.length - 1);
+    const want = Math.min(
+      Math.max(preferred.minFrac, minFrac),
+      Math.max(minFrac, 1 - othersMin),
+    );
+    if ((next[preferred.index] ?? 0) < want - 1e-12) {
+      const rest = Math.max(0, 1 - want);
+      const otherWeight = next.reduce(
+        (sum, s, i) => i === preferred.index ? sum : sum + s,
+        0,
+      );
+      next = next.map((s, i) => {
+        if (i === preferred.index) return want;
+        if (otherWeight <= 0) {
+          return rest / Math.max(1, next.length - 1);
+        }
+        return (s / otherWeight) * rest;
+      });
+      next = next.map((s) => Math.max(minFrac, s));
+      next = normalize(next);
+    }
   }
-  const sum = next.reduce((a, b) => a + b, 0);
-  return next.map((n) => n / sum);
+  return next;
 }
 
 function applySizes(panes: HTMLElement[], sizes: number[], _axis: SplitAxis): void {
@@ -105,7 +147,13 @@ export function initSplitGroup(
 
   const refresh = (): void => {
     const total = axisSize(container, axis);
-    sizes = clampSizes(sizes, minSize, total);
+    const preferred = options.preferredIndex != null
+      ? {
+        index: options.preferredIndex,
+        minFrac: options.preferredMinFrac ?? 0.5,
+      }
+      : undefined;
+    sizes = clampSplitSizes(sizes, minSize, total, preferred);
     applySizes(panes, sizes, axis);
     options.onResize?.();
     container.dispatchEvent(new CustomEvent("split-resize", { bubbles: true }));
@@ -199,10 +247,15 @@ function readOptions(el: HTMLElement): SplitGroupOptions {
     const parts = sizesAttr.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
     if (parts.length) sizes = normalize(parts);
   }
+  const preferredAttr = el.dataset.splitPreferred;
+  const preferredIndex = preferredAttr != null && preferredAttr !== ""
+    ? Number(preferredAttr)
+    : undefined;
   return {
     sizes,
     minSize: Number.isFinite(minSize) ? minSize : undefined,
     storageKey: el.dataset.splitStorage,
+    preferredIndex: Number.isFinite(preferredIndex) ? preferredIndex : undefined,
   };
 }
 

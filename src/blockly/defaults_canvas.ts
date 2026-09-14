@@ -24,7 +24,7 @@ import { defaultsMapKeys, defaultsMapValueBlock } from "./hardcode_defaults.ts";
 
 const DEFAULTS_X = 20;
 const DEFAULTS_Y = 20;
-const SKELETON_GAP = 48;
+const SKELETON_GAP = 16;
 
 function finalize(block: Blockly.Block): Blockly.Block {
   const svg = block as BlockSvg;

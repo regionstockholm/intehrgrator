@@ -1,4 +1,4 @@
-import type { BlockSvg, WorkspaceSvg } from "blockly/core";
+import type { BlockSvg } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 import {
   applyInstanceRootCap,
@@ -69,11 +69,13 @@ function layoutStartAboveRoot(start: Blockly.Block, root: Blockly.Block): void {
   const startSvg = start as BlockSvg;
   if (typeof rootSvg.getRelativeToSurfaceXY !== "function") return;
   const pos = rootSvg.getRelativeToSurfaceXY();
-  const rootH = rootSvg.getHeightWidth?.().height ?? 80;
+  const startH = startSvg.getHeightWidth?.().height ?? 24;
   if (typeof startSvg.moveBy === "function") {
     const startPos = startSvg.getRelativeToSurfaceXY?.() ?? { x: START_X, y: START_Y };
+    // Sit immediately above the instance root (start's own height), not a
+    // full-root-height gap that yanks the scaffold above the Defaults block.
     const dx = pos.x - startPos.x;
-    const dy = pos.y - rootH - 12 - startPos.y;
+    const dy = pos.y - startH - 8 - startPos.y;
     if (dx || dy) startSvg.moveBy(dx, dy);
   }
 }

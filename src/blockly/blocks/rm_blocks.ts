@@ -40,8 +40,8 @@ import {
   appendHiddenSerializable,
   createHiddenSerializableField,
 } from "../hidden_serializable_field.ts";
-import { createTermPickBlock, registerTermPickBlock } from "./term_pick.ts";
-import { termSetForRmAttribute } from "../../core/openehr_term_catalog.ts";
+import { createTermPickBlock, configureTermPick, isTermPickBlock, registerTermPickBlock } from "./term_pick.ts";
+import { TERM_PICK_NONE, termSetForRmAttribute } from "../../core/openehr_term_catalog.ts";
 import {
   appendMutatorCogwheel,
   namesFromMutatorStack,
@@ -454,6 +454,7 @@ export function applyEventRmType(
 /**
  * Attach a built-in math_function term_pick when the mouth is empty.
  * Leaves CODE at "choose…" unless the template mandated a single code.
+ * If a choose… pick is already attached and a mandated code arrives, upgrade it.
  */
 export function ensureIntervalEventMathFunctionScaffold(
   block: Blockly.Block,
@@ -463,14 +464,21 @@ export function ensureIntervalEventMathFunctionScaffold(
     return;
   }
   const input = block.getInput(rmAttributeInputName("math_function"));
-  if (!input?.connection || input.connection.isConnected()) return;
+  if (!input?.connection || !block.workspace) return;
   const termSet = termSetForRmAttribute("INTERVAL_EVENT", "math_function");
-  if (!termSet || !block.workspace) return;
-  const pick = createTermPickBlock(
-    block.workspace,
-    termSet,
-    mandatedCode,
-  );
+  if (!termSet) return;
+
+  const existing = input.connection.targetBlock();
+  if (existing) {
+    if (isTermPickBlock(existing) && mandatedCode) {
+      const code = String(existing.getFieldValue("CODE") || "");
+      if (!code || code === TERM_PICK_NONE) {
+        configureTermPick(existing, termSet, mandatedCode);
+      }
+    }
+    return;
+  }
+  const pick = createTermPickBlock(block.workspace, termSet, mandatedCode);
   try {
     input.connection.connect(pick.outputConnection!);
   } catch {

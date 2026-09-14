@@ -80,7 +80,7 @@ export function blocklyCheckTooltip(
   return glyph ? `${glyph} ${check}` : check;
 }
 
-function appendGlyphField(input: Input, check: string | string[] | null, atStart: boolean): void {
+function appendGlyphField(input: Input, check: string | string[] | null): void {
   const glyph = glyphForBlocklyCheck(check, false);
   if (!glyph) return;
   const rmField = createRmTypeEmojiField(
@@ -90,10 +90,6 @@ function appendGlyphField(input: Input, check: string | string[] | null, atStart
   const field = rmField && glyph !== ABSTRACT_SLOT_GLYPH
     ? rmField
     : createTypeGlyphField(glyph, blocklyCheckTooltip(check));
-  if (atStart && typeof input.insertFieldAt === "function") {
-    input.insertFieldAt(0, field, BLOCK_OUT_EMOJI_FIELD);
-    return;
-  }
   input.appendField(field, BLOCK_OUT_EMOJI_FIELD);
 }
 
@@ -102,14 +98,7 @@ export function appendBlockOutputGlyph(
   header: Input,
   check: string | string[] | null,
 ): void {
-  appendGlyphField(header, check, false);
-}
-
-export function prependBlockOutputGlyph(
-  input: Input,
-  check: string | string[] | null,
-): void {
-  appendGlyphField(input, check, true);
+  appendGlyphField(header, check);
 }
 
 /** Update an existing HEADER output glyph after `setOutput` changes the check. */

@@ -42,10 +42,13 @@ export function registerCompactThrasosRenderer(): string {
     getInRowSpacing_(prev: any, next: any) {
       const spacing = super.getInRowSpacing_(prev, next);
       if (isZeroSizeMeasurable(prev) || isZeroSizeMeasurable(next)) return 0;
+      // Hug statement/value mouths: slot captions and any field sitting
+      // immediately before a statement/external input get tight spacing.
       if (
         isRmEmojiMeasurable(prev) || isRmEmojiMeasurable(next) ||
         isSlotCardMeasurable(prev) || isSlotCardMeasurable(next) ||
-        isSlotLabelMeasurable(prev) || isSlotLabelMeasurable(next)
+        isSlotLabelMeasurable(prev) || isSlotLabelMeasurable(next) ||
+        isFieldBeforeMouth_(prev, next)
       ) {
         return Math.min(spacing, 1);
       }
@@ -60,6 +63,45 @@ export function registerCompactThrasosRenderer(): string {
     addAlignmentPadding_(row: any, missingSpace: number) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
       return super.addAlignmentPadding_(row, missingSpace);
+    }
+
+    /**
+     * Thrasos stretches the statement C to the full block width, which leaves a
+     * large empty mouth to the right of a right-aligned caption. For RIGHT rows,
+     * keep a compact C and put the leftover width on the left so
+     * `[caption][mouth]` sits as a pack on the right (openEHR slot look).
+     */
+    // deno-lint-ignore no-explicit-any
+    alignStatementRow_(row: any) {
+      applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
+      if (row?.align !== AlignRight) {
+        return super.alignStatementRow_(row);
+      }
+      // deno-lint-ignore no-explicit-any
+      const input = row.getLastInput?.() as any;
+      if (!input) return super.alignStatementRow_(row);
+
+      const beforeStmt = row.width - input.width;
+      const edgePad = Number(this.statementEdge ?? 0) - beforeStmt;
+      if (edgePad > 0) this.addAlignmentPadding_(row, edgePad);
+
+      input.height = Math.max(Number(input.height ?? 0), Number(row.height ?? 0));
+
+      const desired = Number(
+        this.getDesiredRowWidth_?.(row) ?? row.width,
+      );
+      const remaining = desired - Number(row.width ?? 0);
+      if (remaining > 0) {
+        // RIGHT → first spacer (see Blockly addAlignmentPadding_).
+        this.addAlignmentPadding_(row, remaining);
+      }
+
+      const notchX = Number(row.width ?? 0) - Number(input.width ?? 0);
+      const connected = Number(row.connectedBlockWidths ?? 0);
+      row.widthWithConnectedBlocks = Math.max(
+        Number(row.width ?? 0),
+        notchX + connected,
+      );
     }
 
     // deno-lint-ignore no-explicit-any
@@ -220,4 +262,23 @@ function isSlotCardMeasurable(elem: any): boolean {
 // deno-lint-ignore no-explicit-any
 function isSlotLabelMeasurable(elem: any): boolean {
   return isSlotLabelField(elem?.field ?? null);
+}
+
+/** Field immediately before a statement / external-value mouth. */
+// deno-lint-ignore no-explicit-any
+function isFieldBeforeMouth_(prev: any, next: any): boolean {
+  if (!prev?.field || !next) return false;
+  const Types = Blockly.blockRendering?.Types;
+  if (!Types) {
+    return Boolean(next.input || next.connectedBlock !== undefined || next.connectionOffsetY !== undefined);
+  }
+  try {
+    return Boolean(
+      Types.isStatementInput?.(next) ||
+        Types.isExternalInput?.(next) ||
+        (Types.isInput?.(next) && !Types.isDummyInput?.(next)),
+    );
+  } catch {
+    return Boolean(next.input);
+  }
 }

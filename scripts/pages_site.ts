@@ -9,21 +9,48 @@ export const VERSIONS_MANIFEST = "versions.json";
 
 export interface VersionsManifest {
   versions: string[];
+  /**
+   * Tag (e.g. "v0.7.5") the Web Shell recommends end users stick to, distinct from the
+   * bleeding-edge build at the site root. Runtime code in `web/main.ts` reads this to
+   * decide whether to show the "not on the recommended version" popup. See
+   * `pickRecommendedVersion` for how it is derived on each Pages deploy.
+   */
+  recommended?: string;
 }
 
 export function emptyManifest(): VersionsManifest {
   return { versions: [] };
 }
 
+/**
+ * Pick the manifest's recommended tag for a new deploy.
+ *
+ * Precedence: an explicit `override` (e.g. a repo-committed `RECOMMENDED_VERSION` file)
+ * wins when it names a still-published version; otherwise the previously recommended tag
+ * is kept as long as it is still published; otherwise the newest published tag becomes
+ * recommended by default. Returns `undefined` when there are no versions to recommend.
+ */
+export function pickRecommendedVersion(
+  versions: string[],
+  opts: { override?: string; previous?: string } = {},
+): string | undefined {
+  if (opts.override && versions.includes(opts.override)) return opts.override;
+  if (opts.previous && versions.includes(opts.previous)) return opts.previous;
+  return versions[0];
+}
+
 export function normalizeManifest(raw: unknown): VersionsManifest {
   if (!raw || typeof raw !== "object") return emptyManifest();
   const versions = (raw as VersionsManifest).versions;
   if (!Array.isArray(versions)) return emptyManifest();
-  return {
-    versions: [...new Set(versions.filter((v) => typeof v === "string" && /^v\d/.test(v)))]
-      .sort()
-      .reverse(),
-  };
+  const normalizedVersions = [...new Set(versions.filter((v) => typeof v === "string" && /^v\d/.test(v)))]
+    .sort()
+    .reverse();
+  const rawRecommended = (raw as VersionsManifest).recommended;
+  const recommended = typeof rawRecommended === "string" && normalizedVersions.includes(rawRecommended)
+    ? rawRecommended
+    : undefined;
+  return recommended ? { versions: normalizedVersions, recommended } : { versions: normalizedVersions };
 }
 
 export async function readVersionsManifest(path: string): Promise<VersionsManifest> {
@@ -153,6 +180,7 @@ export async function assembleMainPagesSite(opts: {
   baseUrl: string;
   rootDist: string;
   outDir: string;
+  recommendedOverride?: string;
 }): Promise<VersionsManifest> {
   await emptyDir(opts.outDir);
   await copyDistContents(opts.rootDist, opts.outDir);
@@ -177,7 +205,13 @@ export async function assembleMainPagesSite(opts: {
     }
   }
 
-  const manifest = normalizeManifest({ versions: preserved });
+  const manifest = normalizeManifest({
+    versions: preserved,
+    recommended: pickRecommendedVersion(preserved, {
+      override: opts.recommendedOverride,
+      previous: listed.recommended,
+    }),
+  });
   await writeVersionsManifest(join(opts.outDir, VERSIONS_MANIFEST), manifest);
   return manifest;
 }
@@ -190,6 +224,7 @@ export async function assembleReleasePagesSite(opts: {
   versionTag: string;
   versionDist: string;
   outDir: string;
+  recommendedOverride?: string;
 }): Promise<VersionsManifest> {
   const listed = await fetchVersionsManifest(opts.baseUrl);
   if (listed.versions.includes(opts.versionTag)) {
@@ -236,9 +271,14 @@ export async function assembleReleasePagesSite(opts: {
     throw new Error(`Release dist for ${opts.versionTag} is missing index.html`);
   }
 
-  const next: VersionsManifest = {
-    versions: normalizeManifest({ versions: [...preserved, opts.versionTag] }).versions,
-  };
+  const nextVersions = normalizeManifest({ versions: [...preserved, opts.versionTag] }).versions;
+  const next = normalizeManifest({
+    versions: nextVersions,
+    recommended: pickRecommendedVersion(nextVersions, {
+      override: opts.recommendedOverride,
+      previous: listed.recommended,
+    }),
+  });
   await writeVersionsManifest(join(opts.outDir, VERSIONS_MANIFEST), next);
   return next;
 }

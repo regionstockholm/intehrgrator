@@ -4,6 +4,7 @@ import { FieldSkeletonTitle } from "../field_skeleton_title.ts";
 import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import { findSkeletonNode } from "../schema_catalog.ts";
 import { appendSlotLabel } from "../slot_label.ts";
+import { enforceMouthCaptionLayout, inputAlignRight } from "../mouth_layout.ts";
 import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mutator.ts";
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
@@ -113,6 +114,7 @@ function defineStructureBlock(
       if (options?.withSchemaMutator) {
         Blockly.Extensions.apply(SCHEMA_FIELDS_MUTATOR, this, true);
       }
+      enforceMouthCaptionLayout(this);
     },
   };
   if (!options?.withSchemaMutator) {
@@ -164,21 +166,17 @@ function defineValueBlock(
       this.appendDummyInput("HEADER")
         .appendField(new FieldSkeletonTitle("", defaultName), "NAME");
       appendHiddenSerializable(this, "TARGET_TYPE", "");
-      this.appendValueInput("VALUE").setCheck(null).appendField("value");
+      const value = this.appendValueInput("VALUE").setCheck(null);
+      appendSlotLabel(value, "value");
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true);
       this.setNextStatement(true);
       this.setColour(colour);
       this.setTooltip(tooltip);
-      this.setInputsInline(true);
+      enforceMouthCaptionLayout(this);
     },
   };
-}
-
-/** Blockly Align.RIGHT — attribute captions sit just left of their mouth. */
-function inputAlignRight(): number {
-  return (Blockly.inputs?.Align?.RIGHT ?? 1) as number;
 }
 
 export function appendSchemaFieldInput(

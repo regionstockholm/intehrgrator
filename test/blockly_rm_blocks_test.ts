@@ -43,7 +43,6 @@ import {
   RM_EMOJI_FONT_PX,
   RM_EMOJI_LARGE_FONT_PX,
   rmTypeConnectionTooltip,
-  slotEmojiFieldName,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
 import { isSlotLabelField } from "@intehrgrator/blockly/slot_label.ts";
 import { isSkeletonTitleField, humanizeRmType } from "@intehrgrator/blockly/field_skeleton_title.ts";
@@ -500,13 +499,14 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
   qtyOut?.updateSize_?.();
   assertEquals(qtyOut?.getSize()?.height, RM_EMOJI_FONT_PX);
   const magnitude = qty.getInput(dvFieldInputName("magnitude"));
-  magnitude?.fieldRow.at(-1)?.updateSize_?.();
-  assertEquals(magnitude?.fieldRow.at(-1)?.getSize()?.height, RM_EMOJI_FONT_PX);
+  const magnitudeLabel = magnitude?.fieldRow[0];
+  assert(isSlotLabelField(magnitudeLabel), "DV field captions reuse FieldSlotLabel");
+  assertEquals(magnitudeLabel.attrLabel, "magnitude");
+  assertEquals(magnitudeLabel.rmType(), "Real");
   assertEquals(
-    magnitude?.fieldRow.at(-1)?.getText(),
-    zipehrEmojiForRmType("Real"),
+    magnitudeLabel.getText().includes(zipehrEmojiForRmType("Real") ?? ""),
+    true,
   );
-  assertEquals(magnitude?.fieldRow.at(-1)?.name, slotEmojiFieldName(dvFieldInputName("magnitude")));
 
   const dvText = workspace.newBlock("dv_text");
   const textOut = dvText.getField(BLOCK_OUT_EMOJI_FIELD);

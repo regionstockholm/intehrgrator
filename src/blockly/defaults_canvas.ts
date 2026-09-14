@@ -24,7 +24,8 @@ import { defaultsMapKeys, defaultsMapValueBlock } from "./hardcode_defaults.ts";
 
 const DEFAULTS_X = 20;
 const DEFAULTS_Y = 20;
-const SKELETON_GAP = 48;
+/** Gap between the bottom of Defaults and the top of Conversion start / skeleton. */
+const SKELETON_GAP = 16;
 
 function finalize(block: Blockly.Block): Blockly.Block {
   const svg = block as BlockSvg;
@@ -140,6 +141,11 @@ export function restoreDefaultsBlockState(
   ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
 }
 
+/** Y for the top of the scaffold stack so it sits close under Defaults. */
+export function yJustBelowDefaults(defaultsHeight: number, gap = SKELETON_GAP): number {
+  return DEFAULTS_Y + defaultsHeight + gap;
+}
+
 /** Place the Defaults stack at top-left; put Template Skeleton underneath it. */
 export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void {
   const defaults = findDefaultsBlock(workspace);
@@ -153,7 +159,7 @@ export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void 
   const size = typeof (defaults as BlockSvg).getHeightWidth === "function"
     ? (defaults as BlockSvg).getHeightWidth()
     : { width: 280, height: 160 };
-  const skeletonY = DEFAULTS_Y + size.height + SKELETON_GAP;
+  const skeletonY = yJustBelowDefaults(size.height);
   for (const block of workspace.getTopBlocks(false)) {
     if (block.type === DEFAULTS_BLOCK_TYPE) continue;
     if (typeof (block as BlockSvg).moveBy !== "function") continue;

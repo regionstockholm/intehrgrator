@@ -1,4 +1,5 @@
 import { assertEquals } from "@std/assert";
+import { dirname, fromFileUrl, join } from "@std/path";
 import {
   bleedingEdgeUrlFromManifestUrl,
   extractVersionTagFromPath,
@@ -145,5 +146,20 @@ Deno.test("recommendedPopupMessage names the bleeding-edge build", () => {
   assertEquals(
     recommendedPopupMessage(null, "v0.7"),
     "You are using the bleeding-edge build (updated on every change to main), not the recommended stable version (v0.7).",
+  );
+});
+
+Deno.test("recommended-version popup links stay in the same tab", async () => {
+  const html = await Deno.readTextFile(
+    join(dirname(fromFileUrl(import.meta.url)), "../web/index.html"),
+  );
+  const start = html.indexOf('id="dialog-recommended-version"');
+  const end = html.indexOf("</dialog>", start);
+  const dialog = html.slice(start, end);
+  assertEquals(dialog.includes("dialog-recommended-version"), true);
+  assertEquals(
+    dialog.includes('target="_blank"'),
+    false,
+    "popup links must navigate the current tab",
   );
 });

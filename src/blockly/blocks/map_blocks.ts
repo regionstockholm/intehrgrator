@@ -12,6 +12,7 @@ import {
   openBlockMutator,
 } from "../dynamic_mutator.ts";
 import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
+import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
@@ -146,6 +147,7 @@ function updateMapCreateShape(block: MapCreateBlock): void {
   for (const name of order) {
     if (block.getInput(name)) block.moveInputBefore(name, null);
   }
+  enforceMouthCaptionLayout(block);
 }
 
 function defineMapsMutatorQuarks(): void {
@@ -307,7 +309,7 @@ export function registerMapBlocks(): void {
       this.setOutput(true, null);
       this.setColour(MAP_COLOUR);
       this.setTooltip("Look up a value in a named Map");
-      this.setInputsInline(true);
+      enforceMouthCaptionLayout(this);
     },
   };
 

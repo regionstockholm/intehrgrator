@@ -11,13 +11,46 @@ export interface SplitGroupOptions {
   storageKey?: string;
   /** Called after a drag resize or container size change. */
   onResize?: () => void;
+  /**
+   * Pane index that should stay the largest when space is tight
+   * (the Blockly mapping canvas).
+   */
+  preferredIndex?: number;
+  /** Minimum fraction of the container the preferred pane should keep. Default 0.5 */
+  preferredMinFrac?: number;
 }
 
 const HANDLE_SIZE = 6;
 const DEFAULT_MIN = 80;
 
+/** Match `web/styles.css` stacked-pane breakpoint. */
+export const NARROW_MAIN_PANES_MAX_WIDTH_PX = 1100;
+
+/** Prefer the Mapping Editors (Blockly) pane when the main row stacks. */
+export function mappingPaneLeadsOnNarrow(viewportWidth: number): boolean {
+  return viewportWidth <= NARROW_MAIN_PANES_MAX_WIDTH_PX;
+}
+
+/**
+ * When CSS forces `flex-direction` (narrow stacked panes), measure and drag
+ * along that visual axis rather than the declared `data-split` axis.
+ */
+export function visualAxisFromFlexDirection(
+  flexDirection: string,
+  declared: SplitAxis,
+): SplitAxis {
+  if (flexDirection === "column" || flexDirection === "column-reverse") return "column";
+  if (flexDirection === "row" || flexDirection === "row-reverse") return "row";
+  return declared;
+}
+
 function axisSize(el: HTMLElement, axis: SplitAxis): number {
   return axis === "row" ? el.clientWidth : el.clientHeight;
+}
+
+function resolvedAxis(container: HTMLElement, declared: SplitAxis): SplitAxis {
+  if (typeof getComputedStyle !== "function") return declared;
+  return visualAxisFromFlexDirection(getComputedStyle(container).flexDirection, declared);
 }
 
 function loadSizes(key: string, count: number): number[] | null {
@@ -45,15 +78,56 @@ function equalSizes(count: number): number[] {
   return Array.from({ length: count }, () => 1 / count);
 }
 
-function clampSizes(sizes: number[], minPx: number, totalPx: number): number[] {
-  if (totalPx <= 0) return sizes;
+function normalize(sizes: number[]): number[] {
+  const sum = sizes.reduce((a, b) => a + b, 0);
+  if (sum <= 0) return equalSizes(sizes.length);
+  return sizes.map((n) => n / sum);
+}
+
+/**
+ * Clamp flex ratios so every pane meets `minPx`, optionally keeping
+ * `preferred.index` at least `preferred.minFrac` of the container when the
+ * leftover space allows it.
+ */
+export function clampSplitSizes(
+  sizes: number[],
+  minPx: number,
+  totalPx: number,
+  preferred?: { index: number; minFrac: number },
+): number[] {
+  if (totalPx <= 0 || sizes.length === 0) return sizes;
   const minFrac = minPx / totalPx;
-  const next = [...sizes];
-  for (let i = 0; i < next.length; i++) {
-    next[i] = Math.max(minFrac, next[i] ?? 0);
+  let next = normalize(sizes).map((s) => Math.max(minFrac, s));
+  next = normalize(next);
+  if (
+    preferred &&
+    preferred.index >= 0 &&
+    preferred.index < next.length &&
+    Number.isFinite(preferred.minFrac)
+  ) {
+    const othersMin = minFrac * Math.max(0, next.length - 1);
+    const want = Math.min(
+      Math.max(preferred.minFrac, minFrac),
+      Math.max(minFrac, 1 - othersMin),
+    );
+    if ((next[preferred.index] ?? 0) < want - 1e-12) {
+      const rest = Math.max(0, 1 - want);
+      const otherWeight = next.reduce(
+        (sum, s, i) => i === preferred.index ? sum : sum + s,
+        0,
+      );
+      next = next.map((s, i) => {
+        if (i === preferred.index) return want;
+        if (otherWeight <= 0) {
+          return rest / Math.max(1, next.length - 1);
+        }
+        return (s / otherWeight) * rest;
+      });
+      next = next.map((s) => Math.max(minFrac, s));
+      next = normalize(next);
+    }
   }
-  const sum = next.reduce((a, b) => a + b, 0);
-  return next.map((n) => n / sum);
+  return next;
 }
 
 function applySizes(panes: HTMLElement[], sizes: number[], _axis: SplitAxis): void {
@@ -61,8 +135,8 @@ function applySizes(panes: HTMLElement[], sizes: number[], _axis: SplitAxis): vo
     const pct = (sizes[i]! * 100).toFixed(4);
     panes[i]!.style.flex = `0 0 ${pct}%`;
     panes[i]!.style.flexBasis = `${pct}%`;
-    panes[i]!.style.minWidth = "0";
-    panes[i]!.style.minHeight = "0";
+    // Do not set minWidth/minHeight here: CSS owns overflow mins, and the
+    // narrow stacked layout needs a real min-height on the mapping pane.
   }
 }
 
@@ -104,9 +178,16 @@ export function initSplitGroup(
   }
 
   const refresh = (): void => {
-    const total = axisSize(container, axis);
-    sizes = clampSizes(sizes, minSize, total);
-    applySizes(panes, sizes, axis);
+    const liveAxis = resolvedAxis(container, axis);
+    const total = axisSize(container, liveAxis);
+    const preferred = options.preferredIndex != null
+      ? {
+        index: options.preferredIndex,
+        minFrac: options.preferredMinFrac ?? 0.5,
+      }
+      : undefined;
+    sizes = clampSplitSizes(sizes, minSize, total, preferred);
+    applySizes(panes, sizes, liveAxis);
     options.onResize?.();
     container.dispatchEvent(new CustomEvent("split-resize", { bubbles: true }));
   };
@@ -124,13 +205,14 @@ export function initSplitGroup(
       handle.setPointerCapture(ev.pointerId);
       handle.classList.add("split-handle--active");
 
-      const start = axis === "row" ? ev.clientX : ev.clientY;
+      const liveAxis = resolvedAxis(container, axis);
+      const start = liveAxis === "row" ? ev.clientX : ev.clientY;
       const startSizes = [...sizes];
-      const total = axisSize(container, axis);
+      const total = axisSize(container, liveAxis);
       const minFrac = minSize / Math.max(total, 1);
 
       const onMove = (moveEv: PointerEvent): void => {
-        const pos = axis === "row" ? moveEv.clientX : moveEv.clientY;
+        const pos = liveAxis === "row" ? moveEv.clientX : moveEv.clientY;
         const delta = (pos - start) / Math.max(total, 1);
         const next = [...startSizes];
         next[leftIdx] = (startSizes[leftIdx] ?? 0) + delta;
@@ -146,7 +228,7 @@ export function initSplitGroup(
           next[leftIdx] = (next[leftIdx] ?? 0) + diff;
         }
         sizes = normalize(next);
-        applySizes(panes, sizes, axis);
+        applySizes(panes, sizes, liveAxis);
         options.onResize?.();
         container.dispatchEvent(new CustomEvent("split-resize", { bubbles: true }));
       };
@@ -184,12 +266,6 @@ export function initSplitGroup(
   };
 }
 
-function normalize(sizes: number[]): number[] {
-  const sum = sizes.reduce((a, b) => a + b, 0);
-  if (sum <= 0) return equalSizes(sizes.length);
-  return sizes.map((n) => n / sum);
-}
-
 function readOptions(el: HTMLElement): SplitGroupOptions {
   const minAttr = el.dataset.splitMin;
   const minSize = minAttr ? Number(minAttr) : undefined;
@@ -199,10 +275,15 @@ function readOptions(el: HTMLElement): SplitGroupOptions {
     const parts = sizesAttr.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
     if (parts.length) sizes = normalize(parts);
   }
+  const preferredAttr = el.dataset.splitPreferred;
+  const preferredIndex = preferredAttr != null && preferredAttr !== ""
+    ? Number(preferredAttr)
+    : undefined;
   return {
     sizes,
     minSize: Number.isFinite(minSize) ? minSize : undefined,
     storageKey: el.dataset.splitStorage,
+    preferredIndex: Number.isFinite(preferredIndex) ? preferredIndex : undefined,
   };
 }
 

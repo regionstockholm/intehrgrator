@@ -1,4 +1,4 @@
-import type { BlockSvg, WorkspaceSvg } from "blockly/core";
+import type { BlockSvg } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 import {
   applyInstanceRootCap,
@@ -13,6 +13,12 @@ import { DEFAULTS_BLOCK_TYPE } from "../core/defaults/extract.ts";
 
 const START_X = 20;
 const START_Y = 20;
+const START_ABOVE_ROOT_GAP = 12;
+
+/** Y of Conversion start so its bottom sits just above an unconnected root. */
+export function startYAboveRoot(rootY: number, startHeight: number, gap = START_ABOVE_ROOT_GAP): number {
+  return rootY - startHeight - gap;
+}
 
 function finalize(block: Blockly.Block): Blockly.Block {
   const svg = block as BlockSvg;
@@ -65,15 +71,18 @@ export function attachStartToInstanceRoot(
 }
 
 function layoutStartAboveRoot(start: Blockly.Block, root: Blockly.Block): void {
+  // Connected stacks move as one; `placeDefaultsBesideSkeleton` positions the top.
+  if (start.getNextBlock()?.id === root.id) return;
   const rootSvg = root as BlockSvg;
   const startSvg = start as BlockSvg;
   if (typeof rootSvg.getRelativeToSurfaceXY !== "function") return;
   const pos = rootSvg.getRelativeToSurfaceXY();
-  const rootH = rootSvg.getHeightWidth?.().height ?? 80;
+  const startH = startSvg.getHeightWidth?.().height ?? 40;
   if (typeof startSvg.moveBy === "function") {
     const startPos = startSvg.getRelativeToSurfaceXY?.() ?? { x: START_X, y: START_Y };
+    const targetY = startYAboveRoot(pos.y, startH);
     const dx = pos.x - startPos.x;
-    const dy = pos.y - rootH - 12 - startPos.y;
+    const dy = targetY - startPos.y;
     if (dx || dy) startSvg.moveBy(dx, dy);
   }
 }

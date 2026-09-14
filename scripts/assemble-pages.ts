@@ -15,6 +15,24 @@ import {
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 const baseUrl = Deno.env.get("PAGES_SITE_URL") ?? PAGES_SITE_URL;
 
+/**
+ * Optional repo-committed override: a `RECOMMENDED_VERSION` file at the repo root
+ * containing a release tag (e.g. `v0.7.5`) pins the recommended end-user version even
+ * when a newer release has since shipped. See README-DEVELOPERS.md.
+ */
+async function readRecommendedVersionOverride(): Promise<string | undefined> {
+  try {
+    const text = await Deno.readTextFile(join(root, "RECOMMENDED_VERSION"));
+    const trimmed = text.trim();
+    return trimmed || undefined;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return undefined;
+    throw error;
+  }
+}
+
+const recommendedOverride = Deno.env.get("RECOMMENDED_VERSION") ?? await readRecommendedVersionOverride();
+
 const [mode, ...rest] = Deno.args;
 if (!mode || (mode !== "main" && mode !== "release")) {
   console.error("Usage: assemble-pages.ts main <root-dist> <out-dir>");
@@ -32,6 +50,7 @@ if (mode === "main") {
     baseUrl,
     rootDist: join(root, rootDist),
     outDir: join(root, outDir),
+    recommendedOverride,
   });
   console.log(`Assembled main Pages site at ${outDir} (${manifest.versions.length} frozen versions)`);
 } else {
@@ -45,6 +64,7 @@ if (mode === "main") {
     versionTag,
     versionDist: join(root, versionDist),
     outDir: join(root, outDir),
+    recommendedOverride,
   });
   console.log(
     `Assembled release Pages site at ${outDir} (added ${versionTag}; ${manifest.versions.length} total versions)`,

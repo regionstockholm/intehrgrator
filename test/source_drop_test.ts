@@ -1,6 +1,7 @@
 import { assert, assertEquals } from "@std/assert";
 import {
   blockOwnClientRect,
+  blockOwnWorkspaceSize,
   isSourceDropSlotBlock,
   isUsableSourceDropPoint,
   pointInRect,
@@ -41,4 +42,21 @@ Deno.test("blockOwnClientRect clips next-statement stack height", () => {
   assertEquals(own.bottom, -6.5 + 115);
   assertEquals(pointInRect(515, 135, own), false);
   assertEquals(pointInRect(515, 20, own), true);
+});
+
+Deno.test("blockOwnWorkspaceSize prefers block.height over getHeightWidth", () => {
+  assertEquals(
+    blockOwnWorkspaceSize({
+      width: 200,
+      height: 115,
+      getHeightWidth: () => ({ width: 200, height: 556 }),
+    }),
+    { width: 200, height: 115 },
+  );
+  assertEquals(
+    blockOwnWorkspaceSize({
+      getHeightWidth: () => ({ width: 200, height: 556 }),
+    }),
+    { width: 200, height: 556 },
+  );
 });

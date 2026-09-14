@@ -32,7 +32,15 @@ export function isUsableSourceDropPoint(
   return x >= mount.left && x <= mount.right && y >= mount.top && y <= mount.bottom;
 }
 
-/** CSS-pixel box for this block only (excludes `next` statement siblings). */
+/**
+ * CSS-pixel box for this block only (excludes `next` statement siblings).
+ *
+ * Prefer Blockly's `block.height` / `block.width` (or the block's own
+ * `pathObject.svgPath` bbox). Do **not** pass `getHeightWidth()` — that API
+ * includes connected `next` blocks, so clipping would be a no-op and a tall
+ * ELEMENT stack would steal drops meant for later siblings (systolic vs
+ * diastolic).
+ */
 export function blockOwnClientRect(
   full: { left: number; top: number; width: number; height: number },
   own: { width: number; height: number },
@@ -48,6 +56,22 @@ export function blockOwnClientRect(
     width,
     height,
   };
+}
+
+/** Workspace-unit size of one block, excluding `next` statement siblings. */
+export function blockOwnWorkspaceSize(block: {
+  width?: number;
+  height?: number;
+  getHeightWidth?: () => { width: number; height: number };
+}): { width: number; height: number } {
+  const w = Number(block.width);
+  const h = Number(block.height);
+  if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+    return { width: w, height: h };
+  }
+  return typeof block.getHeightWidth === "function"
+    ? block.getHeightWidth()
+    : { width: 0, height: 0 };
 }
 
 export function pointInRect(

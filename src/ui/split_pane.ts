@@ -16,8 +16,34 @@ export interface SplitGroupOptions {
 const HANDLE_SIZE = 6;
 const DEFAULT_MIN = 80;
 
+/** Match `web/styles.css` stacked-pane breakpoint. */
+export const NARROW_MAIN_PANES_MAX_WIDTH_PX = 1100;
+
+/** Prefer the Mapping Editors (Blockly) pane when the main row stacks. */
+export function mappingPaneLeadsOnNarrow(viewportWidth: number): boolean {
+  return viewportWidth <= NARROW_MAIN_PANES_MAX_WIDTH_PX;
+}
+
+/**
+ * When CSS forces `flex-direction` (narrow stacked panes), measure and drag
+ * along that visual axis rather than the declared `data-split` axis.
+ */
+export function visualAxisFromFlexDirection(
+  flexDirection: string,
+  declared: SplitAxis,
+): SplitAxis {
+  if (flexDirection === "column" || flexDirection === "column-reverse") return "column";
+  if (flexDirection === "row" || flexDirection === "row-reverse") return "row";
+  return declared;
+}
+
 function axisSize(el: HTMLElement, axis: SplitAxis): number {
   return axis === "row" ? el.clientWidth : el.clientHeight;
+}
+
+function resolvedAxis(container: HTMLElement, declared: SplitAxis): SplitAxis {
+  if (typeof getComputedStyle !== "function") return declared;
+  return visualAxisFromFlexDirection(getComputedStyle(container).flexDirection, declared);
 }
 
 function loadSizes(key: string, count: number): number[] | null {
@@ -61,8 +87,8 @@ function applySizes(panes: HTMLElement[], sizes: number[], _axis: SplitAxis): vo
     const pct = (sizes[i]! * 100).toFixed(4);
     panes[i]!.style.flex = `0 0 ${pct}%`;
     panes[i]!.style.flexBasis = `${pct}%`;
-    panes[i]!.style.minWidth = "0";
-    panes[i]!.style.minHeight = "0";
+    // Do not set minWidth/minHeight here: CSS owns overflow mins, and the
+    // narrow stacked layout needs a real min-height on the mapping pane.
   }
 }
 
@@ -104,9 +130,10 @@ export function initSplitGroup(
   }
 
   const refresh = (): void => {
-    const total = axisSize(container, axis);
+    const liveAxis = resolvedAxis(container, axis);
+    const total = axisSize(container, liveAxis);
     sizes = clampSizes(sizes, minSize, total);
-    applySizes(panes, sizes, axis);
+    applySizes(panes, sizes, liveAxis);
     options.onResize?.();
     container.dispatchEvent(new CustomEvent("split-resize", { bubbles: true }));
   };
@@ -124,13 +151,14 @@ export function initSplitGroup(
       handle.setPointerCapture(ev.pointerId);
       handle.classList.add("split-handle--active");
 
-      const start = axis === "row" ? ev.clientX : ev.clientY;
+      const liveAxis = resolvedAxis(container, axis);
+      const start = liveAxis === "row" ? ev.clientX : ev.clientY;
       const startSizes = [...sizes];
-      const total = axisSize(container, axis);
+      const total = axisSize(container, liveAxis);
       const minFrac = minSize / Math.max(total, 1);
 
       const onMove = (moveEv: PointerEvent): void => {
-        const pos = axis === "row" ? moveEv.clientX : moveEv.clientY;
+        const pos = liveAxis === "row" ? moveEv.clientX : moveEv.clientY;
         const delta = (pos - start) / Math.max(total, 1);
         const next = [...startSizes];
         next[leftIdx] = (startSizes[leftIdx] ?? 0) + delta;
@@ -146,7 +174,7 @@ export function initSplitGroup(
           next[leftIdx] = (next[leftIdx] ?? 0) + diff;
         }
         sizes = normalize(next);
-        applySizes(panes, sizes, axis);
+        applySizes(panes, sizes, liveAxis);
         options.onResize?.();
         container.dispatchEvent(new CustomEvent("split-resize", { bubbles: true }));
       };

@@ -18,6 +18,14 @@ import {
   rmTypeConnectionTooltip,
   slotEmojiFieldName,
 } from "./rm_type_emoji.ts";
+import {
+  blockTypeUsesMouthLayout,
+  enforceMouthLayout,
+  inputAlignLeft,
+  inputAlignRight,
+} from "./block_layout.ts";
+
+export { inputAlignLeft, inputAlignRight };
 
 /** Same mark Blockly FieldCheckbox uses (U+2713). */
 export const BOOLEAN_TYPE_GLYPH = "✓";
@@ -33,16 +41,6 @@ const BLOCKLY_TYPE_GLYPH: Record<string, string> = {
   Map: "↦",
   Source: "📂",
 };
-
-/** Blockly Align.RIGHT — slot captions and glyphs hug mouths. */
-export function inputAlignRight(): number {
-  return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
-}
-
-/** Blockly Align.LEFT — block chrome / header row. */
-export function inputAlignLeft(): number {
-  return (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? -1) as number;
-}
 
 export function glyphForBlocklyCheck(
   check: string | string[] | null | undefined,
@@ -206,7 +204,22 @@ export function registerStockBlocklyGlyphs(): void {
       originalInit.call(this);
       ensureBlockOutputHeaderGlyph(this);
       decorateValueInputGlyphs(this);
+      if (blockTypeUsesMouthLayout(type)) enforceMouthLayout(this);
     };
+    const originalUpdate = def.updateShape_ as ((this: Block) => void) | undefined;
+    if (typeof originalUpdate === "function" && blockTypeUsesMouthLayout(type)) {
+      def.updateShape_ = function (this: Block) {
+        originalUpdate.call(this);
+        enforceMouthLayout(this);
+      };
+    }
+    const originalUpdateAt = def.updateAt_ as ((this: Block, hasAt: boolean) => void) | undefined;
+    if (typeof originalUpdateAt === "function" && blockTypeUsesMouthLayout(type)) {
+      def.updateAt_ = function (this: Block, hasAt: boolean) {
+        originalUpdateAt.call(this, hasAt);
+        enforceMouthLayout(this);
+      };
+    }
     stockGlyphPatches.add(type);
   }
 }

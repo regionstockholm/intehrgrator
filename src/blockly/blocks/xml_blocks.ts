@@ -13,6 +13,7 @@ import {
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
 import { inputAlignLeft, inputAlignRight } from "../block_type_glyph.ts";
+import { enforceMouthLayout } from "../block_layout.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import {
   XML_ATTRIBUTE_CHECK,
@@ -69,13 +70,7 @@ export const XML_BLOCK_TYPES = [
  * captions against statement/value mouths instead of leaving a mid-block gap.
  */
 function enforceXmlMouthLayout(block: Block): void {
-  block.setInputsInline(false);
-  const header = block.getInput("HEADER");
-  if (header) header.setAlign(inputAlignLeft());
-  for (const input of block.inputList) {
-    if (input.name === "HEADER") continue;
-    if (input.connection) input.setAlign(inputAlignRight());
-  }
+  enforceMouthLayout(block);
 }
 
 export function registerXmlBlocks(): void {
@@ -134,13 +129,14 @@ function defineXmlText(): void {
     init: function (this: Block) {
       this.appendDummyInput("HEADER").appendField(new FieldSkeletonTitle("", "XML text"), "NAME");
       appendHiddenSerializable(this, "TARGET_TYPE", "");
-      this.appendValueInput(XML_TEXT_INPUT).setCheck("String").appendField("value");
+      const text = this.appendValueInput(XML_TEXT_INPUT).setCheck("String");
+      appendSlotLabel(text, "value", { rmType: "String" });
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "MANDATORY", "");
       this.setOutput(true, "String");
       this.setColour(XML_COLOUR);
       this.setTooltip("XML text node (character data)");
-      this.setInputsInline(true);
+      enforceMouthLayout(this);
     },
   };
 }
@@ -153,14 +149,15 @@ function defineXmlAttribute(): void {
         .appendField("XML attr")
         .appendField(new Blockly.FieldTextInput("attr"), "NAME");
       appendHiddenSerializable(this, "TARGET_TYPE", "");
-      this.appendValueInput(XML_TEXT_INPUT).setCheck(null).appendField("value");
+      const text = this.appendValueInput(XML_TEXT_INPUT).setCheck(null);
+      appendSlotLabel(text, "value");
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true, XML_ATTRIBUTE_CHECK);
       this.setNextStatement(true, XML_ATTRIBUTE_CHECK);
       this.setColour(XML_COLOUR);
       this.setTooltip("XML attribute on the parent element");
-      this.setInputsInline(true);
+      enforceMouthLayout(this);
     },
   };
 }
@@ -170,11 +167,12 @@ function defineXmlCdata(): void {
   Blockly.Blocks[XML_CDATA_TYPE] = {
     init: function (this: Block) {
       this.appendDummyInput("HEADER").appendField("CDATA");
-      this.appendValueInput(XML_TEXT_INPUT).setCheck("String").appendField("value");
+      const text = this.appendValueInput(XML_TEXT_INPUT).setCheck("String");
+      appendSlotLabel(text, "value", { rmType: "String" });
       this.setOutput(true, "String");
       this.setColour(XML_COLOUR);
       this.setTooltip("XML CDATA section — emitted as <![CDATA[ … ]]> without character escaping");
-      this.setInputsInline(true);
+      enforceMouthLayout(this);
     },
   };
 }
@@ -422,6 +420,7 @@ export function registerXmlDocumentMutator(): void {
             .appendField(new Blockly.FieldTextInput(stored.uri), `URI_${name}`);
           this.moveInputBefore(inputName, before);
         }
+        enforceMouthLayout(this);
       },
       syncNamespacesFromFields_: function (this: XmlDocumentBlock) {
         const extras = this.xmlDocExtras_ ?? [];

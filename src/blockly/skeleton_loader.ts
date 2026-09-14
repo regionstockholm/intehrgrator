@@ -21,9 +21,9 @@ import {
   optionalRmInputName,
   rmAttributeInputName,
   syncRmAttributeInputs,
-  enforceOpenEhrBlockLayout,
   isRmContainerBlockType,
 } from "./blocks/rm_blocks.ts";
+import { enforceMouthLayout, blockTypeUsesMouthLayout } from "./block_layout.ts";
 import { createTermPickBlock, isTermPickBlock } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
@@ -88,11 +88,11 @@ export function loadSkeletonIntoWorkspace(
     }
     applyModelExpressions(workspace, model);
     restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat);
-    placeDefaultsBesideSkeleton(workspace);
     const scaffoldRoot = workspace.getTopBlocks(false).find((b) =>
       b.type !== "defaults_block" && b.type !== "maps_create_with" && b.type !== "conversion_start"
     );
     if (scaffoldRoot) attachStartToInstanceRoot(workspace, scaffoldRoot);
+    placeDefaultsBesideSkeleton(workspace);
     if (!schemaTarget) {
       attachDefaultPointLookups(workspace, skeleton, (parent, insertion) =>
         attachOptionalRmChild(workspace, parent, insertion)
@@ -106,9 +106,16 @@ export function loadSkeletonIntoWorkspace(
         isDataValueBlock(block) ||
         block.type === "element" ||
         block.type === "party_ref" ||
-        block.type === "code_phrase"
+        block.type === "code_phrase" ||
+        blockTypeUsesMouthLayout(block.type) ||
+        block.type.startsWith("xml_") ||
+        block.type.startsWith("json_") ||
+        block.type.startsWith("schema_") ||
+        block.type === "target_value" ||
+        block.type === "maps_create_with" ||
+        block.type === "maps_get"
       ) {
-        enforceOpenEhrBlockLayout(block);
+        enforceMouthLayout(block);
       }
     }
     highlightListeningSlot(workspace, listeningSlotId);

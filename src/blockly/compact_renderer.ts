@@ -187,9 +187,24 @@ function applyCompactConstants(constants: any): void {
   constants.EMPTY_INLINE_INPUT_HEIGHT = tabRoom;
 }
 
+/** True when the render row carries a statement/value mouth (not a dummy HEADER). */
 // deno-lint-ignore no-explicit-any
-function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
+export function isMouthRow_(row: any): boolean {
+  return Boolean(row?.hasStatement || row?.hasExternalInput || row?.hasInlineInput);
+}
+
+/**
+ * Mouth rows always hug the socket, even when the output-tab glyph was prepended
+ * onto that same row (stock `lists_create_with` / `lists_getIndex`). Dummy HEADER
+ * chrome stays LEFT. Exported for unit tests.
+ */
+// deno-lint-ignore no-explicit-any
+export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
   if (!row?.elements) return;
+  if (isMouthRow_(row)) {
+    row.align = alignRight;
+    return;
+  }
   let hasClassChrome = false;
   let hasSlotCaption = false;
   for (const elem of row.elements) {
@@ -203,25 +218,19 @@ function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number):
     if (field.name === BLOCK_OUT_EMOJI_FIELD) hasClassChrome = true;
     if (field.name === "MUTATOR_COG") hasClassChrome = true;
   }
-  // Mixed rows (inline HEADER + value): prefer left so class chrome is not
-  // shoved toward the socket; prefer external rows via setInputsInline(false).
-  // Mouth rows (statement / external value) without class chrome always hug
-  // the socket — plain FieldLabels need this too, not only FieldSlotLabel.
-  const isMouthRow = Boolean(
-    row.hasStatement || row.hasExternalInput || row.hasInlineInput,
-  );
   if (hasClassChrome) row.align = alignLeft;
-  else if (hasSlotCaption || isMouthRow) row.align = alignRight;
+  else if (hasSlotCaption) row.align = alignRight;
 }
 
 /**
- * Slot captions on value/statement rows with a tall connected child should sit
- * by the mouth, not at the vertical midpoint of that child.
+ * Captions on value/statement rows with a tall connected child should sit by
+ * the mouth, not at the vertical midpoint of that child. Applies to any field
+ * on the row (stock Blockly labels included), not only FieldSlotLabel.
  */
 // deno-lint-ignore no-explicit-any
 export function shouldPinSlotCaptionToMouth_(row: any, elem: any): boolean {
-  if (!row || !elem?.field || !isSlotLabelField(elem.field)) return false;
-  return Boolean(row.hasStatement || row.hasExternalInput || row.hasInlineInput);
+  if (!row || !elem?.field) return false;
+  return isMouthRow_(row);
 }
 
 /** Centerline Y for a slot caption pinned to the input mouth / notch. */

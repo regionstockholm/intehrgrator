@@ -36,7 +36,6 @@ import { parseExpression } from "../core/expression/mod.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { generateGoTemplate } from "../core/codegen/go_template.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
-import { upgradeXmlBlocklyState } from "../core/xml_upgrade.ts";
 import {
   injectXmlnsOnOpenTag,
   wrapXmlCdata,
@@ -79,9 +78,7 @@ export function generateGoTemplateFromBlocklyState(
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
   try {
-    const snapshot = upgradeXmlBlocklyState(
-      JSON.parse(JSON.stringify(state)),
-    ) as Record<string, unknown>;
+    const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -511,11 +508,7 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
     if (text) inner.push(...(emitExpressionBlock(text, ctx) ?? emitBlock(text, ctx, 0)));
     let current: Block | null = block.getInputTargetBlock(XML_CHILDREN_INPUT);
     while (current) {
-      if (current.type === "xml_attribute") {
-        attrParts.push(emitXmlAttributeLive(current, ctx));
-      } else {
-        inner.push(...emitBlock(current, ctx, 0));
-      }
+      inner.push(...emitBlock(current, ctx, 0));
       current = current.getNextBlock();
     }
   } else {

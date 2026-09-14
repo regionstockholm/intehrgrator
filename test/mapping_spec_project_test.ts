@@ -225,7 +225,7 @@ Deno.test("projectBlocklyState flattens xml_text + maps_get + text key into one 
         id: "el",
         fields: { NAME: "Time" },
         inputs: {
-          TARGET_children: {
+          VALUE: {
             block: {
               type: "xml_text",
               id: "xt",

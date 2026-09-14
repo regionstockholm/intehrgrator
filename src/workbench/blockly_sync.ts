@@ -6,8 +6,6 @@
 import { Blockly } from "../blockly/blockly_core.ts";
 import { applyModelExpressions, initBlocklyGenerators } from "../blockly/mod.ts";
 import type { MappingModel } from "../types/mod.ts";
-import { upgradeXmlBlocklyState } from "../core/xml_upgrade.ts";
-
 let generatorsReady = false;
 
 function ensureGenerators(): void {
@@ -26,7 +24,7 @@ export function syncModelToBlocklyState(
   const workspace = new Blockly.Workspace();
   try {
     Blockly.serialization.workspaces.load(
-      upgradeXmlBlocklyState(JSON.parse(JSON.stringify(blocklyState))) as Record<string, unknown>,
+      JSON.parse(JSON.stringify(blocklyState)) as Record<string, unknown>,
       workspace,
     );
     applyModelExpressions(workspace, model, { recordUndo: false });

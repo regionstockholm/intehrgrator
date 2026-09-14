@@ -165,39 +165,6 @@ Deno.test("go-template codegen: split mouths, CDATA, and XML declaration", () =>
   assert(output.includes("</Note>"), output);
 });
 
-Deno.test("go-template codegen still emits mixed legacy TARGET_children stacks", () => {
-  const model = createEmptyModel("test");
-  const output = generateGoTemplate(model, {
-    blocklyState: {
-      blocks: {
-        blocks: [{
-          type: XML_ELEMENT_TYPE,
-          fields: { NAME: "Note" },
-          extraState: { childGroups: ["children"] },
-          inputs: {
-            TARGET_children: {
-              block: {
-                type: XML_ATTRIBUTE_TYPE,
-                fields: { NAME: "lang" },
-                inputs: { VALUE: { block: { type: "text", fields: { TEXT: "sv" } } } },
-                next: {
-                  block: {
-                    type: XML_TEXT_TYPE,
-                    inputs: { VALUE: { block: { type: "text", fields: { TEXT: "hej" } } } },
-                  },
-                },
-              },
-            },
-          },
-        }],
-      },
-    },
-  });
-  assert(output.includes(`lang="sv"`), output);
-  assert(output.includes("hej"), output);
-  assert(output.includes("<Note"), output);
-});
-
 Deno.test("mapping spec flattens xml_cdata like xml_text", () => {
   const projection = projectBlocklyState({
     blocks: {

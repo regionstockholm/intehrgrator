@@ -32,9 +32,9 @@ function xmlNoteWithQuery(path: string) {
   return {
     type: "xml_element",
     fields: { NAME: "Note" },
-    extraState: { childGroups: ["children"] },
+    extraState: { childGroups: ["attributes", "children"] },
     inputs: {
-      TARGET_children: {
+      VALUE: {
         block: {
           type: "xml_text",
           inputs: {
@@ -129,9 +129,9 @@ Deno.test("go-template codegen nests text_code Go snippets inside xml_text", () 
           {
             type: "xml_element",
             fields: { NAME: "Note" },
-            extraState: { childGroups: ["children"] },
+            extraState: { childGroups: ["attributes", "children"] },
             inputs: {
-              TARGET_children: {
+              VALUE: {
                 block: {
                   type: "xml_text",
                   inputs: {
@@ -177,9 +177,9 @@ Deno.test("go-template codegen from Blockly state with controls_if", () => {
               block: {
                 type: "xml_element",
                 fields: { NAME: "TextKeyWord" },
-                extraState: { childGroups: ["children"] },
+                extraState: { childGroups: ["attributes", "children"] },
                 inputs: {
-                  TARGET_children: {
+                  VALUE: {
                     block: {
                       type: "xml_text",
                       inputs: {

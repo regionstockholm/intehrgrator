@@ -82,7 +82,6 @@ import {
   installExtractToFunctionOnWorkspace,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
-import { upgradeXmlBlocklyState } from "../src/core/xml_upgrade.ts";
 import {
   blockOwnClientRect,
   blockOwnWorkspaceSize,
@@ -438,7 +437,7 @@ async function bootBlockly(): Promise<void> {
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
     Blockly.serialization.workspaces.load(
-      upgradeXmlBlocklyState(loadOnce) as Record<string, unknown>,
+      loadOnce as Record<string, unknown>,
       workspace,
     );
     lockWorkspaceRootsExpanded(workspace);
@@ -1016,7 +1015,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
         workspace.clear();
         Blockly.serialization.workspaces.load(
-          upgradeXmlBlocklyState(savedState) as Record<string, unknown>,
+          savedState as Record<string, unknown>,
           workspace,
         );
         if (!findDefaultsBlock(workspace)) {

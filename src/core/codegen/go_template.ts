@@ -26,7 +26,6 @@ import {
   XML_TEXT_INPUT,
   type XmlNamespaceDecl,
 } from "../xml_shape.ts";
-import { upgradeXmlBlocklyState } from "../xml_upgrade.ts";
 
 export interface GoEmitContext {
   /** When set, relative xpath paths evaluate against the loop item (`.`). */
@@ -67,10 +66,10 @@ function generateFromSlots(model: MappingModel): string {
 }
 
 function generateFromBlockly(blocklyState: unknown, _model: MappingModel): string {
-  const upgraded = upgradeXmlBlocklyState(
-    JSON.parse(JSON.stringify(blocklyState)),
-  ) as { blocks?: { blocks?: unknown[] } };
-  const blocks = upgraded?.blocks?.blocks;
+  const snapshot = JSON.parse(JSON.stringify(blocklyState)) as {
+    blocks?: { blocks?: unknown[] };
+  };
+  const blocks = snapshot?.blocks?.blocks;
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return generateFromSlots(_model);
   }
@@ -619,13 +618,7 @@ function emitXmlElement(block: BlockNode, ctx: GoEmitContext): string[] {
   let current: BlockNode | undefined = block.inputs?.[XML_CHILDREN_INPUT]?.block ??
     (block.inputs?.[XML_ATTRIBUTES_INPUT] || text ? undefined : firstChildStatement(block));
   while (current) {
-    if (current.type === "xml_attribute") {
-      attrParts.push(emitXmlAttribute(current, ctx));
-    } else if (current.type === "xml_text" || current.type === "xml_cdata") {
-      inner.push(...emitXmlTextish(current, ctx));
-    } else {
-      inner.push(...emitBlock(current, ctx));
-    }
+    inner.push(...emitBlock(current, ctx));
     current = current.next?.block;
   }
 

@@ -418,7 +418,7 @@ Deno.test("procedures_callreturn is recorded as an escape hatch, not a silent dr
 Deno.test("schema optional fields are marked optional on targetSignature", () => {
   ensure();
   const xsd = Deno.readTextFileSync(
-    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(import.meta.dirname!, "./fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const target = getTargetFormatHandler("xml-schema").load("edit01.xsd", xsd);
   const workspace = new Blockly.Workspace();
@@ -449,7 +449,7 @@ Deno.test("schema optional fields are marked optional on targetSignature", () =>
 Deno.test("lung-MDT fixture Blockly extracts unsupported Remove types and round-trips", () => {
   ensure();
   const xsd = Deno.readTextFileSync(
-    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(import.meta.dirname!, "./fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const target = getTargetFormatHandler("xml-schema").load("edit01.xsd", xsd);
   const workspace = new Blockly.Workspace();
@@ -463,7 +463,7 @@ Deno.test("lung-MDT fixture Blockly extracts unsupported Remove types and round-
   );
   const mapping = JSON.parse(
     Deno.readTextFileSync(
-      join(import.meta.dirname!, "../examples/lung-MDT-form/mapping/mapping.blockly.json"),
+      join(import.meta.dirname!, "./fixtures/lung-MDT-form/mapping/mapping.blockly.json"),
     ),
   );
   Blockly.serialization.workspaces.load(mapping, workspace);

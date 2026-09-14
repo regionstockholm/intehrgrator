@@ -5,12 +5,18 @@ import {
   parseExampleSetCatalog,
   resolveCatalogUri,
 } from "@intehrgrator/core/example_sets/mod.ts";
+import { toFetchableUrl } from "@intehrgrator/host/fetch_url.ts";
 import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
-const examplesDir = join(root, "examples");
+const catalogPath = join(root, "examples", "example-sets.json");
+const fixturesDir = join(root, "test", "fixtures");
 const catalogBase = "https://app.test/examples/example-sets.json";
+const ghFixturesBlob =
+  "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/";
+const ghFixturesRaw =
+  "https://raw.githubusercontent.com/regionstockholm/intehrgrator/main/test/fixtures/";
 
 function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
@@ -31,15 +37,23 @@ function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   };
 }
 
-async function readExample(rel: string): Promise<string> {
-  return await Deno.readTextFile(join(examplesDir, rel));
+async function readCatalog(): Promise<string> {
+  return await Deno.readTextFile(catalogPath);
 }
 
-async function dummyFiles(): Promise<Record<string, { name: string; text: string }>> {
+async function readFixture(rel: string): Promise<string> {
+  return await Deno.readTextFile(join(fixturesDir, rel));
+}
+
+function fixtureUrl(rel: string): string {
+  return toFetchableUrl(`${ghFixturesBlob}${rel}`);
+}
+
+async function stubbedCatalogFiles(): Promise<Record<string, { name: string; text: string }>> {
   const files: Record<string, { name: string; text: string }> = {
     [catalogBase]: {
       name: "example-sets.json",
-      text: await readExample("example-sets.json"),
+      text: await readCatalog(),
     },
   };
   const parts = [
@@ -57,16 +71,18 @@ async function dummyFiles(): Promise<Record<string, { name: string; text: string
     "patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
     "patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt",
     "TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+    "lung-MDT-form/mapping/mapping.blockly.json",
+    "lung-MDT-form/defaults.map.json",
   ];
   for (const part of parts) {
-    const url = new URL(part, "https://app.test/examples/").href;
-    files[url] = { name: part.split("/").pop()!, text: await readExample(part) };
+    const url = fixtureUrl(part);
+    files[url] = { name: part.split("/").pop()!, text: await readFixture(part) };
   }
   return files;
 }
 
-Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL", async () => {
-  const text = await readExample("example-sets.json");
+Deno.test("parseExampleSetCatalog resolves fixture URIs to GitHub raw URLs", async () => {
+  const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);
   assertEquals(catalog.sets.length, 6);
   const vitals = catalog.sets[0]!;
@@ -75,17 +91,17 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
   assertEquals(vitals.defaults, undefined);
   assertEquals(
     vitals.source.schema,
-    "https://app.test/examples/dummy-json-vitals/source.schema.json",
+    `${ghFixturesRaw}dummy-json-vitals/source.schema.json`,
   );
   assertEquals(vitals.source.instances.length, 2);
   const mapped = catalog.sets[1]!;
   assertEquals(
     mapped.mapping,
-    "https://app.test/examples/dummy-json-vitals/mapping.blockly.json",
+    `${ghFixturesRaw}dummy-json-vitals/mapping.blockly.json`,
   );
   assertEquals(
     mapped.defaults,
-    "https://app.test/examples/dummy-json-vitals/defaults.map.json",
+    `${ghFixturesRaw}dummy-json-vitals/defaults.map.json`,
   );
   const obx = catalog.sets.find((set) => set.id === "obx-mhv1-unmapped-json-to-openehr");
   if (!obx) throw new Error("expected OBX MHV1 example set");
@@ -94,12 +110,12 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
   assertEquals(obx.defaults, undefined);
   assertEquals(
     obx.source.schema,
-    "https://app.test/examples/Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
+    `${ghFixturesRaw}Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json`,
   );
   assertEquals(obx.source.instances.length, 3);
   assertEquals(
     obx.source.instances[0],
-    "https://app.test/examples/Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
+    `${ghFixturesRaw}Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json`,
   );
   assertEquals(
     obx.target,
@@ -110,22 +126,22 @@ Deno.test("parseExampleSetCatalog resolves relative URIs against the catalog URL
   assertEquals(chemo.source.schema, undefined);
   assertEquals(
     chemo.target,
-    "https://app.test/examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+    `${ghFixturesRaw}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
   );
   assertEquals(chemo.source.instances.length, 5);
   assertEquals(
     chemo.mapping,
-    "https://app.test/examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+    `${ghFixturesRaw}patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json`,
   );
   const lung = catalog.sets.find((set) => set.id === "lung-mdt-form-to-tc-xml");
   if (!lung) throw new Error("expected lung-MDT example set");
   assertEquals(
     lung.target,
-    "https://app.test/examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+    `${ghFixturesRaw}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
   );
   assertEquals(
     lung.mapping,
-    "https://app.test/examples/lung-MDT-form/mapping/mapping.blockly.json",
+    `${ghFixturesRaw}lung-MDT-form/mapping/mapping.blockly.json`,
   );
 });
 
@@ -146,7 +162,7 @@ Deno.test("resolveCatalogUri keeps absolute https URIs", () => {
 });
 
 Deno.test("controller loads a dummy example set from catalog URIs", async () => {
-  const files = await dummyFiles();
+  const files = await stubbedCatalogFiles();
   const requested: string[] = [];
   const controller = new WorkbenchController(stubHost({
     fetchTextUrl: (url) => {
@@ -171,7 +187,7 @@ Deno.test("controller loads a dummy example set from catalog URIs", async () => 
 });
 
 Deno.test("controller loads optional Blockly mapping from the catalog", async () => {
-  const files = await dummyFiles();
+  const files = await stubbedCatalogFiles();
   const controller = new WorkbenchController(stubHost({
     fetchTextUrl: (url) => {
       const file = files[url];
@@ -193,7 +209,7 @@ Deno.test("controller loads optional Blockly mapping from the catalog", async ()
 });
 
 Deno.test("controller loads chemo FLAT example set with TakeCare XSD target", async () => {
-  const files = await dummyFiles();
+  const files = await stubbedCatalogFiles();
   const controller = new WorkbenchController(stubHost({
     fetchTextUrl: (url) => {
       const file = files[url];

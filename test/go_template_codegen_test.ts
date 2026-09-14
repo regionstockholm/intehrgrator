@@ -277,7 +277,7 @@ Deno.test("Go template Output mode with empty code returns error", () => {
 Deno.test("chemo symptoms Blockly loads on TakeCare schema blocks", () => {
   initBlocklyGenerators();
   const xsd = Deno.readTextFileSync(
-    join(root, "examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(root, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const target = getTargetFormatHandler("xml-schema").load(
     "TakeCare-CasenoteWrite-edit01.xsd",
@@ -285,7 +285,7 @@ Deno.test("chemo symptoms Blockly loads on TakeCare schema blocks", () => {
   );
   registerSchemaBlocksFromSkeleton(target.skeleton);
   const text = Deno.readTextFileSync(
-    join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
   );
   const state = JSON.parse(text);
   const ws = new Blockly.Workspace();
@@ -315,7 +315,7 @@ Deno.test("chemo symptoms Blockly loads on TakeCare schema blocks", () => {
 
 Deno.test("chemo symptoms Blockly generates TakeCare XML Go template", () => {
   const text = Deno.readTextFileSync(
-    join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
   );
   const blocklyState = JSON.parse(text);
   const model = createEmptyModel("chemo-symptoms");
@@ -353,16 +353,16 @@ Deno.test("Go template WASM executes index/Parameters and the chemo mapping", as
 
   const blocklyState = JSON.parse(
     Deno.readTextFileSync(
-      join(root, "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+      join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
     ),
   );
   const defaults = JSON.parse(
     Deno.readTextFileSync(
-      join(root, "examples/patient-reported-chemotherapy-symptoms/defaults.map.json"),
+      join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/defaults.map.json"),
     ),
   ) as Record<string, unknown>;
   const source = Deno.readTextFileSync(
-    join(root, "examples/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
   );
   const result = runTest(createEmptyModel("chemo-symptoms"), source, "json", {
     outputMode: "go-template",
@@ -451,7 +451,7 @@ Deno.test("go-template JSON walker emits expression value blocks without unsuppo
 Deno.test("Go template Test Run uses instance Parameters when no defaults overlay", async () => {
   await ensureGoTemplateWasm();
   const source = Deno.readTextFileSync(
-    join(root, "examples/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
   );
   const result = runTest(createEmptyModel("chemo-symptoms"), source, "json", {
     outputMode: "go-template",

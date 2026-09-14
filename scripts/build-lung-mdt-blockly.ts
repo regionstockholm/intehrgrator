@@ -1,5 +1,5 @@
 /**
- * Build examples/lung-MDT-form/mapping/mapping.blockly.json from the
+ * Build test/fixtures/lung-MDT-form/mapping/mapping.blockly.json from the
  * TakeCare XSD + the production Handlebars mapping script.
  *
  *   deno run -A scripts/build-lung-mdt-blockly.ts
@@ -241,14 +241,14 @@ export function buildLungMdtWorkspace(
 
 if (import.meta.main) {
   const xsd = Deno.readTextFileSync(
-    join(rootDir, "examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(rootDir, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const script = Deno.readTextFileSync(
-    join(rootDir, "examples/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt"),
+    join(rootDir, "test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt"),
   );
   const workspace = buildLungMdtWorkspace(xsd, script);
   const state = Blockly.serialization.workspaces.save(workspace);
-  const out = join(rootDir, "examples/lung-MDT-form/mapping/mapping.blockly.json");
+  const out = join(rootDir, "test/fixtures/lung-MDT-form/mapping/mapping.blockly.json");
   Deno.writeTextFileSync(out, `${JSON.stringify(state, null, 2)}\n`);
   workspace.dispose();
   console.log(`Wrote ${out}`);

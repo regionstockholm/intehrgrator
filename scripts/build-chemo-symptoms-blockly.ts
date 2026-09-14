@@ -1,5 +1,5 @@
 /**
- * Build examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json
+ * Build test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json
  * from TakeCare-CasenoteWrite-edit01.xsd + Mappningsscript 1.9.1 - PROD.txt.
  *
  *   deno run -A scripts/build-chemo-symptoms-blockly.ts
@@ -573,10 +573,10 @@ export function buildChemoSymptomsWorkspace(xsd: string, script: string): Blockl
 
 if (import.meta.main) {
   const xsd = Deno.readTextFileSync(
-    join(rootDir, "examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(rootDir, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const script = Deno.readTextFileSync(
-    join(rootDir, "examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt"),
+    join(rootDir, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt"),
   );
   const prodIds = extractProdTermIds(script);
   const specIds = CHEMO_KEYWORDS.map((k) => k.termId);
@@ -601,7 +601,7 @@ if (import.meta.main) {
   }
   const out = join(
     rootDir,
-    "examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+    "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
   );
   Deno.writeTextFileSync(out, `${JSON.stringify(state, null, 2)}\n`);
   workspace.dispose();

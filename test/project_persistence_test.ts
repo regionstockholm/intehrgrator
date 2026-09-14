@@ -102,10 +102,10 @@ async function loadBpWorkspace(controller: WorkbenchController): Promise<void> {
     join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
   );
   const schema = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
   );
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
   );
   controller.loadTemplateContent("blood_pressure.opt", opt);
   controller.loadSchemaContent("bp_source_schema.json", schema);
@@ -207,7 +207,7 @@ Deno.test("URL load records GitHub template URLs into project-scoped history", a
   const host = memoryHost({
     fetchTextUrl: async (url) => {
       const schema = await Deno.readTextFile(
-        join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+        join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
       );
       return { name: "bp.json", text: schema };
     },

@@ -52,8 +52,8 @@ Unit tests remain `deno task test` (no browser).
 | File | Use |
 |------|-----|
 | `test/fixtures/blood_pressure.opt` | Target Template Skeleton |
-| `test/fixtures/ui/bp_source_schema.json` | Source Schema |
-| `test/fixtures/ui/bp_example.json` | Active Example (`systolic: 120`) |
+| `test/fixtures/dummy-json-vitals/source.schema.json` | Source Schema |
+| `test/fixtures/dummy-json-vitals/instance-1.json` | Active Example (`systolic: 120`) |
 
 Primary scenarios map systolic (`…/items/at0004/value/value/value`) → `$.systolic` and expect Test Run slot value `120`:
 

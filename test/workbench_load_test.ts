@@ -29,10 +29,10 @@ Deno.test("controller loads template/schema/example from content", async () => {
     join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
   );
   const schema = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
   );
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
   );
 
   const controller = new WorkbenchController(stubHost());
@@ -71,7 +71,7 @@ Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", asy
     join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
   );
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
   );
 
   const controller = new WorkbenchController(stubHost());
@@ -102,7 +102,7 @@ Deno.test("Import Suggestions maps systolic and regenerates TypeScript", async (
     join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
   );
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
   );
   const controller = new WorkbenchController(stubHost());
   controller.loadTemplateContent("blood_pressure.opt", opt);
@@ -166,7 +166,7 @@ Deno.test("controller loads JSON Schema target and renders mapped object", () =>
 
 Deno.test("controller loads a local TakeCare XSD (with BOM) as xml-schema target", async () => {
   const xsd = `\uFEFF${await Deno.readTextFile(
-    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(import.meta.dirname!, "./fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   )}`;
   const controller = new WorkbenchController(stubHost());
   controller.loadTargetContent("TakeCare-CasenoteWrite-edit01.xsd", xsd);
@@ -195,7 +195,7 @@ Deno.test("free-form Handlebars target walks source like Kintegrate", () => {
 
 Deno.test("schema drop of JSON Schema document populates the schema tree", async () => {
   const schema = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
   );
   const controller = new WorkbenchController(stubHost());
   await controller.loadSchemaFromDrop({ name: "bp-sche.json", text: schema });
@@ -249,10 +249,10 @@ Deno.test("schema drop of truncated JSON reports an error instead of staying sil
 
 Deno.test("controller loads schema, example, and target from URL via host", async () => {
   const schema = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_source_schema.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
   );
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
   );
   const opt = await Deno.readTextFile(
     join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),

@@ -221,7 +221,7 @@ Offer a “show missing combinations” action for Boolean/enum columns. Skip it
 - Bake table rows into Generated Export as the only mode (contradicts ADR 0005 for site-editable grids). Flattened `if`s are an *adapter fallback*, not the store.
 - Expect tables alone to replace Handlebars/Go template for long-form narrative.
 - Require full DMN/FEEL in the first slices — hit-policy *ideas* are enough. **DMN XML import/export** is a later [archived ROADMAP §C](../historical-archive/ROADMAP.md) item, after internal table JSON is stable.
-- Rewrite or replace [`examples/lung-MDT-form/`](../../examples/lung-MDT-form/) or catalog id `lung-mdt-form-to-tc-xml`. The decision-table mapping is a **sibling Example Set**.
+- Rewrite or replace [`test/fixtures/lung-MDT-form/`](../../test/fixtures/lung-MDT-form/) or catalog id `lung-mdt-form-to-tc-xml`. The decision-table mapping is a **sibling Example Set**.
 
 ---
 
@@ -238,16 +238,16 @@ Offer a “show missing combinations” action for Boolean/enum columns. Skip it
 
 ## Alternative Example Set: lung-MDT decision tables
 
-**Do not modify** [`examples/lung-MDT-form/`](../../examples/lung-MDT-form/). That set is the production Handlebars reconstruction (`lung-mdt-form-to-tc-xml` in [`examples/example-sets.json`](../../examples/example-sets.json)): TakeCare schema blocks, outer `controls_if`, original Note bodies in `text_code`. Tests (`test/takecare_schema_blocks_test.ts`) pin that Blockly JSON to the PROD script.
+**Do not modify** [`test/fixtures/lung-MDT-form/`](../../test/fixtures/lung-MDT-form/). That set is the production Handlebars reconstruction (`lung-mdt-form-to-tc-xml` in [`examples/example-sets.json`](../../examples/example-sets.json)): TakeCare schema blocks, outer `controls_if`, original Note bodies in `text_code`. Tests (`test/takecare_schema_blocks_test.ts`) pin that Blockly JSON to the PROD script.
 
 Instead, **analyse the PROD script and add a sibling Example Set** that keeps the same target, Defaults Map, and (when they exist) source instances, but authors the *combinational* Note logic as decision tables.
 
-**Layout (adopted 2026-09-08, option A):** new directory `examples/lung-MDT-form-decision-tables/` holds only the new mapping (+ a short README). Catalog URIs reuse the existing TakeCare XSD, Defaults Map, and PROD script. Do not add a catalog stub that points at a missing mapping file; create the directory when the decision-table construct can actually author it.
+**Layout (adopted 2026-09-08, option A):** new directory `test/fixtures/lung-MDT-form-decision-tables/` holds only the new mapping (+ a short README). Catalog URIs reuse the existing TakeCare XSD, Defaults Map, and PROD script. Do not add a catalog stub that points at a missing mapping file; create the directory when the decision-table construct can actually author it.
 
 | Keep untouched | New (adopted) |
 |----------------|----------------|
 | Catalog id `lung-mdt-form-to-tc-xml` | `lung-mdt-form-to-tc-xml-decision-tables` |
-| `examples/lung-MDT-form/` (all files) | `examples/lung-MDT-form-decision-tables/mapping/mapping.blockly.json` + README |
+| `test/fixtures/lung-MDT-form/` (all files) | `test/fixtures/lung-MDT-form-decision-tables/mapping/mapping.blockly.json` + README |
 | `Mappningsscript XML 3.2.0 (PROD).txt` (gold Handlebars) | Same file referenced as **expected** Conversion Test Run text — do not fork the script |
 | `defaults.map.json`, TakeCare XSD | Catalog URIs pointing at those existing files |
 | QA script `3.2.1` | Out of scope unless a difference is table-relevant |
@@ -258,7 +258,7 @@ Success criterion: on the same Active Example, keyword `TermId`s and `Note` stri
 
 ### What the PROD script is doing (analysis)
 
-Source: [`examples/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt`](../../examples/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt). Each TakeCare keyword is a `TermId` plus a `Note`. Simple keywords (participants, current situation, comorbidity, ECOG, screening, SVF) are passthrough — leave those as `source_query` / `text_code`. The tables earn their keep on the rest.
+Source: [`test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt`](../../test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt). Each TakeCare keyword is a `TermId` plus a `Note`. Simple keywords (participants, current situation, comorbidity, ECOG, screening, SVF) are passthrough — leave those as `source_query` / `text_code`. The tables earn their keep on the rest.
 
 #### 1. Imaging modality → TermId **value** + shared Note **snippet** (FIRST)
 
@@ -339,7 +339,7 @@ Repeats for undersökningstyp, kroppsställe, ingreppsmetod: prefer `|other|` if
 ### How to build it (when the construct exists)
 
 1. Inventory every `#if (eq` / `#if (and` / `#if (or` in the PROD script; classify as passthrough, FIRST table, or COLLECT.
-2. Copy the current Blockly envelope (ProfdocHISMessage + Defaults Map lookups) into `examples/lung-MDT-form-decision-tables/mapping/mapping.blockly.json`; **do not** run `scripts/build-lung-mdt-blockly.ts` over the original (that script *is* the current set).
+2. Copy the current Blockly envelope (ProfdocHISMessage + Defaults Map lookups) into `test/fixtures/lung-MDT-form-decision-tables/mapping/mapping.blockly.json`; **do not** run `scripts/build-lung-mdt-blockly.ts` over the original (that script *is* the current set).
 3. Replace the imaging and treatment `text_code` Notes with `decision_table` eval blocks + Sheets-tab grids; keep `text_handlebars` / `text_code` only as snippet interpolators.
 4. Golden-test Note text against Handlebars execution of the untouched PROD script on shared instances.
 5. Leave `test/takecare_schema_blocks_test.ts` asserting the **original** mapping still uses schema blocks and still round-trips the PROD keyword list.
@@ -352,11 +352,11 @@ Resolved 2026-09-07:
 
 1. **Scope C** — both multi-condition values and narrative; first slice can still be multi-column lookup / FIRST tables; COLLECT + snippet columns land with the lung-MDT sibling Example Set.
 2. **Mixed outputs** — a row may emit values *and* template snippets depending on inputs (imaging TermId + Note; connector phrase + lowered type).
-3. **Fixture** — new Example Set beside `examples/lung-MDT-form/`; never overwrite that directory or its catalog id.
+3. **Fixture** — new Example Set beside `test/fixtures/lung-MDT-form/`; never overwrite that directory or its catalog id.
 
 Resolved 2026-09-08:
 
-4. **Sibling layout A** — `examples/lung-MDT-form-decision-tables/` for mapping + README only; catalog id `lung-mdt-form-to-tc-xml-decision-tables`; reuse XSD / Defaults Map / PROD script by URI. No empty catalog entry until the mapping exists.
+4. **Sibling layout A** — `test/fixtures/lung-MDT-form-decision-tables/` for mapping + README only; catalog id `lung-mdt-form-to-tc-xml-decision-tables`; reuse XSD / Defaults Map / PROD script by URI. No empty catalog entry until the mapping exists.
 5. **First slice A** — ship **multi-column equality `sheet_lookup`** (still a Sheet, convert-time bag unchanged) before a separately named Decision table. Promote a grid to `kind: decision-table` when predicate cells, don't-care, mixed value/snippet outputs, or a hit policy other than first-match are needed. Lung-MDT sibling set waits on that promotion (imaging TermId + Note snippets are not equality-only).
 6. **DMN A (now)** — do not implement import/export until the internal decision-table JSON is stable. **Parked** on [archived ROADMAP §C](../historical-archive/ROADMAP.md) and Chunk 8 later-items in [TASKS-roadmap-chunks.md](../historical-archive/TASKS-roadmap-chunks.md) so it is not forgotten. Still no FEEL.
 

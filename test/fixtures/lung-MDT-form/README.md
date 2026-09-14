@@ -7,7 +7,7 @@ The production conversion script is Handlebars
 (`mapping/Mappningsscript XML 3.2.0 (PROD).txt`). The Blockly mapping in
 `mapping/mapping.blockly.json` rebuilds that script on **schema-generated
 TakeCare blocks** (`schema_ProfdocHISMessage`, `schema_TextKeyWord`, …) from
-`examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic `xml_element`
+`test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic `xml_element`
 blocks.
 
 | File | Description |

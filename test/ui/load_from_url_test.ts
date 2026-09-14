@@ -16,7 +16,7 @@ Deno.test({
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
-    const schema = await fixtureText("test/fixtures/ui/bp_source_schema.json");
+    const schema = await fixtureText("test/fixtures/dummy-json-vitals/source.schema.json");
     const browser = await chromium.launch({ headless: true });
     try {
       const page = await browser.newPage();

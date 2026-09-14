@@ -395,7 +395,7 @@ Deno.test("projectBlocklyState flattens xml_attribute to @name on the value", ()
 Deno.test("chemo TakeCare mapping spec omits Blockly JSON chrome and nested AND rows", async () => {
   const raw = await Deno.readTextFile(
     new URL(
-      "../examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+      "./fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
       import.meta.url,
     ),
   );

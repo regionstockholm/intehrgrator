@@ -147,3 +147,9 @@ Deno.test("recommendedPopupMessage names the bleeding-edge build", () => {
     "You are using the bleeding-edge build (updated on every change to main), not the recommended stable version (v0.7).",
   );
 });
+
+Deno.test("recommended-version dialog links open in the same tab", async () => {
+  const html = await Deno.readTextFile(new URL("../web/index.html", import.meta.url));
+  const dialog = html.split('id="dialog-recommended-version"')[1]?.split("</dialog>")[0] ?? "";
+  assertEquals(dialog.includes("target=\"_blank\""), false);
+});

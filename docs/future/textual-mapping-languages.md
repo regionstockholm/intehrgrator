@@ -22,7 +22,7 @@ _Contradicts ADR 0001 if a new language becomes canonical persistence._ Worth re
 
 ## What the example sets actually need
 
-The catalog in `examples/example-sets.json` is two different jobs:
+The catalog in `examples/example-sets.json` (assets under `test/fixtures/`) is two different jobs:
 
 | Example set | Shape of the mapping | Compact text analog |
 |-------------|----------------------|---------------------|

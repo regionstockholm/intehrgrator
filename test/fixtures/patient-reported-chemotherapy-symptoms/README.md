@@ -7,7 +7,7 @@ into TakeCare `ProfdocHISMessage` XML.
 
 The Blockly mapping uses **schema-generated TakeCare blocks**
 (`schema_ProfdocHISMessage`, `schema_TextKeyWord`, `schema_NumericKeyword`, …)
-from `examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic
+from `test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic
 `xml_element` blocks. Complex `<Note>` bodies stay as `text_code`
 (LANG=`go-template`) copied from the production script, including
 `{{ template "cleanAndQuoteFreeTextInput" … }}`.

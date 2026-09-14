@@ -71,7 +71,7 @@ Deno.test("copyWorkspaceState round-trips JSON Schema target_structure children"
   registerTargetBlocks();
   registerMapBlocks();
   const schema = await Deno.readTextFile(
-    join(import.meta.dirname!, "../examples/dummy-json-vitals/target.schema.json"),
+    join(import.meta.dirname!, "./fixtures/dummy-json-vitals/target.schema.json"),
   );
   const target = getTargetFormatHandler("json-schema").load("target.schema.json", schema);
   const primary = new Blockly.Workspace();

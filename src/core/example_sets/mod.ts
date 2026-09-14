@@ -2,17 +2,18 @@
  * Example-set catalog: complete bundles of source schema + instances, target,
  * and optional Blockly mapping, loaded by URI.
  *
- * The catalog JSON is maintained by ehrtslib developers. Relative URIs in a
- * catalog resolve against that catalog's URL.
+ * Bundled catalog lives at {@link BUNDLED_EXAMPLE_SETS_PATH}. Asset files live
+ * under `test/fixtures/` and are referenced by absolute GitHub blob URLs.
+ * Relative URIs in a catalog still resolve against that catalog's URL.
  */
 
 import { assertHttpUrl, toFetchableUrl } from "../../host/fetch_url.ts";
 
-/** Bundled dummy catalog shipped with the Web Shell (fallback / first instance). */
+/** Bundled catalog shipped with the Web Shell (fallback / first instance). */
 export const BUNDLED_EXAMPLE_SETS_PATH = "examples/example-sets.json";
 
 /**
- * Canonical catalog location once ehrtslib publishes it.
+ * Optional ehrtslib catalog URL once published there.
  * Until that file exists, the Web Shell falls back to {@link BUNDLED_EXAMPLE_SETS_PATH}.
  */
 export const EHRTSLIB_EXAMPLE_SETS_CATALOG_URL =

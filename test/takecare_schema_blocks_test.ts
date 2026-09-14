@@ -29,7 +29,7 @@ const STATEMENT_INPUT = 3;
 
 function readEdit01(): string {
   return Deno.readTextFileSync(
-    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(import.meta.dirname!, "./fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
 }
 
@@ -223,7 +223,7 @@ Deno.test("lung-MDT Blockly mapping uses TakeCare schema blocks, not generic XML
     "../scripts/build-lung-mdt-blockly.ts"
   );
   const script = await Deno.readTextFile(
-    join(import.meta.dirname!, "../examples/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt"),
+    join(import.meta.dirname!, "./fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt"),
   );
   const extracted = extractTakeCareKeywords(script);
   assertEquals(extracted.filter((item) => item.kind === "TextKeyWord").length, 17);
@@ -231,7 +231,7 @@ Deno.test("lung-MDT Blockly mapping uses TakeCare schema blocks, not generic XML
 
   const mapping = JSON.parse(
     await Deno.readTextFile(
-      join(import.meta.dirname!, "../examples/lung-MDT-form/mapping/mapping.blockly.json"),
+      join(import.meta.dirname!, "./fixtures/lung-MDT-form/mapping/mapping.blockly.json"),
     ),
   ) as { blocks?: { blocks?: Array<{ type?: string }> } };
   const types: string[] = [];
@@ -273,7 +273,7 @@ Deno.test("chemo-symptoms Blockly mapping covers every PROD TermId on schema blo
   const script = await Deno.readTextFile(
     join(
       import.meta.dirname!,
-      "../examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt",
+      "./fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt",
     ),
   );
   assertEquals(
@@ -295,7 +295,7 @@ Deno.test("chemo-symptoms Blockly mapping covers every PROD TermId on schema blo
     await Deno.readTextFile(
       join(
         import.meta.dirname!,
-        "../examples/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+        "./fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
       ),
     ),
   ) as { blocks?: { blocks?: Array<{ type?: string }> } };

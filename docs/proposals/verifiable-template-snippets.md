@@ -34,8 +34,8 @@ Handlebars is Mustache plus **helpers** (arbitrary JS). Compile-time `knownHelpe
 
 ## 2. Lung-MDT Handlebars — what they actually use
 
-- [`examples/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt`](../../examples/lung-MDT-form/mapping/Mappningsscript%20XML%203.2.0%20(PROD).txt)
-- [`examples/lung-MDT-form/mapping/Mappningsscript XML 3.2.1 (QA).txt`](../../examples/lung-MDT-form/mapping/Mappningsscript%20XML%203.2.1%20(QA).txt)
+- [`test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt`](../../test/fixtures/lung-MDT-form/mapping/Mappningsscript%20XML%203.2.0%20(PROD).txt)
+- [`test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.1 (QA).txt`](../../test/fixtures/lung-MDT-form/mapping/Mappningsscript%20XML%203.2.1%20(QA).txt)
 
 **Not used:** `#with`, `lookup`, `#log`, partials, `{{{}}}`, `json`, unregistered helpers, lambdas.
 
@@ -74,8 +74,8 @@ intEHRgrator already ships a **curated** FuncMap (`replace`, `regexReplaceAll`, 
 
 PROD and XC are the same dialect (TermId / comment copy differs):
 
-- [`examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt`](../../examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript%201.9.1%20-%20PROD.txt)
-- [`examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - XC.txt`](../../examples/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript%201.9.1%20-%20XC.txt)
+- [`test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt`](../../test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript%201.9.1%20-%20PROD.txt)
+- [`test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - XC.txt`](../../test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript%201.9.1%20-%20XC.txt)
 
 **Not used (after stripping `{{/* */}}` comments):** `call`, `with`, `range`, `break`/`continue`, `block`, Helm `include` (only in a usage comment), `html`/`js`/`printf`, `$x =` reassignment.
 

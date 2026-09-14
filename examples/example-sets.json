@@ -1,5 +1,5 @@
 {
-  "$comment": "intEHRgrator example-set catalog. Canonical home is ehrtslib (ErikSundvall/ehrtslib examples/). Relative URIs resolve against this file's URL. This is a dummy first instance.",
+  "$comment": "intEHRgrator example-set catalog. Asset URIs point at GitHub files under test/fixtures (blob URLs; the host rewrites them to raw.githubusercontent.com). Relative URIs still resolve against this file's URL if added later. Canonical long-term home may move to ehrtslib.",
   "version": 1,
   "sets": [
     {
@@ -7,27 +7,27 @@
       "title": "Dummy vitals example (Source: JSON Schema, Target: JSON Schema)",
       "description": "Minimal JSON Schema source, two valid instances, and a JSON Schema target. No mapping.",
       "source": {
-        "schema": "./dummy-json-vitals/source.schema.json",
+        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/source.schema.json",
         "instances": [
-          "./dummy-json-vitals/instance-1.json",
-          "./dummy-json-vitals/instance-2.json"
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/instance-1.json",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/instance-2.json"
         ]
       },
-      "target": "./dummy-json-vitals/target.schema.json"
+      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/target.schema.json"
     },
     {
       "id": "dummy-json-vitals-mapped",
       "title": "Dummy vitals with mapping",
       "description": "Same dummy files plus a stub Blockly mapping and a Defaults Map.",
       "source": {
-        "schema": "./dummy-json-vitals/source.schema.json",
+        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/source.schema.json",
         "instances": [
-          "./dummy-json-vitals/instance-1.json"
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/instance-1.json"
         ]
       },
-      "target": "./dummy-json-vitals/target.schema.json",
-      "mapping": "./dummy-json-vitals/mapping.blockly.json",
-      "defaults": "./dummy-json-vitals/defaults.map.json"
+      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/target.schema.json",
+      "mapping": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/mapping.blockly.json",
+      "defaults": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/defaults.map.json"
     },
     {
       "id": "Simple-vitals",
@@ -48,11 +48,11 @@
       "title": "OBX MHV1, unmapped, JSON --> openEHR",
       "description": "Obstetrix MHV1 JSON Schema and three maternity-care registration instances, targeting the MHV1 Prenatal visit openEHR template. The template is a GitHub .t.json (dependencies fetched from the same branch). No mapping.",
       "source": {
-        "schema": "./Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
+        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
         "instances": [
-          "./Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
-          "./Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
-          "./Obstetrix-MHV1/source-instance/3-komplex-mhv3.json"
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-instance/3-komplex-mhv3.json"
         ]
       },
       "target": "https://github.com/regionstockholm/CKM-mirror-via-modellbibliotek/blob/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json"
@@ -63,16 +63,16 @@
       "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd). Rebuilds Mappningsscript 1.9.1 PROD: all TextKeyWord/NumericKeyword TermIds, the no-symptom 16183 branch, free-text helper, and Defaults Map header parameters. Select Go Template output mode to see generated Go text/template code.",
       "source": {
         "instances": [
-          "./patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
-          "./patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
-          "./patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
-          "./patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
-          "./patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt"
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
+          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt"
         ]
       },
-      "target": "./TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
-      "mapping": "./patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
-      "defaults": "./patient-reported-chemotherapy-symptoms/defaults.map.json"
+      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+      "mapping": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+      "defaults": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/defaults.map.json"
     },
     {
       "id": "lung-mdt-form-to-tc-xml",
@@ -81,9 +81,9 @@
       "source": {
         "instances": []
       },
-      "target": "./TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
-      "mapping": "./lung-MDT-form/mapping/mapping.blockly.json",
-      "defaults": "./lung-MDT-form/defaults.map.json"
+      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+      "mapping": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/lung-MDT-form/mapping/mapping.blockly.json",
+      "defaults": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/lung-MDT-form/defaults.map.json"
     }
   ]
 }

@@ -24,8 +24,8 @@ export async function waitForTestApi(page: Page): Promise<void> {
 
 export async function loadBpFixtures(page: Page): Promise<void> {
   const opt = await fixtureText("test/fixtures/blood_pressure.opt");
-  const schema = await fixtureText("test/fixtures/ui/bp_source_schema.json");
-  const example = await fixtureText("test/fixtures/ui/bp_example.json");
+  const schema = await fixtureText("test/fixtures/dummy-json-vitals/source.schema.json");
+  const example = await fixtureText("test/fixtures/dummy-json-vitals/instance-1.json");
   await page.evaluate(
     ({ opt, schema, example }) => {
       const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })

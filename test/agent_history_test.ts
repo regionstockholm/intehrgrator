@@ -13,7 +13,7 @@ import {
 async function loadBpFixture(service: WorkbenchService): Promise<string> {
   const opt = await Deno.readTextFile(join(import.meta.dirname!, "fixtures", "blood_pressure.opt"));
   const example = await Deno.readTextFile(
-    join(import.meta.dirname!, "fixtures", "ui", "bp_example.json"),
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
   );
   service.loadTemplateContent("blood_pressure.opt", opt);
   service.addExampleContent("bp_example.json", example);

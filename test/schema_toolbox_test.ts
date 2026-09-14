@@ -164,7 +164,7 @@ Deno.test("schema toolbox lists unique complex types in one flyout level", () =>
 
 Deno.test("TakeCare Target schema toolbox is one flat unique-type list", async () => {
   const xsd = await Deno.readTextFile(
-    join(import.meta.dirname!, "../examples/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+    join(import.meta.dirname!, "./fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const target = getTargetFormatHandler("xml-schema").load(
     "TakeCare-CasenoteWrite-edit01.xsd",
@@ -232,7 +232,7 @@ Deno.test("dummy-json-vitals fixture keeps mandatory vitals scaffold", async () 
   registerTargetBlocks();
   registerMapBlocks();
   const schemaText = await Deno.readTextFile(
-    join(import.meta.dirname!, "../examples/dummy-json-vitals/target.schema.json"),
+    join(import.meta.dirname!, "./fixtures/dummy-json-vitals/target.schema.json"),
   );
   const target = getTargetFormatHandler("json-schema").load("target.schema.json", schemaText);
   const workspace = new Blockly.Workspace();

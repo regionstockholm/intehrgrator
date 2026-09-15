@@ -103,7 +103,7 @@ In **Target & Previews**, change **Output mode** from Mapping preview to a **con
 
 - TypeScript (executable in Test Run)
 - Java (generated; JVM execution planned)
-- Handlebars (authored template in Test Run), XQuery, and Go Template (generated and executed in Conversion Test Run)
+- Handlebars, XQuery, and Go Template (generated and executed in Conversion Test Run)
 
 **Generated conversion script(s)** shows the code. Download when ready for your integration pipeline.
 

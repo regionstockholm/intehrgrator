@@ -6,7 +6,8 @@ Test Run used to always evaluate Mapping Model slot expressions (ADR 0001). **Ou
 - **TypeScript** — executes the generated Conversion Script with bundled ehrtslib.
 - **Handlebars** (Output mode) — executes the **same Authored Handlebars Template** as Mapping preview (`renderHandlebars` + slot bag). Does **not** execute a generated Handlebars Conversion Script (codegen remains export-only; see grill Q7).
 - **Go Template** — executes the **generated** Go `text/template` script via vendored WASM (`{ Parameters: defaults, Data: source }`). See ADR 0004.
-- **Java / XQuery** — generate a script; execution not implemented yet.
+- **Java** — generates an Archie RM conversion class (`src/core/codegen/java.ts`: Template Skeleton + Mapping Model, `new Composition()` / `new DvQuantity(…)`, sheet/`maps_get` helpers, `for_each_source` streams, `RMObjectValidator` hook). **Not executed** in the Web Shell (no bundled JVM). Optional `javac` against Maven Central Archie jars: `test/java_archie_compile_test.ts`. See [JAVA_EXPORT.md](../JAVA_EXPORT.md).
+- **XQuery** — generate a script and, once the runtime is lazy-loaded, execute it in Conversion Test Run against the Active Example (`$source`, `$defaults`, `$sheets`).
 
 Output mode is session-only and defaults to Mapping preview after load. Generated Export and Test Run output are not persisted in the Project Bundle.
 
@@ -21,8 +22,9 @@ On the **Verifiable Mapping Subset (VMS)**, CI treats these paths as cross-check
 | **Primary execution oracle** | Mapping preview (`runTest` + `outputMode: "preview"`) | Evaluates Mapping Model slots + loops, sheets, and Target format render. Default Test Run truth for authors. |
 | **Cross-check oracle** | Generated TypeScript (`outputMode: "typescript"`) | Executable today via bundled ehrtslib/fontoxpath. Golden tests require normalized clinical output ≡ preview on VMS fixtures (`test/vms_golden_test.ts`). |
 | **Structural postcondition** | ehrtslib `TemplateValidator` | Wired in `validateConvertedOutput()` after preview/TS runs. |
-| **Declarative parity (static)** | XQuery Model B slot manifest | `generate(model, "xquery")` must list the same `slots[]` ids and `loops[]` metadata as the Mapping Model IR; in-app `.xq` execution remains future work. |
-| **Deferred external oracle** | Archie (Java) | Preferred when a Java toolchain is available for independent openEHR validation; not required for current CI. |
+| **Cross-check oracle (XQuery)** | Generated XQuery (`outputMode: "xquery"`) | Lazy-loaded fontoxpath + slimdom in the Web Shell. VMS fixtures compare clinical values with Mapping preview (`test/xquery_runtime_test.ts`, `test/vms_golden_test.ts`). BaseX remains the optional external engine (`docs/agents/xquery-engine.md`). |
+| **Generated Java (static)** | Archie RM conversion class | `generate(model, "java")` emits real RM construction plus an optional `RMObjectValidator` hook. Not a CI execution oracle (Web Shell has no JVM). |
+| **Deferred external oracle** | Archie JVM run | Preferred when a Java toolchain is available to *execute* generated Java and independently validate; not required for current CI. |
 
 When preview and TypeScript disagree on a VMS mapping, treat it as a **mapping bug** (robustness violation per formal-verification-export.md), not an author workflow choice.
 

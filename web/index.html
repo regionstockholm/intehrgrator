@@ -330,7 +330,9 @@
                 <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
                   Mapping preview interprets the mapping without generating a script.
                   Conversion scripts (so far): TypeScript, Java, Handlebars, XQuery, and Go Template.
-                  TypeScript, Handlebars, and Go Template also run in Conversion Test Run.<br>
+                  TypeScript, Handlebars, Go Template, and XQuery also run in Conversion Test Run.
+                  Java generates an Archie class but does not execute in the Web Shell.
+                  For openEHR targets, JSON vs XML instance chooses how XQuery serializes the composition.<br>
                   Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.
                 </span>
               </span>
@@ -342,6 +344,13 @@
                   <option value="handlebars">Handlebars</option>
                   <option value="xquery">XQuery</option>
                   <option value="go-template">Go Template</option>
+                </select>
+              </label>
+              <label class="pane-select-label" id="openehr-instance-shape-wrap" hidden for="openehr-instance-shape">
+                Instance
+                <select id="openehr-instance-shape" title="Desired openEHR instance shape. XQuery export and Test Run use this serialization.">
+                  <option value="json">JSON instance</option>
+                  <option value="xml">XML instance</option>
                 </select>
               </label>
             </div>

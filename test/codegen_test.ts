@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes, assert, assertThrows } from "@std/assert";
+import { assertEquals, assertStringIncludes, assert } from "@std/assert";
 import { join, toFileUrl } from "@std/path";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
@@ -7,7 +7,8 @@ import {
   jsonDollarPathToLookup,
   emitXQueryExpr,
   compileLoopSequence,
-  XQueryExportError,
+  emitJavaExpression,
+  createJavaEmitContext,
 } from "@intehrgrator/core/codegen/mod.ts";
 import { upsertLoop } from "@intehrgrator/core/mapping_model/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
@@ -59,6 +60,108 @@ Deno.test("java codegen structure", () => {
   const model = createEmptyModel("vitals");
   const java = generate(model, "java");
   assertEquals(java.includes("class ConversionScript"), true);
+  assertStringIncludes(java, "package se.regionstockholm.intehrgrator.generated;");
+  assertStringIncludes(java, "com.nedap.archie.rm.composition.Composition");
+});
+
+Deno.test("java expression emit maps xpath, maps_get, and sheet_lookup", () => {
+  const ctx = createJavaEmitContext();
+  assertEquals(
+    emitJavaExpression(parseExpression('xpathNumber("$.systolic")'), ctx),
+    'xpathNumber("$.systolic")',
+  );
+  assertEquals(
+    emitJavaExpression(parseExpression('maps_get("defaults", "language")'), ctx),
+    'defaults.get("language")',
+  );
+  const sheet = emitJavaExpression(
+    parseExpression('sheet_lookup("icd10_snomed", "code", "I10", "snomed")'),
+    ctx,
+  );
+  assertEquals(sheet, 'sheetLookup("icd10_snomed", "code", "I10", "snomed")');
+  assert(ctx.helpers.has("sheets"));
+});
+
+Deno.test("java codegen emits sheetLookup helper for sheet_lookup slots", () => {
+  const model = applyExpressionEdit(
+    createEmptyModel("terms"),
+    "s1",
+    'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
+    { rmType: "DV_TEXT", returnType: "string" },
+  );
+  const java = generate(model, "java");
+  assertStringIncludes(java, "sheetLookup(");
+  assertStringIncludes(java, "class Sheet");
+  assertStringIncludes(java, "Map<String, Sheet> sheets");
+});
+
+Deno.test("java codegen emits for_each_source iteration with relative loop paths", () => {
+  let model = createEmptyModel("pulse-series");
+  model = upsertLoop(model, {
+    attachSlotId: "evt-1",
+    varName: "measurements",
+    path: "$.measurements",
+    kind: "source",
+  });
+  const skeleton = [{
+    slotId: "root",
+    blockType: "observation",
+    rmType: "OBSERVATION",
+    label: "Pulse",
+    kind: "container" as const,
+    mandatory: true,
+    children: [{
+      slotId: "evt-1",
+      blockType: "point_event",
+      rmType: "POINT_EVENT",
+      label: "Sample",
+      kind: "container" as const,
+      rmAttribute: "events",
+      mandatory: true,
+      children: [{
+        slotId: "slot/rate",
+        blockType: "dv_quantity",
+        rmType: "DV_QUANTITY",
+        label: "Rate",
+        kind: "value" as const,
+        rmAttribute: "data",
+        mandatory: true,
+        children: [],
+        fixedFields: { units: "/min" },
+      }],
+    }],
+  }];
+  model = applyExpressionEdit(model, "slot/rate", 'xpathNumber("pulse")', {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+    label: "Rate",
+  });
+  const java = generate(model, "java", { skeleton });
+  assertStringIncludes(java, 'xpathNodes("$.measurements")');
+  assertStringIncludes(java, ".stream().map(measurements ->");
+  assertStringIncludes(java, 'xpathNumber("pulse", measurements)');
+  assertStringIncludes(java, "new PointEvent<>()");
+  assertStringIncludes(java, 'new DvQuantity("/min", xpathNumber("pulse", measurements), null)');
+});
+
+Deno.test("java codegen from BP skeleton emits Archie RM constructors", async () => {
+  const { java, model, skeleton } = await mappedBpJava();
+  assertStringIncludes(java, "public class ConversionScript");
+  assertStringIncludes(java, "new Composition()");
+  assertStringIncludes(java, "new Observation()");
+  assertStringIncludes(java, "new DvQuantity(");
+  assertStringIncludes(java, "xpathNumber");
+  assertStringIncludes(java, "$.systolic");
+  assertStringIncludes(java, "defaults.get(");
+  assertEquals(java.includes("TODO"), false);
+  assertEquals(
+    /\/\/ [^\n]+ = xpath/.test(java),
+    false,
+    "Java export must construct RM objects, not comment-only slot stubs",
+  );
+  assertStringIncludes(java, "RMObjectValidator");
+  assert(model.templateId.length > 0);
+  assert(skeleton.length > 0);
 });
 
 Deno.test("handlebars export target preserves a user-authored template", () => {
@@ -115,25 +218,24 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
     emitXQueryExpr(parseExpression('maps_get("defaults", "language")')),
     '(if ("defaults" eq "defaults") then map:get($defaults, "language") else ())',
   );
-  assertThrows(
-    () => emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
-    XQueryExportError,
-    "$sheets",
+  assertEquals(
+    emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
+    'local:sheet-lookup("t", "code", "I10", "snomed")',
   );
 });
 
-Deno.test("xquery export fails with clear message when slots use sheet accessors", () => {
+Deno.test("xquery export emits $sheets helpers for sheet accessors", () => {
   const model = applyExpressionEdit(
     createEmptyModel("terms"),
     "s1",
     'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
     { rmType: "DV_TEXT", returnType: "string" },
   );
-  assertThrows(
-    () => generate(model, "xquery"),
-    XQueryExportError,
-    "$sheets",
-  );
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "declare variable $sheets");
+  assertStringIncludes(xq, "local:sheet-lookup");
+  assertStringIncludes(xq, "local:decision-table");
+  assertStringIncludes(xq, '"icd10_snomed"');
 });
 
 Deno.test("xquery export emits for_each_source iteration with relative loop paths", () => {
@@ -428,4 +530,10 @@ async function mappedBpTypeScript() {
   }
   const ts = generate(model, "typescript", { skeleton });
   return { model, skeleton, systolic, ts, templateId };
+}
+
+async function mappedBpJava() {
+  const { model, skeleton, systolic, templateId } = await mappedBpTypeScript();
+  const java = generate(model, "java", { skeleton });
+  return { model, skeleton, systolic, java, templateId };
 }

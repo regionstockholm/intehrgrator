@@ -65,8 +65,11 @@ export function registerTargetBlocks(): void {
   defineStructureBlock("json_object", "JSON object", JSON_COLOUR, "Generic JSON object");
   defineStructureBlock("json_array", "JSON array", JSON_COLOUR, "Generic JSON array");
   defineValueBlock("json_value", "JSON value", JSON_COLOUR, "Generic JSON value");
-  defineValueBlock("json_boolean", "JSON boolean", JSON_COLOUR, "Generic JSON boolean");
-  defineValueBlock("json_null", "JSON null", JSON_COLOUR, "Generic JSON null");
+  defineValueBlock("json_boolean", "JSON boolean", JSON_COLOUR, "Generic JSON boolean", {
+    valueCheck: "Boolean",
+  });
+  // Leaf literal — a VALUE socket would imply nested content that null cannot hold.
+  defineValueBlock("json_null", "JSON null", JSON_COLOUR, "JSON null literal", { leaf: true });
 }
 
 export function isSchemaStructureBlock(block: { type: string }): boolean {
@@ -159,6 +162,7 @@ function defineValueBlock(
   defaultName: string,
   colour: string,
   tooltip: string,
+  options?: { valueCheck?: string | null; leaf?: boolean },
 ): void {
   if (Blockly.Blocks[type]) return;
   Blockly.Blocks[type] = {
@@ -166,8 +170,12 @@ function defineValueBlock(
       this.appendDummyInput("HEADER")
         .appendField(new FieldSkeletonTitle("", defaultName), "NAME");
       appendHiddenSerializable(this, "TARGET_TYPE", "");
-      const value = this.appendValueInput("VALUE").setCheck(null);
-      appendSlotLabel(value, "value");
+      if (!options?.leaf) {
+        const value = this.appendValueInput("VALUE").setCheck(
+          options?.valueCheck === undefined ? null : options.valueCheck,
+        );
+        appendSlotLabel(value, "value");
+      }
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "MANDATORY", "");
       this.setPreviousStatement(true);

@@ -5,6 +5,7 @@ import type {
   MappingSlotHatch,
   MappingUnsupportedBlock,
   TargetSignatureNode,
+  OpenEhrInstanceShape,
   OpenEhrJsonDeserializeMode,
   OutputMode,
   OutputValidation,
@@ -43,6 +44,7 @@ import {
   validateModel,
 } from "../core/mapping_model/mod.ts";
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
+import { ensureXQueryRuntime } from "../core/codegen/run_xquery.ts";
 import { runTest } from "../core/test_runner/mod.ts";
 import {
   canonicalSyncPath,
@@ -804,6 +806,7 @@ export class WorkbenchController {
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       skeleton: this.skeleton,
+      instanceShape: this.settings.openEhrInstanceShape,
     });
     void this.host.downloadText(
       `conversion-${safeFilename(this.templateId)}.${adapter.extension}`,
@@ -1082,11 +1085,40 @@ export class WorkbenchController {
     this.outputValidations.clear();
     this.exampleTestResults.clear();
     this.refreshDerived();
+    if (target === "xquery") {
+      void ensureXQueryRuntime()
+        .then(() => {
+          if (this.settings.exportTarget !== "xquery") return;
+          if (this.examples.hasExamples()) this.runAllTests();
+          else this.runTestNow();
+        })
+        .catch((err) => {
+          const detail = err instanceof Error ? err.message : String(err);
+          this.testResult = {
+            ok: false,
+            output:
+              `// XQuery runtime failed to load: ${detail}\n` +
+              `// See docs/agents/xquery-engine.md for the BaseX server-side path.\n`,
+            error: detail,
+            warnings: [],
+          };
+          this.notifyChange();
+        });
+      return;
+    }
     if (this.examples.hasExamples() || (isConversionScriptLanguage(target) && target !== "typescript")) {
       this.runTestNow();
     } else {
       this.notifyChange();
     }
+  }
+
+  setOpenEhrInstanceShape(shape: OpenEhrInstanceShape): void {
+    if (this.settings.openEhrInstanceShape === shape) return;
+    this.settings.openEhrInstanceShape = shape;
+    this.refreshDerived();
+    if (this.examples.hasExamples()) this.runAllTests();
+    else this.notifyChange();
   }
 
   setOpenEhrJsonDeserializeMode(mode: OpenEhrJsonDeserializeMode): void {
@@ -1280,6 +1312,7 @@ export class WorkbenchController {
         handlebarsTemplate: this.handlebarsTemplate,
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
         skeleton: this.skeleton,
+        instanceShape: this.settings.openEhrInstanceShape,
       })
       : "";
   }
@@ -1384,7 +1417,7 @@ export class WorkbenchController {
     example: { content: string; format: SourceFormatId },
   ): TestResult {
     const mode = this.settings.exportTarget;
-    if (isConversionScriptLanguage(mode) && mode !== "typescript" && mode !== "handlebars" && mode !== "go-template") {
+    if (isConversionScriptLanguage(mode) && mode !== "typescript" && mode !== "handlebars" && mode !== "go-template" && mode !== "xquery") {
       const message = unimplementedTestRunMessage(mode);
       return {
         ok: false,
@@ -1396,11 +1429,14 @@ export class WorkbenchController {
     return runTest(this.model, example.content, example.format, {
       target: this.target,
       outputMode: mode,
-      generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
+      generatedCode: mode === "typescript" || mode === "go-template" || mode === "xquery"
+        ? this.generatedCode
+        : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       sheets: cloneSheets(this.sheets),
       openEhrJsonDeserializeMode: this.settings.openEhrJsonDeserializeMode,
+      instanceShape: this.settings.openEhrInstanceShape,
     });
   }
 
@@ -1462,6 +1498,7 @@ export class WorkbenchController {
       ...DEFAULT_SETTINGS,
       ...bundle.settings,
       exportTarget: "preview",
+      openEhrInstanceShape: DEFAULT_SETTINGS.openEhrInstanceShape,
     };
     this.model = { ...bundle.mapping.model };
     this.blocklyState = bundle.mapping.blocklyState;

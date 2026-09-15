@@ -4,7 +4,7 @@ import { detectLocale, msg } from "../i18n/locale.ts";
 import {
   appendBlockOutputGlyph,
   appendInputTypeGlyph,
-  prependBlockOutputGlyph,
+  ensureBlockOutputHeaderGlyph,
   registerStockBlocklyGlyphs,
 } from "../block_type_glyph.ts";
 import { inputAlignLeft, inputAlignRight, enforceMouthCaptionLayout } from "../mouth_layout.ts";
@@ -150,6 +150,7 @@ export function registerLogicBlocks(): void {
       this.itemName_ = DEFAULT_ITEM_NAME;
       this.countValue_ = 1;
       this.guardValue_ = false;
+      this.setOutput(true, "Boolean");
       const listInput = this.appendValueInput("LIST")
         .setAlign(inputAlignRight())
         .setCheck(LIST_CHECK)
@@ -173,7 +174,7 @@ export function registerLogicBlocks(): void {
           "OP",
         )
         .appendField(m.LOGIC_OF, "OF_LABEL");
-      prependBlockOutputGlyph(listInput, "Boolean");
+      ensureBlockOutputHeaderGlyph(this);
       appendInputTypeGlyph(listInput, LIST_CHECK);
       const predInput = this.appendValueInput("PRED")
         .setAlign(inputAlignRight())
@@ -181,7 +182,6 @@ export function registerLogicBlocks(): void {
         .appendField(m.LOGIC_MATCH, "MATCH_LABEL");
       appendInputTypeGlyph(predInput, "Boolean");
       this.setInputsInline(false);
-      this.setOutput(true, "Boolean");
       this.setColour(LOGIC_COLOUR);
       this.setTooltip(m.LOGIC_RESTRICTION_TOOLTIP);
       this.setStyle?.("logic_blocks");
@@ -300,6 +300,7 @@ export function registerLogicBlocks(): void {
 
   Blockly.Blocks[LISTS_SET_OPERATION_BLOCK] = {
     init: function (this: Blockly.Block) {
+      this.setOutput(true, "Array");
       const inputA = this.appendValueInput("A")
         .setAlign(inputAlignRight())
         .setCheck(LIST_CHECK)
@@ -319,7 +320,7 @@ export function registerLogicBlocks(): void {
           ),
           "OP",
         );
-      prependBlockOutputGlyph(inputA, "Array");
+      ensureBlockOutputHeaderGlyph(this);
       appendInputTypeGlyph(inputA, LIST_CHECK);
       const inputB = this.appendValueInput("B")
         .setAlign(inputAlignRight())
@@ -327,7 +328,6 @@ export function registerLogicBlocks(): void {
         .appendField(new Blockly.FieldLabel(m.LOGIC_SET_CONN_AND), "CONN");
       appendInputTypeGlyph(inputB, LIST_CHECK);
       this.setInputsInline(false);
-      this.setOutput(true, "Array");
       this.setColour(LIST_COLOUR);
       this.setTooltip(m.LOGIC_SET_TOOLTIP);
       this.setStyle?.("list_blocks");

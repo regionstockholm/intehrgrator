@@ -279,6 +279,11 @@ function emitStatementChain(block: Block, ctx: GoEmitContext, indent: number): s
 }
 
 function emitGeneric(block: Block, ctx: GoEmitContext, indent: number): string[] {
+  if (block.type === "json_null") return ["null"];
+  if (block.type === "json_boolean") {
+    const value = block.getInputTargetBlock("VALUE");
+    return value ? emitBlock(value, ctx, indent) : ["false"];
+  }
   if (isGenericValueBlockType(block.type)) {
     const value = block.getInputTargetBlock("VALUE");
     return value ? emitBlock(value, ctx, indent) : [];

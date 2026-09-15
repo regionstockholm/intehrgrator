@@ -42,27 +42,47 @@ Deno.test("measureGlyphWidth reserves room for connection glyphs", () => {
   assert(measureGlyphWidth("✓", 18) >= 18);
 });
 
-Deno.test("stock lists_length puts the output glyph on VALUE, not a HEADER dummy", () => {
+Deno.test("stock lists_length puts the output glyph on a LEFT HEADER, not the VALUE mouth", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const block = workspace.newBlock("lists_length");
-  assertEquals(block.getInput("HEADER"), null);
+  const header = block.getInput("HEADER");
+  assert(header, "HEADER chrome");
+  assertEquals(header.align, Blockly.inputs.Align.LEFT);
   assert(block.getField(BLOCK_OUT_EMOJI_FIELD), "output glyph");
-  assertEquals(block.inputList[0]?.name, "VALUE");
+  assertEquals(
+    header.fieldRow.some((f) => f.name === BLOCK_OUT_EMOJI_FIELD),
+    true,
+  );
+  assertEquals(
+    block.getInput("VALUE")?.fieldRow.some((f) => f.name === BLOCK_OUT_EMOJI_FIELD) ?? false,
+    false,
+  );
   workspace.dispose();
 });
 
-Deno.test("logic list blocks do not add a HEADER dummy under the first value row", () => {
+Deno.test("logic list blocks keep class chrome on HEADER, mouths hug sockets", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const restriction = workspace.newBlock(LOGIC_LIST_RESTRICTION_BLOCK);
-  assertEquals(restriction.getInput("HEADER"), null);
-  assertEquals(restriction.inputList[0]?.name, "LIST");
-  assert(restriction.getField(BLOCK_OUT_EMOJI_FIELD), "restriction output glyph");
+  assert(restriction.getInput("HEADER"), "restriction HEADER");
+  assertEquals(restriction.getInput("HEADER")?.align, Blockly.inputs.Align.LEFT);
+  assertEquals(restriction.getInput("LIST")?.name, "LIST");
+  assertEquals(
+    restriction.getInput("HEADER")?.fieldRow.some((f) => f.name === BLOCK_OUT_EMOJI_FIELD),
+    true,
+  );
+  assertEquals(
+    restriction.getInput("LIST")?.fieldRow.some((f) => f.name === BLOCK_OUT_EMOJI_FIELD) ?? false,
+    false,
+  );
 
   const setOp = workspace.newBlock(LISTS_SET_OPERATION_BLOCK);
-  assertEquals(setOp.getInput("HEADER"), null);
-  assertEquals(setOp.inputList[0]?.name, "A");
-  assert(setOp.getField(BLOCK_OUT_EMOJI_FIELD), "set-op output glyph");
+  assert(setOp.getInput("HEADER"), "set-op HEADER");
+  assertEquals(setOp.getInput("A")?.name, "A");
+  assertEquals(
+    setOp.getInput("HEADER")?.fieldRow.some((f) => f.name === BLOCK_OUT_EMOJI_FIELD),
+    true,
+  );
   workspace.dispose();
 });

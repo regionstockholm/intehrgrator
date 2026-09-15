@@ -1,8 +1,9 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import "blockly/blocks";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
 import { registerDecisionTableBlocks } from "@intehrgrator/blockly/blocks/decision_table_blocks.ts";
+import { blockConstraintMessages } from "@intehrgrator/blockly/block_constraints.ts";
 import { setWorkspaceSheetsProvider } from "@intehrgrator/blockly/sheets_bridge.ts";
 import { syncDecisionTableBlocksFromSheets } from "@intehrgrator/blockly/decision_table_sync.ts";
 import { blockToExpression } from "@intehrgrator/blockly/expression_serialize.ts";
@@ -10,16 +11,22 @@ import { evaluate, createSourceContext } from "@intehrgrator/core/source/query_r
 import { parseExpression, validateExpressionSource } from "@intehrgrator/core/expression/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
+  addCatchAllRow,
+  cloneSheet,
   emptyDecisionTable,
   evaluateDecisionTable,
+  isCatchAllRow,
   isDontCare,
+  lintDecisionTable,
   lintDecisionTableSnippets,
   normalizeSheet,
+  parseNumericPredicate,
+  rowMatches,
   sheetsToBag,
 } from "@intehrgrator/core/sheets/mod.ts";
 import { checkVmsMustache } from "@intehrgrator/core/output/vms_hbs.ts";
 import { generateTypeScript } from "@intehrgrator/core/codegen/mod.ts";
-import { generateXQuery, XQueryExportError } from "@intehrgrator/core/codegen/xquery.ts";
+import { generateXQuery } from "@intehrgrator/core/codegen/xquery.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
 
 /** Fixture: laterality × finding → value + VMS-Mustache snippet (don't-care on unused). */
@@ -268,13 +275,19 @@ Deno.test("TypeScript codegen emits decisionTable helper call", () => {
   const code = generateTypeScript(model);
   assertEquals(code.includes("decisionTable("), true);
   assertEquals(code.includes("function decisionTable"), true);
+  assertEquals(code.includes("rowCatchAll"), true);
+  assertEquals(code.includes("collectDedupe"), true);
+  assertEquals(code.includes("cellMatch"), true);
 });
 
-Deno.test("XQuery export rejects decision_table with a clear export error", () => {
+Deno.test("XQuery export emits decision_table helper bound to $sheets", () => {
   const model = baseModel(
     'decision_table("findings", map("finding", "effusion", "laterality", "left"), "term_id")',
   );
-  assertThrows(() => generateXQuery(model), XQueryExportError, "decision_table");
+  const xq = generateXQuery(model);
+  assertStringIncludes(xq, "declare variable $sheets");
+  assertStringIncludes(xq, "local:decision-table");
+  assertStringIncludes(xq, "map { \"finding\": \"effusion\", \"laterality\": \"left\" }");
 });
 
 Deno.test("Test Run evaluates decision_table against project sheets", () => {
@@ -286,4 +299,284 @@ Deno.test("Test Run evaluates decision_table against project sheets", () => {
   assertEquals(result.ok, true);
   const output = result.output as { slots?: Record<string, unknown> };
   assertEquals(output.slots?.note, "left effusion");
+});
+
+/** Vitals-style FIRST table: SBP bands with inclusive range + bounds + exact equality. */
+const vitalsSbp = normalizeSheet({
+  name: "sbp_band",
+  kind: "decision-table",
+  hitPolicy: "FIRST",
+  headers: ["sbp", "band"],
+  decisionColumns: [
+    { role: "condition" },
+    { role: "output", outputKind: "value" },
+  ],
+  values: [
+    ["< 90", "low"],
+    ["90..120", "normal"],
+    [">= 140", "high"],
+    ["130", "prehigh"],
+  ],
+});
+
+Deno.test("parseNumericPredicate recognizes range, bounds, and leaves bare equality alone", () => {
+  assertEquals(parseNumericPredicate("90..120"), { kind: "range", min: 90, max: 120 });
+  assertEquals(parseNumericPredicate("90 .. 120"), { kind: "range", min: 90, max: 120 });
+  assertEquals(parseNumericPredicate(">= 140"), { kind: "ge", value: 140 });
+  assertEquals(parseNumericPredicate(">=140"), { kind: "ge", value: 140 });
+  assertEquals(parseNumericPredicate("< 90"), { kind: "lt", value: 90 });
+  assertEquals(parseNumericPredicate("> 140"), { kind: "gt", value: 140 });
+  assertEquals(parseNumericPredicate("<= 90"), { kind: "le", value: 90 });
+  assertEquals(parseNumericPredicate("-10..0"), { kind: "range", min: -10, max: 0 });
+  assertEquals(parseNumericPredicate("140"), null);
+  assertEquals(parseNumericPredicate("left"), null);
+  assertEquals(parseNumericPredicate("—"), null);
+  assertEquals(parseNumericPredicate("*"), null);
+});
+
+Deno.test("range predicates match inclusive bounds when the input is numeric", () => {
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 90 }, "band"), "normal");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 120 }, "band"), "normal");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 100 }, "band"), "normal");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 89 }, "band"), "low");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 140 }, "band"), "high");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 200 }, "band"), "high");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: 130 }, "band"), "prehigh");
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: "105" }, "band"), "normal");
+});
+
+Deno.test("range predicates do not match non-numeric inputs (string equality stays for enums)", () => {
+  assertEquals(evaluateDecisionTable(vitalsSbp, { sbp: "unknown" }, "band"), null);
+  assertEquals(evaluateDecisionTable(findings, { finding: "effusion", laterality: "left" }, "term_id"), "T_LEFT");
+  const mixed = normalizeSheet({
+    name: "mixed",
+    kind: "decision-table",
+    hitPolicy: "FIRST",
+    headers: ["finding", "sbp", "out"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["effusion", ">= 140", "hypertensive-effusion"],
+      ["effusion", "—", "effusion"],
+    ],
+  });
+  assertEquals(
+    evaluateDecisionTable(mixed, { finding: "effusion", sbp: 150 }, "out"),
+    "hypertensive-effusion",
+  );
+  assertEquals(evaluateDecisionTable(mixed, { finding: "effusion", sbp: 80 }, "out"), "effusion");
+  assertEquals(rowMatches(mixed, 0, { finding: "effusion", sbp: 150 }), true);
+  assertEquals(rowMatches(mixed, 0, { finding: "effusion", sbp: 80 }), false);
+});
+
+Deno.test("catch-all row fires only when no earlier specific row matches (FIRST)", () => {
+  const table = normalizeSheet({
+    name: "risk",
+    kind: "decision-table",
+    hitPolicy: "FIRST",
+    headers: ["flag", "out"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["high", "urgent"],
+      ["low", "watch"],
+      ["—", "default"],
+    ],
+    rowCatchAll: [false, false, true],
+  });
+  assertEquals(evaluateDecisionTable(table, { flag: "high" }, "out"), "urgent");
+  assertEquals(evaluateDecisionTable(table, { flag: "low" }, "out"), "watch");
+  assertEquals(evaluateDecisionTable(table, { flag: "other" }, "out"), "default");
+  assertEquals(isCatchAllRow(table, 2), true);
+  assertEquals(isCatchAllRow(table, 0), false);
+});
+
+Deno.test("per-column * remains don't-care and is not a catch-all row", () => {
+  const table = normalizeSheet({
+    name: "laterality",
+    kind: "decision-table",
+    hitPolicy: "FIRST",
+    headers: ["finding", "side", "out"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["effusion", "*", "any-side"],
+      ["nodule", "left", "nodule-left"],
+    ],
+  });
+  assertEquals(isDontCare("*"), true);
+  assertEquals(isCatchAllRow(table, 0), false);
+  assertEquals(
+    evaluateDecisionTable(table, { finding: "effusion", side: "right" }, "out"),
+    "any-side",
+  );
+});
+
+Deno.test("UNIQUE does not throw when a specific row matches and a later catch-all exists", () => {
+  const table = normalizeSheet({
+    name: "unique_default",
+    kind: "decision-table",
+    hitPolicy: "UNIQUE",
+    headers: ["flag", "out"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["high", "urgent"],
+      ["—", "default"],
+    ],
+    rowCatchAll: [false, true],
+  });
+  assertEquals(evaluateDecisionTable(table, { flag: "high" }, "out"), "urgent");
+  assertEquals(evaluateDecisionTable(table, { flag: "x" }, "out"), "default");
+});
+
+Deno.test("COLLECT omits a catch-all when a specific row already matched", () => {
+  const table = normalizeSheet({
+    name: "collect_default",
+    kind: "decision-table",
+    hitPolicy: "COLLECT",
+    collectJoin: ", ",
+    headers: ["flag", "snippet"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "output", outputKind: "snippet" },
+    ],
+    values: [
+      ["true", "hit"],
+      ["true", "also"],
+      ["—", "otherwise"],
+    ],
+    rowCatchAll: [false, false, true],
+  });
+  assertEquals(evaluateDecisionTable(table, { flag: "true" }, "snippet"), "hit, also");
+  assertEquals(evaluateDecisionTable(table, { flag: "false" }, "snippet"), "otherwise");
+});
+
+Deno.test("addCatchAllRow appends a flagged otherwise row; clone/normalize persist it", () => {
+  const added = addCatchAllRow(emptyDecisionTable("risk"));
+  assertEquals(isCatchAllRow(added, added.values.length - 1), true);
+  assertEquals(added.rowCatchAll?.filter(Boolean).length, 1);
+  const cloned = cloneSheet(added);
+  assertEquals(cloned.rowCatchAll, added.rowCatchAll);
+  const roundTrip = normalizeSheet(JSON.parse(JSON.stringify(added)));
+  assertEquals(roundTrip.rowCatchAll?.[roundTrip.values.length - 1], true);
+});
+
+Deno.test("UNIQUE overlap surfaces as a Constraint warning without removing the runtime throw", () => {
+  const unique = normalizeSheet({
+    name: "overlap",
+    kind: "decision-table",
+    hitPolicy: "UNIQUE",
+    headers: ["finding", "laterality", "term_id"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["effusion", "—", "T1"],
+      ["effusion", "—", "T2"],
+    ],
+  });
+  assertThrows(
+    () => evaluateDecisionTable(unique, { finding: "effusion", laterality: "left" }, "term_id"),
+    Error,
+    "UNIQUE",
+  );
+  const probed = lintDecisionTable(unique, { finding: "effusion", laterality: "left" });
+  assertEquals(probed.some((d) => d.message.includes("UNIQUE") && d.severity === "warning"), true);
+  const staticDiags = lintDecisionTable(unique);
+  assertEquals(staticDiags.some((d) => d.message.includes("UNIQUE")), true);
+  assertEquals(lintDecisionTable(findings).some((d) => d.message.includes("UNIQUE")), false);
+});
+
+Deno.test("multiple catch-all rows are a Constraint warning", () => {
+  const table = normalizeSheet({
+    name: "two_defaults",
+    kind: "decision-table",
+    hitPolicy: "FIRST",
+    headers: ["flag", "out"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["a", "A"],
+      ["—", "d1"],
+      ["—", "d2"],
+    ],
+    rowCatchAll: [false, true, true],
+  });
+  const diags = lintDecisionTable(table);
+  assertEquals(diags.some((d) => /catch-all|otherwise/i.test(d.message)), true);
+});
+
+Deno.test("COLLECT skips empty snippet cells and optional collectDedupe drops duplicates", () => {
+  const findingsCollect = normalizeSheet({
+    name: "positive_findings",
+    kind: "decision-table",
+    hitPolicy: "COLLECT",
+    collectJoin: "; ",
+    headers: ["flag", "snippet"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "output", outputKind: "snippet" },
+    ],
+    values: [
+      ["true", "{{name}}"],
+      ["true", ""],
+      ["true", "   "],
+      ["true", "{{name}}"],
+      ["true", "also {{name}}"],
+      ["false", "skip"],
+    ],
+  });
+  assertEquals(
+    evaluateDecisionTable(findingsCollect, { flag: "true", name: "nodule" }, "snippet"),
+    "nodule; nodule; also nodule",
+  );
+  const deduped = normalizeSheet({ ...findingsCollect, collectDedupe: true });
+  assertEquals(
+    evaluateDecisionTable(deduped, { flag: "true", name: "nodule" }, "snippet"),
+    "nodule; also nodule",
+  );
+});
+
+Deno.test("UNIQUE overlap is a Constraint warning on the Decision table declaration chip", () => {
+  registerDecisionTableBlocks();
+  const unique = normalizeSheet({
+    name: "overlap",
+    kind: "decision-table",
+    hitPolicy: "UNIQUE",
+    headers: ["finding", "out"],
+    decisionColumns: [
+      { role: "condition" },
+      { role: "output", outputKind: "value" },
+    ],
+    values: [
+      ["effusion", "T1"],
+      ["effusion", "T2"],
+    ],
+  });
+  setWorkspaceSheetsProvider(() => [unique]);
+  const workspace = new Blockly.Workspace();
+  try {
+    const decl = workspace.newBlock("decision_table_decl");
+    decl.setFieldValue("overlap", "NAME");
+    const messages = blockConstraintMessages(decl);
+    assertEquals(messages.some((m) => m.includes("UNIQUE")), true);
+  } finally {
+    setWorkspaceSheetsProvider(null);
+    workspace.dispose();
+  }
 });

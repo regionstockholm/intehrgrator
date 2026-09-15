@@ -32,7 +32,9 @@ export function cloneSheet(sheet: SheetDocument): SheetDocument {
     columnTypes: sheet.columnTypes ? [...sheet.columnTypes] : undefined,
     hitPolicy: sheet.hitPolicy,
     collectJoin: sheet.collectJoin,
+    collectDedupe: sheet.collectDedupe,
     decisionColumns: sheet.decisionColumns?.map((c) => ({ ...c })),
+    rowCatchAll: sheet.rowCatchAll ? [...sheet.rowCatchAll] : undefined,
   };
 }
 
@@ -76,7 +78,9 @@ export function normalizeSheet(raw: unknown): SheetDocument {
   const kind = normalizeKind(rec.kind);
   const hitPolicy = normalizeHitPolicy(rec.hitPolicy);
   const collectJoin = typeof rec.collectJoin === "string" ? rec.collectJoin : undefined;
+  const collectDedupe = rec.collectDedupe === true ? true : rec.collectDedupe === false ? false : undefined;
   const decisionColumns = normalizeDecisionColumns(rec.decisionColumns, colCount, kind);
+  const rowCatchAll = normalizeRowCatchAll(rec.rowCatchAll, values.length);
   return {
     name,
     ...(kind ? { kind } : {}),
@@ -86,7 +90,9 @@ export function normalizeSheet(raw: unknown): SheetDocument {
     ...(rowNames ? { rowNames } : {}),
     ...(hitPolicy ? { hitPolicy } : {}),
     ...(collectJoin != null ? { collectJoin } : {}),
+    ...(collectDedupe != null ? { collectDedupe } : {}),
     ...(decisionColumns ? { decisionColumns } : {}),
+    ...(rowCatchAll ? { rowCatchAll } : {}),
   };
 }
 
@@ -182,6 +188,13 @@ function normalizeRowNames(raw: unknown, rowCount: number): string[] | undefined
   return names.slice(0, rowCount);
 }
 
+function normalizeRowCatchAll(raw: unknown, rowCount: number): boolean[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const flags = raw.map((v) => v === true);
+  while (flags.length < rowCount) flags.push(false);
+  return flags.slice(0, rowCount);
+}
+
 function toCell(value: unknown): SheetCell {
   if (value == null) return null;
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
@@ -264,6 +277,11 @@ export function setData(sheet: SheetDocument, values: SheetCell[][]): SheetDocum
   next.headers = padHeaders(next.headers, width);
   next.columnTypes = normalizeColumnTypes(next.columnTypes, width);
   if (next.rowNames) next.rowNames = normalizeRowNames(next.rowNames, next.values.length);
+  if (next.rowCatchAll) {
+    const flags = [...next.rowCatchAll];
+    while (flags.length < next.values.length) flags.push(false);
+    next.rowCatchAll = flags.slice(0, next.values.length);
+  }
   return next;
 }
 
@@ -275,6 +293,7 @@ export function insertRow(sheet: SheetDocument, y = 0, count = 1): SheetDocument
   const rows = Array.from({ length: Math.max(1, count) }, blank);
   next.values.splice(at, 0, ...rows);
   if (next.rowNames) next.rowNames.splice(at, 0, ...rows.map(() => ""));
+  if (next.rowCatchAll) next.rowCatchAll.splice(at, 0, ...rows.map(() => false));
   return next;
 }
 
@@ -283,6 +302,7 @@ export function deleteRow(sheet: SheetDocument, y = 0, count = 1): SheetDocument
   if (y < 0 || y >= next.values.length) return next;
   next.values.splice(y, Math.max(1, count));
   next.rowNames?.splice(y, Math.max(1, count));
+  next.rowCatchAll?.splice(y, Math.max(1, count));
   return next;
 }
 
@@ -396,6 +416,7 @@ function ensureSize(sheet: SheetDocument, cols: number, rows: number): void {
   while (sheet.values.length < rows) {
     sheet.values.push(Array.from({ length: width }, () => "" as SheetCell));
     sheet.rowNames?.push("");
+    sheet.rowCatchAll?.push(false);
   }
   for (const row of sheet.values) {
     while (row.length < width) row.push("");

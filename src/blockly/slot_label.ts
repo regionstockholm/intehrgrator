@@ -275,32 +275,34 @@ export class FieldSlotLabel extends FieldLabelBase {
     const concreteGlyph = !abstract
       ? (connectionPointGlyph(this.rmType_ || undefined, true) ?? "")
       : "";
-    const fullParts = [this.attrLabel];
+    const typeGlyph = abstract ? glyph : concreteGlyph;
+    const bodyParts = [this.attrLabel];
     if (this.hasOverlay) {
-      fullParts.push(OVERLAY_DELTA, card, rmCard);
+      bodyParts.push(OVERLAY_DELTA, card, rmCard);
     } else if (card) {
-      fullParts.push(card);
+      bodyParts.push(card);
     }
-    if (abstract && glyph) fullParts.push(glyph);
-    else if (concreteGlyph) fullParts.push(concreteGlyph);
-    const full = fullParts.join(" ");
     // Caption body stays 12px; only the type glyph may be larger.
     const bodyPx = 12;
-    const glyphPx = this.rmType_
+    const glyphPx = this.rmType_ && typeGlyph
       ? (abstract
         ? Math.max(bodyPx, Math.round(rmEmojiFontPx(this.rmType_) * 0.75))
         : isHardToReadRmEmoji(this.rmType_)
         ? 13
         : rmEmojiFontPx(this.rmType_))
       : bodyPx;
-    const glyphExtra = (abstract && glyph) || concreteGlyph
-      ? Math.max(0, glyphPx - bodyPx) * 0.6
+    const bodyText = bodyParts.join(" ");
+    const bodyWidth = measureCaptionWidth(bodyText, bodyPx, false);
+    const glyphWidth = typeGlyph
+      ? measureCaptionWidth(` ${typeGlyph}`, glyphPx, abstract)
       : 0;
-    this.size_.width = measureCaptionWidth(full, bodyPx, abstract) + Math.ceil(glyphExtra);
-    this.size_.height = Math.max(14, bodyPx, abstract ? glyphPx : bodyPx);
+    this.size_.width = bodyWidth + glyphWidth;
+    // Field height follows the tallest ink so mixed font sizes center cleanly.
+    this.size_.height = Math.max(14, bodyPx, typeGlyph ? glyphPx : bodyPx);
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
     el.setAttribute("dominant-baseline", "central");
+    el.setAttribute("alignment-baseline", "central");
     el.setAttribute("dy", "0");
     el.setAttribute("y", String(this.size_.height / 2));
     el.setAttribute("text-anchor", "start");
@@ -310,7 +312,7 @@ export class FieldSlotLabel extends FieldLabelBase {
       el,
       card,
       rmCard,
-      abstract ? glyph : concreteGlyph,
+      typeGlyph,
       abstract,
       bodyPx,
       glyphPx,
@@ -339,6 +341,8 @@ export class FieldSlotLabel extends FieldLabelBase {
           ? "blockly-slot-attr-name blockly-spec-help-target"
           : "blockly-slot-attr-name",
       );
+      tspan.setAttribute("dominant-baseline", "central");
+      tspan.setAttribute("alignment-baseline", "central");
       tspan.textContent = this.attrLabel;
       tspan.style.setProperty("font-size", `${bodyPx}px`, "important");
       if (attrHelp) {
@@ -368,6 +372,8 @@ export class FieldSlotLabel extends FieldLabelBase {
       if (abstractGlyph) {
         const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
         tspan.setAttribute("class", "blockly-slot-abstract-glyph");
+        tspan.setAttribute("dominant-baseline", "central");
+        tspan.setAttribute("alignment-baseline", "central");
         tspan.textContent = glyph;
         tspan.style.cursor = "pointer";
         tspan.style.setProperty("font-size", `${glyphPx}px`, "important");
@@ -381,6 +387,8 @@ export class FieldSlotLabel extends FieldLabelBase {
       } else {
         const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
         tspan.setAttribute("class", "blockly-slot-type-glyph");
+        tspan.setAttribute("dominant-baseline", "central");
+        tspan.setAttribute("alignment-baseline", "central");
         tspan.textContent = glyph;
         tspan.style.setProperty("font-size", `${glyphPx}px`, "important");
         el.appendChild(tspan);

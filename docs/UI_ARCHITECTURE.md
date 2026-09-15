@@ -122,7 +122,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Notes |
 |--------|-------|
-| Export Java | Generator built; download button not wired in v1 Web Shell |
+| Export Java | Generator emits Archie RM (`docs/JAVA_EXPORT.md`); pick Output mode Java to view/download. Not executed in-app. |
 | Settings | Target language, theme, validation strictness — planned; export target defaults to TypeScript |
 
 ## Test Runner (v1)

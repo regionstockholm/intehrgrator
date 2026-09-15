@@ -5,13 +5,14 @@
 import jspreadsheet from "jspreadsheet-ce";
 import type { Workspace } from "blockly/core";
 import {
+  addCatchAllRow,
   addDecisionColumn,
   cloneSheets,
   emptyDecisionTable,
   emptySheet,
   findSheet,
   isDecisionTable,
-  lintDecisionTableSnippets,
+  lintDecisionTable,
   normalizeSheet,
   parseSpreadsheetText,
   setDecisionOutputKind,
@@ -32,6 +33,7 @@ import {
 } from "../blockly/decision_table_sync.ts";
 import { refreshGridPreviewFields } from "../blockly/field_grid_preview.ts";
 import { DECISION_TYPE_SWITCH_MESSAGE } from "../blockly/blocks/decision_table_blocks.ts";
+import { refreshWorkspaceConstraints } from "../blockly/block_constraints.ts";
 
 type WorksheetInstance = {
   getData: () => unknown[][];
@@ -143,7 +145,25 @@ export function mountSheetsPanel(
   const addOutBtn = document.createElement("button");
   addOutBtn.type = "button";
   addOutBtn.className = "pane-btn";
-  metaBar.append(kindLabel, hitPolicyLabel, addCondBtn, addOutBtn, outputColsEl, lintEl);
+  const addDefaultBtn = document.createElement("button");
+  addDefaultBtn.type = "button";
+  addDefaultBtn.className = "pane-btn";
+  const collectDedupeLabel = document.createElement("label");
+  collectDedupeLabel.className = "sheets-collect-dedupe";
+  const collectDedupeBox = document.createElement("input");
+  collectDedupeBox.type = "checkbox";
+  collectDedupeBox.setAttribute("aria-label", "COLLECT dedupe");
+  collectDedupeLabel.append(collectDedupeBox);
+  metaBar.append(
+    kindLabel,
+    hitPolicyLabel,
+    addCondBtn,
+    addOutBtn,
+    addDefaultBtn,
+    collectDedupeLabel,
+    outputColsEl,
+    lintEl,
+  );
 
   const emptyEl = document.createElement("p");
   emptyEl.className = "sheets-empty";
@@ -173,6 +193,11 @@ export function mountSheetsPanel(
     hitPolicySelect.setAttribute("aria-label", t.hitPolicy);
     addCondBtn.textContent = t.addCondition;
     addOutBtn.textContent = t.addOutput;
+    addDefaultBtn.textContent = t.addDefaultRow;
+    collectDedupeBox.setAttribute("aria-label", t.collectDedupe);
+    const dedupeCaption = collectDedupeLabel.querySelector("span") ?? document.createElement("span");
+    dedupeCaption.textContent = ` ${t.collectDedupe}`;
+    if (!dedupeCaption.parentElement) collectDedupeLabel.append(dedupeCaption);
   };
   paintChrome();
 
@@ -206,7 +231,9 @@ export function mountSheetsPanel(
       kind: existing?.kind,
       hitPolicy: existing?.hitPolicy,
       collectJoin: existing?.collectJoin,
+      collectDedupe: existing?.collectDedupe,
       decisionColumns: existing?.decisionColumns,
+      rowCatchAll: existing?.rowCatchAll,
     });
     return isDecisionTable(doc) ? trimDecisionTableSpareColumns(doc) : doc;
   };
@@ -222,6 +249,8 @@ export function mountSheetsPanel(
     metaBar.hidden = false;
     kindLabel.textContent = t.kindDecision;
     hitPolicySelect.value = sheet.hitPolicy ?? "FIRST";
+    collectDedupeLabel.hidden = (sheet.hitPolicy ?? "FIRST") !== "COLLECT";
+    collectDedupeBox.checked = sheet.collectDedupe === true;
     outputColsEl.replaceChildren();
     const meta = sheet.decisionColumns ?? [];
     sheet.headers.forEach((header, i) => {
@@ -266,7 +295,7 @@ export function mountSheetsPanel(
       wrap.append(kindSel, typeSel);
       outputColsEl.append(wrap);
     });
-    const diags = lintDecisionTableSnippets(sheet);
+    const diags = lintDecisionTable(sheet);
     if (diags.length) {
       lintEl.hidden = false;
       lintEl.textContent = `${t.snippetLint}: ${diags.map((d) => d.message).join("; ")}`;
@@ -280,6 +309,7 @@ export function mountSheetsPanel(
     const ws = options.getWorkspace();
     syncDecisionTableBlocksFromSheets(ws, sheets);
     refreshGridPreviewFields(ws);
+    refreshWorkspaceConstraints(ws);
   };
 
   const commitSheetDoc = (nextDoc: SheetDocument): void => {
@@ -507,6 +537,16 @@ export function mountSheetsPanel(
     if (!sheet || !isDecisionTable(sheet)) return;
     commitSheetDoc(addDecisionColumn(sheet, "output"));
   });
+  addDefaultBtn.addEventListener("click", () => {
+    const sheet = findSheet(host.getSheets(), activeName);
+    if (!sheet || !isDecisionTable(sheet)) return;
+    commitSheetDoc(addCatchAllRow(sheet));
+  });
+  collectDedupeBox.addEventListener("change", () => {
+    const sheet = findSheet(host.getSheets(), activeName);
+    if (!sheet || !isDecisionTable(sheet)) return;
+    commitSheetDoc({ ...sheet, collectDedupe: collectDedupeBox.checked });
+  });
   hitPolicySelect.addEventListener("change", () => {
     if (!activeName) return;
     const before = host.getSheets();
@@ -519,7 +559,9 @@ export function mountSheetsPanel(
     fireSheetChange(options.getWorkspace(), before, after, (sheets) => {
       host.replaceSheets(sheets, { silent: true });
       refresh();
+      notifyBlockly(sheets);
     });
+    notifyBlockly(after);
     paintMeta(findSheet(after, activeName) ?? null);
   });
   renameBtn.addEventListener("click", () => {

@@ -1,11 +1,14 @@
 # XQuery Conversion Script Language
 
-**Status:** Implemented (R1 / R2 partial) — Conversion script language `xquery`
+**Status:** Implemented (R1 / R2 + COMPOSITION emit + `$sheets` + in-app Test Run) — Conversion script language `xquery`
 emits a self-contained `.xq` from the Mapping Model (Blockly-derived slots).
 `for_each_source` / `for_each_list` compile to `for $var in … return` loop
 bodies ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)).
-Full COMPOSITION tree emit remains open; optional BaseX golden runs are
-documented in [agents/xquery-engine.md](../agents/xquery-engine.md).
+With a Template Skeleton, export walks the tree into COMPOSITION RM XML
+(Model A/C, [#75](https://github.com/regionstockholm/intehrgrator/issues/75)).
+Sheet accessors bind `external $sheets` ([#76](https://github.com/regionstockholm/intehrgrator/issues/76)).
+In-app Conversion Test Run lazy-loads fontoxpath ([#78](https://github.com/regionstockholm/intehrgrator/issues/78)).
+Optional BaseX golden runs are documented in [agents/xquery-engine.md](../agents/xquery-engine.md).
 
 Captured from design discussion 2026-07-02; productised 2026-08-02.
 
@@ -46,8 +49,8 @@ Literal fontoxpath JSON paths such as `$.patient.systolic` compile to
 to `$source/patient/name`. Dynamic XML paths error at runtime with guidance to
 prefer compile-time literals.
 
-**In-app Test Run does not execute the `.xq`.** It continues to evaluate the
-Mapping Model through the Target instance format handler (same as Java export).
+**In-app Test Run executes the `.xq`** after a lazy load of fontoxpath (issue #78).
+BaseX remains the optional CI/Cloud Agent golden engine.
 
 Recommended production pattern:
 
@@ -73,7 +76,7 @@ source ──► generated .xq (mapping-result) ──► generic OPT assembler 
 Mapping Model (language-neutral, from Blockly)
         │
         ├──► TypeScript export (ehrtslib + fontoxpath)
-        ├──► Java export (Archie stubs)
+        ├──► Java export (Archie RM constructors)
         ├──► Handlebars (user template / auto slot comments)
         └──► XQuery export → mapping-result .xq (+ DV_* helpers)
 ```
@@ -116,24 +119,15 @@ local:convert($source)
 
 | Model | Status |
 |-------|--------|
-| **B — XQuery extract + assembler** | **Implemented** — primary emit |
-| **A — Pure XQuery full Composition** | Open — needs Template Skeleton at codegen time |
-| **C — RM XML literal tree from skeleton** | Open — high risk; deferred |
+| **B — XQuery extract + assembler** | **Implemented** — Model B slot manifest when no skeleton is passed |
+| **A — Pure XQuery full Composition** | **Implemented** — skeleton walk → RM XML (`instanceShape: "xml"`) or JSON maps |
+| **C — RM XML literal tree from skeleton** | **Implemented** with A — same walker |
 
 ## Remaining work
 
-1. **Full COMPOSITION emit (Model A/C)** — walk Template Skeleton / `targetPath`
-   when exporting, not only flat `MappingModel.slots`.
-2. **Engine golden tests** — optional BaseX run in `test/xquery_engine_test.ts`;
-   Saxon-HE alternative documented in [agents/xquery-engine.md](../agents/xquery-engine.md).
-3. **JSON source notes** — document engine-specific map lookup vs `fn:json-doc`.
-4. **Units / coded-text fields** — multi-field DV shells beyond the primary
-   expression attribute.
-5. **`for_each_source` loops** — **shipped** ([#39](https://github.com/regionstockholm/intehrgrator/issues/39)):
-   `loops[]` emit `for $var in … return` with loop-scoped slot manifests;
-   top-level slots stay in `<slots>`. Sheet accessors fail export (no silent `()`).
-6. **Engine golden tests** — optional `test/xquery_engine_test.ts` when BaseX is
-   installed; see [agents/xquery-engine.md](../agents/xquery-engine.md).
+1. **Units / coded-text fields** — richer multi-field DV shells beyond skeleton `fixedFields`.
+2. **JSON source notes** — document engine-specific map lookup vs `fn:json-doc` for non-BaseX hosts.
+3. **Archie XML post-validation** of Model A output as an optional Cloud Agent step.
 
 ## Related
 

@@ -256,7 +256,9 @@ Deno.test("assembleReleasePagesSite adds new version and drops broken listed one
     assertEquals(manifest.recommended, "v0.6.1");
     assertEquals(await Deno.readTextFile(join(outDir, "v0.6.1", "index.html")), "<html>v0.6.1</html>");
     assertEquals(await versionHasIndex(outDir, "v0.6"), false);
-    assertEquals(await Deno.readTextFile(join(outDir, "index.html")), "<html>live</html>");
+    // Release dist is also the new bleeding-edge root (pages.yml skips chore: release).
+    assertEquals(await Deno.readTextFile(join(outDir, "index.html")), "<html>v0.6.1</html>");
+    assertEquals(await Deno.readTextFile(join(outDir, "bundle.js")), "ok");
   } finally {
     await live.shutdown();
   }
@@ -288,6 +290,36 @@ async function serveLiveSite(
     shutdown: () => server.shutdown(),
   };
 }
+
+Deno.test("assembleReleasePagesSite publishes versionDist as the bleeding-edge root", async () => {
+  const live = await serveLiveSite({
+    "index.html": "<html>stale-root</html>",
+    "versions.json": JSON.stringify({ versions: ["v0.6"], recommended: "v0.6" }),
+    "v0.6/index.html": "<html>v0.6</html>",
+  });
+
+  const dir = await Deno.makeTempDir();
+  const versionDist = join(dir, "version-dist");
+  const outDir = join(dir, "out");
+  await Deno.mkdir(versionDist, { recursive: true });
+  await Deno.writeTextFile(join(versionDist, "index.html"), "<html>v0.8-root</html>");
+  await Deno.writeTextFile(join(versionDist, "bundle.js"), "new-bundle");
+
+  try {
+    await assembleReleasePagesSite({
+      baseUrl: live.baseUrl,
+      versionTag: "v0.8",
+      versionDist,
+      outDir,
+    });
+    assertEquals(await Deno.readTextFile(join(outDir, "index.html")), "<html>v0.8-root</html>");
+    assertEquals(await Deno.readTextFile(join(outDir, "bundle.js")), "new-bundle");
+    assertEquals(await Deno.readTextFile(join(outDir, "v0.8", "index.html")), "<html>v0.8-root</html>");
+    assertEquals(await Deno.readTextFile(join(outDir, "v0.6", "index.html")), "<html>v0.6</html>");
+  } finally {
+    await live.shutdown();
+  }
+});
 
 Deno.test("assembleReleasePagesSite keeps a still-published recommended tag over the newest", async () => {
   const live = await serveLiveSite({

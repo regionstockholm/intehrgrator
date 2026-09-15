@@ -73,7 +73,7 @@ source ──► generated .xq (mapping-result) ──► generic OPT assembler 
 Mapping Model (language-neutral, from Blockly)
         │
         ├──► TypeScript export (ehrtslib + fontoxpath)
-        ├──► Java export (Archie stubs)
+        ├──► Java export (Archie RM constructors)
         ├──► Handlebars (user template / auto slot comments)
         └──► XQuery export → mapping-result .xq (+ DV_* helpers)
 ```

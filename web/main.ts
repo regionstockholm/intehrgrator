@@ -2220,6 +2220,28 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.append(title, list);
 }
 
+/** Blockly path width in workspace units (excludes nested child stacks). */
+function ownOutlineWidth(block: BlockSvg): number {
+  const byId = block.id
+    ? document.querySelector(
+      `g.blocklyDraggable[data-id="${CSS.escape(block.id)}"]`,
+    ) as SVGGElement | null
+    : null;
+  const root = typeof block.getSvgRoot === "function" ? block.getSvgRoot() : null;
+  const host = byId ?? root;
+  const path = (
+    host?.querySelector?.(":scope > path.blocklyPath") ??
+    host?.querySelector?.("path.blocklyPath")
+  ) as SVGPathElement | null;
+  try {
+    const box = path?.getBBox?.();
+    if (box && box.width > 0) return box.width;
+  } catch {
+    // path not in the live tree yet
+  }
+  return Number(block.width ?? 0);
+}
+
 function statementInputMetricsOf(
   block: Blockly.Block | null | undefined,
   inputName: string,
@@ -2242,7 +2264,7 @@ function statementInputMetricsOf(
   const hw = typeof svg.getHeightWidth === "function"
     ? svg.getHeightWidth()
     : { width: Number((block as { width?: number }).width ?? 0) };
-  const ownWidth = Number(svg.width ?? hw.width ?? 0);
+  const ownWidth = ownOutlineWidth(svg) || Number(svg.width ?? hw.width ?? 0);
   const scale = Number((block.workspace as Blockly.WorkspaceSvg | undefined)?.scale ?? 1);
   return {
     offsetX: Number(offset.x),
@@ -2391,7 +2413,7 @@ function installWorkbenchTestApi(): void {
       const a = parent?.getInput(inputName)?.connection;
       const b = child?.previousConnection;
       if (!a || !b) return false;
-      return Boolean(workspace.connectionChecker?.canConnect(a, b, true));
+      return Boolean(workspace.connectionChecker?.canConnect(a, b, false));
     },
     connectStatement(parentId, inputName, childId) {
       const parent = workspace.getBlockById(parentId);

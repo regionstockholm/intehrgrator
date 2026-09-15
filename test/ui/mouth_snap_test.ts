@@ -7,9 +7,10 @@ import type { IntehrgratorTestApi } from "../../src/ui_test/test_api.ts";
 import { baseUrl, loadBpFixtures, waitForTestApi } from "./helpers.ts";
 
 function assertNotchOnRightTooth(
-  metrics: { offsetX: number; ownWidth: number; blockWidth: number },
+  metrics: { offsetX: number; ownWidth: number; blockWidth: number } | null,
   label: string,
 ): void {
+  assert(metrics, `${label} metrics missing`);
   assert(
     metrics.ownWidth > 40,
     `${label} ownWidth=${metrics.ownWidth} is too small to judge`,
@@ -49,8 +50,6 @@ Deno.test({
           .intehrgratorTestApi;
         return api.getStatementInputMetrics(id, "ATTR_content");
       }, ids.composition);
-      assert(content, "COMPOSITION.content metrics");
-      assertNotchOnRightTooth(content, "COMPOSITION.content");
 
       const xml = await page.evaluate(() => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
@@ -64,11 +63,6 @@ Deno.test({
           metrics: api.getStatementInputMetrics(docId, "TARGET_root"),
         };
       });
-      assert(xml, "xml_document + xml_element");
-      assertEquals(xml.canConnect, true, "xml_element must light up on XML document element");
-      assertEquals(xml.connected, true, "xml_element must attach to XML document element");
-      assert(xml.metrics, "XML document TARGET_root metrics");
-      assertNotchOnRightTooth(xml.metrics, "XML document element");
 
       await page.evaluate((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
@@ -77,17 +71,21 @@ Deno.test({
         api.openMutator(id);
       }, ids.quantity);
       await page.waitForTimeout(400);
+      await page.locator(".blocklyBubble").first().waitFor({ state: "visible", timeout: 10_000 });
 
       const stack = await page.evaluate((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
           .intehrgratorTestApi;
         return api.getMutatorStackMetrics(id);
       }, ids.quantity);
-      assert(stack, "optional-fields STACK metrics");
-      assertEquals(stack.align, 1, "STACK should be RIGHT-aligned");
+
+      assertEquals(xml?.canConnect, true, "xml_element must light up on XML document element");
+      assertEquals(xml?.connected, true, "xml_element must attach to XML document element");
+      assertNotchOnRightTooth(content, "COMPOSITION.content");
+      assertNotchOnRightTooth(xml?.metrics ?? null, "XML document element");
+      assertEquals(stack?.align, 1, "STACK should be RIGHT-aligned");
       assertNotchOnRightTooth(stack, "optional-fields STACK");
 
-      await page.locator(".blocklyBubble").first().waitFor({ state: "visible", timeout: 10_000 });
       await page.screenshot({
         path: "/opt/cursor/artifacts/mutator_optional_fields_stack_bump.png",
       });

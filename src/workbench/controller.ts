@@ -1275,7 +1275,8 @@ export class WorkbenchController {
       this.generatedCode = MAPPING_PREVIEW_SCRIPT_PLACEHOLDER;
       return;
     }
-    this.generatedCode = mode === "go-template" || this.model.templateId || this.handlebarsTemplate
+    this.generatedCode = mode === "go-template" || mode === "handlebars" ||
+        this.model.templateId || this.handlebarsTemplate
       ? generate(this.model, mode, {
         handlebarsTemplate: this.handlebarsTemplate,
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
@@ -1396,7 +1397,9 @@ export class WorkbenchController {
     return runTest(this.model, example.content, example.format, {
       target: this.target,
       outputMode: mode,
-      generatedCode: mode === "typescript" || mode === "go-template" ? this.generatedCode : undefined,
+      generatedCode: mode === "typescript" || mode === "go-template" || mode === "handlebars"
+        ? this.generatedCode
+        : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       sheets: cloneSheets(this.sheets),

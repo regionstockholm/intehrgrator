@@ -2264,12 +2264,15 @@ function installWorkbenchTestApi(): void {
           }
         }
         const check = block.outputConnection?.getCheck?.() ?? null;
+        const prev = block.previousConnection?.getCheck?.() ?? null;
         return {
           id: block.id,
           type: block.type,
           slotId: slotIdFromBlock(block),
           fields,
           outputCheck: check,
+          hasNext: Boolean(block.nextConnection),
+          previousCheck: prev,
         };
       });
       return {

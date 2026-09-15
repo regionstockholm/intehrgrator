@@ -21,7 +21,7 @@ The currently selected example instance tab. Its tree appears below the tab bar;
 _Avoid_: Current instance, selected tab
 
 **Example Set**:
-A catalogued bundle that loads a Source Schema, one or more Example Instances, a target, optionally a Blockly mapping, and optionally a **Defaults Map**, all by HTTP(S) URI. intEHRgrator ships the catalog under `examples/example-sets.json`; asset URIs point at GitHub files under `test/fixtures/`. Toolbar: **Example Sets** (▾ lists sets and catalog URLs). A `defaults` URI hydrates the **Defaults block** argument via the same path as picking a saved map.
+A catalogued bundle that loads a Source Schema, one or more Example Instances, a target, optionally a Blockly mapping, and optionally a **Defaults Map**, all by HTTP(S) URI. intEHRgrator ships the catalog under `examples/example-sets.json`; in-repo asset URIs are relative under `test/fixtures/` (served from the built site). External targets may use absolute GitHub URLs. Toolbar: **Example Sets** (▾ lists sets and catalog URLs). A `defaults` URI hydrates the **Defaults block** argument via the same path as picking a saved map.
 _Avoid_: Sample pack, demo project (that is a saved Project Bundle)
 
 **Source Path**:

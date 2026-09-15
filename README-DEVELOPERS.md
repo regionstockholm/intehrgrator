@@ -2,6 +2,8 @@
 
 Technical setup and architecture pointers for contributors and AI-assisted development.
 
+For terms and definitions used in this repo, including in this readme, see [CONTEXT.md](CONTEXT.md).
+
 **End-user docs:** [README.md](README.md) · [docs/TUTORIAL.md](docs/TUTORIAL.md)
 
 ## Prerequisites
@@ -18,7 +20,7 @@ install deno, and then:
 git clone https://github.com/regionstockholm/intehrgrator.git
 cd intehrgrator
 deno task vendor   # clone/update ehrtslib + examples into vendor/
-deno task build 
+deno task build  # build web shell into /dist
 deno task dev`  # start and serve on `http://localhost:5173`
 ```
 
@@ -29,10 +31,10 @@ TODO: describe which tests exist and how to run them etc
 ## Deno tasks
 
 | Task | Purpose |
-|------|---------|
+| ------ | --------- |
 | `deno task vendor` | Refresh `vendor/ehrtslib` and example archetypes from upstream |
-| `deno task dev` | (Build and?) serve on `http://localhost:5173` |
-| `deno task build` | Static site → `dist/` (+ desktop www staging) |
+| `deno task build` | Static site → `dist/` (includes `examples/` + `test/fixtures/`) (+ desktop www staging) |
+| `deno task dev` | Serve `dist/` on `http://localhost:5173` |
 | `deno task test` | Unit tests (`test/`, parallel, no browser) |
 | `deno task test:ui` | Playwright UI tests — see [docs/UI_TESTING.md](docs/UI_TESTING.md) |
 | `deno task lint` | `deno lint` on `src`, `test`, `scripts` |

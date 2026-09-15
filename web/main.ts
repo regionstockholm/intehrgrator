@@ -181,6 +181,8 @@ const statusMain = document.getElementById("status-main")!;
 const statusSave = document.getElementById("status-save")!;
 const statusBuild = document.getElementById("status-build")!;
 const exportTargetSelect = document.getElementById("export-target") as HTMLSelectElement;
+const instanceShapeSelect = document.getElementById("openehr-instance-shape") as HTMLSelectElement;
+const instanceShapeWrap = document.getElementById("openehr-instance-shape-wrap") as HTMLLabelElement;
 const validationDeserializeSelect = document.getElementById(
   "validation-deserialize-mode",
 ) as HTMLSelectElement;
@@ -340,6 +342,11 @@ exportTargetSelect.addEventListener("change", () => {
 validationDeserializeSelect.addEventListener("change", () => {
   controller.setOpenEhrJsonDeserializeMode(
     validationDeserializeSelect.value as import("@intehrgrator/types/mod.ts").OpenEhrJsonDeserializeMode,
+  );
+});
+instanceShapeSelect?.addEventListener("change", () => {
+  controller.setOpenEhrInstanceShape(
+    instanceShapeSelect.value as import("@intehrgrator/types/mod.ts").OpenEhrInstanceShape,
   );
 });
 
@@ -2056,6 +2063,12 @@ function render(): void {
   exportTargetSelect.value = s.settings.exportTarget;
   validationDeserializeSelect.value = s.settings.openEhrJsonDeserializeMode;
   validationModeWrap.hidden = s.target?.format !== "openehr-template";
+  if (instanceShapeSelect) {
+    instanceShapeSelect.value = s.settings.openEhrInstanceShape ?? "json";
+  }
+  if (instanceShapeWrap) {
+    instanceShapeWrap.hidden = s.target?.format !== "openehr-template";
+  }
   const exportBtn = document.getElementById("btn-export-ts") as HTMLButtonElement | null;
   if (exportBtn) exportBtn.disabled = s.settings.exportTarget === "preview";
   const testDownload = document.getElementById("btn-download-test-output") as HTMLButtonElement | null;

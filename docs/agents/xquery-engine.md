@@ -1,6 +1,6 @@
 # XQuery engine golden tests (Cloud Agents)
 
-Generated `.xq` conversion scripts are **not** executed in-app Test Run (ADR 0003). To verify mappings against a real XQuery 3.1 engine in CI or Cloud Agent VMs, use **BaseX**.
+Generated `.xq` conversion scripts **can** execute in-app Test Run (lazy-loaded fontoxpath + slimdom; issue #78). To verify mappings against a real XQuery 3.1 engine in CI or Cloud Agent VMs, use **BaseX**.
 
 ## Recommended engine: BaseX
 
@@ -45,13 +45,14 @@ java -jar saxon-he-12.5.jar -qs:"declare variable \$source external; …" -s:.
 
 External JSON maps need a small wrapper (Saxon does not ship `json:parse` in all editions the same way BaseX does). Prefer BaseX for map-shaped Example Instance JSON unless you already standardise on Saxon.
 
-## Binding `$source` for golden runs
+## Binding `$source`, `$defaults`, and `$sheets`
 
 Export emits:
 
 ```xquery
 declare variable $source external;
 declare variable $defaults as map(*) external := map {};
+declare variable $sheets as map(*) external := map {};
 ```
 
 **JSON Example Instance** (typical intEHRgrator Test Run input):
@@ -78,9 +79,37 @@ declare variable $defaults as map(*) external := map {};
 basex -b 'defaults=map{"language":"en"}' convert.xq
 ```
 
-## Sheet accessors
+## Sheet accessors (`$sheets`)
 
-XQuery export **fails at generate time** when a slot uses `sheet_lookup` / `sheet_get_*` / `decision_table`. There is no silent `()` stub. Add Sheet support in a follow-up by declaring `external $sheets` and emitting lookup helpers.
+Project Sheets bind as a nested map (readable in BaseX/Saxon step-through):
+
+```xquery
+map {
+  "icd10_snomed": map {
+    "headers": ["code", "snomed", "rubric"],
+    "rows": [ map { "code": "I10", "snomed": "38341003", "rubric": "Hypertension" } ],
+    "values": [ ["I10", "38341003", "Hypertension"] ],
+    "kind": "sheet"
+  }
+}
+```
+
+Decision tables add `hitPolicy`, `decisionColumns`, `rowCatchAll`, `collectJoin`, and `collectDedupe`. Generated helpers: `local:sheet-lookup`, `local:sheet-get-*`, `local:decision-table`.
+
+BaseX JSON bind (same `parse-json` style as `$source`):
+
+```xquery
+declare variable $sheets as map(*) := parse-json('{
+  "icd10_snomed": {
+    "headers": ["code", "snomed"],
+    "rows": [{ "code": "I10", "snomed": "38341003" }],
+    "values": [["I10", "38341003"]],
+    "kind": "sheet"
+  }
+}');
+```
+
+In-app Test Run passes the convert-time Sheet bag through the same shape (`sheetsBagToXQueryMap`).
 
 ## What golden tests assert today
 
@@ -89,8 +118,9 @@ XQuery export **fails at generate time** when a slot uses `sheet_lookup` / `shee
 - `for_each_source` over `$.measurements` produces one `<loop>` per source item
 - Relative paths (`pulse`, `timestamp`) resolve against the loop variable
 - `DV_QUANTITY` / `DV_DATE_TIME` magnitudes and values match the Example Instance JSON
+- In-app path: `test/xquery_runtime_test.ts` (fontoxpath; no BaseX required)
 
-Full COMPOSITION XML emit and preview ≡ XQuery value parity remain follow-ups (issue #39 child / ROADMAP K).
+Full COMPOSITION RM XML emit uses `generate(model, "xquery", { skeleton, instanceShape: "xml" })` (issue #75). Preview ≡ XQuery clinical values are covered in `test/vms_golden_test.ts`.
 
 ## Related
 

@@ -102,7 +102,8 @@ No in-app AI API — you bring your own chat tool:
 In **Target & Previews**, change **Output mode** from Mapping preview to a **conversion script language**:
 
 - TypeScript (executable in Test Run)
-- Java, Handlebars, XQuery (generated; execution planned)
+- Java (generated; JVM execution planned)
+- Handlebars (authored template in Test Run), XQuery, and Go Template (generated and executed in Conversion Test Run)
 
 **Generated conversion script(s)** shows the code. Download when ready for your integration pipeline.
 

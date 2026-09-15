@@ -23,6 +23,7 @@ import {
 import { generate } from "@intehrgrator/core/codegen/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import { serializedConversionOutput } from "@intehrgrator/core/codegen/run_typescript.ts";
+import { ensureXQueryRuntime } from "@intehrgrator/core/codegen/run_xquery.ts";
 import {
   collectValueSlots,
   generateSkeleton,
@@ -104,6 +105,48 @@ Deno.test("VMS BP mapping: Mapping preview and TypeScript Output agree on clinic
   } finally {
     workspace.dispose();
   }
+});
+
+Deno.test("VMS BP mapping: XQuery Output XML instance carries the same clinical values as preview", async () => {
+  ensure();
+  await ensureXQueryRuntime();
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const instance = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "legacy-simulated-json", "instances", "bp-inst.json"),
+  );
+  const { templateId, skeleton } = generateSkeleton(opt);
+  const target = getTargetFormatHandler("openehr-template").load("blood_pressure.opt", opt);
+  const systolic = collectValueSlots(skeleton).find((slot) =>
+    slot.slotId.endsWith("items/at0004/value/value/value")
+  );
+  assert(systolic, "expected systolic value slot");
+
+  let model = createEmptyModel(templateId);
+  model.targetFormat = "openehr-template";
+  model = applyExpressionEdit(model, systolic.slotId, 'xpathNumber("$.systolic")', {
+    rmType: systolic.rmType,
+    returnType: "number",
+    label: systolic.label,
+  });
+
+  const preview = runTest(model, instance, "json", {
+    target,
+    defaults: { language: "en", territory: "GB", time: "2026-08-25T10:00:00Z" },
+  });
+  const xq = generate(model, "xquery", { skeleton, instanceShape: "xml" });
+  const xquery = runTest(model, instance, "json", {
+    target,
+    outputMode: "xquery",
+    generatedCode: xq,
+    defaults: { language: "en", territory: "GB", time: "2026-08-25T10:00:00Z" },
+    instanceShape: "xml",
+  });
+  assertEquals(xquery.error, undefined, xquery.error);
+  const previewNorm = clinicalFingerprint(preview.output);
+  assertEquals(previewNorm.systolic, 120);
+  assertStringIncludes(String(xquery.output), "120");
 });
 
 Deno.test("XQuery export lists the same slot ids and loop metadata as Mapping Model IR", async () => {

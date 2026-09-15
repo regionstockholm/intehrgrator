@@ -1,4 +1,4 @@
-import type { ExportTarget, MappingModel, SkeletonNode } from "../../types/mod.ts";
+import type { ExportTarget, MappingModel, OpenEhrInstanceShape, SkeletonNode } from "../../types/mod.ts";
 import { precompileHandlebars } from "../output/handlebars_dialect.ts";
 import { generateXQuery } from "./xquery.ts";
 import { generateGoTemplate } from "./go_template.ts";
@@ -16,6 +16,7 @@ export {
   jsonDollarPathToLookup,
   XQueryExportError,
 } from "./xquery.ts";
+export type { XQueryGenerationOptions } from "./xquery.ts";
 export { generateGoTemplate } from "./go_template.ts";
 export {
   emitTsExpression,
@@ -38,6 +39,8 @@ export interface ExportGenerationOptions {
   blocklyState?: unknown;
   /** Template Skeleton used when Blockly state is not available. */
   skeleton?: SkeletonNode[];
+  /** openEHR JSON vs XML instance shape (XQuery Model A/C vs maps). */
+  instanceShape?: OpenEhrInstanceShape;
 }
 
 export interface ExportTargetAdapter {
@@ -97,7 +100,7 @@ const adapters = new Map<ExportTarget, ExportTargetAdapter>([
     id: "xquery",
     extension: "xq",
     mime: "application/xquery",
-    generate: generateXQuery,
+    generate: (model, options) => generateXQuery(model, options),
   }],
   ["go-template", {
     id: "go-template",

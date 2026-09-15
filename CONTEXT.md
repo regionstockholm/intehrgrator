@@ -110,8 +110,12 @@ _Avoid_: Export Target as the name of this control, treating Mapping preview as 
 Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against the Active Example (today's Test Run), including **Handlebars Template** rendering for free-form / Kintegrate. **Generated conversion script(s)** shows a prompt to pick a Conversion script language rather than a script. Not itself a Conversion Script.
 _Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
+**openEHR instance shape**:
+Session-only JSON vs XML preference on openEHR targets. Mapping preview and TypeScript still produce ehrtslib JSON. XQuery export / Test Run emit COMPOSITION RM XML when XML is selected, or XPath 3.1 maps (JSON instance) when JSON is selected.
+_Avoid_: treating this as a Conversion script language, persisting it in the Project Bundle
+
 **Test Run**:
-When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java Output mode generates an Archie conversion class but does not execute it in the Web Shell (see [JAVA_EXPORT.md](docs/JAVA_EXPORT.md)). Handlebars and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java Output mode generates an Archie conversion class but does not execute it in the Web Shell (see [JAVA_EXPORT.md](docs/JAVA_EXPORT.md)). Handlebars Output mode renders the authored Handlebars Template against the Active Example. XQuery Output mode lazy-loads fontoxpath and executes the generated `.xq` against the Active Example (`$source`, `$defaults`, `$sheets`). Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run
 
@@ -120,7 +124,7 @@ When enabled, Test Run re-executes automatically (debounced) after mapping edits
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Returns the single **Instance root** under **Conversion start** (openEHR Composition is one possible shape, not the only one).
+Executable TypeScript, Java, Handlebars, or XQuery produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Returns the single **Instance root** under **Conversion start** (openEHR Composition is one possible shape, not the only one).
 _Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script
 
 **Template Skeleton**:

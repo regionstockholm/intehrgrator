@@ -1,4 +1,4 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import "blockly/blocks";
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
@@ -26,7 +26,7 @@ import {
 } from "@intehrgrator/core/sheets/mod.ts";
 import { checkVmsMustache } from "@intehrgrator/core/output/vms_hbs.ts";
 import { generateTypeScript } from "@intehrgrator/core/codegen/mod.ts";
-import { generateXQuery, XQueryExportError } from "@intehrgrator/core/codegen/xquery.ts";
+import { generateXQuery } from "@intehrgrator/core/codegen/xquery.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
 
 /** Fixture: laterality × finding → value + VMS-Mustache snippet (don't-care on unused). */
@@ -280,11 +280,14 @@ Deno.test("TypeScript codegen emits decisionTable helper call", () => {
   assertEquals(code.includes("cellMatch"), true);
 });
 
-Deno.test("XQuery export rejects decision_table with a clear export error", () => {
+Deno.test("XQuery export emits decision_table helper bound to $sheets", () => {
   const model = baseModel(
     'decision_table("findings", map("finding", "effusion", "laterality", "left"), "term_id")',
   );
-  assertThrows(() => generateXQuery(model), XQueryExportError, "decision_table");
+  const xq = generateXQuery(model);
+  assertStringIncludes(xq, "declare variable $sheets");
+  assertStringIncludes(xq, "local:decision-table");
+  assertStringIncludes(xq, "map { \"finding\": \"effusion\", \"laterality\": \"left\" }");
 });
 
 Deno.test("Test Run evaluates decision_table against project sheets", () => {

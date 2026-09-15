@@ -15,6 +15,9 @@ import { isListAttribute } from "./typescript.ts";
 
 const GENERIC_RM = new Set(["HISTORY", "POINT_EVENT", "INTERVAL_EVENT", "EVENT"]);
 
+/** Matches the desktop app identifier in deno.json (`se.regionstockholm.intehrgrator`). */
+const JAVA_GENERATED_PACKAGE = "se.regionstockholm.intehrgrator.generated";
+
 const JAVA_CLASS_OVERRIDES: Record<string, string> = {
   DV_URI: "DvURI",
   DV_EHR_URI: "DvEHRURI",
@@ -790,7 +793,7 @@ function wrapJavaModule(parts: JavaModuleParts): string {
     "// Built-in verification: pass an ADL2 OperationalTemplate to the constructor",
     "// (or ConversionScript.fromAdl2Opt) to convert-then-validate via RMObjectValidator.",
     "",
-    "package com.regionstockholm.intehrgrator.generated;",
+    `package ${JAVA_GENERATED_PACKAGE};`,
     "",
     "import com.nedap.archie.adlparser.ADLParser;",
     "import com.nedap.archie.aom.Archetype;",

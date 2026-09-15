@@ -144,7 +144,7 @@ Deno.test({
     const jars = await fetchJars(libDir);
     if (!jars) return;
 
-    const srcDir = join(dir, "src", "com", "regionstockholm", "intehrgrator", "generated");
+    const srcDir = join(dir, "src", "se", "regionstockholm", "intehrgrator", "generated");
     await Deno.mkdir(srcDir, { recursive: true });
     const srcPath = join(srcDir, "ConversionScript.java");
     await Deno.writeTextFile(srcPath, java);

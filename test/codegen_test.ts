@@ -61,6 +61,7 @@ Deno.test("java codegen structure", () => {
   const model = createEmptyModel("vitals");
   const java = generate(model, "java");
   assertEquals(java.includes("class ConversionScript"), true);
+  assertStringIncludes(java, "package se.regionstockholm.intehrgrator.generated;");
   assertStringIncludes(java, "com.nedap.archie.rm.composition.Composition");
 });
 

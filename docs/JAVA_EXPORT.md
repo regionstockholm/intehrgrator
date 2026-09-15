@@ -11,7 +11,7 @@ server or CI JVM. Conversion Test Run for Java remains unimplemented
 
 ## What the class looks like
 
-Package `com.regionstockholm.intehrgrator.generated`, class `ConversionScript`:
+Package `se.regionstockholm.intehrgrator.generated`, class `ConversionScript`:
 
 - `convert(Object source, Map<String, Object> defaults)` — JSON (`Map` /
   Jackson tree / JSON string) or XML (`org.w3c.dom.Node` / XML string).

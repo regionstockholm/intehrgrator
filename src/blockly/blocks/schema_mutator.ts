@@ -23,7 +23,7 @@ import {
 import { specForChild, type SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
-import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
+import { enforceMouthCaptionLayout, initMutatorStackMouth } from "../mouth_layout.ts";
 
 const TARGET_CHILD_PREFIX = "TARGET_";
 
@@ -126,8 +126,7 @@ function defineSchemaMutatorQuarks(): void {
   if (!Blockly.Blocks[SCHEMA_MUTATOR_CONTAINER]) {
     Blockly.Blocks[SCHEMA_MUTATOR_CONTAINER] = {
       init: function (this: Block) {
-        this.appendDummyInput().appendField("optional fields");
-        this.appendStatementInput("STACK");
+        initMutatorStackMouth(this, "optional fields");
         this.setColour("#4B5563");
         this.contextMenu = false;
       },

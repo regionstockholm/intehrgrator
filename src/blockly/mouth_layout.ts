@@ -32,6 +32,16 @@ export function enforceMouthCaptionLayout(block: Block): void {
 }
 
 /**
+ * Dummy title plus STACK statement mouth used by cogwheel mutator containers.
+ * STACK hugs its C the same way COMPOSITION.content does.
+ */
+export function initMutatorStackMouth(block: Block, title: string): void {
+  block.appendDummyInput().appendField(title);
+  block.appendStatementInput("STACK");
+  enforceMouthCaptionLayout(block);
+}
+
+/**
  * Ensure a LEFT-aligned dummy `HEADER` exists as the first input and is ready
  * for class chrome (output glyph / title). Pulls an existing HEADER to the top
  * when it was appended later. Shared so lists/maps/logic cannot drift from RM.

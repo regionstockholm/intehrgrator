@@ -66,6 +66,11 @@ export function attachStartToInstanceRoot(
   if (!start.nextConnection?.isConnected() && root.previousConnection) {
     start.nextConnection?.connect(root.previousConnection);
   }
+  let current: Blockly.Block | null = root.getNextBlock();
+  while (current) {
+    if (isInstanceRootBlockType(current.type)) applyInstanceRootCap(current);
+    current = current.getNextBlock();
+  }
   layoutStartAboveRoot(start, root);
   return start;
 }

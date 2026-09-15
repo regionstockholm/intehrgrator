@@ -109,7 +109,7 @@ Deno.test("xml_document is an instance root with declaration fields by default",
   const ws = new Blockly.Workspace();
   const doc = ws.newBlock(XML_DOCUMENT_TYPE);
   assertEquals(doc.previousConnection?.getCheck()?.includes(INSTANCE_ROOT_CONNECTION), true);
-  assertEquals(doc.nextConnection, null);
+  assertEquals(doc.nextConnection?.getCheck()?.includes(INSTANCE_ROOT_CONNECTION), true);
   assert(doc.getField("MUTATOR_COG"), "cogwheel");
   assertEquals(doc.getFieldValue("VERSION"), "1.0");
   assertEquals(doc.getFieldValue("ENCODING"), "UTF-8");

@@ -751,6 +751,7 @@ function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }):
       targetSignature: derived.targetSignature,
       unsupported: derived.unsupported,
       sheetNames: derived.sheetNames,
+      instanceEncodings: derived.instanceEncodings,
     },
   );
   const s = controller.getState();
@@ -1049,6 +1050,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             targetSignature: derived.targetSignature,
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
+      instanceEncodings: derived.instanceEncodings,
           },
         );
       }
@@ -1074,6 +1076,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             targetSignature: derived.targetSignature,
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
+      instanceEncodings: derived.instanceEncodings,
           },
         );
       }
@@ -2285,12 +2288,15 @@ function installWorkbenchTestApi(): void {
           }
         }
         const check = block.outputConnection?.getCheck?.() ?? null;
+        const prev = block.previousConnection?.getCheck?.() ?? null;
         return {
           id: block.id,
           type: block.type,
           slotId: slotIdFromBlock(block),
           fields,
           outputCheck: check,
+          hasNext: Boolean(block.nextConnection),
+          previousCheck: prev,
         };
       });
       return {

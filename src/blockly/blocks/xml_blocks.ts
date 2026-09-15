@@ -30,19 +30,9 @@ import {
   type XmlDocumentExtraState,
   type XmlNamespaceDecl,
 } from "../../core/xml_shape.ts";
+import { applyInstanceRootCap } from "../instance_root.ts";
 
 export const XML_COLOUR = "#0284C7";
-
-const INSTANCE_ROOT_CONNECTION = "INSTANCE_ROOT";
-
-function applyXmlInstanceRootCap(block: Block): void {
-  if (block.outputConnection?.isConnected()) block.outputConnection.disconnect();
-  if (block.nextConnection?.isConnected()) block.nextConnection.disconnect();
-  block.setOutput(false);
-  block.setNextStatement(false);
-  block.setPreviousStatement(true, INSTANCE_ROOT_CONNECTION);
-  (block as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_ = true;
-}
 
 function applyMutatorItemLabel(item: Block, attr: string, label: string): void {
   item.setFieldValue(label, "LABEL");
@@ -118,7 +108,7 @@ function defineXmlElement(): void {
       const raw = state && typeof state === "object"
         ? state as { instanceRoot?: unknown }
         : undefined;
-      if (raw?.instanceRoot) applyXmlInstanceRootCap(this);
+      if (raw?.instanceRoot) applyInstanceRootCap(this);
     },
   };
 }
@@ -196,7 +186,7 @@ function defineXmlDocument(): void {
         .setAlign(inputAlignRight())
         .setCheck(XML_ELEMENT_TYPE);
       appendSlotLabel(root, "element", { rmType: XML_ELEMENT_TYPE });
-      applyXmlInstanceRootCap(this);
+      applyInstanceRootCap(this);
       this.setColour(XML_COLOUR);
       this.setTooltip(
         "XML document instance root. Cogwheel adds the XML declaration, standalone, and namespaces.",
@@ -352,7 +342,7 @@ export function registerXmlDocumentMutator(): void {
         if (state?.encoding) this.xmlDocEncoding_ = state.encoding;
         if (state?.standalone) this.xmlDocStandalone_ = state.standalone;
         this.updateXmlDocumentShape_?.();
-        if (state?.instanceRoot) applyXmlInstanceRootCap(this);
+        if (state?.instanceRoot) applyInstanceRootCap(this);
       },
       decompose: function (this: XmlDocumentBlock, workspace: Blockly.Workspace) {
         return stackXmlDocMutatorItems(workspace, this.xmlDocExtras_ ?? [DECL_ATTR]);

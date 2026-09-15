@@ -262,6 +262,7 @@ export interface TypeScriptModuleParts {
   rootType?: string;
   /** Where the RM tree was walked from. */
   source?: "blockly" | "skeleton" | "slots";
+  extraImports?: string[];
 }
 
 export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
@@ -303,6 +304,10 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
   if (parts.helpers.has("handlebars")) {
     if (types.length || fonto.length) lines.push("");
     lines.push('import Handlebars from "handlebars";');
+  }
+  if (parts.extraImports?.length) {
+    if (types.length || fonto.length || parts.helpers.has("handlebars")) lines.push("");
+    for (const line of parts.extraImports) lines.push(line);
   }
   lines.push(
     "",

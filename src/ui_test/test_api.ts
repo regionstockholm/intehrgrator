@@ -14,6 +14,8 @@ export interface BlocklyBlockSummary {
   slotId: string | null;
   fields: Record<string, string>;
   outputCheck: string | string[] | null;
+  hasNext: boolean;
+  previousCheck: string | string[] | null;
 }
 
 export interface WorkbenchTestSnapshot {

@@ -38,7 +38,7 @@ import {
   type SlotCardinality,
 } from "../slot_cardinality.ts";
 import { appendSlotLabel } from "../slot_label.ts";
-import { enforceMouthCaptionLayout, inputAlignLeft, inputAlignRight } from "../mouth_layout.ts";
+import { enforceMouthCaptionLayout, initMutatorStackMouth, inputAlignLeft, inputAlignRight } from "../mouth_layout.ts";
 import {
   appendHiddenSerializable,
   createHiddenSerializableField,
@@ -1502,8 +1502,7 @@ function defineOptionalMutatorQuarks(): void {
   if (!Blockly.Blocks[OPTIONAL_RM_MUTATOR_CONTAINER]) {
     Blockly.Blocks[OPTIONAL_RM_MUTATOR_CONTAINER] = {
       init: function (this: Blockly.Block) {
-        this.appendDummyInput().appendField("optional RM");
-        this.appendStatementInput("STACK");
+        initMutatorStackMouth(this, "optional RM");
         this.setColour(CONTAINER_COLOUR);
         this.contextMenu = false;
       },
@@ -1513,8 +1512,7 @@ function defineOptionalMutatorQuarks(): void {
   if (!Blockly.Blocks[DV_FIELDS_MUTATOR_CONTAINER]) {
     Blockly.Blocks[DV_FIELDS_MUTATOR_CONTAINER] = {
       init: function (this: Blockly.Block) {
-        this.appendDummyInput().appendField("optional fields");
-        this.appendStatementInput("STACK");
+        initMutatorStackMouth(this, "optional fields");
         this.setColour(DV_COLOUR);
         this.contextMenu = false;
       },

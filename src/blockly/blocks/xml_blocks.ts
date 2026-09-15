@@ -13,7 +13,7 @@ import {
   type MutatorFlyoutBlock,
 } from "../dynamic_mutator.ts";
 import { inputAlignLeft, inputAlignRight } from "../block_type_glyph.ts";
-import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
+import { enforceMouthCaptionLayout, initMutatorStackMouth } from "../mouth_layout.ts";
 import { appendSlotLabel } from "../slot_label.ts";
 import {
   XML_ATTRIBUTE_CHECK,
@@ -220,8 +220,7 @@ function defineXmlDocumentMutatorQuarks(): void {
   if (!Blockly.Blocks[XML_DOCUMENT_MUTATOR_CONTAINER]) {
     Blockly.Blocks[XML_DOCUMENT_MUTATOR_CONTAINER] = {
       init: function (this: Block) {
-        this.appendDummyInput().appendField("XML document");
-        this.appendStatementInput("STACK");
+        initMutatorStackMouth(this, "XML document");
         this.setColour(XML_COLOUR);
         this.contextMenu = false;
       },

@@ -12,7 +12,7 @@ import {
   openBlockMutator,
 } from "../dynamic_mutator.ts";
 import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
-import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
+import { enforceMouthCaptionLayout, initMutatorStackMouth } from "../mouth_layout.ts";
 
 const MAP_COLOUR = "#7E57C2";
 const DEFAULTS_COLOUR = "#5C6BC0";
@@ -154,8 +154,7 @@ function defineMapsMutatorQuarks(): void {
   if (!Blockly.Blocks[MAPS_CREATE_WITH_CONTAINER]) {
     Blockly.Blocks[MAPS_CREATE_WITH_CONTAINER] = {
       init: function (this: Blockly.Block) {
-        this.appendDummyInput().appendField("map entries");
-        this.appendStatementInput("STACK");
+        initMutatorStackMouth(this, "map entries");
         this.setColour(MAP_COLOUR);
         this.contextMenu = false;
       },

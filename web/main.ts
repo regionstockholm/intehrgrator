@@ -2220,6 +2220,30 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.append(title, list);
 }
 
+function statementInputMetricsOf(
+  block: Blockly.Block | null | undefined,
+  inputName: string,
+): { offsetX: number; offsetY: number; blockWidth: number; align: number; scale: number } | null {
+  const input = block?.getInput(inputName);
+  const conn = input?.connection as
+    | { offsetInBlock?: { x: number; y: number }; x?: number; y?: number }
+    | null
+    | undefined;
+  if (!block || !input || !conn) return null;
+  const offset = conn.offsetInBlock ?? { x: Number(conn.x ?? 0), y: Number(conn.y ?? 0) };
+  const hw = typeof (block as BlockSvg).getHeightWidth === "function"
+    ? (block as BlockSvg).getHeightWidth()
+    : { width: Number((block as { width?: number }).width ?? 0) };
+  const scale = Number((block.workspace as Blockly.WorkspaceSvg | undefined)?.scale ?? 1);
+  return {
+    offsetX: Number(offset.x),
+    offsetY: Number(offset.y),
+    blockWidth: Number(hw.width ?? 0),
+    align: Number(input.align ?? 0),
+    scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
+  };
+}
+
 function installWorkbenchTestApi(): void {
   const api: IntehrgratorTestApi = {
     ready: () => workbenchReady,
@@ -2327,6 +2351,23 @@ function installWorkbenchTestApi(): void {
     listBlockInputs(blockId) {
       const block = workspace.getBlockById(blockId);
       return block ? block.inputList.map((input) => input.name) : [];
+    },
+    getStatementInputMetrics(blockId, inputName) {
+      const block = workspace.getBlockById(blockId);
+      return statementInputMetricsOf(block, inputName);
+    },
+    getMutatorStackMetrics(blockId) {
+      const block = workspace.getBlockById(blockId) as BlockSvg | null;
+      if (!block) return null;
+      const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
+      const icon = MutatorIconType ? block.getIcon?.(MutatorIconType) : null;
+      const mini = icon && typeof (icon as { getWorkspace?: () => Blockly.Workspace | null }).getWorkspace === "function"
+        ? (icon as { getWorkspace: () => Blockly.Workspace | null }).getWorkspace()
+        : null;
+      if (!mini) return null;
+      const container = (mini.getTopBlocks?.(false) ?? []).find((candidate) => candidate.getInput("STACK")) ??
+        null;
+      return statementInputMetricsOf(container, "STACK");
     },
     openMutator(blockId) {
       const block = workspace.getBlockById(blockId);

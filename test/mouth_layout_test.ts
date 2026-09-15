@@ -1,17 +1,27 @@
 /**
  * Slot captions hug mouths on every block type that has a socket row
  * (issue #90): stock lists, CODE_PHRASE / DV fields, XML, and RM.
+ * Statement snap sits on the visual C bump (issue #105).
  */
 import { assert, assertEquals } from "@std/assert";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 import { FieldSlotLabel, isSlotLabelField } from "@intehrgrator/blockly/slot_label.ts";
 import { enforceMouthCaptionLayout } from "@intehrgrator/blockly/mouth_layout.ts";
-import { dvFieldInputName, registerRmBlocks } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
+import {
+  DV_FIELDS_MUTATOR_CONTAINER,
+  OPTIONAL_RM_MUTATOR_CONTAINER,
+  dvFieldInputName,
+  registerRmBlocks,
+} from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import {
   applyOpenEhrRowAlign_,
+  pinStatementRowNotch_,
   shouldPinSlotCaptionToMouth_,
 } from "@intehrgrator/blockly/compact_renderer.ts";
+import { SCHEMA_MUTATOR_CONTAINER } from "@intehrgrator/blockly/blocks/schema_mutator.ts";
+import { XML_DOCUMENT_MUTATOR_CONTAINER } from "@intehrgrator/blockly/blocks/xml_blocks.ts";
+import { MAPS_CREATE_WITH_CONTAINER } from "@intehrgrator/blockly/blocks/map_blocks.ts";
 import { XML_ATTRIBUTES_INPUT, XML_ELEMENT_TYPE } from "@intehrgrator/core/xml_shape.ts";
 
 let ready = false;
@@ -123,4 +133,40 @@ Deno.test("renderer pins ordinary mouth captions, not only FieldSlotLabel", () =
     shouldPinSlotCaptionToMouth_({ hasStatement: false, hasExternalInput: false, hasInlineInput: false }, plain),
     false,
   );
+});
+
+Deno.test("RIGHT-packed statement mouths snap at the visual C bump, not the leftover left column", () => {
+  // Caption 80px + compact C 40px, leftover 60px padded left (openEHR pack).
+  // Blockly computeBounds_ left statementEdge at the caption column (80).
+  const row = {
+    xPos: 10,
+    width: 180,
+    statementEdge: 80,
+    getLastInput: () => ({ width: 40, notchOffset: 15 }),
+  };
+  pinStatementRowNotch_(row);
+  assertEquals(row.statementEdge, 140);
+  const connX = Number(row.xPos) + Number(row.statementEdge) + 15;
+  assertEquals(connX, 165);
+});
+
+Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
+  ensure();
+  const ws = new Blockly.Workspace();
+  const types = [
+    OPTIONAL_RM_MUTATOR_CONTAINER,
+    DV_FIELDS_MUTATOR_CONTAINER,
+    SCHEMA_MUTATOR_CONTAINER,
+    XML_DOCUMENT_MUTATOR_CONTAINER,
+    MAPS_CREATE_WITH_CONTAINER,
+  ];
+  for (const type of types) {
+    const block = ws.newBlock(type);
+    assertEquals(
+      block.getInput("STACK")?.align,
+      AlignRight(),
+      `${type} STACK should hug its mouth`,
+    );
+  }
+  ws.dispose();
 });

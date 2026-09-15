@@ -75,6 +75,21 @@ export interface IntehrgratorTestApi {
   listBlockInputs(blockId: string): string[];
   /** Open the native mutator bubble (cogwheel) on a block. */
   openMutator(blockId: string): void;
+  /**
+   * Rendered statement-input connection offset on a canvas block
+   * (`offsetInBlock` plus the block's width). Used to check mouth snap (issue #105).
+   */
+  getStatementInputMetrics(
+    blockId: string,
+    inputName: string,
+  ): { offsetX: number; offsetY: number; blockWidth: number; align: number; scale: number } | null;
+  /**
+   * After `openMutator`, metrics for the mini-workspace STACK mouth
+   * (optional fields / optional RM / schema / XML / map).
+   */
+  getMutatorStackMetrics(
+    blockId: string,
+  ): { offsetX: number; offsetY: number; blockWidth: number; align: number; scale: number } | null;
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
   undo(): void;

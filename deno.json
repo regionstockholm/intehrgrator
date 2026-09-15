@@ -44,6 +44,7 @@
     "jsuites": "npm:jsuites@5.13.4",
     "yaml": "npm:yaml@^2.9.0",
     "fontoxpath": "npm:fontoxpath@^3.33.2/dist/fontoxpath.esm.js",
+    "slimdom": "npm:slimdom@^4.3.5",
     "@cfworker/json-schema": "npm:@cfworker/json-schema@^4.1.1",
     "ehrtslib/": "./vendor/ehrtslib/"
   },

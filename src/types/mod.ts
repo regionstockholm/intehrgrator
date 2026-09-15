@@ -41,6 +41,9 @@ export function unimplementedTestRunMessage(language: ConversionScriptLanguage):
   return `// Conversion Test Run for ${conversionScriptLanguageLabel(language)} is not implemented yet.\n`;
 }
 
+/** Desired openEHR instance serialization (session-only; affects XQuery export / Test Run). */
+export type OpenEhrInstanceShape = "json" | "xml";
+
 /** Structure produced by a conversion. */
 export type TargetFormatId =
   | "openehr-template"
@@ -269,6 +272,11 @@ export type OpenEhrJsonDeserializeMode =
 export interface ProjectSettings {
   /** Session Output mode. Not restored from a Project Bundle. */
   exportTarget: OutputMode;
+  /**
+   * Session openEHR JSON vs XML instance preference. Affects XQuery export and
+   * XQuery Conversion Test Run. Not a Conversion script language.
+   */
+  openEhrInstanceShape: OpenEhrInstanceShape;
   theme: "karolinska";
   /** ehrtslib JSON deserializer preset when validating openEHR Conversion Test Run output. */
   openEhrJsonDeserializeMode: OpenEhrJsonDeserializeMode;
@@ -398,6 +406,7 @@ export const DEFAULT_SETTINGS: ProjectSettings = {
   exportTarget: "preview",
   theme: "karolinska",
   openEhrJsonDeserializeMode: "hybrid",
+  openEhrInstanceShape: "json",
   autoscroll: true,
   autoplay: false,
 };

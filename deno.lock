@@ -55,6 +55,8 @@
     "npm:jspreadsheet-ce@5.0.4": "5.0.4",
     "npm:jsuites@5.13.4": "5.13.4",
     "npm:playwright@1.51.0": "1.51.0",
+    "npm:slimdom@*": "4.3.5",
+    "npm:slimdom@^4.3.5": "4.3.5",
     "npm:temporal-polyfill@0.2.5": "0.2.5",
     "npm:temporal-polyfill@0.3.0": "0.3.0",
     "npm:yaml@^2.3.4": "2.9.0",
@@ -1171,6 +1173,9 @@
         "xmlchars"
       ]
     },
+    "slimdom@4.3.5": {
+      "integrity": "sha512-MoxdfngDk7nf8Vun0xB2AYBiHv3Qlua3Frf12n8ZLmXtfZoapfAQOKLSMCsemSyEU1UIyd503LJfYKJE+dxDTg=="
+    },
     "source-map@0.6.1": {
       "integrity": "sha512-UjgapumWlbMhkBgzT7Ykc5YXUT46F0iKu8SGXq0bcwP5dz/h0Plj6enJqjz1Zbq2l5WaqYnrVbwWOWMyF3F47g=="
     },
@@ -1392,7 +1397,30 @@
       "npm:handlebars@^4.7.9",
       "npm:jspreadsheet-ce@5.0.4",
       "npm:jsuites@5.13.4",
+      "npm:slimdom@^4.3.5",
       "npm:yaml@^2.9.0"
-    ]
+    ],
+    "links": {
+      "jsr:ehrtslib@0.0.0": {
+        "dependencies": [
+          "jsr:@std/assert@1",
+          "jsr:@std/fs@1",
+          "jsr:@std/path@1",
+          "npm:@codemirror/commands@^6.8.1",
+          "npm:@codemirror/lang-javascript@^6.2.4",
+          "npm:@codemirror/lang-json@^6.0.2",
+          "npm:@codemirror/lang-xml@^6.1.0",
+          "npm:@codemirror/lang-yaml@^6.1.2",
+          "npm:@codemirror/language@^6.11.3",
+          "npm:@codemirror/state@^6.5.2",
+          "npm:@codemirror/view@^6.38.0",
+          "npm:@lezer/highlight@^1.2.1",
+          "npm:d3@7.9.0",
+          "npm:fast-xml-parser@^4.3.0",
+          "npm:fflate@~0.8.2",
+          "npm:yaml@^2.3.4"
+        ]
+      }
+    }
   }
 }

@@ -1,4 +1,4 @@
-import { assertEquals, assertStringIncludes, assert, assertThrows } from "@std/assert";
+import { assertEquals, assertStringIncludes, assert } from "@std/assert";
 import { join, toFileUrl } from "@std/path";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
@@ -7,7 +7,6 @@ import {
   jsonDollarPathToLookup,
   emitXQueryExpr,
   compileLoopSequence,
-  XQueryExportError,
   emitJavaExpression,
   createJavaEmitContext,
 } from "@intehrgrator/core/codegen/mod.ts";
@@ -219,25 +218,24 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
     emitXQueryExpr(parseExpression('maps_get("defaults", "language")')),
     '(if ("defaults" eq "defaults") then map:get($defaults, "language") else ())',
   );
-  assertThrows(
-    () => emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
-    XQueryExportError,
-    "$sheets",
+  assertEquals(
+    emitXQueryExpr(parseExpression('sheet_lookup("t", "code", "I10", "snomed")')),
+    'local:sheet-lookup("t", "code", "I10", "snomed")',
   );
 });
 
-Deno.test("xquery export fails with clear message when slots use sheet accessors", () => {
+Deno.test("xquery export emits $sheets helpers for sheet accessors", () => {
   const model = applyExpressionEdit(
     createEmptyModel("terms"),
     "s1",
     'sheet_lookup("icd10_snomed", "code", "I10", "snomed")',
     { rmType: "DV_TEXT", returnType: "string" },
   );
-  assertThrows(
-    () => generate(model, "xquery"),
-    XQueryExportError,
-    "$sheets",
-  );
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "declare variable $sheets");
+  assertStringIncludes(xq, "local:sheet-lookup");
+  assertStringIncludes(xq, "local:decision-table");
+  assertStringIncludes(xq, '"icd10_snomed"');
 });
 
 Deno.test("xquery export emits for_each_source iteration with relative loop paths", () => {

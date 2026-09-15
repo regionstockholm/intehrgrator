@@ -1,6 +1,7 @@
 import type {
   MappingLoop,
   MappingModel,
+  OpenEhrInstanceShape,
   OpenEhrJsonDeserializeMode,
   OutputMode,
   SourceFormatId,
@@ -17,11 +18,16 @@ import {
   collectAllSlotIds,
   findSkeletonTrail,
 } from "../skeleton/generate_skeleton.ts";
-import { generateTypeScript } from "../codegen/mod.ts";
+import { generateTypeScript, generate } from "../codegen/mod.ts";
 import {
   runGeneratedTypeScript,
   serializedConversionOutput,
 } from "../codegen/run_typescript.ts";
+import {
+  isXQueryRuntimeLoaded,
+  runGeneratedXQuery,
+  xqueryRuntimeUnavailableMessage,
+} from "../codegen/run_xquery.ts";
 import {
   getTargetFormatHandler,
   type TargetDefinition,
@@ -48,6 +54,8 @@ export interface RunTestOptions {
   sheets?: import("../sheets/types.ts").SheetDocument[];
   /** ehrtslib JSON deserializer preset for openEHR template validation. */
   openEhrJsonDeserializeMode?: OpenEhrJsonDeserializeMode;
+  /** openEHR JSON vs XML instance shape for XQuery generate-and-run. */
+  instanceShape?: OpenEhrInstanceShape;
 }
 
 export function runTest(
@@ -58,7 +66,13 @@ export function runTest(
 ): TestResult {
   const warnings: string[] = [];
   const mode = options.outputMode ?? "preview";
-  if (isConversionScriptLanguage(mode) && mode !== "typescript" && mode !== "handlebars" && mode !== "go-template") {
+  if (
+    isConversionScriptLanguage(mode) &&
+    mode !== "typescript" &&
+    mode !== "handlebars" &&
+    mode !== "go-template" &&
+    mode !== "xquery"
+  ) {
     const message = unimplementedTestRunMessage(mode);
     return {
       ok: false,
@@ -95,6 +109,35 @@ export function runTest(
       const outputValidation = validateConvertedOutput(output, options.target, {
       deserializeMode: options.openEhrJsonDeserializeMode,
     });
+      return {
+        ok: warnings.length === 0,
+        output,
+        warnings,
+        outputValidation,
+      };
+    }
+
+    if (mode === "xquery") {
+      if (!isXQueryRuntimeLoaded()) {
+        const message = xqueryRuntimeUnavailableMessage();
+        return { ok: false, output: message, error: message.trim(), warnings };
+      }
+      const code = options.generatedCode?.trim()
+        ? options.generatedCode
+        : generate(model, "xquery", {
+          blocklyState: options.blocklyState,
+          skeleton: options.target?.skeleton,
+          instanceShape: options.instanceShape,
+        });
+      const raw = runGeneratedXQuery(code, {
+        source: ctx.data,
+        defaults,
+        sheets: ctx.sheets,
+      });
+      const output = typeof raw === "string" ? raw : serializedConversionOutput(raw);
+      const outputValidation = validateConvertedOutput(output, options.target, {
+        deserializeMode: options.openEhrJsonDeserializeMode,
+      });
       return {
         ok: warnings.length === 0,
         output,

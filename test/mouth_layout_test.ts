@@ -18,7 +18,6 @@ import {
   applyOpenEhrRowAlign_,
   pinStatementRowNotch_,
   shouldPinSlotCaptionToMouth_,
-  statementConnectionOffsetX_,
 } from "@intehrgrator/blockly/compact_renderer.ts";
 import { SCHEMA_MUTATOR_CONTAINER } from "@intehrgrator/blockly/blocks/schema_mutator.ts";
 import { XML_DOCUMENT_MUTATOR_CONTAINER } from "@intehrgrator/blockly/blocks/xml_blocks.ts";
@@ -147,7 +146,8 @@ Deno.test("RIGHT-packed statement mouths snap at the visual C bump, not the left
   };
   pinStatementRowNotch_(row);
   assertEquals(row.statementEdge, 140);
-  assertEquals(statementConnectionOffsetX_(row), 165);
+  const connX = Number(row.xPos) + Number(row.statementEdge) + 15;
+  assertEquals(connX, 165);
 });
 
 Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {

@@ -237,13 +237,6 @@ export function pinStatementRowNotch_(row: StatementRowNotch): number {
   return notchX;
 }
 
-/** Same formula Blockly's statement-mouth drawer uses for snap X. */
-export function statementConnectionOffsetX_(row: StatementRowNotch): number {
-  const input = row.getLastInput?.();
-  return Number(row.xPos ?? 0) + Number(row.statementEdge ?? 0) +
-    Number(input?.notchOffset ?? 0);
-}
-
 /** True when the render row carries a statement/value mouth (not a dummy HEADER). */
 // deno-lint-ignore no-explicit-any
 export function isMouthRow_(row: any): boolean {

@@ -33,6 +33,11 @@ import {
   type TargetDefinition,
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
+import {
+  isEmptyHandlebarsTemplate,
+  resolveHandlebarsConversionTemplate,
+  runGeneratedHandlebars,
+} from "../codegen/run_handlebars.ts";
 import { executeGoTemplate, isGoTemplateWasmLoaded } from "../output/go_template_runtime.ts";
 import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
@@ -43,7 +48,7 @@ export interface RunTestOptions {
   target?: TargetDefinition | null;
   /** Session Output mode. TypeScript executes Generated Export. */
   outputMode?: OutputMode;
-  /** Generated Conversion Script text (TypeScript Output mode). */
+  /** Generated Conversion Script text (TypeScript / Handlebars / XQuery / Go Template). */
   generatedCode?: string;
   handlebarsTemplate?: string;
   /** Blockly workspace JSON used to materialize the Defaults Map. */
@@ -147,8 +152,12 @@ export function runTest(
     }
 
     if (mode === "handlebars") {
-      const template = options.handlebarsTemplate ?? options.target?.content ?? "";
-      if (!template.trim()) {
+      const template = resolveHandlebarsConversionTemplate(model, {
+        generatedCode: options.generatedCode,
+        handlebarsTemplate: options.handlebarsTemplate,
+        targetContent: options.target?.content,
+      });
+      if (isEmptyHandlebarsTemplate(template)) {
         return {
           ok: false,
           output: "// No Handlebars template provided.\n",
@@ -157,7 +166,7 @@ export function runTest(
         };
       }
       const slotValues = evaluateSlotValues(model, handler, ctx, warnings, options.target?.skeleton ?? []);
-      const output = renderHandlebars(template, ctx.data, { slots: slotValues });
+      const output = runGeneratedHandlebars(template, ctx.data, slotValues);
       const outputValidation = validateConvertedOutput(output, options.target, {
         deserializeMode: options.openEhrJsonDeserializeMode,
       });

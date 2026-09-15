@@ -2,9 +2,10 @@
  * Example-set catalog: complete bundles of source schema + instances, target,
  * and optional Blockly mapping, loaded by URI.
  *
- * Bundled catalog lives at {@link BUNDLED_EXAMPLE_SETS_PATH}. Asset files live
- * under `test/fixtures/` and are referenced by absolute GitHub blob URLs.
- * Relative URIs in a catalog still resolve against that catalog's URL.
+ * Bundled catalog lives at {@link BUNDLED_EXAMPLE_SETS_PATH}. In-repo assets live
+ * under `test/fixtures/` (copied into `dist/` at build) and are referenced by
+ * relative URIs resolved against the catalog URL. External targets may still use
+ * absolute GitHub blob URLs.
  */
 
 import { assertHttpUrl, toFetchableUrl } from "../../host/fetch_url.ts";

@@ -1,5 +1,5 @@
 {
-  "$comment": "intEHRgrator example-set catalog. Asset URIs point at GitHub files under test/fixtures (blob URLs; the host rewrites them to raw.githubusercontent.com). Relative URIs still resolve against this file's URL if added later. Canonical long-term home may move to ehrtslib.",
+  "$comment": "intEHRgrator example-set catalog. In-repo assets use relative URIs under ../test/fixtures/ (resolved against this file's URL; build copies fixtures into dist/). External targets keep absolute GitHub blob URLs (rewritten to raw.githubusercontent.com). Canonical long-term home may move to ehrtslib.",
   "version": 1,
   "sets": [
     {
@@ -7,38 +7,38 @@
       "title": "Dummy vitals example (Source: JSON Schema, Target: JSON Schema)",
       "description": "Minimal JSON Schema source, two valid instances, and a JSON Schema target. No mapping.",
       "source": {
-        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/source.schema.json",
+        "schema": "../test/fixtures/dummy-json-vitals/source.schema.json",
         "instances": [
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/instance-1.json",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/instance-2.json"
+          "../test/fixtures/dummy-json-vitals/instance-1.json",
+          "../test/fixtures/dummy-json-vitals/instance-2.json"
         ]
       },
-      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/target.schema.json"
+      "target": "../test/fixtures/dummy-json-vitals/target.schema.json"
     },
     {
       "id": "dummy-json-vitals-mapped",
       "title": "Dummy vitals with mapping",
       "description": "Same dummy files plus a stub Blockly mapping and a Defaults Map.",
       "source": {
-        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/source.schema.json",
+        "schema": "../test/fixtures/dummy-json-vitals/source.schema.json",
         "instances": [
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/instance-1.json"
+          "../test/fixtures/dummy-json-vitals/instance-1.json"
         ]
       },
-      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/target.schema.json",
-      "mapping": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/mapping.blockly.json",
-      "defaults": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/dummy-json-vitals/defaults.map.json"
+      "target": "../test/fixtures/dummy-json-vitals/target.schema.json",
+      "mapping": "../test/fixtures/dummy-json-vitals/mapping.blockly.json",
+      "defaults": "../test/fixtures/dummy-json-vitals/defaults.map.json"
     },
     {
       "id": "Simple-vitals",
       "title": "Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template)",
       "description": "Minimal JSON Schema source, two valid instances one invalid, and a simple openehr template target. No mapping. Uses the operational template (.opt), which is self-contained; the sibling .t.json is a differential Archetype Designer file that needs overlay parent ADLs to flatten.",
       "source": {
-        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/legacy-simulated-json/bp-schema.json",
+        "schema": "../test/fixtures/legacy-simulated-json/bp-schema.json",
         "instances": [
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/legacy-simulated-json/instances/bp-inst.json",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/legacy-simulated-json/instances/bp-inst-2.json",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/legacy-simulated-json/instances/bp-inst-3-invalid.json"
+          "../test/fixtures/legacy-simulated-json/instances/bp-inst.json",
+          "../test/fixtures/legacy-simulated-json/instances/bp-inst-2.json",
+          "../test/fixtures/legacy-simulated-json/instances/bp-inst-3-invalid.json"
         ]
       },
       "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt"
@@ -48,11 +48,11 @@
       "title": "OBX MHV1, unmapped, JSON --> openEHR",
       "description": "Obstetrix MHV1 JSON Schema and three maternity-care registration instances, targeting the MHV1 Prenatal visit openEHR template. The template is a GitHub .t.json (dependencies fetched from the same branch). No mapping.",
       "source": {
-        "schema": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
+        "schema": "../test/fixtures/Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
         "instances": [
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/Obstetrix-MHV1/source-instance/3-komplex-mhv3.json"
+          "../test/fixtures/Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
+          "../test/fixtures/Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
+          "../test/fixtures/Obstetrix-MHV1/source-instance/3-komplex-mhv3.json"
         ]
       },
       "target": "https://github.com/regionstockholm/CKM-mirror-via-modellbibliotek/blob/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json"
@@ -63,16 +63,16 @@
       "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd). Rebuilds Mappningsscript 1.9.1 PROD: all TextKeyWord/NumericKeyword TermIds, the no-symptom 16183 branch, free-text helper, and Defaults Map header parameters. Select Go Template output mode to see generated Go text/template code.",
       "source": {
         "instances": [
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
-          "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt"
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt"
         ]
       },
-      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
-      "mapping": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
-      "defaults": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/patient-reported-chemotherapy-symptoms/defaults.map.json"
+      "target": "../test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+      "mapping": "../test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
+      "defaults": "../test/fixtures/patient-reported-chemotherapy-symptoms/defaults.map.json"
     },
     {
       "id": "lung-mdt-form-to-tc-xml",
@@ -81,9 +81,21 @@
       "source": {
         "instances": []
       },
-      "target": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
-      "mapping": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/lung-MDT-form/mapping/mapping.blockly.json",
-      "defaults": "https://github.com/regionstockholm/intehrgrator/blob/main/test/fixtures/lung-MDT-form/defaults.map.json"
+      "target": "../test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
+      "mapping": "../test/fixtures/lung-MDT-form/mapping/mapping.blockly.json",
+      "defaults": "../test/fixtures/lung-MDT-form/defaults.map.json"
+    },
+    {
+      "id": "karda-ordinationsdata-to-openehr-flat",
+      "title": "Ordinationsdata from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT)",
+      "description": "TODO",
+      "source": {
+        "schema": "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/source-schema/OrdinationRCCV1_ie_source_schema.json",
+        "instances": [
+          "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/source-instance/example_source.json"
+        ]
+      },
+      "target":  "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/target-schema/OrdineradMedicinskOnkologiskBehandling_MedKurdag.1.0.0-alpha.27.sv.en.opt"
     }
   ]
 }

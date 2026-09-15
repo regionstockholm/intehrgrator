@@ -376,12 +376,12 @@ function formatRmConstruct(
   indent: number,
   ctx: JavaEmitContext,
 ): string {
-  ctx.types.add(rmType);
   ctx.helpers.add("rm");
   if (rmType === "PARTY_PROXY") {
     ctx.types.add("PARTY_SELF");
     return "new PartySelf()";
   }
+  ctx.types.add(rmType);
   const compact = compactConstruct(rmType, props, ctx);
   if (compact) return compact;
   const cls = javaClassName(rmType);

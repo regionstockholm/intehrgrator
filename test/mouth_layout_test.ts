@@ -150,6 +150,20 @@ Deno.test("RIGHT-packed statement mouths snap at the visual C bump, not the left
   assertEquals(connX, 165);
 });
 
+Deno.test("stretched C still snaps at the drawn tooth xPos, not width-minus-C = 0", () => {
+  // Mutator STACK / XML document: Thrasos stretched input.width to the row,
+  // then compact packing moved the C right. Visual tooth is input.xPos.
+  const row = {
+    xPos: 0,
+    width: 120,
+    statementEdge: 14,
+    getLastInput: () => ({ width: 120, xPos: 88, notchOffset: 15 }),
+  };
+  pinStatementRowNotch_(row);
+  assertEquals(row.statementEdge, 88);
+  assertEquals(Number(row.xPos) + Number(row.statementEdge) + 15, 103);
+});
+
 Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
   ensure();
   const ws = new Blockly.Workspace();
@@ -162,10 +176,15 @@ Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
   ];
   for (const type of types) {
     const block = ws.newBlock(type);
+    const stack = block.getInput("STACK");
     assertEquals(
-      block.getInput("STACK")?.align,
+      stack?.align,
       AlignRight(),
       `${type} STACK should hug its mouth`,
+    );
+    assert(
+      (stack?.fieldRow.length ?? 0) > 0,
+      `${type} STACK title sits on the statement row, not a dummy row`,
     );
   }
   ws.dispose();

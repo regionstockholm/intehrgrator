@@ -76,20 +76,40 @@ export interface IntehrgratorTestApi {
   /** Open the native mutator bubble (cogwheel) on a block. */
   openMutator(blockId: string): void;
   /**
-   * Rendered statement-input connection offset on a canvas block
-   * (`offsetInBlock` plus the block's width). Used to check mouth snap (issue #105).
+   * Rendered statement-input connection offset on a canvas block.
+   * `ownWidth` is the block outline without nested children (issue #105).
    */
   getStatementInputMetrics(
     blockId: string,
     inputName: string,
-  ): { offsetX: number; offsetY: number; blockWidth: number; align: number; scale: number } | null;
+  ): {
+    offsetX: number;
+    offsetY: number;
+    blockWidth: number;
+    ownWidth: number;
+    align: number;
+    scale: number;
+  } | null;
   /**
    * After `openMutator`, metrics for the mini-workspace STACK mouth
    * (optional fields / optional RM / schema / XML / map).
    */
   getMutatorStackMetrics(
     blockId: string,
-  ): { offsetX: number; offsetY: number; blockWidth: number; align: number; scale: number } | null;
+  ): {
+    offsetX: number;
+    offsetY: number;
+    blockWidth: number;
+    ownWidth: number;
+    align: number;
+    scale: number;
+  } | null;
+  /** Create a canvas block (rendered). Returns the new block id. */
+  newBlock(type: string): string | null;
+  /** True when `child` previous can snap to `parent`'s named statement input. */
+  canConnectStatement(parentId: string, inputName: string, childId: string): boolean;
+  /** Connect `child` previous onto `parent`'s named statement input. */
+  connectStatement(parentId: string, inputName: string, childId: string): boolean;
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
   undo(): void;

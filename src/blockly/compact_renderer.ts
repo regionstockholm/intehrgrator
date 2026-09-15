@@ -227,12 +227,19 @@ export type StatementRowNotch = {
   xPos?: number;
   width?: number;
   statementEdge?: number;
-  getLastInput?: () => { width?: number; notchOffset?: number } | null | undefined;
+  getLastInput?: () => { width?: number; notchOffset?: number; xPos?: number } | null | undefined;
 };
 
 export function pinStatementRowNotch_(row: StatementRowNotch): number {
   const input = row.getLastInput?.();
-  const notchX = Number(row.width ?? 0) - Number(input?.width ?? 0);
+  const rowX = Number(row.xPos ?? 0);
+  const drawnX = Number(input?.xPos ?? 0);
+  // Drawer.drawStatementInput_ uses input.xPos for the visual tooth.
+  // `row.width - input.width` is the pre-finalize_ proxy; it collapses to 0
+  // when Thrasos stretched the C across the row (mutator STACK, XML document).
+  const fromDrawn = drawnX - rowX;
+  const fromWidth = Number(row.width ?? 0) - Number(input?.width ?? 0);
+  const notchX = fromDrawn > 0 ? fromDrawn : fromWidth;
   row.statementEdge = notchX;
   return notchX;
 }

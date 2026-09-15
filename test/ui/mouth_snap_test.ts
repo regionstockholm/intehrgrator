@@ -6,8 +6,23 @@ import { chromium } from "npm:playwright@1.51.0";
 import type { IntehrgratorTestApi } from "../../src/ui_test/test_api.ts";
 import { baseUrl, loadBpFixtures, waitForTestApi } from "./helpers.ts";
 
+function assertNotchOnRightTooth(
+  metrics: { offsetX: number; ownWidth: number; blockWidth: number } | null,
+  label: string,
+): void {
+  assert(metrics, `${label} metrics missing`);
+  assert(
+    metrics.ownWidth > 40,
+    `${label} ownWidth=${metrics.ownWidth} is too small to judge`,
+  );
+  assert(
+    metrics.offsetX > metrics.ownWidth - 50,
+    `${label} snap not on the right tooth: offsetX=${metrics.offsetX} ownWidth=${metrics.ownWidth} blockWidth=${metrics.blockWidth}`,
+  );
+}
+
 Deno.test({
-  name: "UI: mutator STACK and COMPOSITION content snap on the visual C bump",
+  name: "UI: mutator STACK, COMPOSITION content, and XML document element snap on the C bump",
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
@@ -35,11 +50,19 @@ Deno.test({
           .intehrgratorTestApi;
         return api.getStatementInputMetrics(id, "ATTR_content");
       }, ids.composition);
-      assert(content, "COMPOSITION.content metrics");
-      assert(
-        content.offsetX > 40,
-        `COMPOSITION.content snap missing: offsetX=${content.offsetX} width=${content.blockWidth}`,
-      );
+
+      const xml = await page.evaluate(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        const docId = api.newBlock("xml_document");
+        const elId = api.newBlock("xml_element");
+        if (!docId || !elId) return null;
+        return {
+          canConnect: api.canConnectStatement(docId, "TARGET_root", elId),
+          connected: api.connectStatement(docId, "TARGET_root", elId),
+          metrics: api.getStatementInputMetrics(docId, "TARGET_root"),
+        };
+      });
 
       await page.evaluate((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
@@ -48,20 +71,21 @@ Deno.test({
         api.openMutator(id);
       }, ids.quantity);
       await page.waitForTimeout(400);
+      await page.locator(".blocklyBubble").first().waitFor({ state: "visible", timeout: 10_000 });
 
       const stack = await page.evaluate((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
           .intehrgratorTestApi;
         return api.getMutatorStackMetrics(id);
       }, ids.quantity);
-      assert(stack, "optional-fields STACK metrics");
-      assertEquals(stack.align, 1, "STACK should be RIGHT-aligned");
-      assert(
-        stack.offsetX > stack.blockWidth * 0.45,
-        `optional-fields STACK snap too far left: offsetX=${stack.offsetX} width=${stack.blockWidth}`,
-      );
 
-      await page.locator(".blocklyBubble").first().waitFor({ state: "visible", timeout: 10_000 });
+      assertEquals(xml?.canConnect, true, "xml_element must light up on XML document element");
+      assertEquals(xml?.connected, true, "xml_element must attach to XML document element");
+      assertNotchOnRightTooth(content, "COMPOSITION.content");
+      assertNotchOnRightTooth(xml?.metrics ?? null, "XML document element");
+      assertEquals(stack?.align, 1, "STACK should be RIGHT-aligned");
+      assertNotchOnRightTooth(stack, "optional-fields STACK");
+
       await page.screenshot({
         path: "/opt/cursor/artifacts/mutator_optional_fields_stack_bump.png",
       });

@@ -19,6 +19,7 @@ import { generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { INSTANCE_ROOT_CONNECTION } from "@intehrgrator/blockly/instance_root.ts";
 import { buildDemoToolbox, toolboxBlockTypes } from "@intehrgrator/blockly/toolbox_demo.ts";
+import { msg } from "@intehrgrator/blockly/i18n/custom_msg.ts";
 import { projectBlocklyState } from "@intehrgrator/workbench/mapping_spec/mod.ts";
 
 let ready = false;
@@ -118,6 +119,13 @@ Deno.test("xml_document is an instance root with declaration fields by default",
     canConnect(doc.getInput(XML_ROOT_INPUT)?.connection, root.previousConnection),
     true,
   );
+  assertEquals(doc.getInput(XML_ROOT_INPUT)?.connection?.getCheck(), [XML_ELEMENT_TYPE]);
+  assertEquals(root.previousConnection?.getCheck()?.includes(XML_ELEMENT_TYPE), true);
+  assertEquals(
+    root.previousConnection?.getCheck()?.includes(INSTANCE_ROOT_CONNECTION),
+    false,
+    "nested xml_element must not wear the instance-root cap",
+  );
   ws.dispose();
 });
 
@@ -144,6 +152,33 @@ Deno.test("XML toolbox lists document, element, text, CDATA, and attribute", () 
   for (const type of [XML_DOCUMENT_TYPE, XML_ELEMENT_TYPE, XML_TEXT_TYPE, XML_CDATA_TYPE, XML_ATTRIBUTE_TYPE]) {
     assert(types.includes(type), type);
   }
+});
+
+function drawerBlockTypes(toolbox: ReturnType<typeof buildDemoToolbox>, name: string): string[] {
+  const root = toolbox as {
+    contents: Array<{ name?: string; contents?: Array<{ type?: string }> }>;
+  };
+  return (root.contents.find((c) => c.name === name)?.contents ?? [])
+    .map((block) => block.type)
+    .filter((type): type is string => Boolean(type));
+}
+
+Deno.test("JSON and XML drawers do not list leftover schema target/value blocks", () => {
+  const toolbox = buildDemoToolbox("en");
+  const m = msg("en");
+  for (const name of [m.CAT_JSON, m.CAT_XML]) {
+    const types = drawerBlockTypes(toolbox, name);
+    assertEquals(types.includes("target_structure"), false, `${name} target_structure`);
+    assertEquals(types.includes("target_value"), false, `${name} target_value`);
+  }
+  assertEquals(drawerBlockTypes(toolbox, m.CAT_JSON), [
+    "conversion_start",
+    "json_object",
+    "json_array",
+    "json_value",
+    "json_boolean",
+    "json_null",
+  ]);
 });
 
 Deno.test("go-template codegen: split mouths, CDATA, and XML declaration", () => {

@@ -77,7 +77,7 @@ The AM (template/archetype) acts as a **schema** over the RM. Where the template
 ### Java: `Archie`
 - Repository: [openEHR/archie](https://github.com/openEHR/archie)
 - Full openEHR library: RM classes, template parsing, validation, serialization
-- Used for generating Java-based conversion scripts
+- Conversion script language `java` emits Archie RM constructors (`generate(model, "java")`). Maven/Gradle coordinates and the convert-then-validate hook: [JAVA_EXPORT.md](JAVA_EXPORT.md).
 
 ## Useful Specification Links
 

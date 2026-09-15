@@ -33,24 +33,33 @@ Small adapter interface (`loadSchema`, `loadInstance`, `pathToExpression`, `crea
 _Avoid_: Format switch, source parser union
 
 **Target instance format**:
-Shape of produced instances, adhering to `openehr-template`, `json-schema`, `xml-schema`, or `free-form`. Loaded via **Open target Schema/Template** in **Target & Previews**; drives the **Template Skeleton** (Blockly Target value slots). Separate from Conversion script language — a Handlebars script may emit non-openEHR text while slots still map into a schema target. Persisted as `targetFormat` / Project Bundle `target`.
-_Avoid_: Target Format alone, Output format (ambiguous with script language), template-only framing, a separate Target value slot tree pane
+Shape of produced instances, adhering to `openehr-template`, `json-schema`, `xml-schema`, or `free-form`. Loaded via **Open target Schema/Template** in **Target & Previews**; drives the **Template Skeleton** (Blockly Target value slots). Separate from Conversion script language — a Handlebars script may emit non-openEHR text while slots still map into a schema target. Persisted as `targetFormat` / Project Bundle `target`. Distinct from **Instance encoding** (how that instance is serialized).
+_Avoid_: Target Format alone, Output format (ambiguous with script language and with Instance encoding), template-only framing, a separate Target value slot tree pane
 
 **Target instance format handler**:
-Adapter seam (`load`, `render`) that turns a target definition into a Template Skeleton / Target value slot tree and renders slot values into the produced instance (Composition JSON, generic JSON, XML document, or free-form passthrough).
-_Avoid_: Target Format Handler (old name), Target parser union
+Adapter seam (`load`, `render`) that turns a target definition into a Template Skeleton / Target value slot tree and renders slot values into the produced instance (generic JSON, XML document, or free-form passthrough). For `openehr-template`, render produces an RM instance that is then serialized with the **Instance encoding** on that **Instance root**.
+_Avoid_: Target Format Handler (old name), Target parser union, treating ITS-JSON as the only openEHR product
+
+**Instance encoding**:
+How a produced instance of a general model is serialized. Chosen on that **Instance root** (COMPOSITION now; CONTRIBUTION later; FHIR later). Mixed encodings on one **Product stack** are allowed — each root serializes independently. **Text document** has no encoding dropdown (it is already a string). Factory default is Canonical JSON (`canonical-json`). OpenEHR offers the official instance encodings: Canonical JSON / ITS-JSON (`canonical-json`), Canonical XML / ITS-XML (`canonical-xml`), Simplified FLAT JSON (`flat-json`), Simplified STRUCTURED JSON (`structured-json`). Mapping preview, Test Run, and Generated Export read the encoding per root. Not a Target instance format and not an Output mode.
+_UI labels:_ **Canonical JSON**, **Canonical XML**, **Simplified FLAT**, **Simplified STRUCTURED**.
+_Avoid_: Output format, Target instance format, Output mode, **openEHR instance shape** (session-only XQuery JSON/XML toggle), a workspace-wide encoding, forcing every RM root on a stack to match, treating JSON Schema vs XML Schema as this dropdown, ehrtslib deserialize presets (hybrid / compact / terse), experimental ZipEHR / YAML
 
 **Instance root**:
-The typed Blockly tree that **Conversion start** designates as the produced instance: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object, an **XML document** or schema-less **XML element**, or a **Text document**. Nested constructors inside that tree are not instance roots.
+A typed Blockly constructor that can occupy the **Product stack**: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object, an **XML document** or schema-less **XML element**, or a **Text document**. Nested constructors inside that tree (SECTION, EVENT, JSON members, …) are not instance roots.
 _Avoid_: calling every JSON/XML toolbox block a root, generic file(s) wrapper, treating openEHR CONTRIBUTION as a file format (it is an RM class)
 
+**Product stack**:
+The ordered chain **Conversion start** designates as the conversion product: **Instance roots** plus the remaining VMS loops (`for_each_source`, `for_each_list`). Mapping preview and Generated Export walk it and **juxtapose** each serialized fragment in stack order — no implicit delimiter, array wrapper, or newline. Glue is authorial: a **Text document** for JSONL newlines, MIME boundaries, Kafka/record framing, brackets, or nothing. Loops wrap roots (or nested loops) in their body; each iteration appends fragments. Not a Scratch script and not every leftover statement — `variables_set` and nested RM containers stay out.
+_Avoid_: untyped statement spine, statement `controls_if` / while / for, treating stack order as side effects, N output files from one stack, a hidden JSON array or JSONL mode
+
 **Conversion start**:
-The unique Blockly hat that designates which tree is the conversion product. It snaps onto the previous notch of an **Instance root**. Looks like Scratch’s green flag but is not an event and does not run a statement script. At most one per workspace in v1. Scaffolding a target (and loading a cap-less skeleton) attaches one if missing. Mapping preview and Generated Export walk the capped tree only. See [ADR 0008](docs/adr/0008-conversion-start-designates-product.md).
-_Avoid_: when green flag clicked, script trigger, statement order under Start, fork/parallelize, multiple Starts in v1, Start on `for_each_source` as a file/stream driver, canvas x,y as product order
+The unique Blockly hat that designates the **Product stack**. It snaps onto the first block of that stack. Looks like Scratch’s green flag but is not an event and does not run a statement script — stack order is juxtaposition of fragments. At most one per workspace. Scaffolding a target (and loading a cap-less skeleton) attaches one if missing. See [ADR 0008](docs/adr/0008-conversion-start-designates-product.md) and [ADR 0010](docs/adr/0010-product-stack-and-instance-encoding.md).
+_Avoid_: when green flag clicked, script trigger, fork/parallelize, multiple Starts, canvas x,y as product order, putting purged VMS blocks under Start
 
 **Text document**:
-A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). The conversion product is that string (a text file). Distinct from the workspace **Handlebars Template** tab.
-_Avoid_: stock `text` as the file root, treating the Handlebars Template tab as this block
+A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). Alone under **Conversion start**, the conversion product is that string (a text file). In a **Product stack** among other roots it is a fragment: delimiters, wrapper starts/ends, MIME boundaries, record separators, and similar glue. Distinct from the workspace **Handlebars Template** tab.
+_Avoid_: stock `text` as the file root, treating the Handlebars Template tab as this block, a second delimiter block type, implicit newlines between roots
 
 **XML document**:
 The XML **Instance root** for a complete document: XML declaration (version, encoding, optional standalone), namespace declarations via the cogwheel mutator, and one root **XML element**. A schema-less XML element can still be an instance root for a fragment without a declaration.
@@ -65,8 +74,8 @@ XML character data emitted as `<![CDATA[ … ]]>` instead of escaped text. Plugs
 _Avoid_: using **Code text** as the only way to emit CDATA
 
 **Source iteration (`for_each_source`)**:
-Blockly loop that binds each node from a multi-valued Source Path to a named variable. Click-to-Map under a repeating target container stores relative source paths and wraps that container with this block. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Nested inside an **Instance root**; not a conversion driver for many output files.
-_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging
+Blockly loop that binds each node from a multi-valued Source Path to a named variable. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. `for_each_list` is the list-valued twin. Not a driver for many output files.
+_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type
 
 **Map**:
 A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups. Toolbox: list and map blocks share one **Lists & maps** drawer; **Sheets** is a separate drawer.
@@ -104,28 +113,28 @@ _Avoid_: Output Previews (old pane title), Right pane (ambiguous — could mean 
 **Output mode**:
 The **Target & Previews** header select: **Mapping preview**, or a **Conversion script language** (TypeScript, Java, Handlebars, XQuery). Chooses what those two sections show. Mapping preview is not a script dialect. Session-only — after app start or Project Bundle load the select is Mapping preview; a Conversion script language is chosen only for the current session.
 _UI label:_ first option **Mapping preview**.
-_Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle
+_Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle, **Instance encoding** (that lives on the Instance root)
 
 **Mapping preview**:
 Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against the Active Example (today's Test Run), including **Handlebars Template** rendering for free-form / Kintegrate. **Generated conversion script(s)** shows a prompt to pick a Conversion script language rather than a script. Not itself a Conversion Script.
 _Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
 **openEHR instance shape**:
-Session-only JSON vs XML preference on openEHR targets. Mapping preview and TypeScript still produce ehrtslib JSON. XQuery export / Test Run emit COMPOSITION RM XML when XML is selected, or XPath 3.1 maps (JSON instance) when JSON is selected.
-_Avoid_: treating this as a Conversion script language, persisting it in the Project Bundle
+Current session-only JSON vs XML control in **Target & Previews** on openEHR targets. Mapping preview and TypeScript still produce ehrtslib JSON. XQuery export / Test Run emit COMPOSITION RM XML when XML is selected, or XPath 3.1 maps (JSON instance) when JSON is selected. Distinct from **Instance encoding** (per-root, persisted, includes FLAT/STRUCTURED); this control is the shipped XQuery JSON/XML switch until encoding on the **Instance root** drives every Conversion script language.
+_Avoid_: treating this as a Conversion script language, treating this as **Instance encoding**, persisting it in the Project Bundle
 
 **Test Run**:
-When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java Output mode generates an Archie conversion class but does not execute it in the Web Shell (see [JAVA_EXPORT.md](docs/JAVA_EXPORT.md)). Handlebars Output mode renders the authored Handlebars Template against the Active Example. XQuery Output mode lazy-loads fontoxpath and executes the generated `.xq` against the Active Example (`$source`, `$defaults`, `$sheets`). Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler (then serialize each **Instance root** with its **Instance encoding**), or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java Output mode generates an Archie conversion class but does not execute it in the Web Shell (see [JAVA_EXPORT.md](docs/JAVA_EXPORT.md)). Handlebars Output mode renders the authored Handlebars Template against the Active Example. XQuery Output mode lazy-loads fontoxpath and executes the generated `.xq` against the Active Example (`$source`, `$defaults`, `$sheets`); COMPOSITION emit currently follows **openEHR instance shape**. The conversion product is a payload string (juxtaposed fragments). The editor pretty-prints that payload when the **Product stack** is a single JSON-family root (Canonical JSON, Simplified FLAT, or Simplified STRUCTURED) or a single Canonical XML root; a glued or mixed stack shows as text. Displays the payload even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
-_Avoid_: Preview, dry run
+_Avoid_: Preview, dry run, pretty-printing a MIME/glued stack as if it were one document
 
 **Autoplay**:
 When enabled, Test Run re-executes automatically (debounced) after mapping edits. Tab switches show cached results only. Toggle disabled when no example instance tabs are open.
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, Handlebars, or XQuery produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Returns the single **Instance root** under **Conversion start** (openEHR Composition is one possible shape, not the only one).
-_Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script
+Executable TypeScript, Java, Handlebars, or XQuery produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Walks the **Product stack** under **Conversion start** and returns one payload string (juxtaposed fragments; a single **Instance root** is the one-item case). Splitting that payload onto a queue or into files is the pipeline around the script.
+_Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script, a Kafka/MIME producer inside convert
 
 **Template Skeleton**:
 The Blockly block tree auto-generated by walking the loaded OPT constraint tree plus silent-mandatory RM fields from ehrtslib's `MANDATORY_RM_ATTRIBUTES` (see `ehrtslib` `rm_instance_generator.ts`) — schema-driven, not instance-driven. RM types are BMM-derived within ehrtslib; intEHRgrator does not parse BMM. Scaffolding copies usable OPT/Web Template constraints onto DATA_VALUE Blocks: a unique `C_QUANTITY`/`C_DV_QUANTITY` unit list item becomes `DV_QUANTITY.units`; a local coded value set becomes a Blockly list of complete `DV_CODED_TEXT` objects (rubric + `defining_code`), defaulting to the AOM `assumed_value`; a `C_ORDINAL`/`C_DV_ORDINAL` value set becomes a Blockly list of complete `DV_ORDINAL` / `DV_SCALE` objects (`value` + `symbol`), likewise defaulting to `assumed_value` when present. Non-mandatory RM structures are added via Optional RM Insertion (cogwheel mutator), not pre-rendered. For **JSON Schema** / **XML Schema** targets the same scaffold policy applies via `target_structure` / `target_value` blocks: mandatory schema fields on load, optional fields via `schema_fields_mutator`, plus always-visible generic JSON/XML toolbox drawers for ad-hoc editing. Scaffolding **joins** a **Conversion start** onto the skeleton **Instance root** rather than replacing the **Defaults block**.
@@ -224,7 +233,7 @@ Optional RM types attachable via Optional RM Insertion (cogwheel mutator / conte
 _Avoid_: Primer-only RM list, toolbox free-build of LOCATABLE extras, library-level attachment picker API
 
 **Mapping Specification**:
-Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. **Conversion start** designates the product tree; it does not introduce statement order. Optional **Blockly Function**s are reusable fragments of that tree, not a sequential script. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, ADR 0006, and ADR 0008.
+Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program. **Conversion start** designates the **Product stack**; stack order is juxtaposition of fragments, not “then do this.” Optional **Blockly Function**s are reusable fragments of that tree, not a sequential script. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, ADR 0006, ADR 0008, and ADR 0010.
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Blockly Function**:
@@ -317,8 +326,8 @@ User-authored **VMS-Hbs** conversion template stored in `ProjectBundle.mapping.h
 _Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format, calling this tab Mustache
 
 **Output validation**:
-ehrtslib `TemplateValidator` check of a Conversion Test Run instance against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. ✅ on the Conversion Test Run tab if valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor.
-_Avoid_: copying Source Schema mismatch onto Conversion Test Run tabs, RM-only validation when an OPT is loaded
+ehrtslib `TemplateValidator` check of each openEHR RM fragment in the **Product stack** against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. Runs on the fragment *before* juxtaposition, using that root’s **Instance encoding**. ✅ on the Conversion Test Run tab if every fragment is valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor. The glued payload string is not itself the validation input.
+_Avoid_: copying Source Schema mismatch onto Conversion Test Run tabs, RM-only validation when an OPT is loaded, validating MIME/glue text as a Composition
 
 **Better Form Bridge**:
 Optional seam for Push/Pull against a licensed Better Form Renderer viewer (assets from Kintegrate via `deno task setup:better-forms`, never committed). See `docs/KINTEGRATE_MIGRATION.md`.
@@ -356,4 +365,8 @@ _Avoid_: Mapping file, saved state
 >
 > **Informatician:** I need a JSON file out, not a composition, and I do not have a JSON Schema.
 >
-> **Developer:** Drag **Conversion start** onto a JSON object from the JSON drawer — that object is the **Instance root**. Mapping preview and Generated Export walk that tree. Load a JSON Schema if you want a **Template Skeleton**; Start is still attached on top. Same pattern for XML and a **Text document**. One Start, one product — batch or two output files belong in the pipeline around this script, not on the canvas.
+> **Developer:** Drag **Conversion start** onto a JSON object from the JSON drawer — that object is the **Instance root**. Mapping preview and Generated Export walk the **Product stack**. Load a JSON Schema if you want a **Template Skeleton**; Start is still attached on top. Same pattern for XML and a **Text document**. One Start, one concatenated product — extra files belong in the pipeline around this script, not on the canvas.
+>
+> **Informatician:** I need two compositions in one payload, with brackets around them.
+>
+> **Developer:** Stack the two COMPOSITION **Instance roots** under Start. Put **Text document** fragments between and around them for `[`, `,`, `]`. A `for_each_source` in that stack repeats a root per source node; a `for_each_source` *inside* a COMPOSITION still repeats `content`, not the product list.

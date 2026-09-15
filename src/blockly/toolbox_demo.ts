@@ -182,8 +182,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         { kind: "block", type: "json_value", gap: 8 },
         { kind: "block", type: "json_boolean", gap: 8 },
         { kind: "block", type: "json_null", gap: 8 },
-        { kind: "block", type: "target_structure", gap: 8 },
-        { kind: "block", type: "target_value" },
       ],
     },
     {
@@ -214,8 +212,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
             VALUE: { shadow: { type: "text", fields: { TEXT: "" } } },
           },
         },
-        { kind: "block", type: "target_structure", gap: 8 },
-        { kind: "block", type: "target_value" },
       ],
     },
   ];

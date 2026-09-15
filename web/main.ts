@@ -2223,7 +2223,14 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
 function statementInputMetricsOf(
   block: Blockly.Block | null | undefined,
   inputName: string,
-): { offsetX: number; offsetY: number; blockWidth: number; align: number; scale: number } | null {
+): {
+  offsetX: number;
+  offsetY: number;
+  blockWidth: number;
+  ownWidth: number;
+  align: number;
+  scale: number;
+} | null {
   const input = block?.getInput(inputName);
   const conn = input?.connection as
     | { offsetInBlock?: { x: number; y: number }; x?: number; y?: number }
@@ -2231,14 +2238,17 @@ function statementInputMetricsOf(
     | undefined;
   if (!block || !input || !conn) return null;
   const offset = conn.offsetInBlock ?? { x: Number(conn.x ?? 0), y: Number(conn.y ?? 0) };
-  const hw = typeof (block as BlockSvg).getHeightWidth === "function"
-    ? (block as BlockSvg).getHeightWidth()
+  const svg = block as BlockSvg;
+  const hw = typeof svg.getHeightWidth === "function"
+    ? svg.getHeightWidth()
     : { width: Number((block as { width?: number }).width ?? 0) };
+  const ownWidth = Number(svg.width ?? hw.width ?? 0);
   const scale = Number((block.workspace as Blockly.WorkspaceSvg | undefined)?.scale ?? 1);
   return {
     offsetX: Number(offset.x),
     offsetY: Number(offset.y),
     blockWidth: Number(hw.width ?? 0),
+    ownWidth,
     align: Number(input.align ?? 0),
     scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
   };
@@ -2368,6 +2378,33 @@ function installWorkbenchTestApi(): void {
       const container = (mini.getTopBlocks?.(false) ?? []).find((candidate) => candidate.getInput("STACK")) ??
         null;
       return statementInputMetricsOf(container, "STACK");
+    },
+    newBlock(type) {
+      const block = workspace.newBlock(type) as BlockSvg;
+      block.initSvg?.();
+      block.render?.();
+      return block.id;
+    },
+    canConnectStatement(parentId, inputName, childId) {
+      const parent = workspace.getBlockById(parentId);
+      const child = workspace.getBlockById(childId);
+      const a = parent?.getInput(inputName)?.connection;
+      const b = child?.previousConnection;
+      if (!a || !b) return false;
+      return Boolean(workspace.connectionChecker?.canConnect(a, b, true));
+    },
+    connectStatement(parentId, inputName, childId) {
+      const parent = workspace.getBlockById(parentId);
+      const child = workspace.getBlockById(childId);
+      const a = parent?.getInput(inputName)?.connection;
+      const b = child?.previousConnection;
+      if (!a || !b) return false;
+      try {
+        a.connect(b);
+        return a.isConnected();
+      } catch {
+        return false;
+      }
     },
     openMutator(blockId) {
       const block = workspace.getBlockById(blockId);

@@ -32,12 +32,13 @@ export function enforceMouthCaptionLayout(block: Block): void {
 }
 
 /**
- * Dummy title plus STACK statement mouth used by cogwheel mutator containers.
- * STACK hugs its C the same way COMPOSITION.content does.
+ * Title on the STACK statement row so `[caption][C]` packs like COMPOSITION.content.
+ * A separate dummy title row left the C-only STACK row with statementEdge ≈ 0,
+ * so snap/highlight sat inside the block instead of on the right tooth.
  */
 export function initMutatorStackMouth(block: Block, title: string): void {
-  block.appendDummyInput().appendField(title);
-  block.appendStatementInput("STACK");
+  const stack = block.appendStatementInput("STACK").setAlign(inputAlignRight());
+  stack.appendField(title);
   enforceMouthCaptionLayout(block);
 }
 

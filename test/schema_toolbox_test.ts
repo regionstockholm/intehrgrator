@@ -152,7 +152,11 @@ Deno.test("schema toolbox lists unique complex types in one flyout level", () =>
   });
   const types = toolboxBlockTypes(toolbox);
   assert(types.some((type) => type === "target_structure" || type.startsWith("schema_")));
-  assert(types.includes("target_value"));
+  const jsonDrawer = (toolbox as { contents?: ToolboxItem[] }).contents?.find((item) =>
+    item.kind === "category" && item.name === msg("en").CAT_JSON
+  );
+  const jsonTypes = (jsonDrawer?.contents ?? []).map((item) => (item as ToolboxItem).type);
+  assertEquals(jsonTypes.includes("target_value"), false, "JSON drawer must not list leftover target_value");
   const targetSchema = findTargetSchemaCategory(toolbox);
   assert(targetSchema, "Target schema drawer should exist");
   assertEquals(

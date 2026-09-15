@@ -217,7 +217,9 @@ export async function assembleMainPagesSite(opts: {
 }
 
 /**
- * Release deploy: add an immutable version subdirectory without changing site root.
+ * Release deploy: publish the new dist as the bleeding-edge root and add an immutable
+ * version subdirectory. `pages.yml` skips `chore: release` commits, so this is the deploy
+ * that must refresh the site root.
  */
 export async function assembleReleasePagesSite(opts: {
   baseUrl: string;
@@ -233,16 +235,12 @@ export async function assembleReleasePagesSite(opts: {
     );
   }
 
-  await mirrorLiveSite(opts.baseUrl, opts.outDir);
+  await emptyDir(opts.outDir);
+  await copyDistContents(opts.versionDist, opts.outDir);
 
   // Keep only frozen versions that actually mirrored with an index.html.
   const preserved: string[] = [];
   for (const tag of listed.versions) {
-    if (await versionHasIndex(opts.outDir, tag)) {
-      preserved.push(tag);
-      continue;
-    }
-    // Root wget often does not recurse into unlinked version dirs — fetch each explicitly.
     try {
       await mirrorVersionSubdir(opts.baseUrl, tag, opts.outDir);
       preserved.push(tag);

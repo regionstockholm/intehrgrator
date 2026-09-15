@@ -1,8 +1,11 @@
 # Java / Archie conversion-script export
 
 `generate(model, "java")` walks the **Template Skeleton** plus **Mapping Model**
-expressions (`slots[]`, `loops[]`) and emits a compilable Archie conversion
-class — the same IR path as TypeScript / ehrtslib, not a second Blockly pass.
+expressions (`slots[]`, `loops[]`) when the conversion **product** is openEHR
+and emits a compilable Archie conversion class — the same IR path as TypeScript
+/ ehrtslib, not a second Blockly pass. When the canvas product is JSON, XML, or
+text (no openEHR instance root), the class omits Archie imports and returns a
+`Map` of mapped slot values.
 
 Web Shell **Output mode Java** shows the generated source. It does **not**
 execute the class in the browser (no bundled JVM). Compile and run it on a

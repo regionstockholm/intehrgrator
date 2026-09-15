@@ -119,16 +119,16 @@ Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against
 _Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
 **Test Run**:
-When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler, or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. Displays the produced instance even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler (then serialize each **Instance root** with its **Instance encoding**), or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java, Handlebars, and XQuery Output modes generate a script but do not execute it yet. The conversion product is a payload string (juxtaposed fragments). The editor pretty-prints that payload when the **Product stack** is a single JSON-family root or a single XML-family root; a glued or mixed stack shows as text. Displays the payload even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
-_Avoid_: Preview, dry run
+_Avoid_: Preview, dry run, pretty-printing a MIME/glued stack as if it were one document
 
 **Autoplay**:
 When enabled, Test Run re-executes automatically (debounced) after mapping edits. Tab switches show cached results only. Toggle disabled when no example instance tabs are open.
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Walks the **Product stack** under **Conversion start** and returns the juxtaposed fragments (a single **Instance root** is the one-item case). Splitting that payload onto a queue or into files is the pipeline around the script.
+Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Walks the **Product stack** under **Conversion start** and returns one payload string (juxtaposed fragments; a single **Instance root** is the one-item case). Splitting that payload onto a queue or into files is the pipeline around the script.
 _Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script, a Kafka/MIME producer inside convert
 
 **Template Skeleton**:
@@ -321,8 +321,8 @@ User-authored **VMS-Hbs** conversion template stored in `ProjectBundle.mapping.h
 _Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format, calling this tab Mustache
 
 **Output validation**:
-ehrtslib `TemplateValidator` check of a Conversion Test Run instance against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. ✅ on the Conversion Test Run tab if valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor.
-_Avoid_: copying Source Schema mismatch onto Conversion Test Run tabs, RM-only validation when an OPT is loaded
+ehrtslib `TemplateValidator` check of each openEHR RM fragment in the **Product stack** against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. Runs on the fragment *before* juxtaposition, using that root’s **Instance encoding**. ✅ on the Conversion Test Run tab if every fragment is valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor. The glued payload string is not itself the validation input.
+_Avoid_: copying Source Schema mismatch onto Conversion Test Run tabs, RM-only validation when an OPT is loaded, validating MIME/glue text as a Composition
 
 **Better Form Bridge**:
 Optional seam for Push/Pull against a licensed Better Form Renderer viewer (assets from Kintegrate via `deno task setup:better-forms`, never committed). See `docs/KINTEGRATE_MIGRATION.md`.

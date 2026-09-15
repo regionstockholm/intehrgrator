@@ -20,6 +20,10 @@ import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { isListAttribute } from "./typescript.ts";
 import { emitSheetHelpers } from "./xquery_sheets.ts";
+import {
+  instanceShapeForEncoding,
+  preferredInstanceEncoding,
+} from "../output/instance_encoding.ts";
 
 export class XQueryExportError extends Error {
   override name = "XQueryExportError";
@@ -44,7 +48,10 @@ export function generateXQuery(
   validateExportModel(model);
 
   const skeleton = options.skeleton ?? [];
-  const shape: OpenEhrInstanceShape = options.instanceShape ??
+  const fromEncoding = model.instanceEncodings?.length
+    ? instanceShapeForEncoding(preferredInstanceEncoding(model))
+    : undefined;
+  const shape: OpenEhrInstanceShape = fromEncoding ?? options.instanceShape ??
     (skeleton.length && (model.targetFormat ?? "openehr-template") === "openehr-template"
       ? "xml"
       : "json");

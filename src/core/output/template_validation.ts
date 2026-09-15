@@ -10,6 +10,7 @@ import {
 } from "ehrtslib/serialization/simplified/mod.ts";
 import { TypeRegistry } from "ehrtslib/serialization/common/type_registry.ts";
 import { JsonConfigurableDeserializer } from "ehrtslib/serialization/json/mod.ts";
+import { XmlDeserializer } from "ehrtslib/serialization/xml/mod.ts";
 import { TemplateValidator } from "ehrtslib/validation/mod.ts";
 import type { OpenEhrJsonDeserializeMode, OutputValidation } from "../../types/mod.ts";
 import type { TargetDefinition } from "../target/mod.ts";
@@ -52,7 +53,37 @@ export function validateConvertedOutput(
   if (!target || target.format !== "openehr-template") {
     return notApplicableOutputValidation();
   }
-  if (output == null || typeof output === "string") {
+  if (output == null) {
+    return {
+      applicable: true,
+      valid: false,
+      messages: [{
+        path: "/",
+        message: "Conversion Test Run did not produce an openEHR COMPOSITION object",
+        severity: "error",
+      }],
+    };
+  }
+  if (typeof output === "string") {
+    const trimmed = output.trim();
+    if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+      try {
+        output = JSON.parse(trimmed) as unknown;
+      } catch {
+        return notApplicableOutputValidation();
+      }
+    } else if (trimmed.startsWith("<")) {
+      try {
+        ensureRmTypeRegistry();
+        output = new XmlDeserializer().deserialize(trimmed);
+      } catch {
+        return notApplicableOutputValidation();
+      }
+    } else {
+      return notApplicableOutputValidation();
+    }
+  }
+  if (typeof output !== "object") {
     return {
       applicable: true,
       valid: false,

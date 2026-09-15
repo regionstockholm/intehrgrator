@@ -751,6 +751,7 @@ function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }):
       targetSignature: derived.targetSignature,
       unsupported: derived.unsupported,
       sheetNames: derived.sheetNames,
+      instanceEncodings: derived.instanceEncodings,
     },
   );
   const s = controller.getState();
@@ -1049,6 +1050,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             targetSignature: derived.targetSignature,
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
+      instanceEncodings: derived.instanceEncodings,
           },
         );
       }
@@ -1074,6 +1076,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             targetSignature: derived.targetSignature,
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
+      instanceEncodings: derived.instanceEncodings,
           },
         );
       }

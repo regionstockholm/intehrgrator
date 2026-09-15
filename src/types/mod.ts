@@ -44,6 +44,43 @@ export function unimplementedTestRunMessage(language: ConversionScriptLanguage):
 /** Desired openEHR instance serialization (session-only; affects XQuery export / Test Run). */
 export type OpenEhrInstanceShape = "json" | "xml";
 
+/**
+ * How an Instance root serializes a produced instance (persisted on the block).
+ * Official openEHR encodings only — not ehrtslib hybrid/compact/terse presets.
+ */
+export type InstanceEncoding =
+  | "canonical-json"
+  | "canonical-xml"
+  | "flat-json"
+  | "structured-json";
+
+export const DEFAULT_INSTANCE_ENCODING: InstanceEncoding = "canonical-json";
+
+export const INSTANCE_ENCODING_OPTIONS: ReadonlyArray<{
+  id: InstanceEncoding;
+  label: string;
+}> = [
+  { id: "canonical-json", label: "Canonical JSON" },
+  { id: "canonical-xml", label: "Canonical XML" },
+  { id: "flat-json", label: "Simplified FLAT" },
+  { id: "structured-json", label: "Simplified STRUCTURED" },
+];
+
+export const INSTANCE_ENCODINGS: readonly InstanceEncoding[] = INSTANCE_ENCODING_OPTIONS
+  .map((option) => option.id);
+
+export function isInstanceEncoding(value: string): value is InstanceEncoding {
+  return (INSTANCE_ENCODINGS as readonly string[]).includes(value);
+}
+
+export function isJsonFamilyEncoding(encoding: InstanceEncoding): boolean {
+  return encoding !== "canonical-xml";
+}
+
+export function instanceEncodingDropdownOptions(): Array<[string, string]> {
+  return INSTANCE_ENCODING_OPTIONS.map((option) => [option.label, option.id]);
+}
+
 /** Structure produced by a conversion. */
 export type TargetFormatId =
   | "openehr-template"
@@ -123,6 +160,11 @@ export interface MappingModel {
   unsupported?: MappingUnsupportedBlock[];
   /** Sheet documents referenced by accessors or `sheet` declarations. */
   sheetNames?: string[];
+  /**
+   * Instance encoding of each COMPOSITION (and later CONTRIBUTION) on the
+   * Product stack, in stack order. Text document roots are omitted.
+   */
+  instanceEncodings?: InstanceEncoding[];
 }
 
 export type SkeletonNodeKind = "container" | "value";

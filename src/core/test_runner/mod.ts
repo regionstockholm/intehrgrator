@@ -38,6 +38,12 @@ import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
 import { sheetsToBag } from "../sheets/mod.ts";
 import { validateConvertedOutput } from "../output/template_validation.ts";
+import {
+  formatTestRunPayload,
+  instanceShapeForEncoding,
+  preferredInstanceEncoding,
+  serializeInstance,
+} from "../output/instance_encoding.ts";
 
 export interface RunTestOptions {
   target?: TargetDefinition | null;
@@ -100,6 +106,7 @@ export function runTest(
         handlebarsTemplate: options.handlebarsTemplate,
         blocklyState: options.blocklyState,
         skeleton: options.target?.skeleton,
+        webTemplateJson: options.target?.webTemplateJson,
       });
       const raw = runGeneratedTypeScript(code, {
         format,
@@ -127,7 +134,10 @@ export function runTest(
         : generate(model, "xquery", {
           blocklyState: options.blocklyState,
           skeleton: options.target?.skeleton,
-          instanceShape: options.instanceShape,
+          instanceShape: model.instanceEncodings?.length
+            ? instanceShapeForEncoding(preferredInstanceEncoding(model))
+            : options.instanceShape,
+          webTemplateJson: options.target?.webTemplateJson,
         });
       const raw = runGeneratedXQuery(code, {
         source: ctx.data,
@@ -230,6 +240,7 @@ export function runTest(
     const outputValidation = validateConvertedOutput(output, options.target, {
       deserializeMode: options.openEhrJsonDeserializeMode,
     });
+    output = applyInstanceEncodingToPreview(output, model, options.target, warnings);
     return {
       ok: warnings.length === 0,
       output,
@@ -247,6 +258,27 @@ export function runTest(
 
 export function previewGeneratedCode(model: MappingModel): string {
   return generateTypeScript(model);
+}
+
+function applyInstanceEncodingToPreview(
+  output: unknown,
+  model: MappingModel,
+  target: RunTestOptions["target"],
+  warnings: string[],
+): unknown {
+  if (!target || target.format !== "openehr-template") return output;
+  const encoding = preferredInstanceEncoding(model);
+  if (encoding === "canonical-json") return output;
+  try {
+    const payload = serializeInstance(output, encoding, {
+      prettyPrint: true,
+      webTemplateJson: target.webTemplateJson,
+    });
+    return formatTestRunPayload(payload, encoding, false);
+  } catch (e) {
+    warnings.push(e instanceof Error ? e.message : String(e));
+    return output;
+  }
 }
 
 function evaluateSlotValues(

@@ -29,6 +29,9 @@ import { DECISION_TABLE_BLOCK, DECISION_TABLE_DECL } from "./blocks/decision_tab
 import { MAPS_GET } from "../core/defaults/extract.ts";
 import { isVmsEscapeBlockType, isVmsRemovedBlockType } from "./vms.ts";
 import { isTemplateEscapeHatch } from "./vms_linter.ts";
+import { walkProductStack } from "./instance_root.ts";
+import { INSTANCE_ENCODING_FIELD, parseInstanceEncoding } from "../core/output/instance_encoding.ts";
+import type { InstanceEncoding } from "../types/mod.ts";
 
 export interface MappingModelExtract {
   slots: Array<{
@@ -42,6 +45,7 @@ export interface MappingModelExtract {
   targetSignature: TargetSignatureNode[];
   unsupported: MappingUnsupportedBlock[];
   sheetNames: string[];
+  instanceEncodings: InstanceEncoding[];
 }
 
 const LOOP_TYPES = new Set(["for_each_source", "for_each_list"]);
@@ -55,6 +59,7 @@ export function extractMappingIr(workspace: Workspace): MappingModelExtract {
     targetSignature: targetSignatureFromWorkspace(workspace),
     unsupported: unsupportedFromWorkspace(workspace, slots),
     sheetNames: sheetNamesFromWorkspace(workspace),
+    instanceEncodings: instanceEncodingsFromWorkspace(workspace),
   };
 }
 
@@ -400,4 +405,18 @@ function sheetNamesFromWorkspace(workspace: Workspace): string[] {
     if (name) names.add(name);
   }
   return [...names];
+}
+
+function instanceEncodingsFromWorkspace(workspace: Workspace): InstanceEncoding[] {
+  const encodings: InstanceEncoding[] = [];
+  walkProductStack(workspace, (block) => {
+    if (block.type !== "composition") return;
+    encodings.push(parseInstanceEncoding(block.getFieldValue(INSTANCE_ENCODING_FIELD)));
+  });
+  if (encodings.length) return encodings;
+  for (const block of workspace.getAllBlocks(false)) {
+    if (block.type !== "composition") continue;
+    encodings.push(parseInstanceEncoding(block.getFieldValue(INSTANCE_ENCODING_FIELD)));
+  }
+  return encodings;
 }

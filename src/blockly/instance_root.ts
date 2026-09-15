@@ -24,14 +24,50 @@ export function isInstanceRootBlockType(type: string): boolean {
   return type.startsWith("schema_");
 }
 
-/** Cap an instance root: previous notch for Start, no next notch. */
+/** Cap an instance root: previous and next INSTANCE_ROOT notches (ADR 0010 product stack). */
 export function applyInstanceRootCap(block: Block): void {
   if (block.outputConnection?.isConnected()) block.outputConnection.disconnect();
-  if (block.nextConnection?.isConnected()) block.nextConnection.disconnect();
   block.setOutput(false);
-  block.setNextStatement(false);
+  block.setNextStatement(true, INSTANCE_ROOT_CONNECTION);
   block.setPreviousStatement(true, INSTANCE_ROOT_CONNECTION);
   (block as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_ = true;
+}
+
+const PRODUCT_LOOP_TYPES = new Set(["for_each_source", "for_each_list"]);
+
+/** Ordered Product stack under Conversion start (loops included; nested DO walked separately). */
+export function productStackBlocks(workspace: Blockly.Workspace): Block[] {
+  const start = findConversionStartBlock(workspace);
+  const first = start?.getNextBlock() ?? null;
+  const stack: Block[] = [];
+  let current = first;
+  while (current) {
+    stack.push(current);
+    current = current.getNextBlock();
+  }
+  return stack;
+}
+
+export function isProductLoopBlockType(type: string): boolean {
+  return PRODUCT_LOOP_TYPES.has(type);
+}
+
+/** Walk the Product stack, including loop bodies, in juxtaposition order. */
+export function walkProductStack(
+  workspace: Blockly.Workspace,
+  visit: (block: Block) => void,
+): void {
+  const walk = (block: Block | null): void => {
+    let current = block;
+    while (current) {
+      visit(current);
+      if (isProductLoopBlockType(current.type)) {
+        walk(current.getInputTargetBlock("DO"));
+      }
+      current = current.getNextBlock();
+    }
+  };
+  walk(findConversionStartBlock(workspace)?.getNextBlock() ?? null);
 }
 
 export function inferTargetFormatFromRoot(block: Block): TargetFormatId | undefined {
@@ -75,7 +111,7 @@ export function registerConversionStartBlock(): void {
       this.setNextStatement(true, INSTANCE_ROOT_CONNECTION);
       this.setColour("#43A047");
       this.setTooltip(
-        "Designates which tree is the conversion product. Not a script trigger — mapping preview and export walk this tree only.",
+        "Designates the Product stack (instance roots and product-level loops). Not a script trigger — mapping preview and export juxtapose this stack.",
       );
       this.setDeletable(true);
       this.setMovable(true);

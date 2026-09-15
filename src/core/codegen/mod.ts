@@ -41,6 +41,8 @@ export interface ExportGenerationOptions {
   skeleton?: SkeletonNode[];
   /** openEHR JSON vs XML instance shape (XQuery Model A/C vs maps). */
   instanceShape?: OpenEhrInstanceShape;
+  /** Web Template JSON for Simplified FLAT / STRUCTURED Instance encoding. */
+  webTemplateJson?: string;
 }
 
 export interface ExportTargetAdapter {

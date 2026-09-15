@@ -29,6 +29,9 @@ import {
 } from "../rm_type_emoji.ts";
 import { FieldSkeletonTitle, humanizeRmType, isSkeletonTitleField } from "../field_skeleton_title.ts";
 import { INSTANCE_ROOT_CONNECTION } from "../instance_root.ts";
+import { FieldDropdownHug } from "../field_dropdown_hug.ts";
+import { INSTANCE_ENCODING_FIELD } from "../../core/output/instance_encoding.ts";
+import { instanceEncodingDropdownOptions } from "../../types/mod.ts";
 import {
   parseSlotCardinality,
   rmAttributeCardinality,
@@ -1003,6 +1006,12 @@ function defineContainerBlock(
         this.setFieldValue(options.rmType, "RM_TYPE");
       }
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
+      if (options.rmType === "COMPOSITION") {
+        header.appendField(
+          new FieldDropdownHug(instanceEncodingDropdownOptions()),
+          INSTANCE_ENCODING_FIELD,
+        );
+      }
       if (options.expandable) appendMutatorCogwheel(header);
       if (options.specializationCheck) {
         const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT)
@@ -1040,6 +1049,8 @@ function defineContainerBlock(
       }
       if (options.rmType === "COMPOSITION") {
         this.setPreviousStatement(true, INSTANCE_ROOT_CONNECTION);
+        this.setNextStatement(true, INSTANCE_ROOT_CONNECTION);
+        this.setFieldValue("canonical-json", INSTANCE_ENCODING_FIELD);
       }
       enforceOpenEhrBlockLayout(this);
       if (options.rmType === "INTERVAL_EVENT") {

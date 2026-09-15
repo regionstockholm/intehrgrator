@@ -32,7 +32,7 @@ Deno.test("scaffold attach places Conversion start above json_object root", () =
   const start = findConversionStartBlock(ws);
   assertExists(start);
   assertEquals(findInstanceRootUnderStart(ws)?.type, "json_object");
-  assertEquals(root.nextConnection, null);
+  assertExists(root.nextConnection);
   assertExists(root.previousConnection);
 });
 

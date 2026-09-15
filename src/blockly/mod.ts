@@ -133,6 +133,8 @@ export {
   findInstanceRootUnderStart,
   inferTargetFormatFromRoot,
   isInstanceRootBlockType,
+  applyInstanceRootCap,
+  productStackBlocks,
 } from "./instance_root.ts";
 export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler } from "./blocks/map_blocks.ts";
 export {

@@ -15,6 +15,12 @@ import {
   evaluateXPathToString,
 } from "fontoxpath";
 import { JsonCanonicalSerializer } from "ehrtslib/serialization/json/mod.ts";
+import { XmlSerializer } from "ehrtslib/serialization/xml/mod.ts";
+import {
+  parseWebTemplate,
+  serializeToFlatJson,
+  serializeToStructuredJson,
+} from "ehrtslib/serialization/simplified/mod.ts";
 
 export interface GeneratedScriptRuntime {
   [name: string]: unknown;
@@ -27,6 +33,11 @@ export function generatedScriptRuntime(): GeneratedScriptRuntime {
     evaluateXPathToNumber,
     evaluateXPathToBoolean,
     evaluateXPathToNodes,
+    JsonCanonicalSerializer,
+    XmlSerializer,
+    parseWebTemplate,
+    serializeToFlatJson,
+    serializeToStructuredJson,
   };
 }
 

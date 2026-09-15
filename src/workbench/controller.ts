@@ -6,6 +6,7 @@ import type {
   MappingUnsupportedBlock,
   TargetSignatureNode,
   OpenEhrInstanceShape,
+  InstanceEncoding,
   OpenEhrJsonDeserializeMode,
   OutputMode,
   OutputValidation,
@@ -44,6 +45,10 @@ import {
   validateModel,
 } from "../core/mapping_model/mod.ts";
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
+import {
+  instanceShapeForEncoding,
+  preferredInstanceEncoding,
+} from "../core/output/instance_encoding.ts";
 import { ensureXQueryRuntime } from "../core/codegen/run_xquery.ts";
 import { runTest } from "../core/test_runner/mod.ts";
 import {
@@ -706,6 +711,7 @@ export class WorkbenchController {
       targetSignature?: TargetSignatureNode[];
       unsupported?: MappingUnsupportedBlock[];
       sheetNames?: string[];
+      instanceEncodings?: InstanceEncoding[];
     },
   ): void {
     if (!this.templateId) return;
@@ -717,6 +723,7 @@ export class WorkbenchController {
     next.targetSignature = options?.targetSignature ? [...options.targetSignature] : [];
     next.unsupported = options?.unsupported ? [...options.unsupported] : [];
     next.sheetNames = options?.sheetNames ? [...options.sheetNames] : [];
+    next.instanceEncodings = options?.instanceEncodings ? [...options.instanceEncodings] : [];
     const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
     for (const item of slots) {
       const targetSlot = targetSlots.get(item.slotId);
@@ -806,7 +813,10 @@ export class WorkbenchController {
       handlebarsTemplate: this.handlebarsTemplate,
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       skeleton: this.skeleton,
-      instanceShape: this.settings.openEhrInstanceShape,
+      instanceShape: this.model.instanceEncodings?.length
+        ? instanceShapeForEncoding(preferredInstanceEncoding(this.model))
+        : this.settings.openEhrInstanceShape,
+      webTemplateJson: this.target?.webTemplateJson,
     });
     void this.host.downloadText(
       `conversion-${safeFilename(this.templateId)}.${adapter.extension}`,
@@ -1312,7 +1322,10 @@ export class WorkbenchController {
         handlebarsTemplate: this.handlebarsTemplate,
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
         skeleton: this.skeleton,
-        instanceShape: this.settings.openEhrInstanceShape,
+        instanceShape: this.model.instanceEncodings?.length
+          ? instanceShapeForEncoding(preferredInstanceEncoding(this.model))
+          : this.settings.openEhrInstanceShape,
+        webTemplateJson: this.target?.webTemplateJson,
       })
       : "";
   }
@@ -1436,7 +1449,9 @@ export class WorkbenchController {
       blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
       sheets: cloneSheets(this.sheets),
       openEhrJsonDeserializeMode: this.settings.openEhrJsonDeserializeMode,
-      instanceShape: this.settings.openEhrInstanceShape,
+      instanceShape: this.model.instanceEncodings?.length
+        ? instanceShapeForEncoding(preferredInstanceEncoding(this.model))
+        : this.settings.openEhrInstanceShape,
     });
   }
 

@@ -27,11 +27,13 @@ import {
   CONVERSION_START_TYPE,
   findInstanceRootUnderStart,
   inferTargetFormatFromRoot,
+  isProductLoopBlockType,
+  productStackBlocks,
   TEXT_DOCUMENT_BLOCK_TYPE,
 } from "./instance_root.ts";
 import { attributesFor, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { LOCATABLE_TYPES } from "../core/rm_mandatory.ts";
-import type { MappingModel } from "../types/mod.ts";
+import type { InstanceEncoding, MappingModel } from "../types/mod.ts";
 import {
   asStringExpr,
   createTsEmitContext,
@@ -48,6 +50,10 @@ import {
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
+import {
+  INSTANCE_ENCODING_FIELD,
+  parseInstanceEncoding,
+} from "../core/output/instance_encoding.ts";
 
 const STATEMENT_INPUT_TYPE = 3;
 
@@ -62,6 +68,7 @@ export function registerTypeScriptExportAdapter(): void {
           options.blocklyState,
           model,
           options.skeleton,
+          options.webTemplateJson,
         );
         if (fromCanvas) return fromCanvas;
       }
@@ -77,6 +84,7 @@ export function generateTypeScriptFromBlocklyState(
   state: unknown,
   model: MappingModel,
   skeleton?: import("../types/mod.ts").SkeletonNode[],
+  webTemplateJson?: string,
 ): string | null {
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
@@ -86,7 +94,7 @@ export function generateTypeScriptFromBlocklyState(
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
       Blockly.serialization.workspaces.load(snapshot, workspace);
-      generated = generateTypeScriptFromWorkspace(workspace, model);
+      generated = generateTypeScriptFromWorkspace(workspace, model, webTemplateJson);
     });
     return generated;
   } catch (err) {
@@ -100,6 +108,7 @@ export function generateTypeScriptFromBlocklyState(
 export function generateTypeScriptFromWorkspace(
   workspace: Workspace,
   model: MappingModel,
+  webTemplateJson?: string,
 ): string | null {
   const ctx = createTsEmitContext();
   const instanceRoot = findInstanceRootUnderStart(workspace);
@@ -108,6 +117,7 @@ export function generateTypeScriptFromWorkspace(
     block.type !== "maps_create_with" &&
     block.type !== CONVERSION_START_TYPE
   );
+  const stack = productStackBlocks(workspace);
   const composition = instanceRoot?.type === "composition" ? instanceRoot
     : roots.find((block) => block.type === "composition") ??
       roots.find((block) => isRmContainerBlockType(block.type));
@@ -115,16 +125,30 @@ export function generateTypeScriptFromWorkspace(
   const targetFormat = model.targetFormat ??
     (instanceRoot ? inferTargetFormatFromRoot(instanceRoot) : undefined);
 
+  const extraImports = new Set<string>();
   let body: string;
   let rootType: string | undefined;
-  if (instanceRoot?.type === TEXT_DOCUMENT_BLOCK_TYPE) {
+  const stacked = stack.length > 1 || stack.some((block) => isProductLoopBlockType(block.type));
+  const encoding = stack[0]?.type === "composition"
+    ? parseInstanceEncoding(stack[0].getFieldValue(INSTANCE_ENCODING_FIELD))
+    : parseInstanceEncoding(model.instanceEncodings?.[0]);
+
+  if (stacked && stack.length) {
+    body = emitJuxtaposedStack(stack, ctx, extraImports, webTemplateJson);
+    rootType = "string";
+  } else if (instanceRoot?.type === TEXT_DOCUMENT_BLOCK_TYPE) {
     const value = instanceRoot.getInputTargetBlock("VALUE");
     body = value ? `return ${emitBlock(value, ctx, 0)};` : 'return "";';
   } else if (composition) {
     const code = emitBlock(composition, ctx, 0);
     rootType = rmTypeOf(composition);
-    if (rootType === "COMPOSITION") {
+    if (rootType === "COMPOSITION" && encoding === "canonical-json") {
       body = `const composition = ${code};\nreturn composition;`;
+    } else if (rootType === "COMPOSITION") {
+      body = `const composition = ${code};\nreturn ${
+        tsSerializeCall("composition", encoding, extraImports, webTemplateJson)
+      };`;
+      rootType = "string";
     } else {
       body = `return ${code};`;
     }
@@ -156,7 +180,106 @@ export function generateTypeScriptFromWorkspace(
     helpers: ctx.helpers,
     rootType,
     source: "blockly",
+    extraImports: [...extraImports],
   });
+}
+
+function emitJuxtaposedStack(
+  stack: Block[],
+  ctx: TsEmitContext,
+  extraImports: Set<string>,
+  webTemplateJson?: string,
+): string {
+  const lines = ["const parts: string[] = [];"];
+  for (const block of stack) {
+    lines.push(emitFragmentPush(block, ctx, extraImports, webTemplateJson));
+  }
+  lines.push('return parts.join("");');
+  return lines.join("\n");
+}
+
+function emitFragmentPush(
+  block: Block,
+  ctx: TsEmitContext,
+  extraImports: Set<string>,
+  webTemplateJson?: string,
+): string {
+  if (block.type === "for_each_source") {
+    ctx.helpers.add("nodes");
+    const name = String(block.getFieldValue("VAR") || "item");
+    const path = String(block.getFieldValue("PATH") || "/");
+    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__node";
+    const innerCtx: TsEmitContext = { ...ctx, sourceVar: ident, loopVar: ident };
+    const inner: string[] = [];
+    let body = block.getInputTargetBlock("DO");
+    while (body) {
+      inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
+      body = body.getNextBlock();
+    }
+    return `for (const ${ident} of xpathNodes(${JSON.stringify(path)})) {\n${inner.join("\n")}\n}`;
+  }
+  if (block.type === "for_each_list") {
+    const name = String(block.getFieldValue("VAR") || "item");
+    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+    const listBlock = block.getInputTargetBlock("LIST");
+    const list = listBlock ? emitBlock(listBlock, ctx, 0) : "[]";
+    const innerCtx: TsEmitContext = { ...ctx, loopVar: ident };
+    const inner: string[] = [];
+    let body = block.getInputTargetBlock("DO");
+    while (body) {
+      inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
+      body = body.getNextBlock();
+    }
+    return `for (const ${ident} of (Array.isArray(${list}) ? ${list} : [])) {\n${inner.join("\n")}\n}`;
+  }
+  if (block.type === TEXT_DOCUMENT_BLOCK_TYPE) {
+    const value = block.getInputTargetBlock("VALUE");
+    const expr = value ? emitBlock(value, ctx, 0) : '""';
+    return `parts.push(String(${expr} ?? ""));`;
+  }
+  if (block.type === "composition") {
+    const encoding = parseInstanceEncoding(block.getFieldValue(INSTANCE_ENCODING_FIELD));
+    const code = emitBlock(block, ctx, 0);
+    return `parts.push(${tsSerializeCall(code, encoding, extraImports, webTemplateJson)});`;
+  }
+  if (
+    isSchemaStructureBlock(block) ||
+    block.type === "json_object" ||
+    block.type === "xml_element" ||
+    block.type === "xml_document"
+  ) {
+    const code = emitGeneric(block, ctx, 0);
+    return `parts.push(typeof (${code}) === "string" ? String((${code}) ?? "") : JSON.stringify((${code}) ?? null));`;
+  }
+  const fallback = emitBlock(block, ctx, 0);
+  return `parts.push(typeof (${fallback}) === "string" ? String((${fallback}) ?? "") : JSON.stringify((${fallback}) ?? null));`;
+}
+
+function tsSerializeCall(
+  valueExpr: string,
+  encoding: InstanceEncoding,
+  extraImports: Set<string>,
+  webTemplateJson?: string,
+): string {
+  if (encoding === "canonical-xml") {
+    extraImports.add('import { XmlSerializer } from "ehrtslib/serialization/xml/mod.ts";');
+    return `new XmlSerializer({ prettyPrint: true }).serialize(${valueExpr})`;
+  }
+  if (encoding === "flat-json" || encoding === "structured-json") {
+    extraImports.add(
+      'import { parseWebTemplate, serializeToFlatJson, serializeToStructuredJson } from "ehrtslib/serialization/simplified/mod.ts";',
+    );
+    if (!webTemplateJson?.trim()) {
+      return `(() => { throw new Error(${
+        JSON.stringify(`${encoding} Instance encoding needs a Web Template on the openEHR target`)
+      }); })()`;
+    }
+    const parsed = JSON.stringify(JSON.parse(webTemplateJson));
+    const fn = encoding === "flat-json" ? "serializeToFlatJson" : "serializeToStructuredJson";
+    return `${fn}(${valueExpr}, parseWebTemplate(${parsed}), { prettyPrint: true })`;
+  }
+  extraImports.add('import { JsonCanonicalSerializer } from "ehrtslib/serialization/json/mod.ts";');
+  return `new JsonCanonicalSerializer().serialize(${valueExpr})`;
 }
 
 /** Test-only export for VMS undefined guard tests. */

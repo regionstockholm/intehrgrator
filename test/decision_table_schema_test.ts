@@ -129,3 +129,18 @@ Deno.test("previewGrid is a 3x3 window of headers plus first data rows", () => {
   assertEquals(preview.rows[0], ["a", "b", "c"]);
   assertEquals(preview.rows.length <= 3, true);
 });
+
+Deno.test("normalizeSheet persists collectDedupe and rowCatchAll", () => {
+  const sheet = normalizeSheet({
+    name: "rules",
+    kind: "decision-table",
+    hitPolicy: "COLLECT",
+    collectDedupe: true,
+    headers: ["in", "out"],
+    decisionColumns: [{ role: "condition" }, { role: "output" }],
+    values: [["a", "1"], ["—", "2"]],
+    rowCatchAll: [false, true],
+  });
+  assertEquals(sheet.collectDedupe, true);
+  assertEquals(sheet.rowCatchAll, [false, true]);
+});

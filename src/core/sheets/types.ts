@@ -40,8 +40,18 @@ export interface SheetDocument {
   hitPolicy?: DecisionHitPolicy;
   /** Join string for `COLLECT` (default `"; "`). */
   collectJoin?: string;
+  /**
+   * When true, `COLLECT` drops duplicate fragments (first occurrence wins, RULE ORDER).
+   * Ignored for data Sheets and for FIRST/UNIQUE.
+   */
+  collectDedupe?: boolean;
   /** Parallel to `headers` when `kind === "decision-table"`. */
   decisionColumns?: DecisionColumnMeta[];
+  /**
+   * Parallel to `values` for Decision tables. A true flag marks a **catch-all**
+   * (otherwise) row. Distinct from per-column don't-care glyphs (`*`, `—`).
+   */
+  rowCatchAll?: boolean[];
 }
 
 export type SheetBag = Record<string, SheetDocument>;

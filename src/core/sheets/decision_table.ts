@@ -1,6 +1,7 @@
 /**
- * Decision-table evaluate + lint (#69).
- * Condition columns use equality + don't-care; output columns are values or VMS-Mustache snippets.
+ * Decision-table evaluate + lint (#69 / #84).
+ * Condition columns use equality, don't-care, and numeric range predicates;
+ * output columns are values or VMS-Mustache snippets.
  * Local bindings: the inputs record keys are both match keys and snippet Mustache names —
  * callers flatten nested/complex sources into those locals before eval.
  */
@@ -261,6 +262,47 @@ export function trimDecisionTableSpareColumns(sheet: SheetDocument): SheetDocume
   return next;
 }
 
+export function isCatchAllRow(sheet: SheetDocument, y: number): boolean {
+  return sheet.rowCatchAll?.[y] === true;
+}
+
+/** Append a catch-all (otherwise) row: don't-care conditions + `rowCatchAll` flag. */
+export function addCatchAllRow(sheet: SheetDocument): SheetDocument {
+  const next = cloneSheet(sheet);
+  const meta = decisionColumnMeta(next);
+  const row = meta.map((m) => (m.role === "condition" ? "—" : "")) as SheetCell[];
+  while (row.length < next.headers.length) row.push("");
+  next.values.push(row.slice(0, next.headers.length));
+  if (next.rowNames) next.rowNames.push("");
+  const flags = next.rowCatchAll ? [...next.rowCatchAll] : Array.from({ length: next.values.length - 1 }, () => false);
+  while (flags.length < next.values.length) flags.push(false);
+  flags[flags.length - 1] = true;
+  next.rowCatchAll = flags;
+  return next;
+}
+
+/**
+ * Row indexes that fire for `inputs`.
+ * A catch-all row is included only when no earlier row has already matched
+ * (FIRST otherwise / openEHR DL `*` choice). UNIQUE/COLLECT share this set:
+ * UNIQUE throws if more than one index; COLLECT joins them in RULE ORDER.
+ */
+export function matchingDecisionRows(
+  sheet: SheetDocument,
+  inputs: Record<string, unknown>,
+): number[] {
+  const meta = decisionColumnMeta(sheet);
+  const matches: number[] = [];
+  for (let y = 0; y < sheet.values.length; y++) {
+    if (isCatchAllRow(sheet, y)) {
+      if (matches.length === 0) matches.push(y);
+      continue;
+    }
+    if (rowMatchesAt(sheet, meta, y, inputs)) matches.push(y);
+  }
+  return matches;
+}
+
 export function previewGrid(
   sheet: SheetDocument,
   maxCols = DECISION_PREVIEW_COLS,
@@ -277,6 +319,76 @@ export function previewGrid(
   return { headers, rows };
 }
 
+/** Inclusive range, exclusive/inclusive bounds. Bare numbers are not predicates (string equality). */
+export type NumericPredicate =
+  | { kind: "range"; min: number; max: number }
+  | { kind: "ge"; value: number }
+  | { kind: "gt"; value: number }
+  | { kind: "le"; value: number }
+  | { kind: "lt"; value: number }
+  | { kind: "eq"; value: number };
+
+const RANGE_RE = /^(-?\d+(?:\.\d+)?)\s*\.\.\s*(-?\d+(?:\.\d+)?)$/;
+const COMPARE_RE = /^(>=|<=|>|<|=)\s*(-?\d+(?:\.\d+)?)$/;
+
+/**
+ * Parse a condition cell as a numeric predicate (`90..120`, `>= 140`, `< 90`).
+ * Bare `140` returns null so exact equality stays the existing string/number match.
+ * `= 140` is explicit numeric equality (input must coerce to a finite number).
+ */
+export function parseNumericPredicate(cell: SheetCell | undefined): NumericPredicate | null {
+  if (cell == null || typeof cell === "boolean") return null;
+  if (isDontCare(cell)) return null;
+  const s = typeof cell === "number" ? String(cell) : String(cell).trim();
+  if (!s) return null;
+  const range = RANGE_RE.exec(s);
+  if (range) {
+    const a = Number(range[1]);
+    const b = Number(range[2]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return { kind: "range", min: Math.min(a, b), max: Math.max(a, b) };
+  }
+  const cmp = COMPARE_RE.exec(s);
+  if (cmp) {
+    const value = Number(cmp[2]);
+    if (!Number.isFinite(value)) return null;
+    const op = cmp[1]!;
+    if (op === ">=") return { kind: "ge", value };
+    if (op === ">") return { kind: "gt", value };
+    if (op === "<=") return { kind: "le", value };
+    if (op === "<") return { kind: "lt", value };
+    return { kind: "eq", value };
+  }
+  return null;
+}
+
+/** Finite number from a bound input. Booleans are not coerced. */
+export function coerceFiniteNumber(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim() !== "") {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+export function predicateHolds(pred: NumericPredicate, n: number): boolean {
+  switch (pred.kind) {
+    case "range":
+      return n >= pred.min && n <= pred.max;
+    case "ge":
+      return n >= pred.value;
+    case "gt":
+      return n > pred.value;
+    case "le":
+      return n <= pred.value;
+    case "lt":
+      return n < pred.value;
+    case "eq":
+      return n === pred.value;
+  }
+}
+
 function cellsEqual(cell: SheetCell, match: unknown): boolean {
   if (isDontCare(cell)) return true;
   if (cell == null && (match == null || match === "")) return true;
@@ -285,7 +397,19 @@ function cellsEqual(cell: SheetCell, match: unknown): boolean {
   return String(cell ?? "") === String(match ?? "");
 }
 
-function rowMatches(
+/** Condition cell vs bound input: don't-care, numeric predicate, or equality. */
+export function conditionCellMatches(cell: SheetCell | undefined, inputVal: unknown): boolean {
+  if (isDontCare(cell)) return true;
+  const pred = parseNumericPredicate(cell);
+  if (pred) {
+    const n = coerceFiniteNumber(inputVal);
+    if (n == null) return false;
+    return predicateHolds(pred, n);
+  }
+  return cellsEqual(cell ?? null, inputVal);
+}
+
+function rowMatchesAt(
   sheet: SheetDocument,
   meta: DecisionColumnMeta[],
   y: number,
@@ -296,11 +420,18 @@ function rowMatches(
     if (meta[x]?.role !== "condition") continue;
     const header = sheet.headers[x] ?? "";
     const cell = row[x] ?? null;
-    if (isDontCare(cell)) continue;
-    const inputVal = inputs[header];
-    if (!cellsEqual(cell, inputVal)) return false;
+    if (!conditionCellMatches(cell, inputs[header])) return false;
   }
   return true;
+}
+
+/** Public seam: does data row `y` match `inputs` on every condition column (AND)? */
+export function rowMatches(
+  sheet: SheetDocument,
+  y: number,
+  inputs: Record<string, unknown>,
+): boolean {
+  return rowMatchesAt(sheet, decisionColumnMeta(sheet), y, inputs);
 }
 
 function resolveOutputIndex(sheet: SheetDocument, meta: DecisionColumnMeta[], outputColumn?: string): number {
@@ -373,10 +504,7 @@ export function evaluateDecisionTable(
   const join = sheet.collectJoin ?? "; ";
   const all = isAllOutputs(outputColumn);
 
-  const matches: number[] = [];
-  for (let y = 0; y < sheet.values.length; y++) {
-    if (rowMatches(sheet, meta, y, inputs)) matches.push(y);
-  }
+  const matches = matchingDecisionRows(sheet, inputs);
 
   if (matches.length === 0) return null;
 
@@ -401,14 +529,35 @@ export function evaluateDecisionTable(
     for (const header of outputHeaders(sheet)) {
       const idx = sheet.headers.indexOf(header);
       const parts = matches.map((y) => cellOutput(sheet, meta, y, idx, inputs));
-      rec[header] = parts.map((p) => (p == null ? "" : String(p))).join(join);
+      rec[header] = joinCollectParts(parts, join, sheet.collectDedupe === true);
     }
     return rec;
   }
 
   const outIndex = resolveOutputIndex(sheet, meta, outputColumn);
   const parts = matches.map((y) => cellOutput(sheet, meta, y, outIndex, inputs));
-  return parts.map((p) => (p == null ? "" : String(p))).join(join);
+  return joinCollectParts(parts, join, sheet.collectDedupe === true);
+}
+
+function isBlankCollectPart(value: unknown): boolean {
+  if (value == null) return true;
+  if (typeof value === "string" && value.trim() === "") return true;
+  return false;
+}
+
+function joinCollectParts(parts: unknown[], join: string, dedupe: boolean): string {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const p of parts) {
+    if (isBlankCollectPart(p)) continue;
+    const s = String(p);
+    if (dedupe) {
+      if (seen.has(s)) continue;
+      seen.add(s);
+    }
+    out.push(s);
+  }
+  return out.join(join);
 }
 
 export interface DecisionTableLintDiagnostic extends TemplateDiagnostic {
@@ -440,4 +589,132 @@ export function lintDecisionTableSnippets(sheet: SheetDocument): DecisionTableLi
     }
   }
   return out;
+}
+
+/**
+ * Soft Constraint warnings for a Decision table: VMS snippet cells, multiple
+ * catch-all rows, and UNIQUE overlap (static row pairs, plus an optional probe
+ * / Active Example inputs map). Does not replace the UNIQUE runtime throw.
+ */
+export function lintDecisionTable(
+  sheet: SheetDocument,
+  probeInputs?: Record<string, unknown>,
+): DecisionTableLintDiagnostic[] {
+  const out = lintDecisionTableSnippets(sheet);
+  if (!isDecisionTable(sheet)) return out;
+  const catchAllRows: number[] = [];
+  for (let y = 0; y < sheet.values.length; y++) {
+    if (isCatchAllRow(sheet, y)) catchAllRows.push(y);
+  }
+  if (catchAllRows.length > 1) {
+    out.push({
+      row: catchAllRows[1]!,
+      column: sheet.headers[0] ?? "",
+      severity: "warning",
+      message: `Decision table "${sheet.name}" has multiple catch-all (otherwise) rows (r${
+        catchAllRows.map((y) => y + 1).join(", r")
+      })`,
+    });
+  }
+  const policy: DecisionHitPolicy = sheet.hitPolicy ?? "FIRST";
+  if (policy === "UNIQUE") {
+    if (probeInputs) {
+      const hits = matchingDecisionRows(sheet, probeInputs);
+      if (hits.length > 1) {
+        out.push({
+          row: hits[1]!,
+          column: sheet.headers[0] ?? "",
+          severity: "warning",
+          message: `UNIQUE decision table "${sheet.name}" matches ${hits.length} rows for the Active Example (r${
+            hits.map((y) => y + 1).join(", r")
+          })`,
+        });
+      }
+    }
+    const pair = firstOverlappingUniqueRows(sheet);
+    if (pair) {
+      const already = out.some((d) => d.message.includes("UNIQUE"));
+      if (!already) {
+        out.push({
+          row: pair[1],
+          column: sheet.headers[0] ?? "",
+          severity: "warning",
+          message: `UNIQUE decision table "${sheet.name}" has overlapping rows r${pair[0] + 1} and r${pair[1] + 1}`,
+        });
+      }
+    }
+  }
+  return out;
+}
+
+function firstOverlappingUniqueRows(sheet: SheetDocument): [number, number] | null {
+  const meta = decisionColumnMeta(sheet);
+  const n = sheet.values.length;
+  for (let i = 0; i < n; i++) {
+    if (isCatchAllRow(sheet, i)) continue;
+    for (let j = i + 1; j < n; j++) {
+      if (isCatchAllRow(sheet, j)) continue;
+      if (rowsMayBothMatch(sheet, meta, i, j)) return [i, j];
+    }
+  }
+  return null;
+}
+
+function rowsMayBothMatch(
+  sheet: SheetDocument,
+  meta: DecisionColumnMeta[],
+  a: number,
+  b: number,
+): boolean {
+  for (let x = 0; x < meta.length; x++) {
+    if (meta[x]?.role !== "condition") continue;
+    if (!conditionCellsCompatible(sheet.values[a]?.[x] ?? null, sheet.values[b]?.[x] ?? null)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function conditionCellsCompatible(a: SheetCell, b: SheetCell): boolean {
+  if (isDontCare(a) || isDontCare(b)) return true;
+  const pa = parseNumericPredicate(a);
+  const pb = parseNumericPredicate(b);
+  if (pa && pb) return numericPredicatesOverlap(pa, pb);
+  if (pa) {
+    const n = coerceFiniteNumber(b);
+    return n != null && predicateHolds(pa, n);
+  }
+  if (pb) {
+    const n = coerceFiniteNumber(a);
+    return n != null && predicateHolds(pb, n);
+  }
+  return String(a ?? "") === String(b ?? "");
+}
+
+function numericPredicatesOverlap(a: NumericPredicate, b: NumericPredicate): boolean {
+  const ia = predicateInterval(a);
+  const ib = predicateInterval(b);
+  if (ia.hi < ib.lo || ib.hi < ia.lo) return false;
+  if (ia.hi === ib.lo) return ia.hiInc && ib.loInc;
+  if (ib.hi === ia.lo) return ib.hiInc && ia.loInc;
+  return true;
+}
+
+function predicateInterval(
+  p: NumericPredicate,
+): { lo: number; hi: number; loInc: boolean; hiInc: boolean } {
+  switch (p.kind) {
+    case "range":
+      return { lo: p.min, hi: p.max, loInc: true, hiInc: true };
+    case "eq":
+      return { lo: p.value, hi: p.value, loInc: true, hiInc: true };
+    case "ge":
+      return { lo: p.value, hi: Number.POSITIVE_INFINITY, loInc: true, hiInc: true };
+    case "gt":
+      return { lo: p.value, hi: Number.POSITIVE_INFINITY, loInc: false, hiInc: true };
+    case "le":
+      return { lo: Number.NEGATIVE_INFINITY, hi: p.value, loInc: true, hiInc: true };
+    case "lt":
+      return { lo: Number.NEGATIVE_INFINITY, hi: p.value, loInc: true, hiInc: false };
+  }
 }

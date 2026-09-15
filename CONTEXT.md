@@ -33,12 +33,16 @@ Small adapter interface (`loadSchema`, `loadInstance`, `pathToExpression`, `crea
 _Avoid_: Format switch, source parser union
 
 **Target instance format**:
-Shape of produced instances, adhering to `openehr-template`, `json-schema`, `xml-schema`, or `free-form`. Loaded via **Open target Schema/Template** in **Target & Previews**; drives the **Template Skeleton** (Blockly Target value slots). Separate from Conversion script language — a Handlebars script may emit non-openEHR text while slots still map into a schema target. Persisted as `targetFormat` / Project Bundle `target`.
-_Avoid_: Target Format alone, Output format (ambiguous with script language), template-only framing, a separate Target value slot tree pane
+Shape of produced instances, adhering to `openehr-template`, `json-schema`, `xml-schema`, or `free-form`. Loaded via **Open target Schema/Template** in **Target & Previews**; drives the **Template Skeleton** (Blockly Target value slots). Separate from Conversion script language — a Handlebars script may emit non-openEHR text while slots still map into a schema target. Persisted as `targetFormat` / Project Bundle `target`. Distinct from **Instance encoding** (how that instance is serialized).
+_Avoid_: Target Format alone, Output format (ambiguous with script language and with Instance encoding), template-only framing, a separate Target value slot tree pane
 
 **Target instance format handler**:
-Adapter seam (`load`, `render`) that turns a target definition into a Template Skeleton / Target value slot tree and renders slot values into the produced instance (Composition JSON, generic JSON, XML document, or free-form passthrough).
-_Avoid_: Target Format Handler (old name), Target parser union
+Adapter seam (`load`, `render`) that turns a target definition into a Template Skeleton / Target value slot tree and renders slot values into the produced instance (generic JSON, XML document, or free-form passthrough). For `openehr-template`, render produces an RM instance that is then serialized with the **Instance encoding** on that **Instance root**.
+_Avoid_: Target Format Handler (old name), Target parser union, treating ITS-JSON as the only openEHR product
+
+**Instance encoding**:
+How a produced instance of a general model is serialized. On an openEHR **Instance root** (COMPOSITION now; CONTRIBUTION later) the informatician picks among encodings that model supports — v1: ITS-JSON (`canonical-json`) and ITS-XML (`canonical-xml`); later FLAT/STRUCTURED and FHIR JSON/XML. Chosen on the root block; Mapping preview, Test Run, and Generated Export emit that encoding. Not a Target instance format and not an Output mode.
+_Avoid_: Output format, Target instance format, Output mode, treating JSON Schema vs XML Schema as this dropdown
 
 **Instance root**:
 The typed Blockly tree that **Conversion start** designates as the produced instance: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object, an **XML document** or schema-less **XML element**, or a **Text document**. Nested constructors inside that tree are not instance roots.
@@ -104,7 +108,7 @@ _Avoid_: Output Previews (old pane title), Right pane (ambiguous — could mean 
 **Output mode**:
 The **Target & Previews** header select: **Mapping preview**, or a **Conversion script language** (TypeScript, Java, Handlebars, XQuery). Chooses what those two sections show. Mapping preview is not a script dialect. Session-only — after app start or Project Bundle load the select is Mapping preview; a Conversion script language is chosen only for the current session.
 _UI label:_ first option **Mapping preview**.
-_Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle
+_Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle, **Instance encoding** (that lives on the Instance root)
 
 **Mapping preview**:
 Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against the Active Example (today's Test Run), including **Handlebars Template** rendering for free-form / Kintegrate. **Generated conversion script(s)** shows a prompt to pick a Conversion script language rather than a script. Not itself a Conversion Script.

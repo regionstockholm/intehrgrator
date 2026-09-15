@@ -1,6 +1,6 @@
 # Conversion start designates the product; it is not a Scratch script
 
-- Status: accepted
+- Status: superseded by [ADR 0010](0010-product-stack-and-instance-encoding.md)
 - Date: 2026-09-09
 
 The canvas is declarative (ADR 0001). A Scratch-style hat is the obvious “conversion starts here” affordance, but Scratch’s green flag means “when clicked, run the statement stack.” **Conversion start** is still that hat: it snaps onto an **Instance root**, and scaffolding attaches one if missing. It only marks which tree is the product. The instance root has a previous notch for Start and no next notch — no sequential “then do this.” Mapping preview and codegen walk that tree.

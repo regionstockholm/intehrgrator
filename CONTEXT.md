@@ -41,20 +41,24 @@ Adapter seam (`load`, `render`) that turns a target definition into a Template S
 _Avoid_: Target Format Handler (old name), Target parser union, treating ITS-JSON as the only openEHR product
 
 **Instance encoding**:
-How a produced instance of a general model is serialized. On an openEHR **Instance root** (COMPOSITION now; CONTRIBUTION later) the informatician picks among encodings that model supports — v1: ITS-JSON (`canonical-json`) and ITS-XML (`canonical-xml`); later FLAT/STRUCTURED and FHIR JSON/XML. Chosen on the root block; Mapping preview, Test Run, and Generated Export emit that encoding. Not a Target instance format and not an Output mode.
-_Avoid_: Output format, Target instance format, Output mode, treating JSON Schema vs XML Schema as this dropdown
+How a produced instance of a general model is serialized. Chosen on that **Instance root** (COMPOSITION now; CONTRIBUTION later; FHIR later). Mixed encodings on one **Product stack** are allowed — each root serializes independently. **Text document** has no encoding dropdown (it is already a string). v1 on openEHR: ITS-JSON (`canonical-json`) and ITS-XML (`canonical-xml`); later FLAT/STRUCTURED. Mapping preview, Test Run, and Generated Export read the encoding per root. Not a Target instance format and not an Output mode.
+_Avoid_: Output format, Target instance format, Output mode, a workspace-wide encoding, forcing every RM root on a stack to match, treating JSON Schema vs XML Schema as this dropdown
 
 **Instance root**:
-The typed Blockly tree that **Conversion start** designates as the produced instance: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object, an **XML document** or schema-less **XML element**, or a **Text document**. Nested constructors inside that tree are not instance roots.
+A typed Blockly constructor that can occupy the **Product stack**: an **RM Block** `composition` (later `CONTRIBUTION`), a JSON Schema or XML Schema scaffold root, a schema-less JSON object, an **XML document** or schema-less **XML element**, or a **Text document**. Nested constructors inside that tree (SECTION, EVENT, JSON members, …) are not instance roots.
 _Avoid_: calling every JSON/XML toolbox block a root, generic file(s) wrapper, treating openEHR CONTRIBUTION as a file format (it is an RM class)
 
+**Product stack**:
+The ordered chain **Conversion start** designates as the conversion product: **Instance roots** plus the remaining VMS loops (`for_each_source`, `for_each_list`). Mapping preview and Generated Export walk it and **juxtapose** each serialized fragment in stack order — no implicit delimiter, array wrapper, or newline. Glue is authorial: a **Text document** for JSONL newlines, MIME boundaries, Kafka/record framing, brackets, or nothing. Loops wrap roots (or nested loops) in their body; each iteration appends fragments. Not a Scratch script and not every leftover statement — `variables_set` and nested RM containers stay out.
+_Avoid_: untyped statement spine, statement `controls_if` / while / for, treating stack order as side effects, N output files from one stack, a hidden JSON array or JSONL mode
+
 **Conversion start**:
-The unique Blockly hat that designates which tree is the conversion product. It snaps onto the previous notch of an **Instance root**. Looks like Scratch’s green flag but is not an event and does not run a statement script. At most one per workspace in v1. Scaffolding a target (and loading a cap-less skeleton) attaches one if missing. Mapping preview and Generated Export walk the capped tree only. See [ADR 0008](docs/adr/0008-conversion-start-designates-product.md).
-_Avoid_: when green flag clicked, script trigger, statement order under Start, fork/parallelize, multiple Starts in v1, Start on `for_each_source` as a file/stream driver, canvas x,y as product order
+The unique Blockly hat that designates the **Product stack**. It snaps onto the first block of that stack. Looks like Scratch’s green flag but is not an event and does not run a statement script — stack order is juxtaposition of fragments. At most one per workspace. Scaffolding a target (and loading a cap-less skeleton) attaches one if missing. See [ADR 0008](docs/adr/0008-conversion-start-designates-product.md) and [ADR 0010](docs/adr/0010-product-stack-and-instance-encoding.md).
+_Avoid_: when green flag clicked, script trigger, fork/parallelize, multiple Starts, canvas x,y as product order, putting purged VMS blocks under Start
 
 **Text document**:
-A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). The conversion product is that string (a text file). Distinct from the workspace **Handlebars Template** tab.
-_Avoid_: stock `text` as the file root, treating the Handlebars Template tab as this block
+A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). Alone under **Conversion start**, the conversion product is that string (a text file). In a **Product stack** among other roots it is a fragment: delimiters, wrapper starts/ends, MIME boundaries, record separators, and similar glue. Distinct from the workspace **Handlebars Template** tab.
+_Avoid_: stock `text` as the file root, treating the Handlebars Template tab as this block, a second delimiter block type, implicit newlines between roots
 
 **XML document**:
 The XML **Instance root** for a complete document: XML declaration (version, encoding, optional standalone), namespace declarations via the cogwheel mutator, and one root **XML element**. A schema-less XML element can still be an instance root for a fragment without a declaration.
@@ -69,8 +73,8 @@ XML character data emitted as `<![CDATA[ … ]]>` instead of escaped text. Plugs
 _Avoid_: using **Code text** as the only way to emit CDATA
 
 **Source iteration (`for_each_source`)**:
-Blockly loop that binds each node from a multi-valued Source Path to a named variable. Click-to-Map under a repeating target container stores relative source paths and wraps that container with this block. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Nested inside an **Instance root**; not a conversion driver for many output files.
-_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging
+Blockly loop that binds each node from a multi-valued Source Path to a named variable. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. `for_each_list` is the list-valued twin. Not a driver for many output files.
+_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type
 
 **Map**:
 A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups. Toolbox: list and map blocks share one **Lists & maps** drawer; **Sheets** is a separate drawer.
@@ -124,8 +128,8 @@ When enabled, Test Run re-executes automatically (debounced) after mapping edits
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Returns the single **Instance root** under **Conversion start** (openEHR Composition is one possible shape, not the only one).
-_Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script
+Executable TypeScript, Java, or Handlebars produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Walks the **Product stack** under **Conversion start** and returns the juxtaposed fragments (a single **Instance root** is the one-item case). Splitting that payload onto a queue or into files is the pipeline around the script.
+_Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script, a Kafka/MIME producer inside convert
 
 **Template Skeleton**:
 The Blockly block tree auto-generated by walking the loaded OPT constraint tree plus silent-mandatory RM fields from ehrtslib's `MANDATORY_RM_ATTRIBUTES` (see `ehrtslib` `rm_instance_generator.ts`) — schema-driven, not instance-driven. RM types are BMM-derived within ehrtslib; intEHRgrator does not parse BMM. Scaffolding copies usable OPT/Web Template constraints onto DATA_VALUE Blocks: a unique `C_QUANTITY`/`C_DV_QUANTITY` unit list item becomes `DV_QUANTITY.units`; a local coded value set becomes a Blockly list of complete `DV_CODED_TEXT` objects (rubric + `defining_code`), defaulting to the AOM `assumed_value`; a `C_ORDINAL`/`C_DV_ORDINAL` value set becomes a Blockly list of complete `DV_ORDINAL` / `DV_SCALE` objects (`value` + `symbol`), likewise defaulting to `assumed_value` when present. Non-mandatory RM structures are added via Optional RM Insertion (cogwheel mutator), not pre-rendered. For **JSON Schema** / **XML Schema** targets the same scaffold policy applies via `target_structure` / `target_value` blocks: mandatory schema fields on load, optional fields via `schema_fields_mutator`, plus always-visible generic JSON/XML toolbox drawers for ad-hoc editing. Scaffolding **joins** a **Conversion start** onto the skeleton **Instance root** rather than replacing the **Defaults block**.
@@ -224,7 +228,7 @@ Optional RM types attachable via Optional RM Insertion (cogwheel mutator / conte
 _Avoid_: Primer-only RM list, toolbox free-build of LOCATABLE extras, library-level attachment picker API
 
 **Mapping Specification**:
-Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program with statement order. **Conversion start** designates the product tree; it does not introduce statement order. Optional **Blockly Function**s are reusable fragments of that tree, not a sequential script. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, ADR 0006, and ADR 0008.
+Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.blocklyState`). The Mapping Spec tab shows a compact projection of that JSON, not the JSON document itself. Blockly is used **declaratively**: the canvas is a slot tree plus constructors (including a **Defaults Map**) and lookups — not an imperative program. **Conversion start** designates the **Product stack**; stack order is juxtaposition of fragments, not “then do this.” Optional **Blockly Function**s are reusable fragments of that tree, not a sequential script. See `docs/MAPPING_SPECIFICATION.md`, ADR 0001, ADR 0006, ADR 0008, and ADR 0010.
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Blockly Function**:
@@ -356,4 +360,8 @@ _Avoid_: Mapping file, saved state
 >
 > **Informatician:** I need a JSON file out, not a composition, and I do not have a JSON Schema.
 >
-> **Developer:** Drag **Conversion start** onto a JSON object from the JSON drawer — that object is the **Instance root**. Mapping preview and Generated Export walk that tree. Load a JSON Schema if you want a **Template Skeleton**; Start is still attached on top. Same pattern for XML and a **Text document**. One Start, one product — batch or two output files belong in the pipeline around this script, not on the canvas.
+> **Developer:** Drag **Conversion start** onto a JSON object from the JSON drawer — that object is the **Instance root**. Mapping preview and Generated Export walk the **Product stack**. Load a JSON Schema if you want a **Template Skeleton**; Start is still attached on top. Same pattern for XML and a **Text document**. One Start, one concatenated product — extra files belong in the pipeline around this script, not on the canvas.
+>
+> **Informatician:** I need two compositions in one payload, with brackets around them.
+>
+> **Developer:** Stack the two COMPOSITION **Instance roots** under Start. Put **Text document** fragments between and around them for `[`, `,`, `]`. A `for_each_source` in that stack repeats a root per source node; a `for_each_source` *inside* a COMPOSITION still repeats `content`, not the product list.

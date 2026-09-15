@@ -21,6 +21,8 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * Row alignment: class chrome (emoji / skeleton title / cog) stays LEFT on
  * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
  * from riding a right-aligned value/statement row after inline merges.
+ * After packing a compact statement C on the right, pin `statementEdge` to
+ * that C so snap/highlight sit on the bump (issue #105).
  *
  * Vertical: Thrasos pins statement-row fields to the notch, but still
  * centers fields on tall *value* rows (`row.height / 2`). Schema single-
@@ -102,7 +104,7 @@ export function registerCompactThrasosRenderer(): string {
         this.addAlignmentPadding_(row, remaining);
       }
 
-      const notchX = Number(row.width ?? 0) - Number(input.width ?? 0);
+      const notchX = pinStatementRowNotch_(row);
       const connected = Number(row.connectedBlockWidths ?? 0);
       row.widthWithConnectedBlocks = Math.max(
         Number(row.width ?? 0),
@@ -127,6 +129,12 @@ export function registerCompactThrasosRenderer(): string {
         return;
       }
       super.drawInlineInput_(input);
+    }
+
+    // deno-lint-ignore no-explicit-any
+    positionStatementInputConnection_(row: any) {
+      pinStatementRowNotch_(row);
+      return super.positionStatementInputConnection_(row);
     }
   }
 
@@ -206,6 +214,27 @@ export function applyCompactConstants(constants: any): void {
   // from TAB_HEIGHT and would keep that extra vertical gap under HEADER.
   constants.DUMMY_INPUT_MIN_HEIGHT = tabRoom;
   constants.EMPTY_INLINE_INPUT_HEIGHT = tabRoom;
+}
+
+/**
+ * Blockly Drawer.positionStatementInputConnection_ uses
+ * `connX = row.xPos + row.statementEdge + notchOffset`.
+ * After leftover width is padded on the left, `statementEdge` from
+ * computeBounds_ is still the leftover field column. Pin it to the
+ * visual C bump so snap/highlight match COMPOSITION.content.
+ */
+export type StatementRowNotch = {
+  xPos?: number;
+  width?: number;
+  statementEdge?: number;
+  getLastInput?: () => { width?: number; notchOffset?: number } | null | undefined;
+};
+
+export function pinStatementRowNotch_(row: StatementRowNotch): number {
+  const input = row.getLastInput?.();
+  const notchX = Number(row.width ?? 0) - Number(input?.width ?? 0);
+  row.statementEdge = notchX;
+  return notchX;
 }
 
 /** True when the render row carries a statement/value mouth (not a dummy HEADER). */

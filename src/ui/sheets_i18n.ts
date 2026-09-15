@@ -23,6 +23,8 @@ export interface SheetsChrome {
   kindSheet: string;
   kindDecision: string;
   snippetLint: string;
+  addDefaultRow: string;
+  collectDedupe: string;
 }
 
 const CHROME: Record<IntehrLocale, SheetsChrome> = {
@@ -49,6 +51,8 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     kindSheet: "Sheet",
     kindDecision: "Decision table",
     snippetLint: "Snippet cells (VMS-Mustache)",
+    addDefaultRow: "Add default row",
+    collectDedupe: "COLLECT dedupe",
   },
   sv: {
     tab: "Kalkylblad",
@@ -73,6 +77,8 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     kindSheet: "Blad",
     kindDecision: "Beslutstabell",
     snippetLint: "Snippet-celler (VMS-Mustache)",
+    addDefaultRow: "Lägg till standardrad",
+    collectDedupe: "COLLECT-deduplicering",
   },
   de: {
     tab: "Tabellen",
@@ -97,6 +103,8 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     kindSheet: "Blatt",
     kindDecision: "Entscheidungstabelle",
     snippetLint: "Snippet-Zellen (VMS-Mustache)",
+    addDefaultRow: "Standardzeile hinzufügen",
+    collectDedupe: "COLLECT-Deduplizierung",
   },
   es: {
     tab: "Hojas",
@@ -121,6 +129,8 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     kindSheet: "Hoja",
     kindDecision: "Tabla de decisión",
     snippetLint: "Celdas snippet (VMS-Mustache)",
+    addDefaultRow: "Añadir fila por defecto",
+    collectDedupe: "COLLECT sin duplicados",
   },
   ca: {
     tab: "Fulls",
@@ -145,6 +155,8 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     kindSheet: "Full",
     kindDecision: "Taula de decisió",
     snippetLint: "Cel·les snippet (VMS-Mustache)",
+    addDefaultRow: "Afegeix fila per defecte",
+    collectDedupe: "COLLECT sense duplicats",
   },
   fr: {
     tab: "Feuilles",
@@ -169,6 +181,8 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     kindSheet: "Feuille",
     kindDecision: "Table de décision",
     snippetLint: "Cellules snippet (VMS-Mustache)",
+    addDefaultRow: "Ajouter une ligne par défaut",
+    collectDedupe: "COLLECT sans doublons",
   },
 };
 

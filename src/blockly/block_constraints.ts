@@ -27,6 +27,9 @@ import {
   type SlotCardinality,
 } from "./slot_cardinality.ts";
 import { blockHatchMessages } from "./vms_linter.ts";
+import { DECISION_TABLE_BLOCK, DECISION_TABLE_DECL } from "./blocks/decision_table_blocks.ts";
+import { workspaceSheet } from "./sheets_bridge.ts";
+import { lintDecisionTable } from "../core/sheets/decision_table.ts";
 
 export const ABSTRACT_EVENT_WARNING =
   "EVENT is abstract. Choose POINT_EVENT or INTERVAL_EVENT — runtime instances cannot be the abstract EVENT class.";
@@ -79,6 +82,16 @@ export function blockConstraintMessages(block: Block): string[] {
 
   // VMS hatch / dialect warnings (#40) share the Constraint warning triangle.
   messages.push(...blockHatchMessages(block));
+
+  if (block.type === DECISION_TABLE_BLOCK || block.type === DECISION_TABLE_DECL) {
+    const name = String(block.getFieldValue("NAME") || "");
+    const sheet = name ? workspaceSheet(name) : undefined;
+    if (sheet) {
+      for (const d of lintDecisionTable(sheet)) {
+        messages.push(d.message);
+      }
+    }
+  }
   return messages;
 }
 

@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { jspreadsheetDictionary } from "@intehrgrator/ui/sheets_i18n.ts";
+import { jspreadsheetDictionary, sheetsChrome } from "@intehrgrator/ui/sheets_i18n.ts";
 
 Deno.test("jspreadsheet dictionary covers app locales with Search/Cut/Copy/Paste", () => {
   for (const loc of ["sv", "de", "es", "ca", "fr"] as const) {
@@ -11,4 +11,13 @@ Deno.test("jspreadsheet dictionary covers app locales with Search/Cut/Copy/Paste
     assertEquals(d.Search.length > 0, true);
   }
   assertEquals(jspreadsheetDictionary("en"), {});
+});
+
+Deno.test("sheets chrome includes Add default row and COLLECT dedupe labels", () => {
+  for (const loc of ["en", "sv", "de", "es", "ca", "fr"] as const) {
+    const t = sheetsChrome(loc);
+    assertEquals(t.addDefaultRow.length > 0, true);
+    assertEquals(t.collectDedupe.length > 0, true);
+  }
+  assertEquals(sheetsChrome("en").addDefaultRow, "Add default row");
 });

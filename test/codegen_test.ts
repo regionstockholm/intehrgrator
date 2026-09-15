@@ -27,6 +27,7 @@ import {
   generateTypeScriptFromBlocklyState,
   applyModelExpressions,
 } from "@intehrgrator/blockly/mod.ts";
+import { attachStartToInstanceRoot } from "@intehrgrator/blockly/conversion_start_canvas.ts";
 import { importSuggestions } from "@intehrgrator/core/ai/mod.ts";
 
 Deno.test("typescript codegen contains template id", () => {
@@ -58,10 +59,79 @@ Deno.test("typescript codegen emits sheetLookup helper for sheet_lookup slots", 
 
 Deno.test("java codegen structure", () => {
   const model = createEmptyModel("vitals");
+  model.targetFormat = "openehr-template";
   const java = generate(model, "java");
   assertEquals(java.includes("class ConversionScript"), true);
   assertStringIncludes(java, "package se.regionstockholm.intehrgrator.generated;");
   assertStringIncludes(java, "com.nedap.archie.rm.composition.Composition");
+});
+
+function jsonProductModel(templateId = "person") {
+  const model = applyExpressionEdit(
+    createEmptyModel(templateId),
+    "name",
+    'xpathString("$.name")',
+    { rmType: "string", returnType: "string", label: "Name" },
+  );
+  model.targetFormat = "json-schema";
+  return model;
+}
+
+const leftoverCompositionSkeleton = [{
+  slotId: "c",
+  blockType: "composition",
+  rmType: "COMPOSITION",
+  kind: "container" as const,
+  mandatory: true,
+  children: [],
+}];
+
+Deno.test("codegen omits openEHR libraries when the product is not openEHR", () => {
+  const model = jsonProductModel();
+  const java = generate(model, "java");
+  const ts = generate(model, "typescript");
+  const xq = generate(model, "xquery");
+
+  assertEquals(java.includes("com.nedap.archie"), false, java);
+  assertEquals(java.includes("Archie"), false, java);
+  assertStringIncludes(java, "class ConversionScript");
+  assertEquals(java.includes("Composition"), false, java);
+
+  assertEquals(ts.includes("ehrtslib"), false, ts);
+  assertEquals(ts.includes("COMPOSITION"), false, ts);
+  assertStringIncludes(ts, "xpathString");
+
+  assertEquals(xq.includes("http://schemas.openehr.org/v1"), false, xq);
+  assertEquals(xq.includes("Archie"), false, xq);
+  assertEquals(xq.includes("local:dv-text"), false, xq);
+  assertStringIncludes(xq, "$source?name");
+});
+
+Deno.test("java codegen follows the canvas product over a leftover COMPOSITION skeleton", () => {
+  initBlocklyGenerators();
+  const workspace = new Blockly.Workspace();
+  try {
+    const root = workspace.newBlock("json_object");
+    attachStartToInstanceRoot(workspace, root);
+    const model = jsonProductModel();
+    const java = generate(model, "java", {
+      blocklyState: Blockly.serialization.workspaces.save(workspace),
+      skeleton: leftoverCompositionSkeleton,
+    });
+    const ts = generate(model, "typescript", {
+      blocklyState: Blockly.serialization.workspaces.save(workspace),
+      skeleton: leftoverCompositionSkeleton,
+    });
+    const xq = generate(model, "xquery", {
+      blocklyState: Blockly.serialization.workspaces.save(workspace),
+      skeleton: leftoverCompositionSkeleton,
+    });
+    assertEquals(java.includes("com.nedap.archie"), false, java);
+    assertEquals(ts.includes("ehrtslib"), false, ts);
+    assertEquals(xq.includes("http://schemas.openehr.org/v1"), false, xq);
+  } finally {
+    workspace.dispose();
+  }
 });
 
 Deno.test("java expression emit maps xpath, maps_get, and sheet_lookup", () => {

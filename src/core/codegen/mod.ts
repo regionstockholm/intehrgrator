@@ -18,6 +18,7 @@ export {
 } from "./xquery.ts";
 export type { XQueryGenerationOptions } from "./xquery.ts";
 export { generateGoTemplate } from "./go_template.ts";
+export { usesOpenEhrProduct, isOpenEhrRmType } from "./product.ts";
 export {
   emitTsExpression,
   generateTypeScriptFromSkeleton,

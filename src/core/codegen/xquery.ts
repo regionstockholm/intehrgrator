@@ -24,6 +24,7 @@ import {
   instanceShapeForEncoding,
   preferredInstanceEncoding,
 } from "../output/instance_encoding.ts";
+import { usesOpenEhrProduct } from "./product.ts";
 
 export class XQueryExportError extends Error {
   override name = "XQueryExportError";
@@ -39,6 +40,8 @@ export interface XQueryGenerationOptions {
   skeleton?: SkeletonNode[];
   /** Desired openEHR instance serialization. Default `xml` when a skeleton is present. */
   instanceShape?: OpenEhrInstanceShape;
+  /** Canonical Blockly workspace JSON — canvas product wins over a leftover skeleton. */
+  blocklyState?: unknown;
 }
 
 export function generateXQuery(
@@ -55,13 +58,14 @@ export function generateXQuery(
     (skeleton.length && (model.targetFormat ?? "openehr-template") === "openehr-template"
       ? "xml"
       : "json");
-  const openEhrTree = skeleton.length > 0 &&
-    (model.targetFormat ?? "openehr-template") === "openehr-template";
+  const openEhr = usesOpenEhrProduct(model, options);
+  const openEhrTree = openEhr && skeleton.length > 0;
 
   if (openEhrTree) {
     return wrapXQueryModule({
       model,
       shape,
+      needsRm: true,
       productComment: shape === "xml"
         ? "Output: COMPOSITION RM XML (Model A/C). Validate with Archie / a CDR."
         : "Output: COMPOSITION as XPath 3.1 maps (JSON instance shape).",
@@ -74,10 +78,10 @@ export function generateXQuery(
   const { loopSlots, topLevelSlots } = partitionSlots(model.slots, loops, model.targetSignature);
 
   const loopBlocks = loops.map((loop) =>
-    emitLoop(loop, loopSlots.get(loop.attachSlotId) ?? []).map((line) => `    ${line}`).join("\n")
+    emitLoop(loop, loopSlots.get(loop.attachSlotId) ?? [], openEhr).map((line) => `    ${line}`).join("\n")
   );
   const slotBlocks = topLevelSlots.map((slot) =>
-    emitSlot(slot).map((line) => `    ${line}`).join("\n")
+    emitSlot(slot, {}, openEhr).map((line) => `    ${line}`).join("\n")
   );
 
   const inner: string[] = [
@@ -118,8 +122,10 @@ export function generateXQuery(
   return wrapXQueryModule({
     model,
     shape: "xml",
-    productComment:
-      "Output: mapping-result slot manifest (Model B). Validate assembled Composition with Archie OPT.",
+    needsRm: openEhr,
+    productComment: openEhr
+      ? "Output: mapping-result slot manifest (Model B). Validate assembled Composition with Archie OPT."
+      : "Output: mapping-result slot manifest (Model B).",
     convertType: "element(mapping-result)",
     body: inner.join("\n"),
   });
@@ -128,6 +134,7 @@ export function generateXQuery(
 function wrapXQueryModule(args: {
   model: MappingModel;
   shape: OpenEhrInstanceShape;
+  needsRm: boolean;
   productComment: string;
   convertType: string;
   body: string;
@@ -144,8 +151,12 @@ function wrapXQueryModule(args: {
     "(: Bind $source (XML node or XPath 3.1 map), $defaults, and $sheets (see docs/agents/xquery-engine.md). :)",
     "",
     'declare namespace output = "http://www.w3.org/2010/xslt-xquery-serialization";',
-    'declare namespace rm = "http://schemas.openehr.org/v1";',
-    'declare namespace xsi = "http://www.w3.org/2001/XMLSchema-instance";',
+    ...(args.needsRm
+      ? [
+        'declare namespace rm = "http://schemas.openehr.org/v1";',
+        'declare namespace xsi = "http://www.w3.org/2001/XMLSchema-instance";',
+      ]
+      : []),
     'declare namespace map = "http://www.w3.org/2005/xpath-functions/map";',
     'declare namespace array = "http://www.w3.org/2005/xpath-functions/array";',
     "",
@@ -156,7 +167,7 @@ function wrapXQueryModule(args: {
     "declare variable $defaults as map(*) external := map {};",
     "declare variable $sheets as map(*) external := map {};",
     "",
-    ...emitHelpers(),
+    ...emitHelpers(args.needsRm),
     "",
     `declare function local:convert($source as item()*) as ${args.convertType} {`,
     args.body,
@@ -267,7 +278,7 @@ function collectSignatureSlotIds(node: TargetSignatureNode): string[] {
   return ids;
 }
 
-function emitLoop(loop: MappingLoop, slots: MappingSlot[]): string[] {
+function emitLoop(loop: MappingLoop, slots: MappingSlot[], needsRm = true): string[] {
   const ident = loopVarIdent(loop.varName);
   const sequence = compileLoopSequence(loop);
   const env: XQueryEmitEnv = {
@@ -287,7 +298,7 @@ function emitLoop(loop: MappingLoop, slots: MappingSlot[]): string[] {
   if (slots.length) {
     slotLines.push("  element slots {");
     for (let i = 0; i < slots.length; i++) {
-      const block = emitSlot(slots[i]!, env).map((line) => `    ${line}`).join("\n");
+      const block = emitSlot(slots[i]!, env, needsRm).map((line) => `    ${line}`).join("\n");
       const comma = i < slots.length - 1 ? "," : "";
       slotLines.push(block + comma);
     }
@@ -342,7 +353,7 @@ export function compileLoopSequence(loop: MappingLoop): string {
   return `local:lookup-sequence($source, ${xqString(path)})`;
 }
 
-function emitHelpers(): string[] {
+function emitHelpers(needsRm: boolean): string[] {
   return [
     "(: --- Source access (fontoxpath-authored paths → XQuery 3.1) --- :)",
     "",
@@ -400,6 +411,13 @@ function emitHelpers(): string[] {
     "  )",
     "};",
     "",
+    ...(needsRm ? emitDvHelpers() : []),
+    ...emitSheetHelpers(),
+  ];
+}
+
+function emitDvHelpers(): string[] {
+  return [
     "(: --- DV_* constructors (RM XML) --- :)",
     "",
     "declare function local:dv-text($value as xs:string?) as element(rm:value) {",
@@ -471,11 +489,10 @@ function emitHelpers(): string[] {
     "    default return local:dv-text(($value)[1] ! xs:string(.))",
     "};",
     "",
-    ...emitSheetHelpers(),
   ];
 }
 
-function emitSlot(slot: MappingSlot, env: XQueryEmitEnv = {}): string[] {
+function emitSlot(slot: MappingSlot, env: XQueryEmitEnv = {}, needsRm = true): string[] {
   let exprXq: string;
   try {
     exprXq = emitXQueryExpr(parseExpression(slot.expression), env);
@@ -484,13 +501,16 @@ function emitSlot(slot: MappingSlot, env: XQueryEmitEnv = {}): string[] {
     exprXq = `(: unparseable expression: ${xqComment(msg)} :) ()`;
   }
   const label = slot.label ?? slot.slotId;
+  const valueLine = needsRm
+    ? `  local:as-value(${xqString(slot.rmType)}, ${exprXq})`
+    : `  ${exprXq}`;
   return [
     `(: ${xqComment(label)} — ${xqComment(slot.expression)} :)`,
     "element slot {",
     `  attribute id { ${xqString(slot.slotId)} },`,
     `  attribute rm-type { ${xqString(slot.rmType)} },`,
     ...(slot.mandatory ? ['  attribute mandatory { "true" },'] : []),
-    `  local:as-value(${xqString(slot.rmType)}, ${exprXq})`,
+    valueLine,
     "}",
   ];
 }

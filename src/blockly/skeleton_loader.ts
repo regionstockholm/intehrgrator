@@ -4,7 +4,7 @@ import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { attributesFor, blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
-import { termSetById, termSetForMandatedCode, termSetForRmAttribute } from "../core/openehr_term_catalog.ts";
+import { termSetById, termSetForMandatedCode, termSetForRmAttribute, TERM_PICK_NONE } from "../core/openehr_term_catalog.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
 import "blockly/blocks";
@@ -21,9 +21,10 @@ import {
   optionalRmInputName,
   rmAttributeInputName,
   syncRmAttributeInputs,
+  ensureIntervalEventMathFunctionScaffold,
 } from "./blocks/rm_blocks.ts";
 import { enforceMouthCaptionLayout } from "./mouth_layout.ts";
-import { createTermPickBlock, isTermPickBlock } from "./blocks/term_pick.ts";
+import { createTermPickBlock, isTermPickBlock, configureTermPick } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
 import { createSourceQueryBlock } from "./source_query.ts";
 import {
@@ -679,12 +680,25 @@ function buildContainerBlock(
   // Initialise SVG before nesting children so puzzle-tab sockets measure correctly.
   finalizeBlock(block);
 
+  // Drop the empty INTERVAL_EVENT math_function scaffold from block init so a
+  // template-mandated term_pick (or a fresh choose…) can attach cleanly.
+  if (node.rmType === "INTERVAL_EVENT") {
+    clearEmptyMathFunctionScaffold(block);
+  }
+
   for (const attr of attributes) {
     const attrChildren = visibleChildren.filter((child) => child.rmAttribute === attr);
     const childBlocks = attrChildren
       .map((child) => buildBlockFromNode(workspace, child, false, depth + 1, node.rmType))
       .filter((child): child is BlockSvg => child !== null);
     connectAttributeChildren(block, rmAttributeInputName(attr), childBlocks);
+  }
+
+  if (node.rmType === "INTERVAL_EVENT") {
+    ensureIntervalEventMathFunctionScaffold(
+      block,
+      mandatedMathFunctionCode(visibleChildren),
+    );
   }
 
   refreshBlockLayout(block);
@@ -1080,6 +1094,26 @@ function connectAttributeChildren(
     return;
   }
   connectStatementChain(parent, inputName, blocks);
+}
+
+/** Dispose an init-time choose… math_function pick so skeleton children can attach. */
+function clearEmptyMathFunctionScaffold(block: Blockly.Block): void {
+  const input = block.getInput(rmAttributeInputName("math_function"));
+  const existing = input?.connection?.targetBlock() ?? null;
+  if (!existing || !isTermPickBlock(existing)) return;
+  const code = String(existing.getFieldValue("CODE") || "");
+  if (code && code !== TERM_PICK_NONE) return;
+  existing.dispose(false);
+}
+
+/** Single OPT-mandated math_function code, if the template locked one in. */
+function mandatedMathFunctionCode(children: SkeletonNode[]): string | undefined {
+  const mathChild = children.find((child) => child.rmAttribute === "math_function");
+  if (!mathChild) return undefined;
+  const fromFixed = mathChild.fixedFields?.code_string ?? mathChild.fixedFields?.defining_code;
+  if (fromFixed) return fromFixed;
+  if (mathChild.allowedValues?.length === 1) return mathChild.allowedValues[0]!.code;
+  return undefined;
 }
 
 function connectStatementChain(

@@ -564,6 +564,11 @@ function emitListsCreate(block: Block, ctx: TsEmitContext): string {
 }
 
 function emitGeneric(block: Block, ctx: TsEmitContext, indent: number): string {
+  if (block.type === "json_null") return "null";
+  if (block.type === "json_boolean") {
+    const value = block.getInputTargetBlock("VALUE");
+    return value ? emitBlock(value, ctx, indent) : "false";
+  }
   if (isGenericValueBlockType(block.type)) {
     const value = block.getInputTargetBlock("VALUE");
     return value ? emitBlock(value, ctx, indent) : "undefined";

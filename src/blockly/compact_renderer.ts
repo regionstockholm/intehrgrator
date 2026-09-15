@@ -42,6 +42,12 @@ export function registerCompactThrasosRenderer(): string {
     getInRowSpacing_(prev: any, next: any) {
       const spacing = super.getInRowSpacing_(prev, next);
       if (isZeroSizeMeasurable(prev) || isZeroSizeMeasurable(next)) return 0;
+      // Keep a readable inset before the first field on a row (class chrome,
+      // titles) so glyphs/labels do not sit flush on the block edge.
+      if (!prev && next?.field) {
+        const edge = Number(this.constants_?.MEDIUM_PADDING ?? COMPACT_PADDING.MEDIUM);
+        return Math.max(spacing, edge);
+      }
       // Hug statement/value mouths: slot captions and any field sitting
       // immediately before a statement/external input get tight spacing.
       if (
@@ -164,20 +170,35 @@ export function registerCompactThrasosRenderer(): string {
   return COMPACT_RENDERER_NAME;
 }
 
+/**
+ * Compact padding that still leaves room for labels/icons at block edges and
+ * for statement children inside parent mouths (issue #66). Blockly defaults
+ * are SMALL=3, MEDIUM=5, LARGE=10, STATEMENT_INPUT_PADDING_LEFT=20.
+ */
+export const COMPACT_PADDING = {
+  SMALL: 3,
+  MEDIUM: 4,
+  LARGE: 8,
+  /** Left inset of statement-stack children inside a C-mouth (was 1 → too deep). */
+  STATEMENT_INPUT_LEFT: 14,
+  STATEMENT_BOTTOM: 6,
+  BETWEEN_STATEMENT_Y: 2,
+} as const;
+
 /** Theme `init()` rewrites dummy/inline heights from TAB_HEIGHT; re-apply after. */
 // deno-lint-ignore no-explicit-any
-function applyCompactConstants(constants: any): void {
+export function applyCompactConstants(constants: any): void {
   if (!constants) return;
-  constants.SMALL_PADDING = 1;
-  constants.MEDIUM_PADDING = 3;
-  constants.LARGE_PADDING = 5;
+  constants.SMALL_PADDING = COMPACT_PADDING.SMALL;
+  constants.MEDIUM_PADDING = COMPACT_PADDING.MEDIUM;
+  constants.LARGE_PADDING = COMPACT_PADDING.LARGE;
   constants.FIELD_BORDER_RECT_X_PADDING = 2;
   constants.FIELD_BORDER_RECT_Y_PADDING = 1;
   constants.FIELD_TEXT_HEIGHT = 14;
   constants.FIELD_TEXT_BASELINE = 11;
-  constants.BETWEEN_STATEMENT_PADDING_Y = 2;
-  constants.STATEMENT_BOTTOM_SPACER = 4;
-  constants.STATEMENT_INPUT_PADDING_LEFT = 1;
+  constants.BETWEEN_STATEMENT_PADDING_Y = COMPACT_PADDING.BETWEEN_STATEMENT_Y;
+  constants.STATEMENT_BOTTOM_SPACER = COMPACT_PADDING.STATEMENT_BOTTOM;
+  constants.STATEMENT_INPUT_PADDING_LEFT = COMPACT_PADDING.STATEMENT_INPUT_LEFT;
   const tabHeight = Number(constants.TAB_HEIGHT ?? 15);
   const tabRoom = tabHeight + 11;
   constants.MIN_BLOCK_HEIGHT = Math.max(24, tabRoom);
@@ -194,9 +215,9 @@ export function isMouthRow_(row: any): boolean {
 }
 
 /**
- * Mouth rows always hug the socket, even when the output-tab glyph was prepended
- * onto that same row (stock `lists_create_with` / `lists_getIndex`). Dummy HEADER
- * chrome stays LEFT. Exported for unit tests.
+ * Mouth rows always hug the socket. Class chrome lives on a dummy HEADER (see
+ * `ensureClassChromeHeader`) so stock lists/maps icons stay left of the puzzle
+ * tab instead of riding a right-packed mouth row. Exported for unit tests.
  */
 // deno-lint-ignore no-explicit-any
 export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {

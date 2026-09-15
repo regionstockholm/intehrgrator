@@ -21,6 +21,7 @@ import {
 import {
   blockTypeUsesMouthLayout,
   enforceMouthCaptionLayout,
+  ensureClassChromeHeader,
   inputAlignLeft,
   inputAlignRight,
 } from "./mouth_layout.ts";
@@ -79,7 +80,7 @@ export function blocklyCheckTooltip(
   return glyph ? `${glyph} ${check}` : check;
 }
 
-function appendGlyphField(input: Input, check: string | string[] | null, atStart: boolean): void {
+function appendGlyphField(input: Input, check: string | string[] | null): void {
   const glyph = glyphForBlocklyCheck(check, false);
   if (!glyph) return;
   const rmField = createRmTypeEmojiField(
@@ -89,10 +90,6 @@ function appendGlyphField(input: Input, check: string | string[] | null, atStart
   const field = rmField && glyph !== ABSTRACT_SLOT_GLYPH
     ? rmField
     : createTypeGlyphField(glyph, blocklyCheckTooltip(check));
-  if (atStart && typeof input.insertFieldAt === "function") {
-    input.insertFieldAt(0, field, BLOCK_OUT_EMOJI_FIELD);
-    return;
-  }
   input.appendField(field, BLOCK_OUT_EMOJI_FIELD);
 }
 
@@ -101,14 +98,7 @@ export function appendBlockOutputGlyph(
   header: Input,
   check: string | string[] | null,
 ): void {
-  appendGlyphField(header, check, false);
-}
-
-export function prependBlockOutputGlyph(
-  input: Input,
-  check: string | string[] | null,
-): void {
-  appendGlyphField(input, check, true);
+  appendGlyphField(header, check);
 }
 
 /** Update an existing HEADER output glyph after `setOutput` changes the check. */
@@ -150,17 +140,26 @@ export function appendInputTypeGlyph(
   input.appendField(field, name);
 }
 
-/** Puts the output glyph on the first existing input so it does not add a row. */
+/** Puts the output glyph on a LEFT-aligned HEADER (never on a mouth row). */
 export function ensureBlockOutputHeaderGlyph(block: Block): void {
   if (!block.outputConnection) return;
-  if (block.getField(BLOCK_OUT_EMOJI_FIELD)) return;
-  const first = block.inputList[0];
-  if (!first) {
-    const header = block.appendDummyInput("HEADER").setAlign(inputAlignLeft());
-    appendBlockOutputGlyph(header, block.outputConnection.getCheck());
+  const check = block.outputConnection.getCheck();
+  // Drop a glyph that was prepended onto a mouth row (pre-issue-66 stock lists).
+  for (const input of [...block.inputList]) {
+    if (input.name === "HEADER") continue;
+    if (!input.fieldRow.some((field) => field.name === BLOCK_OUT_EMOJI_FIELD)) continue;
+    try {
+      input.removeField(BLOCK_OUT_EMOJI_FIELD, true);
+    } catch {
+      // Already removed.
+    }
+  }
+  const header = ensureClassChromeHeader(block);
+  if (block.getField(BLOCK_OUT_EMOJI_FIELD)) {
+    header.setAlign(inputAlignLeft());
     return;
   }
-  prependBlockOutputGlyph(first, block.outputConnection.getCheck());
+  appendBlockOutputGlyph(header, check);
 }
 
 /** Appends socket glyphs as the last field on each value input. */
@@ -210,6 +209,7 @@ export function registerStockBlocklyGlyphs(): void {
     if (typeof originalUpdate === "function" && blockTypeUsesMouthLayout(type)) {
       def.updateShape_ = function (this: Block) {
         originalUpdate.call(this);
+        ensureBlockOutputHeaderGlyph(this);
         enforceMouthCaptionLayout(this);
       };
     }
@@ -217,6 +217,7 @@ export function registerStockBlocklyGlyphs(): void {
     if (typeof originalUpdateAt === "function" && blockTypeUsesMouthLayout(type)) {
       def.updateAt_ = function (this: Block, hasAt: boolean) {
         originalUpdateAt.call(this, hasAt);
+        ensureBlockOutputHeaderGlyph(this);
         enforceMouthCaptionLayout(this);
       };
     }

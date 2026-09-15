@@ -39,9 +39,29 @@ const JARS: Array<{ path: string; file: string }> = [
   { path: "org/antlr/antlr4-runtime/4.13.2", file: "antlr4-runtime-4.13.2.jar" },
 ];
 
+/** True when javac rejected `--release N` (GitHub's default JDK is often older than 21). */
+function javacReleaseUnsupported(output: string): boolean {
+  return /release version \d+ not supported/i.test(output);
+}
+
 async function javaAvailable(): Promise<boolean> {
   try {
     const out = await new Deno.Command("java", { args: ["-version"], stdout: "piped", stderr: "piped" }).output();
+    return out.success || out.code === 0;
+  } catch {
+    return false;
+  }
+}
+
+async function javacReleaseSupported(release: string): Promise<boolean> {
+  try {
+    const out = await new Deno.Command("javac", {
+      args: ["--release", release, "-version"],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    const text = `${new TextDecoder().decode(out.stderr)}\n${new TextDecoder().decode(out.stdout)}`;
+    if (javacReleaseUnsupported(text)) return false;
     return out.success || out.code === 0;
   } catch {
     return false;
@@ -69,12 +89,26 @@ async function fetchJars(dir: string): Promise<string[] | null> {
   return paths;
 }
 
+Deno.test("optional Archie javac skip detects unsupported --release", () => {
+  assertEquals(
+    javacReleaseUnsupported(
+      "error: release version 21 not supported\nUsage: javac <options> <source files>",
+    ),
+    true,
+  );
+  assertEquals(javacReleaseUnsupported("javac 21.0.2"), false);
+});
+
 Deno.test({
   name: "generated Java compiles against Archie when Maven Central jars are reachable (optional)",
   ignore: Deno.env.get("SKIP_ARCHIE_COMPILE") === "1",
   async fn() {
     if (!(await javaAvailable())) {
       console.warn("skip: java not on PATH");
+      return;
+    }
+    if (!(await javacReleaseSupported("21"))) {
+      console.warn("skip: javac does not support --release 21");
       return;
     }
 

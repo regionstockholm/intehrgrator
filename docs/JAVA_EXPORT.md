@@ -68,8 +68,11 @@ for JSON paths. XML paths (`/…`) use the JDK `javax.xml.xpath` APIs.
 
 Golden string tests live in `test/codegen_test.ts` (always run). An optional
 JVM compile against downloaded Archie jars runs in
-`test/java_archie_compile_test.ts` when `java` is on `PATH` and Maven Central
-is reachable. Skip with `SKIP_ARCHIE_COMPILE=1`. This repo does not vendor
+`test/java_archie_compile_test.ts` when `java`/`javac` are on `PATH`, `javac`
+supports `--release 21`, and Maven Central is reachable. It **skips** (does not
+fail) when the JDK is too old — GitHub Actions' default `javac` historically
+could not `--release 21`; CI now installs Temurin 21 so the compile actually
+runs there. Skip with `SKIP_ARCHIE_COMPILE=1`. This repo does not vendor
 Archie JARs and does not require Maven/Gradle for the Deno test suite.
 
 ```bash

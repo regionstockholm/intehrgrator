@@ -164,7 +164,7 @@ export function registerDecisionTableBlocks(): void {
         INFO_SVG,
         18,
         18,
-        "Decision table: locals Map keys match condition columns. Output dropdown selects one typed column, or all outputs as a Map. Don't-care cells are — . Undo/redo restores type switches.",
+        "Decision table: locals Map keys match condition columns. Output dropdown selects one typed column, or all outputs as a Map. Condition cells: equality, don't-care (—), or numeric predicates (90..120, >= 140). Catch-all is a row flag, not per-column *. Undo/redo restores type switches.",
         () => {
           decisionTableInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
         },

@@ -242,7 +242,6 @@
                 </div>
               </div>
               <button id="tab-sheets" class="mapping-editor-tab" type="button">Sheets</button>
-              <button id="tab-handlebars" class="mapping-editor-tab" type="button">Handlebars Template</button>
             </div>
             <button
               id="btn-download-spec"
@@ -267,20 +266,7 @@
               Upload
             </button>
           </div>
-          <div id="handlebars-insert-toolbar" class="handlebars-insert-toolbar" hidden>
-            <span class="handlebars-insert-label">Tree insert</span>
-            <label class="handlebars-insert-option">
-              <input type="radio" name="hbs-insert-mode" value="flat" checked />
-              Flat <code>{{path}}</code>
-            </label>
-            <label class="handlebars-insert-option">
-              <input type="radio" name="hbs-insert-mode" value="tree" />
-              Nested <code>#with</code>/<code>#each</code>
-            </label>
-            <span class="handlebars-insert-hint">Shift+click toggles for one insert</span>
-          </div>
           <div id="spec-editor" class="editor-host"></div>
-          <div id="handlebars-editor" class="editor-host" hidden></div>
           <div id="sheets-host" class="sheets-host" hidden></div>
         </div>
       </div>

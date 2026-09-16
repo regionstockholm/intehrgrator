@@ -127,6 +127,15 @@ Deno.test("text_code emits a multiline string and stores a language", () => {
   workspace.dispose();
 });
 
+Deno.test("text_handlebars block captions use run-handlebars-script labels", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const block = workspace.newBlock("text_handlebars");
+  assertEquals(block.getInput("SCRIPT")?.fieldRow[0]?.getText?.(), "run handlebars script:");
+  assertEquals(block.getInput("CONTEXT")?.fieldRow[0]?.getText?.(), "with input context");
+  workspace.dispose();
+});
+
 Deno.test("text_handlebars accepts a Map or Source context and serializes handlebars()", () => {
   ensure();
   const workspace = new Blockly.Workspace();

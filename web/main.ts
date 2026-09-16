@@ -15,7 +15,6 @@ import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
 import { getSourceFormatHandler } from "../src/core/source/mod.ts";
 import {
   createReadonlyEditor,
-  createTextEditor,
   detectEditorLanguage,
   languageForExportTarget,
   setEditorDoc,
@@ -147,10 +146,6 @@ import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
 import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson } from "../src/core/defaults/mod.ts";
 import {
-  buildHandlebarsPath,
-  buildHandlebarsTree,
-} from "../src/core/output/handlebars_dialect.ts";
-import {
   createBetterFormBridge,
   probeBetterRenderer,
   type BetterFormBridge,
@@ -188,12 +183,10 @@ const validationDeserializeSelect = document.getElementById(
 ) as HTMLSelectElement;
 const validationModeWrap = document.getElementById("validation-mode-wrap")!;
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
-const handlebarsTab = document.getElementById("tab-handlebars") as HTMLButtonElement;
 const sheetsTab = document.getElementById("tab-sheets") as HTMLButtonElement;
 const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
 const uploadSpecBtn = document.getElementById("btn-upload-spec") as HTMLButtonElement;
 const mappingJsonHost = document.getElementById("spec-editor")!;
-const handlebarsHost = document.getElementById("handlebars-editor")!;
 const sheetsHost = document.getElementById("sheets-host")!;
 
 const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElement;
@@ -218,11 +211,6 @@ const specEditor = createMappingSpecEditor(mappingJsonHost, {
   },
   onSelect: (blockId) => applyBlockSelection(blockId, "spec"),
 });
-let updatingHandlebarsEditor = false;
-const handlebarsEditor = createTextEditor(handlebarsHost, (text) => {
-  if (!updatingHandlebarsEditor) controller.setHandlebarsTemplate(text);
-}, "handlebars");
-let activeTextView: "mapping-json" | "handlebars" | "sheets" = "mapping-json";
 let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
 let specChromeUi: ReturnType<typeof mountMappingSpecChrome> | null = null;
 
@@ -258,16 +246,6 @@ function wireMappingSpecLayoutMenu(): void {
     });
   }
 }
-type HandlebarsInsertMode = "flat" | "tree";
-const handlebarsInsertToolbar = document.getElementById("handlebars-insert-toolbar");
-
-function currentHandlebarsInsertMode(): HandlebarsInsertMode {
-  const selected = document.querySelector(
-    'input[name="hbs-insert-mode"]:checked',
-  ) as HTMLInputElement | null;
-  return selected?.value === "tree" ? "tree" : "flat";
-}
-
 const exportEditor = createReadonlyEditor(
   document.getElementById("export-editor")!,
   "",
@@ -305,24 +283,18 @@ function flashSheetsChrome(): void {
   globalThis.setTimeout(() => tab.classList.remove("sheets-flash"), 4000);
 }
 
-function showTextView(view: "mapping-json" | "handlebars" | "sheets"): void {
-  activeTextView = view;
-  const showHandlebars = view === "handlebars";
+function showTextView(view: "mapping-json" | "sheets"): void {
   const showSheets = view === "sheets";
-  mappingJsonHost.hidden = showHandlebars || showSheets;
-  handlebarsHost.hidden = !showHandlebars;
+  mappingJsonHost.hidden = showSheets;
   sheetsHost.hidden = !showSheets;
   mappingJsonTab.classList.toggle("active", view === "mapping-json");
-  handlebarsTab.classList.toggle("active", showHandlebars);
   sheetsTab?.classList.toggle("active", showSheets);
-  if (handlebarsInsertToolbar) handlebarsInsertToolbar.hidden = !showHandlebars;
-  downloadSpecBtn.hidden = showHandlebars || showSheets;
-  if (uploadSpecBtn) uploadSpecBtn.hidden = showHandlebars || showSheets;
+  downloadSpecBtn.hidden = showSheets;
+  if (uploadSpecBtn) uploadSpecBtn.hidden = showSheets;
   if (showSheets) sheetsPanel?.refresh();
 }
 
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
-handlebarsTab.addEventListener("click", () => showTextView("handlebars"));
 sheetsTab?.addEventListener("click", () => showTextView("sheets"));
 downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
 uploadSpecBtn?.addEventListener("click", () =>
@@ -337,7 +309,6 @@ exportTargetSelect.addEventListener("change", () => {
     | "xquery"
     | "go-template";
   controller.setExportTarget(target);
-  if (target === "handlebars") showTextView("handlebars");
 });
 validationDeserializeSelect.addEventListener("change", () => {
   controller.setOpenEhrJsonDeserializeMode(
@@ -709,28 +680,6 @@ function handleSourceSelection(
   event?: { shiftKey?: boolean },
 ): void {
   const state = controller.getState();
-  if (
-    activeTextView === "handlebars" &&
-    !state.listeningSlotId &&
-    !state.listeningSourceBlockId
-  ) {
-    let mode = currentHandlebarsInsertMode();
-    if (event?.shiftKey) mode = mode === "flat" ? "tree" : "flat";
-    const snippet = mode === "tree"
-      ? buildHandlebarsTree(path)
-      : `{{${buildHandlebarsPath(path)}}}`;
-    const selection = handlebarsEditor.state.selection.main;
-    handlebarsEditor.dispatch({
-      changes: {
-        from: selection.from,
-        to: selection.to,
-        insert: snippet,
-      },
-      selection: { anchor: selection.from + snippet.length },
-    });
-    handlebarsEditor.focus();
-    return;
-  }
   if (state.listeningSourceBlockId) {
     fillListeningSourceQuery(state.listeningSourceBlockId, path, format);
     return;
@@ -2045,15 +1994,6 @@ function render(): void {
   const afterCanvas = controller.getState();
 
   specChromeUi?.refresh();
-  if (handlebarsEditor.state.doc.toString() !== afterCanvas.handlebarsTemplate) {
-    updatingHandlebarsEditor = true;
-    setEditorDoc(
-      handlebarsEditor,
-      afterCanvas.handlebarsTemplate,
-      detectEditorLanguage(afterCanvas.handlebarsTemplate),
-    );
-    updatingHandlebarsEditor = false;
-  }
   sheetsPanel?.refresh();
   const generated = afterCanvas.generatedCode || "// Generated Export";
   setEditorDoc(exportEditor, generated, languageForExportTarget(s.settings.exportTarget, generated));

@@ -263,14 +263,11 @@ function attachLookup(
   lookup.dispose(false);
 }
 
-function findBlockBySlotId(
+function findBlocksBySlotId(
   workspace: Blockly.Workspace,
   slotId: string,
-): Blockly.Block | null {
-  for (const block of workspace.getAllBlocks(false)) {
-    if (block.getFieldValue("SLOT_ID") === slotId) return block;
-  }
-  return null;
+): Blockly.Block[] {
+  return workspace.getAllBlocks(false).filter((block) => block.getFieldValue("SLOT_ID") === slotId);
 }
 
 export type OptionalInsertFn = (
@@ -296,21 +293,23 @@ export function attachDefaultPointLookups(
   const bound = bindDefaultPoints(skeleton);
   for (const { point, node, parent } of bound) {
     if (point.requireMapKey && !mapKeys.has(point.mapKey)) continue;
-    let target = findBlockBySlotId(workspace, node.slotId);
-    if (!target && point.optionalInsert) {
-      const parentBlock = findBlockBySlotId(workspace, parent.slotId);
+    let targets = findBlocksBySlotId(workspace, node.slotId);
+    if (!targets.length && point.optionalInsert) {
+      const parentBlock = findBlocksBySlotId(workspace, parent.slotId)[0] ?? null;
       if (parentBlock && insertOptional) {
         insertOptional(parentBlock, {
           rmType: point.optionalInsert.rmType,
           attributeName: point.rmAttribute,
         });
       }
-      target = findBlockBySlotId(workspace, node.slotId) ??
-        parentBlock?.getInputTargetBlock(rmAttributeInputName(point.rmAttribute)) ??
+      targets = findBlocksBySlotId(workspace, node.slotId);
+      const fallback = parentBlock?.getInputTargetBlock(rmAttributeInputName(point.rmAttribute)) ??
         null;
+      if (!targets.length && fallback) targets = [fallback];
     }
-    if (!target) continue;
-    attachLookup(workspace, target, point.mapKey, point.leaf);
+    for (const target of targets) {
+      attachLookup(workspace, target, point.mapKey, point.leaf);
+    }
   }
 }
 

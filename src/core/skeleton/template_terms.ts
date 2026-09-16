@@ -28,6 +28,49 @@ export function archetypeShortName(archetypeRef: string): string {
   return parts.length >= 2 ? parts[parts.length - 2] : archetypeRef;
 }
 
+/** Better overlay id `openEHR-EHR-OBSERVATION.ovl-blood_pressure-001.v2`. */
+const OVERLAY_ARCHETYPE_RE =
+  /^(openEHR-EHR-[A-Z0-9_]+)\.ovl-([A-Za-z0-9_]+)-\d+\.(v[\w.]+)$/i;
+
+export function isOverlayArchetypeRef(scope?: string): boolean {
+  return Boolean(scope && OVERLAY_ARCHETYPE_RE.test(scope));
+}
+
+/** Parent archetype id an overlay specialises, when the id follows Better `ovl-*` shape. */
+export function parentArchetypeRefFromOverlay(scope?: string): string | undefined {
+  if (!scope) return undefined;
+  const match = OVERLAY_ARCHETYPE_RE.exec(scope);
+  if (!match) return undefined;
+  return `${match[1]}.${match[2]}.${match[3]}`;
+}
+
+/** Term bag for the archetype an overlay specialises, matching exact id or short name. */
+export function parentArchetypeTermBag(
+  scope: string | undefined,
+  bags: Record<string, TermBag>,
+): TermBag | undefined {
+  const parent = parentArchetypeRefFromOverlay(scope);
+  if (parent && bags[parent]) return bags[parent];
+  const concept = scope ? /ovl-([A-Za-z0-9_]+)-\d+/i.exec(scope)?.[1] : undefined;
+  if (!concept) return undefined;
+  for (const [id, bag] of Object.entries(bags)) {
+    if (isOverlayArchetypeRef(id)) continue;
+    if (archetypeShortName(id) === concept) return bag;
+  }
+  return undefined;
+}
+
+/** Last-resort overlay title from `ovl-blood_pressure-001` → `Blood pressure`. */
+export function overlayConceptFallback(scope?: string): string | undefined {
+  if (!scope) return undefined;
+  const match = /ovl-([A-Za-z0-9_]+)-\d+/i.exec(scope);
+  if (!match) return undefined;
+  return match[1]
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
 export function resolveOptLanguage(
   opt: {
     original_language?: unknown;

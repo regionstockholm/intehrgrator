@@ -586,6 +586,8 @@ function buildContainerBlock(
 
   const visibleChildren = node.children.filter(
     (child) => {
+      if (parseSlotCardinality(child.multiplicity)?.max === 0) return false;
+      if (parseSlotCardinality(child.effectiveCardinality)?.max === 0) return false;
       if (child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)) return false;
 
       // Content items are user-visible openEHR structure. Optional observations

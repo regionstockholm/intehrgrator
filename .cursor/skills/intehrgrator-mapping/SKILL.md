@@ -60,8 +60,10 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - **Loops** — `for_each_source` for repeating source nodes; `for_each_list` for a computed list. Copy `attachSlotId` from `list_slots` (`repeatable` and per-slot `attachSlotId`), not only from `build_prompt`. Product-stack loops and extra Instance roots: inspect `get_product_stack`; encoding via `set_instance_encoding`. `put_blockly` is an escape hatch, not the primary path.
 - **Quantities** — unconstrained `DV_QUANTITY.units` is a shell field. When `list_slots` has no `unitsFixed`, map the quantity slot with `maps_create_with` keys `magnitude` + `units`.
 - **Coded text** — copy `allowedValues` from inspect when present; otherwise `maps_create_with` keys `value`, `code_string` / `defining_code`, `terminology_id`.
-- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT, composer identifiers via party optional RM).
+- **Party identity** — `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`, and `health_care_facility` after `optional_rm_add`). Map with `source_query` (name only) or `maps_create_with` keys `name`, `id`, `type`. Not a `/name/value` DV_TEXT leaf.
+- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT).
 - Copy `slotId` / `attachSlotId` verbatim from inspect / the prompt manifest.
+- Duplicate `slotId`s (EVALUATION vs ACTION `content/at0000`): `list_slots.repeatable` and `attachSlotId` prefer the `0..*` container. Relative `loopVar` paths attach there.
 
 ## Multi-agent etiquette
 

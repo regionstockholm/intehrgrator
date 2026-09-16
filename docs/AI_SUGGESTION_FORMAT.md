@@ -130,7 +130,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 2. Target / source schema / examples (format, filename, origin)
 3. Scope `full` \| `slot`
 4. Link to this doc
-5. Slot manifest: `{ slotId, valueType, label, pathLabel?, targetPath?, multiplicity?, attachSlotId?, unitsFixed?, allowedUnits?, codeFixed?, terminologyFixed?, allowedValues? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …). `attachSlotId` is the repeating ancestor to copy into `loops[]`. Unconstrained `DV_QUANTITY` units are not a separate value slot: put `maps_create_with` keys `magnitude` + `units` on the quantity slot. Unique constrained codes appear as `codeFixed`; lists of choices as `allowedValues`.
+5. Slot manifest: `{ slotId, valueType, label, pathLabel?, targetPath?, multiplicity?, attachSlotId?, unitsFixed?, allowedUnits?, codeFixed?, terminologyFixed?, allowedValues? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, or `PARTY_IDENTIFIED`). `attachSlotId` is the repeating ancestor to copy into `loops[]`. Unconstrained `DV_QUANTITY` units are not a separate value slot: put `maps_create_with` keys `magnitude` + `units` on the quantity slot. Unconstrained `DV_CODED_TEXT`: `maps_create_with` keys `value` + `code_string` + `terminology_id`. Unique constrained codes appear as `codeFixed`; lists of choices as `allowedValues`. Party identity (`composer`, `health_care_facility`) is the PARTY_IDENTIFIED container slot, not `/name/value`.
 6. Artifact delivery (below)
 7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer a **Decision table** when several inputs / don't-care / hit policies make the mapping easier for humans to read than nested `if`. Prefer **`sheet_lookup`** for 1-key terminology (e.g. ICD-10 → SNOMED CT). Keep **`maps_get`** for Defaults Map keys. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score. Copy AI Prompt includes Sheet / Decision table previews, the Product stack, an **Optional RM Insertion** catalog (`optional_rm_add` ids), and **Constraint warnings** (`list_constraint_warnings`) when present.
 
@@ -286,7 +286,38 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
 }
 ```
 
-**Source over defaults (composer, time, facility)** — scaffold may already use `maps_get("defaults", …)`; when the source has values, map from source:
+**DV_CODED_TEXT with source code + terminology** — unconstrained coded text is still one value socket. Put `value`, `code_string`, and `terminology_id` on that slot with `maps_create_with` (Test Run nests `defining_code`):
+
+```intehrgrator-suggestions
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": { "format": "openehr-template", "targetId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans" },
+  "suggestions": [
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/data/at0001/items/at0004/value/DV_CODED_TEXT/value",
+      "block": {
+        "type": "maps_create_with",
+        "extraState": { "itemCount": 3 },
+        "fields": { "KEY0": "value", "KEY1": "code_string", "KEY2": "terminology_id" },
+        "inputs": {
+          "VAL0": {
+            "block": { "type": "source_query", "fields": { "EXPRESSION": "$.Diagnosnamn_ICD10" } }
+          },
+          "VAL1": {
+            "block": { "type": "source_query", "fields": { "EXPRESSION": "$.Diagnoskod_ICD10" } }
+          },
+          "VAL2": {
+            "block": { "type": "text", "fields": { "TEXT": "1.2.752.116.1.1.1" } }
+          }
+        }
+      }
+    }
+  ]
+}
+```
+
+**Source over defaults (composer, time, facility)** — scaffold may already use `maps_get("defaults", …)`; when the source has values, map from source. Composer / facility are **PARTY_IDENTIFIED** slots (`list_slots` `valueType`), not a `/name/value` DV_TEXT leaf. `maps_create_with` keys `name`, `id`, `type` unpack RM `name` (string) and `identifiers[]` (`DV_IDENTIFIER.id`):
 
 ```intehrgrator-suggestions
 {
@@ -302,10 +333,22 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
       }
     },
     {
-      "slotId": "vitals_encounter_v1/composer/name/value",
+      "slotId": "vitals_encounter_v1//composer",
       "block": {
-        "type": "source_query",
-        "fields": { "EXPRESSION": "$.author.displayName" }
+        "type": "maps_create_with",
+        "extraState": { "itemCount": 3 },
+        "fields": { "KEY0": "name", "KEY1": "id", "KEY2": "type" },
+        "inputs": {
+          "VAL0": {
+            "block": { "type": "source_query", "fields": { "EXPRESSION": "$.author.displayName" } }
+          },
+          "VAL1": {
+            "block": { "type": "source_query", "fields": { "EXPRESSION": "$.author.id" } }
+          },
+          "VAL2": {
+            "block": { "type": "text", "fields": { "TEXT": "urn:oid:1.2.752.29.4.19" } }
+          }
+        }
       }
     }
   ]

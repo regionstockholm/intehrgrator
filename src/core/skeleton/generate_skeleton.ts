@@ -3,6 +3,7 @@ import {
   parseWebTemplate,
   webTemplateToOpt,
 } from "ehrtslib/serialization/simplified/mod.ts";
+import { buildWebTemplate } from "ehrtslib/serialization/simplified/web_template_builder.ts";
 import {
   applyOperationalTemplateTermScopes,
   type TermScopeMeta,
@@ -11,6 +12,7 @@ import type {
   AllowedOrdinal,
   AllowedValue,
   AttributeConstraint,
+  OptionalRmInsertion,
   SkeletonNode,
 } from "../../types/mod.ts";
 import {
@@ -68,6 +70,8 @@ export interface GenerateSkeletonResult {
   language: string;
   /** Languages available on the source model (may be a single entry). */
   languages: string[];
+  /** Web Template JSON for Simplified FLAT / structured Test Run serialise. */
+  webTemplateJson?: string;
 }
 
 export function generateSkeleton(
@@ -83,6 +87,7 @@ export function generateSkeleton(
   return {
     ...generated,
     warnings: [...parsed.warnings, ...generated.warnings],
+    webTemplateJson: webTemplateJsonFromOperational(opt, generated.language),
   };
 }
 
@@ -115,7 +120,16 @@ export function generateSkeletonFromWebTemplate(
       : webTemplate.templateId,
     language,
     languages: languages.length ? languages : [language],
+    webTemplateJson: typeof source === "string" ? source : JSON.stringify(source),
   };
+}
+
+function webTemplateJsonFromOperational(opt: AmObject, language: string): string | undefined {
+  try {
+    return JSON.stringify(buildWebTemplate(opt, { defaultLanguage: language }));
+  } catch {
+    return undefined;
+  }
 }
 
 /** Walk an already-resolved OPERATIONAL_TEMPLATE (OPT XML, flattened .t.json, …). */
@@ -417,6 +431,30 @@ export function skeletonNodeForOptionalRm(
   node.mandatory = false;
   node.silentMandatory = false;
   return node;
+}
+
+/** PARTY_IDENTIFIED / PARTY_RELATED are mappable identity sockets (name + identifiers). */
+export function isPartyIdentityRmType(rmType: string): boolean {
+  return rmType === "PARTY_IDENTIFIED" || rmType === "PARTY_RELATED";
+}
+
+/**
+ * Clone `skeleton` and attach Optional RM Insertion children so list_slots / Test Run
+ * see the same mouths the canvas gained via `optional_rm_add`.
+ */
+export function applyOptionalRmToSkeleton(
+  skeleton: SkeletonNode[],
+  insertions: readonly OptionalRmInsertion[],
+): SkeletonNode[] {
+  if (!insertions.length) return skeleton;
+  const roots = structuredClone(skeleton);
+  for (const extra of insertions) {
+    const parent = findSkeletonTrail(roots, extra.attachmentSlotId).at(-1);
+    if (!parent || parent.kind !== "container") continue;
+    if (parent.children.some((child) => child.rmAttribute === extra.attributeName)) continue;
+    parent.children.push(skeletonNodeForOptionalRm(parent, extra.rmType, extra.attributeName));
+  }
+  return roots;
 }
 
 function buildNodeForRmType(
@@ -1103,6 +1141,7 @@ export function collectValueSlots(nodes: SkeletonNode[]): SkeletonNode[] {
   const out: SkeletonNode[] = [];
   for (const node of nodes) {
     if (node.kind === "value" && !isAutoFixedValueSlot(node)) out.push(node);
+    else if (isPartyIdentityRmType(node.rmType)) out.push(node);
     out.push(...collectValueSlots(node.children));
   }
   return out;

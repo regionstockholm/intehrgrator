@@ -583,6 +583,147 @@ function walkDv(
   for (const value of Object.values(rec)) walkDv(value, visit);
 }
 
+const adminOpt = join(
+  fixtures,
+  "administrerad-medicinsk-onkologisk-behandling",
+  "target-schema",
+  "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+);
+
+Deno.test("replace_sheets bumps the Agent API revision", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "dummy-json-vitals", "target.schema.json"),
+  });
+  const before = await callAgentTool(service, "get_snapshot", {}) as { revision: string };
+  const sheet = addCatchAllRow(emptyDecisionTable("sbp_band"));
+  const replaced = await callAgentTool(service, "replace_sheets", { sheets: [sheet] }) as {
+    revision: string;
+  };
+  assertEquals(replaced.revision !== before.revision, true, `${before.revision} → ${replaced.revision}`);
+});
+
+Deno.test("OPT load attaches a Web Template for Simplified FLAT Test Run", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", { path: adminOpt });
+  const wt = service.exportBundle().target?.webTemplateJson;
+  assertEquals(Boolean(wt && wt.trim().startsWith("{")), true, "expected webTemplateJson on OPT load");
+});
+
+Deno.test("list_slots includes composer PARTY_IDENTIFIED", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", { path: adminOpt });
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string; valueType: string }>;
+  };
+  const composer = listed.slots.find((s) => s.slotId.endsWith("//composer"));
+  assertEquals(composer?.valueType, "PARTY_IDENTIFIED", JSON.stringify(composer));
+});
+
+Deno.test("optional_rm_add health_care_facility then map party name and identifier", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", { path: adminOpt });
+  await callAgentTool(service, "add_example", {
+    filename: "party.json",
+    content: JSON.stringify({
+      SignatureUser_FullName: "TakeCare_Test",
+      SignatureUser_UserName: "A1D8",
+      Vardenhet_namn: "S MBA A10",
+      Vardenhet_HSAID: "C4DS",
+    }),
+  });
+  const listedRm = await callAgentTool(service, "list_optional_rm", {}) as {
+    catalog: Array<{ parentSlotId: string; attachments: Array<{ attributeName: string; rmType: string }> }>;
+  };
+  const context = listedRm.catalog.find((row) =>
+    row.parentSlotId.endsWith("//context/EVENT_CONTEXT") &&
+    row.attachments.some((a) => a.attributeName === "health_care_facility")
+  );
+  if (!context) throw new Error("missing EVENT_CONTEXT health_care_facility catalog row");
+  await callAgentTool(service, "optional_rm_add", {
+    parentSlotId: context.parentSlotId,
+    rmType: "PARTY_IDENTIFIED",
+    attributeName: "health_care_facility",
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string; valueType: string }>;
+  };
+  const composerId = listed.slots.find((s) => s.slotId.endsWith("//composer"))?.slotId;
+  const facilityId = listed.slots.find((s) =>
+    s.valueType === "PARTY_IDENTIFIED" && s.slotId.includes("health_care_facility")
+  )?.slotId;
+  if (!composerId || !facilityId) {
+    throw new Error(`missing party slots composer=${composerId} facility=${facilityId}`);
+  }
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      suggestions: [
+        {
+          slotId: composerId,
+          block: {
+            type: "maps_create_with",
+            extraState: { itemCount: 3 },
+            fields: { KEY0: "name", KEY1: "id", KEY2: "type" },
+            inputs: {
+              VAL0: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.SignatureUser_FullName" } },
+              },
+              VAL1: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.SignatureUser_UserName" } },
+              },
+              VAL2: {
+                block: { type: "text", fields: { TEXT: "urn:oid:1.2.752.29.4.19" } },
+              },
+            },
+          },
+        },
+        {
+          slotId: facilityId,
+          block: {
+            type: "maps_create_with",
+            extraState: { itemCount: 2 },
+            fields: { KEY0: "name", KEY1: "id" },
+            inputs: {
+              VAL0: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.Vardenhet_namn" } },
+              },
+              VAL1: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.Vardenhet_HSAID" } },
+              },
+            },
+          },
+        },
+      ],
+    }),
+  }) as { report: { applied: number; errors: string[] } };
+  assertEquals(imported.report.applied, 2, imported.report.errors.join("; "));
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { output?: unknown; error?: string };
+  };
+  const names: string[] = [];
+  const ids: string[] = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "PARTY_IDENTIFIED") {
+      if (typeof rec.name === "string") names.push(rec.name);
+      const ident = rec.identifiers;
+      if (Array.isArray(ident)) {
+        for (const row of ident) {
+          if (row && typeof row === "object" && "id" in row) {
+            ids.push(String((row as { id: unknown }).id));
+          }
+        }
+      }
+    }
+  });
+  assertEquals(names.includes("TakeCare_Test"), true, JSON.stringify(names));
+  assertEquals(names.includes("S MBA A10"), true, JSON.stringify(names));
+  assertEquals(ids.includes("A1D8") && ids.includes("C4DS"), true, JSON.stringify(ids));
+});
+
 Deno.test("list_constraint_warnings includes Decision table catch-all lint", async () => {
   const service = new WorkbenchService();
   await callAgentTool(service, "load_target", {

@@ -15,6 +15,7 @@ import { getSourceFormatHandler } from "../source/format_handler.ts";
 import { collectJsonNodes, evaluate, type SourceContext } from "../source/query_runtime.ts";
 import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
 import {
+  applyOptionalRmToSkeleton,
   collectAllSlotIds,
   findSkeletonTrail,
 } from "../skeleton/generate_skeleton.ts";
@@ -101,20 +102,29 @@ export function runTest(
     };
     const defaults = ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {};
     ctx.sheets = { ...ctx.sheets, ...sheetsToBag(options.sheets ?? []) };
+    const target = options.target
+      ? {
+        ...options.target,
+        skeleton: applyOptionalRmToSkeleton(
+          options.target.skeleton,
+          model.optionalRm ?? [],
+        ),
+      }
+      : options.target;
 
     if (mode === "typescript") {
       const code = options.generatedCode ?? generate(model, "typescript", {
         handlebarsTemplate: options.handlebarsTemplate,
         blocklyState: options.blocklyState,
-        skeleton: options.target?.skeleton,
-        webTemplateJson: options.target?.webTemplateJson,
+        skeleton: target?.skeleton,
+        webTemplateJson: target?.webTemplateJson,
       });
       const raw = runGeneratedTypeScript(code, {
         format,
         data: ctx.data,
       }, defaults, undefined, ctx.sheets);
       const output = serializedConversionOutput(raw);
-      const outputValidation = validateConvertedOutput(output, options.target, {
+      const outputValidation = validateConvertedOutput(output, target, {
       deserializeMode: options.openEhrJsonDeserializeMode,
     });
       return {
@@ -134,11 +144,11 @@ export function runTest(
         ? options.generatedCode
         : generate(model, "xquery", {
           blocklyState: options.blocklyState,
-          skeleton: options.target?.skeleton,
+          skeleton: target?.skeleton,
           instanceShape: model.instanceEncodings?.length
             ? instanceShapeForEncoding(preferredInstanceEncoding(model))
             : options.instanceShape,
-          webTemplateJson: options.target?.webTemplateJson,
+          webTemplateJson: target?.webTemplateJson,
         });
       const raw = runGeneratedXQuery(code, {
         source: ctx.data,
@@ -146,7 +156,7 @@ export function runTest(
         sheets: ctx.sheets,
       });
       const output = typeof raw === "string" ? raw : serializedConversionOutput(raw);
-      const outputValidation = validateConvertedOutput(output, options.target, {
+      const outputValidation = validateConvertedOutput(output, target, {
         deserializeMode: options.openEhrJsonDeserializeMode,
       });
       return {
@@ -160,7 +170,7 @@ export function runTest(
     if (mode === "handlebars") {
       const canvasOutput = tryRunCanvasConversionScript(model, options, ctx, defaults);
       if (canvasOutput) {
-        const outputValidation = validateConvertedOutput(canvasOutput, options.target, {
+        const outputValidation = validateConvertedOutput(canvasOutput, target, {
           deserializeMode: options.openEhrJsonDeserializeMode,
         });
         return {
@@ -170,7 +180,7 @@ export function runTest(
           outputValidation,
         };
       }
-      const template = options.handlebarsTemplate ?? options.target?.content ?? "";
+      const template = options.handlebarsTemplate ?? target?.content ?? "";
       if (!template.trim()) {
         return {
           ok: false,
@@ -179,9 +189,9 @@ export function runTest(
           warnings,
         };
       }
-      const slotValues = evaluateSlotValues(model, handler, ctx, warnings, options.target?.skeleton ?? []);
+      const slotValues = evaluateSlotValues(model, handler, ctx, warnings, target?.skeleton ?? []);
       const output = renderHandlebars(template, ctx.data, { slots: slotValues });
-      const outputValidation = validateConvertedOutput(output, options.target, {
+      const outputValidation = validateConvertedOutput(output, target, {
         deserializeMode: options.openEhrJsonDeserializeMode,
       });
       return {
@@ -231,21 +241,21 @@ export function runTest(
       handler,
       ctx,
       warnings,
-      options.target?.skeleton ?? [],
+      target?.skeleton ?? [],
     );
 
     let output: unknown;
-    if (options.target?.format === "free-form") {
+    if (target?.format === "free-form") {
       const canvasOutput = tryRunCanvasConversionScript(model, options, ctx, defaults);
       if (canvasOutput) {
         output = canvasOutput;
       } else {
-        const template = options.handlebarsTemplate ?? options.target?.content ?? "";
+        const template = options.handlebarsTemplate ?? target?.content ?? "";
         output = renderHandlebars(template, ctx.data, { slots: slotValues });
       }
-    } else if (options.target) {
-      output = getTargetFormatHandler(options.target.format).render({
-        definition: options.target,
+    } else if (target) {
+      output = getTargetFormatHandler(target.format).render({
+        definition: target,
         slotValues,
       });
     } else {
@@ -255,10 +265,10 @@ export function runTest(
       };
     }
 
-    const outputValidation = validateConvertedOutput(output, options.target, {
+    const outputValidation = validateConvertedOutput(output, target, {
       deserializeMode: options.openEhrJsonDeserializeMode,
     });
-    output = applyInstanceEncodingToPreview(output, model, options.target, warnings);
+    output = applyInstanceEncodingToPreview(output, model, target, warnings);
     return {
       ok: warnings.length === 0,
       output,

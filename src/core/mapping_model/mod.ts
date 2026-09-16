@@ -1,7 +1,6 @@
 import type { MappingModel, MappingSlot, OptionalRmInsertion, SkeletonNode } from "../../types/mod.ts";
 import { MODEL_VERSION } from "../../types/mod.ts";
-import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
-import { slotReturnType } from "../skeleton/generate_skeleton.ts";
+import { slotReturnType, collectValueSlots } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
 
 export interface BlockWorkspaceSlot {
@@ -69,7 +68,7 @@ export function validateModel(
   skeleton: SkeletonNode[],
 ): ValidationIssue[] {
   const issues: ValidationIssue[] = [];
-  const valueSlots = flattenValueSlots(skeleton);
+  const valueSlots = collectValueSlots(skeleton);
   const mapped = new Map(model.slots.map((s) => [s.slotId, s]));
 
   for (const slot of valueSlots) {
@@ -126,15 +125,6 @@ export function applyExpressionEdit(
   else slots.push(entry);
 
   return { ...model, slots };
-}
-
-function flattenValueSlots(nodes: SkeletonNode[]): SkeletonNode[] {
-  const out: SkeletonNode[] = [];
-  for (const n of nodes) {
-    if (n.kind === "value" && !isAutoFixedValueSlot(n)) out.push(n);
-    out.push(...flattenValueSlots(n.children));
-  }
-  return out;
 }
 
 export function countUnmappedMandatory(

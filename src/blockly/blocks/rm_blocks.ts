@@ -725,6 +725,17 @@ export function presentAttributeNames(block: Blockly.Block): string[] {
   return [...names];
 }
 
+/** ATTR_ mouths only — extras stay on OPT_ so extraState round-trips. */
+export function presentFixedAttributeNames(block: Blockly.Block): string[] {
+  const names: string[] = [];
+  for (const input of block.inputList) {
+    if (input.name.startsWith(RM_ATTR_INPUT_PREFIX)) {
+      names.push(input.name.slice(RM_ATTR_INPUT_PREFIX.length));
+    }
+  }
+  return names;
+}
+
 export function rmAttributeInputName(attr: string): string {
   return `${RM_ATTR_INPUT_PREFIX}${attr}`;
 }
@@ -1348,11 +1359,17 @@ function restoreMutatorAttributes(
   savedRmType = "",
 ): void {
   block.extraInputs_ = extras;
-  if (attrs.length) {
+  const extraSet = new Set(extras);
+  // Keep extras on OPT_ unless init already exposed a fixed ATTR_ mouth
+  // (HISTORY.events). Older extraState mixed extras into attrs.
+  const fixed = attrs.filter((name) =>
+    !extraSet.has(name) || Boolean(block.getInput(rmAttributeInputName(name)))
+  );
+  if (fixed.length) {
     syncRmAttributeInputs(
       block,
-      rmTypeForMutatorRestore(block, savedRmType, attrs),
-      attrs,
+      rmTypeForMutatorRestore(block, savedRmType, fixed),
+      fixed,
       block.slotCardinalities_,
     );
   }
@@ -1556,7 +1573,7 @@ function registerOptionalRmMutator(): void {
       const xml = Blockly.utils.xml.createElement("mutation");
       const extras = this.extraInputs_ ?? [];
       xml.setAttribute("extras", JSON.stringify(extras));
-      xml.setAttribute("attrs", JSON.stringify(presentAttributeNames(this)));
+      xml.setAttribute("attrs", JSON.stringify(presentFixedAttributeNames(this)));
       xml.setAttribute("rmType", rmTypeOfBlock(this));
       xml.setAttribute("slotCards", JSON.stringify(this.slotCardinalities_ ?? {}));
       xml.setAttribute("rmCards", JSON.stringify(this.rmCardinalities_ ?? {}));
@@ -1585,7 +1602,7 @@ function registerOptionalRmMutator(): void {
     saveExtraState: function (this: Blockly.Block) {
       return {
         extras: this.extraInputs_ ?? [],
-        attrs: presentAttributeNames(this),
+        attrs: presentFixedAttributeNames(this),
         rmType: rmTypeOfBlock(this),
         prohibited: this.prohibitedAttributes_ ?? [],
         slotCards: this.slotCardinalities_ ?? {},
@@ -1635,7 +1652,10 @@ function registerOptionalRmMutator(): void {
       this.extraInputs_ = next;
       this.updateShape_?.();
       for (const name of next) {
-        connections.get(name)?.reconnect(this, extraInputName(name));
+        const mouth = this.getInput(rmAttributeInputName(name))
+          ? rmAttributeInputName(name)
+          : extraInputName(name);
+        connections.get(name)?.reconnect(this, mouth);
       }
       const added = next.filter((name) => !prev.includes(name));
       const removed = prev.filter((name) => !next.includes(name));
@@ -1648,7 +1668,10 @@ function registerOptionalRmMutator(): void {
       while (item) {
         if (!item.isInsertionMarker()) {
           const name = String(item.getFieldValue("ATTR") || "");
-          const input = this.getInput(extraInputName(name));
+          const mouth = this.getInput(rmAttributeInputName(name))
+            ? rmAttributeInputName(name)
+            : extraInputName(name);
+          const input = this.getInput(mouth);
           item.savedConnection_ = input?.connection?.targetConnection ?? null;
         }
         item = item.getNextBlock();
@@ -1656,6 +1679,7 @@ function registerOptionalRmMutator(): void {
     },
     addInput_: function (this: Blockly.Block, name: string) {
       if (prohibitedNameSet(this).has(name)) return;
+      if (this.getInput(rmAttributeInputName(name))) return;
       this.extraInputs_ = this.extraInputs_ ?? [];
       if (!this.extraInputs_.includes(name)) {
         this.extraInputs_.push(name);

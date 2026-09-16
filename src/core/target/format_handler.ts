@@ -16,6 +16,7 @@ import {
   generateSkeletonFromWebTemplate,
   collectAllSlotIds,
   isRepeatingMultiplicity,
+  isPartyIdentityRmType,
 } from "../skeleton/generate_skeleton.ts";
 import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
@@ -139,6 +140,7 @@ registerTargetFormatHandler({
         skeleton: generated.skeleton,
         language: generated.language,
         languages: generated.languages,
+        webTemplateJson: generated.webTemplateJson ?? content,
       };
     }
     const generated = generateSkeleton(content, { language: options?.language });
@@ -150,6 +152,7 @@ registerTargetFormatHandler({
       skeleton: generated.skeleton,
       language: generated.language,
       languages: generated.languages,
+      webTemplateJson: generated.webTemplateJson,
     };
   },
   render({ definition, slotValues }) {
@@ -502,13 +505,19 @@ function renderOpenEhrNodeOnce(
 
   const output: Record<string, unknown> = { _type: node.rmType };
   if (node.archetypeNodeId) output.archetype_node_id = node.archetypeNodeId;
-  if (node.label && node.rmType !== "COMPOSITION") {
+  if (node.label && node.rmType !== "COMPOSITION" && !isPartyIdentityRmType(node.rmType)) {
     output.name = { _type: "DV_TEXT", value: node.label };
+  }
+  if (isPartyIdentityRmType(node.rmType) && Object.hasOwn(values, node.slotId)) {
+    assignPartyIdentityFields(output, values[node.slotId]);
   }
   const grouped = new Map<string, unknown[]>();
   for (const child of node.children) {
     // LOCATABLE identity is copied from the skeleton node, not mapped as DV_TEXT.
     if (isAutoFixedValueSlot(child)) continue;
+    if (isPartyIdentityRmType(node.rmType) && (child.rmAttribute === "name" || child.rmAttribute === "identifiers")) {
+      continue;
+    }
     const value = renderOpenEhrNode(child, values);
     if (value === undefined) continue;
     const attribute = child.rmAttribute ?? child.label;
@@ -520,7 +529,13 @@ function renderOpenEhrNodeOnce(
     }
     grouped.set(attribute, list);
   }
-  if (grouped.size === 0 && !node.mandatory && node.rmType !== "COMPOSITION") {
+  if (
+    grouped.size === 0 &&
+    !node.mandatory &&
+    node.rmType !== "COMPOSITION" &&
+    output.name == null &&
+    output.identifiers == null
+  ) {
     return undefined;
   }
   for (const [attribute, valuesForAttribute] of grouped) {
@@ -679,6 +694,41 @@ function applyFixedDataValueFields(
 function asStringKeyedRecord(value: unknown): Record<string, unknown> | null {
   if (value == null || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function assignPartyIdentityFields(output: Record<string, unknown>, value: unknown): void {
+  const record = asStringKeyedRecord(value);
+  if (!record) {
+    if (value != null && String(value) !== "") output.name = String(value);
+    return;
+  }
+  const name = record.name ?? record.value;
+  if (name != null && String(name) !== "") output.name = String(name);
+  const id = record.id ?? record.identifier;
+  const type = record.type;
+  if (Array.isArray(record.identifiers)) {
+    const rows = record.identifiers
+      .map((row) => dvIdentifierFromUnknown(row))
+      .filter((row): row is Record<string, unknown> => row != null);
+    if (rows.length) output.identifiers = rows;
+  } else if (id != null && String(id) !== "") {
+    output.identifiers = [dvIdentifierFromParts(id, type)];
+  }
+}
+
+function dvIdentifierFromUnknown(value: unknown): Record<string, unknown> | null {
+  if (value == null) return null;
+  const record = asStringKeyedRecord(value);
+  if (!record) return dvIdentifierFromParts(value, undefined);
+  const id = record.id ?? record.value;
+  if (id == null) return null;
+  return dvIdentifierFromParts(id, record.type);
+}
+
+function dvIdentifierFromParts(id: unknown, type: unknown): Record<string, unknown> {
+  const identifier: Record<string, unknown> = { _type: "DV_IDENTIFIER", id: String(id) };
+  if (type != null && String(type) !== "") identifier.type = String(type);
+  return identifier;
 }
 
 function codedPhraseFromRecord(record: Record<string, unknown>): Record<string, unknown> | null {

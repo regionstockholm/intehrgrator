@@ -361,13 +361,25 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
-    "**Party identity `name` slot** (DV_TEXT value leaf; source over defaults):",
+    "**Party identity `name` slot** (PARTY_IDENTIFIED container from `list_slots`; source over defaults). Optional identifiers: `maps_create_with` keys `name`, `id`, `type`:",
     "```json",
     JSON.stringify({
-      slotId: "{targetId}{path/to/composer/name/value}",
+      slotId: "{targetId}//composer",
       block: {
-        type: "source_query",
-        fields: { EXPRESSION: "$.patient.name" },
+        type: "maps_create_with",
+        extraState: { itemCount: 3 },
+        fields: { KEY0: "name", KEY1: "id", KEY2: "type" },
+        inputs: {
+          VAL0: {
+            block: { type: "source_query", fields: { EXPRESSION: "$.author.displayName" } },
+          },
+          VAL1: {
+            block: { type: "source_query", fields: { EXPRESSION: "$.author.id" } },
+          },
+          VAL2: {
+            block: { type: "text", fields: { TEXT: "urn:oid:1.2.752.29.4.19" } },
+          },
+        },
       },
     }, null, 2),
     "```",

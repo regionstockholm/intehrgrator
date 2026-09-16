@@ -47,7 +47,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | POST | `/add-example` | `add_example` | Example Instance |
 | POST | `/load-example-set` | `load_example_set` | Catalogued Example Set (`catalogPath` or `catalogUrl` + `setId`; `includeMapping` default true) |
 | POST | `/set-active-example` | `set_active_example` | `{ id }` |
-| PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents |
+| PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents (revision includes sheets) |
 | POST | `/ui-commit` | — | UI semantic commit `{ bundle, summary, kind? }` |
 | POST | `/import-suggestions` | `import_suggestions` | Apply `intehrgrator-suggestions` JSON (body = text) |
 | POST | `/build-prompt` | `build_prompt` | Copy AI Prompt markdown |

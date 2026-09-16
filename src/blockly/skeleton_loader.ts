@@ -164,6 +164,8 @@ export function applyModelExpressions(
       if (!slot) continue;
       if (block.type === "element") {
         attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
+      } else if (block.type === "party_identified" || block.type === "party_related") {
+        attachExpressionToPartyName(workspace, block, slot.expression, slot.returnType);
       } else if (isTermPickBlock(block) || isDataValueBlock(block)) {
         attachExpressionToTypedValue(workspace, block, slot.expression, slot.returnType, slot.rmType);
       } else if (isGenericValueBlockType(block.type)) {
@@ -1157,6 +1159,33 @@ function connectStatementChain(
       previous.nextConnection.connect(block.previousConnection);
     }
     previous = block;
+  }
+}
+
+function attachExpressionToPartyName(
+  workspace: Blockly.Workspace,
+  party: Blockly.Block,
+  expression: string,
+  returnType: string,
+): void {
+  const input = party.getInput(rmAttributeInputName("name"));
+  if (!input?.connection) return;
+  const existing = input.connection.targetBlock();
+  if (existing) existing.dispose(false);
+  const exprBlock = expressionToBlock(workspace, expression, returnType);
+  if (!exprBlock.outputConnection) return;
+  try {
+    input.connection.connect(exprBlock.outputConnection);
+  } catch {
+    const prevCheck = input.connection.getCheck();
+    input.setCheck(null);
+    try {
+      input.connection.connect(exprBlock.outputConnection);
+    } catch {
+      /* still incompatible */
+    } finally {
+      if (prevCheck) input.setCheck(prevCheck);
+    }
   }
 }
 

@@ -113,6 +113,12 @@ These address Pass 1 hazards 1, 3, 6, 7 (partial):
 - Test Run now nests unique OPT codes as `defining_code` (`CODE_PHRASE`) instead of flattening `terminology_id` / `code_string` onto the DV, and emits `DV_IDENTIFIER.id` rather than `.value`.
 - Avro schema includes `PDL_vardgivare_Namn` / `PDL_vardgivare_HSAID` so schema-driven mapping sees the instance fields.
 
-Still open from Pass 1: party name/identifiers as value slots; `optional_rm_add` health_care_facility canvas 500; `PUT /sheets` revision bump; DV_CODED_TEXT three-leaf mapping for unconstrained ICD-10/ATC.
-
 `findSkeletonTrail` / `findAttachBlock` now prefer the repeating container when `content/at0000` is shared by EVALUATION (`0..1`) and ACTION (`0..*`), so relative `loopVar` paths can attach to the ACTION.
+
+### After Pass 1 — party / optional RM / FLAT / sheets
+
+- `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`; `health_care_facility` after `optional_rm_add` or scaffold Defaults). Map with `maps_create_with` keys `name` / `id` / `type`. Test Run unpacks those maps onto RM `name` + `identifiers[].id`.
+- Optional RM extras stay on `OPT_` mouths through Blockly extraState (no longer rewritten as `ATTR_`, which dropped `OPT_health_care_facility` on reload). `optional_rm_add` of `health_care_facility` round-trips. Test Run / `syncFromBlockly` graft `model.optionalRm` onto the OPT skeleton so facility is in the instance.
+- OPT load attaches `webTemplateJson` so `flat-json` Test Run can serialize Simplified FLAT.
+- `bundleRevision` hashes sheets, so `PUT /sheets` bumps `revision`.
+- Unconstrained ICD-10/ATC still use `maps_create_with` on the coded-text value slot (no sibling `|code` leaves). Duplicate parent-org `at0003` slotIds remain.

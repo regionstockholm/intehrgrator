@@ -87,10 +87,9 @@
     },
     {
       "id": "karda-ordinationsdata-to-openehr-flat",
-      "title": "Ordinationsdata from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT)",
-      "description": "TODO",
+      "title": "Medication order data from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT)",
       "source": {
-        "schema": "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/source-schema/OrdinationRCCV1_ie_source_schema.json",
+        "schema": "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/source-schema/OrdinationRCCV1_source_schema.json",
         "instances": [
           "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-example_source_used_for_mapping.json",
           "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-A-source-example.json",
@@ -102,6 +101,21 @@
         ]
       },
       "target":  "../test/fixtures/ordinerad-medicinsk-onkologisk-behandling/target-schema/OrdineradMedicinskOnkologiskBehandling_MedKurdag.1.0.0-alpha.27.sv.en.opt"
+    },
+    {
+      "id": "karda-administreringsdata-to-openehr-flat",
+      "title": "Medication treatment data from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT)",
+      "source": {
+        "schema": "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-schema/AdministrationRCCV1_source_schema.avsc",
+        "instances": [
+          "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-instance/administration-example_source_used_for_mapping.json",
+          "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-A-source-example.json",
+          "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-B-source-example.json",
+          "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-C-source-example.json",
+          "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-PRÖV-läkemedel-source-example.json"
+        ]
+      },
+      "target": "../test/fixtures/administrerad-medicinsk-onkologisk-behandling/target-schema/AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt"
     }
   ]
 }

@@ -1,0 +1,3 @@
+# Source schema formats
+
+The .avsc file is the avro schema used  in kafka in the usecase where these examples are taken from. The .json schema is the corresponding (AI-generated) json schema equivalent.

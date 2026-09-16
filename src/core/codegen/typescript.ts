@@ -937,6 +937,23 @@ function escapeTemplate(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
 }
 
+/** Canvas `text_handlebars` product → `handlebars(script, context)` conversion script. */
+export function generateTypeScriptFromCanvasExpression(
+  model: MappingModel,
+  expression: string,
+): string {
+  const ctx = createTsEmitContext();
+  const tsExpr = emitTsExpressionSource(expression, ctx) ?? '""';
+  return wrapTypeScriptModule({
+    templateId: model.templateId,
+    body: `return ${tsExpr};`,
+    types: ctx.types,
+    helpers: ctx.helpers,
+    rootType: "string",
+    source: "blockly",
+  });
+}
+
 /** Fallback when no skeleton is available (slot list only). */
 export function generateTypeScriptFromSlots(model: MappingModel): string {
   const ctx = createTsEmitContext();

@@ -283,6 +283,13 @@ export function emitValueExpression(
       return [String(block.fields?.TEXT ?? "")];
     case "text_code":
       return [String(block.fields?.TEXT ?? "")];
+    case "text_handlebars": {
+      const serialized = serializeBlockNodeExpression(block);
+      if (serialized) {
+        return [emitGoExpressionTemplate(parseExpression(serialized), ctx)];
+      }
+      return [`{{- /* value: text_handlebars */ -}}`];
+    }
     case "math_number":
       return [String(block.fields?.NUM ?? "0")];
     case "logic_boolean":

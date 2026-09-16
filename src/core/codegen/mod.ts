@@ -1,9 +1,10 @@
 import type { ExportTarget, MappingModel, OpenEhrInstanceShape, SkeletonNode } from "../../types/mod.ts";
 import { precompileHandlebars } from "../output/handlebars_dialect.ts";
-import { canvasHandlebarsScriptLiteral } from "../output/canvas_handlebars.ts";
+import { canvasHandlebarsScriptLiteral, canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
 import { generateXQuery } from "./xquery.ts";
 import { generateGoTemplate } from "./go_template.ts";
 import {
+  generateTypeScriptFromCanvasExpression,
   generateTypeScriptFromSkeleton,
   generateTypeScriptFromSlots,
 } from "./typescript.ts";
@@ -22,6 +23,7 @@ export { generateGoTemplate } from "./go_template.ts";
 export { usesOpenEhrProduct, isOpenEhrRmType } from "./product.ts";
 export {
   emitTsExpression,
+  generateTypeScriptFromCanvasExpression,
   generateTypeScriptFromSkeleton,
   generateTypeScriptFromSlots,
   wrapTypeScriptModule,
@@ -59,6 +61,8 @@ export function generateTypeScript(
   model: MappingModel,
   options?: ExportGenerationOptions,
 ): string {
+  const canvas = canvasHandlebarsExpression(options?.blocklyState);
+  if (canvas) return generateTypeScriptFromCanvasExpression(model, canvas);
   if (options?.skeleton?.length) {
     return generateTypeScriptFromSkeleton(model, options.skeleton);
   }

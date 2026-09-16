@@ -12,7 +12,7 @@ import {
   unimplementedTestRunMessage,
 } from "../../types/mod.ts";
 import { getSourceFormatHandler } from "../source/format_handler.ts";
-import { collectJsonNodes, type SourceContext } from "../source/query_runtime.ts";
+import { collectJsonNodes, evaluate, type SourceContext } from "../source/query_runtime.ts";
 import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
 import {
   collectAllSlotIds,
@@ -33,6 +33,7 @@ import {
   type TargetDefinition,
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
+import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
 import { executeGoTemplate, isGoTemplateWasmLoaded } from "../output/go_template_runtime.ts";
 import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
@@ -102,7 +103,7 @@ export function runTest(
     ctx.sheets = { ...ctx.sheets, ...sheetsToBag(options.sheets ?? []) };
 
     if (mode === "typescript") {
-      const code = options.generatedCode ?? generateTypeScript(model, {
+      const code = options.generatedCode ?? generate(model, "typescript", {
         handlebarsTemplate: options.handlebarsTemplate,
         blocklyState: options.blocklyState,
         skeleton: options.target?.skeleton,
@@ -305,9 +306,17 @@ function tryRunCanvasConversionScript(
   defaults: Record<string, unknown>,
 ): unknown | null {
   if (!options.blocklyState) return null;
+  const canvasExpr = canvasHandlebarsExpression(options.blocklyState);
+  if (canvasExpr) {
+    try {
+      return serializedConversionOutput(evaluate(canvasExpr, ctx, "string"));
+    } catch {
+      // Fall through to generated TypeScript.
+    }
+  }
   const code = options.generatedCode?.trim()
     ? options.generatedCode
-    : generateTypeScript(model, {
+    : generate(model, "typescript", {
       blocklyState: options.blocklyState,
       skeleton: options.target?.skeleton,
       webTemplateJson: options.target?.webTemplateJson,

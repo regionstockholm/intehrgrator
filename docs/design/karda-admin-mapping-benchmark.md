@@ -122,3 +122,48 @@ These address Pass 1 hazards 1, 3, 6, 7 (partial):
 - OPT load attaches `webTemplateJson` so `flat-json` Test Run can serialize Simplified FLAT.
 - `bundleRevision` hashes sheets, so `PUT /sheets` bumps `revision`.
 - Unconstrained ICD-10/ATC still use `maps_create_with` on the coded-text value slot (no sibling `|code` leaves). Duplicate parent-org `at0003` slotIds remain.
+
+## Pass 2
+
+Agent compared golden Simplified FLAT instances (and, where they disagree, the Go `text/template`) to Pass 1. Envelope: `mapping/pass-2-ai.intehrgrator-suggestions.json` + `pass-2-ai.sheets.json`. Runtime oracle: `test/karda_admin_pass2_test.ts` (TESTFALL-A canonical + `flat-json`).
+
+### Corrections vs Pass 1 (from goldens / tmpl)
+
+- **Vårdenhet CLUSTER** uses `PDL_enhet_Namn` / prefixed `PDL_enhet_HSAID`, not `Vardenhet_*`. **Facility** uses `Vardenhet_namn` / prefixed `Vardenhet_HSAID`.
+- HSA prefix `SE2321000016-` via `text_join` for enhet and facility. `PDL_vardgivare_HSAID` is already prefixed.
+- Setting **238 other care** (tmpl/golden convention; still not in source). Pass 1 used 232.
+- Diagnosis and substance are `maps_create_with` (`value` + `code_string` + `terminology_id`). ICD-10 `1.2.752.116.1.1.1`, ATC `2.16.840.1.113883.6.73`.
+- Dose is magnitude + `UnitCode` units. Beställnings-ID is `$.RekvisisjonId`, not `OrderLineId`.
+- Composer / facility party maps (`optional_rm_add` first).
+- Relative `loopVar` `substans` on ACTION leaves (attach now prefers 0..* ACTION).
+- `admin_ism` Decision table kept: every source status including `Stoppad` still emits OPT-only `532` / `at0007` (Swedish rubric `Fullföljd läkemedelsbehandling`). Documents the constraint rather than inventing aborted/at0015.
+
+### Golden issues (improve the goldens, not the mapping)
+
+- **ISM vs Stoppad.** Source `AdministrationStatus=4` / `Stoppad` is mapped to completed in every golden and in the tmpl. The OPT forbids aborted (`531`) / careflow `at0015`. Goldens should say so, or the template should allow a stopped state.
+- **Setting 238** is a site convention, not source data. Same for hardcoded organisationsnummer `2321000016`.
+- **`administration-example_target_used_for_mapping.json` is stale vs its paired source:** composer `"TakeCare _Test"` (space), vårdgivare name `REGION STOCKHOLM` / HSA `…-39KJ` (source is `PDL-vårdgivare SLL IdP TEST` / `…-I1MN`), `start_time` `2024-01-03` vs `EncounterDate` `2024-05-21`, plus `_instruction_details` with no source. `TESTFALL-PRÖV` golden also uses `…-39KJ` while its source is `…-I1MN`. Prefer TESTFALL-A/C as oracles; regenerate the others from the tmpl.
+- **`_instruction_details` / `_uid`** are writer-pipeline fields, not this mapping.
+- **Duplicate `at0003`.** Goldens emit both HSA and organisationsnummer. One `slotId` — Pass 2 maps HSA only.
+
+### What was difficult
+
+1. **`pathLabel` collision.** Outer CLUSTER `at0000` (vårdenhet, role `43741000`) and nested `at0000` (vårdgivare) both labelled “Vårdgivare”. Role `codeFixed` is the reliable discriminator.
+2. **FLAT path ≠ `slotId`.** `_health_care_facility` is Optional RM; `|code`/`|terminology` are maps on one DV_CODED_TEXT socket; `|unit` is a quantity map key.
+3. **Goldens disagree with tmpl+source** on the “used_for_mapping” pair — comparing only goldens would have copied stale vårdgivare HSA.
+4. Decision table still cannot emit a full `DV_CODED_TEXT` object; `codeFixed` fills the code when the output is the rubric.
+
+### Suggested improvements
+
+- Unique `slotId`s when sibling ELEMENTs reuse `at0003` (include C_STRING name or a sibling index).
+- `pathLabel` should use the CLUSTER name constraint (`Vårdenhet` vs `Vårdgivare`), not only the at-code term.
+- Goldens: regenerate from the tmpl; drop or annotate `_instruction_details`; document Stoppad→completed.
+- **`toLocalDateTime` timezone** (`+02:00` on goldens vs naive source) is encoding, not a slot mapping.
+- **`flat-json` Test Run** still serializes only a handful of `ctx/*` keys for this composition (Web Template flatten vs canonical RM JSON). Pass 2 oracle is canonical JSON; FLAT goldens are compared by field, not by a full flatten round-trip.
+
+## Pass 3
+
+The existing mapping is Go `text/template` Simplified FLAT (`mapping/AdministrationRCCV1-AdministreradMedicinskOnkologiskBehandlingPerSubstans.tmpl`). Pass 2 already is that conversion onto Blockly. New skill **`convert-mappings`**: inventory artefact → translate FLAT/script paths to `slotId`s → loops / Decision tables / party maps → `optional_rm_add` + envelope + Test Run; treat goldens as fallible.
+
+Artefacts: `.cursor/skills/convert-mappings/SKILL.md` (mirrored under `.agents/skills/`). AGENTS.md points at it. Worked example in the skill is this tmpl → `pass-2-ai.intehrgrator-suggestions.json`.
+

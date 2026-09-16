@@ -96,6 +96,10 @@ import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays
 import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
 import { installAnchoredMenu } from "../src/ui/anchored_menu.ts";
 import { runWithoutBlocklyEvents, withBlocklyUndoGroup, replaceCanvasUndoable, CANVAS_SWAP_EVENT_TYPE, setAfterCanvasSwapRun } from "../src/blockly/blockly_events.ts";
+import {
+  formatConnectionAuditReport,
+  runConnectionAudit as auditWorkspaceConnections,
+} from "../src/blockly/connection_audit.ts";
 import { refreshWorkspaceConstraints } from "../src/blockly/block_constraints.ts";
 import {
   DOCUMENT_SWAP_EVENT_TYPE,
@@ -110,6 +114,7 @@ import { sheetsChrome } from "../src/ui/sheets_i18n.ts";
 import {
   optionalRmInputName,
   presentAttributeNames,
+  restoreAllElementValueSlots,
   rmAttributeInputName,
   rmTypeOfBlock,
 } from "../src/blockly/blocks/rm_blocks.ts";
@@ -448,6 +453,7 @@ async function bootBlockly(): Promise<void> {
       loadOnce as Record<string, unknown>,
       workspace,
     );
+    restoreAllElementValueSlots(workspace);
     lockWorkspaceRootsExpanded(workspace);
   }
   runWithoutBlocklyEvents(() => {
@@ -1027,6 +1033,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           savedState as Record<string, unknown>,
           workspace,
         );
+        restoreAllElementValueSlots(workspace);
         if (!findDefaultsBlock(workspace)) {
           ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
         }
@@ -2415,6 +2422,14 @@ function installWorkbenchTestApi(): void {
       if (!a || !b) return false;
       return Boolean(workspace.connectionChecker?.canConnect(a, b, false));
     },
+    canConnectValue(parentId, inputName, childId) {
+      const parent = workspace.getBlockById(parentId);
+      const child = workspace.getBlockById(childId);
+      const a = parent?.getInput(inputName)?.connection;
+      const b = child?.outputConnection;
+      if (!a || !b) return false;
+      return Boolean(workspace.connectionChecker?.canConnect(a, b, false));
+    },
     connectStatement(parentId, inputName, childId) {
       const parent = workspace.getBlockById(parentId);
       const child = workspace.getBlockById(childId);
@@ -2426,6 +2441,33 @@ function installWorkbenchTestApi(): void {
         return a.isConnected();
       } catch {
         return false;
+      }
+    },
+    runConnectionAudit(options) {
+      const report = auditWorkspaceConnections(workspace, options);
+      return {
+        ok: report.ok,
+        summary: formatConnectionAuditReport(report),
+        failures: report.failures,
+      };
+    },
+    verifyConnectionRoundTrip() {
+      const saved = Blockly.serialization.workspaces.save(workspace);
+      const reloaded = new Blockly.Workspace();
+      try {
+        Blockly.serialization.workspaces.load(saved, reloaded);
+        restoreAllElementValueSlots(reloaded);
+        const report = auditWorkspaceConnections(reloaded, {
+          includeMatrix: false,
+          includeRoundTrip: false,
+        });
+        return {
+          ok: report.ok,
+          summary: formatConnectionAuditReport(report),
+          failures: report.failures,
+        };
+      } finally {
+        reloaded.dispose();
       }
     },
     openMutator(blockId) {

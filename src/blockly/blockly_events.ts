@@ -1,5 +1,6 @@
 import type { Workspace } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
+import { restoreAllElementValueSlots } from "./blocks/rm_blocks.ts";
 
 let afterEventsEnabled: (() => void) | null = null;
 
@@ -14,6 +15,7 @@ export function copyWorkspaceState(from: Workspace, to: Workspace): void {
   Blockly.Events.disable();
   try {
     Blockly.serialization.workspaces.load(state, to);
+    restoreAllElementValueSlots(to);
   } finally {
     Blockly.Events.enable();
   }
@@ -94,6 +96,7 @@ export class CanvasSwapEvent extends Blockly.Events.Abstract {
     const state = forward ? this.after : this.before;
     runWithoutBlocklyEvents(() => {
       Blockly.serialization.workspaces.load(state as Record<string, unknown>, ws);
+      restoreAllElementValueSlots(ws);
     });
     afterCanvasSwapRun?.(ws);
   }

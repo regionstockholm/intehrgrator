@@ -742,6 +742,26 @@ export function configureElementValueSlot(block: Blockly.Block, rmType: string):
   appendSlotLabel(input, "value", { card: { min: 1, max: 1 }, rmType });
 }
 
+/**
+ * Re-apply a typed ELEMENT.value check after Blockly JSON load.
+ * `init()` starts at generic DATA_VALUE; the RM_TYPE field is restored later.
+ */
+export function restoreElementValueSlot(block: Blockly.Block): void {
+  if (block.type !== "element") return;
+  const rmType = String(block.getFieldValue("RM_TYPE") || "").trim().toUpperCase();
+  if (!rmType || rmType === "ELEMENT" || rmType === "DATA_VALUE") return;
+  if (isDataValueType(rmType) || rmType === "CODE_PHRASE") {
+    configureElementValueSlot(block, rmType);
+  }
+}
+
+/** Restore typed value-slot checks on every ELEMENT block in a workspace. */
+export function restoreAllElementValueSlots(workspace: Blockly.Workspace): void {
+  for (const block of workspace.getAllBlocks(false)) {
+    restoreElementValueSlot(block);
+  }
+}
+
 /** Create (or return) the DATA_VALUE shell on an ELEMENT value input. */
 export function ensureElementDataValueShell(
   workspace: Blockly.Workspace,

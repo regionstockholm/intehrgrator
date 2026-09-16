@@ -5,6 +5,7 @@
 
 import { Blockly } from "../blockly/blockly_core.ts";
 import { applyModelExpressions, initBlocklyGenerators } from "../blockly/mod.ts";
+import { restoreAllElementValueSlots } from "../blockly/blocks/rm_blocks.ts";
 import type { MappingModel } from "../types/mod.ts";
 let generatorsReady = false;
 
@@ -27,6 +28,7 @@ export function syncModelToBlocklyState(
       JSON.parse(JSON.stringify(blocklyState)) as Record<string, unknown>,
       workspace,
     );
+    restoreAllElementValueSlots(workspace);
     applyModelExpressions(workspace, model, { recordUndo: false });
     return Blockly.serialization.workspaces.save(workspace);
   } finally {

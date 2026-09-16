@@ -413,7 +413,7 @@ export interface SuggestionEnvelope {
     format: TargetFormatId | string;
     targetId: string;
   };
-  /** Repeatable source→target iteration (`for_each_source` only). */
+  /** Repeatable source→target iteration (`for_each_source` or `for_each_list`). */
   loops?: Array<{
     attachSlotId: string;
     block: SuggestionBlock;

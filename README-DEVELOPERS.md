@@ -41,7 +41,7 @@ TODO: describe which tests exist and how to run them etc
 | `deno task check` | Type-check TypeScript sources |
 | `deno task desktop` | Build + run native window (`deno desktop`) |
 | `deno task compile:desktop` | Platform binaries → `dist/release/` |
-| `deno task mcp` | Stdio MCP server for IDE agents |
+| `deno task mcp` | Stdio MCP server for IDE agents (proxies to `INTEHR_AGENT_URL` or embeds a headless `WorkbenchService`) |
 | `deno task release -- --version X.Y.Z` | Bump, tag, push; CI publishes desktop + pinned Pages |
 | `deno task wasm:go-template` | Rebuild Go template WASM in `web/wasm/` |
 | `deno task setup:better-forms` | Licensed Better Form renderer assets (not committed) |
@@ -130,7 +130,7 @@ Refresh project skills from the lockfile in `.agents/skills/` when upstream chan
 |--------|---------|
 | **DeepWiki** | ehrtslib, archie, openEHR repos — `read_wiki_structure`, `ask_question` |
 | **openEHR assistant** | Archetypes, templates, terminology, spec lookup |
-| **intEHRgrator** (local) | `deno task mcp` against a running desktop session |
+| **intEHRgrator** (local) | `deno task mcp` against a running desktop session, or headless with no `INTEHR_AGENT_URL`. Desktop also accepts `intEHRgrator --headless --load project.intehrgrator`. |
 
 Configure MCP in `.cursor/mcp.json` (see [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) for the desktop URL).
 

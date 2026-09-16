@@ -20,7 +20,7 @@
     },
     "loops": {
       "type": "array",
-      "description": "One for_each_source per repeating target container. Do not nest loops inside suggestions[].",
+      "description": "One for_each_source or for_each_list per repeating target container. Do not nest loops inside suggestions[].",
       "items": {
         "$ref": "#/$defs/loopEntry"
       }
@@ -69,6 +69,12 @@
       }
     },
     "loopBlock": {
+      "oneOf": [
+        { "$ref": "#/$defs/forEachSourceBlock" },
+        { "$ref": "#/$defs/forEachListBlock" }
+      ]
+    },
+    "forEachSourceBlock": {
       "type": "object",
       "additionalProperties": false,
       "required": ["type", "fields"],
@@ -90,6 +96,44 @@
               "type": "string",
               "minLength": 1,
               "description": "Absolute multi-node source path, e.g. $.measurements."
+            }
+          }
+        }
+      }
+    },
+    "forEachListBlock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "fields", "inputs"],
+      "properties": {
+        "type": {
+          "const": "for_each_list"
+        },
+        "fields": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["VAR"],
+          "properties": {
+            "VAR": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Short loop variable name for each list item."
+            }
+          }
+        },
+        "inputs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["LIST"],
+          "properties": {
+            "LIST": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "block": {
+                  "$ref": "#/$defs/valueBlock"
+                }
+              }
             }
           }
         }
@@ -139,6 +183,7 @@
             "maps_create_empty",
             "maps_get",
             "sheet_lookup",
+            "decision_table",
             "sheet_get_cell",
             "sheet_get_xy",
             "sheet_get_row",

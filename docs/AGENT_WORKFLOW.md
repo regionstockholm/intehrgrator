@@ -1,40 +1,72 @@
 # Agent workflow (IDE + desktop)
 
-Golden path: **IDE + intEHRgrator desktop side-by-side**. An AI agent calls the **localhost Agent API** while you watch the Blockly canvas update. Open **Open observer** (formerly Open canvas) for the live agent legend and **attributed history timeline** (scrub, destructive rollback, patch-undo prompts).
+Golden path: **IDE + intEHRgrator desktop side-by-side**. An AI agent calls the **localhost Agent API** while you watch the Blockly canvas update. **Node-by-node `map_slot` is first-class** — it is OK, and it is the transparent default when a human is watching: each slot write pulses the canvas and lands as its own attributed history entry. Batch `import_suggestions` is for Copy AI Prompt, loops, Decision tables, and other envelope blocks `map_slot` cannot express. Open **Open observer** (formerly Open canvas) for the live agent legend and **attributed history timeline** (scrub, destructive rollback, patch-undo prompts).
 
-Fallback when MCP/API is unavailable: read **mapping spec** (Blockly JSON) or **generated conversion script** from export — downstream only, not round-trip authoring.
+**Headless:** the same API/MCP tools complete **load → inspect → map → Test Run → export** with no UI (`--headless`, or `deno task mcp` without `INTEHR_AGENT_URL`).
+
+Fallback when MCP/API is unavailable: read **mapping spec** (Blockly JSON) or **generated conversion script** from export — downstream only, not round-trip authoring. Copy-paste: **Copy AI Prompt** → external chat → **Import Suggestions**.
 
 ## Desktop Agent API
 
-Enabled by default on the desktop app (`deno task desktop`). Disable with `INTEHR_AGENT_API=0`.
+Enabled by default on the desktop app (`deno task desktop` / compiled binary). Disable with `INTEHR_AGENT_API=0`.
+
+```text
+intEHRgrator --headless [--port <n>] [--bind <addr>] [--load <file.intehrgrator>] [--token <secret>]
+```
+
+- Default bind `127.0.0.1` (loopback may stay unauthenticated).
+- `--headless`: do not open a browser; on `deno desktop` / the compiled app, hide the native window and keep `Deno.serve` alive.
+- `--bind 0.0.0.0` (or any non-loopback) **requires** `--token` or `INTEHR_AGENT_TOKEN`. When a token is set, every Agent API route except `GET /health` needs `Authorization: Bearer …` or `x-intehr-token`.
+- `--load` hydrates the shared `WorkbenchService` from a Project Bundle zip (`.intehrgrator`) or JSON file at start.
+- `DENO_SERVE_ADDRESS` (Deno desktop webview) still owns listen address; `--port` / `--bind` apply to `deno run`.
 
 Base URL: `http://127.0.0.1:<port>/api/v1/`
 
-| Method | Path | Purpose |
-|--------|------|---------|
-| GET | `/health` | Liveness |
-| GET | `/snapshot` | Revision, templateId, mapped counts, test status, active agent count |
-| GET | `/bundle` | Full `ProjectBundle` + revision |
-| GET | `/history` | Attributed semantic timeline (`entries[]` with actor, kind, summary, bundles) |
-| GET | `/history/:seq/preview` | Read-only bundle at history seq |
-| GET | `/activity` | Latest agent highlight + registered agents |
-| POST | `/register-agent` | `{ agentId?, displayName?, color? }` → assigned id/name/colour |
-| PUT | `/bundle` | Load bundle (`If-Match` revision optional) |
-| POST | `/ui-commit` | UI semantic commit `{ bundle, summary, kind? }` |
-| POST | `/import-suggestions` | Apply `intehrgrator-suggestions` JSON (body = text) |
-| POST | `/build-prompt` | Copy AI Prompt markdown |
-| POST | `/patch-prompt` | `{ targetSeq }` → prompt for **patch undo** (`intehrgrator-suggestions` v2) |
-| POST | `/map-slot` | `{ slotId, path, format? }` |
-| POST | `/run-test` | Conversion Test Run |
-| PUT | `/blockly` | Replace workspace JSON (escape hatch) |
-| POST | `/optional-rm/add` | `{ parentSlotId, rmType, attributeName }` |
-| POST | `/optional-rm/remove` | `{ parentSlotId, attributeName }` |
-| POST | `/undo` | `{ scope?: global \| user \| agent }` |
-| POST | `/redo` | Redo service history |
-| POST | `/restore-at` | `{ seq, mode?: view \| destructive }` — timeline scrub / rollback |
-| POST | `/export-discarded` | `{ entries: [{ afterBundle }] }` → `.intehrgrator` zip of discarded branch tip |
+HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgentTool`).
 
-Mutating requests accept **`If-Match: <revision>`** from the last snapshot. On conflict the API returns **409** with current revision.
+| Method | Path | MCP tool | Purpose |
+|--------|------|----------|---------|
+| GET | `/health` | — | Liveness (unauthenticated) |
+| GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status |
+| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, multiplicity, expression) |
+| GET | `/source-tree` | `get_source_tree` | Compact Source Schema + Active Example trees |
+| GET | `/sheets` | `get_sheets` | Sheet / Decision table summaries + documents |
+| GET | `/product-stack` | `get_product_stack` | Conversion start chain (Instance roots, encodings, loops) |
+| GET | `/optional-rm` | `list_optional_rm` | Optional RM catalog (`?parentSlotId=`) |
+| GET | `/constraint-warnings` | `list_constraint_warnings` | Unmapped mandatory, Decision table lint, abstract EVENT / ITEM_STRUCTURE |
+| GET | `/leases` | `list_leases` | Advisory slot leases (S-15) |
+| GET | `/bundle` | `get_bundle` | Full `ProjectBundle` + revision |
+| GET | `/history` | `get_history` | Attributed semantic timeline |
+| GET | `/history/:seq/preview` | — | Read-only bundle at history seq (UI) |
+| GET | `/activity` | `get_activity` | Latest agent highlight + registered agents |
+| POST | `/register-agent` | `register_agent` | `{ agentId?, displayName?, color? }` |
+| PUT | `/bundle` | `load_bundle` | Load bundle JSON, `{ path }`, or `{ bytesBase64 }` zip |
+| POST | `/load-target` | `load_target` | Target OPT / schema (`content` / `path` / `url`) |
+| POST | `/load-source-schema` | `load_source_schema` | Source Schema |
+| POST | `/add-example` | `add_example` | Example Instance |
+| POST | `/load-example-set` | `load_example_set` | Catalogued Example Set (`catalogPath` or `catalogUrl` + `setId`; `includeMapping` default true) |
+| POST | `/set-active-example` | `set_active_example` | `{ id }` |
+| PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents |
+| POST | `/ui-commit` | — | UI semantic commit `{ bundle, summary, kind? }` |
+| POST | `/import-suggestions` | `import_suggestions` | Apply `intehrgrator-suggestions` JSON (body = text) |
+| POST | `/build-prompt` | `build_prompt` | Copy AI Prompt markdown |
+| POST | `/patch-prompt` | `build_patch_prompt` | `{ targetSeq }` → patch-undo prompt |
+| POST | `/map-slot` | `map_slot` | `{ slotId, path, format? }` |
+| PUT | `/blockly` | `put_blockly` | Replace workspace JSON (escape hatch) |
+| POST | `/optional-rm/add` | `optional_rm_add` | `{ parentSlotId, rmType, attributeName }` |
+| POST | `/optional-rm/remove` | `optional_rm_remove` | `{ parentSlotId, attributeName }` |
+| POST | `/set-instance-encoding` | `set_instance_encoding` | `{ encoding, rootIndex? }` |
+| POST | `/lease-slot` | `lease_slot` | `{ slotId, ttlSec? }` — 409 if foreign holder |
+| POST | `/release-slot` | `release_slot` | `{ slotId }` |
+| POST | `/run-test` | `run_test` | Conversion Test Run (full `TestResult`) |
+| POST | `/generate-script` | `generate_script` | `{ language, path? }` Conversion Script |
+| POST | `/export-bundle` | `export_bundle` | `{ format: json\|zip, path? }` |
+| POST | `/undo` | `undo` | `{ scope?: global \| user \| agent }` |
+| POST | `/redo` | `redo` | Redo service history |
+| POST | `/restore-at` | `restore_at` | `{ seq, mode?: view \| destructive }` |
+| POST | `/export-discarded` | — | `{ entries: [{ afterBundle }] }` → `.intehrgrator` zip |
+
+Mutating requests accept **`If-Match: <revision>`** from the last snapshot. On conflict the API returns **409** with current revision. Foreign slot leases also return **409** (`holder`).
 
 Pass agent identity on mutations: headers **`X-Agent-Id`**, **`X-Agent-Name`**, optional **`X-Agent-Color`** (after `register-agent`).
 
@@ -44,8 +76,9 @@ The UI polls `/api/v1/snapshot` and reloads the bundle when revision changes (li
 
 1. MCP **`register_agent`** at session start — desktop returns **name + colour**.
 2. Mutations carry agent headers for **attributed history**.
-3. **Open observer** popup: agent legend + **history timeline** (scrub, destructive rollback with optional **download discarded branch**, copy **patch-undo** prompt).
-4. Main canvas: subtle **pulse** on touched slots; optional **Follow agent** checkbox pans to agent edits (default off).
+3. **`lease_slot`** while mapping a hot slot; **`release_slot`** when done. `import_suggestions` skips slots leased by someone else.
+4. **Open observer** popup: agent legend + **history timeline**.
+5. Main canvas: subtle **pulse** on touched slots; optional **Follow agent** checkbox pans to agent edits (default off).
 
 ### Patch undo (best-effort)
 
@@ -62,7 +95,7 @@ The UI polls `/api/v1/snapshot` and reloads the bundle when revision changes (li
 deno task mcp
 ```
 
-Set **`INTEHR_AGENT_URL=http://127.0.0.1:<port>`** to proxy tools to a running desktop session (recommended). Without it, MCP embeds a headless `WorkbenchService` (file/bundle workflow).
+Set **`INTEHR_AGENT_URL=http://127.0.0.1:<port>`** to proxy tools to a running desktop session (recommended for GUI). Set **`INTEHR_AGENT_TOKEN`** when the desktop requires a token. Without `INTEHR_AGENT_URL`, MCP embeds a headless `WorkbenchService` (filesystem host: load from path/url, write export `path`s).
 
 Cursor example (`.cursor/mcp.json`):
 
@@ -78,14 +111,15 @@ Cursor example (`.cursor/mcp.json`):
 }
 ```
 
-Tools: `register_agent`, `get_snapshot`, `get_history`, `get_activity`, `build_prompt`, `build_patch_prompt`, `import_suggestions`, `map_slot`, `run_test`, `restore_at`, `undo`, `redo`.
+Headless (no desktop): omit `INTEHR_AGENT_URL` and use `load_target` / `add_example` / `export_bundle`.
 
 ## Response format for LLMs
 
-Always use [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md) version 2 (`intehrgrator-suggestions` fence). Prefer **`import_suggestions`** / MCP over hand-editing Blockly JSON. Patch undo responses must use the same envelope.
+Always use [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md) version 2 (`intehrgrator-suggestions` fence) when applying an envelope. Prefer **`map_slot` or `import_suggestions`** / MCP over hand-editing Blockly JSON. Node-by-node `map_slot` is the transparent GUI default; `import_suggestions` is for bulk / Copy AI Prompt / Decision tables. Prefer **Decision tables** when they make combinational mappings easier for humans to read. Patch undo responses must use the same envelope.
 
 ## Related
 
 - [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md)
 - [UI_TESTING.md](./UI_TESTING.md) — browser Test API (`?testMode=1`) for Playwright only
 - [docs/design/DESIGN-multi-agent-undo-crdt.md](design/DESIGN-multi-agent-undo-crdt.md)
+- Mapping skill: `.cursor/skills/intehrgrator-mapping/SKILL.md`

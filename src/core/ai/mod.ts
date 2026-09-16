@@ -19,6 +19,7 @@ import { validateExpressionSource } from "../expression/mod.ts";
 import { Validator, type Schema } from "@cfworker/json-schema";
 import { SUGGESTION_FORMAT_SCHEMA } from "./suggestion_schema.ts";
 import { jsonPointerToDotPath } from "./json_locate.ts";
+import type { SheetDocument } from "../sheets/mod.ts";
 
 export type AiArtifactDelivery = "attach" | "inline" | "uri";
 
@@ -46,6 +47,22 @@ export interface BuildPromptOptions {
   artifacts: AiPromptArtifact[];
   sourceFormat?: string;
   activeExampleFilename?: string;
+  /** Named Sheets and Decision tables already on the project (headers + sample rows). */
+  sheets?: SheetDocument[];
+  /** Conversion start Product stack (Instance roots, encodings, product-grain loops). */
+  productStack?: Array<{ type: string; encoding?: string; varName?: string; path?: string }>;
+  /** Optional RM Insertion catalog (parentSlotId + attachments for `optional_rm_add`). */
+  optionalRm?: Array<{
+    parentSlotId: string;
+    attachments: Array<{ rmType: string; attributeName: string; label?: string }>;
+  }>;
+  /** Constraint warnings (unmapped mandatory, Decision table lint, abstract RM types). */
+  constraintWarnings?: Array<{
+    slotId?: string;
+    blockId?: string;
+    sheetName?: string;
+    message: string;
+  }>;
 }
 
 const VALUE_BLOCK_TYPES = new Set([
@@ -175,9 +192,46 @@ export function buildPrompt(options: BuildPromptOptions): string {
   if (repeatable.length) {
     sections.push(
       "## Repeatable containers",
-      "Copy `attachSlotId` from this list. One `for_each_source` loop per repeating container.",
+      "Copy `attachSlotId` from this list. One loop per repeating container: `for_each_source` when iterating source nodes, `for_each_list` when iterating a computed list value.",
       "```json",
       JSON.stringify(repeatable, null, 2),
+      "```",
+      "",
+    );
+  }
+
+  const sheetSection = compactSheetSection(options.sheets);
+  if (sheetSection) sections.push(...sheetSection);
+
+  if (options.productStack?.length) {
+    sections.push(
+      "## Product stack",
+      "Conversion start chain (Instance roots, Instance encoding, product-grain loops). Change encoding with the `set_instance_encoding` Agent API/MCP tool — not this envelope.",
+      "```json",
+      JSON.stringify(options.productStack, null, 2),
+      "```",
+      "",
+    );
+  }
+
+  if (options.optionalRm?.length) {
+    sections.push(
+      "## Optional RM Insertion",
+      "These RM-optional attributes are not in the envelope. Call `optional_rm_add` with `parentSlotId`, `rmType`, and `attributeName` copied from this list (then map any new value slots).",
+      "```json",
+      JSON.stringify(options.optionalRm, null, 2),
+      "```",
+      "",
+    );
+  }
+
+  if (options.constraintWarnings?.length) {
+    const sample = options.constraintWarnings.slice(0, 24);
+    sections.push(
+      "## Constraint warnings",
+      "Unmapped mandatory slots, Decision table lint, and abstract EVENT / ITEM_STRUCTURE. Patch with `import_suggestions` / `replace_sheets` / `optional_rm_add`, then re-check `list_constraint_warnings`.",
+      "```json",
+      JSON.stringify(sample, null, 2),
       "```",
       "",
     );
@@ -187,7 +241,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
   sections.push(
     "",
     "## Block examples",
-    "Value slots only — no RM containers or DV shells in suggestions. Prefer Sheets (`sheet_lookup`) for code/terminology translation; keep `maps_get` for Defaults Map keys.",
+    "Value slots only — no RM containers or DV shells in suggestions. Prefer **Decision tables** (`decision_table`) when combinational rules (several inputs, don't-care, FIRST/UNIQUE/COLLECT) are easier for humans to read than nested `if`. Prefer **Sheets** (`sheet_lookup`) for 1-key terminology tables. Keep `maps_get` for Defaults Map keys.",
     "",
     "**Terminology translation (ICD-10 → SNOMED CT)** — `sheet_lookup` against a named Sheet (headers `code` / `snomed`), key from source:",
     "```json",
@@ -208,6 +262,35 @@ export function buildPrompt(options: BuildPromptOptions): string {
         },
       },
       note: "Sheet icd10_snomed: I10→38341003, E11→44054006, …",
+    }, null, 2),
+    "```",
+    "",
+    "**Decision table (combinational rules)** — load/replace the grid with `replace_sheets` (`kind: \"decision-table\"`); fill the slot with `decision_table`. Prefer this over nested `logic_ternary` when several independent inputs (with don't-care) map to outputs:",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}{path/to/value}",
+      block: {
+        type: "decision_table",
+        fields: { NAME: "sbp_band", OUTPUT: "band" },
+        inputs: {
+          INPUTS: {
+            block: {
+              type: "maps_create_with",
+              extraState: { itemCount: 1 },
+              fields: { KEY0: "sbp" },
+              inputs: {
+                VAL0: {
+                  block: {
+                    type: "source_query_number",
+                    fields: { EXPRESSION: "$.systolic" },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      note: "Decision table sbp_band: condition sbp, output band (e.g. >=140 → high)",
     }, null, 2),
     "```",
     "",
@@ -235,10 +318,10 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
-    "**Repeating container** — put `for_each_source` in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list).",
+    "**Repeating container** — put `for_each_source` (source nodes) or `for_each_list` (computed list) in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list). Optional RM Insertion uses `optional_rm_add` / `optional_rm_remove` tools, not this envelope.",
     "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use `sheet_lookup` for terminology and code translation (named Sheet). Use `maps_get` / `maps_create_with` for Defaults Map keys. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use a **Decision table** (`decision_table` + `kind: \"decision-table\"` sheet) when several independent inputs, don't-care cells, or FIRST/UNIQUE/COLLECT hit policies make the mapping more readable to humans than nested `if`. Use `sheet_lookup` for 1-key terminology and code translation (named Sheet). Use `maps_get` / `maps_create_with` for Defaults Map keys. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` (or `for_each_list` for a list-valued collection) and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {
@@ -249,6 +332,25 @@ export function buildPrompt(options: BuildPromptOptions): string {
   }
 
   return sections.filter((line, i, arr) => !(line === "" && arr[i - 1] === "")).join("\n");
+}
+
+function compactSheetSection(sheets: SheetDocument[] | undefined): string[] | null {
+  if (!sheets?.length) return null;
+  const compact = sheets.map((sheet) => ({
+    name: sheet.name,
+    kind: sheet.kind === "decision-table" ? "decision-table" : "sheet",
+    headers: [...sheet.headers],
+    ...(sheet.hitPolicy ? { hitPolicy: sheet.hitPolicy } : {}),
+    previewRows: sheet.values.slice(0, 8),
+  }));
+  return [
+    "## Sheets and Decision tables",
+    "These grids are already on the project. Terminology / 1-key lookup → `sheet_lookup` on a **Sheet**. Combinational rules that humans should read as a table → **Decision table** (`decision_table` block; locals Map keys match condition columns). Create or replace grids with the `replace_sheets` Agent API/MCP tool, not this envelope.",
+    "```json",
+    JSON.stringify(compact, null, 2),
+    "```",
+    "",
+  ];
 }
 
 function formatTargetTask(format: string): string {
@@ -504,7 +606,7 @@ function collapseSchemaIssues(issues: SchemaIssue[]): SchemaIssue[] {
         path: parent,
         keyword: issue.keyword,
         message:
-          `${parent}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH }, and child fills in suggestions[] with matching loopVar.`,
+          `${parent}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH } or for_each_list { VAR, LIST }, and child fills in suggestions[] with matching loopVar.`,
       });
       continue;
     }
@@ -529,11 +631,11 @@ export function explainSuggestionSchemaIssue(
     return `${path}: unexpected "${extra}". Blocks allow only type, fields, inputs, extraState.`;
   }
   if (/^#\/suggestions\/\d+\/(attachSlotId|for_each_source|suggestions)$/.test(pointer)) {
-    return `${path}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH }, and child fills in suggestions[] with matching loopVar.`;
+    return `${path}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH } or for_each_list { VAR, LIST }, and child fills in suggestions[] with matching loopVar.`;
   }
   if (keyword === "enum" || /does not match any of/i.test(raw)) {
     if (/\.type$/.test(path)) {
-      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, sheet_lookup, or maps_create_* (not source_query_string). Loops use for_each_source only in loops[].`;
+      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, sheet_lookup, decision_table, or maps_create_* (not source_query_string). Loops use for_each_source or for_each_list only in loops[].`;
     }
   }
   if (keyword === "const") {
@@ -576,7 +678,7 @@ export function formatImportFollowUp(options: FollowUpOptions): string {
   lines.push(...issues);
   lines.push(
     "",
-    "Fix every error. Copy each `slotId` / `attachSlotId` from the original prompt. Put repeating source nodes in top-level `loops[]` (`for_each_source` with `VAR` + `PATH`); child mappings use `loopVar` and a **relative** `EXPRESSION`. Do not emit `mutation`, `id`, `x`, `y`, or `source_query_string` (use `source_query` for strings).",
+    "Fix every error. Copy each `slotId` / `attachSlotId` from the original prompt. Put repeating source nodes in top-level `loops[]` (`for_each_source` with `VAR` + `PATH`, or `for_each_list` with `VAR` + `inputs.LIST`); child mappings use `loopVar` and a **relative** `EXPRESSION`. Prefer Decision tables when combinational rules are clearer than nested if. Do not emit `mutation`, `id`, `x`, `y`, or `source_query_string` (use `source_query` for strings).",
     "",
     "### Previous payload",
     "```json",
@@ -688,11 +790,14 @@ function collectSuggestionItems(
 }
 
 function coerceLoopBlock(item: Record<string, unknown>): SuggestionBlock | null {
-  if (isRecord(item.block) && item.block.type === "for_each_source") {
+  if (isRecord(item.block) && (item.block.type === "for_each_source" || item.block.type === "for_each_list")) {
     return sanitizeBlock(item.block) as SuggestionBlock;
   }
   if (isRecord(item.for_each_source) && item.for_each_source.type === "for_each_source") {
     return sanitizeBlock(item.for_each_source) as SuggestionBlock;
+  }
+  if (isRecord(item.for_each_list) && item.for_each_list.type === "for_each_list") {
+    return sanitizeBlock(item.for_each_list) as SuggestionBlock;
   }
   const path = typeof item.for_each_source === "string"
     ? item.for_each_source
@@ -792,8 +897,28 @@ export function importSuggestions(
         throw new Error(`Unknown attachSlotId: ${loop.attachSlotId}`);
       }
       const varName = String(block.fields?.VAR ?? "");
+      if (!varName) throw new Error(`${block.type} requires VAR`);
+      if (block.type === "for_each_list") {
+        const listBlock = block.inputs?.LIST?.block;
+        if (!listBlock) throw new Error("for_each_list requires inputs.LIST");
+        const collection = suggestionBlockToExpression(listBlock);
+        const existingPath = loopPaths.get(varName);
+        if (existingPath && existingPath !== collection) {
+          throw new Error(`Duplicate loop VAR: ${varName} with a different collection`);
+        }
+        loopPaths.set(varName, collection);
+        acceptedLoops.push({
+          attachSlotId,
+          varName,
+          path: "",
+          kind: "list",
+          collection,
+        });
+        report.loopsAccepted++;
+        continue;
+      }
       const path = String(block.fields?.PATH ?? "");
-      if (!varName || !path) throw new Error("for_each_source requires VAR and PATH");
+      if (!path) throw new Error("for_each_source requires VAR and PATH");
       const existingPath = loopPaths.get(varName);
       if (existingPath && existingPath !== path) {
         throw new Error(`Duplicate loop VAR: ${varName} with a different PATH`);
@@ -825,8 +950,8 @@ export function importSuggestions(
     let expression: string;
     try {
       const block = sanitizeBlock(suggestion.block as unknown as Record<string, unknown>) as SuggestionBlock;
-      if (block.type === "for_each_source") {
-        throw new Error("for_each_source belongs in loops[], not suggestions[].block");
+      if (block.type === "for_each_source" || block.type === "for_each_list") {
+        throw new Error(`${block.type} belongs in loops[], not suggestions[].block`);
       }
       if (suggestion.loopVar && !loopPaths.has(suggestion.loopVar)) {
         throw new Error(`Unknown loopVar: ${suggestion.loopVar}`);
@@ -869,12 +994,19 @@ export function suggestionBlockToExpression(
 }
 
 function validateLoopEntry(block: SuggestionBlock): void {
-  if (!block || block.type !== "for_each_source") {
-    throw new Error("loops[].block must be type for_each_source");
+  if (block?.type === "for_each_source") {
+    if (block.inputs?.DO?.block) {
+      throw new Error("Leave for_each_source DO empty; put value fills in suggestions[]");
+    }
+    return;
   }
-  if (block.inputs?.DO?.block) {
-    throw new Error("Leave for_each_source DO empty; put value fills in suggestions[]");
+  if (block?.type === "for_each_list") {
+    if (block.inputs?.DO?.block) {
+      throw new Error("Leave for_each_list DO empty; put value fills in suggestions[]");
+    }
+    return;
   }
+  throw new Error("loops[].block must be type for_each_source or for_each_list");
 }
 
 function validateBlockShape(block: SuggestionBlock, depth = 0): void {
@@ -1015,6 +1147,14 @@ function blockJsonToExpression(
     case "sheet_get_data": {
       const name = String(fields.NAME ?? "Sheet1");
       return `sheet_get_data(${JSON.stringify(name)})`;
+    }
+    case "decision_table": {
+      const name = String(fields.NAME ?? "Decision1");
+      const inputs = child("INPUTS")
+        ? blockJsonToExpression(child("INPUTS")!, rewriteSourcePath)
+        : "map()";
+      const output = String(fields.OUTPUT ?? "out");
+      return `decision_table(${JSON.stringify(name)}, ${inputs ?? "map()"}, ${JSON.stringify(output)})`;
     }
     case "math_number":
       return String(fields.NUM ?? 0);

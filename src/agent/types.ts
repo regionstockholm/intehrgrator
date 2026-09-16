@@ -1,4 +1,6 @@
 import type { ImportSuggestionsReport, ProjectBundle, TestResult } from "../types/mod.ts";
+import type { SlotLease } from "./leases.ts";
+import type { ProductStackRow } from "./inspect.ts";
 
 export interface AgentSnapshot {
   revision: string;
@@ -10,6 +12,13 @@ export interface AgentSnapshot {
   statusMessage: string;
   testOk: boolean | null;
   activeAgents?: number;
+  unmappedMandatorySlotIds?: string[];
+  sheetNames?: string[];
+  productStack?: ProductStackRow[];
+  leases?: SlotLease[];
+  exampleCount?: number;
+  activeExample?: string | null;
+  constraintWarningCount?: number;
 }
 
 export interface AgentMutationResult {

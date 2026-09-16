@@ -129,6 +129,8 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
 
 export function resolveCatalogUri(ref: string, catalogUrl: string): string {
   const href = toFetchableUrl(ref, catalogUrl);
+  const parsed = new URL(href);
+  if (parsed.protocol === "file:") return href;
   assertHttpUrl(href);
   return href;
 }

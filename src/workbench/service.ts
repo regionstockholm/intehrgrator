@@ -1,21 +1,49 @@
 /**
  * Headless workbench operations for IDE agents and MCP — Blockly JSON / Mapping Model,
- * not DOM. Wraps WorkbenchController with a stub host, attributed history, and revision.
+ * not DOM. Wraps WorkbenchController with a filesystem-capable host, attributed history, and revision.
  */
 
 import type { AiArtifactDelivery } from "../core/ai/mod.ts";
+import { parseSuggestionsPayload } from "../core/ai/mod.ts";
 import type { HostAdapter } from "../host/mod.ts";
+import { createFsHostAdapter } from "../host/fs_adapter.ts";
 import type {
+  ConversionScriptLanguage,
   ImportSuggestionsReport,
+  InstanceEncoding,
   ProjectBundle,
   SourceFormatId,
   TestResult,
+} from "../types/mod.ts";
+import {
+  isConversionScriptLanguage,
+  isInstanceEncoding,
 } from "../types/mod.ts";
 import { actorFromHeaders, type HistoryActor, USER_ACTOR } from "../agent/actor.ts";
 import { AgentRegistry } from "../agent/registry.ts";
 import { bundleRevision } from "../agent/revision.ts";
 import type { AgentSnapshot } from "../agent/types.ts";
-import { importBundle } from "../core/persistence/mod.ts";
+import {
+  compactSourceTree,
+  constraintWarningsInspect,
+  listSlotsInspect,
+  productStackInspect,
+  sheetSummaries,
+} from "../agent/inspect.ts";
+import { SlotLeaseRegistry, type SlotLease } from "../agent/leases.ts";
+import { importBundle, exportBundle as zipBundle, validateBundle } from "../core/persistence/mod.ts";
+import type { ExampleSet } from "../core/example_sets/mod.ts";
+import { collectAllSlotIds } from "../core/skeleton/generate_skeleton.ts";
+import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
+import {
+  instanceShapeForEncoding,
+  preferredInstanceEncoding,
+} from "../core/output/instance_encoding.ts";
+import { initBlocklyGenerators } from "../blockly/mod.ts";
+import { Blockly } from "../blockly/blockly_core.ts";
+import { INSTANCE_ENCODING_FIELD } from "../core/output/instance_encoding.ts";
+import { productStackBlocks } from "../blockly/instance_root.ts";
+import type { SheetDocument } from "../core/sheets/mod.ts";
 import { WorkbenchController } from "./controller.ts";
 import { syncModelToBlocklyState } from "./blockly_sync.ts";
 import {
@@ -24,24 +52,6 @@ import {
   type HistoryKind,
   type RestoreAtResult,
 } from "./history.ts";
-
-function stubHost(): HostAdapter {
-  return {
-    pickTextFile: async () => null,
-    pickTextFilesFromDirectory: async () => null,
-    pickBinaryFile: async () => null,
-    downloadText: () => {},
-    downloadBytes: () => {},
-    copyToClipboard: async () => {},
-    readClipboard: async () => "",
-    saveAutosave: async () => {},
-    saveManualSave: async () => {},
-    loadStoredProjectRecord: async () => null,
-    listLoadableProjects: async () => [],
-    resolveAppUrl: (path) => path.startsWith("http") ? path : `https://example.test/${path}`,
-    fetchTextUrl: () => Promise.reject(new Error("fetchTextUrl not available in WorkbenchService")),
-  };
-}
 
 export interface MutationContext {
   actor?: HistoryActor;
@@ -52,13 +62,15 @@ export interface MutationContext {
 }
 
 export class WorkbenchService {
-  private readonly controller = new WorkbenchController(stubHost());
+  private readonly controller: WorkbenchController;
   readonly registry = new AgentRegistry();
   readonly history: HistoryLog;
+  readonly leases = new SlotLeaseRegistry();
   private revision = "r0";
   private currentActor: HistoryActor = USER_ACTOR;
 
-  constructor(options?: { historyPath?: string }) {
+  constructor(options?: { historyPath?: string; host?: HostAdapter }) {
+    this.controller = new WorkbenchController(options?.host ?? createFsHostAdapter());
     this.history = new HistoryLog({ persistPath: options?.historyPath });
   }
 
@@ -72,16 +84,26 @@ export class WorkbenchService {
 
   getSnapshot(): AgentSnapshot {
     const s = this.controller.getState();
+    const slots = listSlotsInspect(s.skeleton, s.model);
+    const unmapped = slots.filter((row) => !row.mapped && row.mandatory).map((row) => row.slotId);
+    const constraintWarnings = this.listConstraintWarnings();
     return {
       revision: this.revision,
       templateId: s.templateId,
       projectId: s.projectId,
-      appliedSlots: s.model.slots.filter((slot) => slot.expression).length,
+      appliedSlots: slots.filter((row) => row.mapped).length,
       loops: s.model.loops?.length ?? 0,
       unmappedMandatory: s.unmappedMandatory,
       statusMessage: s.statusMessage,
       testOk: s.testResult?.ok ?? null,
       activeAgents: this.registry.list().length,
+      unmappedMandatorySlotIds: unmapped.slice(0, 40),
+      sheetNames: s.sheets.map((sheet) => sheet.name),
+      productStack: productStackInspect(s.blocklyState),
+      leases: this.leases.list(),
+      exampleCount: s.examples.length,
+      activeExample: s.activeExample?.filename ?? null,
+      constraintWarningCount: constraintWarnings.length,
     };
   }
 
@@ -107,6 +129,11 @@ export class WorkbenchService {
     return raw;
   }
 
+  setActor(actor: HistoryActor): HistoryActor {
+    this.currentActor = actor;
+    return actor;
+  }
+
   /** UI pushes a semantic canvas commit into the shared session. */
   commitFromUi(bundle: ProjectBundle, summary: string, kind: HistoryKind = "expression"): string {
     const before = this.exportBundle();
@@ -128,8 +155,8 @@ export class WorkbenchService {
     }, { ...ctx, kind: ctx?.kind ?? "load_bundle", summary: ctx?.summary ?? "Load project bundle" });
   }
 
-  loadBundleFile(bytes: Uint8Array, ctx?: MutationContext): void {
-    this.loadBundle(importBundle(bytes), ctx);
+  loadBundleFile(bytes: Uint8Array, ctx?: MutationContext & { expectedRevision?: string }): void {
+    this.loadBundle(parseBundleBytes(bytes), ctx);
   }
 
   loadTemplateContent(filename: string, content: string, ctx?: MutationContext): void {
@@ -161,9 +188,35 @@ export class WorkbenchService {
 
   importSuggestions(text: string, expectedRevision?: string, ctx?: MutationContext): ImportSuggestionsReport {
     this.assertRevision(expectedRevision);
+    const actorId = ctx?.actor?.kind === "agent" ? ctx.actor.id : this.agentIdForLeases();
+    let toImport = text;
+    const leaseErrors: string[] = [];
+    const state = this.controller.getState();
+    try {
+      const payload = parseSuggestionsPayload(text, {
+        fallbackTarget: {
+          targetId: state.templateId,
+          format: state.target?.format ?? state.model.targetFormat ?? "openehr-template",
+        },
+      });
+      const foreign = this.leases.foreignHeld(payload.suggestions.map((s) => s.slotId), actorId);
+      if (foreign.length) {
+        const blocked = new Set(foreign.map((row) => row.slotId));
+        const filtered = {
+          ...payload,
+          suggestions: payload.suggestions.filter((s) => !blocked.has(s.slotId)),
+        };
+        toImport = JSON.stringify(filtered);
+        for (const row of foreign) {
+          leaseErrors.push(`${row.slotId}: leased by ${row.displayName} (${row.agentId})`);
+        }
+      }
+    } catch {
+      // Invalid envelope — controller import reports the error.
+    }
     let report!: ImportSuggestionsReport;
     this.mutate(() => {
-      report = this.controller.importAiSuggestions(text);
+      report = this.controller.importAiSuggestions(toImport);
       this.syncBlocklyFromModel();
     }, {
       ...ctx,
@@ -171,6 +224,10 @@ export class WorkbenchService {
       summary: ctx?.summary ?? "Import AI suggestions",
       affectedSlotIds: ctx?.affectedSlotIds,
     });
+    if (leaseErrors.length) {
+      report.errors.push(...leaseErrors);
+      report.skipped += leaseErrors.length;
+    }
     return report;
   }
 
@@ -182,6 +239,9 @@ export class WorkbenchService {
     ctx?: MutationContext,
   ): void {
     this.assertRevision(expectedRevision);
+    const actorId = ctx?.actor?.kind === "agent" ? ctx.actor.id : this.agentIdForLeases();
+    const held = this.leases.foreignHeld([slotId], actorId);
+    if (held[0]) throw new AgentSlotLeasedError(held[0]);
     this.mutate(() => {
       this.controller.mapNodeToSlot(slotId, path, format);
       this.syncBlocklyFromModel();
@@ -283,6 +343,196 @@ export class WorkbenchService {
     return this.history.buildPatchPrompt(targetSeq, this.exportBundle());
   }
 
+  listSlots() {
+    const s = this.controller.getState();
+    return listSlotsInspect(s.skeleton, s.model);
+  }
+
+  getSourceTree() {
+    const s = this.controller.getState();
+    return {
+      schema: compactSourceTree(s.schemaTree),
+      schemaFormat: s.schemaFormat,
+      schemaFilename: s.schemaFilename,
+      example: compactSourceTree(s.exampleTree ?? null),
+      activeExample: s.activeExample?.filename ?? null,
+      examples: s.examples.map((ex) => ({ id: ex.id, filename: ex.filename, format: ex.format })),
+    };
+  }
+
+  getSheets() {
+    const s = this.controller.getState();
+    return { summaries: sheetSummaries(s.sheets), sheets: s.sheets };
+  }
+
+  getProductStack() {
+    const s = this.controller.getState();
+    return productStackInspect(s.blocklyState);
+  }
+
+  listConstraintWarnings() {
+    const s = this.controller.getState();
+    return constraintWarningsInspect({
+      skeleton: s.skeleton,
+      model: s.model,
+      sheets: s.sheets,
+      blocklyState: s.blocklyState,
+    });
+  }
+
+  listOptionalRm(parentSlotId?: string) {
+    if (parentSlotId) {
+      return { parentSlotId, attachments: this.controller.getOptionalAttachments(parentSlotId) };
+    }
+    const s = this.controller.getState();
+    const catalog = collectAllSlotIds(s.skeleton).map((id) => ({
+      parentSlotId: id,
+      attachments: this.controller.getOptionalAttachments(id),
+    })).filter((row) => row.attachments.length);
+    return { catalog };
+  }
+
+  async loadExampleSet(set: ExampleSet, ctx?: MutationContext): Promise<void> {
+    const before = this.exportBundle();
+    await this.controller.loadExampleSet(set);
+    this.syncBlocklyFromModel();
+    this.recordMutation(before, {
+      ...ctx,
+      kind: "load_bundle",
+      summary: ctx?.summary ?? `Load example set ${set.id}`,
+    });
+  }
+
+  async loadTargetFromUrl(url: string, ctx?: MutationContext): Promise<void> {
+    const before = this.exportBundle();
+    await this.controller.openTemplateFromUrl(url);
+    this.syncBlocklyFromModel();
+    this.recordMutation(before, {
+      ...ctx,
+      kind: "load_bundle",
+      summary: ctx?.summary ?? `Load target ${url}`,
+    });
+  }
+
+  async loadSchemaFromUrl(url: string, ctx?: MutationContext): Promise<void> {
+    const before = this.exportBundle();
+    await this.controller.loadSchemaFromUrl(url);
+    this.recordMutation(before, {
+      ...ctx,
+      kind: "load_bundle",
+      summary: ctx?.summary ?? `Load schema ${url}`,
+    });
+  }
+
+  async addExampleFromUrl(url: string, ctx?: MutationContext): Promise<void> {
+    const before = this.exportBundle();
+    await this.controller.addExampleFromUrl(url);
+    this.recordMutation(before, {
+      ...ctx,
+      summary: ctx?.summary ?? `Load example ${url}`,
+    });
+  }
+
+  setActiveExample(id: string, ctx?: MutationContext): void {
+    this.mutate(() => {
+      this.controller.setActiveExample(id);
+    }, { ...ctx, summary: ctx?.summary ?? `Active example ${id}` });
+  }
+
+  replaceSheets(sheets: SheetDocument[], ctx?: MutationContext & { expectedRevision?: string }): void {
+    this.assertRevision(ctx?.expectedRevision);
+    this.mutate(() => {
+      this.controller.replaceSheets(sheets);
+    }, { ...ctx, kind: "block_graph", summary: ctx?.summary ?? "Replace sheets" });
+  }
+
+  generateScript(language: ConversionScriptLanguage): {
+    language: ConversionScriptLanguage;
+    extension: string;
+    mime: string;
+    code: string;
+    revision: string;
+  } {
+    if (!isConversionScriptLanguage(language)) {
+      throw new Error(`Unsupported conversion script language: ${language}`);
+    }
+    initBlocklyGenerators();
+    const s = this.controller.getState();
+    const adapter = getExportTargetAdapter(language);
+    const code = generate(s.model, language, {
+      handlebarsTemplate: s.handlebarsTemplate,
+      blocklyState: s.blocklyState,
+      skeleton: s.skeleton,
+      instanceShape: s.model.instanceEncodings?.length
+        ? instanceShapeForEncoding(preferredInstanceEncoding(s.model))
+        : s.settings.openEhrInstanceShape,
+      webTemplateJson: s.target?.webTemplateJson,
+    });
+    return {
+      language,
+      extension: adapter.extension,
+      mime: adapter.mime,
+      code,
+      revision: this.revision,
+    };
+  }
+
+  exportBundleZip(): Uint8Array {
+    return zipBundle(this.exportBundle());
+  }
+
+  setInstanceEncoding(
+    encoding: InstanceEncoding,
+    rootIndex = 0,
+    expectedRevision?: string,
+    ctx?: MutationContext,
+  ): void {
+    this.assertRevision(expectedRevision);
+    if (!isInstanceEncoding(encoding)) throw new Error(`Invalid instance encoding: ${encoding}`);
+    this.mutate(() => {
+      const s = this.controller.getState();
+      if (!s.blocklyState) throw new Error("No Blockly workspace to encode");
+      initBlocklyGenerators();
+      const workspace = new Blockly.Workspace();
+      try {
+        Blockly.serialization.workspaces.load(
+          JSON.parse(JSON.stringify(s.blocklyState)) as Record<string, unknown>,
+          workspace,
+        );
+        const stack = productStackBlocks(workspace).filter((block) =>
+          Boolean(block.getField(INSTANCE_ENCODING_FIELD))
+        );
+        const target = stack[rootIndex];
+        if (!target) throw new Error(`No Instance root with encoding at index ${rootIndex}`);
+        target.setFieldValue(encoding, INSTANCE_ENCODING_FIELD);
+        this.controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
+      } finally {
+        workspace.dispose();
+      }
+    }, { ...ctx, kind: "block_graph", summary: ctx?.summary ?? `Instance encoding ${encoding}` });
+  }
+
+  leaseSlot(slotId: string, ttlSec = 120, ctx?: MutationContext) {
+    const actor = ctx?.actor ?? this.currentActor;
+    const agentId = actor.kind === "agent" ? actor.id : actor.id || "user";
+    const result = this.leases.acquire(slotId, {
+      agentId,
+      displayName: actor.displayName,
+    }, ttlSec);
+    if (!result.ok) throw new AgentSlotLeasedError(result.holder);
+    return result.lease;
+  }
+
+  releaseSlot(slotId: string, ctx?: MutationContext): boolean {
+    const actor = ctx?.actor ?? this.currentActor;
+    const agentId = actor.kind === "agent" ? actor.id : undefined;
+    return this.leases.release(slotId, agentId);
+  }
+
+  private agentIdForLeases(): string | undefined {
+    return this.currentActor.kind === "agent" ? this.currentActor.id : undefined;
+  }
+
   private syncBlocklyFromModel(): void {
     const s = this.controller.getState();
     if (!s.blocklyState) return;
@@ -322,6 +572,18 @@ export class WorkbenchService {
   }
 }
 
+function parseBundleBytes(bytes: Uint8Array): ProjectBundle {
+  const zipMagic = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+  if (zipMagic) return importBundle(bytes);
+  const text = new TextDecoder().decode(bytes).replace(/^\uFEFF/, "").trim();
+  if (text.startsWith("{")) {
+    const bundle = JSON.parse(text) as ProjectBundle;
+    validateBundle(bundle);
+    return bundle;
+  }
+  return importBundle(bytes);
+}
+
 export class AgentRevisionConflictError extends Error {
   constructor(
     readonly currentRevision: string,
@@ -329,5 +591,12 @@ export class AgentRevisionConflictError extends Error {
   ) {
     super(`Revision conflict: expected ${expectedRevision}, current ${currentRevision}`);
     this.name = "AgentRevisionConflictError";
+  }
+}
+
+export class AgentSlotLeasedError extends Error {
+  constructor(readonly holder: SlotLease) {
+    super(`Slot leased by ${holder.displayName} (${holder.agentId}) until ${holder.expiresAt}`);
+    this.name = "AgentSlotLeasedError";
   }
 }

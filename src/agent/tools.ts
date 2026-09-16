@@ -1,0 +1,703 @@
+/**
+ * Shared Agent API / MCP tool dispatch. HTTP routes and stdio MCP call the same names.
+ */
+
+import { basename, dirname, resolve, toFileUrl } from "@std/path";
+import { ensureDir } from "@std/fs";
+import type { MutationContext, WorkbenchService } from "../workbench/service.ts";
+import type { ConversionScriptLanguage, SourceFormatId } from "../types/mod.ts";
+import { isConversionScriptLanguage, isInstanceEncoding } from "../types/mod.ts";
+import { exportBundle } from "../core/persistence/mod.ts";
+import type { ProjectBundle } from "../types/mod.ts";
+import type { SheetDocument } from "../core/sheets/mod.ts";
+import { parseExampleSetCatalog } from "../core/example_sets/mod.ts";
+import { toFetchableUrl } from "../host/fetch_url.ts";
+
+export interface AgentToolDef {
+  name: string;
+  description: string;
+  inputSchema: Record<string, unknown>;
+}
+
+export const AGENT_TOOLS: AgentToolDef[] = [
+  {
+    name: "register_agent",
+    description: "Register MCP session; returns agentId, displayName, color for this agent.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        agentId: { type: "string" },
+        displayName: { type: "string" },
+        color: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "get_snapshot",
+    description: "Project revision, template id, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_slots",
+    description: "Target value slots with mapped flag, valueType, multiplicity, and expression.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_source_tree",
+    description: "Compact Source Schema and Active Example trees (paths for Click-to-Map / source_query).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_sheets",
+    description: "Named Sheets and Decision tables (summaries plus full grid documents).",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_product_stack",
+    description: "Instance roots under Conversion start, with Instance encoding and product-stack loops.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "list_optional_rm",
+    description: "Optional RM Insertion catalog. Pass parentSlotId to inspect one container.",
+    inputSchema: { type: "object", properties: { parentSlotId: { type: "string" } } },
+  },
+  {
+    name: "list_constraint_warnings",
+    description: "Constraint warnings: unmapped mandatory slots, Decision table lint, abstract EVENT / ITEM_STRUCTURE.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_history",
+    description: "Attributed semantic history timeline.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_activity",
+    description: "Latest agent activity highlight + registered agents.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "get_bundle",
+    description: "Full Project Bundle JSON plus revision.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "load_bundle",
+    description: "Load a Project Bundle from JSON, zip path, bytesBase64, or an unwrapped bundle object.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        bundle: { type: "object" },
+        path: { type: "string" },
+        bytesBase64: { type: "string" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "load_target",
+    description: "Load a Target instance format (OPT, Web Template, JSON/XML Schema, free-form) from content, path, or url.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: { type: "string" },
+        content: { type: "string" },
+        path: { type: "string" },
+        url: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "load_source_schema",
+    description: "Load Source Schema from content, path, or url.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: { type: "string" },
+        content: { type: "string" },
+        path: { type: "string" },
+        url: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "add_example",
+    description: "Add an Example Instance from content, path, or url.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        filename: { type: "string" },
+        content: { type: "string" },
+        path: { type: "string" },
+        url: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "load_example_set",
+    description:
+      "Load a catalogued Example Set (target, Source Schema, instances, optional mapping/defaults) from a local catalogPath or catalogUrl.",
+    inputSchema: {
+      type: "object",
+      required: ["setId"],
+      properties: {
+        setId: { type: "string" },
+        catalogPath: { type: "string" },
+        catalogUrl: { type: "string" },
+        includeMapping: { type: "boolean" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "set_active_example",
+    description: "Select the Active Example by id from get_source_tree.examples.",
+    inputSchema: {
+      type: "object",
+      required: ["id"],
+      properties: { id: { type: "string" } },
+    },
+  },
+  {
+    name: "replace_sheets",
+    description: "Replace project Sheet / Decision table documents (full grid JSON).",
+    inputSchema: {
+      type: "object",
+      required: ["sheets"],
+      properties: { sheets: { type: "array" }, revision: { type: "string" } },
+    },
+  },
+  {
+    name: "build_prompt",
+    description: "Build Copy AI Prompt markdown (intehrgrator-suggestions response format).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        delivery: { enum: ["inline", "attach", "uri"] },
+        scope: { enum: ["full", "slot"] },
+        slotId: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "build_patch_prompt",
+    description: "Prompt to produce intehrgrator-suggestions patch undo for history seq.",
+    inputSchema: {
+      type: "object",
+      required: ["targetSeq"],
+      properties: { targetSeq: { type: "number" } },
+    },
+  },
+  {
+    name: "import_suggestions",
+    description: "Apply intehrgrator-suggestions JSON envelope.",
+    inputSchema: {
+      type: "object",
+      required: ["text"],
+      properties: { text: { type: "string" }, revision: { type: "string" } },
+    },
+  },
+  {
+    name: "map_slot",
+    description: "Map a source path to a target value slotId.",
+    inputSchema: {
+      type: "object",
+      required: ["slotId", "path"],
+      properties: {
+        slotId: { type: "string" },
+        path: { type: "string" },
+        format: { type: "string" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "optional_rm_add",
+    description: "Optional RM Insertion: add an RM-optional attribute mouth on a parent slot.",
+    inputSchema: {
+      type: "object",
+      required: ["parentSlotId", "rmType", "attributeName"],
+      properties: {
+        parentSlotId: { type: "string" },
+        rmType: { type: "string" },
+        attributeName: { type: "string" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "optional_rm_remove",
+    description: "Remove an Optional RM Insertion from a parent slot.",
+    inputSchema: {
+      type: "object",
+      required: ["parentSlotId", "attributeName"],
+      properties: {
+        parentSlotId: { type: "string" },
+        attributeName: { type: "string" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "set_instance_encoding",
+    description: "Set Instance encoding on a Product stack Instance root (0-based index among encoding-capable roots).",
+    inputSchema: {
+      type: "object",
+      required: ["encoding"],
+      properties: {
+        encoding: { type: "string" },
+        rootIndex: { type: "number" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "lease_slot",
+    description: "Advisory lease on a Target value slot while this agent is mapping it (S-15).",
+    inputSchema: {
+      type: "object",
+      required: ["slotId"],
+      properties: { slotId: { type: "string" }, ttlSec: { type: "number" } },
+    },
+  },
+  {
+    name: "release_slot",
+    description: "Release a slot lease held by this agent.",
+    inputSchema: {
+      type: "object",
+      required: ["slotId"],
+      properties: { slotId: { type: "string" } },
+    },
+  },
+  {
+    name: "list_leases",
+    description: "List active advisory slot leases.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "run_test",
+    description: "Run Conversion Test against the Active Example. Returns full TestResult including output and Output validation.",
+    inputSchema: { type: "object", properties: { revision: { type: "string" } } },
+  },
+  {
+    name: "generate_script",
+    description: "Generate a Conversion Script (typescript|java|handlebars|xquery|go-template). Optionally write to path.",
+    inputSchema: {
+      type: "object",
+      required: ["language"],
+      properties: { language: { type: "string" }, path: { type: "string" } },
+    },
+  },
+  {
+    name: "export_bundle",
+    description: "Export the Project Bundle as json or .intehrgrator zip. Optionally write to path.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        format: { enum: ["json", "zip"] },
+        path: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "restore_at",
+    description: "View or destructive rollback to history seq.",
+    inputSchema: {
+      type: "object",
+      required: ["seq"],
+      properties: { seq: { type: "number" }, mode: { enum: ["view", "destructive"] } },
+    },
+  },
+  {
+    name: "undo",
+    description: "Undo (scope: global|user|agent).",
+    inputSchema: { type: "object", properties: { scope: { type: "string" } } },
+  },
+  {
+    name: "redo",
+    description: "Redo.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "put_blockly",
+    description: "Replace Blockly workspace JSON (escape hatch; prefer import_suggestions).",
+    inputSchema: {
+      type: "object",
+      required: ["blocklyState"],
+      properties: {
+        blocklyState: { type: "object" },
+        revision: { type: "string" },
+      },
+    },
+  },
+];
+
+/** HTTP path after `/api/v1` for each MCP tool name (1:1). */
+export type AgentHttpBody = "json" | "text" | "none";
+
+export interface AgentToolHttp {
+  method: "GET" | "POST" | "PUT";
+  path: string;
+  body: AgentHttpBody;
+}
+
+export const AGENT_TOOL_HTTP: Record<string, AgentToolHttp> = {
+  register_agent: { method: "POST", path: "/register-agent", body: "json" },
+  get_snapshot: { method: "GET", path: "/snapshot", body: "none" },
+  list_slots: { method: "GET", path: "/slots", body: "none" },
+  get_source_tree: { method: "GET", path: "/source-tree", body: "none" },
+  get_sheets: { method: "GET", path: "/sheets", body: "none" },
+  get_product_stack: { method: "GET", path: "/product-stack", body: "none" },
+  list_optional_rm: { method: "GET", path: "/optional-rm", body: "none" },
+  list_constraint_warnings: { method: "GET", path: "/constraint-warnings", body: "none" },
+  get_history: { method: "GET", path: "/history", body: "none" },
+  get_activity: { method: "GET", path: "/activity", body: "none" },
+  get_bundle: { method: "GET", path: "/bundle", body: "none" },
+  load_bundle: { method: "PUT", path: "/bundle", body: "json" },
+  load_target: { method: "POST", path: "/load-target", body: "json" },
+  load_source_schema: { method: "POST", path: "/load-source-schema", body: "json" },
+  add_example: { method: "POST", path: "/add-example", body: "json" },
+  load_example_set: { method: "POST", path: "/load-example-set", body: "json" },
+  set_active_example: { method: "POST", path: "/set-active-example", body: "json" },
+  replace_sheets: { method: "PUT", path: "/sheets", body: "json" },
+  build_prompt: { method: "POST", path: "/build-prompt", body: "json" },
+  build_patch_prompt: { method: "POST", path: "/patch-prompt", body: "json" },
+  import_suggestions: { method: "POST", path: "/import-suggestions", body: "text" },
+  map_slot: { method: "POST", path: "/map-slot", body: "json" },
+  optional_rm_add: { method: "POST", path: "/optional-rm/add", body: "json" },
+  optional_rm_remove: { method: "POST", path: "/optional-rm/remove", body: "json" },
+  set_instance_encoding: { method: "POST", path: "/set-instance-encoding", body: "json" },
+  lease_slot: { method: "POST", path: "/lease-slot", body: "json" },
+  release_slot: { method: "POST", path: "/release-slot", body: "json" },
+  list_leases: { method: "GET", path: "/leases", body: "none" },
+  run_test: { method: "POST", path: "/run-test", body: "json" },
+  generate_script: { method: "POST", path: "/generate-script", body: "json" },
+  export_bundle: { method: "POST", path: "/export-bundle", body: "json" },
+  restore_at: { method: "POST", path: "/restore-at", body: "json" },
+  undo: { method: "POST", path: "/undo", body: "json" },
+  redo: { method: "POST", path: "/redo", body: "json" },
+  put_blockly: { method: "PUT", path: "/blockly", body: "json" },
+};
+
+export function findAgentToolForHttp(method: string, path: string): string | undefined {
+  const m = method.toUpperCase();
+  for (const [name, route] of Object.entries(AGENT_TOOL_HTTP)) {
+    if (route.method === m && route.path === path) return name;
+  }
+  return undefined;
+}
+
+export async function callAgentTool(
+  service: WorkbenchService,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<unknown> {
+  const revision = args.revision as string | undefined;
+  const ctx = mutationContextFromArgs(args);
+  if (ctx?.actor) service.setActor(ctx.actor);
+  switch (name) {
+    case "register_agent": {
+      const reg = service.registerAgent({
+        agentId: args.agentId as string | undefined,
+        displayName: args.displayName as string | undefined,
+        color: args.color as string | undefined,
+      });
+      return {
+        ...reg,
+        message: `Registered as ${reg.displayName}. Pass X-Agent-Id and X-Agent-Name on mutations.`,
+      };
+    }
+    case "get_snapshot":
+      return service.getSnapshot();
+    case "list_slots":
+      return { revision: service.getRevision(), slots: service.listSlots() };
+    case "get_source_tree":
+      return { revision: service.getRevision(), ...service.getSourceTree() };
+    case "get_sheets":
+      return { revision: service.getRevision(), ...service.getSheets() };
+    case "get_product_stack":
+      return { revision: service.getRevision(), stack: service.getProductStack() };
+    case "list_optional_rm":
+      return { revision: service.getRevision(), ...service.listOptionalRm(args.parentSlotId as string | undefined) };
+    case "list_constraint_warnings":
+      return { revision: service.getRevision(), warnings: service.listConstraintWarnings() };
+    case "get_history":
+      return { revision: service.getRevision(), entries: service.listHistory() };
+    case "get_activity":
+      return { activity: service.getActivity(), agents: service.registry.list() };
+    case "get_bundle":
+      return { revision: service.getRevision(), bundle: service.exportBundle() };
+    case "load_bundle":
+      if (args.bundle && typeof args.bundle === "object") {
+        service.loadBundle(args.bundle as ProjectBundle, { expectedRevision: revision });
+      } else if (typeof args.path === "string") {
+        const bytes = await Deno.readFile(args.path);
+        service.loadBundleFile(bytes, { expectedRevision: revision });
+      } else if (typeof args.bytesBase64 === "string") {
+        service.loadBundleFile(base64ToUint8(args.bytesBase64), { expectedRevision: revision });
+      } else if (isProjectBundleArg(args)) {
+        service.loadBundle(projectBundleFromArgs(args), { expectedRevision: revision });
+      } else {
+        throw new Error("load_bundle requires bundle JSON, path, or bytesBase64");
+      }
+      return { revision: service.getRevision() };
+    case "load_target":
+      if (typeof args.url === "string") {
+        await service.loadTargetFromUrl(args.url);
+      } else {
+        const file = await readTextInput(args, "target");
+        service.loadTemplateContent(file.filename, file.content);
+      }
+      return { revision: service.getRevision(), snapshot: service.getSnapshot() };
+    case "load_source_schema":
+      if (typeof args.url === "string") {
+        await service.loadSchemaFromUrl(args.url);
+      } else {
+        const file = await readTextInput(args, "schema");
+        service.loadSchemaContent(file.filename, file.content);
+      }
+      return { revision: service.getRevision() };
+    case "add_example":
+      if (typeof args.url === "string") {
+        await service.addExampleFromUrl(args.url);
+      } else {
+        const file = await readTextInput(args, "example");
+        service.addExampleContent(file.filename, file.content);
+      }
+      return { revision: service.getRevision(), ...service.getSourceTree() };
+    case "load_example_set": {
+      const loaded = await loadExampleSetFromArgs(service, args);
+      return { ...loaded, revision: service.getRevision(), snapshot: service.getSnapshot() };
+    }
+    case "set_active_example":
+      service.setActiveExample(String(args.id));
+      return { revision: service.getRevision() };
+    case "replace_sheets":
+      service.replaceSheets((args.sheets ?? []) as SheetDocument[], {
+        ...ctx,
+        expectedRevision: revision,
+      });
+      return { revision: service.getRevision(), ...service.getSheets() };
+    case "build_prompt":
+      return {
+        prompt: service.buildAgentPrompt(
+          (args.delivery as "inline") ?? "inline",
+          (args.scope as "full") ?? "full",
+          args.slotId as string | undefined,
+        ),
+        revision: service.getRevision(),
+      };
+    case "build_patch_prompt":
+      return {
+        prompt: service.buildPatchPrompt(Number(args.targetSeq)),
+        format: "intehrgrator-suggestions-v2",
+      };
+    case "import_suggestions":
+      return {
+        report: service.importSuggestions(String(args.text ?? ""), revision, ctx),
+        revision: service.getRevision(),
+      };
+    case "map_slot":
+      service.mapNodeToSlot(
+        String(args.slotId),
+        String(args.path),
+        (args.format as SourceFormatId) ?? "json",
+        revision,
+        ctx,
+      );
+      return { revision: service.getRevision() };
+    case "optional_rm_add":
+      service.addOptionalRm(
+        String(args.parentSlotId),
+        String(args.rmType),
+        String(args.attributeName),
+        revision,
+        ctx,
+      );
+      return { revision: service.getRevision() };
+    case "optional_rm_remove":
+      service.removeOptionalRm(
+        String(args.parentSlotId),
+        String(args.attributeName),
+        revision,
+        ctx,
+      );
+      return { revision: service.getRevision() };
+    case "set_instance_encoding": {
+      const encoding = String(args.encoding);
+      if (!isInstanceEncoding(encoding)) throw new Error(`Invalid instance encoding: ${encoding}`);
+      service.setInstanceEncoding(encoding, Number(args.rootIndex ?? 0), revision, ctx);
+      return { revision: service.getRevision(), stack: service.getProductStack() };
+    }
+    case "lease_slot":
+      return {
+        lease: service.leaseSlot(String(args.slotId), Number(args.ttlSec ?? 120), ctx),
+        revision: service.getRevision(),
+      };
+    case "release_slot":
+      return { ok: service.releaseSlot(String(args.slotId), ctx), revision: service.getRevision() };
+    case "list_leases":
+      return { leases: service.leases.list(), revision: service.getRevision() };
+    case "run_test":
+      return {
+        testResult: service.runTest(),
+        revision: service.getRevision(),
+      };
+    case "generate_script": {
+      const language = String(args.language) as ConversionScriptLanguage;
+      if (!isConversionScriptLanguage(language)) {
+        throw new Error(`Unsupported conversion script language: ${language}`);
+      }
+      const generated = service.generateScript(language);
+      if (typeof args.path === "string") {
+        await writeTextPath(args.path, generated.code);
+      }
+      return { ...generated, path: args.path };
+    }
+    case "export_bundle": {
+      const format = args.format === "zip" ? "zip" : "json";
+      if (format === "json") {
+        const bundle = service.exportBundle();
+        if (typeof args.path === "string") {
+          await writeTextPath(args.path, JSON.stringify(bundle, null, 2));
+        }
+        return { format, revision: service.getRevision(), bundle, path: args.path };
+      }
+      const bytes = exportBundle(service.exportBundle());
+      if (typeof args.path === "string") {
+        await writeBytesPath(args.path, bytes);
+      }
+      return {
+        format: "zip",
+        revision: service.getRevision(),
+        bytesBase64: uint8ToBase64(bytes),
+        path: args.path,
+      };
+    }
+    case "put_blockly":
+      service.loadBlocklyState(args.blocklyState, revision, ctx);
+      return { revision: service.getRevision() };
+    case "undo":
+      return { ok: service.undo((args.scope as "global") ?? "global"), revision: service.getRevision() };
+    case "redo":
+      return { ok: service.redo(), revision: service.getRevision() };
+    case "restore_at":
+      return {
+        ...service.restoreAt(Number(args.seq), (args.mode as "view") ?? "view"),
+        revision: service.getRevision(),
+      };
+    default:
+      throw new Error(`Unknown tool: ${name}`);
+  }
+}
+
+function mutationContextFromArgs(args: Record<string, unknown>): MutationContext | undefined {
+  if (typeof args._agentId !== "string" || !args._agentId) return undefined;
+  return {
+    actor: {
+      kind: "agent",
+      id: args._agentId,
+      displayName: String(args._agentName ?? args._agentId),
+      color: typeof args._agentColor === "string" ? args._agentColor : undefined,
+    },
+  };
+}
+
+function uint8ToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function base64ToUint8(encoded: string): Uint8Array {
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function writeTextPath(path: string, content: string): Promise<void> {
+  await ensureDir(dirname(path));
+  await Deno.writeTextFile(path, content);
+}
+
+async function writeBytesPath(path: string, bytes: Uint8Array): Promise<void> {
+  await ensureDir(dirname(path));
+  await Deno.writeFile(path, bytes);
+}
+
+async function readTextInput(
+  args: Record<string, unknown>,
+  fallbackName: string,
+): Promise<{ filename: string; content: string }> {
+  if (typeof args.content === "string") {
+    return {
+      filename: String(args.filename ?? `${fallbackName}.txt`),
+      content: args.content,
+    };
+  }
+  if (typeof args.path === "string") {
+    const path = args.path;
+    return { filename: basename(path), content: await Deno.readTextFile(path) };
+  }
+  throw new Error(`Provide content (+ optional filename), path, or url`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isProjectBundleArg(args: Record<string, unknown>): boolean {
+  return typeof args.version === "number" && isRecord(args.mapping);
+}
+
+function projectBundleFromArgs(args: Record<string, unknown>): ProjectBundle {
+  const rest = { ...args };
+  delete rest.revision;
+  delete rest._agentId;
+  delete rest._agentName;
+  delete rest._agentColor;
+  delete rest.path;
+  delete rest.bundle;
+  delete rest.bytesBase64;
+  return rest as unknown as ProjectBundle;
+}
+
+async function loadExampleSetFromArgs(
+  service: WorkbenchService,
+  args: Record<string, unknown>,
+): Promise<{ setId: string; title: string; catalogUrl: string }> {
+  const setId = String(args.setId ?? "").trim();
+  if (!setId) throw new Error("load_example_set requires setId");
+  const catalogUrl = resolveCatalogUrl(args);
+  const text = catalogUrl.startsWith("file:")
+    ? await Deno.readTextFile(new URL(catalogUrl))
+    : await (await fetch(toFetchableUrl(catalogUrl))).then(async (res) => {
+      if (!res.ok) throw new Error(`Could not load catalog ${catalogUrl} (${res.status})`);
+      return await res.text();
+    });
+  const catalog = parseExampleSetCatalog(text, catalogUrl);
+  const set = catalog.sets.find((row) => row.id === setId);
+  if (!set) {
+    throw new Error(
+      `Unknown example set "${setId}". Known: ${catalog.sets.map((row) => row.id).join(", ")}`,
+    );
+  }
+  const includeMapping = args.includeMapping !== false;
+  await service.loadExampleSet(includeMapping ? set : { ...set, mapping: undefined });
+  return { setId: set.id, title: set.title, catalogUrl: catalog.catalogUrl };
+}
+
+function resolveCatalogUrl(args: Record<string, unknown>): string {
+  if (typeof args.catalogPath === "string" && args.catalogPath.trim()) {
+    return toFileUrl(resolve(args.catalogPath.trim())).href;
+  }
+  if (typeof args.catalogUrl === "string" && args.catalogUrl.trim()) {
+    return toFetchableUrl(args.catalogUrl.trim());
+  }
+  throw new Error("load_example_set requires catalogPath or catalogUrl");
+}

@@ -34,7 +34,7 @@ import {
   MAPPING_PREVIEW_SCRIPT_PLACEHOLDER,
   unimplementedTestRunMessage,
 } from "../types/mod.ts";
-import { collectValueSlots, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectAllSlotIds, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
 import {
   applyExpressionEdit,
   countUnmappedMandatory,
@@ -72,6 +72,7 @@ import {
   validateSuggestionEnvelope,
 } from "../core/ai/mod.ts";
 import type { HostAdapter, PickedTextFile } from "../host/mod.ts";
+import { constraintWarningsInspect, productStackInspect } from "../agent/inspect.ts";
 import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
 import {
   detectTargetFormat,
@@ -980,6 +981,15 @@ export class WorkbenchController {
       formatDocUrl: this.host.resolveAppUrl("docs/AI_SUGGESTION_FORMAT.md"),
       delivery,
       artifacts: this.collectAiArtifacts(),
+      sheets: this.sheets,
+      productStack: productStackInspect(this.getBlocklyState?.() ?? this.blocklyState),
+      optionalRm: this.collectOptionalRmCatalog(),
+      constraintWarnings: constraintWarningsInspect({
+        skeleton: this.skeleton,
+        model: this.model,
+        sheets: this.sheets,
+        blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      }),
     });
   }
 
@@ -1178,6 +1188,20 @@ export class WorkbenchController {
           .map((row) => row.name),
       ),
     });
+  }
+
+  collectOptionalRmCatalog(): Array<{
+    parentSlotId: string;
+    attachments: Array<{ rmType: string; attributeName: string; label?: string }>;
+  }> {
+    return collectAllSlotIds(this.skeleton).map((parentSlotId) => ({
+      parentSlotId,
+      attachments: this.getOptionalAttachments(parentSlotId).slice(0, 12).map((row) => ({
+        rmType: row.rmType,
+        attributeName: row.attributeName,
+        ...(row.label ? { label: row.label } : {}),
+      })),
+    })).filter((row) => row.attachments.length).slice(0, 24);
   }
 
   /** Attachments for a Blockly block — skeleton slot when present, otherwise RM type. */

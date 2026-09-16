@@ -1,6 +1,9 @@
 /**
  * Drive the Agent API dispatcher (same as embedded MCP) to produce
  * AI-created mapping artefacts under test/fixtures/<use-case>/mapping/.
+ * Persist suggestion envelopes, Sheets, Decision tables, and Conversion
+ * Scripts — not full Project Bundles (replay loads the use-case target +
+ * example, then imports the envelope).
  */
 import { dirname, fromFileUrl, join } from "@std/path";
 import { ensureDir } from "@std/fs";
@@ -129,8 +132,6 @@ async function dummyJsonVitals(): Promise<void> {
   }) as { code: string };
   await writeJson(join(mappingDir, "ai-created-json-schema.intehrgrator-suggestions.json"), envelope);
   await writeJson(join(mappingDir, "ai-created-sbp-band.decision-table.json"), sbpBand);
-  const exported = await client.callTool("export_bundle", { format: "json" }) as { bundle: unknown };
-  await writeJson(join(mappingDir, "ai-created-json-schema.bundle.json"), exported.bundle);
   if (!script.code.includes("systolic")) throw new Error("generated script missing systolic");
 }
 
@@ -188,8 +189,6 @@ async function dummyVitalsSbpBand(): Promise<void> {
     throw new Error(`expected band=normal for SBP 120, got ${JSON.stringify(tested.testResult.output)}`);
   }
   await writeJson(join(mappingDir, "ai-created-sbp-band.intehrgrator-suggestions.json"), envelope);
-  const exported = await client.callTool("export_bundle", { format: "json" }) as { bundle: unknown };
-  await writeJson(join(mappingDir, "ai-created-sbp-band.bundle.json"), exported.bundle);
 }
 
 async function dummyVitalsOpenEhrBp(): Promise<void> {
@@ -245,8 +244,6 @@ async function dummyVitalsOpenEhrBp(): Promise<void> {
   if (!tested.testResult.ok) throw new Error(`openEHR test: ${tested.testResult.error}`);
 
   await writeJson(join(mappingDir, "ai-created-openehr-blood-pressure.intehrgrator-suggestions.json"), envelope);
-  const exported = await callAgentTool(service, "export_bundle", { format: "json" }) as { bundle: unknown };
-  await writeJson(join(mappingDir, "ai-created-openehr-blood-pressure.bundle.json"), exported.bundle);
 }
 
 async function icd10SheetLookup(): Promise<void> {
@@ -342,8 +339,6 @@ async function legacySimulatedJson(): Promise<void> {
   const tested = await client.callTool("run_test", {}) as { testResult: { ok: boolean; error?: string } };
   if (!tested.testResult.ok) throw new Error(`legacy json test: ${tested.testResult.error}`);
   await writeJson(join(mappingDir, "ai-created-blood-pressure.intehrgrator-suggestions.json"), envelope);
-  const exported = await client.callTool("export_bundle", { format: "json" }) as { bundle: unknown };
-  await writeJson(join(mappingDir, "ai-created-blood-pressure.bundle.json"), exported.bundle);
 }
 
 async function legacySimulatedJsonSeries(): Promise<void> {

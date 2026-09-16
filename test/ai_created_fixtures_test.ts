@@ -127,3 +127,29 @@ Deno.test("committed AI-created BP series mapping with for_each_source Test Run 
   const tested = await client.callTool("run_test", {}) as { testResult: { ok: boolean; error?: string } };
   assertEquals(tested.testResult.ok, true, String(tested.testResult.error));
 });
+
+Deno.test("node-by-node map_slot maps dummy JSON vitals and Test Run passes", async () => {
+  const dir = join(fixtures, "dummy-json-vitals");
+  const client = new LocalAgentClient(new WorkbenchService());
+  await client.registerAgent({ displayName: "node-by-node mapper" });
+  await client.callTool("load_target", { path: join(dir, "target.schema.json") });
+  await client.callTool("add_example", { path: join(dir, "instance-1.json") });
+  const listed = await client.callTool("list_slots", {}) as {
+    slots: Array<{ slotId: string }>;
+  };
+  const systolic = listed.slots.find((s) => s.slotId.endsWith("$.systolic"))?.slotId;
+  const diastolic = listed.slots.find((s) => s.slotId.endsWith("$.diastolic"))?.slotId;
+  const unit = listed.slots.find((s) => s.slotId.endsWith("$.unit"))?.slotId;
+  if (!systolic || !diastolic || !unit) {
+    throw new Error(`missing slots: ${listed.slots.map((s) => s.slotId).join(", ")}`);
+  }
+  await client.callTool("map_slot", { slotId: systolic, path: "$.systolic", format: "json" });
+  await client.callTool("map_slot", { slotId: diastolic, path: "$.diastolic", format: "json" });
+  await client.callTool("map_slot", { slotId: unit, path: "$.unit", format: "json" });
+  const tested = await client.callTool("run_test", {}) as {
+    testResult: { ok: boolean; error?: string; output?: Record<string, unknown> };
+  };
+  assertEquals(tested.testResult.ok, true, String(tested.testResult.error));
+  assertEquals(tested.testResult.output?.systolic, 120);
+  assertEquals(tested.testResult.output?.diastolic, 80);
+});

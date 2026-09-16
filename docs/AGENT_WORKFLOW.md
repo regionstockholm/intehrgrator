@@ -1,6 +1,6 @@
 # Agent workflow (IDE + desktop)
 
-Golden path: **IDE + intEHRgrator desktop side-by-side**. An AI agent calls the **localhost Agent API** while you watch the Blockly canvas update. Open **Open observer** (formerly Open canvas) for the live agent legend and **attributed history timeline** (scrub, destructive rollback, patch-undo prompts).
+Golden path: **IDE + intEHRgrator desktop side-by-side**. An AI agent calls the **localhost Agent API** while you watch the Blockly canvas update. **Node-by-node `map_slot` is first-class** — it is OK, and it is the transparent default when a human is watching: each slot write pulses the canvas and lands as its own attributed history entry. Batch `import_suggestions` is for Copy AI Prompt, loops, Decision tables, and other envelope blocks `map_slot` cannot express. Open **Open observer** (formerly Open canvas) for the live agent legend and **attributed history timeline** (scrub, destructive rollback, patch-undo prompts).
 
 **Headless:** the same API/MCP tools complete **load → inspect → map → Test Run → export** with no UI (`--headless`, or `deno task mcp` without `INTEHR_AGENT_URL`).
 
@@ -115,7 +115,7 @@ Headless (no desktop): omit `INTEHR_AGENT_URL` and use `load_target` / `add_exam
 
 ## Response format for LLMs
 
-Always use [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md) version 2 (`intehrgrator-suggestions` fence). Prefer **`import_suggestions`** / MCP over hand-editing Blockly JSON. Prefer **Decision tables** when they make combinational mappings easier for humans to read. Patch undo responses must use the same envelope.
+Always use [AI_SUGGESTION_FORMAT.md](./AI_SUGGESTION_FORMAT.md) version 2 (`intehrgrator-suggestions` fence) when applying an envelope. Prefer **`map_slot` or `import_suggestions`** / MCP over hand-editing Blockly JSON. Node-by-node `map_slot` is the transparent GUI default; `import_suggestions` is for bulk / Copy AI Prompt / Decision tables. Prefer **Decision tables** when they make combinational mappings easier for humans to read. Patch undo responses must use the same envelope.
 
 ## Related
 

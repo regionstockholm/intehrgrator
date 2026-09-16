@@ -13,7 +13,7 @@ description: >-
 
 ## When to use
 
-- Mapping source fields to Target value slots (including loops, Sheets, Decision tables, party identity)
+- Mapping source fields to Target value slots (including **node-by-node** `map_slot`, loops, Sheets, Decision tables, party identity)
 - GUI desktop with Agent API, **or** headless create → Test Run → export (no window)
 - Output must validate against **`intehrgrator-suggestions` version `"2"`**
 
@@ -40,11 +40,12 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
    - `get_sheets`, `get_product_stack`, `list_optional_rm`, `list_leases`, `list_constraint_warnings`
    Done when you can name the slot ids and source paths you will fill.
 5. **Lease** hot slots (`lease_slot`) when another agent may write the same slot. Foreign `map_slot` is 409; `import_suggestions` skips foreign-leased slots. Done when `list_leases` shows your slots (or none, if uncontested).
-6. **Map:**
-   - `build_prompt` when another model will fill the envelope (Copy AI Prompt workflow)
-   - else emit `intehrgrator-suggestions` from inspect data
-   - `import_suggestions` (preferred), `map_slot`, `optional_rm_add` / `optional_rm_remove`, `set_instance_encoding`
-   Pass `revision` / `If-Match`. Done when import `applied` matches what you intended (read `errors` / `skipped`).
+6. **Map** — node-by-node is first-class (not a fallback). When a human is watching the GUI, **prefer `map_slot` one Target value slot at a time**: each write pulses the canvas, appends attributed history, and is easy to undo. That transparency is the point of desktop + Open observer.
+   - `map_slot` for Click-to-Map-shaped source paths (`slotId` + `path` + `format`)
+   - `import_suggestions` for a v2 envelope (Copy AI Prompt, Decision tables, Sheet lookups, `text_code` / loops, or headless bulk)
+   - `build_prompt` when another model will fill that envelope
+   - `optional_rm_add` / `optional_rm_remove`, `set_instance_encoding`
+   Pass `revision` / `If-Match`. Done when the slots you meant to fill are mapped (`list_slots` / import `applied`; read `errors` / `skipped`).
 7. **`run_test`** — read full `TestResult` (`output`, `warnings`, `outputValidation`), not only `testOk`. On failure, read `list_constraint_warnings` and patch, then re-import. Done when `testOk` is true or remaining failures are explained.
 8. **Export** when the user asked: `export_bundle` (`json` | `zip`, optional `path`), `generate_script` (`typescript` | `java` | `handlebars` | `xquery` | `go-template`). Done when files/strings exist.
 9. **`undo`** (`agent` / `user` / `global`) or `get_history` + `restore_at` if the user rejects work. `release_slot` when finished.
@@ -63,7 +64,7 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 ## Multi-agent etiquette
 
 - Register once per MCP session; mutations are attributed in joint history.
-- User watches via **Open observer** — do not assume the main canvas auto-scrolls.
+- User watches via **Open observer** — do not assume the main canvas auto-scrolls. Node-by-node `map_slot` is the transparent default on that path.
 - Patch undo: `build_patch_prompt` → envelope → `import_suggestions`.
 
 ## openEHR help

@@ -1,29 +1,29 @@
 {
   "version": 1,
-  "projectId": "e10b137e-5cd5-4576-aa70-6b0125e9f781",
+  "projectId": "d156ca1a-d505-4520-bfaa-2752db6bc702",
   "appVersion": "0.8.0",
-  "createdAt": "2026-09-16T06:29:15.102Z",
-  "updatedAt": "2026-09-16T06:29:15.102Z",
+  "createdAt": "2026-09-16T06:29:15.108Z",
+  "updatedAt": "2026-09-16T06:29:15.108Z",
   "target": {
     "format": "json-schema",
-    "filename": "target.schema.json",
-    "targetId": "https://example.invalid/dummy-json-vitals/target.schema.json",
-    "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.invalid/dummy-json-vitals/target.schema.json\",\n  \"title\": \"DummyVitalsTarget\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"systolic\": { \"type\": \"number\" },\n    \"diastolic\": { \"type\": \"number\" },\n    \"unit\": { \"type\": \"string\" }\n  },\n  \"required\": [\"systolic\", \"diastolic\"]\n}\n",
+    "filename": "ai-created-sbp-band.target.schema.json",
+    "targetId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json",
+    "content": "{\n  \"$schema\": \"https://json-schema.org/draft/2020-12/schema\",\n  \"$id\": \"https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json\",\n  \"title\": \"DummyVitalsWithBand\",\n  \"type\": \"object\",\n  \"properties\": {\n    \"systolic\": { \"type\": \"number\" },\n    \"diastolic\": { \"type\": \"number\" },\n    \"unit\": { \"type\": \"string\" },\n    \"band\": { \"type\": \"string\", \"description\": \"SBP band from Decision table sbp_band\" }\n  },\n  \"required\": [\"systolic\", \"diastolic\", \"band\"]\n}\n",
     "skeleton": [
       {
-        "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$",
+        "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$",
         "targetPath": "$",
-        "blockType": "schema_DummyVitalsTarget",
+        "blockType": "schema_DummyVitalsWithBand",
         "rmType": "object",
-        "label": "DummyVitalsTarget",
-        "rmAttribute": "DummyVitalsTarget",
+        "label": "DummyVitalsWithBand",
+        "rmAttribute": "DummyVitalsWithBand",
         "kind": "container",
         "mandatory": true,
         "multiplicity": "1",
         "slotCardinality": "1",
         "children": [
           {
-            "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.systolic",
+            "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.systolic",
             "targetPath": "$.systolic",
             "blockType": "target_value",
             "rmType": "number",
@@ -36,7 +36,7 @@
             "children": []
           },
           {
-            "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.diastolic",
+            "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.diastolic",
             "targetPath": "$.diastolic",
             "blockType": "target_value",
             "rmType": "number",
@@ -49,7 +49,7 @@
             "children": []
           },
           {
-            "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.unit",
+            "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.unit",
             "targetPath": "$.unit",
             "blockType": "target_value",
             "rmType": "string",
@@ -59,6 +59,20 @@
             "mandatory": false,
             "multiplicity": "0..1",
             "slotCardinality": "0..1",
+            "children": []
+          },
+          {
+            "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.band",
+            "targetPath": "$.band",
+            "blockType": "target_value",
+            "rmType": "string",
+            "label": "band",
+            "rmAttribute": "band",
+            "kind": "value",
+            "mandatory": true,
+            "multiplicity": "1",
+            "slotCardinality": "1",
+            "documentation": "SBP band from Decision table sbp_band",
             "children": []
           }
         ]
@@ -110,21 +124,21 @@
   },
   "examples": [
     {
-      "id": "4caf9030-7c9f-4468-a303-4966fb8043b7",
+      "id": "19fb340b-3769-4fb6-9509-51710c207942",
       "filename": "instance-1.json",
       "format": "json",
       "content": "{\n  \"patientId\": \"demo-001\",\n  \"systolic\": 120,\n  \"diastolic\": 80,\n  \"unit\": \"mm[Hg]\"\n}\n"
     }
   ],
-  "activeExampleId": "4caf9030-7c9f-4468-a303-4966fb8043b7",
+  "activeExampleId": "19fb340b-3769-4fb6-9509-51710c207942",
   "mapping": {
     "blocklyState": null,
     "model": {
       "modelVersion": 3,
-      "templateId": "https://example.invalid/dummy-json-vitals/target.schema.json",
+      "templateId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json",
       "slots": [
         {
-          "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.systolic",
+          "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.systolic",
           "rmType": "number",
           "expression": "xpathNumber(\"$.systolic\")",
           "returnType": "number",
@@ -132,7 +146,7 @@
           "mandatory": true
         },
         {
-          "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.diastolic",
+          "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.diastolic",
           "rmType": "number",
           "expression": "xpathNumber(\"$.diastolic\")",
           "returnType": "number",
@@ -140,12 +154,20 @@
           "mandatory": true
         },
         {
-          "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.unit",
+          "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.unit",
           "rmType": "string",
           "expression": "xpathString(\"$.unit\")",
           "returnType": "string",
           "label": "unit",
           "mandatory": false
+        },
+        {
+          "slotId": "https://example.invalid/dummy-json-vitals/ai-created-sbp-band.schema.json:$.band",
+          "rmType": "string",
+          "expression": "decision_table(\"sbp_band\", map(\"sbp\", xpathNumber(\"$.systolic\")), \"band\")",
+          "returnType": "string",
+          "label": "band",
+          "mandatory": true
         }
       ],
       "optionalRm": [],

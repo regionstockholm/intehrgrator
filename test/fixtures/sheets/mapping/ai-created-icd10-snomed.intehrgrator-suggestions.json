@@ -2,12 +2,12 @@
   "format": "intehrgrator-suggestions",
   "version": "2",
   "target": {
-    "format": "openehr-template",
-    "targetId": "{loaded-target-id}"
+    "format": "json-schema",
+    "targetId": "https://example.invalid/sheets/icd10-snomed-target.schema.json"
   },
   "suggestions": [
     {
-      "slotId": "{loaded-target-id}/content/data/items/at0002/value/value/defining_code/code_string/value",
+      "slotId": "https://example.invalid/sheets/icd10-snomed-target.schema.json:$.snomed",
       "block": {
         "type": "sheet_lookup",
         "fields": {
@@ -40,7 +40,7 @@
           }
         }
       },
-      "note": "AI-created pattern: 1-key terminology Sheet (not a Decision table)"
+      "note": "AI-created: 1-key terminology Sheet (not a Decision table)"
     }
   ]
 }

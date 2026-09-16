@@ -1,9 +1,9 @@
 {
   "version": 1,
-  "projectId": "116fb77f-8d72-48b7-bbb2-3820ad85381c",
+  "projectId": "1eaf5a3e-a8e8-49d7-ac0e-bee94022d6f8",
   "appVersion": "0.8.0",
-  "createdAt": "2026-09-16T06:05:54.159Z",
-  "updatedAt": "2026-09-16T06:05:54.159Z",
+  "createdAt": "2026-09-16T06:29:15.170Z",
+  "updatedAt": "2026-09-16T06:29:15.170Z",
   "target": {
     "format": "openehr-template",
     "filename": "blood_pressure.opt",
@@ -2839,13 +2839,13 @@
   },
   "examples": [
     {
-      "id": "a4d6b8a5-ed00-4db8-a555-4c91d559d1d3",
+      "id": "edbdd381-70dc-4e31-8d74-3e5b01a39bcb",
       "filename": "instance-1.json",
       "format": "json",
       "content": "{\n  \"patientId\": \"demo-001\",\n  \"systolic\": 120,\n  \"diastolic\": 80,\n  \"unit\": \"mm[Hg]\"\n}\n"
     }
   ],
-  "activeExampleId": "a4d6b8a5-ed00-4db8-a555-4c91d559d1d3",
+  "activeExampleId": "edbdd381-70dc-4e31-8d74-3e5b01a39bcb",
   "mapping": {
     "blocklyState": null,
     "model": {

@@ -327,6 +327,34 @@ Deno.test("list_constraint_warnings reports unmapped mandatory slots on an OPT",
   assertEquals(built.prompt.includes("## Constraint warnings"), true);
 });
 
+Deno.test("headless load_target scaffolds Conversion start so Instance encoding can be set", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "blood_pressure.opt"),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as {
+    productStack: Array<{ type: string; encoding?: string }>;
+  };
+  assertEquals(
+    snap.productStack.some((row) => row.type === "composition"),
+    true,
+    JSON.stringify(snap.productStack),
+  );
+  assertEquals(
+    snap.productStack.some((row) => row.encoding === "canonical-json"),
+    true,
+    JSON.stringify(snap.productStack),
+  );
+  const encoded = await callAgentTool(service, "set_instance_encoding", {
+    encoding: "flat-json",
+  }) as { stack: Array<{ encoding?: string; type: string }> };
+  assertEquals(
+    encoded.stack.some((row) => row.encoding === "flat-json"),
+    true,
+    JSON.stringify(encoded.stack),
+  );
+});
+
 Deno.test("list_constraint_warnings includes Decision table catch-all lint", async () => {
   const service = new WorkbenchService();
   await callAgentTool(service, "load_target", {

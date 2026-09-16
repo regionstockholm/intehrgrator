@@ -23,7 +23,7 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
 
 **GUI (watch the canvas):** desktop running; MCP `INTEHR_AGENT_URL=http://127.0.0.1:<port>` (add `INTEHR_AGENT_TOKEN` when the desktop was started with `--token`). Done when `GET /api/v1/health` returns `ok`.
 
-**Headless / server:** `deno task mcp` with **no** `INTEHR_AGENT_URL` (embedded `WorkbenchService`), **or** `intEHRgrator --headless [--port n] [--bind addr] [--load file.intehrgrator] [--token secret]`. Non-loopback `--bind` requires `--token`. Done when load/inspect tools answer.
+**Headless / server:** `deno task mcp` with **no** `INTEHR_AGENT_URL` (embedded `WorkbenchService`), **or** `intEHRgrator --headless [--port n] [--bind addr] [--load file.intehrgrator] [--token secret]`. Non-loopback `--bind` requires `--token`. Target load **scaffolds** Conversion start + Template Skeleton (same as the GUI). Done when load/inspect tools answer.
 
 ## Golden path
 

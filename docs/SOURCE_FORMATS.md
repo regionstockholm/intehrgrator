@@ -5,6 +5,7 @@
 | Format | v1 | Load | Query |
 |--------|-----|------|-------|
 | JSON schema | ✓ | `JSON.parse` | fontoxpath (authoring / click-to-map from schema tree) |
+| Avro schema (`.avsc` JSON) | ✓ | Record/`fields` tree | Same JSON evaluator; instances stay JSON |
 | JSON instance | ✓ | `JSON.parse` | fontoxpath (example tabs + Test Run) |
 | XML instance | ✓ | `DOMParser` | fontoxpath (example tabs + Test Run) |
 | XML schema (XSD) | Deferred | — | [future/xml-schema-support.md](future/xml-schema-support.md) |
@@ -25,7 +26,7 @@ Callers (Click-to-Map, Test Run, instance validation, schema load) go through a 
 | `createContext(content)` | Runtime context for evaluation |
 | `evaluate(expression, ctx, returnType)` | Run a Mapping Expression against that context |
 
-Built-in adapters: **JSON**, **XML**, and openEHR-as-source ids above. Register more with `registerSourceFormatHandler`.
+Built-in adapters: **JSON** (JSON Schema, Avro `.avsc` records, or inferred instance shape), **XML**, and openEHR-as-source ids above. Register more with `registerSourceFormatHandler`. An `.avsc` file is **not** treated as a JSON instance of the Avro document (that would expose `fields` / `namespace` as source paths); the JSON handler walks Avro `record.fields`.
 
 | Module | Path |
 |--------|------|

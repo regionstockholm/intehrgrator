@@ -18,6 +18,7 @@ intEHRgrator --headless [--port <n>] [--bind <addr>] [--load <file.intehrgrator>
 - `--headless`: do not open a browser; on `deno desktop` / the compiled app, hide the native window and keep `Deno.serve` alive.
 - `--bind 0.0.0.0` (or any non-loopback) **requires** `--token` or `INTEHR_AGENT_TOKEN`. When a token is set, every Agent API route except `GET /health` needs `Authorization: Bearer …` or `x-intehr-token`.
 - `--load` hydrates the shared `WorkbenchService` from a Project Bundle zip (`.intehrgrator`) or JSON file at start.
+- Loading a target via Agent API / MCP **scaffolds** the Template Skeleton onto a headless Blockly workspace (Conversion start, Defaults, default-point lookups) so `set_instance_encoding`, loops, and Optional RM match the GUI.
 - `DENO_SERVE_ADDRESS` (Deno desktop webview) still owns listen address; `--port` / `--bind` apply to `deno run`.
 
 Base URL: `http://127.0.0.1:<port>/api/v1/`

@@ -1,4 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
+import { join } from "@std/path";
 import {
   detectSourceFormat,
   getSourceFormatHandler,
@@ -33,6 +34,29 @@ Deno.test("detectSourceFormat from filename", () => {
     "openehr-flat-json",
   );
   assertEquals(detectSourceFormat("unknown.bin"), "json");
+});
+
+Deno.test("Avro .avsc record schema loads as field tree, not Avro meta document", async () => {
+  const avsc = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "fixtures",
+      "administrerad-medicinsk-onkologisk-behandling",
+      "source-schema",
+      "AdministrationRCCV1_source_schema.avsc",
+    ),
+  );
+  const handler = getSourceFormatHandler("json");
+  const tree = handler.loadSchema(avsc, "AdministrationRCCV1");
+  const names = tree.children.map((c) => c.name);
+  assertEquals(names.includes("CytodosAdministrationKey"), true, names.join(","));
+  assertEquals(names.includes("Substanser"), true, names.join(","));
+  assertEquals(names.includes("fields"), false, names.join(","));
+  const substanser = tree.children.find((c) => c.name === "Substanser")!;
+  assertEquals(substanser.type, "array");
+  const itemNames = (substanser.children[0]?.children ?? []).map((c) => c.name);
+  assertEquals(itemNames.includes("Innholdstoff_ATC"), true, itemNames.join(","));
+  assertEquals(itemNames.includes("Dose"), true, itemNames.join(","));
 });
 
 Deno.test("json handler loadSchema / pathToExpression / evaluate", () => {

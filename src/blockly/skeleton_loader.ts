@@ -171,6 +171,8 @@ export function applyModelExpressions(
       }
     }
     applyModelLoops(workspace, model);
+    applyModelOptionalSchemaFields(workspace as WorkspaceSvg, model);
+    applyModelOptionalRmInsertions(workspace as WorkspaceSvg, model);
   };
   if (options.recordUndo) apply();
   else runWithoutBlocklyEvents(apply);
@@ -392,6 +394,21 @@ function applyModelOptionalSchemaFields(
       if (input?.connection?.targetBlock()) continue;
       attachOptionalSchemaChild(workspace, parent, name);
     }
+  }
+}
+
+function applyModelOptionalRmInsertions(
+  workspace: WorkspaceSvg,
+  model: MappingModel,
+): void {
+  for (const extra of model.optionalRm) {
+    const parent = findBlockBySlotId(workspace, extra.attachmentSlotId);
+    if (!parent || isSchemaStructureBlock(parent)) continue;
+    const inputName = parent.getInput(rmAttributeInputName(extra.attributeName))
+      ? rmAttributeInputName(extra.attributeName)
+      : optionalRmInputName(extra.attributeName);
+    if (parent.getInput(inputName)?.connection?.targetBlock()) continue;
+    attachOptionalRmChild(workspace, parent, extra);
   }
 }
 

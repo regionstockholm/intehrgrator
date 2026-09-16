@@ -2227,8 +2227,8 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.append(title, list);
 }
 
-/** Blockly path width in workspace units (excludes nested child stacks). */
-function ownOutlineWidth(block: BlockSvg): number {
+/** Blockly path size in workspace units (excludes nested child stacks). */
+function ownOutlineSize(block: BlockSvg): { width: number; height: number } {
   const byId = block.id
     ? document.querySelector(
       `g.blocklyDraggable[data-id="${CSS.escape(block.id)}"]`,
@@ -2242,11 +2242,14 @@ function ownOutlineWidth(block: BlockSvg): number {
   ) as SVGPathElement | null;
   try {
     const box = path?.getBBox?.();
-    if (box && box.width > 0) return box.width;
+    if (box && box.width > 0) return { width: box.width, height: box.height };
   } catch {
     // path not in the live tree yet
   }
-  return Number(block.width ?? 0);
+  return {
+    width: Number(block.width ?? 0),
+    height: Number(block.height ?? 0),
+  };
 }
 
 function statementInputMetricsOf(
@@ -2257,6 +2260,7 @@ function statementInputMetricsOf(
   offsetY: number;
   blockWidth: number;
   ownWidth: number;
+  ownHeight: number;
   align: number;
   scale: number;
 } | null {
@@ -2271,13 +2275,16 @@ function statementInputMetricsOf(
   const hw = typeof svg.getHeightWidth === "function"
     ? svg.getHeightWidth()
     : { width: Number((block as { width?: number }).width ?? 0) };
-  const ownWidth = ownOutlineWidth(svg) || Number(svg.width ?? hw.width ?? 0);
+  const own = ownOutlineSize(svg);
+  const ownWidth = own.width || Number(svg.width ?? hw.width ?? 0);
+  const ownHeight = own.height || Number(svg.height ?? 0);
   const scale = Number((block.workspace as Blockly.WorkspaceSvg | undefined)?.scale ?? 1);
   return {
     offsetX: Number(offset.x),
     offsetY: Number(offset.y),
     blockWidth: Number(hw.width ?? 0),
     ownWidth,
+    ownHeight,
     align: Number(input.align ?? 0),
     scale: Number.isFinite(scale) && scale > 0 ? scale : 1,
   };
@@ -2407,6 +2414,63 @@ function installWorkbenchTestApi(): void {
       const container = (mini.getTopBlocks?.(false) ?? []).find((candidate) => candidate.getInput("STACK")) ??
         null;
       return statementInputMetricsOf(container, "STACK");
+    },
+    listMouthMetrics(extraBlockTypes) {
+      const VALUE = Blockly.inputs?.INPUT_VALUE ?? 1;
+      const STATEMENT = Blockly.inputs?.INPUT_STATEMENT ?? 3;
+      const created: Blockly.Block[] = [];
+      const requested = extraBlockTypes?.includes("*")
+        ? Object.keys(Blockly.Blocks).filter((type) => !/mutator/i.test(type))
+        : extraBlockTypes ?? [];
+      for (const type of requested) {
+        if (!Blockly.Blocks[type]) continue;
+        try {
+          const block = workspace.newBlock(type) as BlockSvg;
+          block.initSvg?.();
+          block.render?.();
+          created.push(block);
+        } catch {
+          // Stock/mutator types that cannot live on the main canvas.
+        }
+      }
+      const out: Array<{
+        blockType: string;
+        blockId: string;
+        inputName: string;
+        kind: "statement" | "value";
+        offsetX: number;
+        offsetY: number;
+        ownWidth: number;
+        ownHeight: number;
+        align: number;
+      }> = [];
+      for (const block of workspace.getAllBlocks(false)) {
+        (block as BlockSvg).render?.();
+        for (const input of block.inputList) {
+          if (!input.connection || !input.name) continue;
+          const kind = input.type === STATEMENT
+            ? "statement"
+            : input.type === VALUE
+            ? "value"
+            : null;
+          if (!kind) continue;
+          const metrics = statementInputMetricsOf(block, input.name);
+          if (!metrics) continue;
+          out.push({
+            blockType: block.type,
+            blockId: block.id,
+            inputName: input.name,
+            kind,
+            offsetX: metrics.offsetX,
+            offsetY: metrics.offsetY,
+            ownWidth: metrics.ownWidth,
+            ownHeight: metrics.ownHeight,
+            align: metrics.align,
+          });
+        }
+      }
+      for (const block of created) block.dispose(false);
+      return out;
     },
     newBlock(type) {
       const block = workspace.newBlock(type) as BlockSvg;

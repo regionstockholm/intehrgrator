@@ -87,6 +87,7 @@ export interface IntehrgratorTestApi {
     offsetY: number;
     blockWidth: number;
     ownWidth: number;
+    ownHeight: number;
     align: number;
     scale: number;
   } | null;
@@ -101,9 +102,26 @@ export interface IntehrgratorTestApi {
     offsetY: number;
     blockWidth: number;
     ownWidth: number;
+    ownHeight: number;
     align: number;
     scale: number;
   } | null;
+  /**
+   * Connection metrics for every value and statement mouth on the canvas
+   * (and optional extra block types created for empty-mouth coverage).
+   * Pass `"*"` to instantiate every non-mutator registered block type.
+   */
+  listMouthMetrics(extraBlockTypes?: string[]): Array<{
+    blockType: string;
+    blockId: string;
+    inputName: string;
+    kind: "statement" | "value";
+    offsetX: number;
+    offsetY: number;
+    ownWidth: number;
+    ownHeight: number;
+    align: number;
+  }>;
   /** Create a canvas block (rendered). Returns the new block id. */
   newBlock(type: string): string | null;
   /** True when `child` previous can snap to `parent`'s named statement input. */

@@ -44,6 +44,10 @@ import {
   mergedOntologyTerms,
   mergeTermMaps,
   nameFallbackOf,
+  overlayConceptFallback,
+  parentArchetypeRefFromOverlay,
+  parentArchetypeTermBag,
+  isOverlayArchetypeRef,
   publicArchetypeRef,
   resolveOptLanguage,
   TEMPLATE_ROOT_TERM_SCOPE,
@@ -77,6 +81,11 @@ export function generateSkeleton(
   const parsed = parseTemplateInput(optSource);
   const opt = parsed.operationalTemplate as AmObject;
   if (!opt?.definition) {
+    if (parsed.format === "template_json") {
+      throw new Error(
+        "Better .t.json templates need a GitHub blob/raw URL so dependent archetypes can be fetched. Use ▾ → From GitHub template…",
+      );
+    }
     throw new Error("Could not parse operational template from input");
   }
   const generated = generateSkeletonFromOperational(opt, optSource, undefined, options);
@@ -189,6 +198,7 @@ function walkComplex(
     nameFallbackOf(cObj as TermScopeMeta & { node_id?: string; archetype_ref?: string }),
     fallbackTerms,
     archetypeTerms,
+    templateId,
   );
   const blockType = blockTypeForRm(rmType);
   const archetypeCtx = nodeArchetypeRef
@@ -230,6 +240,7 @@ function walkComplex(
 
     const slotCard = multiplicityOfAttribute(attr);
     const attrMandatory = (effective?.min ?? 0) >= 1;
+    const rmSingleMandatory = (rmInterval?.min ?? 0) >= 1 && rmInterval?.max === 1;
     const childNodes = walkAttribute(
       attr,
       templateId,
@@ -245,7 +256,7 @@ function walkComplex(
         child.rmCardinality = constraint.rmCardinality;
         child.effectiveCardinality = constraint.effectiveCardinality;
       }
-      if (attrMandatory) child.mandatory = true;
+      if (attrMandatory || rmSingleMandatory) child.mandatory = true;
       applyRmConstrainedFields(child, rmType);
       children.push(child);
     }
@@ -276,6 +287,20 @@ function walkComplex(
   }
 
   if (rmType === "ELEMENT") {
+    if (!children.some((child) => child.rmAttribute === "value")) {
+      const valueNode = buildNodeForRmType(
+        "DV_TEXT",
+        templateId,
+        nodeArchetypeRef,
+        `${slotPath}/value`,
+        label,
+        terms,
+      );
+      valueNode.rmAttribute = "value";
+      // ELEMENT.value is RM 0..1; only auto-attach as mandatory when the ELEMENT is.
+      valueNode.mandatory = mandatory;
+      children.push(valueNode);
+    }
     for (const child of children) {
       if (child.kind === "value" && isDataValueType(child.rmType)) {
         if (!child.label || child.label === child.rmType) child.label = label;
@@ -311,20 +336,22 @@ function walkAttribute(
 ): SkeletonNode[] {
   const children = (attr.children ?? []) as AmObject[];
   const nodes: SkeletonNode[] = [];
+  const visibleChildren = children.filter((child) => !isProhibitedAmObject(child));
 
-  for (const child of children) {
+  for (const child of visibleChildren) {
     const childArchetypeRef = publicArchetypeRef(
       termScopeOf(child as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
     ) ?? archetypeRef;
     const rmType = child.rm_type_name ?? "DV_TEXT";
     const { nodeId, nameHint } = splitAqlStyleNodeId(child.node_id as string | undefined);
+    const childPath = `${path}/${pathSegmentForChild(child, visibleChildren)}`;
     const isDv = isDataValueType(rmType);
     if (!isDv || child.attributes) {
       const node = walkComplex(
         child,
         templateId,
         childArchetypeRef,
-        `${path}/${pathNodeSegment(nodeId, rmType)}`,
+        childPath,
         fallbackTerms,
         archetypeTerms,
       );
@@ -349,6 +376,7 @@ function walkAttribute(
           nameFallbackOf(child as TermScopeMeta & { node_id?: string; archetype_ref?: string }),
           fallbackTerms,
           archetypeTerms,
+          templateId,
         ),
         archetypeNodeId: nodeId,
         archetypeId: templateId,
@@ -502,7 +530,7 @@ function silentMandatoryRmType(parentType: string, attrName: string): string | n
       subject: "PARTY_PROXY",
     },
     OBSERVATION: { data: "HISTORY" },
-    EVALUATION: { data: "HISTORY" },
+    EVALUATION: { data: "ITEM_TREE" },
     ADMIN_ENTRY: { data: "ITEM_TREE" },
     INSTRUCTION: { narrative: "DV_TEXT" },
     ACTION: {
@@ -537,6 +565,11 @@ function isMandatory(cObj: AmObject): boolean {
   return (occ?.min ?? 0) > 0;
 }
 
+function isProhibitedAmObject(cObj: AmObject): boolean {
+  const occ = intervalFromAmBound(cObj.occurrences ?? cObj.existence);
+  return Boolean(occ && isProhibitedInterval(occ));
+}
+
 const AQL_NAME_PRED = /^(.*),'([^']+)'$/;
 
 /** Split Better/AQL-style node ids such as `at0002,'Injury'` or `openEHR-EHR-SECTION.adhoc.v1,'Vital signs'`. */
@@ -559,7 +592,49 @@ function resolvedNodeLabel(
   nameFallback: string | undefined,
   templateTerms: TermBag,
   archetypeTerms: Record<string, TermBag>,
+  templateId?: string,
 ): string {
+  if (isOverlayArchetypeRef(scope)) {
+    const overlayOnly = locatableNodeLabel(
+      nodeId,
+      rmType,
+      scope,
+      nameFallback,
+      {},
+      archetypeTerms,
+    );
+    if (overlayOnly && overlayOnly !== nodeId && overlayOnly !== rmType) return overlayOnly;
+    const parentBag = parentArchetypeTermBag(scope, archetypeTerms);
+    const parentRef = parentArchetypeRefFromOverlay(scope);
+    if (parentRef) {
+      const parentLabel = locatableNodeLabel(
+        nodeId,
+        rmType,
+        parentRef,
+        nameFallback,
+        {},
+        archetypeTerms,
+      );
+      if (parentLabel && parentLabel !== nodeId && parentLabel !== rmType) {
+        return parentLabel;
+      }
+    }
+    const fromParentBag = lookupTermText(parentBag ?? {}, nodeId ?? "") ??
+      lookupTermText(parentBag ?? {}, nameFallback ?? "");
+    if (fromParentBag) return fromParentBag;
+    // Better template slots (`at0.6`) are overlay roots even when term-scope
+    // fallback is tagged as the slot id rather than at0000.
+    const overlayRoot = !nodeId || nodeId === "at0000" || nameFallback === "at0000" ||
+      /^at0\.\d/i.test(nodeId);
+    if (overlayRoot) {
+      return nameHint ||
+        lookupTermText(parentBag ?? {}, "at0000") ||
+        overlayConceptFallback(scope) ||
+        overlayOnly;
+    }
+    return nameHint || overlayOnly;
+  }
+
   const fromTerms = locatableNodeLabel(
     nodeId,
     rmType,
@@ -568,12 +643,40 @@ function resolvedNodeLabel(
     templateTerms,
     archetypeTerms,
   );
-  if (fromTerms && fromTerms !== nodeId && fromTerms !== rmType) return fromTerms;
+  if (
+    fromTerms &&
+    fromTerms !== nodeId &&
+    fromTerms !== rmType &&
+    fromTerms !== templateId
+  ) return fromTerms;
   return nameHint || fromTerms;
 }
 
 function pathNodeSegment(nodeId: string | undefined, rmType: string): string {
   return nodeId || rmType;
+}
+
+/**
+ * Sibling C_ARCHETYPE_ROOT nodes often share `at0000`. Use the archetype id as
+ * the path segment only when that would otherwise collide (keeps unique OPTs
+ * such as blood_pressure.opt stable).
+ */
+function pathSegmentForChild(child: AmObject, siblings: AmObject[]): string {
+  const { nodeId } = splitAqlStyleNodeId(child.node_id as string | undefined);
+  const rmType = (child.rm_type_name as string | undefined) ?? "ITEM_TREE";
+  const base = pathNodeSegment(nodeId, rmType);
+  const same = siblings.filter((sibling) => {
+    const id = splitAqlStyleNodeId(sibling.node_id as string | undefined).nodeId ??
+      sibling.rm_type_name;
+    return id === base;
+  });
+  if (same.length <= 1) return base;
+  const ref = publicArchetypeRef(
+    termScopeOf(child as TermScopeMeta & { archetype_ref?: string }),
+  ) ?? (child.archetype_ref as string | undefined);
+  if (ref) return ref;
+  const index = same.indexOf(child);
+  return index > 0 ? `${base}~${index}` : base;
 }
 
 export function multiplicityOfAm(cObj: AmObject): string | undefined {

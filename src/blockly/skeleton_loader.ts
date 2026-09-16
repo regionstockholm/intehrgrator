@@ -586,10 +586,13 @@ function buildContainerBlock(
 
   const visibleChildren = node.children.filter(
     (child) => {
+      if (parseSlotCardinality(child.multiplicity)?.max === 0) return false;
+      if (parseSlotCardinality(child.effectiveCardinality)?.max === 0) return false;
       if (child.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(child.label)) return false;
 
-      // Content items are user-visible openEHR structure. Optional observations
-      // (e.g. Blood pressure 0..1) must still scaffold so they can be mapped.
+      // Template-defined content (optional 0..1 observations, ELEMENTs inside
+      // EVALUATION.data) must still scaffold so they can be mapped. Optional RM
+      // Insertion (`+`) covers attributes that are not in the OPT walk.
       if (
         child.blockType === "section" ||
         child.rmType === "SECTION" ||
@@ -597,24 +600,15 @@ function buildContainerBlock(
         child.rmType === "EVALUATION" ||
         child.rmType === "INSTRUCTION" ||
         child.rmType === "ACTION" ||
-        child.rmType === "ADMIN_ENTRY"
+        child.rmType === "ADMIN_ENTRY" ||
+        child.rmType === "ELEMENT" ||
+        child.blockType === "element"
       ) return true;
 
       // Default visibility policy:
       // - show openEHR structures that are mandatory in the OPT walk
       // - keep optional RM structures hidden until the user clicks the `+` picker
       if (child.mandatory === true) return true;
-
-      // ELEMENT wrappers can have `mandatory=false` even when their primary typed DATA_VALUE
-      // is mandatory (so mapping slots must remain reachable).
-      if (child.rmType === "ELEMENT" || child.blockType === "element") {
-        return child.children.some((gc) =>
-          gc.kind === "value" &&
-          isDataValueType(gc.rmType) &&
-          gc.mandatory === true &&
-          !(gc.kind === "value" && AUTO_FIXED_LOCATABLE_ATTRS.has(gc.label))
-        );
-      }
 
       // Keep intermediate structural wrappers visible when they contain
       // mandatory value slots underneath. This avoids “disappearing”

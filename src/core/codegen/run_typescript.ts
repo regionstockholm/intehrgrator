@@ -14,6 +14,7 @@ import {
   evaluateXPathToNumber,
   evaluateXPathToString,
 } from "fontoxpath";
+import Handlebars from "handlebars";
 import { JsonCanonicalSerializer } from "ehrtslib/serialization/json/mod.ts";
 import { XmlSerializer } from "ehrtslib/serialization/xml/mod.ts";
 import {
@@ -38,6 +39,7 @@ export function generatedScriptRuntime(): GeneratedScriptRuntime {
     parseWebTemplate,
     serializeToFlatJson,
     serializeToStructuredJson,
+    Handlebars,
   };
 }
 
@@ -50,6 +52,20 @@ export function stripGeneratedTypeScript(source: string): { names: string[]; bod
         const name = raw.trim().split(/\s+as\s+/).pop()?.trim();
         if (name) names.push(name);
       }
+      return "";
+    },
+  );
+  body = body.replace(
+    /import\s+(\w+)\s+from\s*["'][^"']+["']\s*;?/g,
+    (_all, name: string) => {
+      names.push(name);
+      return "";
+    },
+  );
+  body = body.replace(
+    /import\s+\*\s+as\s+(\w+)\s+from\s*["'][^"']+["']\s*;?/g,
+    (_all, name: string) => {
+      names.push(name);
       return "";
     },
   );

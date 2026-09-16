@@ -16,7 +16,11 @@ import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
   runGeneratedTypeScript,
   serializedConversionOutput,
+  stripGeneratedTypeScript,
 } from "@intehrgrator/core/codegen/run_typescript.ts";
+import { migrateHandlebarsTemplateOntoCanvas } from "@intehrgrator/core/output/handlebars_canvas_migrate.ts";
+import { TEXT_DOCUMENT_BLOCK_TYPE } from "@intehrgrator/blockly/instance_root.ts";
+import { TEXT_CODE_BLOCK_TYPE, TEXT_HANDLEBARS_BLOCK_TYPE } from "@intehrgrator/blockly/blocks/text_blocks.ts";
 import { generateSkeleton, collectValueSlots, collectAllSlotIds } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
@@ -607,3 +611,77 @@ async function mappedBpJava() {
   const java = generate(model, "java", { skeleton });
   return { model, skeleton, systolic, java, templateId };
 }
+
+Deno.test("stripGeneratedTypeScript removes default Handlebars import", () => {
+  const { names, body } = stripGeneratedTypeScript(
+    'import Handlebars from "handlebars";\nfunction convertSourceToComposition() { return Handlebars; }',
+  );
+  assertEquals(names.includes("Handlebars"), true);
+  assertEquals(body.includes("import"), false);
+});
+
+Deno.test("TypeScript Output mode executes handlebars text block canvas mapping", () => {
+  initBlocklyGenerators();
+  const workspace = new Blockly.Workspace();
+  try {
+    const document = workspace.newBlock(TEXT_DOCUMENT_BLOCK_TYPE);
+    const script = workspace.newBlock(TEXT_CODE_BLOCK_TYPE);
+    script.setFieldValue("handlebars", "LANG");
+    script.setFieldValue("My: {{a}} + {{b}}", "TEXT");
+    const context = workspace.newBlock("maps_create_with") as Blockly.Block & {
+      itemCount_: number;
+      updateShape_: () => void;
+    };
+    context.itemCount_ = 2;
+    context.updateShape_();
+    context.setFieldValue("a", "KEY0");
+    context.setFieldValue("b", "KEY1");
+    const valA = workspace.newBlock("text");
+    valA.setFieldValue("foo", "TEXT");
+    const valB = workspace.newBlock("text");
+    valB.setFieldValue("2foo", "TEXT");
+    context.getInput("VAL0")?.connection?.connect(valA.outputConnection!);
+    context.getInput("VAL1")?.connection?.connect(valB.outputConnection!);
+    const render = workspace.newBlock(TEXT_HANDLEBARS_BLOCK_TYPE);
+    render.getInput("SCRIPT")?.connection?.connect(script.outputConnection!);
+    render.getInput("CONTEXT")?.connection?.connect(context.outputConnection!);
+    document.getInput("VALUE")?.connection?.connect(render.outputConnection!);
+    attachStartToInstanceRoot(workspace, document);
+
+    const model = createEmptyModel("dummy-json-vitals");
+    model.targetFormat = "free-form";
+    const ts = generateTypeScriptFromWorkspace(workspace, model);
+    assert(ts, "expected generated TypeScript from handlebars canvas");
+    assertStringIncludes(ts!, 'import Handlebars from "handlebars"');
+    assertStringIncludes(ts!, 'handlebars("My: {{a}} + {{b}}"');
+
+    const out = runGeneratedTypeScript(ts!, { format: "json", data: {} }, {});
+    assertEquals(out, "My: foo + 2foo");
+
+    const state = Blockly.serialization.workspaces.save(workspace);
+    const result = runTest(model, "{}", "json", {
+      outputMode: "typescript",
+      generatedCode: ts!,
+      blocklyState: state,
+      target: { format: "free-form", targetId: "dummy", filename: "t.hbs", content: "", skeleton: [] },
+    });
+    assertEquals(result.error, undefined, result.error);
+    assertEquals(result.output, "My: foo + 2foo");
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("migrateHandlebarsTemplateOntoCanvas injects text_handlebars product stack", () => {
+  initBlocklyGenerators();
+  const migrated = migrateHandlebarsTemplateOntoCanvas(null, "Hello {{name}}") as {
+    blocks?: { blocks?: Array<{ type?: string; next?: { block?: { type?: string } } }> };
+  };
+  const tops = migrated.blocks?.blocks ?? [];
+  const start = tops.find((block) => block.type === "conversion_start");
+  assert(start, "expected conversion_start after migration");
+  assertEquals(start?.next?.block?.type, "text_document");
+  const json = JSON.stringify(migrated);
+  assertStringIncludes(json, "text_handlebars");
+  assertStringIncludes(json, "Hello {{name}}");
+});

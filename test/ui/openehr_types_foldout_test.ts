@@ -62,6 +62,34 @@ Deno.test({
         return flyoutBlocks.length;
       });
       assert(blockCount >= 10, `Flyout should contain openEHR blocks (found ${blockCount})`);
+
+      const chrome = await page.waitForFunction(() => {
+        const paths = [...document.querySelectorAll(".blocklyFlyoutBackground")];
+        const visible = paths.find((el) => {
+          const box = el.getBoundingClientRect();
+          return box.width > 40 && box.height > 40;
+        });
+        const contents = document.querySelector(".blocklyToolboxContents");
+        const toolbox = document.querySelector(".blocklyToolboxDiv");
+        const flyoutFill = visible ? getComputedStyle(visible).fill : "";
+        const toolboxBg = contents ? getComputedStyle(contents).backgroundColor : "";
+        const toolboxDivBg = toolbox ? getComputedStyle(toolbox).backgroundColor : "";
+        const tinted = (value: string) =>
+          value.includes("232, 245, 242") || value.toLowerCase().includes("e8f5f2");
+        if (!tinted(flyoutFill) || !(tinted(toolboxBg) || tinted(toolboxDivBg))) {
+          return null;
+        }
+        return { flyoutFill, toolboxBg, toolboxDivBg };
+      }, { timeout: 8_000 });
+      const colors = await chrome.jsonValue() as {
+        flyoutFill: string;
+        toolboxBg: string;
+        toolboxDivBg: string;
+      };
+      assert(
+        colors.flyoutFill.includes("232, 245, 242"),
+        `open drawer should be a mild teal wash, not white: ${JSON.stringify(colors)}`,
+      );
     } finally {
       await browser.close();
     }

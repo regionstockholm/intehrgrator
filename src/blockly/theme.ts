@@ -77,9 +77,10 @@ export function createModestTheme(): Blockly.Theme {
     },
     componentStyles: {
       workspaceBackgroundColour: "#ffffff",
-      toolboxBackgroundColour: "#ffffff",
+      // Keep in sync with `--toolbox-surface` in web/styles.css.
+      toolboxBackgroundColour: "#e8f5f2",
       toolboxForegroundColour: "#202124",
-      flyoutBackgroundColour: "#ffffff",
+      flyoutBackgroundColour: "#e8f5f2",
       flyoutForegroundColour: "#202124",
       flyoutOpacity: 1,
       scrollbarColour: "#dadce0",

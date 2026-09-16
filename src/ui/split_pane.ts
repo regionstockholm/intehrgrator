@@ -18,6 +18,11 @@ export interface SplitGroupOptions {
   preferredIndex?: number;
   /** Minimum fraction of the container the preferred pane should keep. Default 0.5 */
   preferredMinFrac?: number;
+  /**
+   * Explicit pane elements (must be children of the container). When omitted,
+   * every element child is a pane.
+   */
+  panes?: HTMLElement[];
 }
 
 const HANDLE_SIZE = 6;
@@ -154,7 +159,7 @@ export function initSplitGroup(
   options: SplitGroupOptions = {},
 ): () => void {
   const minSize = options.minSize ?? DEFAULT_MIN;
-  const panes = childElements(container);
+  const panes = options.panes?.length ? options.panes : childElements(container);
   if (panes.length < 2) return () => {};
 
   container.classList.add("split-group", axis === "row" ? "split-group--row" : "split-group--column");
@@ -202,6 +207,7 @@ export function initSplitGroup(
     const onPointerDown = (ev: PointerEvent): void => {
       if (ev.button !== 0) return;
       ev.preventDefault();
+      ev.stopPropagation();
       handle.setPointerCapture(ev.pointerId);
       handle.classList.add("split-handle--active");
 

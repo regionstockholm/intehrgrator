@@ -590,3 +590,25 @@ Deno.test("buildPrompt includes Decision table grids and product stack", () => {
   assertEquals(prompt.includes("decision_table"), true);
   assertEquals(prompt.includes("more readable to humans"), true);
 });
+
+Deno.test("buildPrompt includes Optional RM Insertion catalog", () => {
+  const model = createEmptyModel("bp");
+  const prompt = buildPrompt({
+    scope: "full",
+    targetId: "bp",
+    targetFormat: "openehr-template",
+    targetFilename: "blood_pressure.opt",
+    skeleton,
+    model,
+    formatDocUrl: "https://example.test/docs/AI_SUGGESTION_FORMAT.md",
+    delivery: "attach",
+    artifacts: [],
+    optionalRm: [{
+      parentSlotId: "bp/content[openEHR-EHR-OBSERVATION.blood_pressure.v2]",
+      attachments: [{ rmType: "FEEDER_AUDIT", attributeName: "feeder_audit", label: "feeder_audit" }],
+    }],
+  });
+  assertEquals(prompt.includes("## Optional RM Insertion"), true);
+  assertEquals(prompt.includes("optional_rm_add"), true);
+  assertEquals(prompt.includes("feeder_audit"), true);
+});

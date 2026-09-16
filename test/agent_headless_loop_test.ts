@@ -214,6 +214,29 @@ Deno.test("load_bundle accepts unwrapped Project Bundle JSON on HTTP PUT", async
   assertEquals(other.getSnapshot().templateId, service.getSnapshot().templateId);
 });
 
+Deno.test("build_prompt includes Optional RM catalog for an OPT", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "blood_pressure.opt"),
+  });
+  const built = await callAgentTool(service, "build_prompt", { delivery: "attach" }) as { prompt: string };
+  assertEquals(built.prompt.includes("## Optional RM Insertion"), true);
+  assertEquals(built.prompt.includes("optional_rm_add"), true);
+});
+
+Deno.test("load_bundle accepts zip bytesBase64", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "dummy-json-vitals", "target.schema.json"),
+  });
+  const exported = await callAgentTool(service, "export_bundle", { format: "zip" }) as {
+    bytesBase64: string;
+  };
+  const other = new WorkbenchService();
+  await callAgentTool(other, "load_bundle", { bytesBase64: exported.bytesBase64 });
+  assertEquals(other.getSnapshot().templateId, service.getSnapshot().templateId);
+});
+
 Deno.test("load_example_set from local catalogPath hydrates dummy-json-vitals", async () => {
   const service = new WorkbenchService();
   const loaded = await callAgentTool(service, "load_example_set", {

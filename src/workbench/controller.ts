@@ -34,7 +34,7 @@ import {
   MAPPING_PREVIEW_SCRIPT_PLACEHOLDER,
   unimplementedTestRunMessage,
 } from "../types/mod.ts";
-import { collectValueSlots, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectAllSlotIds, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
 import {
   applyExpressionEdit,
   countUnmappedMandatory,
@@ -981,6 +981,7 @@ export class WorkbenchController {
       artifacts: this.collectAiArtifacts(),
       sheets: this.sheets,
       productStack: productStackInspect(this.getBlocklyState?.() ?? this.blocklyState),
+      optionalRm: this.collectOptionalRmCatalog(),
     });
   }
 
@@ -1174,6 +1175,20 @@ export class WorkbenchController {
           .map((row) => row.name),
       ),
     });
+  }
+
+  collectOptionalRmCatalog(): Array<{
+    parentSlotId: string;
+    attachments: Array<{ rmType: string; attributeName: string; label?: string }>;
+  }> {
+    return collectAllSlotIds(this.skeleton).map((parentSlotId) => ({
+      parentSlotId,
+      attachments: this.getOptionalAttachments(parentSlotId).slice(0, 12).map((row) => ({
+        rmType: row.rmType,
+        attributeName: row.attributeName,
+        ...(row.label ? { label: row.label } : {}),
+      })),
+    })).filter((row) => row.attachments.length).slice(0, 24);
   }
 
   /** Attachments for a Blockly block — skeleton slot when present, otherwise RM type. */

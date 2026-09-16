@@ -79,12 +79,13 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   },
   {
     name: "load_bundle",
-    description: "Load a Project Bundle from JSON, zip bytes path, or .intehrgrator path.",
+    description: "Load a Project Bundle from JSON, zip path, bytesBase64, or an unwrapped bundle object.",
     inputSchema: {
       type: "object",
       properties: {
         bundle: { type: "object" },
         path: { type: "string" },
+        bytesBase64: { type: "string" },
         revision: { type: "string" },
       },
     },
@@ -425,10 +426,12 @@ export async function callAgentTool(
       } else if (typeof args.path === "string") {
         const bytes = await Deno.readFile(args.path);
         service.loadBundleFile(bytes, { expectedRevision: revision });
+      } else if (typeof args.bytesBase64 === "string") {
+        service.loadBundleFile(base64ToUint8(args.bytesBase64), { expectedRevision: revision });
       } else if (isProjectBundleArg(args)) {
         service.loadBundle(projectBundleFromArgs(args), { expectedRevision: revision });
       } else {
-        throw new Error("load_bundle requires bundle JSON or path");
+        throw new Error("load_bundle requires bundle JSON, path, or bytesBase64");
       }
       return { revision: service.getRevision() };
     case "load_target":
@@ -602,6 +605,13 @@ function uint8ToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+function base64ToUint8(encoded: string): Uint8Array {
+  const binary = atob(encoded);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
 async function writeTextPath(path: string, content: string): Promise<void> {
   await ensureDir(dirname(path));
   await Deno.writeTextFile(path, content);
@@ -645,6 +655,7 @@ function projectBundleFromArgs(args: Record<string, unknown>): ProjectBundle {
   delete rest._agentColor;
   delete rest.path;
   delete rest.bundle;
+  delete rest.bytesBase64;
   return rest as unknown as ProjectBundle;
 }
 

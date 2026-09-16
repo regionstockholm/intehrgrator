@@ -51,6 +51,11 @@ export interface BuildPromptOptions {
   sheets?: SheetDocument[];
   /** Conversion start Product stack (Instance roots, encodings, product-grain loops). */
   productStack?: Array<{ type: string; encoding?: string; varName?: string; path?: string }>;
+  /** Optional RM Insertion catalog (parentSlotId + attachments for `optional_rm_add`). */
+  optionalRm?: Array<{
+    parentSlotId: string;
+    attachments: Array<{ rmType: string; attributeName: string; label?: string }>;
+  }>;
 }
 
 const VALUE_BLOCK_TYPES = new Set([
@@ -197,6 +202,17 @@ export function buildPrompt(options: BuildPromptOptions): string {
       "Conversion start chain (Instance roots, Instance encoding, product-grain loops). Change encoding with the `set_instance_encoding` Agent API/MCP tool — not this envelope.",
       "```json",
       JSON.stringify(options.productStack, null, 2),
+      "```",
+      "",
+    );
+  }
+
+  if (options.optionalRm?.length) {
+    sections.push(
+      "## Optional RM Insertion",
+      "These RM-optional attributes are not in the envelope. Call `optional_rm_add` with `parentSlotId`, `rmType`, and `attributeName` copied from this list (then map any new value slots).",
+      "```json",
+      JSON.stringify(options.optionalRm, null, 2),
       "```",
       "",
     );

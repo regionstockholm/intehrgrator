@@ -39,7 +39,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | GET | `/history/:seq/preview` | — | Read-only bundle at history seq (UI) |
 | GET | `/activity` | `get_activity` | Latest agent highlight + registered agents |
 | POST | `/register-agent` | `register_agent` | `{ agentId?, displayName?, color? }` |
-| PUT | `/bundle` | `load_bundle` | Load bundle JSON (`path` also on MCP) |
+| PUT | `/bundle` | `load_bundle` | Load bundle JSON, `{ path }`, or `{ bytesBase64 }` zip |
 | POST | `/load-target` | `load_target` | Target OPT / schema (`content` / `path` / `url`) |
 | POST | `/load-source-schema` | `load_source_schema` | Source Schema |
 | POST | `/add-example` | `add_example` | Example Instance |

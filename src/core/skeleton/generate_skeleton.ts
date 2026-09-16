@@ -627,20 +627,18 @@ export function collectAllSlotIds(nodes: SkeletonNode[]): string[] {
 }
 
 export function findSkeletonTrail(nodes: SkeletonNode[], slotId: string): SkeletonNode[] {
-  function walk(node: SkeletonNode, trail: SkeletonNode[]): SkeletonNode[] | null {
+  const hits: SkeletonNode[][] = [];
+  function walk(node: SkeletonNode, trail: SkeletonNode[]): void {
     const next = [...trail, node];
-    if (node.slotId === slotId) return next;
-    for (const child of node.children) {
-      const hit = walk(child, next);
-      if (hit) return hit;
-    }
-    return null;
+    if (node.slotId === slotId) hits.push(next);
+    for (const child of node.children) walk(child, next);
   }
-  for (const root of nodes) {
-    const hit = walk(root, []);
-    if (hit) return hit;
-  }
-  return [];
+  for (const root of nodes) walk(root, []);
+  const repeating = hits.find((trail) => {
+    const node = trail.at(-1);
+    return Boolean(node && node.kind === "container" && isRepeatingMultiplicity(node.multiplicity));
+  });
+  return repeating ?? hits[0] ?? [];
 }
 
 export function nearestRepeatingContainer(trail: SkeletonNode[]): SkeletonNode | null {

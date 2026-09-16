@@ -505,6 +505,70 @@ Deno.test("openEHR Test Run nests DV_CODED_TEXT defining_code and DV_IDENTIFIER.
   assertEquals(ids.some((row) => row.id === "CCJ3" && row.value === undefined), true, JSON.stringify(ids));
 });
 
+Deno.test("for_each_source attach prefers repeating ACTION over EVALUATION at0000", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  await callAgentTool(service, "add_example", {
+    filename: "two.json",
+    content: JSON.stringify({
+      Substanser: [
+        { Dose: 10, UnitCode: "mg", Innholdstoff_Navn: "A" },
+        { Dose: 20, UnitCode: "mg", Innholdstoff_Navn: "B" },
+      ],
+    }),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string; attachSlotId?: string }>;
+  };
+  const dose = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"));
+  if (!dose?.attachSlotId) throw new Error("missing dose attachSlotId");
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      loops: [{
+        attachSlotId: dose.attachSlotId,
+        block: { type: "for_each_source", fields: { VAR: "substans", PATH: "$.Substanser" } },
+      }],
+      suggestions: [{
+        slotId: dose.slotId,
+        loopVar: "substans",
+        block: {
+          type: "maps_create_with",
+          extraState: { itemCount: 2 },
+          fields: { KEY0: "magnitude", KEY1: "units" },
+          inputs: {
+            VAL0: {
+              block: { type: "source_query_number", fields: { EXPRESSION: "Dose" } },
+            },
+            VAL1: {
+              block: { type: "source_query", fields: { EXPRESSION: "UnitCode" } },
+            },
+          },
+        },
+      }],
+    }),
+  }) as { report: { applied: number; errors: string[]; loopsAccepted?: number } };
+  assertEquals(imported.report.applied, 1, imported.report.errors.join("; "));
+  assertEquals(imported.report.loopsAccepted, 1);
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { output?: unknown };
+  };
+  const mags: number[] = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "DV_QUANTITY" && rec.magnitude != null) mags.push(Number(rec.magnitude));
+  });
+  assertEquals(mags.includes(10) && mags.includes(20), true, JSON.stringify(mags));
+});
+
 function walkDv(
   node: unknown,
   visit: (rec: Record<string, unknown>) => void,

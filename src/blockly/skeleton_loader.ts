@@ -3,7 +3,7 @@ import type { AllowedOrdinal, AllowedValue, MappingLoop, MappingModel, SkeletonN
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { attributesFor, blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
-import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
+import { skeletonNodeForOptionalRm, isRepeatingMultiplicity } from "../core/skeleton/generate_skeleton.ts";
 import { termSetById, termSetForMandatedCode, termSetForRmAttribute, TERM_PICK_NONE } from "../core/openehr_term_catalog.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
@@ -195,14 +195,18 @@ function findAttachBlock(
   workspace: Blockly.Workspace,
   slotId: string,
 ): Blockly.Block | null {
-  let fallback: Blockly.Block | null = null;
+  const matches: Blockly.Block[] = [];
   for (const block of workspace.getAllBlocks(false)) {
     if (block.getFieldValue("SLOT_ID") !== slotId) continue;
     if (block.type === "for_each_source" || block.type === "for_each_list") continue;
-    if (block.previousConnection) return block;
-    fallback = block;
+    matches.push(block);
   }
-  return fallback;
+  const repeating = matches.find((block) =>
+    Boolean(block.previousConnection) &&
+    isRepeatingMultiplicity((block as { slotMultiplicity_?: string }).slotMultiplicity_)
+  );
+  if (repeating) return repeating;
+  return matches.find((block) => Boolean(block.previousConnection)) ?? matches[0] ?? null;
 }
 
 function wrapBlockWithForEachSource(
@@ -599,6 +603,7 @@ function buildContainerBlock(
   setFieldIfPresent(block, "RM_TYPE", node.rmType);
   setFieldIfPresent(block, "SLOT_ID", node.slotId);
   setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId ?? "");
+  (block as { slotMultiplicity_?: string }).slotMultiplicity_ = node.multiplicity;
   applySkeletonBlockLabels(block, node);
 
   const visibleChildren = node.children.filter(

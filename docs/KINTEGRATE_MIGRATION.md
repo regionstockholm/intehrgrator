@@ -10,8 +10,8 @@ Kintegrate can be retired. Architectural seams are documented in
 | Kintegrate surface                                                    | intEHRgrator destination                                                                                                      |
 | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | Left column JSON tree (often openEHR Composition / FLAT / STRUCTURED) | **Source Format Handler** (`json`, `openehr-`*) + Source Pane                                                                 |
-| Middle Handlebars conversion editor                                   | **Conversion script language** `handlebars` + Mapping Editor **Handlebars Template** tab                                      |
-| Right live output                                                     | **Conversion Test Run(s)** via Target instance format / Handlebars script                                                     |
+| Middle Handlebars conversion editor                                   | Canvas **Handlebars text block** (`text_handlebars` + **Code text** LANG=Handlebars); Output mode **Handlebars** |
+| Right live output                                                     | **Conversion Test Run(s)** via Target instance format / canvas `handlebars()` |
 | free-text / CSV / HTML / XML produced by templates                    | **Target instance format** `free-form` (template is the conversion) or schema targets with slot mapping                       |
 | openEHR OPT / Web Template as *target*                                | **Target instance format** `openehr-template` (unchanged primary clinical path)                                               |
 | Better Form Renderer push/pull/sync                                   | Optional **Better Form Bridge** (`src/core/output/better_form_bridge.ts`); licensed assets via `deno task setup:better-forms` |
@@ -45,11 +45,11 @@ intEHRgrator additions for Mapping Model interop:
 - `{{slot "slotId"}}` — evaluated Mapping Model slot values
 - `{{{json value}}}` — JSON serialization without HTML escaping
 
-Click-to-Map into the Handlebars tab inserts either a flat Kintegrate-compatible
+Click-to-Map into a selected Handlebars **Code text block** (or the SCRIPT mouth of `text_handlebars`) inserts either a flat Kintegrate-compatible
 path (`buildHandlebarsPath`, including bracketed FLAT keys such as
 `[ctx/language]`) or a nested `{{#with}}` / `{{#each}}` snippet
-(`buildHandlebarsTree`). The Mapping Editor toolbar chooses the mode; Shift+click
-toggles for a single insert.
+(`buildHandlebarsTree`). Shift+click toggles nested mode. If no eligible
+Handlebars editor is selected, Click-to-Map falls through to Listening Mode.
 
 ## Better Form Renderer (licensed, optional)
 
@@ -70,9 +70,8 @@ and Host stay free of proprietary types.
 ## Migration checklist for existing Kintegrate workspaces
 
 1. Load source JSON (Composition / FLAT / STRUCTURED) as Source Schema / Example.
-2. Set Conversion script language to **Handlebars**.
-3. Paste the existing `.hbs` into the Handlebars Template tab (or open it as a
-  free-form Target instance format).
+2. Set Conversion script language to **Handlebars** (optional — Mapping preview also runs the canvas product).
+3. Open the existing `.hbs` as a **free-form** Target instance format (seeds Conversion start → Text document → `text_handlebars` with source-root context).
 4. Add an Example Instance and **Run Test** — output should match Kintegrate's
   right column for the same helpers/path style.
 5. Optionally install Better renderer assets and open the form bridge when the

@@ -4,9 +4,10 @@
  * Rebuild with `deno task wasm:go-template` when `go/texttemplate` changes.
  * FuncMap (curated Sprig subset): replace, regexReplaceAll, trim, quote,
  * lower, upper, substr, int — plus Go stdlib builtins (index, eq, ne, and,
- * or, not, len, print, printf, println, template, define).
+ * or, not, len) and host-bound `handlebars` / `dict` for VMS-Hbs embedding.
  */
 import { fromFileUrl } from "@std/path";
+import { renderHandlebars } from "./handlebars_dialect.ts";
 
 interface GoRuntime {
   importObject: WebAssembly.Imports;
@@ -41,6 +42,7 @@ export function isGoTemplateWasmLoaded(): boolean {
 
 /** Load the vendored WASM module (idempotent). */
 export function ensureGoTemplateWasm(): Promise<void> {
+  installHandlebarsHost();
   if (wasmExecutor) return Promise.resolve();
   if (!loading) loading = instantiateGoTemplateWasm();
   return loading;
@@ -50,6 +52,7 @@ export function executeGoTemplate(
   templateSource: string,
   data: unknown,
 ): string {
+  installHandlebarsHost();
   const dataJson = JSON.stringify(data);
   if (!wasmExecutor) {
     throw new Error(
@@ -79,7 +82,21 @@ function parseWasmResult(raw: string): { ok: boolean; output: string; error?: st
   }
 }
 
+function installHandlebarsHost(): void {
+  const global = globalThis as { goTextTemplateHandlebars?: (template: string, contextJson: string) => string };
+  global.goTextTemplateHandlebars = (template, contextJson) => {
+    let context: unknown = {};
+    try {
+      context = JSON.parse(contextJson);
+    } catch {
+      context = {};
+    }
+    return renderHandlebars(String(template ?? ""), context ?? {});
+  };
+}
+
 async function instantiateGoTemplateWasm(): Promise<void> {
+  installHandlebarsHost();
   await ensureWasmExec();
   const GoCtor = (globalThis as unknown as { Go?: new () => GoRuntime }).Go;
   if (!GoCtor) {

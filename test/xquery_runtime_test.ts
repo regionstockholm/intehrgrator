@@ -14,6 +14,13 @@ import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import { collectValueSlots, generateSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { normalizeSheet } from "@intehrgrator/core/sheets/mod.ts";
+import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
+import {
+  HANDLEBARS_GREETING_OUTPUT,
+  HANDLEBARS_GREETING_SOURCE,
+  HANDLEBARS_GREETING_TEMPLATE,
+  handlebarsGreetingCanvas,
+} from "./handlebars_canvas_fixture.ts";
 
 Deno.test("XQuery runtime module lazy-loads via dynamic import()", async () => {
   const src = await Deno.readTextFile(
@@ -155,3 +162,52 @@ async function mappedBpXQuery(shape: "json" | "xml") {
   const xq = generate(model, "xquery", { skeleton, instanceShape: shape });
   return { model, skeleton, xq, templateId };
 }
+
+Deno.test("XQuery codegen emits intehrgrator:handlebars for canvas text_handlebars", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const xq = generate(model, "xquery", { blocklyState: handlebarsGreetingCanvas() });
+  assertStringIncludes(xq, "intehrgrator:handlebars");
+  assertStringIncludes(xq, HANDLEBARS_GREETING_TEMPLATE);
+  assertEquals(
+    /local:convert[\s\S]*"Hello \{\{name\}\}!"\s*$/m.test(xq) &&
+      !xq.includes("intehrgrator:handlebars"),
+    false,
+    "must not silently emit the template string without a render call",
+  );
+});
+
+Deno.test("XQuery Test Run matches Mapping preview for canvas handlebars()", async () => {
+  initBlocklyGenerators();
+  await ensureXQueryRuntime();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const canvas = handlebarsGreetingCanvas();
+  const preview = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "preview",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  const xqRun = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "xquery",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  assertEquals(preview.error, undefined, preview.error);
+  assertEquals(xqRun.error, undefined, xqRun.error);
+  assertEquals(preview.output, HANDLEBARS_GREETING_OUTPUT);
+  assertEquals(xqRun.output, HANDLEBARS_GREETING_OUTPUT);
+});

@@ -73,20 +73,20 @@ These are separate settings:
 This separation allows a Handlebars conversion script to produce clinical
 prose, CSV, HTML, JSON, XML, or another non-openEHR format.
 
-## Handlebars Template tab
+## Handlebars on the canvas
 
-The adjacent editable **Handlebars Template** tab is an explicit conversion
-script language surface, not a replacement Mapping Model. It supports
-existing Kintegrate templates and helpers (`eq`, `ne`, `lt`, `gt`, `lte`,
-`gte`, `and`, `or`, `toLowerCase`, `toUpperCase`) plus:
+VMS-Hbs lives on a **Handlebars text block** (`text_handlebars`) whose SCRIPT is
+typically a **Code text block** (LANG = Handlebars). Loading a free-form `.hbs`
+target seeds that product. Convert accepts the ADR 0009 whitelist (`if`,
+`unless`, `each`, `eq`, `ne`, `lt`, `gt`, `lte`, `gte`, `and`, `or`,
+`toLowerCase`, `toUpperCase`, `slot`) and rejects `#with` / `lookup` / `#log`
+/ partials. `{{slot "target-slot-id"}}` reads Mapping Model slot values.
 
-- `{{slot "target-slot-id"}}` to access values evaluated by the Mapping Model.
-- `{{{json value}}}` to serialize a value without HTML escaping.
-- Direct source traversal with standard Handlebars `#with`, `#each`, `@index`,
-  bracketed openEHR FLAT/STRUCTURED keys, and whitespace controls.
-
-Source Pane clicks insert a Kintegrate-compatible Handlebars path when the
-Handlebars tab is active and no Target value slot is in Listening Mode.
+Source Pane clicks insert a VMS-Hbs path when a Code text block (LANG =
+Handlebars) or a Handlebars text block is selected. Shift+click inserts nested
+`#with`/`#each` (same modes as the retired Template-tab toolbar; `#with` is
+flagged by VMS lint). Otherwise Listening Mode fills the waiting Source query
+block.
 
 ## Versioning
 

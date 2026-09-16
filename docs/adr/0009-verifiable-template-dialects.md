@@ -15,7 +15,7 @@ CodeMirror only **token-colours** `{{…}}`. Restricting the highlighter cannot 
 
 ## Decision
 
-1. **Authoring surface.** Handlebars editors (Template tab, `text_handlebars`, `text_code` LANG=`handlebars`) accept only **VMS-Hbs**. Go snippet editors (`text_code` LANG=`go-template`) accept only **VMS-Go**. Decision-table snippet cells use **VMS-Mustache** (bound-name interpolation); codegen emits Handlebars or Go interpolators from those names. Full Handlebars.js, full Sprig, and JS/TS in `text_code` are not product languages.
+1. **Authoring surface.** Handlebars editors (`text_handlebars`, `text_code` LANG=`handlebars`) accept only **VMS-Hbs**. Go snippet editors (`text_code` LANG=`go-template`) accept only **VMS-Go**. Decision-table snippet cells use **VMS-Mustache** (bound-name interpolation); codegen emits Handlebars or Go interpolators from those names. Full Handlebars.js, full Sprig, and JS/TS in `text_code` are not product languages. The Mapping Editor Template tab is retired (#114); loading a free-form `.hbs` seeds the canvas product.
 2. **Hard gate at convert.** Handlebars: `knownHelpersOnly` against the VMS-Hbs whitelist. Go WASM: parse + FuncMap limited to the curated set; unknown functions / `call` / `with` do not run.
 3. **Soft gate while typing.** Debounced `@codemirror/lint` (`delay` ≈ 500–750 ms), **warning** severity, `autoPanel: false`. Same family as **Constraint warning**. Out-of-dialect text keeps a hatch warning ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)).
 4. **Drop JS/TS from the Code text LANG dropdown** ([#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Generated Export TypeScript **viewer** is unchanged.
@@ -28,7 +28,7 @@ Forbidden: `lookup`, `#with`, `#log`, partials, `{{{…}}}` / `{{&}}`, `json` of
 
 ### VMS-Go whitelist
 
-Allowed: `{{.Path}}`, `{{index .Data "literal"}}`, `{{.Parameters.Key}}`, pipelines `|`, `if`/`else`/`else if`/`end`, `range` (bounded), builtins `and` `or` `not` `eq` `ne` `lt` `le` `gt` `ge` `index` `len`, FuncMap `replace` `regexReplaceAll` `trim` `quote` `lower` `upper` `substr` `int`, trim-markers `-`, comments, `$` root. **Static** `define`/`template` with literal names and an **acyclic** call graph (the chemo sanitizer). `$name :=` locals inside a `define` (no `$name =` reassignment).
+Allowed: `{{.Path}}`, `{{index .Data "literal"}}`, `{{.Parameters.Key}}`, pipelines `|`, `if`/`else`/`else if`/`end`, `range` (bounded), builtins `and` `or` `not` `eq` `ne` `lt` `le` `gt` `ge` `index` `len`, FuncMap `replace` `regexReplaceAll` `trim` `quote` `lower` `upper` `substr` `int` `dict` `handlebars` (host-bound VMS-Hbs for canvas `handlebars()`), trim-markers `-`, comments, `$` root. **Static** `define`/`template` with literal names and an **acyclic** call graph (the chemo sanitizer). `$name :=` locals inside a `define` (no `$name =` reassignment).
 
 Forbidden: `call`, `with`, `block`, `break`/`continue`, `html`/`js`/`urlquery`/`print`/`printf`/`println`, `slice`, Helm `include`, dynamic template names, method calls on context, extra Sprig, `$x =` reassignment.
 

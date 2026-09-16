@@ -67,6 +67,11 @@ for Archie 3.x.
 Jackson is a transitive dependency and is what the generated xpath helpers use
 for JSON paths. XML paths (`/…`) use the JDK `javax.xml.xpath` APIs.
 
+When the canvas product is `text_handlebars`, `convert` returns a VMS-Hbs string
+via `com.github.jknack.handlebars:handlebars` (Handlebars.java). Add that
+dependency next to Archie. The generated helper registers the ADR 0009
+comparison/case helpers and throws on unknown helper names.
+
 ## Optional compile check
 
 Golden string tests live in `test/codegen_test.ts` (always run). An optional

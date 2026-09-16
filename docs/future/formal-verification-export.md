@@ -53,7 +53,7 @@ instances (`TemplateValidator`) and warns on unmapped mandatory slots. That is
 | Blockly workspace JSON | Canonical Mapping Specification |
 | Mapping Model (`slots[]`, `loops[]` grain/`kind`, `targetSignature`, `unsupported`) | Derived semantic index for codegen, Test Run, validation, AI import |
 | Mapping expressions | Sandboxed AST: `xpath*`, `trim`, `concat`, `if`, `switch`, `maps_get`, sheet accessors, `for_each_source`; planned `error(message)` |
-| Template dialects | **VMS-Hbs** (Handlebars Template tab, `text_handlebars`, `text_code` LANG=handlebars), **VMS-Go** (`text_code` LANG=go-template), **VMS-Mustache** (Decision table snippet cells). Closed helper/FuncMap; convert fails closed. See ADR 0009. |
+| Template dialects | **VMS-Hbs** (`text_handlebars`, `text_code` LANG=handlebars), **VMS-Go** (`text_code` LANG=go-template), **VMS-Mustache** (Decision table snippet cells). Closed helper/FuncMap; convert fails closed. See ADR 0009. |
 | Source formats | JSON, XML, openEHR (via `fontoxpath` / Source Format Handler) |
 | Target instance formats | openEHR template (OPT), JSON Schema, XML Schema, free-form |
 | Output validation | `ehrtslib` `TemplateValidator` when target is `openehr-template` |
@@ -391,7 +391,7 @@ verification track instead of `trust: author`.
 | Dialect | Where it lives | Lower into SMT as |
 |---------|----------------|-------------------|
 | **VMS-Mustache** | Decision table snippet cells | `concat` of literals + bound names; `{{#list}}` → grain; `{{^empty}}` → `if` |
-| **VMS-Hbs** | Handlebars Template tab, `text_handlebars`, `text_code` LANG=`handlebars` | `#if`/`#unless`/`else`/`eq`/`and`/`or` → Mapping Expression `if`/`eq`/`and`; `#each` → `for_each_*`; `{{path}}` / `slot` → source reads |
+| **VMS-Hbs** | `text_handlebars`, `text_code` LANG=`handlebars` | `#if`/`#unless`/`else`/`eq`/`and`/`or` → Mapping Expression `if`/`eq`/`and`; `#each` → `for_each_*`; `{{path}}` / `slot` → source reads |
 | **VMS-Go** | `text_code` LANG=`go-template` | `if`/`else`/`eq`/`index` → same algebra; bounded `range` → grain; `index .Data "lit"` / `.Parameters.K` → source / Defaults Map reads; acyclic `define`/`template` **inline** (same strategy as Blockly Function inlining) |
 
 Reuse the existing dialect parsers (Handlebars AST walk; Go WASM `text/template.Parse`)
@@ -419,8 +419,8 @@ What stays out of SMT (PBT / gold strings, still in the evidence pack):
 - **Out-of-dialect** Handlebars/Go (`lookup`, `#with`, `call`, Sprig, …) —
   `trust: author` hatch, skipped or marked, never silently treated as VMS
 
-The Handlebars Template tab is a parallel specification today
-(`ProjectBundle.mapping.handlebarsTemplate`). Verify mapping must walk it with
+Canvas `text_handlebars` is the VMS-Hbs specification
+(`ProjectBundle.mapping.blocklyState`). Verify mapping must walk it with
 the same VMS-Hbs lowering, not only Blockly slots.
 
 ## Anti-patterns
@@ -492,7 +492,7 @@ with `loops[]`, `targetSignature`, and `unsupported[]`.
    ([#40](https://github.com/regionstockholm/intehrgrator/issues/40) — closed).
 4. In-app Z3, Source Schema coverage (including template path sets), evidence pack, chunk-level tests, convert-time throws, and **in-dialect snippet SMT** ([#41](https://github.com/regionstockholm/intehrgrator/issues/41)).
 
-### 2. `text_handlebars`, `text_code`, and the Authored Handlebars Template
+### 2. `text_handlebars` and `text_code`
 
 **Superseded for in-dialect text** by [ADR 0009](../adr/0009-verifiable-template-dialects.md)
 (closed [#40](https://github.com/regionstockholm/intehrgrator/issues/40)). Editors
@@ -502,7 +502,7 @@ from the Code text LANG dropdown.
 
 | Construct | Status for verification |
 |-----------|-------------------------|
-| `text_handlebars` + Handlebars Template tab | **In-dialect VMS-Hbs** — parse, lower `#if`/`#each`/`eq`/`slot`/paths into SMT and coverage. Not `trust: author`. |
+| `text_handlebars` | **In-dialect VMS-Hbs** — parse, lower `#if`/`#each`/`eq`/`slot`/paths into SMT and coverage. Not `trust: author`. |
 | `text_code` LANG=`handlebars` | Same VMS-Hbs lowering. LANG is product semantics (not UI-only). |
 | `text_code` LANG=`go-template` | **VMS-Go** — lower `if`/`index`/`range`/curated FuncMap; inline acyclic `define`. |
 | Decision table snippet cells | **VMS-Mustache** — interpolation + sections; branching stays in the table. |

@@ -168,8 +168,7 @@ function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
     return [String(block.getFieldValue("TEXT") ?? "")];
   }
   if (block.type === "text_handlebars") {
-    const script = block.getInputTargetBlock("SCRIPT");
-    return script ? (emitExpressionBlock(script, ctx) ?? []) : [];
+    return emitExpressionBlock(block, ctx) ?? [];
   }
 
   if (block.type === "element" || isRmContainerBlockType(block.type)) {

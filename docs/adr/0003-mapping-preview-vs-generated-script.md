@@ -2,16 +2,16 @@
 
 Test Run used to always evaluate Mapping Model slot expressions (ADR 0001). **Output mode** now splits that:
 
-- **Mapping preview** — evaluates slot expressions and renders through the Target instance format handler. For **free-form** targets, renders the **Authored Handlebars Template** via `renderHandlebars(template, sourceData, { slots })`.
+- **Mapping preview** — evaluates slot expressions and renders through the Target instance format handler. For **free-form** targets, evaluates canvas `handlebars(script, context)` (seeded from a loaded `.hbs` as Conversion start → Text document → `text_handlebars` with `xpathNode("$")`).
 - **TypeScript** — executes the generated Conversion Script with bundled ehrtslib.
-- **Handlebars** (Output mode) — executes the **same Authored Handlebars Template** as Mapping preview (`renderHandlebars` + slot bag). Does **not** execute a generated Handlebars Conversion Script (codegen remains export-only; see grill Q7).
-- **Go Template** — executes the **generated** Go `text/template` script via vendored WASM (`{ Parameters: defaults, Data: source }`). See ADR 0004.
+- **Handlebars** (Output mode) — same canvas `handlebars()` product as Mapping preview when present; otherwise a `handlebarsTemplate` / target-content override. Generated `.hbs` is the canvas SCRIPT literal when a `text_handlebars` product exists.
+- **Go Template** — executes the **generated** Go `text/template` script via vendored WASM (`{ Parameters: defaults, Data: source }`), including host-bound `handlebars` / `dict` so canvas `handlebars()` Test Run matches preview. See ADR 0004.
 - **Java** — generates an Archie RM conversion class (`src/core/codegen/java.ts`: Template Skeleton + Mapping Model, `new Composition()` / `new DvQuantity(…)`, sheet/`maps_get` helpers, `for_each_source` streams, `RMObjectValidator` hook). **Not executed** in the Web Shell (no bundled JVM). Optional `javac` against Maven Central Archie jars: `test/java_archie_compile_test.ts`. See [JAVA_EXPORT.md](../JAVA_EXPORT.md).
 - **XQuery** — generate a script and, once the runtime is lazy-loaded, execute it in Conversion Test Run against the Active Example (`$source`, `$defaults`, `$sheets`).
 
 Output mode is session-only and defaults to Mapping preview after load. Generated Export and Test Run output are not persisted in the Project Bundle.
 
-**Considered:** executing generated Handlebars scripts in Test Run. Deferred — harden the Authored Template path first (Chunk 7.1); Blockly→Handlebars codegen is a later chunk.
+**Considered:** executing generated Handlebars scripts in Test Run. Canvas `text_handlebars` is now the authoring surface (#114 / #115); Handlebars Output mode Test Run evaluates that product (or a `handlebarsTemplate` override for fixtures).
 
 ## Verification oracle (VMS golden tests — issue #38)
 

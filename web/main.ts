@@ -14,6 +14,10 @@ import type { BlockSvg } from "blockly/core";
 import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
 import { getSourceFormatHandler } from "../src/core/source/mod.ts";
 import {
+  insertHandlebarsPathAtSelection,
+  isHandlebarsInsertTarget,
+} from "../src/workbench/handlebars_click_to_map.ts";
+import {
   createReadonlyEditor,
   detectEditorLanguage,
   languageForExportTarget,
@@ -679,12 +683,29 @@ function handleSourceSelection(
   format: string,
   event?: { shiftKey?: boolean },
 ): void {
+  const selected = selectedBlockId
+    ? workspace.getBlockById(selectedBlockId)
+    : (Blockly.getSelected?.() as ReturnType<typeof workspace.getBlockById>);
+  if (selected && isHandlebarsInsertTarget(selected)) {
+    const xpath = getSourceFormatHandler(format).pathToExpression(path);
+    if (insertHandlebarsPathAtSelection(selected, xpath, Boolean(event?.shiftKey))) {
+      persistBlocklyCanvas({ summary: "Insert Handlebars path" });
+      return;
+    }
+  }
   const state = controller.getState();
   if (state.listeningSourceBlockId) {
     fillListeningSourceQuery(state.listeningSourceBlockId, path, format);
     return;
   }
   controller.bindFromNode(path, format);
+}
+
+function syncHandlebarsClickHint(): void {
+  const hint = document.getElementById("handlebars-click-hint");
+  if (!hint) return;
+  const selected = selectedBlockId ? workspace.getBlockById(selectedBlockId) : null;
+  hint.hidden = !isHandlebarsInsertTarget(selected);
 }
 
 function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }): void {
@@ -864,6 +885,7 @@ function applyBlockSelection(blockId: string | null, origin: "blockly" | "spec")
   try {
     selectedBlockId = blockId;
     const block = blockId ? workspace.getBlockById(blockId) : null;
+    syncHandlebarsClickHint();
     if (origin === "spec" && block) {
       if (typeof (block as BlockSvg).select === "function") {
         (block as BlockSvg).select();

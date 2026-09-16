@@ -17,12 +17,17 @@ export const XML_ROOT_INPUT = "TARGET_root";
 /** Statement check for `xml_attribute` stacks. */
 export const XML_ATTRIBUTE_CHECK = "xml_attribute";
 
-/** Nested content under an element: other elements plus mapping control blocks. */
-export const XML_NEST_CHECK = [
-  "xml_element",
+/** Mapping control blocks that may wrap nested XML / schema content. */
+export const MAPPING_CONTROL_TYPES = [
   "controls_if",
   "for_each_source",
   "for_each_list",
+] as const;
+
+/** Nested content under an element: other elements plus mapping control blocks. */
+export const XML_NEST_CHECK = [
+  "xml_element",
+  ...MAPPING_CONTROL_TYPES,
 ] as const;
 
 export type XmlNamespaceDecl = { prefix: string; uri: string };

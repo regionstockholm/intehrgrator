@@ -4,6 +4,7 @@
  */
 import type { SkeletonNode } from "../../types/mod.ts";
 import { isRepeatingMultiplicity } from "../skeleton/generate_skeleton.ts";
+import { MAPPING_CONTROL_TYPES } from "../xml_shape.ts";
 
 export const SCHEMA_BLOCK_PREFIX = "schema_";
 
@@ -64,7 +65,7 @@ export interface SchemaInputSpec {
   childBlockType?: string;
 }
 
-const STATEMENT_WRAPPERS = ["controls_if", "for_each_source", "for_each_list"];
+export const SCHEMA_STATEMENT_WRAPPERS = MAPPING_CONTROL_TYPES;
 
 export function specForChild(child: SkeletonNode): SchemaInputSpec {
   const name = schemaFieldName(child);
@@ -86,7 +87,7 @@ export function specForChild(child: SkeletonNode): SchemaInputSpec {
   return {
     name,
     kind,
-    check: kind === "statement" ? [typeCheck, ...STATEMENT_WRAPPERS] : typeCheck,
+    check: kind === "statement" ? [typeCheck, ...SCHEMA_STATEMENT_WRAPPERS] : typeCheck,
     card,
     slotId: child.slotId,
     xmlKind: child.xmlKind,

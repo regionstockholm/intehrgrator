@@ -8,9 +8,13 @@ import {
   sourceBlockTypeForReturnType,
   sourceQueryFieldLabel,
 } from "../source_query.ts";
+import { MAPPING_CONTROL_TYPES } from "../../core/xml_shape.ts";
 
 const LOOP_COLOUR = "#A5D6A7";
 const SOURCE_COLOUR = "#E87722";
+
+/** Previous/next check so loops nest in XML/schema mouths and the Product stack, not every C. */
+const LOOP_STACK_CHECK = [...MAPPING_CONTROL_TYPES, "INSTANCE_ROOT"];
 
 /**
  * intEHRgrator-specific expression/control blocks.
@@ -23,6 +27,7 @@ export function registerExpressionBlocks(): void {
   defineSourceQueryBlock("number", m.SOURCE_QUERY, m.SOURCE_QUERY_TOOLTIP);
   defineSourceQueryBlock("boolean", m.SOURCE_QUERY, m.SOURCE_QUERY_TOOLTIP);
   defineSourceQueryBlock("node", m.SOURCE_QUERY, m.SOURCE_NODE_TOOLTIP);
+  restrictStockControlsIfStack();
 
   /**
    * Loop over nodes from a multi-valued source path.
@@ -39,7 +44,7 @@ export function registerExpressionBlocks(): void {
         .appendField(new Blockly.FieldTextInput("/path/to/items"), "PATH");
       this.appendStatementInput("DO")
         .appendField(m.FOR_EACH_SOURCE_DO);
-      this.setPreviousStatement(true);
+      this.setPreviousStatement(true, LOOP_STACK_CHECK);
       this.setNextStatement(true);
       this.setColour(LOOP_COLOUR);
       this.setTooltip(m.FOR_EACH_SOURCE_TOOLTIP);
@@ -60,7 +65,7 @@ export function registerExpressionBlocks(): void {
         .appendField(m.FOR_EACH_SOURCE_IN);
       this.appendStatementInput("DO")
         .appendField(m.FOR_EACH_SOURCE_DO);
-      this.setPreviousStatement(true);
+      this.setPreviousStatement(true, LOOP_STACK_CHECK);
       this.setNextStatement(true);
       this.setColour(LOOP_COLOUR);
       this.setTooltip(m.FOR_EACH_LIST_TOOLTIP);
@@ -68,6 +73,21 @@ export function registerExpressionBlocks(): void {
       enforceMouthCaptionLayout(this);
     },
   };
+}
+
+function restrictStockControlsIfStack(): void {
+  const def = Blockly.Blocks["controls_if"] as { init?: (this: Blockly.Block) => void } | undefined;
+  if (!def?.init || (def.init as { mappingControlCheck_?: boolean }).mappingControlCheck_) {
+    return;
+  }
+  const orig = def.init;
+  const wrapped = function (this: Blockly.Block) {
+    orig.call(this);
+    this.setPreviousStatement(true, [...MAPPING_CONTROL_TYPES]);
+    this.setNextStatement(true);
+  };
+  wrapped.mappingControlCheck_ = true;
+  def.init = wrapped;
 }
 
 function defineSourceQueryBlock(

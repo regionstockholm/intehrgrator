@@ -121,7 +121,8 @@ Deno.test("blocklyCheckForDv maps DV types to typed shell checks", () => {
 Deno.test("blocklyOutputForDv widens DV shells with DATA_VALUE for reconnect", () => {
   assertEquals(blocklyOutputForDv("DV_QUANTITY"), ["DV_QUANTITY", "DATA_VALUE"]);
   assertEquals(blocklyOutputForDv("DV_BOOLEAN"), ["DV_BOOLEAN", "DATA_VALUE"]);
-  assertEquals(blocklyOutputForDv("DV_TEXT"), ["DV_TEXT", "DV_CODED_TEXT", "DATA_VALUE"]);
+  assertEquals(blocklyOutputForDv("DV_TEXT"), ["DV_TEXT", "DATA_VALUE"]);
+  assertEquals(blocklyOutputForDv("DV_CODED_TEXT"), ["DV_CODED_TEXT", "DV_TEXT", "DATA_VALUE"]);
 });
 
 Deno.test("orderedRmAttributes puts mandatory RM attrs first", () => {
@@ -1000,7 +1001,21 @@ Deno.test("EVENT.data slot accepts ITEM_STRUCTURE (generic T bound)", () => {
   const dataInput = event.getInput(rmAttributeInputName("data"));
   const check = dataInput?.connection?.getCheck() ?? [];
   assertEquals(check.includes("ITEM_STRUCTURE"), true);
-  assertEquals(check.includes("ITEM_TREE"), true);
+  for (const type of ["item_tree", "item_list", "item_table", "item_single"]) {
+    const child = workspace.newBlock(type);
+    assertEquals(
+      workspace.connectionChecker.canConnect(dataInput!.connection!, child.previousConnection!, false),
+      true,
+      `${type} must snap into EVENT.data`,
+    );
+    child.dispose(false);
+  }
+  const cluster = workspace.newBlock("cluster");
+  assertEquals(
+    workspace.connectionChecker.canConnect(dataInput!.connection!, cluster.previousConnection!, false),
+    false,
+    "CLUSTER must not snap into EVENT.data",
+  );
   workspace.dispose();
 });
 

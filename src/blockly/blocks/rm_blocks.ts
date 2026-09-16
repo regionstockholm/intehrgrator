@@ -19,7 +19,7 @@ import {
   subtypesOf,
   type RmAttributeMeta,
 } from "../../core/rm_meta.ts";
-import { blocklyCheckForDv, blocklyOutputForDv } from "../block_checks.ts";
+import { blocklyCheckForDv, blocklyOutputForDv, flattenBlocklyCheck } from "../block_checks.ts";
 import {
   appendBlockOutputEmoji,
   appendSlotTypeEmoji,
@@ -88,7 +88,7 @@ const ELEMENT_COLOUR = "#3D7A6A";
 
 const RM_CONTAINER_TYPES = new Set<string>();
 
-const EXTRA_RM_CONTAINERS = [
+export const EXTRA_RM_CONTAINERS = [
   "HISTORY",
   "EVENT",
   "POINT_EVENT",
@@ -233,7 +233,7 @@ export function registerRmBlocks(): void {
   ], ELEMENT_COLOUR, {
     expandable: true,
     rmType: "CLUSTER",
-    nestCheck: ["ITEM", "CLUSTER", "ELEMENT"],
+    nestCheck: ["ITEM", "CLUSTER"],
   });
 
   defineValueElementBlock();
@@ -285,12 +285,18 @@ function ensureRmContainerBlock(rmType: string): string {
 function nestCheckFor(rmType: string): string | string[] | null {
   if (rmType === "COMPOSITION") return null;
   if (isSubtypeOf(rmType, "CONTENT_ITEM")) return "CONTENT_ITEM";
-  if (isSubtypeOf(rmType, "ITEM")) return ["ITEM", "CLUSTER", "ELEMENT"];
-  if (isSubtypeOf(rmType, "EVENT") || rmType === "EVENT") return "EVENT";
+  if (isSubtypeOf(rmType, "ITEM")) {
+    if (rmType === "ITEM") return "ITEM";
+    return ["ITEM", rmType];
+  }
+  if (isSubtypeOf(rmType, "EVENT")) {
+    return rmType === "EVENT" ? "EVENT" : ["EVENT", rmType];
+  }
   if (rmType === "GENERIC_ENTRY") return "CONTENT_ITEM";
   if (rmType === "HISTORY") return "HISTORY";
   if (isSubtypeOf(rmType, "ITEM_STRUCTURE")) {
-    return ["ITEM_STRUCTURE", "ITEM_TREE", "ITEM_LIST", "ITEM_TABLE", "ITEM_SINGLE"];
+    if (rmType === "ITEM_STRUCTURE") return "ITEM_STRUCTURE";
+    return [rmType, "ITEM_STRUCTURE"];
   }
   if (isSubtypeOf(rmType, "PARTY_PROXY")) return partyProxyNestCheck(rmType);
   if (rmType === "EVENT_CONTEXT") return "EVENT_CONTEXT";
@@ -665,8 +671,9 @@ function appendRmAttributeInput(
     const input = block.appendValueInput(rmAttributeInputName(attr))
       .setAlign(inputAlignRight());
     const dvCheck = blocklyCheckForDv(listElement);
-    // lists_create_with outputs "Array", not its block type name.
-    input.setCheck(checkOverride ?? (dvCheck ? [dvCheck, "Array"] : "Array"));
+    // lists_create_with outputs "Array"; a single DV_* shell is also legal for List<DV_*>.
+    const listCheck = [...flattenBlocklyCheck(dvCheck), "Array"];
+    input.setCheck(checkOverride ? flattenBlocklyCheck(checkOverride) : listCheck);
     appendSlotLabel(input, attr, { ...labelOpts, rmType: listElement });
     return;
   }
@@ -705,7 +712,9 @@ function statementCheckForAttr(
 ): string | string[] | null {
   const slotType = slotRmTypeForAttr(rmType, attr);
   if (!slotType || isPrimitiveRmType(slotType) || isDataValueType(slotType)) return null;
-  return nestCheckFor(slotType) ?? slotType;
+  // Parent mouths use the BMM slot type. Children advertise own type + ancestors
+  // via nestCheckFor, so ELEMENT-only mouths do not also light up for CLUSTER.
+  return slotType;
 }
 
 export function rmTypeOfBlock(block: Blockly.Block): string {
@@ -1100,8 +1109,8 @@ function defineValueElementBlock(): void {
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "ARCHETYPE_NODE_ID", "");
       appendHiddenSerializable(this, "ARCHETYPE_CTX", "");
-      this.setPreviousStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
-      this.setNextStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
+      this.setPreviousStatement(true, ["ITEM", "ELEMENT"]);
+      this.setNextStatement(true, ["ITEM", "ELEMENT"]);
       this.setColour(ELEMENT_COLOUR);
       this.setTooltip("openEHR RM ELEMENT — named data item with a DATA_VALUE");
       Blockly.Extensions.apply("optional_rm_mutator", this, true);

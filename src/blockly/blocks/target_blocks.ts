@@ -9,6 +9,7 @@ import { registerSchemaFieldsMutator, SCHEMA_FIELDS_MUTATOR } from "./schema_mut
 import type { SchemaInputSpec } from "../../core/target/schema_block_ids.ts";
 import { applyInstanceRootCap } from "../instance_root.ts";
 import { registerXmlBlocks, XML_BLOCK_TYPES } from "./xml_blocks.ts";
+import { MAPPING_CONTROL_TYPES } from "../../core/xml_shape.ts";
 
 const TARGET_STRUCTURE_COLOUR = "#4B5563";
 const TARGET_VALUE_COLOUR = "#6B7280";
@@ -16,6 +17,8 @@ const JSON_COLOUR = "#D97706";
 export const TARGET_CHILD_PREFIX = "TARGET_";
 
 export const JSON_BLOCK_TYPES = ["json_object", "json_array", "json_value", "json_boolean", "json_null"] as const;
+/** Statement-stack check for JSON leaves so they do not light up INSTANCE_ROOT / XML mouths. */
+export const JSON_VALUE_STACK_CHECK = "JSON_VALUE";
 export { XML_BLOCK_TYPES };
 export const GENERIC_VALUE_BLOCK_TYPES = [
   "target_value",
@@ -48,7 +51,7 @@ export function applySchemaConnectionMode(
     if (block.outputConnection?.isConnected()) block.outputConnection.disconnect();
     block.setOutput(false);
     block.setPreviousStatement(true, typeCheck);
-    block.setNextStatement(true, typeCheck);
+    block.setNextStatement(true, [typeCheck, ...MAPPING_CONTROL_TYPES]);
   }
   (block as Block & { schemaConnectionMode_?: string }).schemaConnectionMode_ = mode;
   (block as Block & { schemaTypeCheck_?: string }).schemaTypeCheck_ = typeCheck;
@@ -64,12 +67,18 @@ export function registerTargetBlocks(): void {
 
   defineStructureBlock("json_object", "JSON object", JSON_COLOUR, "Generic JSON object");
   defineStructureBlock("json_array", "JSON array", JSON_COLOUR, "Generic JSON array");
-  defineValueBlock("json_value", "JSON value", JSON_COLOUR, "Generic JSON value");
+  defineValueBlock("json_value", "JSON value", JSON_COLOUR, "Generic JSON value", {
+    statementCheck: JSON_VALUE_STACK_CHECK,
+  });
   defineValueBlock("json_boolean", "JSON boolean", JSON_COLOUR, "Generic JSON boolean", {
     valueCheck: "Boolean",
+    statementCheck: JSON_VALUE_STACK_CHECK,
   });
   // Leaf literal — a VALUE socket would imply nested content that null cannot hold.
-  defineValueBlock("json_null", "JSON null", JSON_COLOUR, "JSON null literal", { leaf: true });
+  defineValueBlock("json_null", "JSON null", JSON_COLOUR, "JSON null literal", {
+    leaf: true,
+    statementCheck: JSON_VALUE_STACK_CHECK,
+  });
 }
 
 export function isSchemaStructureBlock(block: { type: string }): boolean {
@@ -162,7 +171,7 @@ function defineValueBlock(
   defaultName: string,
   colour: string,
   tooltip: string,
-  options?: { valueCheck?: string | null; leaf?: boolean },
+  options?: { valueCheck?: string | null; leaf?: boolean; statementCheck?: string | string[] | null },
 ): void {
   if (Blockly.Blocks[type]) return;
   Blockly.Blocks[type] = {
@@ -178,8 +187,8 @@ function defineValueBlock(
       }
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "MANDATORY", "");
-      this.setPreviousStatement(true);
-      this.setNextStatement(true);
+      this.setPreviousStatement(true, options?.statementCheck);
+      this.setNextStatement(true, options?.statementCheck);
       this.setColour(colour);
       this.setTooltip(tooltip);
       enforceMouthCaptionLayout(this);

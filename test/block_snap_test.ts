@@ -17,7 +17,9 @@ import {
   XML_ATTRIBUTES_INPUT,
   XML_ATTRIBUTE_TYPE,
   XML_CHILDREN_INPUT,
+  XML_DOCUMENT_TYPE,
   XML_ELEMENT_TYPE,
+  XML_ROOT_INPUT,
   XML_TEXT_INPUT,
 } from "@intehrgrator/core/xml_shape.ts";
 import {
@@ -226,18 +228,25 @@ Deno.test("XML element mouths separate attributes, text, and children", () => {
   const ws = createSnapWorkspace();
   try {
     const el = ws.newBlock(XML_ELEMENT_TYPE);
+    const doc = ws.newBlock(XML_DOCUMENT_TYPE);
     const attrs = inputConn(el, XML_ATTRIBUTES_INPUT);
     const textIn = inputConn(el, XML_TEXT_INPUT);
     const kids = inputConn(el, XML_CHILDREN_INPUT);
+    const root = inputConn(doc, XML_ROOT_INPUT);
 
     assertSnapCases(ws, [
       { label: "xml_attribute stacks in attributes mouth", a: attrs, b: stmtPrev(XML_ATTRIBUTE_TYPE, ws), expect: true },
       { label: "xml_element rejected from attributes mouth", a: attrs, b: stmtPrev(XML_ELEMENT_TYPE, ws), expect: false },
+      { label: "for_each_source rejected from attributes mouth", a: attrs, b: stmtPrev("for_each_source", ws), expect: false },
+      { label: "controls_if rejected from attributes mouth", a: attrs, b: stmtPrev("controls_if", ws), expect: false },
       { label: "xml_element nests in children mouth", a: kids, b: stmtPrev(XML_ELEMENT_TYPE, ws), expect: true },
       { label: "for_each_source allowed in children mouth", a: kids, b: stmtPrev("for_each_source", ws), expect: true },
       { label: "controls_if allowed in children mouth", a: kids, b: stmtPrev("controls_if", ws), expect: true },
       { label: "xml_attribute rejected from children mouth", a: kids, b: stmtPrev(XML_ATTRIBUTE_TYPE, ws), expect: false },
       { label: "composition rejected from children mouth", a: kids, b: stmtPrev("composition", ws), expect: false },
+      { label: "xml_element allowed on document root", a: root, b: stmtPrev(XML_ELEMENT_TYPE, ws), expect: true },
+      { label: "for_each_source rejected from document root", a: root, b: stmtPrev("for_each_source", ws), expect: false },
+      { label: "controls_if rejected from document root", a: root, b: stmtPrev("controls_if", ws), expect: false },
       { label: "xml_text value in text slot", a: textIn, b: valueOut("xml_text", ws), expect: true },
       { label: "xml_cdata value in text slot", a: textIn, b: valueOut("xml_cdata", ws), expect: true },
       { label: "xml_element rejected from text slot", a: textIn, b: stmtPrev(XML_ELEMENT_TYPE, ws), expect: false },

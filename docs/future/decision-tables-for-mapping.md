@@ -113,7 +113,7 @@ A **Map** remains right for 1D defaults. A **Sheet** remains right for 1-key ter
 
 ## Narrative and grammatical text
 
-Generating clinically and grammatically sensible text from structured input is a real mapping task in this repo: ROADMAP §G (Go `text/template` FLAT → legacy narrative), **free-form** Target instance format, **Handlebars Template**, and `text_code` / `text_handlebars`. Nested `controls_if` around XML/`TextKeyWord` is the current compact-ish approach.
+Generating clinically and grammatically sensible text from structured input is a real mapping task in this repo: ROADMAP §G (Go `text/template` FLAT → legacy narrative), **free-form** Target instance format, canvas **Handlebars text block** (`text_handlebars` / Code text block LANG = Handlebars). Nested `controls_if` around XML/`TextKeyWord` is the current compact-ish approach.
 
 Classic NLG splits into:
 

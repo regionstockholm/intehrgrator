@@ -1,5 +1,5 @@
 import { assertEquals, assertRejects, assertStringIncludes } from "@std/assert";
-import { dirname, fromFileUrl, join } from "@std/path";
+import { dirname, fromFileUrl, join, normalize } from "@std/path";
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
 import {
   parseExampleSetCatalog,
@@ -10,10 +10,36 @@ import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/co
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 const catalogPath = join(root, "examples", "example-sets.json");
+const catalogDir = dirname(catalogPath);
 const fixturesDir = join(root, "test", "fixtures");
 const catalogBase = "https://app.test/examples/example-sets.json";
 const localFixtures =
   "https://app.test/test/fixtures/";
+
+function isHttpUrl(ref: string): boolean {
+  return /^https?:\/\//i.test(ref);
+}
+
+/** Collect relative asset refs from the raw catalog (absolute http(s) skipped by callers). */
+function relativeAssetRefs(
+  set: {
+    id: string;
+    source?: { schema?: string; instances?: string[] };
+    target?: string;
+    mapping?: string;
+    defaults?: string;
+  },
+): Array<{ role: string; ref: string }> {
+  const out: Array<{ role: string; ref: string }> = [];
+  if (set.source?.schema) out.push({ role: "source.schema", ref: set.source.schema });
+  for (const [i, ref] of (set.source?.instances ?? []).entries()) {
+    out.push({ role: `source.instances[${i}]`, ref });
+  }
+  if (set.target) out.push({ role: "target", ref: set.target });
+  if (set.mapping) out.push({ role: "mapping", ref: set.mapping });
+  if (set.defaults) out.push({ role: "defaults", ref: set.defaults });
+  return out;
+}
 
 function stubHost(overrides: Partial<HostAdapter> = {}): HostAdapter {
   return {
@@ -78,10 +104,37 @@ async function stubbedCatalogFiles(): Promise<Record<string, { name: string; tex
   return files;
 }
 
+Deno.test("example-sets.json relative asset URIs resolve to existing repo files", async () => {
+  const text = await readCatalog();
+  const raw = JSON.parse(text) as {
+    sets: Array<{
+      id: string;
+      source?: { schema?: string; instances?: string[] };
+      target?: string;
+      mapping?: string;
+      defaults?: string;
+    }>;
+  };
+  const missing: string[] = [];
+  for (const set of raw.sets) {
+    for (const { role, ref } of relativeAssetRefs(set)) {
+      if (isHttpUrl(ref)) continue;
+      const path = normalize(join(catalogDir, ref));
+      try {
+        const st = await Deno.stat(path);
+        if (!st.isFile) missing.push(`${set.id} ${role}: not a file (${ref})`);
+      } catch {
+        missing.push(`${set.id} ${role}: missing (${ref})`);
+      }
+    }
+  }
+  assertEquals(missing, [], missing.join("\n"));
+});
+
 Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the catalog URL", async () => {
   const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 7);
+  assertEquals(catalog.sets.length, 8);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);

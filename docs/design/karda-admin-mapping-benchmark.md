@@ -74,7 +74,7 @@ Remaining failures are explained (renderer / slot-surface / OPT coded-text), not
 
 **Agent API / app**
 
-- Unique `slotId`s when two C_ARCHETYPE_ROOT nodes reuse `at0000` (include RM type or archetype id). Until then, `evaluateLoopSlots` / `findAttachBlock` should prefer the repeating (`0..*` / `1..*`) container when ids collide.
+- Unique `slotId`s when two C_ARCHETYPE_ROOT nodes reuse `at0000` (include RM type or archetype id). Until then, `evaluateLoopSlots` / `findAttachBlock` should prefer the repeating (`0..*` / `1..*`) container when ids collide. **Landed in #125** (archetype id when siblings collide) plus prefer-repeat on this branch.
 - Emit DV_CODED_TEXT `defining_code` as a CODE_PHRASE object (not a flattened string on the DV). Emit DV_IDENTIFIER `id` (not `value`).
 - Attach a Web Template to example-set openEHR targets so `flat-json` Test Run can serialize.
 - Expose DV_QUANTITY `units` as a value slot when unconstrained (or when source has a unit).
@@ -123,6 +123,15 @@ These address Pass 1 hazards 1, 3, 6, 7 (partial):
 - `bundleRevision` hashes sheets, so `PUT /sheets` bumps `revision`.
 - Unconstrained ICD-10/ATC still use `maps_create_with` on the coded-text value slot (no sibling `|code` leaves). Duplicate parent-org `at0003` slotIds remain.
 
+### After scaffolding #125 (merged from main)
+
+Sibling `C_ARCHETYPE_ROOT` nodes that share `at0000` now use the archetype id as the path segment. Unique OPTs such as blood_pressure keep `content/at0000`. On this template:
+
+- EVALUATION: `…//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/…`
+- ACTION (loop attach): `…//content/openEHR-EHR-ACTION.medication.v1`
+
+Pass 1/2 envelopes were retargeted so they import after the merge. Nested parent-org identifier ELEMENTs that share `at0003` still collide; when those siblings unique-ify they share `…/items/openEHR-EHR-CLUSTER.organisation.v1` (inherited CLUSTER ref), so organisationsnummer still cannot be bound separately. Historical Pass 1 notes above keep the original `content/at0000` story.
+
 ## Pass 2
 
 Agent compared golden Simplified FLAT instances (and, where they disagree, the Go `text/template`) to Pass 1. Envelope: `mapping/pass-2-ai.intehrgrator-suggestions.json` + `pass-2-ai.sheets.json`. Runtime oracle: `test/karda_admin_pass2_test.ts` (TESTFALL-A canonical + `flat-json`).
@@ -135,7 +144,7 @@ Agent compared golden Simplified FLAT instances (and, where they disagree, the G
 - Diagnosis and substance are `maps_create_with` (`value` + `code_string` + `terminology_id`). ICD-10 `1.2.752.116.1.1.1`, ATC `2.16.840.1.113883.6.73`.
 - Dose is magnitude + `UnitCode` units. Beställnings-ID is `$.RekvisisjonId`, not `OrderLineId`.
 - Composer / facility party maps (`optional_rm_add` first).
-- Relative `loopVar` `substans` on ACTION leaves (attach now prefers 0..* ACTION).
+- Relative `loopVar` `substans` on ACTION leaves (attach is `…//content/openEHR-EHR-ACTION.medication.v1`; prefer-repeat remains as a fallback).
 - `admin_ism` Decision table kept: every source status including `Stoppad` still emits OPT-only `532` / `at0007` (Swedish rubric `Fullföljd läkemedelsbehandling`). Documents the constraint rather than inventing aborted/at0015.
 
 ### Golden issues (improve the goldens, not the mapping)

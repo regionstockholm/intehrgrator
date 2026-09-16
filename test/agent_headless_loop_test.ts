@@ -377,12 +377,25 @@ Deno.test("list_slots includes attachSlotId for repeating administration ACTION"
   const dose = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"));
   if (!dose) throw new Error(`missing dose slot: ${listed.slots.map((s) => s.slotId).join(",")}`);
   assertEquals(Boolean(dose.attachSlotId), true, JSON.stringify(dose));
-  assertEquals(dose.attachSlotId?.endsWith("//content/at0000"), true, dose.attachSlotId);
+  assertEquals(
+    dose.attachSlotId?.endsWith("//content/openEHR-EHR-ACTION.medication.v1"),
+    true,
+    dose.attachSlotId,
+  );
   assertEquals(dose.pathLabel?.includes("Administrerad dos"), true, dose.pathLabel);
   assertEquals(
-    listed.repeatable.some((row) => row.slotId.endsWith("//content/at0000") && row.rmType === "ACTION"),
+    listed.repeatable.some((row) =>
+      row.slotId.endsWith("//content/openEHR-EHR-ACTION.medication.v1") && row.rmType === "ACTION"
+    ),
     true,
     JSON.stringify(listed.repeatable),
+  );
+  assertEquals(
+    listed.slots.some((s) =>
+      s.slotId.includes("//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/")
+    ),
+    true,
+    "EVALUATION content path must use the archetype id, not at0000",
   );
   const slotIds = listed.slots.map((s) => s.slotId);
   assertEquals(slotIds.length, new Set(slotIds).size, "list_slots must not repeat slotId");
@@ -505,7 +518,7 @@ Deno.test("openEHR Test Run nests DV_CODED_TEXT defining_code and DV_IDENTIFIER.
   assertEquals(ids.some((row) => row.id === "CCJ3" && row.value === undefined), true, JSON.stringify(ids));
 });
 
-Deno.test("for_each_source attach prefers repeating ACTION over EVALUATION at0000", async () => {
+Deno.test("for_each_source attach prefers repeating ACTION over EVALUATION", async () => {
   const service = new WorkbenchService();
   const opt = join(
     fixtures,

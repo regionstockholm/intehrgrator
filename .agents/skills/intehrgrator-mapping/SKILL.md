@@ -63,7 +63,7 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - **Party identity** — `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`, and `health_care_facility` after `optional_rm_add`). Map with `source_query` (name only) or `maps_create_with` keys `name`, `id`, `type`. Not a `/name/value` DV_TEXT leaf.
 - Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT).
 - Copy `slotId` / `attachSlotId` verbatim from inspect / the prompt manifest.
-- Duplicate `slotId`s (EVALUATION vs ACTION `content/at0000`): `list_slots.repeatable` and `attachSlotId` prefer the `0..*` container. Relative `loopVar` paths attach there.
+- Copy `slotId` / `attachSlotId` from inspect. Sibling `C_ARCHETYPE_ROOT` nodes that share `at0000` use the archetype id in the path (e.g. `…//content/openEHR-EHR-ACTION.medication.v1`). Duplicate ELEMENT ids (`at0003`) may still share one mapping row. `repeatable` / `attachSlotId` still prefer the `0..*` container when ids collide.
 - Existing mapping in another formalism (`.tmpl`, Handlebars, generated TypeScript, …): use `convert-mappings`, then this skill's golden path to apply and Test Run.
 
 ## Multi-agent etiquette

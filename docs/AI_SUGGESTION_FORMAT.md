@@ -266,7 +266,7 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
   "target": { "format": "openehr-template", "targetId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans" },
   "suggestions": [
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0139/value/value/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/description/at0017/items/at0000/items/at0139/value/value/value",
       "loopVar": "substans",
       "block": {
         "type": "maps_create_with",
@@ -295,7 +295,7 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
   "target": { "format": "openehr-template", "targetId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans" },
   "suggestions": [
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/data/at0001/items/at0004/value/DV_CODED_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/data/at0001/items/at0004/value/DV_CODED_TEXT/value",
       "block": {
         "type": "maps_create_with",
         "extraState": { "itemCount": 3 },

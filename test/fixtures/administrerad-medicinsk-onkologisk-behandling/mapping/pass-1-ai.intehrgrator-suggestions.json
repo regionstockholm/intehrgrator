@@ -7,7 +7,7 @@
   },
   "loops": [
     {
-      "attachSlotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000",
+      "attachSlotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1",
       "block": {
         "type": "for_each_source",
         "fields": {
@@ -15,7 +15,7 @@
           "PATH": "$.Substanser"
         }
       },
-      "note": "Intended ACTION repeat. Duplicate slotId with EVALUATION at0000: Test Run preview repeats ACTION from array-valued $.Substanser[*] slots, not from this attach."
+      "note": "Intended ACTION repeat. Slot id retargeted to ACTION.medication.v1 after unique at0000 scaffolding. Pass 1 originally attached at content/at0000 and used $.Substanser[*] arrays because EVALUATION shared that id."
     }
   ],
   "suggestions": [
@@ -152,7 +152,7 @@
       "note": "Parent org name (instance-only field, missing from Avro schema)."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/at0003/value/DV_IDENTIFIER/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/openEHR-EHR-CLUSTER.organisation.v1/value/DV_IDENTIFIER/value",
       "block": {
         "type": "source_query",
         "fields": {
@@ -192,7 +192,7 @@
       "note": "openEHR setting 232; not in source."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/data/at0001/items/at0004/value/DV_CODED_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/data/at0001/items/at0004/value/DV_CODED_TEXT/value",
       "block": {
         "type": "source_query",
         "fields": {
@@ -202,7 +202,7 @@
       "note": "Diagnosis rubric only; ICD-10 code has no defining_code slot."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/ism_transition/at0007/current_state/DV_CODED_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/ism_transition/at0007/current_state/DV_CODED_TEXT/value",
       "block": {
         "type": "decision_table",
         "fields": {
@@ -236,7 +236,7 @@
       "note": "OPT allows only openehr::532 completed. Absolute path: first substance status; scalar copied to each ACTION."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/ism_transition/at0007/careflow_step/DV_CODED_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/ism_transition/at0007/careflow_step/DV_CODED_TEXT/value",
       "block": {
         "type": "decision_table",
         "fields": {
@@ -270,7 +270,7 @@
       "note": "OPT allows only local::at0007 Medication course completed."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0132/value/DV_CODED_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/description/at0017/items/at0000/items/at0132/value/DV_CODED_TEXT/value",
       "block": {
         "type": "source_query",
         "fields": {
@@ -280,7 +280,7 @@
       "note": "Array-valued so ACTION 0..* repeats. ATC not bindable as code."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0139/value/value/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/description/at0017/items/at0000/items/at0139/value/value/value",
       "block": {
         "type": "source_query_number",
         "fields": {
@@ -290,7 +290,7 @@
       "note": "Magnitude array. UnitCode has no units slot."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/protocol/at0030/items/at0103/value/DV_IDENTIFIER/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/protocol/at0030/items/at0103/value/DV_IDENTIFIER/value",
       "block": {
         "type": "source_query",
         "fields": {
@@ -300,7 +300,7 @@
       "note": "Beställnings-ID array from OrderLineId."
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/time/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/time/value",
       "block": {
         "type": "source_query",
         "fields": {
@@ -330,7 +330,7 @@
       "note": "OPT C_STRING list for parent-org CLUSTER.name"
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/at0003/name/DV_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/openEHR-EHR-CLUSTER.organisation.v1/name/DV_TEXT/value",
       "block": {
         "type": "text",
         "fields": {
@@ -340,7 +340,7 @@
       "note": "OPT C_STRING; not HSA-id"
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/name/DV_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/description/at0017/items/at0000/name/DV_TEXT/value",
       "block": {
         "type": "text",
         "fields": {
@@ -349,7 +349,7 @@
       }
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/name/DV_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/name/DV_TEXT/value",
       "block": {
         "type": "text",
         "fields": {
@@ -358,7 +358,7 @@
       }
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0132/name/DV_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/description/at0017/items/at0000/items/at0132/name/DV_TEXT/value",
       "block": {
         "type": "text",
         "fields": {
@@ -367,7 +367,7 @@
       }
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0139/name/DV_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/description/at0017/items/at0000/items/at0139/name/DV_TEXT/value",
       "block": {
         "type": "text",
         "fields": {
@@ -376,7 +376,7 @@
       }
     },
     {
-      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/protocol/at0030/items/at0103/name/DV_TEXT/value",
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/openEHR-EHR-ACTION.medication.v1/protocol/at0030/items/at0103/name/DV_TEXT/value",
       "block": {
         "type": "text",
         "fields": {

@@ -496,7 +496,7 @@ function renderOpenEhrNodeOnce(
     if (!node.rmType.startsWith("DV_") && node.rmType !== "CODE_PHRASE") return value;
     const output: Record<string, unknown> = { _type: node.rmType };
     assignDataValueFields(output, node.rmType, value);
-    Object.assign(output, node.fixedFields ?? {});
+    applyFixedDataValueFields(output, node.rmType, node.fixedFields);
     return output;
   }
 
@@ -611,6 +611,17 @@ function assignDataValueFields(
     output.magnitude = record && "magnitude" in record ? Number(record.magnitude) : Number(value);
     return;
   }
+  if (rmType === "DV_IDENTIFIER") {
+    if (record) {
+      if (record.id !== undefined) output.id = record.id;
+      else if (record.value !== undefined) output.id = record.value;
+      if (record.type !== undefined) output.type = record.type;
+      if (record.issuer !== undefined) output.issuer = record.issuer;
+    } else {
+      output.id = value;
+    }
+    return;
+  }
   if (rmType === "DV_CODED_TEXT") {
     if (record) {
       if (record.value !== undefined) output.value = record.value;
@@ -637,6 +648,32 @@ function assignDataValueFields(
     return;
   }
   output.value = value;
+}
+
+function applyFixedDataValueFields(
+  output: Record<string, unknown>,
+  rmType: string,
+  fields: Record<string, string> | undefined,
+): void {
+  if (!fields) return;
+  if (rmType === "DV_CODED_TEXT") {
+    if (fields.value && output.value === undefined) output.value = fields.value;
+    const phrase = codedPhraseFromRecord(fields);
+    if (phrase && output.defining_code == null) output.defining_code = phrase;
+    return;
+  }
+  if (rmType === "CODE_PHRASE") {
+    const phrase = codedPhraseFromRecord(fields);
+    if (phrase) Object.assign(output, phrase);
+    return;
+  }
+  if (rmType === "DV_IDENTIFIER") {
+    if (fields.id && output.id === undefined) output.id = fields.id;
+    if (fields.type) output.type = fields.type;
+    if (fields.issuer) output.issuer = fields.issuer;
+    return;
+  }
+  Object.assign(output, fields);
 }
 
 function asStringKeyedRecord(value: unknown): Record<string, unknown> | null {

@@ -101,7 +101,16 @@ Remaining failures are explained (renderer / slot-surface / OPT coded-text), not
 
 - `test/fixtures/administrerad-medicinsk-onkologisk-behandling/mapping/pass-1-ai.intehrgrator-suggestions.json`
 - `test/fixtures/administrerad-medicinsk-onkologisk-behandling/mapping/pass-1-ai.sheets.json`
-- Optional bundle export: `/tmp/karda-pass1/pass1.bundle.json` (revision `r7ee7baab` after canonical import).
+- Optional bundle export: `/tmp/karda-pass1/pass1.bundle.json`
+
+### Test Run (preview)
+
+Ran on three Active Examples (`administration-example_source_used_for_mapping`, TESTFALL-A, TESTFALL-C). Preview `ok` is **false**. Structural grain is right (1 EVALUATION + N ACTION, substance names/doses/times/care-unit names match source). Validation fails on coded-text shape and identifiers:
+
+- `DV_CODED_TEXT` preview put `terminology_id` / `defining_code` / `code_string` as sibling fields instead of a nested `CODE_PHRASE` (category, ISM, roles).
+- `DV_IDENTIFIER` preview used `value` rather than RM `id`.
+- Warning: `flat-json Instance encoding needs a Web Template on the openEHR target` (OPT load does not always attach the WT used by FLAT serialize).
+- Duplicate `at0003` slotIds: identifier mapping can land on a DV_TEXT name leaf (`Type mismatch: expected DV_TEXT, got DV_IDENTIFIER`). (revision `r7ee7baab` after canonical import).
 
 ## After Pass 1 — inspect / runtime landed
 
@@ -110,6 +119,7 @@ These address Pass 1 hazards 1, 3, 6, 7 (partial):
 - `list_slots` now includes `pathLabel`, `attachSlotId`, `repeatable[]`, `unitsFixed` / `allowedUnits`, `codeFixed` / `terminologyFixed` / `allowedValues`. Duplicate `slotId` rows are collapsed.
 - Copy AI Prompt slot manifest carries the same fields plus a `maps_create_with` magnitude+units example.
 - Test Run unpacks a `map("magnitude", …, "units", …)` (and coded-text maps) instead of coercing the record to `NaN` / `"[object Object]"`. Unconstrained `UnitCode` maps onto the quantity slot this way; there is still no sibling units slot.
+- Test Run now nests unique OPT codes as `defining_code` (`CODE_PHRASE`) instead of flattening `terminology_id` / `code_string` onto the DV, and emits `DV_IDENTIFIER.id` rather than `.value`.
 - Avro schema includes `PDL_vardgivare_Namn` / `PDL_vardgivare_HSAID` so schema-driven mapping sees the instance fields.
 
 Still open from Pass 1: unique `slotId`s for EVALUATION vs ACTION `content/at0000`; party name/identifiers as value slots; `optional_rm_add` health_care_facility canvas 500; `PUT /sheets` revision bump; DV_CODED_TEXT three-leaf mapping.

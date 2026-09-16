@@ -447,6 +447,64 @@ Deno.test("import_suggestions maps_create_with fills DV_QUANTITY magnitude and u
   assertEquals(qty.some((q) => Number(q.magnitude) === 140 && q.units === "mg"), true, JSON.stringify(qty));
 });
 
+Deno.test("openEHR Test Run nests DV_CODED_TEXT defining_code and DV_IDENTIFIER.id", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  await callAgentTool(service, "add_example", {
+    filename: "id.json",
+    content: JSON.stringify({ HSA: "CCJ3" }),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string }>;
+  };
+  const categoryId = listed.slots.find((s) => s.slotId.includes("//category/"))?.slotId;
+  const identId = listed.slots.find((s) =>
+    s.slotId.includes("other_context") && s.slotId.endsWith("items/at0003/value/DV_IDENTIFIER/value") &&
+    !s.slotId.includes("items/at0000/items/at0000/")
+  )?.slotId;
+  if (!categoryId || !identId) {
+    throw new Error(`missing slots category=${categoryId} ident=${identId}`);
+  }
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      suggestions: [
+        {
+          slotId: categoryId,
+          block: { type: "text", fields: { TEXT: "event" } },
+        },
+        {
+          slotId: identId,
+          block: { type: "source_query", fields: { EXPRESSION: "$.HSA" } },
+        },
+      ],
+    }),
+  }) as { report: { applied: number; errors: string[] } };
+  assertEquals(imported.report.applied, 2, imported.report.errors.join("; "));
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { output?: Record<string, unknown> };
+  };
+  const category = tested.testResult.output?.category as Record<string, unknown> | undefined;
+  const phrase = category?.defining_code as Record<string, unknown> | undefined;
+  assertEquals(typeof phrase, "object", JSON.stringify(category));
+  assertEquals(phrase?._type, "CODE_PHRASE");
+  assertEquals(typeof phrase?.code_string, "string");
+  const ids: Array<{ id?: unknown; value?: unknown }> = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "DV_IDENTIFIER") ids.push(rec);
+  });
+  assertEquals(ids.some((row) => row.id === "CCJ3" && row.value === undefined), true, JSON.stringify(ids));
+});
+
 function walkDv(
   node: unknown,
   visit: (rec: Record<string, unknown>) => void,

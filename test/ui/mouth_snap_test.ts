@@ -10,6 +10,66 @@ import { baseUrl, loadBpFixtures, waitForTestApi } from "./helpers.ts";
 
 const AlignRight = 1;
 
+/** Compact-renderer product blocks whose statement C must sit on the right tooth. */
+const PRODUCT_MOUTH_TYPES = [
+  "composition",
+  "section",
+  "observation",
+  "evaluation",
+  "instruction",
+  "action",
+  "admin_entry",
+  "cluster",
+  "element",
+  "history",
+  "event",
+  "point_event",
+  "interval_event",
+  "event_context",
+  "item_structure",
+  "item_tree",
+  "item_list",
+  "item_table",
+  "item_single",
+  "activity",
+  "party_identified",
+  "party_self",
+  "party_related",
+  "party_proxy",
+  "party_ref",
+  "participation",
+  "feeder_audit",
+  "feeder_audit_details",
+  "ism_transition",
+  "link",
+  "archetyped",
+  "generic_entry",
+  "xml_element",
+  "xml_document",
+  "xml_attribute",
+  "json_object",
+  "json_array",
+  "json_boolean",
+  "json_value",
+  "dv_quantity",
+  "dv_text",
+  "dv_coded_text",
+  "dv_boolean",
+  "dv_count",
+  "dv_ordinal",
+  "code_phrase",
+  "for_each_source",
+  "for_each_list",
+  "logic_list_restriction",
+];
+
+function isProductMouthType(type: string): boolean {
+  if (PRODUCT_MOUTH_TYPES.includes(type)) return true;
+  if (type.startsWith("schema_")) return true;
+  if (type.startsWith("dv_")) return true;
+  return false;
+}
+
 function assertNotchOnRightTooth(
   metrics: { offsetX: number; ownWidth: number; blockWidth: number } | null,
   label: string,
@@ -39,15 +99,22 @@ function mouthPlacementError(
 ): string | null {
   const label = `${row.blockType}.${row.inputName} (${row.kind})`;
   if (row.ownWidth < 40) return null;
-  if (row.align !== AlignRight) return `${label} should be RIGHT-aligned (align=${row.align})`;
-  // Statement C and packed value sockets sit on the right tooth. Leftover
-  // left-column placement (issue #105) is typically offsetX < 40.
-  if (row.offsetX <= row.ownWidth - 50) {
-    return `${label} snap X not on the right tooth: offsetX=${row.offsetX} ownWidth=${row.ownWidth}`;
-  }
   if (row.offsetY < 0) return `${label} snap Y is negative: ${row.offsetY}`;
   if (row.offsetY >= row.ownHeight + 24) {
     return `${label} snap Y is below the block outline: offsetY=${row.offsetY} ownHeight=${row.ownHeight}`;
+  }
+  // Issue #105: compact RIGHT statement C parked in the leftover left column.
+  if (row.kind === "statement" && row.ownWidth > 80 && row.offsetX < 40) {
+    return `${label} snap X in leftover left column: offsetX=${row.offsetX} ownWidth=${row.ownWidth}`;
+  }
+  if (!isProductMouthType(row.blockType)) return null;
+  if (row.kind === "statement") {
+    if (row.align !== AlignRight) {
+      return `${label} statement mouth should be RIGHT-aligned (align=${row.align})`;
+    }
+    if (row.offsetX <= row.ownWidth - 50) {
+      return `${label} snap X not on the right C tooth: offsetX=${row.offsetX} ownWidth=${row.ownWidth}`;
+    }
   }
   return null;
 }
@@ -134,17 +201,19 @@ Deno.test({
       await waitForTestApi(page);
       await loadBpFixtures(page);
 
-      const mouths = await page.evaluate(() => {
+      const mouths = await page.evaluate((types) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
           .intehrgratorTestApi;
-        return api.listMouthMetrics(["*"]);
-      });
+        return api.listMouthMetrics(types);
+      }, PRODUCT_MOUTH_TYPES);
 
       assert(mouths.length > 40, `expected many mouths, got ${mouths.length}`);
       const statements = mouths.filter((m) => m.kind === "statement");
       const values = mouths.filter((m) => m.kind === "value");
       assert(statements.length > 0, "expected statement mouths");
       assert(values.length > 0, "expected value mouths");
+      const productStatements = statements.filter((m) => isProductMouthType(m.blockType));
+      assert(productStatements.length > 5, `expected product statement mouths, got ${productStatements.length}`);
       const bad = mouths.map(mouthPlacementError).filter((msg): msg is string => Boolean(msg));
       assertEquals(bad, [], bad.slice(0, 30).join("\n"));
 

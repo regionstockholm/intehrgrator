@@ -158,7 +158,7 @@ Or use the bundled copy at [.cursor/skills/intehrgrator-mapping/SKILL.md](../.cu
 
 - Register an agent identity and apply mapping suggestions (`import_suggestions`)
 - Load a target, Source Schema, examples, or a catalogued **Example Set** (`load_target`, `add_example`, `load_example_set`) when running headless
-- Inspect slots, source trees, Sheets / Decision tables, Product stack (`list_slots`, `get_source_tree`, `get_sheets`)
+- Inspect slots, source trees, Sheets / Decision tables, Product stack, Constraint warnings (`list_slots`, `get_source_tree`, `get_sheets`, `list_constraint_warnings`)
 - Build AI prompts from the loaded project (`build_prompt`); Import Suggestions still applies the same v2 envelope
 - Map individual slots (`map_slot`), Optional RM, Instance encoding, slot leases
 - Run tests (`run_test`), export a Project Bundle / Conversion Script, undo/redo with revision tokens

@@ -25,6 +25,7 @@ import { bundleRevision } from "../agent/revision.ts";
 import type { AgentSnapshot } from "../agent/types.ts";
 import {
   compactSourceTree,
+  constraintWarningsInspect,
   listSlotsInspect,
   productStackInspect,
   sheetSummaries,
@@ -85,6 +86,7 @@ export class WorkbenchService {
     const s = this.controller.getState();
     const slots = listSlotsInspect(s.skeleton, s.model);
     const unmapped = slots.filter((row) => !row.mapped && row.mandatory).map((row) => row.slotId);
+    const constraintWarnings = this.listConstraintWarnings();
     return {
       revision: this.revision,
       templateId: s.templateId,
@@ -101,6 +103,7 @@ export class WorkbenchService {
       leases: this.leases.list(),
       exampleCount: s.examples.length,
       activeExample: s.activeExample?.filename ?? null,
+      constraintWarningCount: constraintWarnings.length,
     };
   }
 
@@ -365,6 +368,16 @@ export class WorkbenchService {
   getProductStack() {
     const s = this.controller.getState();
     return productStackInspect(s.blocklyState);
+  }
+
+  listConstraintWarnings() {
+    const s = this.controller.getState();
+    return constraintWarningsInspect({
+      skeleton: s.skeleton,
+      model: s.model,
+      sheets: s.sheets,
+      blocklyState: s.blocklyState,
+    });
   }
 
   listOptionalRm(parentSlotId?: string) {

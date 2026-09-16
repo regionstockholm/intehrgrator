@@ -37,7 +37,7 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
 4. **Inspect** — do not skip to import:
    - `list_slots` (unmapped mandatory first)
    - `get_source_tree`
-   - `get_sheets`, `get_product_stack`, `list_optional_rm`, `list_leases`
+   - `get_sheets`, `get_product_stack`, `list_optional_rm`, `list_leases`, `list_constraint_warnings`
    Done when you can name the slot ids and source paths you will fill.
 5. **Lease** hot slots (`lease_slot`) when another agent may write the same slot. Foreign `map_slot` is 409; `import_suggestions` skips foreign-leased slots. Done when `list_leases` shows your slots (or none, if uncontested).
 6. **Map:**
@@ -45,7 +45,7 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
    - else emit `intehrgrator-suggestions` from inspect data
    - `import_suggestions` (preferred), `map_slot`, `optional_rm_add` / `optional_rm_remove`, `set_instance_encoding`
    Pass `revision` / `If-Match`. Done when import `applied` matches what you intended (read `errors` / `skipped`).
-7. **`run_test`** — read full `TestResult` (`output`, `warnings`, `outputValidation`), not only `testOk`. On failure, patch and re-import. Done when `testOk` is true or remaining failures are explained.
+7. **`run_test`** — read full `TestResult` (`output`, `warnings`, `outputValidation`), not only `testOk`. On failure, read `list_constraint_warnings` and patch, then re-import. Done when `testOk` is true or remaining failures are explained.
 8. **Export** when the user asked: `export_bundle` (`json` | `zip`, optional `path`), `generate_script` (`typescript` | `java` | `handlebars` | `xquery` | `go-template`). Done when files/strings exist.
 9. **`undo`** (`agent` / `user` / `global`) or `get_history` + `restore_at` if the user rejects work. `release_slot` when finished.
 

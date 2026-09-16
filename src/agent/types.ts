@@ -18,6 +18,7 @@ export interface AgentSnapshot {
   leases?: SlotLease[];
   exampleCount?: number;
   activeExample?: string | null;
+  constraintWarningCount?: number;
 }
 
 export interface AgentMutationResult {

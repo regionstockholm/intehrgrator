@@ -6,7 +6,8 @@ import type { MappingModel, SchemaTreeNode, SkeletonNode } from "../types/mod.ts
 import { collectValueSlots } from "../core/skeleton/generate_skeleton.ts";
 import { INSTANCE_ENCODING_FIELD } from "../core/output/instance_encoding.ts";
 import { parseInstanceEncoding } from "../core/output/instance_encoding.ts";
-import type { SheetDocument } from "../core/sheets/mod.ts";
+import { validateModel } from "../core/mapping_model/mod.ts";
+import { lintDecisionTable, type SheetDocument } from "../core/sheets/mod.ts";
 
 export interface SlotInspectRow {
   slotId: string;
@@ -34,12 +35,28 @@ export interface ProductStackRow {
   path?: string;
 }
 
+export interface ConstraintWarningRow {
+  slotId?: string;
+  blockId?: string;
+  sheetName?: string;
+  message: string;
+  severity: "error" | "warning";
+}
+
 interface BlocklyJsonNode {
   type?: string;
+  id?: string;
   fields?: Record<string, unknown>;
   next?: { block?: BlocklyJsonNode };
+  inputs?: Record<string, { block?: BlocklyJsonNode; shadow?: BlocklyJsonNode }>;
   extraState?: unknown;
 }
+
+/** Same copy as `block_constraints.ts` (kept here so inspect stays Blockly-free). */
+const ABSTRACT_EVENT_WARNING =
+  "EVENT is abstract. Choose POINT_EVENT or INTERVAL_EVENT — runtime instances cannot be the abstract EVENT class.";
+const ABSTRACT_ITEM_STRUCTURE_WARNING =
+  "ITEM_STRUCTURE is abstract. Choose ITEM_TREE, ITEM_LIST, ITEM_TABLE, or ITEM_SINGLE — runtime instances cannot be the abstract ITEM_STRUCTURE class.";
 
 export function listSlotsInspect(skeleton: SkeletonNode[], model: MappingModel): SlotInspectRow[] {
   const byId = new Map(model.slots.map((s) => [s.slotId, s]));
@@ -120,4 +137,62 @@ export function sheetSummaries(sheets: SheetDocument[]): Array<{
     headers: [...sheet.headers],
     rows: sheet.values.length,
   }));
+}
+
+/** DOM-free Constraint warnings: Mapping Model, Decision table lint, abstract RM types. */
+export function constraintWarningsInspect(options: {
+  skeleton: SkeletonNode[];
+  model: MappingModel;
+  sheets: SheetDocument[];
+  blocklyState: unknown;
+}): ConstraintWarningRow[] {
+  const out: ConstraintWarningRow[] = [];
+  for (const issue of validateModel(options.model, options.skeleton)) {
+    out.push({
+      ...(issue.slotId ? { slotId: issue.slotId } : {}),
+      message: issue.message,
+      severity: issue.severity,
+    });
+  }
+  for (const sheet of options.sheets) {
+    for (const diagnostic of lintDecisionTable(sheet)) {
+      out.push({
+        sheetName: sheet.name,
+        message: diagnostic.message,
+        severity: diagnostic.severity === "error" ? "error" : "warning",
+      });
+    }
+  }
+  collectAbstractRmWarnings(options.blocklyState, out);
+  return out;
+}
+
+function collectAbstractRmWarnings(state: unknown, out: ConstraintWarningRow[]): void {
+  for (const block of topBlocks(state)) walkBlockForAbstractRm(block, out);
+}
+
+function walkBlockForAbstractRm(block: BlocklyJsonNode | undefined, out: ConstraintWarningRow[]): void {
+  if (!block) return;
+  const rmType = String(block.fields?.RM_TYPE ?? "").toUpperCase();
+  if (rmType === "EVENT") {
+    out.push({
+      ...(block.id ? { blockId: block.id } : {}),
+      message: ABSTRACT_EVENT_WARNING,
+      severity: "warning",
+    });
+  }
+  if (rmType === "ITEM_STRUCTURE") {
+    out.push({
+      ...(block.id ? { blockId: block.id } : {}),
+      message: ABSTRACT_ITEM_STRUCTURE_WARNING,
+      severity: "warning",
+    });
+  }
+  if (block.next?.block) walkBlockForAbstractRm(block.next.block, out);
+  if (block.inputs) {
+    for (const input of Object.values(block.inputs)) {
+      walkBlockForAbstractRm(input?.block, out);
+      walkBlockForAbstractRm(input?.shadow, out);
+    }
+  }
 }

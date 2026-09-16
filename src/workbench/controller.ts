@@ -72,7 +72,7 @@ import {
   validateSuggestionEnvelope,
 } from "../core/ai/mod.ts";
 import type { HostAdapter, PickedTextFile } from "../host/mod.ts";
-import { productStackInspect } from "../agent/inspect.ts";
+import { constraintWarningsInspect, productStackInspect } from "../agent/inspect.ts";
 import { getValidAttachments } from "../core/rm_attachment_catalog.ts";
 import {
   detectTargetFormat,
@@ -982,6 +982,12 @@ export class WorkbenchController {
       sheets: this.sheets,
       productStack: productStackInspect(this.getBlocklyState?.() ?? this.blocklyState),
       optionalRm: this.collectOptionalRmCatalog(),
+      constraintWarnings: constraintWarningsInspect({
+        skeleton: this.skeleton,
+        model: this.model,
+        sheets: this.sheets,
+        blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
+      }),
     });
   }
 

@@ -56,6 +56,13 @@ export interface BuildPromptOptions {
     parentSlotId: string;
     attachments: Array<{ rmType: string; attributeName: string; label?: string }>;
   }>;
+  /** Constraint warnings (unmapped mandatory, Decision table lint, abstract RM types). */
+  constraintWarnings?: Array<{
+    slotId?: string;
+    blockId?: string;
+    sheetName?: string;
+    message: string;
+  }>;
 }
 
 const VALUE_BLOCK_TYPES = new Set([
@@ -213,6 +220,18 @@ export function buildPrompt(options: BuildPromptOptions): string {
       "These RM-optional attributes are not in the envelope. Call `optional_rm_add` with `parentSlotId`, `rmType`, and `attributeName` copied from this list (then map any new value slots).",
       "```json",
       JSON.stringify(options.optionalRm, null, 2),
+      "```",
+      "",
+    );
+  }
+
+  if (options.constraintWarnings?.length) {
+    const sample = options.constraintWarnings.slice(0, 24);
+    sections.push(
+      "## Constraint warnings",
+      "Unmapped mandatory slots, Decision table lint, and abstract EVENT / ITEM_STRUCTURE. Patch with `import_suggestions` / `replace_sheets` / `optional_rm_add`, then re-check `list_constraint_warnings`.",
+      "```json",
+      JSON.stringify(sample, null, 2),
       "```",
       "",
     );

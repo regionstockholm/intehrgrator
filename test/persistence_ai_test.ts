@@ -612,3 +612,25 @@ Deno.test("buildPrompt includes Optional RM Insertion catalog", () => {
   assertEquals(prompt.includes("optional_rm_add"), true);
   assertEquals(prompt.includes("feeder_audit"), true);
 });
+
+Deno.test("buildPrompt includes Constraint warnings", () => {
+  const model = createEmptyModel("bp");
+  const prompt = buildPrompt({
+    scope: "full",
+    targetId: "bp",
+    targetFormat: "openehr-template",
+    targetFilename: "blood_pressure.opt",
+    skeleton,
+    model,
+    formatDocUrl: "https://example.test/docs/AI_SUGGESTION_FORMAT.md",
+    delivery: "attach",
+    artifacts: [],
+    constraintWarnings: [{
+      slotId: "bp/content/data/events/data/items/at0004/value/value",
+      message: "Mandatory slot unmapped: Systolic",
+    }],
+  });
+  assertEquals(prompt.includes("## Constraint warnings"), true);
+  assertEquals(prompt.includes("Mandatory slot unmapped: Systolic"), true);
+  assertEquals(prompt.includes("list_constraint_warnings"), true);
+});

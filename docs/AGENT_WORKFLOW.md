@@ -27,12 +27,13 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | Method | Path | MCP tool | Purpose |
 |--------|------|----------|---------|
 | GET | `/health` | — | Liveness (unauthenticated) |
-| GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, test status |
+| GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status |
 | GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, multiplicity, expression) |
 | GET | `/source-tree` | `get_source_tree` | Compact Source Schema + Active Example trees |
 | GET | `/sheets` | `get_sheets` | Sheet / Decision table summaries + documents |
 | GET | `/product-stack` | `get_product_stack` | Conversion start chain (Instance roots, encodings, loops) |
 | GET | `/optional-rm` | `list_optional_rm` | Optional RM catalog (`?parentSlotId=`) |
+| GET | `/constraint-warnings` | `list_constraint_warnings` | Unmapped mandatory, Decision table lint, abstract EVENT / ITEM_STRUCTURE |
 | GET | `/leases` | `list_leases` | Advisory slot leases (S-15) |
 | GET | `/bundle` | `get_bundle` | Full `ProjectBundle` + revision |
 | GET | `/history` | `get_history` | Attributed semantic timeline |

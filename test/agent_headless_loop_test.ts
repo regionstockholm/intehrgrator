@@ -5,6 +5,7 @@ import { createAgentApiHandler } from "@intehrgrator/agent/http.ts";
 import { AGENT_TOOLS, AGENT_TOOL_HTTP, callAgentTool } from "@intehrgrator/agent/tools.ts";
 import { handleMcpRequest, LocalAgentClient } from "@intehrgrator/agent/mcp_stdio.ts";
 import { collectValueSlots } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
+import { addCatchAllRow, emptyDecisionTable } from "@intehrgrator/core/sheets/decision_table.ts";
 
 const fixtures = join(import.meta.dirname!, "fixtures");
 
@@ -299,4 +300,69 @@ Deno.test("import_suggestions skips foreign-leased slots", async () => {
   assertEquals(report.applied, 0);
   assertEquals(report.skipped >= 1, true);
   assertEquals(report.errors.some((e) => e.includes("leased")), true);
+});
+
+Deno.test("list_constraint_warnings reports unmapped mandatory slots on an OPT", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "blood_pressure.opt"),
+  });
+  const listed = await callAgentTool(service, "list_constraint_warnings", {}) as {
+    warnings: Array<{ message: string; slotId?: string }>;
+  };
+  assertEquals(
+    listed.warnings.some((w) => w.message.includes("Mandatory slot unmapped")),
+    true,
+    JSON.stringify(listed.warnings.slice(0, 5)),
+  );
+
+  const snap = await callAgentTool(service, "get_snapshot", {}) as {
+    constraintWarningCount: number;
+  };
+  assertEquals(snap.constraintWarningCount >= 1, true);
+
+  const built = await callAgentTool(service, "build_prompt", { delivery: "attach" }) as {
+    prompt: string;
+  };
+  assertEquals(built.prompt.includes("## Constraint warnings"), true);
+});
+
+Deno.test("list_constraint_warnings includes Decision table catch-all lint", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "dummy-json-vitals", "target.schema.json"),
+  });
+  const sheet = addCatchAllRow(addCatchAllRow(emptyDecisionTable("sbp_band")));
+  await callAgentTool(service, "replace_sheets", { sheets: [sheet] });
+  const listed = await callAgentTool(service, "list_constraint_warnings", {}) as {
+    warnings: Array<{ message: string; sheetName?: string }>;
+  };
+  assertEquals(
+    listed.warnings.some((w) => w.message.includes("catch-all")),
+    true,
+    JSON.stringify(listed.warnings),
+  );
+});
+
+Deno.test("list_constraint_warnings reports abstract EVENT in Blockly JSON", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "put_blockly", {
+    blocklyState: {
+      blocks: {
+        blocks: [{
+          type: "rm_event",
+          id: "evt-abstract",
+          fields: { RM_TYPE: "EVENT" },
+        }],
+      },
+    },
+  });
+  const listed = await callAgentTool(service, "list_constraint_warnings", {}) as {
+    warnings: Array<{ message: string; blockId?: string }>;
+  };
+  assertEquals(
+    listed.warnings.some((w) => w.blockId === "evt-abstract" && w.message.includes("EVENT is abstract")),
+    true,
+    JSON.stringify(listed.warnings),
+  );
 });

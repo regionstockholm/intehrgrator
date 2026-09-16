@@ -34,7 +34,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   },
   {
     name: "get_snapshot",
-    description: "Project revision, template id, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, test status.",
+    description: "Project revision, template id, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -61,6 +61,11 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     name: "list_optional_rm",
     description: "Optional RM Insertion catalog. Pass parentSlotId to inspect one container.",
     inputSchema: { type: "object", properties: { parentSlotId: { type: "string" } } },
+  },
+  {
+    name: "list_constraint_warnings",
+    description: "Constraint warnings: unmapped mandatory slots, Decision table lint, abstract EVENT / ITEM_STRUCTURE.",
+    inputSchema: { type: "object", properties: {} },
   },
   {
     name: "get_history",
@@ -345,6 +350,7 @@ export const AGENT_TOOL_HTTP: Record<string, AgentToolHttp> = {
   get_sheets: { method: "GET", path: "/sheets", body: "none" },
   get_product_stack: { method: "GET", path: "/product-stack", body: "none" },
   list_optional_rm: { method: "GET", path: "/optional-rm", body: "none" },
+  list_constraint_warnings: { method: "GET", path: "/constraint-warnings", body: "none" },
   get_history: { method: "GET", path: "/history", body: "none" },
   get_activity: { method: "GET", path: "/activity", body: "none" },
   get_bundle: { method: "GET", path: "/bundle", body: "none" },
@@ -414,6 +420,8 @@ export async function callAgentTool(
       return { revision: service.getRevision(), stack: service.getProductStack() };
     case "list_optional_rm":
       return { revision: service.getRevision(), ...service.listOptionalRm(args.parentSlotId as string | undefined) };
+    case "list_constraint_warnings":
+      return { revision: service.getRevision(), warnings: service.listConstraintWarnings() };
     case "get_history":
       return { revision: service.getRevision(), entries: service.listHistory() };
     case "get_activity":

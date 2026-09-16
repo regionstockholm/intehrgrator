@@ -30,9 +30,8 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
 1. **`register_agent`** — note `agentId`, `displayName`, `color`. Pass those headers / `_agent*` args on writes. Done when register returns an id.
 2. **`get_snapshot`** — read `revision`. Empty project (`templateId` empty, `exampleCount` 0) → **load** before mapping. Done when snapshot JSON is in hand.
 3. **Load** (skip when the desktop already has a target + Active Example, or `--load` hydrated a bundle):
-   - `load_target` (content / path / url)
-   - `load_source_schema` (optional)
-   - `add_example` + `set_active_example`
+   - `load_example_set` (`catalogPath` / `catalogUrl` + `setId`) when the project is a catalogued use case
+   - or `load_target` (content / path / url), `load_source_schema`, `add_example` + `set_active_example`
    - `replace_sheets` for terminology **Sheets** and **Decision tables**
    Done when snapshot shows `templateId` and `exampleCount >= 1`.
 4. **Inspect** — do not skip to import:

@@ -17,7 +17,7 @@ intEHRgrator --headless [--port <n>] [--bind <addr>] [--load <file.intehrgrator>
 - Default bind `127.0.0.1` (loopback may stay unauthenticated).
 - `--headless`: do not open a browser; on `deno desktop` / the compiled app, hide the native window and keep `Deno.serve` alive.
 - `--bind 0.0.0.0` (or any non-loopback) **requires** `--token` or `INTEHR_AGENT_TOKEN`. When a token is set, every Agent API route except `GET /health` needs `Authorization: Bearer …` or `x-intehr-token`.
-- `--load` hydrates the shared `WorkbenchService` from a Project Bundle zip/json at start.
+- `--load` hydrates the shared `WorkbenchService` from a Project Bundle zip (`.intehrgrator`) or JSON file at start.
 - `DENO_SERVE_ADDRESS` (Deno desktop webview) still owns listen address; `--port` / `--bind` apply to `deno run`.
 
 Base URL: `http://127.0.0.1:<port>/api/v1/`
@@ -43,6 +43,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | POST | `/load-target` | `load_target` | Target OPT / schema (`content` / `path` / `url`) |
 | POST | `/load-source-schema` | `load_source_schema` | Source Schema |
 | POST | `/add-example` | `add_example` | Example Instance |
+| POST | `/load-example-set` | `load_example_set` | Catalogued Example Set (`catalogPath` or `catalogUrl` + `setId`; `includeMapping` default true) |
 | POST | `/set-active-example` | `set_active_example` | `{ id }` |
 | PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents |
 | POST | `/ui-commit` | — | UI semantic commit `{ bundle, summary, kind? }` |

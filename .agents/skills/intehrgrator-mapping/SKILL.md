@@ -57,8 +57,10 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - **Decision tables** — prefer `kind: "decision-table"` + `decision_table` when several independent inputs, don't-care cells, or FIRST/UNIQUE/COLLECT hit policies make the mapping **more readable to humans** than nested `if` / `logic_ternary`. Put the grid on the project with `replace_sheets`; the envelope only fills the value slot.
 - **Sheets** — `sheet_lookup` for 1-key terminology (ICD-10 → SNOMED). Not a Decision table.
 - **Defaults Map** — `maps_get("defaults", …)` only when the source has no value. **Source over defaults** for time, facility, composer.
-- **Loops** — `for_each_source` for repeating source nodes; `for_each_list` for a computed list. Product-stack loops and extra Instance roots: inspect `get_product_stack`; encoding via `set_instance_encoding`. `put_blockly` is an escape hatch, not the primary path.
-- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add`.
+- **Loops** — `for_each_source` for repeating source nodes; `for_each_list` for a computed list. Copy `attachSlotId` from `list_slots` (`repeatable` and per-slot `attachSlotId`), not only from `build_prompt`. Product-stack loops and extra Instance roots: inspect `get_product_stack`; encoding via `set_instance_encoding`. `put_blockly` is an escape hatch, not the primary path.
+- **Quantities** — unconstrained `DV_QUANTITY.units` is a shell field. When `list_slots` has no `unitsFixed`, map the quantity slot with `maps_create_with` keys `magnitude` + `units`.
+- **Coded text** — copy `allowedValues` from inspect when present; otherwise `maps_create_with` keys `value`, `code_string` / `defining_code`, `terminology_id`.
+- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT, composer identifiers via party optional RM).
 - Copy `slotId` / `attachSlotId` verbatim from inspect / the prompt manifest.
 
 ## Multi-agent etiquette

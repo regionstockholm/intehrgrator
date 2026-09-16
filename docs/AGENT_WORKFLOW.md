@@ -29,7 +29,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 |--------|------|----------|---------|
 | GET | `/health` | — | Liveness (unauthenticated) |
 | GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status |
-| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, multiplicity, expression) |
+| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, unitsFixed / allowedUnits, codeFixed / allowedValues, expression) plus `repeatable` containers for `loops[]` |
 | GET | `/source-tree` | `get_source_tree` | Compact Source Schema + Active Example trees |
 | GET | `/sheets` | `get_sheets` | Sheet / Decision table summaries + documents |
 | GET | `/product-stack` | `get_product_stack` | Conversion start chain (Instance roots, encodings, loops) |

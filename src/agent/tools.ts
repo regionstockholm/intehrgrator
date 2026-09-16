@@ -39,7 +39,8 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   },
   {
     name: "list_slots",
-    description: "Target value slots with mapped flag, valueType, multiplicity, and expression.",
+    description:
+      "Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId for loops, unitsFixed/allowedUnits, codeFixed/allowedValues, expression) plus repeatable containers.",
     inputSchema: { type: "object", properties: {} },
   },
   {
@@ -411,7 +412,11 @@ export async function callAgentTool(
     case "get_snapshot":
       return service.getSnapshot();
     case "list_slots":
-      return { revision: service.getRevision(), slots: service.listSlots() };
+      return {
+        revision: service.getRevision(),
+        slots: service.listSlots(),
+        repeatable: service.listRepeatable(),
+      };
     case "get_source_tree":
       return { revision: service.getRevision(), ...service.getSourceTree() };
     case "get_sheets":

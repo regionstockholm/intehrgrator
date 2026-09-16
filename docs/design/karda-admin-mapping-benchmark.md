@@ -8,7 +8,7 @@ Agent: `pass-1-mapper` on headless Agent API `http://127.0.0.1:8765/api/v1/`. In
 
 ### What was mapped and how
 
-**Loop.** `for_each_source` `substans` over `$.Substanser`, `attachSlotId` = `AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000` (repeating ACTION `0..*`). Relative paths inside the loop: `Innholdstoff_Navn`, `Dose`, `OrderLineId`, `AdministrationStatus_LongDescription`. Encounter-level fields stay absolute (`$.EncounterDate`, `$.Diagnosnamn_ICD10`, care-unit paths).
+**Loop.** `for_each_source` `substans` over `$.Substanser`, `attachSlotId` = `AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000`. That id is shared with EVALUATION `reason_for_encounter` (`0..1`), so `findAttachBlock` / `findSkeletonTrail` hit EVALUATION first and relative loop paths never filled ACTION leaves. Pass 1 therefore maps ACTION values with **absolute** `$.Substanser[*].…` (no `loopVar`). Preview `repeatingInstanceCount` then emits one ACTION per array item. Encounter-level fields stay scalar (`$.EncounterDate`, `$.Diagnosnamn_ICD10`, care-unit paths).
 
 **Decision table.** Sheet `admin_ism` (`kind: "decision-table"`, `hitPolicy: FIRST`). Condition `status_desc`; outputs `current_state` and `careflow_step`. Rows for `Stoppad` / `Administrerad` / `Given` plus a catch-all. OPT `C_CODE_PHRASE` allows only openEHR `532` (completed) and local `at0007` (Medication course completed), so every row emits those rubrics. The table is documentation of source status plus the only legal pair; it is **not** a multi-state ISM map. Clinical mismatch: source `Stoppad` is closer to instruction state aborted (`531`) / careflow `at0015` Medication course stopped, which this template forbids.
 
@@ -32,16 +32,26 @@ Agent: `pass-1-mapper` on headless Agent API `http://127.0.0.1:8765/api/v1/`. In
 - Category: literal `event` (openEHR `433`).
 - Setting: literal `secondary medical care` (openEHR setting `232`; not in source).
 
-**Import.** `applied: 24`, `skipped: 0`, `errors: []`, `loopsAccepted: 1`, `unmappedMandatory: 0`.
+**Import (canonical envelope).** `applied: 24`, `skipped: 0`, `errors: []`, `loopsAccepted: 1`, `unmappedMandatory: 0`. `PUT /sheets` for `admin_ism` succeeded but did not bump `revision`.
 
 ### Test Run results per example
 
-Pending first Test Run after import (this section is filled after `POST /run-test` on at least two Active Examples).
+`POST /run-test` after `set_active_example`. `testOk` is **false** on every example. Shared warning: `flat-json Instance encoding needs a Web Template on the openEHR target` — preview therefore serializes **canonical JSON**, not Simplified FLAT. `outputValidation.valid` is false for the same structural reasons (coded-text `defining_code` shape, `DV_IDENTIFIER.value` vs RM `id`, empty optional CLUSTER children from the skeleton). Mapping **payload content** is still useful:
+
+| Example | testOk | EVALUATION | ACTION count | Notable output |
+| --- | --- | --- | --- | --- |
+| `administration-example_source_used_for_mapping.json` | false (44 validation errors) | 1; diagnosis *Icke specificerad … bröstkörtel* | 2 | start_time `2024-05-21T00:00:00`; care unit Namn `S MBA B8`, CLUSTER.name `Vårdenhet`; substances Epirubicin **181**, Cyklofosfamid iv **1086** |
+| `administration-TESTFALL-A-source-example.json` | false (44 errors) | 1; *Malign tumör i mellanlob…* | 2 | start_time `2026-04-27T13:03:11`; care unit `S MBA A10`; Pembrolizumab **150**, Atezolizumab sc **1104** |
+| `administration-TESTFALL-C-source-example.json` | false (26 errors; one ACTION) | 1; *Icke specificerad … bronk och lunga* | 1 | start_time `2026-02-23T00:00:00`; care unit `S MBA G4`; Vinorelbin **140** |
+
+Composer remains the scaffold dummy (`PARTY_IDENTIFIED` name `"composer"`). Dose **units** never appear. Category/ISM/role objects carry flattened `defining_code` **strings** plus sibling `code_string`/`terminology_id` (validator still reports missing nested CODE_PHRASE fields). Diagnosis has rubric only (no ICD-10 `defining_code`). Extra empty organisation/medication CLUSTERs (Adress, Kvantitet, …) are emitted from the Template Skeleton and add most of the remaining errors.
+
+Remaining failures are explained (renderer / slot-surface / OPT coded-text), not silent mapping misses of Dose/Namn/substance.
 
 ### What was difficult for an agent
 
 1. **Slot labels vs paths.** Many leaves are labelled `DV_CODED_TEXT` / `DV_TEXT` / `Identifierare` with no `pathLabel` or `attachSlotId` in `GET /slots`. Distinguishing EVALUATION vs ACTION, care unit vs parent org, and which `at0003` is HSA vs org-number required walking the OPT definition tree.
-2. **Duplicate `slotId`s.** EVALUATION `at0000` (`0..1`) and ACTION `at0000` (`0..*`) share `…//content/at0000`. Nested parent org has two `ELEMENT at0003` with identical ids. `applyExpressionEdit` keeps **one** mapping-model row per id. `findAttachBlock` returns the first statement-connected block, so the substance loop may wrap EVALUATION instead of ACTION.
+2. **Duplicate `slotId`s.** EVALUATION `at0000` (`0..1`) and ACTION `at0000` (`0..*`) share `…//content/at0000`. Nested parent org has two `ELEMENT at0003` with identical ids. `applyExpressionEdit` keeps **one** mapping-model row per id. Relative `loopVar` paths on ACTION leaves evaluated empty; ACTION repeat only worked after switching to `$.Substanser[*]` arrays.
 3. **Missing units slot.** Dose is `…/at0139/value/value/value` (magnitude). Unconstrained `C_DV_QUANTITY` does not create a units leaf, so `UnitCode` cannot be mapped via `map_slot` / `import_suggestions`.
 4. **Coded text is a single value socket.** Diagnosis, substance, role, category, setting, ISM: one `DV_CODED_TEXT/value` slot. Envelope cannot set `defining_code` + `value` + `terminology_id`. `term_pick` is not a v2 suggestion type. Render does `output.value = <expr>; Object.assign(fixedFields)` — unique OPT codes may survive as fixed fields, external ICD-10/ATC will not.
 5. **Missing composer / facility value slots.** `PARTY_IDENTIFIED.name` is a primitive String mouth; `identifiers` is a DATA_VALUE list skipped by Optional RM catalog. After a failed `health_care_facility` insert, no new slots appeared. Source `SignatureUser_FullName` / `_UserName` and facility HSA cannot be bound as the skill describes.
@@ -59,11 +69,14 @@ Pending first Test Run after import (this section is filled after `POST /run-tes
 - Document that party `name` / `identifiers` are **not** suggestion slots today, and that `optional_rm_add` of `health_care_facility` can break `event_context`.
 - Spell out DV_CODED_TEXT: one socket = rubric/`value` only unless unique OPT `defining_code` is in `fixedFields`. Recommend a three-leaf coded-text mapping or `|raw`.
 - `PUT /sheets` should bump revision (or docs should say If-Match is unchanged).
-- Warn that `content/at0000` can be both EVALUATION and ACTION in this template; loop attach is first-match.
+- Warn that `content/at0000` can be both EVALUATION and ACTION in this template; loop attach is first-match. Document the `$.array[*].field` preview workaround when attach hits the wrong duplicate.
+- Document that `flat-json` Test Run needs a Web Template on the target; otherwise preview is canonical JSON and `testOk` stays false.
 
 **Agent API / app**
 
-- Unique `slotId`s when two C_ARCHETYPE_ROOT nodes reuse `at0000` (include RM type or archetype id).
+- Unique `slotId`s when two C_ARCHETYPE_ROOT nodes reuse `at0000` (include RM type or archetype id). Until then, `evaluateLoopSlots` / `findAttachBlock` should prefer the repeating (`0..*` / `1..*`) container when ids collide.
+- Emit DV_CODED_TEXT `defining_code` as a CODE_PHRASE object (not a flattened string on the DV). Emit DV_IDENTIFIER `id` (not `value`).
+- Attach a Web Template to example-set openEHR targets so `flat-json` Test Run can serialize.
 - Expose DV_QUANTITY `units` as a value slot when unconstrained (or when source has a unit).
 - Expose `PARTY_IDENTIFIED.name` and `identifiers[].id` as mappable leaves; include `identifiers` in Optional RM even though the item type is DATA_VALUE.
 - Allow `term_pick` (or `text_code` JSON) in the v2 envelope for RM-coded attributes (category, setting, ISM).
@@ -82,13 +95,13 @@ Pending first Test Run after import (this section is filled after `POST /run-tes
 - **ICD-10 / ATC `defining_code`.** Not mapped. Terminology ids (`ICD-10`, `ATC`) were not confirmed from the OPT (substance and diagnosis `DV_CODED_TEXT` unconstrained).
 - **Role SNOMED.** Rubrics `vårdenhet` / `vårdgivare` taken from OPT `default_value` / term_definitions, not invented. Codes themselves could not be written into the slot.
 - **Two parent-org identifiers.** OPT has two `at0003` ELEMENTs (HSA `1.2.752.29.4.19` vs org-number `2.5.4.97`). Only HSA is in the source; both slots receive it.
-- **Loop attach target.** Uncertain whether `for_each_source` wrapped ACTION, EVALUATION, or both.
+- **Loop attach target.** Relative `loopVar` paths did not fill ACTION; `$.Substanser[*]` arrays did, so attach almost certainly resolved to EVALUATION. Canvas wrap was not inspected.
 
 ### Artefacts
 
 - `test/fixtures/administrerad-medicinsk-onkologisk-behandling/mapping/pass-1-ai.intehrgrator-suggestions.json`
 - `test/fixtures/administrerad-medicinsk-onkologisk-behandling/mapping/pass-1-ai.sheets.json`
-- Optional bundle export: `/tmp/karda-pass1/pass1.bundle.json`
+- Optional bundle export: `/tmp/karda-pass1/pass1.bundle.json` (revision `r7ee7baab` after canonical import).
 
 ## After Pass 1 — inspect / runtime landed
 

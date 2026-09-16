@@ -80,12 +80,14 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 
 | Family | Types | Fields / inputs |
 |--------|-------|-----------------|
-| Source | `source_query`, `source_query_number`, `source_query_boolean` | `EXPRESSION` (fontoxpath). Pick by `valueType`: number→`_number`, boolean→`_boolean`, else plain. |
-| Loop | `for_each_source` | `VAR`, `PATH` (absolute multi-node path). Statement block — **only** in `loops[]`, not as a value `suggestions[].block`. Leave `DO` empty. |
+| Source | `source_query`, `source_query_number`, `source_query_boolean`, `source_query_node` | `EXPRESSION` (fontoxpath). Pick by `valueType`: number→`_number`, boolean→`_boolean`, node→`_node`, else plain. |
+| Loop | `for_each_source`, `for_each_list` | Statement blocks — **only** in `loops[]`. `for_each_source`: fields `VAR`, `PATH` (absolute multi-node path). `for_each_list`: field `VAR` + input `LIST` (value block for the collection). Leave `DO` empty. |
 | Var | `variables_get` | `VAR` = loop variable name (whole node as value; rare). |
-| Map lookup | `maps_get` | `NAME` = map name; input `KEY` = key expression (literal `text` or dynamic `source_query`). |
+| Sheet lookup | `sheet_lookup`, `sheet_get_cell`, `sheet_get_xy`, `sheet_get_row`, `sheet_get_column`, `sheet_get_header`, `sheet_get_data` | `NAME` = Sheet name. `sheet_lookup` inputs `MATCH_COL`, `MATCH_VAL`, `RETURN_COL`. Use for **1-key terminology** (ICD-10 → SNOMED). |
+| Decision table | `decision_table` | Fields `NAME`, `OUTPUT` (output column or `*` for all outputs). Input `INPUTS` = locals Map whose keys match condition columns. Prefer when combinational rules are easier for humans to read than nested `if`. Grid document via `replace_sheets` (`kind: "decision-table"`), not this envelope. |
+| Map lookup | `maps_get` | `NAME` = map name; input `KEY`. Use for **Defaults Map** keys, not terminology tables. |
 | Map literal | `maps_create_with`, `maps_create_empty` | Inline key/value table: `KEY0`… fields + `VAL0`… value sockets; `extraState.itemCount`. Emits `map("k1", v1, …)`. |
-| Literal | `text`, `math_number`, `logic_boolean` | `TEXT` / `NUM` / `BOOL` (`TRUE`\|`FALSE`) |
+| Literal | `text`, `text_code`, `math_number`, `logic_boolean` | `TEXT` / `NUM` / `BOOL` (`TRUE`\|`FALSE`). `text_handlebars` wraps a script + context Map. |
 | Text | `text_trim`, `text_join` | `MODE`; `text_join` may need `extraState.itemCount` + `ADD0`… |
 | Math | `math_arithmetic` | `OP`: `ADD`\|`MINUS`\|`MULTIPLY`\|`DIVIDE`; inputs `A`,`B` |
 | Logic | `logic_ternary` | inputs `IF`,`THEN`,`ELSE` |
@@ -94,15 +96,25 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Current item | `logic_current_item` | Field `VAR` = item name to read, or omitted for the nearest enclosing restriction. Emits `var("…")`. |
 | Set class ops | `lists_set_operation` | `OP` `BOTH`/`EITHER`/`NOT_IN`; inputs `A`,`B`. Emits `intersection`/`union`/`difference(A, B)`. |
 
-No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional RM, Handlebars text, or list-construction blocks (`lists_*`) in this envelope — list-valued RM slots stay structural on the canvas.
+No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional RM, or list-construction blocks (`lists_*`) in this envelope — list-valued RM slots stay structural on the canvas. Optional RM Insertion and Instance encoding are Agent API / MCP tools (`optional_rm_add`, `set_instance_encoding`), not suggestion blocks.
 
-**Maps vs lists:** Use `maps_get` / `maps_create_with` for code translations, terminology tables, and lookups. List blocks are for authoring RM list structure on the canvas, not for AI-filled value expressions.
+**Sheets vs Decision tables vs Maps:**
+
+| Construct | When |
+|-----------|------|
+| **Sheet** + `sheet_lookup` | 1-key terminology / reference data (ICD-10 → SNOMED). |
+| **Decision table** + `decision_table` | Combinational rules: several independent inputs, don't-care cells, FIRST / UNIQUE / COLLECT. Prefer this when the table is **more readable to humans** than nested `logic_ternary`. |
+| **Defaults Map** + `maps_get` | Scaffold language / territory / encoding keys — only when the source has no value. |
+
+Create or replace Sheet / Decision table **documents** with `replace_sheets` (or the Sheets tab). The envelope only fills value slots.
 
 ### Loops (source ↔ target repetition)
 
 Use when source has repeating nodes (e.g. several vitals in one encounter) and the target slot’s `multiplicity` is `0..*` / `1..*` (or a child of such a container).
 
-1. Add one `loops[]` entry: `attachSlotId` = repeatable container; `PATH` = absolute fontoxpath selecting those nodes; `VAR` = short name.
+1. Add one `loops[]` entry: `attachSlotId` = repeatable container; `VAR` = short name.
+   - **`for_each_source`:** `PATH` = absolute fontoxpath selecting those nodes.
+   - **`for_each_list`:** `inputs.LIST` = value block for a computed list (sheet column, `source_query_node`, …).
 2. Map child value slots with `loopVar` = that `VAR` and **relative** `EXPRESSION` (child step(s) only).
 3. One source loop ↔ one repeating target container. Do not unroll `[1]`,`[2]`,… unless the user asked for a single instance.
 
@@ -118,7 +130,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 4. Link to this doc
 5. Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …)
 6. Artifact delivery (below)
-7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer **`maps_get` / `maps_create_with`** for terminology and code translation (e.g. ICD-10 → SNOMED CT) — more common than bare defaults. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score.
+7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer a **Decision table** when several inputs / don't-care / hit policies make the mapping easier for humans to read than nested `if`. Prefer **`sheet_lookup`** for 1-key terminology (e.g. ICD-10 → SNOMED CT). Keep **`maps_get`** for Defaults Map keys. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score. Copy AI Prompt includes Sheet / Decision table previews and the Product stack when present.
 
 ### Artifact delivery
 
@@ -138,8 +150,8 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 
 1. Extract fence (or raw JSON). `format` and `target` may be omitted; the loaded target is used.
 2. Require `version` `"2"`; match `target` when present
-3. Nested `attachSlotId` / `for_each_source` groups inside `suggestions[]` are flattened into `loops[]`. Validate `for_each_source`; keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container with `for_each_source` on the canvas
-4. Apply each valid suggestion `block` → value slot; skip invalid entries; report applied / skipped / errors
+3. Nested `attachSlotId` / `for_each_source` / `for_each_list` groups inside `suggestions[]` are flattened into `loops[]`. Validate loop blocks; keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container on the canvas
+4. Apply each valid suggestion `block` → value slot; skip invalid entries; report applied / skipped / errors. Slots leased by another agent are skipped (S-15).
 5. User **Test Run**
 
 ## Examples
@@ -174,7 +186,7 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 **Terminology translation (ICD-10 → SNOMED CT)**
 
 User prompt: *“Map diagnosis ICD-10 codes to SNOMED CT using a lookup table.”*  
-Assume a named map `icd10_snomed` on the canvas (or describe keys in `note`). Lookup with dynamic key from source:
+Assume a named **Sheet** `icd10_snomed` (headers `code` / `snomed`) on the canvas. Lookup with dynamic key from source:
 
 ```intehrgrator-suggestions
 {
@@ -185,24 +197,63 @@ Assume a named map `icd10_snomed` on the canvas (or describe keys in `note`). Lo
     {
       "slotId": "problem_list_v1/content/data/items/at0002/value/value/defining_code/code_string/value",
       "block": {
-        "type": "maps_get",
+        "type": "sheet_lookup",
         "fields": { "NAME": "icd10_snomed" },
         "inputs": {
-          "KEY": {
+          "MATCH_COL": { "block": { "type": "text", "fields": { "TEXT": "code" } } },
+          "MATCH_VAL": {
             "block": {
               "type": "source_query",
               "fields": { "EXPRESSION": "$.diagnosis.icd10" }
             }
-          }
+          },
+          "RETURN_COL": { "block": { "type": "text", "fields": { "TEXT": "snomed" } } }
         }
       },
-      "note": "Map icd10_snomed: I10→38341003, E11→44054006, … (user may load table on canvas)"
+      "note": "Sheet icd10_snomed: I10→38341003, E11→44054006, …"
     }
   ]
 }
 ```
 
-For a **small inline table** without a named map, nest `maps_create_with` inside `logic_ternary` branches (one branch per known code).
+For a **small inline table** without a named Sheet, nest `maps_create_with` inside `logic_ternary` branches only when a Decision table would be overkill (one or two codes). Prefer `sheet_lookup` or a Decision table for anything a human should maintain.
+
+**Decision table (systolic band)** — grid already on the project as `kind: "decision-table"` named `sbp_band` (condition `sbp`, output `band`):
+
+```intehrgrator-suggestions
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": { "format": "json-schema", "targetId": "DummyVitalsTarget" },
+  "suggestions": [
+    {
+      "slotId": "DummyVitalsTarget:$.band",
+      "block": {
+        "type": "decision_table",
+        "fields": { "NAME": "sbp_band", "OUTPUT": "band" },
+        "inputs": {
+          "INPUTS": {
+            "block": {
+              "type": "maps_create_with",
+              "extraState": { "itemCount": 1 },
+              "fields": { "KEY0": "sbp" },
+              "inputs": {
+                "VAL0": {
+                  "block": {
+                    "type": "source_query_number",
+                    "fields": { "EXPRESSION": "$.systolic" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "note": "Prefer a Decision table over nested if for readable SBP bands"
+    }
+  ]
+}
+```
 
 **Source over defaults (composer, time, facility)** — scaffold may already use `maps_get("defaults", …)`; when the source has values, map from source:
 

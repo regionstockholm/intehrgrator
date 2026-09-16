@@ -485,3 +485,108 @@ Deno.test("suggestion JSON Schema explains Gemini-shaped deviations", () => {
   assertEquals(followUp.includes("Previous payload"), true);
   assertEquals(followUp.includes("nested loops") || followUp.includes("source_query"), true);
 });
+
+Deno.test("suggestion JSON Schema accepts decision_table and for_each_list", () => {
+  const decision = validateSuggestionEnvelope({
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "json-schema", targetId: "DummyVitalsTarget" },
+    suggestions: [{
+      slotId: "DummyVitalsTarget:$.band",
+      block: {
+        type: "decision_table",
+        fields: { NAME: "sbp_band", OUTPUT: "band" },
+        inputs: {
+          INPUTS: {
+            block: {
+              type: "maps_create_with",
+              extraState: { itemCount: 1 },
+              fields: { KEY0: "sbp" },
+              inputs: {
+                VAL0: {
+                  block: { type: "source_query_number", fields: { EXPRESSION: "$.systolic" } },
+                },
+              },
+            },
+          },
+        },
+      },
+    }],
+  });
+  assertEquals(decision, []);
+
+  const listLoop = validateSuggestionEnvelope({
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "json-schema", targetId: "t1" },
+    loops: [{
+      attachSlotId: "t1:$.items",
+      block: {
+        type: "for_each_list",
+        fields: { VAR: "item" },
+        inputs: {
+          LIST: {
+            block: { type: "source_query_node", fields: { EXPRESSION: "$.readings" } },
+          },
+        },
+      },
+    }],
+    suggestions: [{
+      slotId: "t1:$.items.value",
+      loopVar: "item",
+      block: { type: "source_query", fields: { EXPRESSION: "code" } },
+    }],
+  });
+  assertEquals(listLoop, []);
+});
+
+Deno.test("suggestionBlockToExpression serializes decision_table", () => {
+  const expr = suggestionBlockToExpression({
+    type: "decision_table",
+    fields: { NAME: "sbp_band", OUTPUT: "band" },
+    inputs: {
+      INPUTS: {
+        block: {
+          type: "maps_create_with",
+          extraState: { itemCount: 1 },
+          fields: { KEY0: "sbp" },
+          inputs: {
+            VAL0: { block: { type: "source_query_number", fields: { EXPRESSION: "$.systolic" } } },
+          },
+        },
+      },
+    },
+  });
+  assertEquals(expr, 'decision_table("sbp_band", map("sbp", xpathNumber("$.systolic")), "band")');
+});
+
+Deno.test("buildPrompt includes Decision table grids and product stack", () => {
+  const model = createEmptyModel("PatientSchema");
+  model.targetFormat = "json-schema";
+  const prompt = buildPrompt({
+    scope: "full",
+    targetId: "PatientSchema",
+    targetFormat: "json-schema",
+    targetFilename: "patient.schema.json",
+    skeleton,
+    model,
+    formatDocUrl: "https://example.test/docs/AI_SUGGESTION_FORMAT.md",
+    delivery: "attach",
+    artifacts: [],
+    sheets: [{
+      name: "sbp_band",
+      kind: "decision-table",
+      headers: ["sbp", "band"],
+      values: [[">= 140", "high"]],
+      hitPolicy: "FIRST",
+      decisionColumns: [{ role: "condition" }, { role: "output", outputKind: "value" }],
+    }],
+    productStack: [{ type: "json_instance_root", encoding: "canonical_json" }],
+  });
+  assertEquals(prompt.includes("## Sheets and Decision tables"), true);
+  assertEquals(prompt.includes("sbp_band"), true);
+  assertEquals(prompt.includes("decision-table"), true);
+  assertEquals(prompt.includes("## Product stack"), true);
+  assertEquals(prompt.includes("decision_table"), true);
+  assertEquals(prompt.includes("more readable to humans"), true);
+});

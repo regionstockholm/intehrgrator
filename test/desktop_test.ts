@@ -53,6 +53,11 @@ Deno.test("workbenchOrErrorHandler serves an HTML error page when assets are mis
     const text = await res.text();
     assertEquals(text.includes("intEHRgrator could not start"), true);
     assertEquals(text.includes("Workbench assets not found"), true);
+    const health = await workbenchOrErrorHandler(dir, new URL("file:///no-such-entry/main.ts").href)(
+      new Request("http://127.0.0.1/api/v1/health"),
+    );
+    assertEquals(health.status, 200);
+    assertEquals((await health.json() as { ok: boolean }).ok, true);
   } finally {
     await Deno.remove(dir, { recursive: true });
   }

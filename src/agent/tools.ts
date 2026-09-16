@@ -2,7 +2,7 @@
  * Shared Agent API / MCP tool dispatch. HTTP routes and stdio MCP call the same names.
  */
 
-import { basename, dirname } from "@std/path";
+import { basename, dirname, resolve, toFileUrl } from "@std/path";
 import { ensureDir } from "@std/fs";
 import type { MutationContext, WorkbenchService } from "../workbench/service.ts";
 import type { ConversionScriptLanguage, SourceFormatId } from "../types/mod.ts";
@@ -10,6 +10,8 @@ import { isConversionScriptLanguage, isInstanceEncoding } from "../types/mod.ts"
 import { exportBundle } from "../core/persistence/mod.ts";
 import type { ProjectBundle } from "../types/mod.ts";
 import type { SheetDocument } from "../core/sheets/mod.ts";
+import { parseExampleSetCatalog } from "../core/example_sets/mod.ts";
+import { toFetchableUrl } from "../host/fetch_url.ts";
 
 export interface AgentToolDef {
   name: string;
@@ -123,6 +125,22 @@ export const AGENT_TOOLS: AgentToolDef[] = [
         content: { type: "string" },
         path: { type: "string" },
         url: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "load_example_set",
+    description:
+      "Load a catalogued Example Set (target, Source Schema, instances, optional mapping/defaults) from a local catalogPath or catalogUrl.",
+    inputSchema: {
+      type: "object",
+      required: ["setId"],
+      properties: {
+        setId: { type: "string" },
+        catalogPath: { type: "string" },
+        catalogUrl: { type: "string" },
+        includeMapping: { type: "boolean" },
+        revision: { type: "string" },
       },
     },
   },
@@ -333,6 +351,7 @@ export const AGENT_TOOL_HTTP: Record<string, AgentToolHttp> = {
   load_target: { method: "POST", path: "/load-target", body: "json" },
   load_source_schema: { method: "POST", path: "/load-source-schema", body: "json" },
   add_example: { method: "POST", path: "/add-example", body: "json" },
+  load_example_set: { method: "POST", path: "/load-example-set", body: "json" },
   set_active_example: { method: "POST", path: "/set-active-example", body: "json" },
   replace_sheets: { method: "PUT", path: "/sheets", body: "json" },
   build_prompt: { method: "POST", path: "/build-prompt", body: "json" },
@@ -406,6 +425,8 @@ export async function callAgentTool(
       } else if (typeof args.path === "string") {
         const bytes = await Deno.readFile(args.path);
         service.loadBundleFile(bytes, { expectedRevision: revision });
+      } else if (isProjectBundleArg(args)) {
+        service.loadBundle(projectBundleFromArgs(args), { expectedRevision: revision });
       } else {
         throw new Error("load_bundle requires bundle JSON or path");
       }
@@ -434,6 +455,10 @@ export async function callAgentTool(
         service.addExampleContent(file.filename, file.content);
       }
       return { revision: service.getRevision(), ...service.getSourceTree() };
+    case "load_example_set": {
+      const loaded = await loadExampleSetFromArgs(service, args);
+      return { ...loaded, revision: service.getRevision(), snapshot: service.getSnapshot() };
+    }
     case "set_active_example":
       service.setActiveExample(String(args.id));
       return { revision: service.getRevision() };
@@ -602,4 +627,58 @@ async function readTextInput(
     return { filename: basename(path), content: await Deno.readTextFile(path) };
   }
   throw new Error(`Provide content (+ optional filename), path, or url`);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isProjectBundleArg(args: Record<string, unknown>): boolean {
+  return typeof args.version === "number" && isRecord(args.mapping);
+}
+
+function projectBundleFromArgs(args: Record<string, unknown>): ProjectBundle {
+  const rest = { ...args };
+  delete rest.revision;
+  delete rest._agentId;
+  delete rest._agentName;
+  delete rest._agentColor;
+  delete rest.path;
+  delete rest.bundle;
+  return rest as unknown as ProjectBundle;
+}
+
+async function loadExampleSetFromArgs(
+  service: WorkbenchService,
+  args: Record<string, unknown>,
+): Promise<{ setId: string; title: string; catalogUrl: string }> {
+  const setId = String(args.setId ?? "").trim();
+  if (!setId) throw new Error("load_example_set requires setId");
+  const catalogUrl = resolveCatalogUrl(args);
+  const text = catalogUrl.startsWith("file:")
+    ? await Deno.readTextFile(new URL(catalogUrl))
+    : await (await fetch(toFetchableUrl(catalogUrl))).then(async (res) => {
+      if (!res.ok) throw new Error(`Could not load catalog ${catalogUrl} (${res.status})`);
+      return await res.text();
+    });
+  const catalog = parseExampleSetCatalog(text, catalogUrl);
+  const set = catalog.sets.find((row) => row.id === setId);
+  if (!set) {
+    throw new Error(
+      `Unknown example set "${setId}". Known: ${catalog.sets.map((row) => row.id).join(", ")}`,
+    );
+  }
+  const includeMapping = args.includeMapping !== false;
+  await service.loadExampleSet(includeMapping ? set : { ...set, mapping: undefined });
+  return { setId: set.id, title: set.title, catalogUrl: catalog.catalogUrl };
+}
+
+function resolveCatalogUrl(args: Record<string, unknown>): string {
+  if (typeof args.catalogPath === "string" && args.catalogPath.trim()) {
+    return toFileUrl(resolve(args.catalogPath.trim())).href;
+  }
+  if (typeof args.catalogUrl === "string" && args.catalogUrl.trim()) {
+    return toFetchableUrl(args.catalogUrl.trim());
+  }
+  throw new Error("load_example_set requires catalogPath or catalogUrl");
 }

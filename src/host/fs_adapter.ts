@@ -3,6 +3,7 @@
  * Agent API export tools write paths themselves.
  */
 
+import { basename, fromFileUrl } from "@std/path";
 import type { ProjectBundle } from "../types/mod.ts";
 import type {
   HostAdapter,
@@ -60,6 +61,10 @@ export class FsHostAdapter implements HostAdapter {
   }
 
   async fetchTextUrl(url: string): Promise<PickedTextFile> {
+    if (url.startsWith("file:")) {
+      const path = fromFileUrl(url);
+      return { name: basename(path), text: await Deno.readTextFile(path) };
+    }
     const fetchable = toFetchableUrl(url);
     assertHttpUrl(fetchable);
     const response = await fetch(fetchable);

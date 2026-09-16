@@ -30,7 +30,9 @@ import {
   sheetSummaries,
 } from "../agent/inspect.ts";
 import { SlotLeaseRegistry, type SlotLease } from "../agent/leases.ts";
-import { importBundle, exportBundle as zipBundle } from "../core/persistence/mod.ts";
+import { importBundle, exportBundle as zipBundle, validateBundle } from "../core/persistence/mod.ts";
+import type { ExampleSet } from "../core/example_sets/mod.ts";
+import { collectAllSlotIds } from "../core/skeleton/generate_skeleton.ts";
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
 import {
   instanceShapeForEncoding,
@@ -150,8 +152,8 @@ export class WorkbenchService {
     }, { ...ctx, kind: ctx?.kind ?? "load_bundle", summary: ctx?.summary ?? "Load project bundle" });
   }
 
-  loadBundleFile(bytes: Uint8Array, ctx?: MutationContext): void {
-    this.loadBundle(importBundle(bytes), ctx);
+  loadBundleFile(bytes: Uint8Array, ctx?: MutationContext & { expectedRevision?: string }): void {
+    this.loadBundle(parseBundleBytes(bytes), ctx);
   }
 
   loadTemplateContent(filename: string, content: string, ctx?: MutationContext): void {
@@ -370,12 +372,22 @@ export class WorkbenchService {
       return { parentSlotId, attachments: this.controller.getOptionalAttachments(parentSlotId) };
     }
     const s = this.controller.getState();
-    const slots = listSlotsInspect(s.skeleton, s.model);
-    const catalog = slots.slice(0, 80).map((row) => ({
-      parentSlotId: row.slotId,
-      attachments: this.controller.getOptionalAttachments(row.slotId),
+    const catalog = collectAllSlotIds(s.skeleton).map((id) => ({
+      parentSlotId: id,
+      attachments: this.controller.getOptionalAttachments(id),
     })).filter((row) => row.attachments.length);
     return { catalog };
+  }
+
+  async loadExampleSet(set: ExampleSet, ctx?: MutationContext): Promise<void> {
+    const before = this.exportBundle();
+    await this.controller.loadExampleSet(set);
+    this.syncBlocklyFromModel();
+    this.recordMutation(before, {
+      ...ctx,
+      kind: "load_bundle",
+      summary: ctx?.summary ?? `Load example set ${set.id}`,
+    });
   }
 
   async loadTargetFromUrl(url: string, ctx?: MutationContext): Promise<void> {
@@ -545,6 +557,18 @@ export class WorkbenchService {
       throw new AgentRevisionConflictError(this.revision, expected);
     }
   }
+}
+
+function parseBundleBytes(bytes: Uint8Array): ProjectBundle {
+  const zipMagic = bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+  if (zipMagic) return importBundle(bytes);
+  const text = new TextDecoder().decode(bytes).replace(/^\uFEFF/, "").trim();
+  if (text.startsWith("{")) {
+    const bundle = JSON.parse(text) as ProjectBundle;
+    validateBundle(bundle);
+    return bundle;
+  }
+  return importBundle(bytes);
 }
 
 export class AgentRevisionConflictError extends Error {

@@ -156,6 +156,70 @@ Deno.test("MCP tools/list and tools/call load_target via LocalAgentClient", asyn
   assertEquals(Boolean(payload.snapshot.templateId), true);
 });
 
+Deno.test("loadBundleFile accepts JSON Project Bundle as well as zip", async () => {
+  const dir = join(import.meta.dirname!, "fixtures", "dummy-json-vitals");
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    filename: "target.schema.json",
+    content: await Deno.readTextFile(join(dir, "target.schema.json")),
+  });
+  const json = JSON.stringify(service.exportBundle());
+  const other = new WorkbenchService();
+  other.loadBundleFile(new TextEncoder().encode(json));
+  assertEquals(other.getSnapshot().templateId, service.getSnapshot().templateId);
+});
+
+Deno.test("load_bundle accepts unwrapped Project Bundle JSON on HTTP PUT", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "dummy-json-vitals", "target.schema.json"),
+  });
+  const bundle = service.exportBundle();
+  const other = new WorkbenchService();
+  const handler = createAgentApiHandler(other);
+  const res = await handler(new Request("http://local/api/v1/bundle", {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(bundle),
+  }));
+  assertEquals(res.status, 200);
+  assertEquals(other.getSnapshot().templateId, service.getSnapshot().templateId);
+});
+
+Deno.test("load_example_set from local catalogPath hydrates dummy-json-vitals", async () => {
+  const service = new WorkbenchService();
+  const loaded = await callAgentTool(service, "load_example_set", {
+    catalogPath: join(import.meta.dirname!, "..", "examples", "example-sets.json"),
+    setId: "dummy-json-vitals",
+    includeMapping: false,
+  }) as { setId: string; snapshot: { templateId: string; exampleCount: number } };
+  assertEquals(loaded.setId, "dummy-json-vitals");
+  assertEquals(Boolean(loaded.snapshot.templateId), true);
+  assertEquals(loaded.snapshot.exampleCount >= 1, true);
+});
+
+Deno.test("list_optional_rm catalog includes container RM attachments", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "blood_pressure.opt"),
+  });
+  const listed = await callAgentTool(service, "list_optional_rm", {}) as {
+    catalog: Array<{ parentSlotId: string; attachments: Array<{ attributeName: string; rmType: string }> }>;
+  };
+  assertEquals(listed.catalog.length >= 1, true, "expected Optional RM catalog on OPT containers");
+  const first = listed.catalog[0]!;
+  const attr = first.attachments[0]!;
+  await callAgentTool(service, "optional_rm_add", {
+    parentSlotId: first.parentSlotId,
+    rmType: attr.rmType,
+    attributeName: attr.attributeName,
+  });
+  const after = await callAgentTool(service, "list_optional_rm", {
+    parentSlotId: first.parentSlotId,
+  }) as { attachments: Array<{ attributeName: string }> };
+  assertEquals(after.attachments.some((row) => row.attributeName === attr.attributeName), false);
+});
+
 Deno.test("import_suggestions skips foreign-leased slots", async () => {
   const service = new WorkbenchService();
   const opt = await Deno.readTextFile(join(fixtures, "blood_pressure.opt"));

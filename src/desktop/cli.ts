@@ -26,7 +26,7 @@ Options:
                       Ignored when Deno desktop sets DENO_SERVE_ADDRESS
   --bind <addr>       Listen address (default: 127.0.0.1). Non-loopback
                       requires --token or INTEHR_AGENT_TOKEN
-  --load <file>       Load a .intehrgrator Project Bundle at start
+  --load <file>       Load a Project Bundle zip (.intehrgrator) or JSON at start
   --token <secret>    Agent API shared secret (or INTEHR_AGENT_TOKEN)
 `;
 

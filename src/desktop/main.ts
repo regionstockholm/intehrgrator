@@ -65,14 +65,14 @@ export function workbenchOrErrorHandler(
   enableAgentApi = Deno.env.get("INTEHR_AGENT_API") !== "0",
   token?: string,
 ): (req: Request) => Promise<Response> {
+  let staticHandler: (req: Request) => Promise<Response>;
   try {
-    const staticHandler = workbenchHandler(resolveWebRoot(metaDirname ?? ".", metaUrl));
-    return composeWorkbenchHandler(staticHandler, enableAgentApi, { token });
+    staticHandler = workbenchHandler(resolveWebRoot(metaDirname ?? ".", metaUrl));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    const errHandler = errorPageHandler(message);
-    return (req: Request) => errHandler(req);
+    staticHandler = errorPageHandler(message);
   }
+  return composeWorkbenchHandler(staticHandler, enableAgentApi, { token });
 }
 
 function envMap(): Record<string, string | undefined> {

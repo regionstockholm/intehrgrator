@@ -298,7 +298,7 @@ Programmatic seam exposed as `window.intehrgratorTestApi` when the Web Shell is 
 _Avoid_: formTestApi (kintegrate name), Cypress-only harness
 
 **Workbench Agent API**:
-Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). IDE agents and the stdio **MCP** server call import, map-slot, build-prompt, run-test, undo/redo, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
+Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). The compiled / `deno run` entry accepts **`--headless`** (no browser / hidden native window), **`--load`**, **`--port` / `--bind`**, and **`--token`** (required when bind is not loopback). IDE agents and the stdio **MCP** server share the same tools: load target/schema/examples, inspect slots/source/sheets/product stack, import suggestions, map-slot, Optional RM, Instance encoding, advisory **slot leases**, build-prompt, run-test, undo/redo, generate Conversion Script, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict; 409 also for a foreign slot lease). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
 _Avoid_: conflating with Workbench Test API, treating the GitHub Pages web shell as the Agent API host
 
 **Session revision**:

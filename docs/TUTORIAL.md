@@ -157,9 +157,21 @@ Or use the bundled copy at [.cursor/skills/intehrgrator-mapping/SKILL.md](../.cu
 ### What agents can do
 
 - Register an agent identity and apply mapping suggestions (`import_suggestions`)
-- Build AI prompts from the loaded project (`build_prompt`)
-- Map individual slots (`map_slot`), run tests (`run_test`), undo/redo with revision tokens
+- Load a target, Source Schema, and examples without a GUI (`load_target`, `add_example`) when running headless
+- Inspect slots, source trees, Sheets / Decision tables, Product stack (`list_slots`, `get_source_tree`, `get_sheets`)
+- Build AI prompts from the loaded project (`build_prompt`); Import Suggestions still applies the same v2 envelope
+- Map individual slots (`map_slot`), Optional RM, Instance encoding, slot leases
+- Run tests (`run_test`), export a Project Bundle / Conversion Script, undo/redo with revision tokens
 - Open **Open observer** in the desktop UI for a live timeline of agent edits
+
+Headless process (no browser / hidden native window):
+
+```text
+intEHRgrator --headless --port 8765
+intEHRgrator --headless --load project.intehrgrator
+```
+
+Non-loopback bind requires `--token` (or `INTEHR_AGENT_TOKEN`).
 
 Full API reference: [docs/AGENT_WORKFLOW.md](AGENT_WORKFLOW.md).
 

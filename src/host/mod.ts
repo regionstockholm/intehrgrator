@@ -43,6 +43,7 @@ export interface HostAdapter {
 
 export { createHostAdapter } from "./create_host.ts";
 export { WebHostAdapter } from "./web_adapter.ts";
+export { FsHostAdapter, createFsHostAdapter } from "./fs_adapter.ts";
 export { VsCodeWebviewHostAdapter } from "./vscode_webview_adapter.ts";
 export {
   assertHttpUrl,

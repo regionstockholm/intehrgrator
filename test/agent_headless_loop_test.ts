@@ -132,6 +132,34 @@ Deno.test("Agent HTTP load-target, list_slots, lease 409, auth", async () => {
   assertEquals(ok.status, 200);
 });
 
+Deno.test("MCP stdio tools/list writes the full JSON-RPC body", async () => {
+  const reqBody = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+  const req = new TextEncoder().encode(`Content-Length: ${reqBody.length}\r\n\r\n${reqBody}`);
+  const cmd = new Deno.Command(Deno.execPath(), {
+    args: ["run", "-A", "--no-check", "src/agent/mcp_stdio.ts"],
+    stdin: "piped",
+    stdout: "piped",
+    stderr: "piped",
+    env: { ...Deno.env.toObject(), INTEHR_AGENT_URL: "" },
+    cwd: join(import.meta.dirname!, ".."),
+  });
+  const child = cmd.spawn();
+  const writer = child.stdin.getWriter();
+  await writer.write(req);
+  await writer.close();
+  const out = await child.output();
+  assertEquals(out.code, 0, new TextDecoder().decode(out.stderr));
+  const text = new TextDecoder().decode(out.stdout);
+  const split = text.indexOf("\r\n\r\n");
+  assertEquals(split >= 0, true, text.slice(0, 80));
+  const payload = text.slice(split + 4);
+  const msg = JSON.parse(payload) as { result: { tools: Array<{ name: string }> } };
+  const names = msg.result.tools.map((t) => t.name);
+  assertEquals(names.includes("load_example_set"), true);
+  assertEquals(names.includes("lease_slot"), true);
+  assertEquals(names.length, AGENT_TOOLS.length);
+});
+
 Deno.test("MCP tools/list and tools/call load_target via LocalAgentClient", async () => {
   const service = new WorkbenchService();
   const client = new LocalAgentClient(service);

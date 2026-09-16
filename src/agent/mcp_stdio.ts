@@ -155,8 +155,13 @@ export function createMcpAgentClient(): AgentClient {
 
 function writeMessage(msg: unknown): void {
   const body = JSON.stringify(msg);
-  const header = `Content-Length: ${new TextEncoder().encode(body).length}\r\n\r\n`;
-  Deno.stdout.writeSync(new TextEncoder().encode(header + body));
+  const payload = new TextEncoder().encode(
+    `Content-Length: ${new TextEncoder().encode(body).length}\r\n\r\n${body}`,
+  );
+  let offset = 0;
+  while (offset < payload.length) {
+    offset += Deno.stdout.writeSync(payload.subarray(offset));
+  }
 }
 
 export async function handleMcpRequest(req: JsonRpcRequest, client: AgentClient): Promise<unknown> {

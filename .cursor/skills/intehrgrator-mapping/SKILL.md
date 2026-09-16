@@ -64,6 +64,7 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT).
 - Copy `slotId` / `attachSlotId` verbatim from inspect / the prompt manifest.
 - Duplicate `slotId`s (EVALUATION vs ACTION `content/at0000`): `list_slots.repeatable` and `attachSlotId` prefer the `0..*` container. Relative `loopVar` paths attach there.
+- Existing mapping in another formalism (`.tmpl`, Handlebars, generated TypeScript, …): use `convert-mappings`, then this skill's golden path to apply and Test Run.
 
 ## Multi-agent etiquette
 

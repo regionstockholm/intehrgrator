@@ -63,7 +63,12 @@ function diagnoseLikeOpt() {
         },
       },
       [SECTION]: { en: { at0000: { text: "Vital signs" } } },
-      [BP_PARENT]: { en: { at0000: { text: "Blood pressure" } } },
+      [BP_PARENT]: {
+        en: {
+          at0000: { text: "Blood pressure" },
+          at0004: { text: "Systolic" },
+        },
+      },
       [BP_OVERLAY]: { en: { "ac0.1": { text: "overlay-only" } } },
     },
     definition: {
@@ -124,7 +129,7 @@ function diagnoseLikeOpt() {
                     node_id: "at0.6",
                     archetype_ref: BP_OVERLAY,
                     term_archetype_scope: BP_OVERLAY,
-                    term_name_fallback_node_id: "at0000",
+                    term_name_fallback_node_id: "at0.6",
                     occurrences: occ(0, 1),
                     attributes: [{
                       rm_attribute_name: "data",
@@ -139,6 +144,23 @@ function diagnoseLikeOpt() {
                               rm_type_name: "POINT_EVENT",
                               node_id: "at0006",
                               term_archetype_scope: BP_PARENT,
+                              attributes: [{
+                                rm_attribute_name: "data",
+                                children: [{
+                                  rm_type_name: "ITEM_TREE",
+                                  node_id: "at0003",
+                                  term_archetype_scope: BP_OVERLAY,
+                                  attributes: [{
+                                    rm_attribute_name: "items",
+                                    children: [{
+                                      rm_type_name: "ELEMENT",
+                                      node_id: "at0004",
+                                      term_archetype_scope: BP_OVERLAY,
+                                      attributes: [],
+                                    }],
+                                  }],
+                                }],
+                              }],
                             },
                             {
                               rm_type_name: "INTERVAL_EVENT",
@@ -199,6 +221,12 @@ Deno.test("#67 colliding at0000 siblings get distinct slotIds and keep labels af
     entryLangSlots.length,
     `duplicate ENTRY language slotIds: ${entryLangSlots.join(", ")}`,
   );
+  const systolic = flatten(skeleton).find((n) => n.rmType === "ELEMENT" && n.archetypeNodeId === "at0004");
+  assertEquals(
+    systolic?.label,
+    "Systolic",
+    "overlay-scoped inner node uses parent at-code, not the overlay concept title",
+  );
 
   registerRmBlocks();
   registerMapBlocks();
@@ -253,9 +281,12 @@ Deno.test("#118 EVALUATION.data scaffolds ITEM_TREE with a mappable name ELEMENT
   );
   const nameEl = flatten([data!]).find((n) => n.rmType === "ELEMENT" && n.archetypeNodeId === "at0002");
   assert(nameEl, "Problem/Diagnosis name ELEMENT");
-  assert(
-    nameEl.children.some((c) => c.rmAttribute === "value" && c.rmType === "DV_TEXT"),
-    "ELEMENT without a C_DV_* child still gets a DV_TEXT mapping shell",
+  const valueShell = nameEl.children.find((c) => c.rmAttribute === "value" && c.rmType === "DV_TEXT");
+  assert(valueShell, "ELEMENT without a C_DV_* child still gets a DV_TEXT mapping shell");
+  assertEquals(
+    valueShell.mandatory,
+    false,
+    "ELEMENT.value is RM 0..1; optional ELEMENT does not force a mandatory DV_TEXT",
   );
 
   registerRmBlocks();
@@ -265,6 +296,10 @@ Deno.test("#118 EVALUATION.data scaffolds ITEM_TREE with a mappable name ELEMENT
   const evalBlock = workspace.getAllBlocks(false).find((b) => b.type === "evaluation");
   const dataBlock = evalBlock?.getInputTargetBlock(rmAttributeInputName("data"));
   assertEquals(dataBlock?.type, "item_tree", "EVALUATION.data mouth must hold ITEM_TREE");
+  const nameBlock = workspace.getAllBlocks(false).find((b) =>
+    b.type === "element" && String(b.getFieldValue("NAME")) === "Problem/Diagnosis name"
+  );
+  assert(nameBlock, "template ELEMENT stays visible under EVALUATION.data");
   workspace.dispose();
 });
 

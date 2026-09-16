@@ -297,7 +297,8 @@ function walkComplex(
         terms,
       );
       valueNode.rmAttribute = "value";
-      valueNode.mandatory = true;
+      // ELEMENT.value is RM 0..1; only auto-attach as mandatory when the ELEMENT is.
+      valueNode.mandatory = mandatory;
       children.push(valueNode);
     }
     for (const child of children) {
@@ -607,18 +608,31 @@ function resolvedNodeLabel(
     const parentRef = parentArchetypeRefFromOverlay(scope);
     if (parentRef) {
       const parentLabel = locatableNodeLabel(
-        "at0000",
+        nodeId,
         rmType,
         parentRef,
-        undefined,
+        nameFallback,
         {},
         archetypeTerms,
       );
-      if (parentLabel && parentLabel !== "at0000" && parentLabel !== rmType) return parentLabel;
+      if (parentLabel && parentLabel !== nodeId && parentLabel !== rmType) {
+        return parentLabel;
+      }
     }
-    const fromParentBag = lookupTermText(parentBag ?? {}, "at0000");
+    const fromParentBag = lookupTermText(parentBag ?? {}, nodeId ?? "") ??
+      lookupTermText(parentBag ?? {}, nameFallback ?? "");
     if (fromParentBag) return fromParentBag;
-    return nameHint || overlayConceptFallback(scope) || overlayOnly;
+    // Better template slots (`at0.6`) are overlay roots even when term-scope
+    // fallback is tagged as the slot id rather than at0000.
+    const overlayRoot = !nodeId || nodeId === "at0000" || nameFallback === "at0000" ||
+      /^at0\.\d/i.test(nodeId);
+    if (overlayRoot) {
+      return nameHint ||
+        lookupTermText(parentBag ?? {}, "at0000") ||
+        overlayConceptFallback(scope) ||
+        overlayOnly;
+    }
+    return nameHint || overlayOnly;
   }
 
   const fromTerms = locatableNodeLabel(

@@ -1,0 +1,46 @@
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": {
+    "format": "openehr-template",
+    "targetId": "{loaded-target-id}"
+  },
+  "suggestions": [
+    {
+      "slotId": "{loaded-target-id}/content/data/items/at0002/value/value/defining_code/code_string/value",
+      "block": {
+        "type": "sheet_lookup",
+        "fields": {
+          "NAME": "icd10_snomed"
+        },
+        "inputs": {
+          "MATCH_COL": {
+            "block": {
+              "type": "text",
+              "fields": {
+                "TEXT": "code"
+              }
+            }
+          },
+          "MATCH_VAL": {
+            "block": {
+              "type": "source_query",
+              "fields": {
+                "EXPRESSION": "$.diagnosis.icd10"
+              }
+            }
+          },
+          "RETURN_COL": {
+            "block": {
+              "type": "text",
+              "fields": {
+                "TEXT": "snomed"
+              }
+            }
+          }
+        }
+      },
+      "note": "AI-created pattern: 1-key terminology Sheet (not a Decision table)"
+    }
+  ]
+}

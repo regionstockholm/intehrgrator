@@ -1,0 +1,394 @@
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": {
+    "format": "openehr-template",
+    "targetId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans"
+  },
+  "loops": [
+    {
+      "attachSlotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000",
+      "block": {
+        "type": "for_each_source",
+        "fields": {
+          "VAR": "substans",
+          "PATH": "$.Substanser"
+        }
+      },
+      "note": "Repeat ACTION (and any other content/at0000 container sharing this slotId) once per administered substance."
+    }
+  ],
+  "suggestions": [
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//category/DV_CODED_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "event"
+        }
+      },
+      "note": "COMPOSITION.category: openEHR composition_category 433 event (terminology_resolve + OPT C_CODE_PHRASE)."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0001/value/DV_TEXT/value",
+      "block": {
+        "type": "logic_ternary",
+        "inputs": {
+          "IF": {
+            "block": {
+              "type": "logic_compare",
+              "fields": {
+                "OP": "NEQ"
+              },
+              "inputs": {
+                "A": {
+                  "block": {
+                    "type": "source_query",
+                    "fields": {
+                      "EXPRESSION": "$.Vardenhet_namn"
+                    }
+                  }
+                },
+                "B": {
+                  "block": {
+                    "type": "text",
+                    "fields": {
+                      "TEXT": ""
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "THEN": {
+            "block": {
+              "type": "source_query",
+              "fields": {
+                "EXPRESSION": "$.Vardenhet_namn"
+              }
+            }
+          },
+          "ELSE": {
+            "block": {
+              "type": "source_query",
+              "fields": {
+                "EXPRESSION": "$.PDL_enhet_Namn"
+              }
+            }
+          }
+        }
+      },
+      "note": "Care unit CLUSTER.organisation Name: prefer Vardenhet_namn, else PDL_enhet_Namn."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0003/value/DV_IDENTIFIER/value",
+      "block": {
+        "type": "logic_ternary",
+        "inputs": {
+          "IF": {
+            "block": {
+              "type": "logic_compare",
+              "fields": {
+                "OP": "NEQ"
+              },
+              "inputs": {
+                "A": {
+                  "block": {
+                    "type": "source_query",
+                    "fields": {
+                      "EXPRESSION": "$.Vardenhet_HSAID"
+                    }
+                  }
+                },
+                "B": {
+                  "block": {
+                    "type": "text",
+                    "fields": {
+                      "TEXT": ""
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "THEN": {
+            "block": {
+              "type": "source_query",
+              "fields": {
+                "EXPRESSION": "$.Vardenhet_HSAID"
+              }
+            }
+          },
+          "ELSE": {
+            "block": {
+              "type": "source_query",
+              "fields": {
+                "EXPRESSION": "$.PDL_enhet_HSAID"
+              }
+            }
+          }
+        }
+      },
+      "note": "Care unit Identifier (HSA). DV_IDENTIFIER type/issuer not exposable as a slot."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0004/value/DV_CODED_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "vårdenhet"
+        }
+      },
+      "note": "Role rubric from OPT default_value / SNOMED 43741000. defining_code not a separate slot."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/at0001/value/DV_TEXT/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "$.PDL_vardgivare_Namn"
+        }
+      },
+      "note": "Parent organisation Name. Field is on Example Instances but missing from Avro schema."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/at0003/value/DV_IDENTIFIER/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "$.PDL_vardgivare_HSAID"
+        }
+      },
+      "note": "Parent organisation Identifier. Duplicate slotId for two at0003 ELEMENTs — one mapping fills both."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/at0003/name/DV_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "HSA-id"
+        }
+      },
+      "note": "Identifier ELEMENT name (LOCATABLE.name). Duplicate slotId."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/items/at0004/value/DV_CODED_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "vårdgivare"
+        }
+      },
+      "note": "Parent org Role rubric from OPT default_value / SNOMED 143591000052106."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/items/at0000/name/DV_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "Parent organisation"
+        }
+      }
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/other_context/at0001/items/at0000/name/DV_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "Care unit"
+        }
+      }
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/start_time/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "$.EncounterDate"
+        }
+      },
+      "note": "Source over defaults for context start_time."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//context/EVENT_CONTEXT/setting/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "secondary medical care"
+        }
+      },
+      "note": "openEHR setting 232 (terminology_resolve). Not present in source; oncology typically secondary medical care."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/data/at0001/items/at0004/value/DV_CODED_TEXT/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "$.Diagnosnamn_ICD10"
+        }
+      },
+      "note": "Diagnos vårdkontakt display name. ICD-10 code+terminology cannot be set on this single value slot (no code_string leaf)."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/ism_transition/at0007/current_state/DV_CODED_TEXT/value",
+      "block": {
+        "type": "decision_table",
+        "fields": {
+          "NAME": "admin_ism",
+          "OUTPUT": "current_state"
+        },
+        "inputs": {
+          "INPUTS": {
+            "block": {
+              "type": "maps_create_with",
+              "extraState": {
+                "itemCount": 1
+              },
+              "fields": {
+                "KEY0": "status_desc"
+              },
+              "inputs": {
+                "VAL0": {
+                  "block": {
+                    "type": "source_query",
+                    "fields": {
+                      "EXPRESSION": "AdministrationStatus_LongDescription"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "loopVar": "substans",
+      "note": "OPT constrains current_state to openehr::532 completed. DT records source status but cannot emit aborted for Stoppad."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/ism_transition/at0007/careflow_step/DV_CODED_TEXT/value",
+      "block": {
+        "type": "decision_table",
+        "fields": {
+          "NAME": "admin_ism",
+          "OUTPUT": "careflow_step"
+        },
+        "inputs": {
+          "INPUTS": {
+            "block": {
+              "type": "maps_create_with",
+              "extraState": {
+                "itemCount": 1
+              },
+              "fields": {
+                "KEY0": "status_desc"
+              },
+              "inputs": {
+                "VAL0": {
+                  "block": {
+                    "type": "source_query",
+                    "fields": {
+                      "EXPRESSION": "AdministrationStatus_LongDescription"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "loopVar": "substans",
+      "note": "OPT constrains careflow_step to local::at0007 Medication course completed."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0132/value/DV_CODED_TEXT/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "Innholdstoff_Navn"
+        }
+      },
+      "loopVar": "substans",
+      "note": "Substance display name. ATC (Innholdstoff_ATC) has no code_string slot."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0132/name/DV_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "Substans"
+        }
+      }
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0139/value/value/value",
+      "block": {
+        "type": "source_query_number",
+        "fields": {
+          "EXPRESSION": "Dose"
+        }
+      },
+      "loopVar": "substans",
+      "note": "Dose magnitude. UnitCode has no units slot on DV_QUANTITY (C_DV_QUANTITY unconstrained)."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0139/name/DV_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "Administrerad dos"
+        }
+      }
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/name/DV_TEXT/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "Innholdstoff_Navn"
+        }
+      },
+      "loopVar": "substans"
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/protocol/at0030/items/at0103/value/DV_IDENTIFIER/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "OrderLineId"
+        }
+      },
+      "loopVar": "substans",
+      "note": "Beställnings-ID from OrderLineId (number coerced via source_query)."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/protocol/at0030/items/at0103/name/DV_TEXT/value",
+      "block": {
+        "type": "text",
+        "fields": {
+          "TEXT": "Beställnings-ID"
+        }
+      }
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/name/DV_TEXT/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "Innholdstoff_Navn"
+        }
+      },
+      "loopVar": "substans",
+      "note": "Shared slotId with EVALUATION at0000 name; relative path is intended for repeating ACTION."
+    },
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/time/value",
+      "block": {
+        "type": "source_query",
+        "fields": {
+          "EXPRESSION": "$.EncounterDate"
+        }
+      },
+      "note": "ACTION.time from EncounterDate (source over defaults). Absolute path — same encounter time for each substance."
+    }
+  ]
+}

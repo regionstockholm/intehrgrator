@@ -21,6 +21,7 @@ import {
 import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
+import { isTemplateJson } from "ehrtslib/parser/mod.ts";
 import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
 import { assignSchemaBlockTypes } from "./schema_block_ids.ts";
 
@@ -84,7 +85,8 @@ export function detectTargetFormat(filename: string, content = ""): TargetFormat
   if (isXmlSchemaDocument(content)) return "xml-schema";
   if (lower.endsWith(".json") || content.trimStart().startsWith("{")) {
     try {
-      if (isWebTemplateJson(JSON.parse(content) as unknown)) return "openehr-template";
+      const parsed = JSON.parse(content) as unknown;
+      if (isWebTemplateJson(parsed) || isTemplateJson(content)) return "openehr-template";
     } catch {
       // The chosen handler reports malformed content.
     }
@@ -129,11 +131,29 @@ registerTargetFormatHandler({
   id: "openehr-template",
   load(filename, content, options) {
     if (content.trimStart().startsWith("{")) {
-      const generated = generateSkeletonFromWebTemplate(content, {
-        language: options?.language,
-      });
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(content);
+      } catch {
+        parsed = null;
+      }
+      if (parsed && isWebTemplateJson(parsed)) {
+        const generated = generateSkeletonFromWebTemplate(content, {
+          language: options?.language,
+        });
+        return {
+          format: "openehr-template" as const,
+          filename,
+          targetId: generated.templateId,
+          content,
+          skeleton: generated.skeleton,
+          language: generated.language,
+          languages: generated.languages,
+        };
+      }
+      const generated = generateSkeleton(content, { language: options?.language });
       return {
-        format: "openehr-template",
+        format: "openehr-template" as const,
         filename,
         targetId: generated.templateId,
         content,

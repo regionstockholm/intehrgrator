@@ -5,6 +5,8 @@
  * dynamic `import()` — Mapping preview / TypeScript paths do not pay that cost.
  */
 import type { SheetBag } from "../sheets/types.ts";
+import { renderHandlebars } from "../output/handlebars_dialect.ts";
+import { INTEHRGRATOR_XQUERY_NS } from "./xquery.ts";
 
 type FontoxpathApi = typeof import("fontoxpath");
 type SlimdomApi = typeof import("slimdom");
@@ -41,6 +43,39 @@ async function loadRuntime(): Promise<void> {
   ]);
   fx = fonto;
   slim = slimdom;
+  registerHandlebarsFunction(fonto);
+}
+
+function registerHandlebarsFunction(fonto: FontoxpathApi): void {
+  try {
+    fonto.registerCustomXPathFunction(
+      { namespaceURI: INTEHRGRATOR_XQUERY_NS, localName: "handlebars" },
+      ["xs:string", "item()*"],
+      "xs:string",
+      (_ctx, template: unknown, context: unknown) =>
+        renderHandlebars(String(template ?? ""), coerceHandlebarsContext(context)),
+    );
+  } catch {
+    // Already registered in this runtime (HMR / repeated ensureXQueryRuntime).
+  }
+}
+
+function coerceHandlebarsContext(value: unknown): unknown {
+  if (value == null) return {};
+  if (Array.isArray(value)) {
+    return value.length === 1 ? coerceHandlebarsContext(value[0]) : value.map(coerceHandlebarsContext);
+  }
+  if (value instanceof Map) return Object.fromEntries(value);
+  if (typeof value === "object") {
+    const rec = value as { get?: (k: unknown) => unknown; keys?: () => Iterable<unknown> };
+    if (typeof rec.get === "function" && typeof rec.keys === "function") {
+      const out: Record<string, unknown> = {};
+      for (const key of rec.keys()) out[String(key)] = rec.get(key);
+      return out;
+    }
+    return value;
+  }
+  return { value };
 }
 
 export function sheetsBagToXQueryMap(bag: SheetBag): Record<string, unknown> {
@@ -152,6 +187,7 @@ function xqueryNamespaceResolver(prefix: string): string | null {
   if (prefix === "map") return "http://www.w3.org/2005/xpath-functions/map";
   if (prefix === "array") return "http://www.w3.org/2005/xpath-functions/array";
   if (prefix === "output") return "http://www.w3.org/2010/xslt-xquery-serialization";
+  if (prefix === "intehrgrator") return INTEHRGRATOR_XQUERY_NS;
   return null;
 }
 

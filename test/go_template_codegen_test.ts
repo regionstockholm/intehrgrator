@@ -1,4 +1,4 @@
-import { assertEquals, assert } from "@std/assert";
+import { assertEquals, assert, assertStringIncludes } from "@std/assert";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { generate, generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
 import { initBlocklyGenerators, generateGoTemplateFromBlocklyState } from "@intehrgrator/blockly/mod.ts";
@@ -13,6 +13,12 @@ import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerSchemaBlocksFromSkeleton } from "@intehrgrator/blockly/schema_blocks.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
+import {
+  HANDLEBARS_GREETING_OUTPUT,
+  HANDLEBARS_GREETING_SOURCE,
+  HANDLEBARS_GREETING_TEMPLATE,
+  handlebarsGreetingCanvas,
+} from "./handlebars_canvas_fixture.ts";
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 
@@ -240,6 +246,53 @@ Deno.test("go-template codegen maps_get reads KEY shadow as well as block", () =
     },
   });
   assert(output.includes(".Parameters.PatientId"), "shadow KEY → .Parameters.PatientId");
+});
+
+Deno.test("Go Template codegen emits handlebars() render for canvas text_handlebars", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const output = generate(model, "go-template", { blocklyState: handlebarsGreetingCanvas() });
+  assertStringIncludes(output, "handlebars");
+  assertStringIncludes(output, HANDLEBARS_GREETING_TEMPLATE);
+  assert(
+    !/^Hello \{\{name\}\}!\s*$/m.test(output.replace(/\{\{- \/\*.*?\*\/ -\}\}\n?/g, "")),
+    "must not emit the template literal alone (drops context/render)",
+  );
+});
+
+Deno.test("Go Template Test Run matches Mapping preview for canvas handlebars()", async () => {
+  initBlocklyGenerators();
+  await ensureGoTemplateWasm();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const canvas = handlebarsGreetingCanvas();
+  const preview = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "preview",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  const goRun = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "go-template",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  assertEquals(preview.error, undefined, preview.error);
+  assertEquals(goRun.error, undefined, goRun.error);
+  assertEquals(preview.output, HANDLEBARS_GREETING_OUTPUT);
+  assertEquals(goRun.output, HANDLEBARS_GREETING_OUTPUT);
 });
 
 Deno.test("Handlebars Output mode executes the authored template in Conversion Test Run", () => {

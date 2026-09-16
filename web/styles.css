@@ -99,6 +99,18 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 .pane-body { flex: 1; min-height: 0; }
 .pane h2 { margin: 0; padding: 8px 12px; font-size: 14px; background: var(--primary); color: #fff; }
+.source-pane h2 {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.pane h2 .info-tip-btn {
+  border-color: rgba(255, 255, 255, 0.7); background: transparent; color: #fff;
+}
+.pane h2 .info-tip-btn:hover,
+.pane h2 .info-tip-btn:focus-visible { background: rgba(255, 255, 255, 0.18); }
+.source-handlebars-hint {
+  margin: 0; padding: 6px 12px; font-size: 12px; line-height: 1.35;
+  background: #fff8e6; color: #5d4a00; border-bottom: 1px solid var(--border);
+}
 .pane-header {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 8px 12px; background: var(--primary); color: #fff; flex-shrink: 0;

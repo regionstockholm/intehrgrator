@@ -236,6 +236,23 @@ export class FieldCodeMirror extends FieldBase {
     this.syncing_ = false;
   }
 
+  /** Insert text at the caret (or append when the CodeMirror view is not mounted). */
+  insertAtCaret(text: string): void {
+    if (!text) return;
+    if (this.view_) {
+      const sel = this.view_.state.selection.main;
+      this.syncing_ = true;
+      this.view_.dispatch({
+        changes: { from: sel.from, to: sel.to, insert: text },
+        selection: { anchor: sel.from + text.length },
+      });
+      this.syncing_ = false;
+      this.setValue(this.view_.state.doc.toString());
+      return;
+    }
+    this.setValue(`${this.getValue()}${text}`);
+  }
+
   private applyHostSize_(): void {
     if (!this.host_) return;
     this.host_.style.width = `${this.widthPx_}px`;

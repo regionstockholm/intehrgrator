@@ -13,6 +13,7 @@ import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { isListAttribute } from "./typescript.ts";
 import { usesOpenEhrProduct } from "./product.ts";
+import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
 
 const GENERIC_RM = new Set(["HISTORY", "POINT_EVENT", "INTERVAL_EVENT", "EVENT"]);
 
@@ -105,7 +106,8 @@ export type JavaHelper =
   | "sheets"
   | "logic"
   | "rm"
-  | "flatten";
+  | "flatten"
+  | "handlebars";
 
 export interface JavaEmitContext {
   sourceVar: string;
@@ -234,7 +236,8 @@ export function emitJavaExpression(ast: ExprAst, ctx: JavaEmitContext): string {
           ctx.helpers.add("node");
           return emitXpathCall("xpathNode", ast.args[0], args[0] ?? '""', ctx);
         case "handlebars":
-          return `asString(${args[0] ?? '""'})`;
+          ctx.helpers.add("handlebars");
+          return `handlebars(${args[0] ?? '""'}, ${args[1] ?? "mapOf()"})`;
         case "map":
           ctx.helpers.add("logic");
           return `mapOf(${args.join(", ")})`;
@@ -453,12 +456,27 @@ export function generateJava(
   options?: { skeleton?: SkeletonNode[]; blocklyState?: unknown },
 ): string {
   if (!usesOpenEhrProduct(model, options)) {
+    const canvas = canvasHandlebarsExpression(options?.blocklyState);
+    if (canvas) return generateJavaFromExpression(model, canvas);
     return generateJavaGeneric(model);
   }
   if (options?.skeleton?.length) {
     return generateJavaFromSkeleton(model, options.skeleton);
   }
   return generateJavaFromSlots(model);
+}
+
+function generateJavaFromExpression(model: MappingModel, expression: string): string {
+  const ctx = createJavaEmitContext();
+  const javaExpr = emitJavaExpressionSource(expression, ctx) ?? '""';
+  return wrapJavaModule({
+    templateId: model.templateId,
+    body: `return ${javaExpr};`,
+    types: ctx.types,
+    helpers: ctx.helpers,
+    source: "blockly",
+    archie: false,
+  });
 }
 
 function generateJavaGeneric(model: MappingModel): string {
@@ -792,7 +810,7 @@ interface JavaModuleParts {
   body: string;
   types: Set<string>;
   helpers: Set<JavaHelper>;
-  source: "skeleton" | "slots";
+  source: "skeleton" | "slots" | "blockly";
   /** When false, omit Archie RM / OPT validator imports (non-openEHR product). */
   archie: boolean;
 }
@@ -819,6 +837,8 @@ function wrapJavaModule(parts: JavaModuleParts): string {
     `// Template: ${parts.templateId || "(none)"}`,
     parts.source === "skeleton"
       ? "// Source: Template Skeleton + Mapping Model expressions"
+      : parts.source === "blockly"
+      ? "// Source: Blockly canvas product (text_handlebars / Mapping Expressions)"
       : "// Source: Mapping Model slots (no canvas / skeleton available)",
     "// Mapping preview Test Run evaluates Mapping Model slots through the Target",
     "// instance format handler (ADR 0001). Java Output mode does not execute this",
@@ -917,6 +937,11 @@ function wrapJavaModule(parts: JavaModuleParts): string {
   }
   lines.push(...indentLines(coerceHelpers(), 1));
 
+  if (parts.helpers.has("handlebars")) {
+    lines.push("");
+    lines.push(...indentLines(handlebarsHelper(), 1));
+  }
+
   if (usesXpath) {
     lines.push("");
     lines.push(...indentLines(xpathHelpers(), 1));
@@ -974,6 +999,41 @@ function coerceHelpers(): string[] {
     "  if (value instanceof Boolean b) return b;",
     "  if (value == null) return false;",
     "  return Boolean.parseBoolean(String.valueOf(value));",
+    "}",
+  ];
+}
+
+function handlebarsHelper(): string[] {
+  return [
+    "/** VMS-Hbs render via com.github.jknack.handlebars (Handlebars.java). */",
+    "private String handlebars(String template, Object context) {",
+    "  try {",
+    "    com.github.jknack.handlebars.Handlebars engine = new com.github.jknack.handlebars.Handlebars();",
+    "    engine.registerHelper(\"eq\", (ctx, options) -> java.util.Objects.equals(ctx, options.param(0)));",
+    "    engine.registerHelper(\"ne\", (ctx, options) -> !java.util.Objects.equals(ctx, options.param(0)));",
+    "    engine.registerHelper(\"lt\", (ctx, options) -> compareNumbers(ctx, options.param(0)) < 0);",
+    "    engine.registerHelper(\"gt\", (ctx, options) -> compareNumbers(ctx, options.param(0)) > 0);",
+    "    engine.registerHelper(\"lte\", (ctx, options) -> compareNumbers(ctx, options.param(0)) <= 0);",
+    "    engine.registerHelper(\"gte\", (ctx, options) -> compareNumbers(ctx, options.param(0)) >= 0);",
+    "    engine.registerHelper(\"and\", (ctx, options) -> {",
+    "      if (!asBoolean(ctx)) return false;",
+    "      for (Object arg : options.params) if (!asBoolean(arg)) return false;",
+    "      return true;",
+    "    });",
+    "    engine.registerHelper(\"or\", (ctx, options) -> {",
+    "      if (asBoolean(ctx)) return true;",
+    "      for (Object arg : options.params) if (asBoolean(arg)) return true;",
+    "      return false;",
+    "    });",
+    "    engine.registerHelper(\"toLowerCase\", (ctx, options) -> ctx == null ? ctx : String.valueOf(ctx).toLowerCase());",
+    "    engine.registerHelper(\"toUpperCase\", (ctx, options) -> ctx == null ? ctx : String.valueOf(ctx).toUpperCase());",
+    "    return engine.compileInline(template).apply(context != null ? context : java.util.Map.of());",
+    "  } catch (Exception e) {",
+    "    throw new IllegalStateException(\"VMS-Hbs render failed: \" + e.getMessage(), e);",
+    "  }",
+    "}",
+    "private static int compareNumbers(Object left, Object right) {",
+    "  return Double.compare(toDouble(left), toDouble(right));",
     "}",
   ];
 }

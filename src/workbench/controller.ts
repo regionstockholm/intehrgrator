@@ -105,7 +105,7 @@ import {
   rememberUrl,
   type UrlHistoryKind,
 } from "../host/url_history.ts";
-import { migrateHandlebarsTemplateOntoCanvas } from "../core/output/handlebars_canvas_migrate.ts";
+import { seedHandlebarsProductOnCanvas } from "../core/output/canvas_handlebars_seed.ts";
 
 export type WorkbenchListener = () => void;
 
@@ -357,10 +357,12 @@ export class WorkbenchController {
     if (target.language) {
       this.settings = { ...this.settings, modelLanguage: target.language };
     }
-    if (target.format === "free-form") {
-      this.handlebarsTemplate = target.content;
+    if (target.format === "free-form" && target.content.trim()) {
+      this.blocklyState = seedHandlebarsProductOnCanvas(null, target.content);
+    } else {
+      this.blocklyState = null;
     }
-    this.blocklyState = null;
+    this.handlebarsTemplate = "";
     this.blocklyReloadToken += 1;
     this.refreshDerived();
     this.statusMessage = `Loaded ${target.format} target ${this.templateId}`;
@@ -1143,7 +1145,12 @@ export class WorkbenchController {
   }
 
   setHandlebarsTemplate(template: string): void {
-    this.handlebarsTemplate = template;
+    this.handlebarsTemplate = "";
+    this.blocklyState = seedHandlebarsProductOnCanvas(
+      this.getBlocklyState?.() ?? this.blocklyState,
+      template,
+    );
+    this.blocklyReloadToken += 1;
     this.refreshDerived();
     this.markDirty();
     if (this.settings.autoplay) this.scheduleTestRun();
@@ -1517,11 +1524,7 @@ export class WorkbenchController {
       openEhrInstanceShape: DEFAULT_SETTINGS.openEhrInstanceShape,
     };
     this.model = { ...bundle.mapping.model };
-    const legacyTemplate = bundle.mapping.handlebarsTemplate ?? "";
-    this.blocklyState = migrateHandlebarsTemplateOntoCanvas(
-      bundle.mapping.blocklyState,
-      legacyTemplate,
-    );
+    this.blocklyState = bundle.mapping.blocklyState;
     this.handlebarsTemplate = "";
     this.sheets = normalizeSheets(bundle.mapping.sheets ?? []);
     this.templateFilename = "";

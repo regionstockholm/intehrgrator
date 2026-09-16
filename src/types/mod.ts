@@ -356,7 +356,7 @@ export interface ProjectBundle {
   mapping: {
     blocklyState: unknown;
     model: MappingModel;
-    /** User-authored Kintegrate-compatible conversion template. */
+    /** Retired Template tab string; canvas `text_handlebars` is canonical. */
     handlebarsTemplate?: string;
     /** Named 2D Sheet / Decision table documents (widget is a view). */
     sheets?: SheetDocument[];

@@ -1,6 +1,6 @@
 /**
- * Migrate a legacy Handlebars Template tab string onto the Blockly canvas as
- * Conversion start → Text document → run handlebars script.
+ * Seed Conversion start → Text document → `text_handlebars` with a
+ * `source_query_node` `"$"` context. Used when a free-form `.hbs` target loads.
  */
 import type { Workspace } from "blockly/core";
 import { Blockly } from "../../blockly/blockly_core.ts";
@@ -12,7 +12,6 @@ import {
 import {
   findInstanceRootUnderStart,
   TEXT_DOCUMENT_BLOCK_TYPE,
-  walkProductStack,
 } from "../../blockly/instance_root.ts";
 import {
   TEXT_CODE_BLOCK_TYPE,
@@ -29,11 +28,7 @@ function ensureGenerators(): void {
 }
 
 function workspaceHasHandlebarsProduct(workspace: Workspace): boolean {
-  let found = false;
-  walkProductStack(workspace, (block) => {
-    if (block.type === TEXT_HANDLEBARS_BLOCK_TYPE) found = true;
-  });
-  return found;
+  return workspace.getAllBlocks(false).some((block) => block.type === TEXT_HANDLEBARS_BLOCK_TYPE);
 }
 
 function buildHandlebarsProductStack(workspace: Workspace, template: string): void {
@@ -41,11 +36,12 @@ function buildHandlebarsProductStack(workspace: Workspace, template: string): vo
   textCode.setFieldValue("handlebars", "LANG");
   textCode.setFieldValue(template, "TEXT");
 
-  const contextMap = workspace.newBlock("maps_create_empty");
+  const context = workspace.newBlock("source_query_node");
+  context.setFieldValue("$", "EXPRESSION");
 
   const render = workspace.newBlock(TEXT_HANDLEBARS_BLOCK_TYPE);
   render.getInput("SCRIPT")?.connection?.connect(textCode.outputConnection!);
-  render.getInput("CONTEXT")?.connection?.connect(contextMap.outputConnection!);
+  render.getInput("CONTEXT")?.connection?.connect(context.outputConnection!);
 
   const document = workspace.newBlock(TEXT_DOCUMENT_BLOCK_TYPE);
   document.getInput("VALUE")?.connection?.connect(render.outputConnection!);
@@ -53,7 +49,7 @@ function buildHandlebarsProductStack(workspace: Workspace, template: string): vo
   attachStartToInstanceRoot(workspace, document);
 }
 
-export function migrateHandlebarsTemplateOntoCanvas(
+export function seedHandlebarsProductOnCanvas(
   state: unknown,
   template: string,
 ): unknown {
@@ -83,10 +79,11 @@ export function migrateHandlebarsTemplateOntoCanvas(
           const textCode = workspace.newBlock(TEXT_CODE_BLOCK_TYPE);
           textCode.setFieldValue("handlebars", "LANG");
           textCode.setFieldValue(trimmed, "TEXT");
-          const contextMap = workspace.newBlock("maps_create_empty");
+          const context = workspace.newBlock("source_query_node");
+          context.setFieldValue("$", "EXPRESSION");
           const render = workspace.newBlock(TEXT_HANDLEBARS_BLOCK_TYPE);
           render.getInput("SCRIPT")?.connection?.connect(textCode.outputConnection!);
-          render.getInput("CONTEXT")?.connection?.connect(contextMap.outputConnection!);
+          render.getInput("CONTEXT")?.connection?.connect(context.outputConnection!);
           existingRoot.getInput("VALUE")?.connection?.connect(render.outputConnection!);
           changed = true;
           return;

@@ -110,7 +110,21 @@
     data-split-preferred="1"
   >
     <section class="pane source-pane">
-      <h2>Source</h2>
+      <h2>
+        Source
+        <span class="info-tip">
+          <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-source-click-to-map" aria-label="Click-to-Map into Handlebars">i</button>
+          <span id="tip-source-click-to-map" class="info-tip-balloon" role="tooltip">
+            Click a schema or example node to map it into the selected Blockly block.
+            If a Handlebars Code text block or a run-handlebars-script block is selected,
+            the click inserts a VMS-Hbs {{path}} at the caret. Hold Shift for nested
+            {{#with}} / {{#each}}. Otherwise Listening Mode fills the waiting source query.
+          </span>
+        </span>
+      </h2>
+      <p id="handlebars-click-hint" class="source-handlebars-hint" hidden>
+        Handlebars insert armed — click a source node for {{path}}; Shift+click for nested #with/#each.
+      </p>
       <div
         class="pane-body"
         data-split="column"

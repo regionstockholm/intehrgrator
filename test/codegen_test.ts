@@ -18,7 +18,17 @@ import {
   serializedConversionOutput,
   stripGeneratedTypeScript,
 } from "@intehrgrator/core/codegen/run_typescript.ts";
-import { migrateHandlebarsTemplateOntoCanvas } from "@intehrgrator/core/output/handlebars_canvas_migrate.ts";
+import {
+  canvasHandlebarsExpression,
+  canvasHandlebarsScriptLiteral,
+} from "@intehrgrator/core/output/canvas_handlebars.ts";
+import { seedHandlebarsProductOnCanvas } from "@intehrgrator/core/output/canvas_handlebars_seed.ts";
+import {
+  HANDLEBARS_GREETING_OUTPUT,
+  HANDLEBARS_GREETING_SOURCE,
+  HANDLEBARS_GREETING_TEMPLATE,
+  handlebarsGreetingCanvas,
+} from "./handlebars_canvas_fixture.ts";
 import { TEXT_DOCUMENT_BLOCK_TYPE } from "@intehrgrator/blockly/instance_root.ts";
 import { TEXT_CODE_BLOCK_TYPE, TEXT_HANDLEBARS_BLOCK_TYPE } from "@intehrgrator/blockly/blocks/text_blocks.ts";
 import { generateSkeleton, collectValueSlots, collectAllSlotIds } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
@@ -242,6 +252,33 @@ Deno.test("handlebars export target preserves a user-authored template", () => {
   const model = createEmptyModel("summary");
   const template = "Hello {{patient.name}}";
   assertEquals(generate(model, "handlebars", { handlebarsTemplate: template }), template);
+});
+
+Deno.test("Handlebars Output mode codegen prefers canvas text_handlebars SCRIPT", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const hbs = generate(model, "handlebars", { blocklyState: handlebarsGreetingCanvas() });
+  assertEquals(hbs, HANDLEBARS_GREETING_TEMPLATE);
+  assertEquals(canvasHandlebarsScriptLiteral(handlebarsGreetingCanvas()), HANDLEBARS_GREETING_TEMPLATE);
+  assertStringIncludes(
+    canvasHandlebarsExpression(handlebarsGreetingCanvas()) ?? "",
+    'handlebars("Hello {{name}}!"',
+  );
+});
+
+Deno.test("Java codegen emits a Handlebars render helper for canvas text_handlebars", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const java = generate(model, "java", { blocklyState: handlebarsGreetingCanvas() });
+  assertStringIncludes(java, "handlebars(");
+  assertStringIncludes(java, HANDLEBARS_GREETING_TEMPLATE);
+  assertEquals(java.includes('asString("Hello {{name}}!")') && !java.includes("handlebars("), false);
+  assert(
+    java.includes("com.github.jknack.handlebars") || java.includes("VMS-Hbs"),
+    "Java handlebars() must be a real render path or a loud VMS-Hbs stub",
+  );
 });
 
 Deno.test("xquery codegen emits mapping-result module from Blockly slots", () => {
@@ -672,16 +709,86 @@ Deno.test("TypeScript Output mode executes handlebars text block canvas mapping"
   }
 });
 
-Deno.test("migrateHandlebarsTemplateOntoCanvas injects text_handlebars product stack", () => {
+Deno.test("seedHandlebarsProductOnCanvas injects text_handlebars product stack", () => {
   initBlocklyGenerators();
-  const migrated = migrateHandlebarsTemplateOntoCanvas(null, "Hello {{name}}") as {
+  const seeded = seedHandlebarsProductOnCanvas(null, "Hello {{name}}") as {
     blocks?: { blocks?: Array<{ type?: string; next?: { block?: { type?: string } } }> };
   };
-  const tops = migrated.blocks?.blocks ?? [];
+  const tops = seeded.blocks?.blocks ?? [];
   const start = tops.find((block) => block.type === "conversion_start");
-  assert(start, "expected conversion_start after migration");
+  assert(start, "expected conversion_start after seeding");
   assertEquals(start?.next?.block?.type, "text_document");
-  const json = JSON.stringify(migrated);
+  const json = JSON.stringify(seeded);
   assertStringIncludes(json, "text_handlebars");
   assertStringIncludes(json, "Hello {{name}}");
+  assertStringIncludes(json, "source_query_node");
+});
+
+Deno.test("TypeScript Test Run matches Mapping preview for canvas handlebars()", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const canvas = handlebarsGreetingCanvas();
+  const ts = generate(model, "typescript", { blocklyState: canvas });
+  assertStringIncludes(ts, "handlebars(");
+  assertStringIncludes(ts, HANDLEBARS_GREETING_TEMPLATE);
+  const preview = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "preview",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  const tsRun = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "typescript",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  assertEquals(preview.error, undefined, preview.error);
+  assertEquals(tsRun.error, undefined, tsRun.error);
+  assertEquals(preview.output, HANDLEBARS_GREETING_OUTPUT);
+  assertEquals(tsRun.output, HANDLEBARS_GREETING_OUTPUT);
+});
+
+Deno.test("Handlebars Output mode Test Run matches canvas handlebars() preview", () => {
+  initBlocklyGenerators();
+  const model = createEmptyModel("greeting");
+  model.targetFormat = "free-form";
+  const canvas = handlebarsGreetingCanvas();
+  const preview = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "preview",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  const handlebarsMode = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
+    outputMode: "handlebars",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "greeting",
+      filename: "g.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  assertEquals(preview.error, undefined, preview.error);
+  assertEquals(handlebarsMode.error, undefined, handlebarsMode.error);
+  assertEquals(preview.output, HANDLEBARS_GREETING_OUTPUT);
+  assertEquals(handlebarsMode.output, HANDLEBARS_GREETING_OUTPUT);
 });

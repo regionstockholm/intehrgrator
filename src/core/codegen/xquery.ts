@@ -25,6 +25,10 @@ import {
   preferredInstanceEncoding,
 } from "../output/instance_encoding.ts";
 import { usesOpenEhrProduct } from "./product.ts";
+import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
+
+/** Host-bound VMS-Hbs render (`run_xquery.ts` / BaseX external). */
+export const INTEHRGRATOR_XQUERY_NS = "http://intehrgrator.local/xquery";
 
 export class XQueryExportError extends Error {
   override name = "XQueryExportError";
@@ -71,6 +75,20 @@ export function generateXQuery(
         : "Output: COMPOSITION as XPath 3.1 maps (JSON instance shape).",
       convertType: shape === "xml" ? "element()" : "item()*",
       body: emitCompositionProduct(model, skeleton, shape),
+    });
+  }
+
+  const canvas = canvasHandlebarsExpression(options.blocklyState);
+  if (canvas) {
+    return wrapXQueryModule({
+      model,
+      shape: "json",
+      needsRm: false,
+      needsHandlebars: true,
+      productComment:
+        "Output: VMS-Hbs string via intehrgrator:handlebars (Test Run host). BaseX/Saxon need the same external function.",
+      convertType: "xs:string",
+      body: `  ${emitXQueryExpr(parseExpression(canvas))}`,
     });
   }
 
@@ -135,6 +153,7 @@ function wrapXQueryModule(args: {
   model: MappingModel;
   shape: OpenEhrInstanceShape;
   needsRm: boolean;
+  needsHandlebars?: boolean;
   productComment: string;
   convertType: string;
   body: string;
@@ -155,6 +174,13 @@ function wrapXQueryModule(args: {
       ? [
         'declare namespace rm = "http://schemas.openehr.org/v1";',
         'declare namespace xsi = "http://www.w3.org/2001/XMLSchema-instance";',
+      ]
+      : []),
+    ...(args.needsHandlebars
+      ? [
+        `declare namespace intehrgrator = "${INTEHRGRATOR_XQUERY_NS}";`,
+        `declare function intehrgrator:handlebars($template as xs:string, $context as item()*) as xs:string external;`,
+        "(: Bound by the intEHRgrator Test Run host. BaseX/Saxon must provide the same external or the query fails. :)",
       ]
       : []),
     'declare namespace map = "http://www.w3.org/2005/xpath-functions/map";',
@@ -614,7 +640,7 @@ export function emitXQueryExpr(ast: ExprAst, env: XQueryEmitEnv = {}): string {
           }
           return sourceVar;
         case "handlebars":
-          return args[0] ?? '""';
+          return `intehrgrator:handlebars(${args[0] ?? '""'}, ${args[1] ?? "map {}"})`;
         default:
           return emitXPathCall("string-at", ast.args[0], env);
       }

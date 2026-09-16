@@ -10,6 +10,8 @@ import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { projectBlocklyState } from "@intehrgrator/workbench/mapping_spec/mod.ts";
+import { seedHandlebarsProductOnCanvas } from "@intehrgrator/core/output/canvas_handlebars_seed.ts";
+import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 
 const fixtureDir = join(import.meta.dirname!, "fixtures", "kintegrate");
 
@@ -171,6 +173,29 @@ Deno.test("Workbench-style Test Run: emergency-ward free-form Handlebars", async
   });
   assertEquals(result.ok, true);
   assertStringIncludes(String(result.output), "Syresättning 98");
+});
+
+Deno.test("loaded .hbs example runs via canvas handlebars() without tab override (#100)", async () => {
+  initBlocklyGenerators();
+  const source = await readFixture("intro.json");
+  const template = await readFixture("intro_tips.hbs");
+  const canvas = seedHandlebarsProductOnCanvas(null, template);
+  const model = createEmptyModel("intro_tips");
+  model.targetFormat = "free-form";
+  const result = runTest(model, source, "json", {
+    outputMode: "handlebars",
+    blocklyState: canvas,
+    target: {
+      format: "free-form",
+      targetId: "intro_tips",
+      filename: "intro_tips.hbs",
+      content: "",
+      skeleton: [],
+    },
+  });
+  assertEquals(result.error, undefined, result.error);
+  assertEquals(result.ok, true);
+  assertStringIncludes(String(result.output), "Click a checkbox");
 });
 
 Deno.test("extractHandlebarsPaths handles {{~#with and {{~#each (whitespace trim markers)", () => {

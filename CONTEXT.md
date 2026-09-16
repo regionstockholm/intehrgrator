@@ -58,8 +58,8 @@ The unique Blockly hat that designates the **Product stack**. It snaps onto the 
 _Avoid_: when green flag clicked, script trigger, fork/parallelize, multiple Starts, canvas x,y as product order, putting purged VMS blocks under Start
 
 **Text document**:
-A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). Alone under **Conversion start**, the conversion product is that string (a text file). In a **Product stack** among other roots it is a fragment: delimiters, wrapper starts/ends, MIME boundaries, record separators, and similar glue. Distinct from the workspace **Handlebars Template** tab.
-_Avoid_: stock `text` as the file root, treating the Handlebars Template tab as this block, a second delimiter block type, implicit newlines between roots
+A statement-shaped **Instance root** in the Text drawer whose value is a String (**Code text block**, **Handlebars text block**, or a string **Source query**). Alone under **Conversion start**, the conversion product is that string (a text file). In a **Product stack** among other roots it is a fragment: delimiters, wrapper starts/ends, MIME boundaries, record separators, and similar glue. Distinct from a generated Handlebars Conversion Script.
+_Avoid_: stock `text` as the file root, treating a retired workspace Template tab as this block, a second delimiter block type, implicit newlines between roots
 
 **XML document**:
 The XML **Instance root** for a complete document: XML declaration (version, encoding, optional standalone), namespace declarations via the cogwheel mutator, and one root **XML element**. A schema-less XML element can still be an instance root for a fragment without a declaration.
@@ -102,7 +102,7 @@ A Blockly value block that retrieves an entry from a named **Map** (including th
 _Avoid_: `defaults_get` as a separate block type, connecting a Map constructor into multiple slots
 
 **Mapping Editor**:
-The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top; the bottom slice (adjustable) holds **Mapping Specification**, **Handlebars Template**, and **Sheets** tabs. **Sheets** embeds a spreadsheet widget (Excel/Sheets paste, CSV import/export, optional fullscreen) bound to project-owned Sheet JSON. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
+The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top; the bottom slice (adjustable) holds **Mapping Specification** and **Sheets** tabs. **Sheets** embeds a spreadsheet widget (Excel/Sheets paste, CSV import/export, optional fullscreen) bound to project-owned Sheet JSON. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
 _Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library), Target value slots rail / Slots Pane (removed)
 
 **Target & Previews**:
@@ -116,7 +116,7 @@ _UI label:_ first option **Mapping preview**.
 _Avoid_: Export Target as the name of this control, treating Mapping preview as a Conversion script language, persisting this select in the Project Bundle, **Instance encoding** (that lives on the Instance root)
 
 **Mapping preview**:
-Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against the Active Example (today's Test Run), including **Handlebars Template** rendering for free-form / Kintegrate. **Generated conversion script(s)** shows a prompt to pick a Conversion script language rather than a script. Not itself a Conversion Script.
+Output mode whose **Conversion Test Run(s)** interpret the Mapping Model against the Active Example (today's Test Run), including canvas **Handlebars text block** rendering for free-form / Kintegrate. **Generated conversion script(s)** shows a prompt to pick a Conversion script language rather than a script. Not itself a Conversion Script.
 _Avoid_: Preview (collides with the pane title and with Test Run), dry run, calling this a Conversion script language
 
 **openEHR instance shape**:
@@ -124,7 +124,7 @@ Current session-only JSON vs XML control in **Target & Previews** on openEHR tar
 _Avoid_: treating this as a Conversion script language, treating this as **Instance encoding**, persisting it in the Project Bundle
 
 **Test Run**:
-When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler (then serialize each **Instance root** with its **Instance encoding**), or through the **Handlebars Template** when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java Output mode generates an Archie conversion class but does not execute it in the Web Shell (see [JAVA_EXPORT.md](docs/JAVA_EXPORT.md)). Handlebars Output mode renders the authored Handlebars Template against the Active Example. XQuery Output mode lazy-loads fontoxpath and executes the generated `.xq` against the Active Example (`$source`, `$defaults`, `$sheets`); COMPOSITION emit currently follows **openEHR instance shape**. The conversion product is a payload string (juxtaposed fragments). The editor pretty-prints that payload when the **Product stack** is a single JSON-family root (Canonical JSON, Simplified FLAT, or Simplified STRUCTURED) or a single Canonical XML root; a glued or mixed stack shows as text. Displays the payload even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
+When Output mode is **Mapping preview**: evaluate Mapping Model slot expressions against the Active Example (including **Map lookup**s against the Map plugged into the **Defaults block**, and **Sheet** accessors against project Sheet JSON), then render through the selected Target instance format handler (then serialize each **Instance root** with its **Instance encoding**), or through canvas `handlebars()` when the target is free-form. When Output mode is TypeScript: execute the Generated Export Conversion Script (same text as **Generated conversion script(s)**) against the Active Example. Java Output mode generates an Archie conversion class but does not execute it in the Web Shell (see [JAVA_EXPORT.md](docs/JAVA_EXPORT.md)). Handlebars Output mode evaluates the canvas **Handlebars text block** (or a legacy `handlebarsTemplate` override) against the Active Example. XQuery Output mode lazy-loads fontoxpath and executes the generated `.xq` against the Active Example (`$source`, `$defaults`, `$sheets`); COMPOSITION emit currently follows **openEHR instance shape**. The conversion product is a payload string (juxtaposed fragments). The editor pretty-prints that payload when the **Product stack** is a single JSON-family root (Canonical JSON, Simplified FLAT, or Simplified STRUCTURED) or a single Canonical XML root; a glued or mixed stack shows as text. Displays the payload even when **Output validation** fails. Derived after the Mapping Specification is restored — not stored in the Project Bundle.
 _UI label:_ section title **Conversion Test Run(s)**; action button **Run Test**.
 _Avoid_: Preview, dry run, pretty-printing a MIME/glued stack as if it were one document
 
@@ -133,7 +133,7 @@ When enabled, Test Run re-executes automatically (debounced) after mapping edits
 _Avoid_: Auto-run, live preview
 
 **Conversion Script**:
-Executable TypeScript, Java, Handlebars, or XQuery produced by a Conversion script language adapter from the Mapping Model (and optional Handlebars Template). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Walks the **Product stack** under **Conversion start** and returns one payload string (juxtaposed fragments; a single **Instance root** is the one-item case). Splitting that payload onto a queue or into files is the pipeline around the script.
+Executable TypeScript, Java, Handlebars, or XQuery produced by a Conversion script language adapter from the Mapping Model (and canvas **Handlebars text block** when present). Takes a convert-time **Defaults Map** argument for **Map lookup**s and a convert-time **Sheet** bag for **Sheet** accessors. Walks the **Product stack** under **Conversion start** and returns one payload string (juxtaposed fragments; a single **Instance root** is the one-item case). Splitting that payload onto a queue or into files is the pipeline around the script.
 _Avoid_: Mapper, transformer (too generic), baking Defaults Map values into the script as the only way to hardcode, emitting several files from one script, a Kafka/MIME producer inside convert
 
 **Template Skeleton**:
@@ -154,11 +154,11 @@ _Avoid_: generic “source block”, xpath block (the expression helpers are dif
 
 **Code text block**:
 Text-category Blockly block (`text_code`) that emits a multiline string. Instead of Blockly’s one-line string field it embeds a resizable CodeMirror editor (default 3 rows × 40 characters) with a language dropdown (Plain, Handlebars, Go Template, JSON, XML, HTML). Handlebars LANG is **VMS-Hbs**; Go Template LANG is **VMS-Go** (ADR 0009) with debounced lint. JavaScript/TypeScript are not offered ([#40](https://github.com/regionstockholm/intehrgrator/issues/40) drops them from the dropdown).
-_Avoid_: stock `text` block (single-line), Mapping Editor Handlebars Template tab (workspace-level template)
+_Avoid_: stock `text` block (single-line), a workspace-level Handlebars Template tab (retired; VMS-Hbs lives on the canvas)
 
 **Handlebars text block**:
 Text-category Blockly block (`text_handlebars`) that takes a Handlebars script (String — typically a **Code text block**) and a context (**Map** or **Source query** node) and emits rendered prose/text. Script must be **VMS-Hbs**.
-_Avoid_: Handlebars Template tab, generated Handlebars Conversion Script, unrestricted Handlebars.js
+_Avoid_: a workspace-level Handlebars Template tab (retired), generated Handlebars Conversion Script, unrestricted Handlebars.js
 
 **Placeholder source path**:
 The unmapped factory **Source Path** on a **Source query block**: empty, or the default field value `/path`. A real mapped path such as `$.systolic` is not a placeholder.
@@ -173,7 +173,7 @@ Transient state waiting for a source tree node click to write a **Source Path**.
 _Avoid_: Focus mode, mapping mode, arming on every spec click
 
 **Click-to-Map**:
-The primary mapping interaction: enter **Listening Mode** → click a source tree node → the waiting Target value slot (or free-floating **Source query block**) receives a fontoxpath **Source Path**. Typed evaluator follows the slot's `DV_*` type, or the source query's string/number/boolean kind when there is no slot. Drag-and-drop from source tree onto a value slot is supported as a secondary interaction. When the Mapping Editor **Handlebars Template** tab is showing, a source click inserts a Handlebars path (`{{path}}` or nested `#with`/`#each`) instead of a Blockly block — the Tree insert toolbar applies only to that tab, not to Blockly.
+The primary mapping interaction: enter **Listening Mode** → click a source tree node → the waiting Target value slot (or free-floating **Source query block**) receives a fontoxpath **Source Path**. Typed evaluator follows the slot's `DV_*` type, or the source query's string/number/boolean kind when there is no slot. Drag-and-drop from source tree onto a value slot is supported as a secondary interaction. When a **Code text block** (LANG = Handlebars) or a **Handlebars text block** is selected, a source click inserts a VMS-Hbs path (`{{path}}`) at the caret instead of a Blockly binding — Shift+click inserts nested `#with`/`#each`. If no eligible Handlebars editor is selected, fall through to Listening Mode.
 _Avoid_: Wildcard mapping (deferred — see `docs/future/wildcard-source-mapping.md`)
 
 **Optional RM Insertion**:
@@ -254,14 +254,14 @@ _Avoid_: treating every Blockly block as VMS, re-adding sheet mutators to the de
 
 **VMS-Hbs**:
 The Handlebars dialect editors and `renderHandlebars` accept: paths, `#if`/`#unless`/`#each`/`else`, comparison helpers (`eq`/`ne`/…/`and`/`or`), `toLowerCase`/`toUpperCase`, `slot`, `~` whitespace, Mustache-style `{{#path}}` sections. Not the same syntax as **VMS-Mustache** or **VMS-Go**. See [ADR 0009](docs/adr/0009-verifiable-template-dialects.md).
-_Avoid_: full Handlebars.js, `#with`/`lookup`/`#log`/partials, calling the Template tab “Mustache”
+_Avoid_: full Handlebars.js, `#with`/`lookup`/`#log`/partials, calling VMS-Hbs “Mustache”
 
 **VMS-Go**:
 The Go `text/template` dialect `text_code` (LANG=`go-template`) and the WASM runtime accept: `{{.Path}}`, `{{index .Data "literal"}}`, `if`/`else`/`range`, comparison builtins, curated FuncMap (`replace`, `regexReplaceAll`, `trim`, `quote`, `lower`, `upper`, `substr`, `int`), acyclic `define`/`template` with literal names. Not Mustache and not VMS-Hbs. See [ADR 0009](docs/adr/0009-verifiable-template-dialects.md).
 _Avoid_: `call`, `with`, Helm `include`, full Sprig, JS/TS in `text_code`
 
 **Generated Export**:
-Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (+ optional Handlebars Template). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
+Executable TypeScript, Java, Handlebars, or XQuery produced by Conversion script language adapters from the Mapping Model (and canvas **Handlebars text block** when present). Shown in **Generated conversion script(s)** only when Output mode is a Conversion script language — not in the center pane, and not while Mapping preview is selected. Derived from the Mapping Specification after restore; not stored in the Project Bundle. Scripts that contain **Map lookup**s take a convert-time **Defaults Map** argument (see [ADR 0002](docs/adr/0002-convert-time-defaults.md)).
 _UI label:_ section title **Generated conversion script(s)**.
 _Avoid_: Export code, preview TypeScript
 
@@ -302,7 +302,7 @@ Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by 
 _Avoid_: conflating with Workbench Test API, treating the GitHub Pages web shell as the Agent API host
 
 **Session revision**:
-FNV-style hash of Mapping Model + Blockly workspace JSON (+ Handlebars template) returned as `revision` / `r<hex>` on Agent API reads and after each mutation. Agents pass **`If-Match: <revision>`** (or MCP `revision`) for optimistic concurrency; **`undo` / `redo`** walk a joint **attributed semantic history** (user + registered agents). Blockly canvas undo remains for direct block edits; service history merges UI semantic commits via `/ui-commit`. Open **observer** for timeline scrub, destructive rollback, and patch-undo prompts.
+FNV-style hash of Mapping Model + Blockly workspace JSON returned as `revision` / `r<hex>` on Agent API reads and after each mutation. Agents pass **`If-Match: <revision>`** (or MCP `revision`) for optimistic concurrency; **`undo` / `redo`** walk a joint **attributed semantic history** (user + registered agents). Blockly canvas undo remains for direct block edits; service history merges UI semantic commits via `/ui-commit`. Open **observer** for timeline scrub, destructive rollback, and patch-undo prompts.
 _Avoid_: wall-clock timestamps, assuming revision survives a full browser reload without re-fetching snapshot
 
 **Agent actor**:
@@ -322,8 +322,8 @@ The application locale for Blockly messages (toolbar setting; later full chrome 
 _Avoid_: Model language, conflating with Defaults Map `language`
 
 **Handlebars Template**:
-User-authored **VMS-Hbs** conversion template stored in `ProjectBundle.mapping.handlebarsTemplate` (ADR 0009). **Mapping preview** Test Run renders it for free-form / Kintegrate targets. Distinct from a generated Handlebars Conversion Script (Output mode Handlebars), which is not executed in Conversion Test Run(s) yet.
-_Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format, calling this tab Mustache
+Canvas-authored **VMS-Hbs** conversion template (`text_handlebars` plus **Code text block** LANG = Handlebars). Loading a free-form `.hbs` target seeds that product stack with a source-root context (`xpathNode("$")`). **Mapping preview** and Handlebars Output mode Test Run evaluate `handlebars(script, context)` against the Active Example. Distinct from a generated Handlebars Conversion Script (Output mode Handlebars `.hbs` export), which is the SCRIPT literal when a canvas product exists.
+_Avoid_: Mapping Specification (that term means Blockly JSON), treating Handlebars as a Target instance format, calling this tab Mustache, a Mapping Editor Template tab (retired in #114)
 
 **Output validation**:
 ehrtslib `TemplateValidator` check of each openEHR RM fragment in the **Product stack** against the loaded operational template (RM specification plus template constraints), when Target instance format is `openehr-template`. Runs on the fragment *before* juxtaposition, using that root’s **Instance encoding**. ✅ on the Conversion Test Run tab if every fragment is valid; ⚠ with a formatted error list if not. Distinct from Source Pane example-tab ⚠ (instance vs Source Schema). Invalid output still appears in the editor. The glued payload string is not itself the validation input.
@@ -334,7 +334,7 @@ Optional seam for Push/Pull against a licensed Better Form Renderer viewer (asse
 _Avoid_: formTestApi (kintegrate name for the form viewer API)
 
 **Project Bundle**:
-Self-contained saved workspace containing target definition (`target`), source/example content, Blockly workspace, Mapping Model, optional Handlebars Template, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
+Self-contained saved workspace containing target definition (`target`), source/example content, Blockly workspace, Mapping Model, optional Sheets, settings, and metadata. Persisted via the Host and exportable as a single `.intehrgrator` file. Does **not** include Generated Export or Test Run output — those are regenerated from the Mapping Specification after the bundle is loaded.
 _Avoid_: Mapping file, saved state
 
 ## Example dialogue

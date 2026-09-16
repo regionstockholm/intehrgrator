@@ -105,6 +105,7 @@ var vmsGoAllowedIdents = map[string]bool{
 	"index": true, "len": true,
 	"replace": true, "regexReplaceAll": true, "trim": true, "quote": true,
 	"lower": true, "upper": true, "substr": true, "int": true,
+	"handlebars": true, "dict": true,
 }
 
 var vmsGoForbiddenIdents = map[string]bool{
@@ -311,6 +312,31 @@ func funcMap() template.FuncMap {
 			return src[start:end]
 		},
 		"int": toInt,
+		"dict": func(values ...any) map[string]any {
+			m := make(map[string]any, len(values)/2)
+			for i := 0; i+1 < len(values); i += 2 {
+				m[fmt.Sprint(values[i])] = values[i+1]
+			}
+			return m
+		},
+		"handlebars": func(template string, context any) (string, error) {
+			fn := js.Global().Get("goTextTemplateHandlebars")
+			if fn.Type() != js.TypeFunction {
+				return "", fmt.Errorf("VMS-Hbs handlebars() requires goTextTemplateHandlebars host callback")
+			}
+			if context == nil {
+				context = map[string]any{}
+			}
+			raw, err := json.Marshal(context)
+			if err != nil {
+				return "", err
+			}
+			result := fn.Invoke(template, string(raw))
+			if result.Type() != js.TypeString {
+				return "", fmt.Errorf("goTextTemplateHandlebars must return a string")
+			}
+			return result.String(), nil
+		},
 	}
 }
 

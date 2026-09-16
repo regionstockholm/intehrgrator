@@ -2,7 +2,8 @@
  * Go text/template codegen from Mapping Model + Blockly workspace.
  *
  * Emits Go text/template syntax with a curated Sprig-subset FuncMap:
- * replace, regexReplaceAll, trim, quote, lower, substr, int, ge.
+ * replace, regexReplaceAll, trim, quote, lower, substr, int, plus host-bound
+ * `handlebars` / `dict` for canvas VMS-Hbs.
  *
  * Execute context shape: { Parameters: defaults, Data: sourceInstance }.
  * Source queries become {{ index .Data "flat/path|value" }}.
@@ -109,6 +110,45 @@ export function inputChild(input: BlockInput | undefined): BlockNode | undefined
   return input?.block ?? input?.shadow;
 }
 
+function serializeBlockNodeExpression(block: BlockNode | undefined): string | null {
+  if (!block?.type) return null;
+  switch (block.type) {
+    case "text":
+    case "text_code":
+      return JSON.stringify(String(block.fields?.TEXT ?? ""));
+    case "math_number":
+      return String(block.fields?.NUM ?? 0);
+    case "logic_boolean":
+      return block.fields?.BOOL === "TRUE" ? "true" : "false";
+    case "source_query":
+    case "source_query_number":
+      return `xpathString(${JSON.stringify(String(block.fields?.EXPRESSION ?? ""))})`;
+    case "source_query_boolean":
+      return `xpathBoolean(${JSON.stringify(String(block.fields?.EXPRESSION ?? ""))})`;
+    case "source_query_node":
+      return `xpathNode(${JSON.stringify(String(block.fields?.EXPRESSION ?? ""))})`;
+    case "maps_create_empty":
+      return "map()";
+    case "maps_create_with": {
+      const count = Number(block.extraState?.itemCount ?? 0);
+      const parts: string[] = [];
+      for (let i = 0; i < count; i++) {
+        parts.push(JSON.stringify(String(block.fields?.[`KEY${i}`] ?? "")));
+        const value = inputChild(block.inputs?.[`VAL${i}`]);
+        parts.push(serializeBlockNodeExpression(value) ?? "null");
+      }
+      return `map(${parts.join(", ")})`;
+    }
+    case "text_handlebars": {
+      const script = serializeBlockNodeExpression(inputChild(block.inputs?.SCRIPT)) ?? '""';
+      const context = serializeBlockNodeExpression(inputChild(block.inputs?.CONTEXT)) ?? "map()";
+      return `handlebars(${script}, ${context})`;
+    }
+    default:
+      return null;
+  }
+}
+
 export function emitBlockTree(blocks: unknown[], ctx: GoEmitContext = createGoEmitContext()): string[] {
   const lines: string[] = [];
   for (const block of blocks) {
@@ -164,6 +204,9 @@ export function emitBlock(block: BlockNode, ctx: GoEmitContext = createGoEmitCon
       lines.push(...emitJsonStructure(block, ctx));
       break;
     }
+    case "conversion_start": {
+      break;
+    }
     case "text_document": {
       const value = inputChild(block.inputs?.VALUE);
       if (value) lines.push(...emitValueExpression(value, ctx));
@@ -175,8 +218,10 @@ export function emitBlock(block: BlockNode, ctx: GoEmitContext = createGoEmitCon
       break;
     }
     case "text_handlebars": {
-      const script = inputChild(block.inputs?.SCRIPT);
-      if (script) lines.push(...emitValueExpression(script, ctx));
+      const serialized = serializeBlockNodeExpression(block);
+      if (serialized) {
+        lines.push(emitGoExpressionTemplate(parseExpression(serialized), ctx));
+      }
       break;
     }
     case "source_query":
@@ -805,9 +850,9 @@ export function emitGoExpr(ast: ExprAst, ctx: GoEmitContext = createGoEmitContex
         case "decision_table":
           return `index .Sheets ${goQuote(ast.name)}`;
         case "handlebars":
-          return args[0] ?? '""';
+          return `handlebars ${args[0] ?? '""'} ${args[1] ?? "(dict)"}`;
         case "map":
-          return `{${args.join(", ")}}`;
+          return args.length ? `(dict ${args.join(" ")})` : "(dict)";
         default:
           return `/* unsupported: ${ast.name} */`;
       }

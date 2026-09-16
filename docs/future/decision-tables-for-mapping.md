@@ -33,7 +33,7 @@ These overlap the “compact logic” space. A new construct must beat them, not
 | Mapping Expression `if(cond, then, else)` | Ternary in a Target value slot. TypeScript and XQuery emit this; Go template emits `{{if}}`. | Nested ternaries become unreadable; no completeness; no shared table across slots. |
 | Mapping Expression `switch(...)` | Multi-way on one discriminant. TypeScript and XQuery emit it. | One input; no don't-care matrix. Go template `emitGoExpr` does not emit `switch` or sheet accessors today. |
 | Blockly `controls_if` | Statement-level branching. Go template codegen walks it (TakeCare XML / narrative path). | Same as a hand-drawn **decision tree**. Hard to review for missing combinations. |
-| **Handlebars Template** / `text_handlebars` / **Code text block** | Authored prose with interpolation; Kintegrate path; Go snippets inside XML. | Conditionals in templates (`#if`) scale worse than a table; Blockly→Handlebars codegen is still deferred ([archived ROADMAP §G](../historical-archive/ROADMAP.md)). |
+| **Handlebars text block** / **Code text block** | Authored prose with interpolation; Kintegrate path; Go snippets inside XML. | Conditionals in templates (`#if`) scale worse than a table; Blockly→Handlebars codegen is still deferred ([archived ROADMAP §G](../historical-archive/ROADMAP.md)). |
 
 `sheet_lookup` is documented in code as: first row where `matchColumn` equals `matchValue`; return one column or the whole row (`src/core/sheets/model.ts`). That is a **limited-entry lookup table**, not a decision table.
 

@@ -495,10 +495,7 @@ function renderOpenEhrNodeOnce(
     if (isAbsentValue(value)) return undefined;
     if (!node.rmType.startsWith("DV_") && node.rmType !== "CODE_PHRASE") return value;
     const output: Record<string, unknown> = { _type: node.rmType };
-    if (node.rmType === "DV_QUANTITY") output.magnitude = value;
-    else if (node.rmType === "DV_BOOLEAN") output.value = Boolean(value);
-    else if (node.rmType === "DV_COUNT") output.magnitude = Number(value);
-    else output.value = value;
+    assignDataValueFields(output, node.rmType, value);
     Object.assign(output, node.fixedFields ?? {});
     return output;
   }
@@ -589,6 +586,81 @@ function xmlTagName(node: SkeletonNode): string {
   if (node.rmAttribute) return node.rmAttribute;
   const fromPath = node.targetPath?.split("/").filter(Boolean).pop();
   return fromPath || node.label;
+}
+
+function assignDataValueFields(
+  output: Record<string, unknown>,
+  rmType: string,
+  value: unknown,
+): void {
+  const record = asStringKeyedRecord(value);
+  if (rmType === "DV_QUANTITY") {
+    if (record) {
+      if (record.magnitude !== undefined) output.magnitude = record.magnitude;
+      if (record.units !== undefined) output.units = record.units;
+    } else {
+      output.magnitude = value;
+    }
+    return;
+  }
+  if (rmType === "DV_BOOLEAN") {
+    output.value = record && "value" in record ? Boolean(record.value) : Boolean(value);
+    return;
+  }
+  if (rmType === "DV_COUNT") {
+    output.magnitude = record && "magnitude" in record ? Number(record.magnitude) : Number(value);
+    return;
+  }
+  if (rmType === "DV_CODED_TEXT") {
+    if (record) {
+      if (record.value !== undefined) output.value = record.value;
+      const phrase = codedPhraseFromRecord(record);
+      if (phrase) output.defining_code = phrase;
+    } else {
+      output.value = value;
+    }
+    return;
+  }
+  if (rmType === "CODE_PHRASE") {
+    if (record) {
+      const phrase = codedPhraseFromRecord(record);
+      if (phrase) {
+        Object.assign(output, phrase);
+        return;
+      }
+    }
+    output.value = value;
+    return;
+  }
+  if (record && record.value !== undefined) {
+    output.value = record.value;
+    return;
+  }
+  output.value = value;
+}
+
+function asStringKeyedRecord(value: unknown): Record<string, unknown> | null {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function codedPhraseFromRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+  const nested = record.defining_code;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return { _type: "CODE_PHRASE", ...(nested as Record<string, unknown>) };
+  }
+  const code = record.code_string ?? record.code ??
+    (typeof nested === "string" || typeof nested === "number" ? nested : undefined);
+  const term = record.terminology_id ?? record.terminology;
+  if (code == null && term == null) return null;
+  const phrase: Record<string, unknown> = { _type: "CODE_PHRASE" };
+  if (term != null) {
+    phrase.terminology_id = typeof term === "object"
+      ? term
+      : { _type: "TERMINOLOGY_ID", value: String(term) };
+  }
+  if (code != null) phrase.code_string = String(code);
+  return phrase;
 }
 
 function isAbsentValue(value: unknown): boolean {

@@ -355,6 +355,112 @@ Deno.test("headless load_target scaffolds Conversion start so Instance encoding 
   );
 });
 
+Deno.test("list_slots includes attachSlotId for repeating administration ACTION", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{
+      slotId: string;
+      attachSlotId?: string;
+      pathLabel?: string;
+      allowedValues?: Array<{ code: string }>;
+      codeFixed?: string;
+    }>;
+    repeatable: Array<{ slotId: string; rmType: string }>;
+  };
+  const dose = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"));
+  if (!dose) throw new Error(`missing dose slot: ${listed.slots.map((s) => s.slotId).join(",")}`);
+  assertEquals(Boolean(dose.attachSlotId), true, JSON.stringify(dose));
+  assertEquals(dose.attachSlotId?.endsWith("//content/at0000"), true, dose.attachSlotId);
+  assertEquals(dose.pathLabel?.includes("Administrerad dos"), true, dose.pathLabel);
+  assertEquals(
+    listed.repeatable.some((row) => row.slotId.endsWith("//content/at0000") && row.rmType === "ACTION"),
+    true,
+    JSON.stringify(listed.repeatable),
+  );
+  const slotIds = listed.slots.map((s) => s.slotId);
+  assertEquals(slotIds.length, new Set(slotIds).size, "list_slots must not repeat slotId");
+  assertEquals(
+    listed.slots.some((s) => Boolean(s.codeFixed) || Boolean(s.allowedValues?.length)),
+    true,
+    "expected a coded slot to publish codeFixed or allowedValues",
+  );
+});
+
+Deno.test("import_suggestions maps_create_with fills DV_QUANTITY magnitude and units", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  await callAgentTool(service, "add_example", {
+    filename: "dose.json",
+    content: JSON.stringify({ Dose: 140, UnitCode: "mg" }),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string }>;
+  };
+  const doseId = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"))?.slotId;
+  if (!doseId) throw new Error("missing Administrerad dos slot");
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      suggestions: [{
+        slotId: doseId,
+        block: {
+          type: "maps_create_with",
+          extraState: { itemCount: 2 },
+          fields: { KEY0: "magnitude", KEY1: "units" },
+          inputs: {
+            VAL0: {
+              block: { type: "source_query_number", fields: { EXPRESSION: "$.Dose" } },
+            },
+            VAL1: {
+              block: { type: "source_query", fields: { EXPRESSION: "$.UnitCode" } },
+            },
+          },
+        },
+      }],
+    }),
+  }) as { report: { applied: number; errors: string[] } };
+  assertEquals(imported.report.applied, 1, imported.report.errors.join("; "));
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { ok: boolean; error?: string; output?: unknown };
+  };
+  assertEquals(tested.testResult.ok, true, String(tested.testResult.error));
+  const qty: Array<{ magnitude?: unknown; units?: unknown }> = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "DV_QUANTITY") qty.push(rec);
+  });
+  assertEquals(qty.some((q) => Number(q.magnitude) === 140 && q.units === "mg"), true, JSON.stringify(qty));
+});
+
+function walkDv(
+  node: unknown,
+  visit: (rec: Record<string, unknown>) => void,
+): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) walkDv(item, visit);
+    return;
+  }
+  const rec = node as Record<string, unknown>;
+  visit(rec);
+  for (const value of Object.values(rec)) walkDv(value, visit);
+}
+
 Deno.test("list_constraint_warnings includes Decision table catch-all lint", async () => {
   const service = new WorkbenchService();
   await callAgentTool(service, "load_target", {

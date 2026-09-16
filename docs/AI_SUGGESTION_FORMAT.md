@@ -130,7 +130,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 2. Target / source schema / examples (format, filename, origin)
 3. Scope `full` \| `slot`
 4. Link to this doc
-5. Slot manifest: `{ slotId, valueType, label, targetPath?, multiplicity? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …)
+5. Slot manifest: `{ slotId, valueType, label, pathLabel?, targetPath?, multiplicity?, attachSlotId?, unitsFixed?, allowedUnits?, codeFixed?, terminologyFixed?, allowedValues? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, …). `attachSlotId` is the repeating ancestor to copy into `loops[]`. Unconstrained `DV_QUANTITY` units are not a separate value slot: put `maps_create_with` keys `magnitude` + `units` on the quantity slot. Unique constrained codes appear as `codeFixed`; lists of choices as `allowedValues`.
 6. Artifact delivery (below)
 7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer a **Decision table** when several inputs / don't-care / hit policies make the mapping easier for humans to read than nested `if`. Prefer **`sheet_lookup`** for 1-key terminology (e.g. ICD-10 → SNOMED CT). Keep **`maps_get`** for Defaults Map keys. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score. Copy AI Prompt includes Sheet / Decision table previews, the Product stack, an **Optional RM Insertion** catalog (`optional_rm_add` ids), and **Constraint warnings** (`list_constraint_warnings`) when present.
 
@@ -252,6 +252,35 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
         }
       },
       "note": "Prefer a Decision table over nested if for readable SBP bands"
+    }
+  ]
+}
+```
+
+**DV_QUANTITY with source units** — unconstrained units live on the DV shell, not a sibling value slot. Put `magnitude` and `units` on the quantity slot with `maps_create_with` (Test Run unpacks the map):
+
+```intehrgrator-suggestions
+{
+  "format": "intehrgrator-suggestions",
+  "version": "2",
+  "target": { "format": "openehr-template", "targetId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans" },
+  "suggestions": [
+    {
+      "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content/at0000/description/at0017/items/at0000/items/at0139/value/value/value",
+      "loopVar": "substans",
+      "block": {
+        "type": "maps_create_with",
+        "extraState": { "itemCount": 2 },
+        "fields": { "KEY0": "magnitude", "KEY1": "units" },
+        "inputs": {
+          "VAL0": {
+            "block": { "type": "source_query_number", "fields": { "EXPRESSION": "Dose" } }
+          },
+          "VAL1": {
+            "block": { "type": "source_query", "fields": { "EXPRESSION": "UnitCode" } }
+          }
+        }
+      }
     }
   ]
 }

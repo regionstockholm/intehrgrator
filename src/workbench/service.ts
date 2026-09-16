@@ -26,6 +26,7 @@ import type { AgentSnapshot } from "../agent/types.ts";
 import {
   compactSourceTree,
   constraintWarningsInspect,
+  listRepeatableInspect,
   listSlotsInspect,
   productStackInspect,
   sheetSummaries,
@@ -346,6 +347,11 @@ export class WorkbenchService {
   listSlots() {
     const s = this.controller.getState();
     return listSlotsInspect(s.skeleton, s.model);
+  }
+
+  listRepeatable() {
+    const s = this.controller.getState();
+    return listRepeatableInspect(s.skeleton);
   }
 
   getSourceTree() {

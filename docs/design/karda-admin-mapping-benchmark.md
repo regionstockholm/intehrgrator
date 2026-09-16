@@ -89,3 +89,14 @@ Pending first Test Run after import (this section is filled after `POST /run-tes
 - `test/fixtures/administrerad-medicinsk-onkologisk-behandling/mapping/pass-1-ai.intehrgrator-suggestions.json`
 - `test/fixtures/administrerad-medicinsk-onkologisk-behandling/mapping/pass-1-ai.sheets.json`
 - Optional bundle export: `/tmp/karda-pass1/pass1.bundle.json`
+
+## After Pass 1 — inspect / runtime landed
+
+These address Pass 1 hazards 1, 3, 6, 7 (partial):
+
+- `list_slots` now includes `pathLabel`, `attachSlotId`, `repeatable[]`, `unitsFixed` / `allowedUnits`, `codeFixed` / `terminologyFixed` / `allowedValues`. Duplicate `slotId` rows are collapsed.
+- Copy AI Prompt slot manifest carries the same fields plus a `maps_create_with` magnitude+units example.
+- Test Run unpacks a `map("magnitude", …, "units", …)` (and coded-text maps) instead of coercing the record to `NaN` / `"[object Object]"`. Unconstrained `UnitCode` maps onto the quantity slot this way; there is still no sibling units slot.
+- Avro schema includes `PDL_vardgivare_Namn` / `PDL_vardgivare_HSAID` so schema-driven mapping sees the instance fields.
+
+Still open from Pass 1: unique `slotId`s for EVALUATION vs ACTION `content/at0000`; party name/identifiers as value slots; `optional_rm_add` health_care_facility canvas 500; `PUT /sheets` revision bump; DV_CODED_TEXT three-leaf mapping.

@@ -316,6 +316,8 @@ function coerceReturn(value: unknown, returnType: string): unknown {
   if (returnType === "node" || returnType === "source") return value;
   if (Array.isArray(value)) return value.map((item) => coerceReturn(item, returnType));
   if (value === null || value === undefined) return value;
+  // Keep `map(...)` records so DV_QUANTITY / DV_CODED_TEXT shells can unpack fields.
+  if (typeof value === "object") return value;
   switch (returnType) {
     case "number":
       return Number(value);

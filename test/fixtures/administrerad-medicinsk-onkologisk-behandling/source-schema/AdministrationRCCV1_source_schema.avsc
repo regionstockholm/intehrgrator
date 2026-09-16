@@ -58,6 +58,16 @@
     },
     {
       "default": null,
+      "name": "PDL_vardgivare_Namn",
+      "type": ["null", "string"]
+    },
+    {
+      "default": null,
+      "name": "PDL_vardgivare_HSAID",
+      "type": ["null", "string"]
+    },
+    {
+      "default": null,
       "name": "Sparrgrupp",
       "type": ["null", "string"]
     },

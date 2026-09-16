@@ -57,6 +57,8 @@ Deno.test("Avro .avsc record schema loads as field tree, not Avro meta document"
   const itemNames = (substanser.children[0]?.children ?? []).map((c) => c.name);
   assertEquals(itemNames.includes("Innholdstoff_ATC"), true, itemNames.join(","));
   assertEquals(itemNames.includes("Dose"), true, itemNames.join(","));
+  assertEquals(names.includes("PDL_vardgivare_Namn"), true, names.join(","));
+  assertEquals(names.includes("PDL_vardgivare_HSAID"), true, names.join(","));
 });
 
 Deno.test("json handler loadSchema / pathToExpression / evaluate", () => {

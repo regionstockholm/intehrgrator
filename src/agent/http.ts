@@ -95,6 +95,14 @@ export function createAgentApiHandler(service: WorkbenchService): (req: Request)
         const result = service.runTest();
         return json({ revision: service.getRevision(), testResult: result });
       }
+      if (req.method === "POST" && path === "/verify-connections") {
+        const body = await req.json().catch(() => ({})) as {
+          includeMatrix?: boolean;
+          includeRoundTrip?: boolean;
+        };
+        const report = service.verifyBlockConnections(body);
+        return json({ revision: service.getRevision(), ...report });
+      }
       if (req.method === "POST" && path === "/map-slot") {
         actorHeaders(req, service);
         const body = await req.json() as { slotId: string; path: string; format?: string };

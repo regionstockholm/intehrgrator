@@ -79,6 +79,22 @@ class LocalAgentClient implements AgentClient {
           testResult: this.service.runTest(),
           revision: this.service.getRevision(),
         };
+      case "verify_block_connections":
+        return {
+          ...this.service.verifyBlockConnections({
+            includeMatrix: args.includeMatrix as boolean | undefined,
+            includeRoundTrip: args.includeRoundTrip as boolean | undefined,
+          }),
+          revision: this.service.getRevision(),
+        };
+      case "verify_block_connections":
+        return {
+          ...this.service.verifyBlockConnections({
+            includeMatrix: args.includeMatrix as boolean | undefined,
+            includeRoundTrip: args.includeRoundTrip as boolean | undefined,
+          }),
+          revision: this.service.getRevision(),
+        };
       case "map_slot":
         this.service.mapNodeToSlot(
           String(args.slotId),
@@ -166,6 +182,11 @@ class HttpAgentClient implements AgentClient {
         return this.request("POST", "/api/v1/import-suggestions", String(args.text ?? ""), revision);
       case "run_test":
         return this.request("POST", "/api/v1/run-test", {}, revision);
+      case "verify_block_connections":
+        return this.request("POST", "/api/v1/verify-connections", {
+          includeMatrix: args.includeMatrix,
+          includeRoundTrip: args.includeRoundTrip,
+        }, revision);
       case "map_slot":
         return this.request("POST", "/api/v1/map-slot", {
           slotId: args.slotId,
@@ -260,6 +281,19 @@ const TOOLS = [
     name: "run_test",
     description: "Run Conversion Test against the active example.",
     inputSchema: { type: "object", properties: { revision: { type: "string" } } },
+  },
+  {
+    name: "verify_block_connections",
+    description:
+      "Audit Blockly snap rules: matrix expectations, live canvas connections, and save/reload round-trip.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        includeMatrix: { type: "boolean" },
+        includeRoundTrip: { type: "boolean" },
+        revision: { type: "string" },
+      },
+    },
   },
   {
     name: "restore_at",

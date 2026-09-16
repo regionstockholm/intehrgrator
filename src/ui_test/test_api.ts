@@ -108,8 +108,22 @@ export interface IntehrgratorTestApi {
   newBlock(type: string): string | null;
   /** True when `child` previous can snap to `parent`'s named statement input. */
   canConnectStatement(parentId: string, inputName: string, childId: string): boolean;
+  /** True when `child` output can snap to `parent`'s named value input. */
+  canConnectValue(parentId: string, inputName: string, childId: string): boolean;
   /** Connect `child` previous onto `parent`'s named statement input. */
   connectStatement(parentId: string, inputName: string, childId: string): boolean;
+  /** Run snap matrix + live + round-trip connection audit on the live canvas. */
+  runConnectionAudit(options?: { includeMatrix?: boolean; includeRoundTrip?: boolean }): {
+    ok: boolean;
+    summary: string;
+    failures: Array<{ kind: string; label: string; detail?: string }>;
+  };
+  /** Save/reload the live Blockly JSON and verify connections + typed slots survive. */
+  verifyConnectionRoundTrip(): {
+    ok: boolean;
+    summary: string;
+    failures: Array<{ kind: string; label: string; detail?: string }>;
+  };
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
   undo(): void;

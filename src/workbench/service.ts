@@ -19,6 +19,11 @@ import { importBundle } from "../core/persistence/mod.ts";
 import { WorkbenchController } from "./controller.ts";
 import { syncModelToBlocklyState } from "./blockly_sync.ts";
 import {
+  auditBlocklyState,
+  formatConnectionAuditReport,
+  type ConnectionAuditReport,
+} from "../blockly/connection_audit.ts";
+import {
   HistoryLog,
   type HistoryEntry,
   type HistoryKind,
@@ -83,6 +88,15 @@ export class WorkbenchService {
       testOk: s.testResult?.ok ?? null,
       activeAgents: this.registry.list().length,
     };
+  }
+
+  verifyBlockConnections(options?: {
+    includeMatrix?: boolean;
+    includeRoundTrip?: boolean;
+  }): ConnectionAuditReport & { summary: string } {
+    const bundle = this.exportBundle();
+    const report = auditBlocklyState(bundle.mapping?.blocklyState, options);
+    return { ...report, summary: formatConnectionAuditReport(report) };
   }
 
   registerAgent(options?: { agentId?: string; displayName?: string; color?: string }) {

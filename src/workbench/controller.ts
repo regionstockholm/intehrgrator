@@ -105,6 +105,7 @@ import {
   rememberUrl,
   type UrlHistoryKind,
 } from "../host/url_history.ts";
+import { migrateHandlebarsTemplateOntoCanvas } from "../core/output/handlebars_canvas_migrate.ts";
 
 export type WorkbenchListener = () => void;
 
@@ -1317,7 +1318,7 @@ export class WorkbenchController {
       this.generatedCode = MAPPING_PREVIEW_SCRIPT_PLACEHOLDER;
       return;
     }
-    this.generatedCode = mode === "go-template" || this.model.templateId || this.handlebarsTemplate
+    this.generatedCode = mode === "go-template" || this.model.templateId || this.blocklyState
       ? generate(this.model, mode, {
         handlebarsTemplate: this.handlebarsTemplate,
         blocklyState: this.getBlocklyState?.() ?? this.blocklyState,
@@ -1516,8 +1517,12 @@ export class WorkbenchController {
       openEhrInstanceShape: DEFAULT_SETTINGS.openEhrInstanceShape,
     };
     this.model = { ...bundle.mapping.model };
-    this.blocklyState = bundle.mapping.blocklyState;
-    this.handlebarsTemplate = bundle.mapping.handlebarsTemplate ?? "";
+    const legacyTemplate = bundle.mapping.handlebarsTemplate ?? "";
+    this.blocklyState = migrateHandlebarsTemplateOntoCanvas(
+      bundle.mapping.blocklyState,
+      legacyTemplate,
+    );
+    this.handlebarsTemplate = "";
     this.sheets = normalizeSheets(bundle.mapping.sheets ?? []);
     this.templateFilename = "";
     this.templateContent = "";

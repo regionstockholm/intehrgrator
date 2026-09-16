@@ -105,8 +105,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_CODE: "text",
     TEXT_CODE_TOOLTIP:
       "Multiline text with syntax highlighting. Resizable editor; choose a language for highlighting.",
-    TEXT_HANDLEBARS: "handlebars",
-    TEXT_HANDLEBARS_WITH: "with",
+    TEXT_HANDLEBARS: "run handlebars script:",
+    TEXT_HANDLEBARS_WITH: "with input context",
     TEXT_HANDLEBARS_TOOLTIP:
       "Render a Handlebars script against a Map or a source subtree.",
     FOR_EACH_SOURCE_PREFIX: "for each",
@@ -174,8 +174,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_CODE: "text",
     TEXT_CODE_TOOLTIP:
       "Flerradig text med syntaxfärgning. Ändra storlek på editorn; välj språk för highlighting.",
-    TEXT_HANDLEBARS: "handlebars",
-    TEXT_HANDLEBARS_WITH: "med",
+    TEXT_HANDLEBARS: "kör handlebars-skript:",
+    TEXT_HANDLEBARS_WITH: "med indatakontext",
     TEXT_HANDLEBARS_TOOLTIP:
       "Rendera ett Handlebars-skript mot en Map eller ett källsubträd.",
     FOR_EACH_SOURCE_PREFIX: "för varje",
@@ -243,8 +243,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_CODE: "Text",
     TEXT_CODE_TOOLTIP:
       "Mehrzeiliger Text mit Syntaxhervorhebung. Editor ist skalierbar; Sprache für Highlighting wählen.",
-    TEXT_HANDLEBARS: "Handlebars",
-    TEXT_HANDLEBARS_WITH: "mit",
+    TEXT_HANDLEBARS: "Handlebars-Skript ausführen:",
+    TEXT_HANDLEBARS_WITH: "mit Eingabekontext",
     TEXT_HANDLEBARS_TOOLTIP:
       "Handlebars-Skript gegen eine Map oder einen Quellen-Teilbaum ausführen.",
     FOR_EACH_SOURCE_PREFIX: "für jedes",
@@ -312,8 +312,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_CODE: "texto",
     TEXT_CODE_TOOLTIP:
       "Texto multilínea con resaltado de sintaxis. El editor es redimensionable; elija el lenguaje.",
-    TEXT_HANDLEBARS: "handlebars",
-    TEXT_HANDLEBARS_WITH: "con",
+    TEXT_HANDLEBARS: "ejecutar script handlebars:",
+    TEXT_HANDLEBARS_WITH: "con contexto de entrada",
     TEXT_HANDLEBARS_TOOLTIP:
       "Renderiza un script Handlebars contra un Map o un subárbol de origen.",
     FOR_EACH_SOURCE_PREFIX: "para cada",
@@ -381,8 +381,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_CODE: "text",
     TEXT_CODE_TOOLTIP:
       "Text multilínia amb ressaltat de sintaxi. L'editor és redimensionable; trieu el llenguatge.",
-    TEXT_HANDLEBARS: "handlebars",
-    TEXT_HANDLEBARS_WITH: "amb",
+    TEXT_HANDLEBARS: "executar script handlebars:",
+    TEXT_HANDLEBARS_WITH: "amb context d'entrada",
     TEXT_HANDLEBARS_TOOLTIP:
       "Renderitza un script Handlebars contra un Map o un subarbre d'origen.",
     FOR_EACH_SOURCE_PREFIX: "per a cada",
@@ -450,8 +450,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     TEXT_CODE: "texte",
     TEXT_CODE_TOOLTIP:
       "Texte multiligne avec coloration syntaxique. L'éditeur est redimensionnable ; choisissez le langage.",
-    TEXT_HANDLEBARS: "handlebars",
-    TEXT_HANDLEBARS_WITH: "avec",
+    TEXT_HANDLEBARS: "exécuter le script handlebars :",
+    TEXT_HANDLEBARS_WITH: "avec le contexte d'entrée",
     TEXT_HANDLEBARS_TOOLTIP:
       "Rend un script Handlebars contre une Map ou un sous-arbre source.",
     FOR_EACH_SOURCE_PREFIX: "pour chaque",

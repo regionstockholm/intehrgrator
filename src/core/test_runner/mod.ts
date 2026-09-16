@@ -157,12 +157,24 @@ export function runTest(
     }
 
     if (mode === "handlebars") {
+      const canvasOutput = tryRunCanvasConversionScript(model, options, ctx, defaults);
+      if (canvasOutput) {
+        const outputValidation = validateConvertedOutput(canvasOutput, options.target, {
+          deserializeMode: options.openEhrJsonDeserializeMode,
+        });
+        return {
+          ok: warnings.length === 0,
+          output: canvasOutput,
+          warnings,
+          outputValidation,
+        };
+      }
       const template = options.handlebarsTemplate ?? options.target?.content ?? "";
       if (!template.trim()) {
         return {
           ok: false,
-          output: "// No Handlebars template provided.\n",
-          error: "No Handlebars template provided.",
+          output: "// No Handlebars mapping on the canvas.\n",
+          error: "No Handlebars mapping on the canvas.",
           warnings,
         };
       }
@@ -223,8 +235,13 @@ export function runTest(
 
     let output: unknown;
     if (options.target?.format === "free-form") {
-      const template = options.handlebarsTemplate ?? options.target?.content ?? "";
-      output = renderHandlebars(template, ctx.data, { slots: slotValues });
+      const canvasOutput = tryRunCanvasConversionScript(model, options, ctx, defaults);
+      if (canvasOutput) {
+        output = canvasOutput;
+      } else {
+        const template = options.handlebarsTemplate ?? options.target?.content ?? "";
+        output = renderHandlebars(template, ctx.data, { slots: slotValues });
+      }
     } else if (options.target) {
       output = getTargetFormatHandler(options.target.format).render({
         definition: options.target,
@@ -278,6 +295,35 @@ function applyInstanceEncodingToPreview(
   } catch (e) {
     warnings.push(e instanceof Error ? e.message : String(e));
     return output;
+  }
+}
+
+function tryRunCanvasConversionScript(
+  model: MappingModel,
+  options: RunTestOptions,
+  ctx: SourceContext,
+  defaults: Record<string, unknown>,
+): unknown | null {
+  if (!options.blocklyState) return null;
+  const code = options.generatedCode?.trim()
+    ? options.generatedCode
+    : generateTypeScript(model, {
+      blocklyState: options.blocklyState,
+      skeleton: options.target?.skeleton,
+      webTemplateJson: options.target?.webTemplateJson,
+    });
+  if (!code.trim() || !/\bhandlebars\s*\(/.test(code)) return null;
+  try {
+    const raw = runGeneratedTypeScript(
+      code,
+      { format: ctx.format, data: ctx.data },
+      defaults,
+      undefined,
+      ctx.sheets,
+    );
+    return serializedConversionOutput(raw);
+  } catch {
+    return null;
   }
 }
 

@@ -601,9 +601,6 @@ function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
     const units = block.getFieldValue("UNITS");
     if (units) props.push(["units", JSON.stringify(units)]);
   }
-  if (rmType === "DV_QUANTITY" && !props.some((p) => p[0] === "magnitude")) {
-    return "";
-  }
   if (rmType === "DV_TEXT" && props.length === 1 && props[0]![0] === "value") {
     ctx.types.add("DV_TEXT");
     return `new DV_TEXT(${props[0]![1]})`;

@@ -430,15 +430,18 @@ const VARIANTS: Record<VariantKey, Variant> = {
       </ul>
       <h3>Table JoinNames</h3>
       <p style="margin:0 0 8px">Hit policy FIRST, output kind snippet. Evaluated
-      once per list item; snippets concatenate. Same table for both call sites.</p>
+      once per list item; snippets concatenate. Same table for both call sites.
+      Cells are match values (<code>true</code> / <code>false</code> / —).
+      The canvas binds <code>last ⇔ index = length − 1</code>; this last-item
+      row is therefore <code>last = true</code>, not the formula.</p>
       <table class="proto-dt">
         <thead>
           <tr><th>first</th><th>last</th><th>odd</th><th>snippet</th></tr>
         </thead>
         <tbody>
-          <tr><td>index = 0</td><td>—</td><td>—</td><td><code>{{name}}</code></td></tr>
+          <tr><td>true</td><td>—</td><td>—</td><td><code>{{name}}</code></td></tr>
           <tr><td>false</td><td>false</td><td>—</td><td><code>, {{name}}</code></td></tr>
-          <tr><td>false</td><td>index = length − 1</td><td>—</td><td><code> och {{name}}</code></td></tr>
+          <tr><td>false</td><td>true</td><td>—</td><td><code> och {{name}}</code></td></tr>
         </tbody>
       </table>
       <p class="warn"><code>procedures_callreturn</code> is still a Mapping IR escape

@@ -1078,6 +1078,101 @@ body.sheets-fullscreen::before {
 .status-save.saved { color: var(--success); }
 .status-build { flex-shrink: 0; font-size: 11px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
 
+.task-progress-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+}
+.task-progress-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 280px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 16px 18px 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+.task-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.task-progress-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.task-progress-spinner {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: task-progress-spin 0.8s linear infinite;
+}
+.task-progress-overlay:not(:has(.task-progress-step--running)) .task-progress-spinner {
+  border-top-color: var(--success);
+  animation: none;
+}
+@keyframes task-progress-spin {
+  to { transform: rotate(360deg); }
+}
+.task-progress-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task-progress-step {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.task-progress-step--running { color: var(--text); font-weight: 600; }
+.task-progress-step--finished { color: var(--success); }
+.task-progress-step--failed { color: var(--error); }
+.task-progress-marker {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+}
+.task-progress-step--waiting .task-progress-marker { background: transparent; }
+.task-progress-step--running .task-progress-marker {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.task-progress-step--finished .task-progress-marker {
+  border-color: var(--success);
+  background: var(--success);
+}
+.task-progress-step--failed .task-progress-marker {
+  border-color: var(--error);
+  background: var(--error);
+}
+.task-progress-detail {
+  grid-column: 2;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .app-dialog {
   border: 1px solid var(--border);
   border-radius: 8px;

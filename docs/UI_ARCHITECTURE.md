@@ -262,6 +262,10 @@ The footer status bar has three regions:
 
 **Autosave:** After any workspace edit, a **10 s debounced** timer writes the current Project Bundle to IndexedDB under storage key `__autosave__`. Successful autosave clears the dirty flag and updates `#status-save`. Autosave does not replace named manual saves.
 
+### Task progress overlay
+
+Long-running, multi-step loads (Example Sets, GitHub clinical models, project restore) show `#task-progress-overlay`: a non-modal card with a spinner and one row per substep in **waiting / running / finished / failed**. The controller exposes `getState().taskProgress`; `render()` paints the overlay and yields between steps so the UI can update. The footer `#status-main` still shows the current step as a short message. The overlay hides when the task settles.
+
 **Manual save (Save as):** User names the project; bundle is stored under `manual:{uuid}`. Only the **last 5** manual saves are retained (older entries pruned). Clears dirty state and shows a transient confirmation in `#status-main`.
 
 ## Project Dialogs

@@ -8,6 +8,7 @@ import {
   ClinicalModelWorkspace,
   isOptXml,
   parseGitHubClinicalModelFileUrl,
+  type GitHubTemplateLoadProgress,
 } from "ehrtslib/parser/mod.ts";
 import { OptXmlSerializer } from "ehrtslib/generation/opt_xml_serializer.ts";
 import { buildWebTemplate } from "ehrtslib/serialization/simplified/web_template_builder.ts";
@@ -28,6 +29,7 @@ export interface GitHubClinicalModelLoadOptions {
   fetch?: typeof fetch;
   githubToken?: string;
   maxFiles?: number;
+  onProgress?: (event: GitHubTemplateLoadProgress) => void;
 }
 
 export interface GitHubClinicalModelLoadResult {
@@ -66,6 +68,7 @@ export async function loadGitHubClinicalModel(
     fetch: options?.fetch,
     githubToken: options?.githubToken,
     maxFiles: options?.maxFiles,
+    onProgress: options?.onProgress,
   });
   const resolved = workspace.resolveOperational();
   const opt = resolved.operationalTemplate;

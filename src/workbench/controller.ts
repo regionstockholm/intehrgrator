@@ -108,6 +108,12 @@ import {
   type UrlHistoryKind,
 } from "../host/url_history.ts";
 import { seedHandlebarsProductOnCanvas } from "../core/output/canvas_handlebars_seed.ts";
+import type {
+  TaskProgress,
+  TaskStepState,
+} from "./task_progress.ts";
+
+export type { TaskProgress, TaskProgressStep, TaskStepState } from "./task_progress.ts";
 
 export type WorkbenchListener = () => void;
 
@@ -168,6 +174,8 @@ export class WorkbenchController {
   private dirty = false;
   private lastAutosaveAt: string | null = null;
   private statusMessage = "Ready";
+  private taskProgress: TaskProgress | null = null;
+  private taskDepth = 0;
 
   constructor(
     private host: HostAdapter,
@@ -259,6 +267,7 @@ export class WorkbenchController {
       listeningSourceBlockId: this.listeningSourceBlockId,
       treeHighlight: this.treeHighlight,
       statusMessage: this.statusMessage,
+      taskProgress: this.taskProgress,
       saveStatus: this.getSaveStatus(),
       validationIssues: validateModel(this.model, this.skeleton),
       unmappedMandatory: countUnmappedMandatory(this.model, this.skeleton),
@@ -283,18 +292,36 @@ export class WorkbenchController {
   }
 
   async openTemplateFromUrl(url: string): Promise<void> {
+    const github = isGitHubClinicalModelUrl(url);
+    const title = github ? "Load GitHub clinical model" : "Load target";
+    const steps = github
+      ? [
+        { id: "parse-url", label: "Parse GitHub URL" },
+        { id: "index-tree", label: "List repository files" },
+        { id: "fetch", label: "Fetch clinical model files" },
+        { id: "parse", label: "Parse templates and archetypes" },
+        { id: "resolve", label: "Resolve operational template" },
+        { id: "scaffold", label: "Scaffold Template Skeleton" },
+        { id: "generate", label: "Generate conversion script" },
+      ]
+      : [{ id: "load", label: "Load and scaffold target" }];
     try {
-      if (isGitHubClinicalModelUrl(url)) {
-        const loaded = await this.loadGitHubModel(url);
-        this.applyGitHubTarget(loaded);
+      await this.withTask(title, steps, async () => {
+        if (github) {
+          const loaded = await this.loadGitHubModel(url);
+          await this.runTaskStep("scaffold", () => {
+            this.applyGitHubTarget(loaded);
+          });
+          this.setTaskStep("generate", "finished");
+        } else {
+          await this.runTaskStep("load", async () => {
+            const file = await this.host.fetchTextUrl(url);
+            this.loadTargetContent(file.name, file.text);
+          });
+        }
         this.targetOriginUrl = url;
         this.rememberLoadUrl("target", url);
-        return;
-      }
-      const file = await this.host.fetchTextUrl(url);
-      this.loadTargetContent(file.name, file.text);
-      this.targetOriginUrl = url;
-      this.rememberLoadUrl("target", url);
+      });
     } catch (err) {
       this.statusMessage = `Target load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -484,33 +511,55 @@ export class WorkbenchController {
 
   /** Replace the workspace with a catalog example set (source, target, optional mapping). */
   async loadExampleSet(set: ExampleSet): Promise<void> {
-    this.resetWorkspaceState();
+    const steps: Array<{ id: string; label: string }> = [];
+    if (set.target) steps.push({ id: "target", label: "Load target" });
+    if (set.source.schema) steps.push({ id: "schema", label: "Load source schema" });
+    set.source.instances.forEach((_, i) => {
+      steps.push({ id: `example-${i}`, label: `Load example ${i + 1}` });
+    });
+    if (set.mapping) steps.push({ id: "mapping", label: "Load mapping" });
+    if (set.defaults) steps.push({ id: "defaults", label: "Load defaults map" });
+    steps.push({ id: "generate", label: "Generate conversion script" });
     try {
-      if (set.target) await this.openTemplateFromUrl(set.target);
-      if (set.source.schema) await this.loadSchemaFromUrl(set.source.schema);
-      for (const instanceUrl of set.source.instances) {
-        await this.addExampleFromUrl(instanceUrl);
-      }
-      if (set.mapping) {
-        const file = await this.host.fetchTextUrl(set.mapping);
-        this.loadBlocklyDefinition(file.name, file.text);
-      }
-      if (set.defaults) {
-        const file = await this.host.fetchTextUrl(set.defaults);
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(file.text);
-        } catch (err) {
-          throw new Error(
-            `Defaults JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
+      await this.withTask(`Load example set "${set.title}"`, steps, async () => {
+        this.resetWorkspaceState();
+        if (set.target) {
+          await this.runTaskStep("target", () => this.openTemplateFromUrl(set.target!));
         }
-        const mapBlock = mapBlockFromDefaultsJson(parsed);
-        if (!mapBlock) {
-          throw new Error("Defaults JSON must be a maps_create_with block or workspace");
+        if (set.source.schema) {
+          await this.runTaskStep("schema", () => this.loadSchemaFromUrl(set.source.schema!));
         }
-        this.pendingDefaultsMap = mapBlock;
-      }
+        for (const [i, instanceUrl] of set.source.instances.entries()) {
+          await this.runTaskStep(`example-${i}`, () => this.addExampleFromUrl(instanceUrl));
+        }
+        if (set.mapping) {
+          await this.runTaskStep("mapping", async () => {
+            const file = await this.host.fetchTextUrl(set.mapping!);
+            this.loadBlocklyDefinition(file.name, file.text);
+          });
+        }
+        if (set.defaults) {
+          await this.runTaskStep("defaults", async () => {
+            const file = await this.host.fetchTextUrl(set.defaults!);
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(file.text);
+            } catch (err) {
+              throw new Error(
+                `Defaults JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+            const mapBlock = mapBlockFromDefaultsJson(parsed);
+            if (!mapBlock) {
+              throw new Error("Defaults JSON must be a maps_create_with block or workspace");
+            }
+            this.pendingDefaultsMap = mapBlock;
+          });
+        }
+        await this.runTaskStep("generate", () => {
+          this.refreshDerived();
+        });
+      });
       this.statusMessage = `Loaded example set "${set.title}"`;
       this.schedulePostLoadOutput();
       this.notifyChange();
@@ -687,6 +736,105 @@ export class WorkbenchController {
   setStatusMessage(message: string): void {
     this.statusMessage = message;
     this.notifyChange();
+  }
+
+  private async yieldUi(): Promise<void> {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+
+  private async withTask<T>(
+    title: string,
+    steps: Array<{ id: string; label: string }>,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    const nested = this.taskDepth > 0;
+    this.taskDepth += 1;
+    if (!nested && steps.length) {
+      this.taskProgress = {
+        title,
+        steps: steps.map((step) => ({ ...step, state: "waiting" as const })),
+      };
+      this.statusMessage = title;
+      this.notifyChange();
+      await this.yieldUi();
+    }
+    try {
+      return await run();
+    } catch (err) {
+      if (!nested && this.taskProgress) {
+        const running = this.taskProgress.steps.find((s) => s.state === "running") ??
+          this.taskProgress.steps.find((s) => s.state === "waiting");
+        if (running) {
+          this.setTaskStep(
+            running.id,
+            "failed",
+            err instanceof Error ? err.message : String(err),
+          );
+          this.notifyChange();
+        }
+      }
+      throw err;
+    } finally {
+      this.taskDepth -= 1;
+      if (!nested) {
+        this.taskProgress = null;
+        this.notifyChange();
+      }
+    }
+  }
+
+  private setTaskStep(id: string, state: TaskStepState, detail?: string): void {
+    if (!this.taskProgress) return;
+    const idx = this.taskProgress.steps.findIndex((s) => s.id === id);
+    if (idx < 0) {
+      if (state === "running" && detail) this.noteTaskDetail(detail);
+      return;
+    }
+    this.taskProgress = {
+      ...this.taskProgress,
+      steps: this.taskProgress.steps.map((step, i) => {
+        if (step.id === id) {
+          return { ...step, state, ...(detail !== undefined ? { detail } : {}) };
+        }
+        if (
+          state === "running" &&
+          i < idx &&
+          step.state !== "finished" &&
+          step.state !== "failed"
+        ) {
+          return { ...step, state: "finished" as const };
+        }
+        return step;
+      }),
+    };
+    const step = this.taskProgress.steps[idx];
+    if (step && state === "running") {
+      this.statusMessage = `${this.taskProgress.title}: ${step.label}`;
+    }
+  }
+
+  private noteTaskDetail(detail: string): void {
+    if (!this.taskProgress) return;
+    const running = this.taskProgress.steps.find((s) => s.state === "running");
+    if (!running) return;
+    this.setTaskStep(running.id, "running", detail);
+  }
+
+  private async runTaskStep<T>(id: string, fn: () => Promise<T> | T): Promise<T> {
+    this.setTaskStep(id, "running");
+    this.notifyChange();
+    await this.yieldUi();
+    try {
+      const result = await fn();
+      this.setTaskStep(id, "finished");
+      this.notifyChange();
+      await this.yieldUi();
+      return result;
+    } catch (err) {
+      this.setTaskStep(id, "failed", err instanceof Error ? err.message : String(err));
+      this.notifyChange();
+      throw err;
+    }
   }
 
   /** Patch a Mapping Model slot expression (AI import / derived-index edits). */
@@ -1624,6 +1772,11 @@ export class WorkbenchController {
     return await loadGitHubClinicalModel(url, {
       fetch: this.githubFetch,
       language: this.settings.modelLanguage,
+      onProgress: (event) => {
+        if (event.phase === "complete") return;
+        this.setTaskStep(event.phase, "running", event.message);
+        this.notifyChange();
+      },
     });
   }
 

@@ -50,7 +50,7 @@ Coarse index of `test/*_test.ts`. The filename is the lookup; do not copy this t
 |-------|----------------------|----------------------|
 | Mapping model / spec / IR | `mapping_model_test.ts`, `mapping_ir_test.ts`, `mapping_spec_project_test.ts`, `expression_test.ts` | Slot expressions, loops, spec projection |
 | Blockly / VMS / RM / generators | `blockly_rm_blocks_test.ts`, `source_query_blocks_test.ts`, `loop_blocks_test.ts`, `logic_blocks_test.ts`, `vms_toolbox_test.ts`, `join_list_test.ts` | Canvas blocks, toolbox, codegen from blocks |
-| Source formats / XPath / XQuery | `source_format_handler_test.ts`, `source_query_test.ts`, `xquery_runtime_test.ts` | Load/evaluate source; in-app XQuery Test Run |
+| Source formats / XPath / XQuery | `source_format_handler_test.ts`, `source_query_test.ts`, `json_schema_refs_test.ts`, `xquery_runtime_test.ts` | Load/evaluate source; JSON Schema `$ref`/`$defs`; in-app XQuery Test Run |
 | Target / encoding / scaffolding | `target_format_handler_test.ts`, `instance_encoding_test.ts`, `skeleton_test.ts`, `conversion_start_test.ts` | Template Skeleton, Product stack, Instance encoding |
 | Codegen | `codegen_test.ts`, `go_template_codegen_test.ts`, `decision_table_test.ts` | TS / Java / Handlebars / XQuery / Go emit |
 | Persistence / example sets / sheets | `project_persistence_test.ts`, `example_sets_test.ts`, `sheets_test.ts` | Project bundle, catalogs, grids |

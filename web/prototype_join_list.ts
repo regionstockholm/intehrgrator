@@ -48,6 +48,7 @@ const KEYS: VariantKey[] = ["A", "B", "C", "D", "E", "F"];
 const JOIN_SWEDISH = "join_swedish";
 const JOIN_SWEDISH_PARAM = "names";
 const JOIN_SWEDISH_PARAM_ID = "join_swedish_names";
+const JOIN_TABLE = "JoinNames";
 
 function asSvg(block: Blockly.Block): BlockSvg {
   return block as BlockSvg;
@@ -146,9 +147,40 @@ function appendBlock(
   return ready(appended);
 }
 
+/** Variant E lookup table: first/last/odd derived from index and length. */
+function indexLengthDecision(ws: Blockly.WorkspaceSvg, tableName = JOIN_TABLE): BlockSvg {
+  const decision = ready(ws.newBlock(PROTOTYPE_DECISION_INDEX));
+  decision.setFieldValue(tableName, "NAME");
+  plug(
+    decision,
+    "FIRST",
+    eq(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 0)),
+  );
+  plug(
+    decision,
+    "LAST",
+    eq(
+      ws,
+      ready(ws.newBlock(PROTOTYPE_LIST_INDEX)),
+      minus(ws, ready(ws.newBlock(PROTOTYPE_LIST_LENGTH)), number(ws, 1)),
+    ),
+  );
+  plug(
+    decision,
+    "ODD",
+    eq(
+      ws,
+      remainder(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 2)),
+      number(ws, 1),
+    ),
+  );
+  plug(decision, "ITEM", ready(ws.newBlock(PROTOTYPE_THIS_ITEM)));
+  return decision;
+}
+
 /**
- * Stock `to …` function wrapping join_list. Separators live here so the
- * Mapping Model call is one socket: join_swedish(names).
+ * Stock `to …` function wrapping the E position table. Main code is then
+ * one socket: join_swedish(source list).
  */
 function defineJoinSwedish(ws: Blockly.WorkspaceSvg): BlockSvg {
   const def = appendBlock(ws, {
@@ -158,7 +190,8 @@ function defineJoinSwedish(ws: Blockly.WorkspaceSvg): BlockSvg {
       params: [{ name: JOIN_SWEDISH_PARAM, id: JOIN_SWEDISH_PARAM_ID }],
     },
   });
-  const join = ready(ws.newBlock(PROTOTYPE_JOIN_LIST));
+  const join = ready(ws.newBlock(PROTOTYPE_JOIN_VIA_TABLE));
+  join.setFieldValue(JOIN_TABLE, "TABLE");
   plug(join, "ITEMS", varGet(ws, JOIN_SWEDISH_PARAM, JOIN_SWEDISH_PARAM_ID));
   const ret = def.getInput("RETURN") ?? def.getInput("VALUE");
   ret?.connection?.connect(join.outputConnection!);
@@ -369,97 +402,78 @@ const VARIANTS: Record<VariantKey, Variant> = {
     `,
     build(ws) {
       const join = ready(ws.newBlock(PROTOTYPE_JOIN_VIA_TABLE));
+      join.setFieldValue(JOIN_TABLE, "TABLE");
       plug(join, "ITEMS", namesList(ws));
       place(join, 16, 8);
-
-      const decision = ready(ws.newBlock(PROTOTYPE_DECISION_INDEX));
-      plug(
-        decision,
-        "FIRST",
-        eq(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 0)),
-      );
-      plug(
-        decision,
-        "LAST",
-        eq(
-          ws,
-          ready(ws.newBlock(PROTOTYPE_LIST_INDEX)),
-          minus(ws, ready(ws.newBlock(PROTOTYPE_LIST_LENGTH)), number(ws, 1)),
-        ),
-      );
-      plug(
-        decision,
-        "ODD",
-        eq(
-          ws,
-          remainder(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 2)),
-          number(ws, 1),
-        ),
-      );
-      plug(decision, "ITEM", ready(ws.newBlock(PROTOTYPE_THIS_ITEM)));
-      place(decision, 16, 200);
+      place(indexLengthDecision(ws), 16, 200);
     },
   },
   F: {
     key: "F",
     name: "Function + mapping call",
-    title: "F — Blockly function; compact Mapping Model call",
-    serializes: `function join_swedish(names)\n  return join_list(names, ", ", " och ")\n\nELEMENT Närvarande\n  DV_TEXT.value = join_swedish(source list "deltagare/namn")`,
+    title: "F — Function calls + E position table",
+    serializes: `function join_swedish(names)\n  return join_list_via_table(names, "JoinNames")\n\nELEMENT Participants\n  DV_TEXT.value = join_swedish(source list "participants/name")\nELEMENT Potential signers\n  DV_TEXT.value = join_swedish(source list "potential_signers/name")`,
     output: "Anna, Bo och Carl",
     showSheet: false,
     sheetHtml: "",
     notesHtml: `
-      <p>Stock <strong>Functions</strong> block (<code>procedures_defreturn</code>).
-      The yellow <code>join_list</code> lives <em>once</em> in the helper; main code is a
-      one-socket call.</p>
+      <p>Compact Mapping Model calls (F) plus the variant <strong>E lookup table</strong>
+      as the function body. Two different source lists share one helper.</p>
       <ul>
-        <li>Top: Mapping Model — CLUSTER / ELEMENT / DV_TEXT, the same grain as a
-          real openEHR slot. Lung-MDT <em>Närvarande</em> is this ELEMENT.</li>
-        <li>Call: <code>join_swedish(📋 source list deltagare/namn)</code> — no
-          separators at the slot.</li>
-        <li>Below: the extracted function. Parameter <code>names</code> feeds
-          variant A’s reporter. A second ELEMENT reuses the same call.</li>
+        <li>Top: CLUSTER with two ELEMENTs — <code>participants/name</code> and
+          <code>potential_signers/name</code>. Each is a one-socket
+          <code>join_swedish(…)</code> call.</li>
+        <li>Below: stock <code>to join_swedish(names)</code> returning
+          <em>join list using decision JoinNames</em>.</li>
+        <li>Under that: E’s table — <code>first</code> / <code>last</code> /
+          <code>odd</code> from <code>index</code> and <code>length</code>.</li>
       </ul>
-      <p>This is the compact main-code shape: bake locale punctuation into a named
-      helper, not into every ELEMENT. A 3-arg <code>join_list(items, sep, final)</code>
-      function is no smaller than putting A on the slot — the win is the 1-arg domain
-      helper.</p>
+      <h3>Table JoinNames</h3>
+      <p style="margin:0 0 8px">Hit policy FIRST, output kind snippet. Evaluated
+      once per list item; snippets concatenate. Same table for both call sites.</p>
+      <table class="proto-dt">
+        <thead>
+          <tr><th>first</th><th>last</th><th>odd</th><th>snippet</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>index = 0</td><td>—</td><td>—</td><td><code>{{name}}</code></td></tr>
+          <tr><td>false</td><td>false</td><td>—</td><td><code>, {{name}}</code></td></tr>
+          <tr><td>false</td><td>index = length − 1</td><td>—</td><td><code> och {{name}}</code></td></tr>
+        </tbody>
+      </table>
       <p class="warn"><code>procedures_callreturn</code> is still a Mapping IR escape
-      hatch until see-through calls land
-      (<code>docs/future/function-test-harnesses.md</code>). The canvas is the
-      authoring question; serialization follows.</p>
+      hatch until see-through calls land.</p>
     `,
     build(ws) {
       const def = defineJoinSwedish(ws);
       const cluster = ready(ws.newBlock(PROTOTYPE_CLUSTER));
-      cluster.setFieldValue("Lung-MDT", "NAME");
+      cluster.setFieldValue("MDT note", "NAME");
 
-      const narvarande = elementNamed(ws, "Närvarande");
+      const participants = elementNamed(ws, "Participants");
       plug(
-        narvarande,
+        participants,
         "VALUE",
         dvTextValue(
           ws,
-          callJoinSwedish(ws, sourceNames(ws, "deltagare/namn")),
+          callJoinSwedish(ws, sourceNames(ws, "participants/name")),
         ),
       );
-      cluster.getInput("ITEMS")?.connection?.connect(narvarande.previousConnection!);
+      cluster.getInput("ITEMS")?.connection?.connect(participants.previousConnection!);
 
-      const kort = elementNamed(ws, "Deltagare (kort)");
+      const signers = elementNamed(ws, "Potential signers");
       plug(
-        kort,
+        signers,
         "VALUE",
         dvTextValue(
           ws,
-          callJoinSwedish(ws, sourceNames(ws, "deltagare/namn")),
+          callJoinSwedish(ws, sourceNames(ws, "potential_signers/name")),
         ),
       );
-      narvarande.nextConnection?.connect(kort.previousConnection!);
+      participants.nextConnection?.connect(signers.previousConnection!);
 
       place(cluster, 16, 16);
-      // Function library sits under the Mapping Model so the two call sites
-      // stay a compact left-to-right tree (CLUSTER is wide).
       place(def, 16, 340);
+      place(indexLengthDecision(ws), 16, 560);
     },
   },
 };
@@ -501,7 +515,7 @@ function loadVariant(key: VariantKey): void {
   workspace.clear();
   const v = VARIANTS[key];
   v.build(workspace);
-  workspace.setScale(key === "E" || key === "F" ? 0.78 : 0.92);
+  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.68 : 0.92);
   workspace.scrollCenter();
   renderSide(v);
   document.body.dataset.protoReady = key;

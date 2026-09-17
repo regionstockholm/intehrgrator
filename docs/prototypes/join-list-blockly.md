@@ -39,9 +39,9 @@ Real Blockly (modest theme). Live playground: `deno task prototype:join-list` th
 
 ![E index and length locals](join-list/join_list_variant_e_loop_index_length.png)
 
-### F — Blockly function; compact mapping call
+### F — Function calls + E position table
 
-![F function definition plus ELEMENT call sites](join-list/join_list_variant_f_function_mapping_call.png)
+![F compact calls plus index/length lookup table](join-list/join_list_variant_f_function_mapping_call.png)
 
 ---
 
@@ -54,7 +54,7 @@ Real Blockly (modest theme). Live playground: `deno task prototype:join-list` th
 | **C** Locale preset | List + `Svenska (och)` / English / Oxford dropdown | Same two strings as A | Later; #85 listed locale auto-detect as a non-goal |
 | **D** Decision table over position | `join list using decision`; sheet rows on `first`/`last` | Per-item FIRST table, concatenate snippets | **Yes, alongside A** |
 | **E** Loop `index` + `length` | Same table; `first`/`last`/`odd` derived with Math | `index = 0`, `index = length − 1`, `index mod 2` | **Yes as loop binders** — substrate for D |
-| **F** Function + mapping call | Stock `to join_swedish(names)` wrapping A; ELEMENT Närvarande calls it | `join_swedish(source list)` at the slot | **Yes as authoring** — compact main code; call serialization still an escape hatch |
+| **F** Function + E table | Stock `to join_swedish(names)` wrapping E’s `join list using decision`; ELEMENT Participants / Potential signers call it | `join_swedish(source list)` at each slot | **Yes as authoring** — compact main code; call serialization still an escape hatch |
 
 **A and D are both worth shipping.** A is faster for ordinary Oxford / *och*.
 D (powered by E’s binders) is faster when the per-item rule is a table
@@ -63,12 +63,17 @@ Lung-MDT `#each` + `@first`/`@last` is a **semantic transform** onto these
 binders — do not keep the Handlebars names for compatibility.
 
 **Compact main code (variant F):** extract a 1-arg helper
-(`join_swedish(names)`) with the yellow `join_list` in the function body.
-The Mapping Model is then `ELEMENT Närvarande → DV_TEXT.value = join_swedish(source list)`.
-A 3-arg `join_list(items, sep, final)` *function* is no smaller than putting A
-on the slot; the win is baking separators into a named helper and reusing it.
-`procedures_callreturn` is still a Mapping IR escape hatch until see-through
-calls ([function-test-harnesses.md](../future/function-test-harnesses.md)).
+(`join_swedish(names)`) whose body is E’s position table
+(`join list using decision JoinNames`, with `first`/`last`/`odd` from
+`index` and `length`). The Mapping Model stays two one-socket calls:
+
+`ELEMENT Participants → join_swedish(source list "participants/name")`
+and
+`ELEMENT Potential signers → join_swedish(source list "potential_signers/name")`.
+
+Same table for both lists. `procedures_callreturn` is still a Mapping IR
+escape hatch until see-through calls
+([function-test-harnesses.md](../future/function-test-harnesses.md)).
 
 The teal block on variant B is what the map scaffolding *wants* if
 `first`/`default`/`last` are per-item expressions. Those sockets are lambdas
@@ -137,6 +142,8 @@ strings.” They compose.
    semantic image of lung-MDT `@index` / `@first` / `@last`.
 4. Optional yellow-B mouths (prefix/postfix/skip-empty); no teal lambdas.
 5. For compact Mapping Model slots, extract a 1-arg Blockly Function
-   (`join_swedish`) wrapping A rather than repeating separators on every ELEMENT.
+   (`join_swedish`) wrapping E’s position table rather than repeating
+   punctuation on every ELEMENT. Two source lists
+   (`participants/name`, `potential_signers/name`) share that helper.
 6. Do not keep VMS-Hbs `@first`/`@last` for compatibility. Transform, then
    drop.

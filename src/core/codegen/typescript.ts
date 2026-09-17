@@ -100,6 +100,9 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
           return `!(${args[0]})`;
         case "list":
           return `[${args.join(", ")}]`;
+        case "lists_getIndex":
+          ctx.helpers.add("logic");
+          return `listGetIndex(${args[0]}, ${args[1] ?? '"FIRST"'}, ${args[2] ?? "1"})`;
         case "intersection":
           ctx.helpers.add("logic");
           return `setIntersection(asList(${args[0]}), asList(${args[1]}))`;
@@ -393,11 +396,12 @@ function xpathHelpers(helpers: Set<string>): string[] {
   if (helpers.has("string")) {
     lines.push(
       "function xpathString(path: string, node: unknown = sourceCtx.data): string {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToString(path, null, null, { source: node });",
+      '  const p = typeof path === "string" ? path : String(path ?? "");',
+      '  if (p.trim().startsWith("$source") || p.includes("?*[")) {',
+      "    return evaluateXPathToString(p, null, null, { source: node });",
       "  }",
-      '  if (path.trim().startsWith("/")) return evaluateXPathToString(path, node);',
-      "  return evaluateXPathToString(jsonQuery(path), null, null, { source: node });",
+      '  if (p.trim().startsWith("/")) return evaluateXPathToString(p, node);',
+      "  return evaluateXPathToString(jsonQuery(p), null, null, { source: node });",
       "}",
       "",
     );
@@ -513,6 +517,14 @@ function logicHelpers(): string[] {
     "  if (Array.isArray(value)) return value;",
     "  if (value == null) return [];",
     "  return [value];",
+    "}",
+    "function listGetIndex(items: unknown, where: string, at: unknown = 1): unknown {",
+    "  const list = asList(items);",
+    '  if (where === "FIRST") return list[0] ?? null;',
+    '  if (where === "LAST") return list[list.length - 1] ?? null;',
+    "  const n = Number(at);",
+    '  if (where === "FROM_END") return list[list.length - n] ?? null;',
+    "  return list[n - 1] ?? null;",
     "}",
     "function sameItem(a: unknown, b: unknown): boolean {",
     "  if (Object.is(a, b)) return true;",
@@ -745,6 +757,19 @@ export function asStringExpr(expr: string): string {
   return `String(${expr} ?? "")`;
 }
 
+/** Terse `terminology::code` is unsafe when terminology_id contains `:` (SNOMED URLs). */
+export function codePhraseTerseSafe(terminology: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(terminology);
+}
+
+/** CODE_PHRASE init: terse when safe, otherwise `{ terminology_id, code_string }`. */
+export function emitCodePhraseLiteral(terminology: string, code: string): string {
+  if (codePhraseTerseSafe(terminology) && !code.includes("::")) {
+    return JSON.stringify(`${terminology}::${code}`);
+  }
+  return `{ terminology_id: ${JSON.stringify(terminology)}, code_string: ${JSON.stringify(code)} }`;
+}
+
 export function asBooleanExpr(expr: string): string {
   if (/^(xpathBoolean|Boolean)\(/.test(expr)) return expr;
   return `Boolean(${expr})`;
@@ -931,7 +956,7 @@ function emitSkeletonValue(
     if (term && expr) {
       return "`" + escapeTemplate(term) + "::${String(" + expr + ' ?? "")}`';
     }
-    if (term && code) return JSON.stringify(`${term}::${code}`);
+    if (term && code) return emitCodePhraseLiteral(term, code);
     if (expr) {
       ctx.types.add("CODE_PHRASE");
       return `new CODE_PHRASE({ code_string: ${asStringExpr(expr)} })`;
@@ -944,7 +969,15 @@ function emitSkeletonValue(
     const code = fields.defining_code ?? fields.code_string;
     const rubric = fields.value ??
       (node.label && node.label !== rmType ? node.label : "");
-    if (code) return JSON.stringify(`${term}::${code}|${rubric}|`);
+    if (code) {
+      if (codePhraseTerseSafe(term) && !code.includes("::")) {
+        return JSON.stringify(`${term}::${code}|${rubric}|`);
+      }
+      ctx.types.add("DV_CODED_TEXT");
+      return `new DV_CODED_TEXT({ value: ${JSON.stringify(rubric)}, defining_code: ${
+        emitCodePhraseLiteral(term, code)
+      } })`;
+    }
     if (expr) {
       ctx.types.add("DV_CODED_TEXT");
       return `new DV_CODED_TEXT({ value: String(${expr} ?? "") })`;

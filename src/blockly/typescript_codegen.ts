@@ -37,6 +37,8 @@ import type { InstanceEncoding, MappingModel } from "../types/mod.ts";
 import {
   asStringExpr,
   createTsEmitContext,
+  emitCodePhraseLiteral,
+  codePhraseTerseSafe,
   emitTsExpressionSource,
   formatObjectLiteral,
   formatRmConstruct,
@@ -599,6 +601,9 @@ function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
     const units = block.getFieldValue("UNITS");
     if (units) props.push(["units", JSON.stringify(units)]);
   }
+  if (rmType === "DV_QUANTITY" && !props.some((p) => p[0] === "magnitude")) {
+    return "";
+  }
   if (rmType === "DV_TEXT" && props.length === 1 && props[0]![0] === "value") {
     ctx.types.add("DV_TEXT");
     return `new DV_TEXT(${props[0]![1]})`;
@@ -616,7 +621,7 @@ function emitCodePhrase(block: Block, ctx: TsEmitContext, indent: number): strin
   const codeLit = stringLiteralValue(code);
   if (termLit !== null && codeLit !== null) {
     if (!codeLit) return "";
-    return JSON.stringify(`${termLit}::${codeLit}`);
+    return emitCodePhraseLiteral(termLit, codeLit);
   }
   if (termLit !== null) {
     if (isBlankGeneratedExpr(code) || isEmptyLiteral(code)) return "";
@@ -640,7 +645,7 @@ function emitTermPick(block: Block, _ctx: TsEmitContext): string {
   if (set?.valueRmType === "DV_CODED_TEXT") {
     return JSON.stringify(`${terminology}::${code}|${rubric}|`);
   }
-  return JSON.stringify(`${terminology}::${code}`);
+  return emitCodePhraseLiteral(terminology, code);
 }
 
 function shouldEmitLocatableName(rmType: string, name: string): boolean {

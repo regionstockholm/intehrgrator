@@ -9,9 +9,12 @@ import {
   compileLoopSequence,
   emitJavaExpression,
   createJavaEmitContext,
+  createTsEmitContext,
+  emitTsExpression,
 } from "@intehrgrator/core/codegen/mod.ts";
 import { upsertLoop } from "@intehrgrator/core/mapping_model/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
+import { emitCodePhraseLiteral } from "@intehrgrator/core/codegen/typescript.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
   runGeneratedTypeScript,
@@ -714,6 +717,14 @@ export function convertSourceToComposition() {
 `);
   assertEquals(body.includes("composer: { name: xpathString"), true, body);
   assertEquals(body.includes("composer,"), false, body);
+});
+
+Deno.test("emitCodePhraseLiteral uses object form for SNOMED URL terminology ids", () => {
+  assertEquals(emitCodePhraseLiteral("openehr", "433"), '"openehr::433"');
+  assertEquals(
+    emitCodePhraseLiteral("http://snomed.info/sct/900000000000207008", "43741000"),
+    '{ terminology_id: "http://snomed.info/sct/900000000000207008", code_string: "43741000" }',
+  );
 });
 
 Deno.test("TypeScript Output mode executes handlebars text block canvas mapping", () => {

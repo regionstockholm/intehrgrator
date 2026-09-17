@@ -18,12 +18,13 @@ try {
   // artifacts dir may be missing outside Cloud Agent
 }
 
-const variants = ["A", "B", "C", "D"] as const;
+const variants = ["A", "B", "C", "D", "E"] as const;
 const names: Record<typeof variants[number], string> = {
   A: "compact_join_list",
   B: "named_slot_recipe",
   C: "locale_preset",
   D: "decision_table_first_last",
+  E: "loop_index_length",
 };
 
 const browser = await chromium.launch({ headless: true });
@@ -36,8 +37,8 @@ page.on("console", (msg) => {
 for (const key of variants) {
   const url = `${base}/prototype-join-list.html?variant=${key}`;
   await page.goto(url, { waitUntil: "networkidle" });
-  await page.waitForSelector(".blocklyBlockCanvas", { timeout: 15000 });
-  await page.waitForTimeout(400);
+  await page.waitForSelector(`[data-proto-ready="${key}"]`, { timeout: 15000 });
+  await page.waitForTimeout(300);
   const file = `join_list_variant_${key.toLowerCase()}_${names[key]}.png`;
   const docsPath = join(outDocs, file);
   await page.screenshot({ path: docsPath, fullPage: true });

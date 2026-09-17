@@ -8,20 +8,24 @@ import type { BlockSvg } from "blockly/core";
 import "blockly/blocks";
 import { Blockly } from "../src/blockly/blockly_core.ts";
 import { createModestTheme } from "../src/blockly/theme.ts";
+import { loadBlocklyLocale } from "../src/blockly/i18n/locale.ts";
 import {
+  PROTOTYPE_DECISION_INDEX,
   PROTOTYPE_DECISION_POSITION,
   PROTOTYPE_JOIN_FOR_READING,
   PROTOTYPE_JOIN_LIST,
   PROTOTYPE_JOIN_LOCALE,
   PROTOTYPE_JOIN_POSITION_RECIPE,
   PROTOTYPE_JOIN_VIA_TABLE,
+  PROTOTYPE_LIST_INDEX,
   PROTOTYPE_LIST_IS_FIRST,
   PROTOTYPE_LIST_IS_LAST,
+  PROTOTYPE_LIST_LENGTH,
   PROTOTYPE_THIS_ITEM,
   registerJoinListPrototypeBlocks,
 } from "../src/blockly/blocks/join_list_prototype.ts";
 
-type VariantKey = "A" | "B" | "C" | "D";
+type VariantKey = "A" | "B" | "C" | "D" | "E";
 
 interface Variant {
   key: VariantKey;
@@ -35,7 +39,7 @@ interface Variant {
   build: (ws: Blockly.WorkspaceSvg) => void;
 }
 
-const KEYS: VariantKey[] = ["A", "B", "C", "D"];
+const KEYS: VariantKey[] = ["A", "B", "C", "D", "E"];
 
 function asSvg(block: Blockly.Block): BlockSvg {
   return block as BlockSvg;
@@ -74,6 +78,35 @@ function plug(parent: Blockly.Block, input: string, child: Blockly.Block): void 
 
 function place(block: Blockly.Block, x: number, y: number): void {
   asSvg(block).moveBy(x, y);
+}
+
+function number(ws: Blockly.WorkspaceSvg, value: number): BlockSvg {
+  const block = ready(ws.newBlock("math_number"));
+  block.setFieldValue(String(value), "NUM");
+  return block;
+}
+
+function eq(ws: Blockly.WorkspaceSvg, left: BlockSvg, right: BlockSvg): BlockSvg {
+  const cmp = ready(ws.newBlock("logic_compare"));
+  cmp.setFieldValue("EQ", "OP");
+  plug(cmp, "A", left);
+  plug(cmp, "B", right);
+  return cmp;
+}
+
+function minus(ws: Blockly.WorkspaceSvg, left: BlockSvg, right: BlockSvg): BlockSvg {
+  const op = ready(ws.newBlock("math_arithmetic"));
+  op.setFieldValue("MINUS", "OP");
+  plug(op, "A", left);
+  plug(op, "B", right);
+  return op;
+}
+
+function remainder(ws: Blockly.WorkspaceSvg, dividend: BlockSvg, divisor: BlockSvg): BlockSvg {
+  const op = ready(ws.newBlock("math_modulo"));
+  plug(op, "DIVIDEND", dividend);
+  plug(op, "DIVISOR", divisor);
+  return op;
 }
 
 function textJoin(ws: Blockly.WorkspaceSvg, left: string, item: BlockSvg): BlockSvg {
@@ -225,6 +258,62 @@ const VARIANTS: Record<VariantKey, Variant> = {
       place(decision, 24, 200);
     },
   },
+  E: {
+    key: "E",
+    name: "Loop index + length",
+    title: "E — Index and length on the loop (not Handlebars @)",
+    serializes: `first := index = 0\nlast  := index = length - 1\nodd   := index mod 2 = 1`,
+    output: "Anna, Bo och Carl",
+    showSheet: false,
+    sheetHtml: "",
+    notesHtml: `
+      <p>Bind <code>index</code> (0-based) and <code>length</code> on <code>for_each_source</code> /
+      <code>for_each_list</code>, visible to child blocks the same way <code>item</code> is today.
+      <code>is first</code> / <code>is last</code> become one-line sugar over those two ints.
+      Odd/even is <code>index mod 2</code> with existing Math blocks.</p>
+      <ul>
+        <li>Does <em>not</em> make SMT harder in kind: two extra loop-invariant / loop-index
+          integers, <code>0 ≤ index &lt; length</code>, <code>length = |collection|</code> at entry.</li>
+        <li>Lung-MDT <code>@index</code> / <code>@first</code> / <code>@last</code> is a
+          <strong>semantic transform</strong> onto these reporters — no need to keep the
+          Handlebars names for compatibility.</li>
+        <li>Do not bind index on <code>logic_list_restriction</code> in v1 (quantifiers should
+          stay order-insensitive unless we have a real case).</li>
+      </ul>
+    `,
+    build(ws) {
+      const join = ready(ws.newBlock(PROTOTYPE_JOIN_VIA_TABLE));
+      plug(join, "ITEMS", namesList(ws));
+      place(join, 16, 8);
+
+      const decision = ready(ws.newBlock(PROTOTYPE_DECISION_INDEX));
+      plug(
+        decision,
+        "FIRST",
+        eq(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 0)),
+      );
+      plug(
+        decision,
+        "LAST",
+        eq(
+          ws,
+          ready(ws.newBlock(PROTOTYPE_LIST_INDEX)),
+          minus(ws, ready(ws.newBlock(PROTOTYPE_LIST_LENGTH)), number(ws, 1)),
+        ),
+      );
+      plug(
+        decision,
+        "ODD",
+        eq(
+          ws,
+          remainder(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 2)),
+          number(ws, 1),
+        ),
+      );
+      plug(decision, "ITEM", ready(ws.newBlock(PROTOTYPE_THIS_ITEM)));
+      place(decision, 16, 200);
+    },
+  },
 };
 
 function currentKey(): VariantKey {
@@ -264,45 +353,49 @@ function loadVariant(key: VariantKey): void {
   workspace.clear();
   const v = VARIANTS[key];
   v.build(workspace);
-  workspace.setScale(0.92);
+  workspace.setScale(key === "E" ? 0.78 : 0.92);
   workspace.scrollCenter();
   renderSide(v);
+  document.body.dataset.protoReady = key;
 }
 
 function boot(): void {
-  registerJoinListPrototypeBlocks();
-  const mount = document.getElementById("blockly")!;
-  workspace = Blockly.inject(mount, {
-    theme: createModestTheme(),
-    collapse: false,
-    grid: { spacing: 20, length: 2, colour: "#E8EAED" },
-    zoom: {
-      controls: true,
-      wheel: true,
-      startScale: 0.95,
-      maxScale: 1.6,
-      minScale: 0.5,
-      scaleSpeed: 1.2,
-      pinch: true,
-    },
-    move: { scrollbars: true, drag: true, wheel: true },
-    trashcan: false,
-    renderer: "thrasos",
-  });
-  const key = currentKey();
-  setKey(key);
-  loadVariant(key);
+  void (async () => {
+    await loadBlocklyLocale("en");
+    registerJoinListPrototypeBlocks();
+    const mount = document.getElementById("blockly")!;
+    workspace = Blockly.inject(mount, {
+      theme: createModestTheme(),
+      collapse: false,
+      grid: { spacing: 20, length: 2, colour: "#E8EAED" },
+      zoom: {
+        controls: true,
+        wheel: true,
+        startScale: 0.95,
+        maxScale: 1.6,
+        minScale: 0.5,
+        scaleSpeed: 1.2,
+        pinch: true,
+      },
+      move: { scrollbars: true, drag: true, wheel: true },
+      trashcan: false,
+      renderer: "thrasos",
+    });
+    const key = currentKey();
+    setKey(key);
+    loadVariant(key);
 
-  document.getElementById("prev")!.addEventListener("click", () => go(-1));
-  document.getElementById("next")!.addEventListener("click", () => go(1));
-  document.addEventListener("keydown", (event) => {
-    const t = event.target as HTMLElement | null;
-    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
-      return;
-    }
-    if (event.key === "ArrowLeft") go(-1);
-    if (event.key === "ArrowRight") go(1);
-  });
+    document.getElementById("prev")!.addEventListener("click", () => go(-1));
+    document.getElementById("next")!.addEventListener("click", () => go(1));
+    document.addEventListener("keydown", (event) => {
+      const t = event.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) {
+        return;
+      }
+      if (event.key === "ArrowLeft") go(-1);
+      if (event.key === "ArrowRight") go(1);
+    });
+  })();
 }
 
 function go(delta: number): void {

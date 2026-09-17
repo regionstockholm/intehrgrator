@@ -10,7 +10,7 @@ toolbox.
 
 Run: `deno task prototype:join-list` then `deno task dev` and open
 [http://127.0.0.1:5173/prototype-join-list.html?variant=A](http://127.0.0.1:5173/prototype-join-list.html?variant=A).
-← → cycles A–D.
+← → cycles A–E.
 
 Inspiration (Erik’s map-as-scaffolding, 2026-09-17):
 
@@ -35,21 +35,27 @@ Real Blockly (modest theme). Live playground: `deno task prototype:join-list` th
 
 ![D decision table + first/last](join-list/join_list_variant_d_decision_table_first_last.png)
 
+### E — Loop index and length
+
+![E index and length locals](join-list/join_list_variant_e_loop_index_length.png)
+
 ---
 
 ## Variants
 
 | Key | End-user shape | Lowers to | v1? |
 |-----|----------------|-----------|-----|
-| **A** Compact `join_list` | Yellow Text reporter: list + *between* + *before last* | `join_list(items, sep, finalSep)` | **Yes** — smallest algebra |
-| **B** Named mouths | Same algebra + prefix/postfix + skip-empty. Teal “item templates” shown only as a counter-example | `concat(prefix, join_list(...), postfix)` | Yellow part yes; teal lambdas **no** |
-| **C** Locale preset | List + `Svenska (och)` / English / Oxford dropdown | Same two strings as A | Maybe later; #85 listed locale auto-detect as a non-goal |
-| **D** Decision table over position | `join list using decision NärvarandeList`; sheet rows on `first`/`last` | Per-item FIRST table, concatenate snippet cells | Allowed *alongside* A, not instead of it |
+| **A** Compact `join_list` | Yellow Text reporter: list + *between* + *before last* | `join_list(items, sep, finalSep)` | **Yes** — cheapest authoring for list grammar |
+| **B** Named mouths | Same algebra + prefix/postfix + skip-empty. Teal “item templates” are a counter-example | `concat(prefix, join_list(...), postfix)` | Yellow part yes; teal lambdas **no** |
+| **C** Locale preset | List + `Svenska (och)` / English / Oxford dropdown | Same two strings as A | Later; #85 listed locale auto-detect as a non-goal |
+| **D** Decision table over position | `join list using decision`; sheet rows on `first`/`last` | Per-item FIRST table, concatenate snippets | **Yes, alongside A** |
+| **E** Loop `index` + `length` | Same table; `first`/`last`/`odd` derived with Math | `index = 0`, `index = length − 1`, `index mod 2` | **Yes as loop binders** — substrate for D |
 
-**A** is the production candidate. **B** (yellow) is A with wrap-around prose
-and is worth the extra mouths if Notes often add `Närvarande: ` / `.`.
-**D** is Erik’s second alternative, encoded with Blockly booleans rather than
-Handlebars `@first`/`@last`.
+**A and D are both worth shipping.** A is faster for ordinary Oxford / *och*.
+D (powered by E’s binders) is faster when the per-item rule is a table
+(title-case the first, period on the last, zebra, “first three get a heading”).
+Lung-MDT `#each` + `@first`/`@last` is a **semantic transform** onto these
+binders — do not keep the Handlebars names for compatibility.
 
 The teal block on variant B is what the map scaffolding *wants* if
 `first`/`default`/`last` are per-item expressions. Those sockets are lambdas
@@ -58,48 +64,49 @@ is the only binder today. Do not take that into v1.
 
 ---
 
+## Loop `index` and `length` — does that make verification harder?
+
+**No, not in kind.** It adds two integers per iteration, both derived and
+bounded.
+
+| Binder | Meaning | SMT |
+|--------|---------|-----|
+| `item` (already) | Current element | Same as today |
+| `index` | `0 … length−1` | `0 ≤ index < length` |
+| `length` | `\|collection\|` at loop entry | Constant for the loop (VMS has no list mutators) |
+
+`is first` ⇔ `index = 0`. `is last` ⇔ `index = length − 1`. Odd/even ⇔
+`index mod 2` (already a VMS Math block). Handlebars `@index` / `@first` /
+`@last` rewrite onto that table; `@key` stays map iteration only.
+
+**Where to bind:** emission loops — `for_each_source` and `for_each_list` —
+with child reporters that pick the enclosing binder (same dropdown pattern as
+`logic_current_item`). Nested loops need distinct names (`name` / `name_index`,
+or a nearest-enclosing picker).
+
+**Where not to bind in v1:** `logic_list_restriction`. Quantifiers should stay
+order-insensitive (`all of list match P(item)`). Index there makes “the first
+specimen must be labelled” easy and also makes accidental positional bugs easy.
+
+**Verification caveats (not holes):**
+
+1. Grain still means “add one source node → add one target child.” Do not use
+   `index` to mint `:n` slot ids.
+2. `length` must be the collection as of loop entry, not a live mutating size.
+3. Nested loops: two index/length pairs, not a global `@index`.
+
+Slightly more SMT state per iteration; same fragment as a bounded `for`.
+
+---
+
 ## Would banning `@first` / `@last` enable Handlebars verification?
 
-**No.** Disallowing those names in snippet source is not the on/off switch for
-formal verification.
-
-Facts already in the repo:
-
-1. **Snippet cells are VMS-Mustache** ([ADR 0009](../adr/0009-verifiable-template-dialects.md)).
-   Allowed: `{{name}}`, `{{#list}}`, `{{^empty}}`, comments. **No helpers, no
-   `@first` / `@last`.** That ban is already in force for decision-table
-   output cells. It keeps snippets interpolative so they lower to `concat` of
-   literals + bound names ([formal-verification-export.md](../future/formal-verification-export.md)
-   §F).
-
-2. **VMS-Hbs already includes `@index` / `@first` / `@last` / `@key`.** They
-   exist because lung-MDT uses them (`#unless @last`, `@first` in
-   `test/fixtures/kintegrate/handlebars-script1.hbs`). Convert-time
-   verification of the *dialect* is the whitelist (`knownHelpersOnly`) plus
-   AST walk — unknown helpers, `#with`, `lookup`, lambdas, partials.
-
-3. **`@first` / `@last` are not the opaque hole.** They are pure, bounded
-   predicates: `index = 0` and `index = length − 1`. SMT can encode them the
-   same way as `if`. The holes that *cannot* be encoded are lambdas,
-   `lookup`, `#with`, and unregistered helpers.
-
-4. **What they *do* cost** is authoring and codegen. Position-dependent
-   punctuation inside `#each` is microplanning. It does not serialize to
-   Mapping Expression today (`handlebars_to_blockly.ts` says so). XQuery/Go
-   need index logic or a `join_list` helper. Gold strings still have to check
-   that the author got Swedish *och* vs Oxford comma right — SMT will not.
-
-So:
-
-- Ban `@first`/`@last` **in snippet cells** → already done; that is what
-  makes snippet verification a `concat` problem.
-- Ban them **in VMS-Hbs** (`text_handlebars` / `text_code`) → lung-MDT
-  becomes out-of-dialect until rewritten as `join_list` or a position table.
-  That *improves the authoring surface* and mapping-contract coverage; it does
-  not newly enable a proof that was otherwise impossible.
-- Put `@first`/`@last` **in a decision-table logic column as Handlebars** →
-  mix grains; don’t. Bind Blockly reporters `is first` / `is last` as locals
-  (variant D). Snippet cells stay `{{name}}` / `, {{name}}` / ` och {{name}}`.
+**No**, and we do not need those names for lung-MDT compatibility. Snippet
+cells already cannot use them (VMS-Mustache, [ADR 0009](../adr/0009-verifiable-template-dialects.md)).
+They are index predicates, not the opaque hole (`lookup`, `#with`, lambdas,
+unknown helpers). Once `#each` is rewritten to `join_list` and/or a position
+table, VMS-Hbs can drop `@first`/`@last` (and `@index` if the loop binders
+cover it).
 
 COLLECT vs join: COLLECT still answers “which clinical fragments belong.”
 `join_list` / the position table answers “how do I punctuate this list of
@@ -109,13 +116,12 @@ strings.” They compose.
 
 ## Recommendation for #85 implementation
 
-1. Ship **variant A** as `join_list` in Mapping Expression + Text toolbox.
-2. Optional mutator mouths for prefix/postfix/skip-empty (yellow part of B)
-   if the first Note-field example needs them; otherwise `concat` around A.
-3. Keep **D** as a documented composition: `for_each`/`join` + existing
-   Decision table with `first`/`last` condition columns. Needs `is first` /
-   `is last` reporters (or locals filled by a `join list using decision`
-   wrapper). Do not put `@first` into Mustache cells.
-4. Do not implement the teal lambda recipe.
-5. Do not drop `@first`/`@last` from VMS-Hbs until lung-MDT examples are
-   migrated; mark those `#each` blocks as migratable to `join_list`.
+1. Ship **A** (`join_list`) — cheapest authoring for Oxford / *och*.
+2. Ship **D** as well: per-item Decision table + VMS-Mustache snippets. Same
+   verification track; better when the per-item rule is a table.
+3. Bind **index** and **length** on `for_each_*` (variant E). Derive
+   `is first` / `is last` from them. That is the substrate D needs, and the
+   semantic image of lung-MDT `@index` / `@first` / `@last`.
+4. Optional yellow-B mouths (prefix/postfix/skip-empty); no teal lambdas.
+5. Do not keep VMS-Hbs `@first`/`@last` for compatibility. Transform, then
+   drop.

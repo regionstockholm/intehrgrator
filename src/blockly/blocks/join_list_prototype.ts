@@ -23,8 +23,11 @@ export const PROTOTYPE_JOIN_FOR_READING = "prototype_join_for_reading";
 export const PROTOTYPE_JOIN_LOCALE = "prototype_join_locale";
 export const PROTOTYPE_JOIN_VIA_TABLE = "prototype_join_via_table";
 export const PROTOTYPE_DECISION_POSITION = "prototype_decision_position";
+export const PROTOTYPE_DECISION_INDEX = "prototype_decision_index";
 export const PROTOTYPE_LIST_IS_FIRST = "prototype_list_is_first";
 export const PROTOTYPE_LIST_IS_LAST = "prototype_list_is_last";
+export const PROTOTYPE_LIST_INDEX = "prototype_list_index";
+export const PROTOTYPE_LIST_LENGTH = "prototype_list_length";
 export const PROTOTYPE_THIS_ITEM = "prototype_this_item";
 export const PROTOTYPE_JOIN_POSITION_RECIPE = "prototype_join_position_recipe";
 
@@ -246,6 +249,42 @@ export function registerJoinListPrototypeBlocks(): void {
     },
   };
 
+  /** Variant E — same table, locals derived from loop index/length. */
+  Blockly.Blocks[PROTOTYPE_DECISION_INDEX] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header
+        .appendField("decision")
+        .appendField(
+          new Blockly.FieldTextInput("NärvarandeList", undefined, { spellcheck: false }),
+          "NAME",
+        )
+        .appendField("→ snippet");
+      const first = this.appendValueInput("FIRST").setCheck("Boolean").setAlign(
+        inputAlignRight(),
+      );
+      first.appendField("first");
+      const last = this.appendValueInput("LAST").setCheck("Boolean").setAlign(
+        inputAlignRight(),
+      );
+      last.appendField("last");
+      const odd = this.appendValueInput("ODD").setCheck("Boolean").setAlign(
+        inputAlignRight(),
+      );
+      odd.appendField("odd");
+      const name = this.appendValueInput("ITEM").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      name.appendField("name");
+      this.setOutput(true, "String");
+      this.setColour(DT_COLOUR);
+      this.setTooltip(
+        "Position locals built from index and length. odd/even is remainder of index ÷ 2.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
   Blockly.Blocks[PROTOTYPE_LIST_IS_FIRST] = {
     init: function (this: Blockly.Block) {
       this.appendDummyInput().appendField("is first");
@@ -275,6 +314,28 @@ export function registerJoinListPrototypeBlocks(): void {
       this.setColour("#EF9A9A");
       this.setStyle?.("variable_blocks");
       this.setTooltip("The current list item while a join template or table row evaluates.");
+      this.setInputsInline(true);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_LIST_INDEX] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField("index");
+      this.setOutput(true, "Number");
+      this.setColour("#2196F3");
+      this.setStyle?.("math_blocks");
+      this.setTooltip("0-based index of the current item in the enclosing for_each_* / join.");
+      this.setInputsInline(true);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_LIST_LENGTH] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField("length");
+      this.setOutput(true, "Number");
+      this.setColour("#2196F3");
+      this.setStyle?.("math_blocks");
+      this.setTooltip("Length of the enclosing loop collection (stable for the duration of the loop).");
       this.setInputsInline(true);
     },
   };

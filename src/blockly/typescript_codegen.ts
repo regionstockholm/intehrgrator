@@ -185,6 +185,7 @@ export function generateTypeScriptFromWorkspace(
     rootType,
     source: "blockly",
     extraImports: [...extraImports],
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 

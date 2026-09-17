@@ -21,6 +21,7 @@ const ELEMENT_COLOUR = "#3D7A6A";
 const DV_COLOUR = "#4A6FA5";
 const CLUSTER_COLOUR = "#005C53";
 const SOURCE_COLOUR = "#E87722";
+const LOOP_COLOUR = "#A5D6A7";
 
 export const PROTOTYPE_JOIN_LIST = "prototype_join_list";
 export const PROTOTYPE_JOIN_FOR_READING = "prototype_join_for_reading";
@@ -38,6 +39,8 @@ export const PROTOTYPE_ELEMENT = "prototype_element";
 export const PROTOTYPE_DV_TEXT = "prototype_dv_text";
 export const PROTOTYPE_CLUSTER = "prototype_cluster";
 export const PROTOTYPE_SOURCE_LIST = "prototype_source_list";
+export const PROTOTYPE_FOR_EACH_LIST = "prototype_for_each_list";
+export const PROTOTYPE_EVAL_DECISION = "prototype_eval_decision";
 
 function quotedField(defaultText: string): Blockly.FieldTextInput {
   return new Blockly.FieldTextInput(defaultText, undefined, { spellcheck: false });
@@ -420,6 +423,48 @@ export function registerJoinListPrototypeBlocks(): void {
       this.setStyle?.("colour_blocks");
       this.setTooltip(
         "Prototype source query that already returns string[] (names extracted earlier).",
+      );
+      this.setInputsInline(true);
+    },
+  };
+
+  /** Lookalike of product `for_each_list` — no ehrtslib. */
+  Blockly.Blocks[PROTOTYPE_FOR_EACH_LIST] = {
+    init: function (this: Blockly.Block) {
+      const list = this.appendValueInput("LIST")
+        .setCheck("Array")
+        .setAlign(inputAlignRight());
+      list
+        .appendField("for each")
+        .appendField(
+          new Blockly.FieldTextInput("item", undefined, { spellcheck: false }),
+          "VAR",
+        )
+        .appendField("in");
+      const body = this.appendStatementInput("DO").setAlign(inputAlignRight());
+      body.appendField("do");
+      this.setPreviousStatement(true);
+      this.setNextStatement(true);
+      this.setColour(LOOP_COLOUR);
+      this.setStyle?.("loop_blocks");
+      this.setTooltip("Loop the incoming list. Binds item, index, and length for child blocks.");
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  /** Per-item FIRST lookup — the loop body evaluates this once per name. */
+  Blockly.Blocks[PROTOTYPE_EVAL_DECISION] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput()
+        .appendField("JoinNames snippet for")
+        .appendField(
+          new Blockly.FieldTextInput("this item", undefined, { spellcheck: false }),
+          "ITEM",
+        );
+      this.setOutput(true, "String");
+      this.setColour(DT_COLOUR);
+      this.setTooltip(
+        "Evaluate table JoinNames for the current loop item (FIRST match → snippet).",
       );
       this.setInputsInline(true);
     },

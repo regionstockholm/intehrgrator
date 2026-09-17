@@ -49,23 +49,32 @@ Real Blockly (modest theme). Live playground: `deno task prototype:join-list` th
 
 | Key | End-user shape | Lowers to | v1? |
 |-----|----------------|-----------|-----|
-| **A** Compact `join_list` | Yellow Text reporter: list + *between* + *before last* | `join_list(items, sep, finalSep)` | **Yes** — cheapest authoring for list grammar |
-| **B** Named mouths | Same algebra + prefix/postfix + skip-empty. Teal “item templates” are a counter-example | `concat(prefix, join_list(...), postfix)` | Yellow part yes; teal lambdas **no** |
-| **C** Locale preset | List + `Svenska (och)` / English / Oxford dropdown | Same two strings as A | Later; #85 listed locale auto-detect as a non-goal |
-| **D** Decision table over position | `join list using decision`; sheet rows on `first`/`last` | Per-item FIRST table, concatenate snippets | **Yes, alongside A** |
-| **E** Loop `index` + `length` | Same table; `first`/`last`/`odd` derived with Math | `index = 0`, `index = length − 1`, `index mod 2` | **Yes as loop binders** — substrate for D |
-| **F** Function + E table | Stock `to join_swedish(names)` wrapping E’s `join list using decision`; ELEMENT Participants / Potential signers call it | `join_swedish(source list)` at each slot | **Yes as authoring** — compact main code; call serialization still an escape hatch |
+| **A** Compact `join_list` | Yellow Text reporter: list + *between* + *before last* | `join_list(items, sep, finalSep)` | **No** — not the ship path |
+| **B** Named mouths | Same algebra + prefix/postfix + skip-empty. Teal “item templates” are a counter-example | `concat(prefix, join_list(...), postfix)` | Yellow part no; teal lambdas **no** |
+| **C** Locale preset | List + `Svenska (och)` / English / Oxford dropdown | Same two strings as A | No |
+| **D** Decision table over position | `join list using decision`; sheet rows on `first`/`last` | Per-item FIRST table, concatenate snippets | Substrate for F |
+| **E** Loop `index` + `length` | Same table; `first`/`last`/`odd` derived with Math | `index = 0`, `index = length − 1`, `index mod 2` | **Yes as loop binders** |
+| **F** Function + loop + table | `to join_swedish(names)`: `for each` + append JoinNames snippets + return; ELEMENT Participants / Potential signers call it | `join_swedish(source list)` at each slot | **Yes — main suggestion** |
 
-**A and D are both worth shipping.** A is faster for ordinary Oxford / *och*.
-D (powered by E’s binders) is faster when the per-item rule is a table
-(title-case the first, period on the last, zebra, “first three get a heading”).
+**Do not ship A.** The yellow compact `join_list` reporter is a discuss-only
+shape. The authoring path is **F**.
+
+D (powered by E’s binders) is the per-item table F evaluates inside the loop.
 Lung-MDT `#each` + `@first`/`@last` is a **semantic transform** onto these
 binders — do not keep the Handlebars names for compatibility.
 
-**Compact main code (variant F):** extract a 1-arg helper
-(`join_swedish(names)`) whose body is E’s position table
-(`join list using decision JoinNames`, with `first`/`last`/`odd` from
-`index` and `length`). The Mapping Model stays two one-socket calls:
+**Compact main code (variant F):** a 1-arg helper `join_swedish(names)` whose
+body is:
+
+```text
+result := ""
+for each item in names
+  append JoinNames(item) to result
+return result
+```
+
+`JoinNames` is E’s position table (`first`/`last`/`odd` from `index` and
+`length`). Mapping Model slots stay one-socket calls:
 
 `ELEMENT Participants → join_swedish(source list "participants/name")`
 and
@@ -134,23 +143,24 @@ strings.” They compose.
 
 ## Recommendation for #85 implementation
 
-**Main suggestion: variant F** — a 1-arg Blockly Function wrapping the E
-position table. Mapping Model slots stay one-socket calls
+**Main suggestion: variant F** — a 1-arg Blockly Function that **loops** the
+incoming list, appends each JoinNames snippet, and returns the concatenated
+string. Mapping Model slots stay one-socket calls
 (`join_swedish(source list "participants/name")` /
 `join_swedish(source list "potential_signers/name")`). The table is defined
 once and reused; it can grow (period on last, zebra, first-N) without
-touching every ELEMENT. Easy to (re)use, still compact in main code.
+touching every ELEMENT.
+
+Do **not** ship variant A (compact `join_list` reporter).
 
 Then:
 
-1. Ship **A** (`join_list`) as the cheap primitive when the rule really is
-   two separators (Oxford / *och*).
-2. Ship **D** as well: per-item Decision table + VMS-Mustache snippets. Same
-   verification track; F wraps this.
-3. Bind **index** and **length** on `for_each_*` (variant E). Derive
+1. Ship **D** as the per-item Decision table + VMS-Mustache snippets (F’s
+   loop evaluates this once per item).
+2. Bind **index** and **length** on `for_each_*` (variant E). Derive
    `is first` / `is last` from them. That is the substrate D/F need, and the
    semantic image of lung-MDT `@index` / `@first` / `@last`.
-4. Optional yellow-B mouths (prefix/postfix/skip-empty); no teal lambdas.
-5. Do not keep VMS-Hbs `@first`/`@last` for compatibility. Transform, then
+3. Optional yellow-B mouths (prefix/postfix/skip-empty); no teal lambdas.
+4. Do not keep VMS-Hbs `@first`/`@last` for compatibility. Transform, then
    drop.
 

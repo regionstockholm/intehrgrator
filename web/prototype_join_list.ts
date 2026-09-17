@@ -15,6 +15,8 @@ import {
   PROTOTYPE_DECISION_POSITION,
   PROTOTYPE_DV_TEXT,
   PROTOTYPE_ELEMENT,
+  PROTOTYPE_EVAL_DECISION,
+  PROTOTYPE_FOR_EACH_LIST,
   PROTOTYPE_JOIN_FOR_READING,
   PROTOTYPE_JOIN_LIST,
   PROTOTYPE_JOIN_LOCALE,
@@ -49,6 +51,8 @@ const JOIN_SWEDISH = "join_swedish";
 const JOIN_SWEDISH_PARAM = "names";
 const JOIN_SWEDISH_PARAM_ID = "join_swedish_names";
 const JOIN_TABLE = "JoinNames";
+const JOIN_RESULT = "result";
+const JOIN_RESULT_ID = "join_swedish_result";
 
 function asSvg(block: Blockly.Block): BlockSvg {
   return block as BlockSvg;
@@ -118,7 +122,11 @@ function remainder(ws: Blockly.WorkspaceSvg, dividend: BlockSvg, divisor: BlockS
   return op;
 }
 
-function varGet(ws: Blockly.WorkspaceSvg, name: string, id?: string): BlockSvg {
+function ensureVar(
+  ws: Blockly.WorkspaceSvg,
+  name: string,
+  id?: string,
+): { getId: () => string } | null {
   const wsAny = ws as unknown as {
     getVariable?: (n: string) => { getId: () => string } | null;
     getVariableById?: (id: string) => { getId: () => string } | null;
@@ -128,9 +136,34 @@ function varGet(ws: Blockly.WorkspaceSvg, name: string, id?: string): BlockSvg {
   if (!variable && typeof wsAny.createVariable === "function") {
     variable = wsAny.createVariable(name, "", id);
   }
+  return variable ?? null;
+}
+
+function varGet(ws: Blockly.WorkspaceSvg, name: string, id?: string): BlockSvg {
+  const variable = ensureVar(ws, name, id);
   const block = ready(ws.newBlock("variables_get"));
   if (variable) block.setFieldValue(variable.getId(), "VAR");
   return block;
+}
+
+function setVar(ws: Blockly.WorkspaceSvg, name: string, value: Blockly.Block, id?: string): BlockSvg {
+  const block = ready(ws.newBlock("variables_set"));
+  const variable = ensureVar(ws, name, id);
+  if (variable) block.setFieldValue(variable.getId(), "VAR");
+  plug(block, "VALUE", value);
+  return ready(block);
+}
+
+function textAppend(ws: Blockly.WorkspaceSvg, name: string, value: Blockly.Block, id?: string): BlockSvg {
+  const block = ready(ws.newBlock("text_append"));
+  const variable = ensureVar(ws, name, id);
+  if (variable) block.setFieldValue(variable.getId(), "VAR");
+  plug(block, "TEXT", value);
+  return ready(block);
+}
+
+function chain(prev: Blockly.Block, next: Blockly.Block): void {
+  prev.nextConnection?.connect(next.previousConnection!);
 }
 
 function appendBlock(
@@ -138,7 +171,7 @@ function appendBlock(
   state: {
     type: string;
     fields?: Record<string, string>;
-    extraState?: { params?: unknown; name?: string };
+    extraState?: { params?: unknown; name?: string; hasStatements?: boolean };
   },
 ): BlockSvg {
   const appended = Blockly.serialization.blocks.append(state, ws, {
@@ -179,8 +212,8 @@ function indexLengthDecision(ws: Blockly.WorkspaceSvg, tableName = JOIN_TABLE): 
 }
 
 /**
- * Stock `to …` function wrapping the E position table. Main code is then
- * one socket: join_swedish(source list).
+ * Stock `to …` function: loop the incoming list, append each JoinNames
+ * snippet, return the concatenated string.
  */
 function defineJoinSwedish(ws: Blockly.WorkspaceSvg): BlockSvg {
   const def = appendBlock(ws, {
@@ -188,13 +221,26 @@ function defineJoinSwedish(ws: Blockly.WorkspaceSvg): BlockSvg {
     fields: { NAME: JOIN_SWEDISH },
     extraState: {
       params: [{ name: JOIN_SWEDISH_PARAM, id: JOIN_SWEDISH_PARAM_ID }],
+      hasStatements: true,
     },
   });
-  const join = ready(ws.newBlock(PROTOTYPE_JOIN_VIA_TABLE));
-  join.setFieldValue(JOIN_TABLE, "TABLE");
-  plug(join, "ITEMS", varGet(ws, JOIN_SWEDISH_PARAM, JOIN_SWEDISH_PARAM_ID));
+  const setStatements = (def as unknown as { setStatements_?: (v: boolean) => void })
+    .setStatements_;
+  setStatements?.call(def, true);
+
+  const init = setVar(ws, JOIN_RESULT, text(ws, ""), JOIN_RESULT_ID);
+  const loop = ready(ws.newBlock(PROTOTYPE_FOR_EACH_LIST));
+  loop.setFieldValue("item", "VAR");
+  plug(loop, "LIST", varGet(ws, JOIN_SWEDISH_PARAM, JOIN_SWEDISH_PARAM_ID));
+  const snippet = ready(ws.newBlock(PROTOTYPE_EVAL_DECISION));
+  const append = textAppend(ws, JOIN_RESULT, snippet, JOIN_RESULT_ID);
+  loop.getInput("DO")?.connection?.connect(append.previousConnection!);
+  chain(init, loop);
+
+  const stack = def.getInput("STACK");
+  stack?.connection?.connect(init.previousConnection!);
   const ret = def.getInput("RETURN") ?? def.getInput("VALUE");
-  ret?.connection?.connect(join.outputConnection!);
+  ret?.connection?.connect(varGet(ws, JOIN_RESULT, JOIN_RESULT_ID).outputConnection!);
   return ready(def);
 }
 
@@ -412,28 +458,32 @@ const VARIANTS: Record<VariantKey, Variant> = {
     key: "F",
     name: "Function + mapping call",
     title: "F — Function calls + E position table",
-    serializes: `function join_swedish(names)\n  return join_list_via_table(names, "JoinNames")\n\nELEMENT Participants\n  DV_TEXT.value = join_swedish(source list "participants/name")\nELEMENT Potential signers\n  DV_TEXT.value = join_swedish(source list "potential_signers/name")`,
+    serializes: `function join_swedish(names)\n  result := ""\n  for each item in names\n    append JoinNames(item) to result\n  return result\n\nELEMENT Participants\n  DV_TEXT.value = join_swedish(source list "participants/name")\nELEMENT Potential signers\n  DV_TEXT.value = join_swedish(source list "potential_signers/name")`,
     output: "Anna, Bo och Carl",
     showSheet: false,
     sheetHtml: "",
     notesHtml: `
-      <p>Compact Mapping Model calls (F) plus the variant <strong>E lookup table</strong>
-      as the function body. Two different source lists share one helper.</p>
+      <p><strong>Main suggestion.</strong> Compact Mapping Model calls plus a
+      reusable helper that <em>loops</em> the list and concatenates per-item
+      snippets from table JoinNames.</p>
       <ul>
-        <li>Top: CLUSTER with two ELEMENTs — <code>participants/name</code> and
-          <code>potential_signers/name</code>. Each is a one-socket
-          <code>join_swedish(…)</code> call.</li>
-        <li>Below: stock <code>to join_swedish(names)</code> returning
-          <em>join list using decision JoinNames</em>.</li>
-        <li>Under that: E’s table — <code>first</code> / <code>last</code> /
+        <li>Top: CLUSTER — <code>participants/name</code> and
+          <code>potential_signers/name</code>. Each slot is
+          <code>join_swedish(…)</code>.</li>
+        <li>Function body: <code>result := ""</code>, then
+          <code>for each item in names</code> append
+          <code>JoinNames snippet for this item</code>, then
+          <code>return result</code>. Not a hidden join-list sugar block.</li>
+        <li>Beside/below: E’s table — <code>first</code> / <code>last</code> /
           <code>odd</code> from <code>index</code> and <code>length</code>.</li>
       </ul>
       <h3>Table JoinNames</h3>
       <p style="margin:0 0 8px">Hit policy FIRST, output kind snippet. Evaluated
-      once per list item; snippets concatenate. Same table for both call sites.
-      Cells are match values (<code>true</code> / <code>false</code> / —).
-      The canvas binds <code>last ⇔ index = length − 1</code>; this last-item
-      row is therefore <code>last = true</code>, not the formula.</p>
+      once per loop item; snippets concatenate into <code>result</code>. Same
+      table for both call sites. Cells are match values
+      (<code>true</code> / <code>false</code> / —). The canvas binds
+      <code>last ⇔ index = length − 1</code>; this last-item row is
+      <code>last = true</code>.</p>
       <table class="proto-dt">
         <thead>
           <tr><th>first</th><th>last</th><th>odd</th><th>snippet</th></tr>
@@ -444,8 +494,9 @@ const VARIANTS: Record<VariantKey, Variant> = {
           <tr><td>false</td><td>true</td><td>—</td><td><code> och {{name}}</code></td></tr>
         </tbody>
       </table>
-      <p class="warn"><code>procedures_callreturn</code> is still a Mapping IR escape
-      hatch until see-through calls land.</p>
+      <p class="warn">Do not ship the yellow compact <code>join_list</code>
+      reporter (variant A). <code>procedures_callreturn</code> is still an IR
+      escape hatch until see-through calls land.</p>
     `,
     build(ws) {
       const def = defineJoinSwedish(ws);
@@ -475,8 +526,8 @@ const VARIANTS: Record<VariantKey, Variant> = {
       participants.nextConnection?.connect(signers.previousConnection!);
 
       place(cluster, 16, 8);
-      place(def, 16, 420);
-      place(indexLengthDecision(ws), 16, 700);
+      place(def, 16, 400);
+      place(indexLengthDecision(ws), 16, 780);
     },
   },
 };
@@ -518,7 +569,7 @@ function loadVariant(key: VariantKey): void {
   workspace.clear();
   const v = VARIANTS[key];
   v.build(workspace);
-  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.62 : 0.92);
+  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.58 : 0.92);
   workspace.scrollCenter();
   renderSide(v);
   document.body.dataset.protoReady = key;

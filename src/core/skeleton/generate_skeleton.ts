@@ -383,7 +383,9 @@ function walkAttribute(
         : {};
       const terms = termsForArchetype(childArchetypeRef, fallbackTerms, archetypeTerms);
       nodes.push({
-        slotId: `${templateId}${childPath}/value`,
+        // Keep unique-OPT DV leaves on `…/value/value/value` (the attribute is
+        // already in `path`). locatorChildPath is for siblings with a node id.
+        slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
         label: nameConstraint || resolvedNodeLabel(

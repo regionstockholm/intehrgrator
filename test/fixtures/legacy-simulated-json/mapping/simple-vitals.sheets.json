@@ -27,11 +27,6 @@
         "reclining",
         "at1002",
         "Reclining"
-      ],
-      [
-        "",
-        "at1001",
-        "Sitting"
       ]
     ],
     "columnTypes": [
@@ -48,54 +43,6 @@
         "role": "output",
         "outputKind": "value",
         "valueType": "string"
-      },
-      {
-        "role": "output",
-        "outputKind": "value",
-        "valueType": "string"
-      }
-    ],
-    "rowCatchAll": [
-      false,
-      false,
-      false,
-      false,
-      true
-    ]
-  },
-  {
-    "name": "icd10_display",
-    "kind": "decision-table",
-    "headers": [
-      "code",
-      "display"
-    ],
-    "values": [
-      [
-        "S06.0",
-        "Concussion"
-      ],
-      [
-        "S42.0",
-        "Fracture of clavicle"
-      ],
-      [
-        "S52.5",
-        "Fracture of lower end of radius"
-      ],
-      [
-        "S72.0",
-        "Fracture of neck of femur"
-      ]
-    ],
-    "columnTypes": [
-      "text",
-      "text"
-    ],
-    "hitPolicy": "FIRST",
-    "decisionColumns": [
-      {
-        "role": "condition"
       },
       {
         "role": "output",

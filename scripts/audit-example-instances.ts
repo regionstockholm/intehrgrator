@@ -177,11 +177,6 @@ for (const set of catalog.sets) {
 /** Uncatalogued source-instance directories that still belong to fixture source sets. */
 const extraSets: Array<{ id: string; schema: string | null; dir: string }> = [
   {
-    id: "legacy-simulated-json/bp-series (uncatalogued)",
-    schema: join(fixtures, "legacy-simulated-json", "bp-series-schema.json"),
-    dir: join(fixtures, "legacy-simulated-json", "instances-series"),
-  },
-  {
     id: "sheets/icd10-snomed (uncatalogued)",
     schema: null,
     dir: join(fixtures, "sheets", "mapping"),

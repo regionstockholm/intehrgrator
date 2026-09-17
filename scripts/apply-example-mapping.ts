@@ -179,6 +179,10 @@ if (outDir) {
       `${JSON.stringify(bundle.mapping.sheets, null, 2)}\n`,
     );
   }
+  await Deno.writeTextFile(
+    join(dest, "convert.ts"),
+    script.code.endsWith("\n") ? script.code : `${script.code}\n`,
+  );
   console.log("wrote", dest);
 }
 

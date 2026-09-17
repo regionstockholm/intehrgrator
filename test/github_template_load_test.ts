@@ -6,6 +6,7 @@ import {
   loadGitHubClinicalModel,
 } from "@intehrgrator/core/clinical_model/github_template.ts";
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
+import type { TaskProgress } from "@intehrgrator/workbench/task_progress.ts";
 import type { HostAdapter } from "@intehrgrator/host/mod.ts";
 import type { LoadableProjectEntry, StoredProjectRecord } from "@intehrgrator/core/persistence/mod.ts";
 import { mockGithubFetch } from "./github_mock.ts";
@@ -90,4 +91,54 @@ Deno.test("controller loadSchemaFromUrl uses GitHub clinical-model closure for s
   assertEquals(state.schemaError, null);
   assert(state.schemaTree);
   assertEquals(state.schemaFormat, "openehr-web-template");
+});
+
+function subscribeTaskProgress(controller: WorkbenchController): TaskProgress[] {
+  const snapshots: TaskProgress[] = [];
+  controller.subscribe(() => {
+    const progress = controller.getState().taskProgress;
+    if (progress) snapshots.push(structuredClone(progress));
+  });
+  return snapshots;
+}
+
+Deno.test("openTemplateFromUrl GitHub load reports parse/fetch/scaffold substeps", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const url = "https://github.com/org/repo/blob/main/templates/blood_pressure.opt";
+  const controller = new WorkbenchController(stubHost(), {
+    githubFetch: mockGithubFetch({ "templates/blood_pressure.opt": opt }),
+  });
+  const snapshots = subscribeTaskProgress(controller);
+  await controller.openTemplateFromUrl(url);
+  assert(snapshots.length > 0, "expected taskProgress during GitHub template load");
+  const ids = snapshots[0]!.steps.map((s) => s.id);
+  for (const id of ["parse-url", "index-tree", "fetch", "parse", "resolve", "scaffold", "generate"]) {
+    assert(ids.includes(id), ids.join(","));
+  }
+  assert(snapshots.some((p) => p.steps.some((s) => s.state === "waiting")));
+  assert(snapshots.some((p) => p.steps.some((s) => s.state === "running")));
+  assert(snapshots.some((p) => p.steps.some((s) => s.state === "finished")));
+  assertEquals(controller.getState().taskProgress, null);
+});
+
+Deno.test("loadSchemaFromUrl GitHub load reports parse/analyse/scaffold substeps", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const url = "https://github.com/org/repo/blob/main/templates/blood_pressure.opt";
+  const controller = new WorkbenchController(stubHost(), {
+    githubFetch: mockGithubFetch({ "templates/blood_pressure.opt": opt }),
+  });
+  const snapshots = subscribeTaskProgress(controller);
+  await controller.loadSchemaFromUrl(url);
+  assert(snapshots.length > 0, "expected taskProgress during GitHub schema load");
+  const ids = snapshots[0]!.steps.map((s) => s.id);
+  for (const id of ["parse-url", "index-tree", "fetch", "parse", "resolve", "scaffold"]) {
+    assert(ids.includes(id), ids.join(","));
+  }
+  assertEquals(ids.includes("generate"), false);
+  assert(snapshots.some((p) => p.steps.some((s) => s.state === "running")));
+  assertEquals(controller.getState().taskProgress, null);
 });

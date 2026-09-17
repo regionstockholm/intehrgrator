@@ -295,15 +295,7 @@ export class WorkbenchController {
     const github = isGitHubClinicalModelUrl(url);
     const title = github ? "Load GitHub clinical model" : "Load target";
     const steps = github
-      ? [
-        { id: "parse-url", label: "Parse GitHub URL" },
-        { id: "index-tree", label: "List repository files" },
-        { id: "fetch", label: "Fetch clinical model files" },
-        { id: "parse", label: "Parse templates and archetypes" },
-        { id: "resolve", label: "Resolve operational template" },
-        { id: "scaffold", label: "Scaffold Template Skeleton" },
-        { id: "generate", label: "Generate conversion script" },
-      ]
+      ? this.githubClinicalModelSteps("target")
       : [{ id: "load", label: "Load and scaffold target" }];
     try {
       await this.withTask(title, steps, async () => {
@@ -312,7 +304,11 @@ export class WorkbenchController {
           await this.runTaskStep("scaffold", () => {
             this.applyGitHubTarget(loaded);
           });
-          this.setTaskStep("generate", "finished");
+          const loadedMessage = this.statusMessage;
+          await this.runTaskStep("generate", () => {
+            this.refreshDerived();
+          });
+          this.statusMessage = loadedMessage;
         } else {
           await this.runTaskStep("load", async () => {
             const file = await this.host.fetchTextUrl(url);
@@ -429,8 +425,16 @@ export class WorkbenchController {
   async loadSchemaFromUrl(url: string): Promise<void> {
     try {
       if (isGitHubClinicalModelUrl(url)) {
-        const loaded = await this.loadGitHubModel(url);
-        this.applyGitHubSchema(loaded);
+        await this.withTask(
+          "Load GitHub clinical model as schema",
+          this.githubClinicalModelSteps("schema"),
+          async () => {
+            const loaded = await this.loadGitHubModel(url);
+            await this.runTaskStep("scaffold", () => {
+              this.applyGitHubSchema(loaded);
+            });
+          },
+        );
         this.schemaOriginUrl = url;
         this.rememberLoadUrl("schema", url);
         if (this.schemaError) throw new Error(this.schemaError);
@@ -736,6 +740,26 @@ export class WorkbenchController {
   setStatusMessage(message: string): void {
     this.statusMessage = message;
     this.notifyChange();
+  }
+
+  private githubClinicalModelSteps(
+    kind: "target" | "schema",
+  ): Array<{ id: string; label: string }> {
+    const steps = [
+      { id: "parse-url", label: "Parse GitHub URL" },
+      { id: "index-tree", label: "List repository files" },
+      { id: "fetch", label: "Fetch clinical model files" },
+      { id: "parse", label: "Parse templates and archetypes" },
+      { id: "resolve", label: "Resolve operational template" },
+      {
+        id: "scaffold",
+        label: kind === "schema" ? "Load source schema" : "Scaffold Template Skeleton",
+      },
+    ];
+    if (kind === "target") {
+      steps.push({ id: "generate", label: "Generate conversion script" });
+    }
+    return steps;
   }
 
   private async yieldUi(): Promise<void> {
@@ -1803,7 +1827,6 @@ export class WorkbenchController {
     }
     this.blocklyState = null;
     this.blocklyReloadToken += 1;
-    this.refreshDerived();
     const extra = loaded.warnings.length ? ` (${loaded.warnings.length} warnings)` : "";
     this.statusMessage =
       `Loaded GitHub template ${loaded.templateId} (${loaded.fetched} files)${extra}`;

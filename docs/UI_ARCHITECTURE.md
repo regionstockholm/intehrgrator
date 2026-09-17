@@ -264,7 +264,7 @@ The footer status bar has three regions:
 
 ### Task progress overlay
 
-Long-running, multi-step loads (Example Sets, GitHub clinical models, project restore) show `#task-progress-overlay`: a non-modal card with a spinner and one row per substep in **waiting / running / finished / failed**. The controller exposes `getState().taskProgress`; `render()` paints the overlay and yields between steps so the UI can update. The footer `#status-main` still shows the current step as a short message. The overlay hides when the task settles.
+Long-running, multi-step loads (Example Sets, GitHub clinical models as target or source schema) show `#task-progress-overlay`: a non-modal card with a spinner and one row per substep in **waiting / running / finished / failed**. The controller exposes `getState().taskProgress`; `render()` paints the overlay and yields between steps so the UI can update. The footer `#status-main` still shows the current step as a short message. The overlay hides when the task settles. Nested loads (an Example Set that fetches a GitHub template) reuse the parent overlay.
 
 **Manual save (Save as):** User names the project; bundle is stored under `manual:{uuid}`. Only the **last 5** manual saves are retained (older entries pruned). Clears dirty state and shows a transient confirmation in `#status-main`.
 

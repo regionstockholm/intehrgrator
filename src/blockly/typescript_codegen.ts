@@ -625,7 +625,12 @@ function emitCodePhrase(block: Block, ctx: TsEmitContext, indent: number): strin
   }
   if (termLit !== null) {
     if (isBlankGeneratedExpr(code) || isEmptyLiteral(code)) return "";
-    return "`" + escapeTemplate(termLit) + "::${String(" + code + ' ?? "")}`';
+    if (!codePhraseTerseSafe(termLit)) {
+      return `({ terminology_id: ${JSON.stringify(termLit)}, code_string: String(${code} ?? "") })`;
+    }
+    return "((c) => { const s = String(c ?? \"\").trim(); return s ? `" +
+      escapeTemplate(termLit) +
+      "::${s}` : undefined; })(" + code + ")";
   }
   if (isBlankGeneratedExpr(code) && isBlankGeneratedExpr(term)) return "";
   ctx.types.add("CODE_PHRASE");

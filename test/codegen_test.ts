@@ -719,6 +719,18 @@ export function convertSourceToComposition() {
   assertEquals(body.includes("composer,"), false, body);
 });
 
+Deno.test("typescript codegen emits lists_getIndex as array access, not xpathString", () => {
+  const ctx = createTsEmitContext();
+  const src = emitTsExpression(
+    parseExpression('lists_getIndex(list("Cel", "[degF]"), "FROM_START", 1)'),
+    ctx,
+  );
+  assertEquals(src.includes("xpathString"), false, src);
+  assertStringIncludes(src, "listGetIndex");
+  assertStringIncludes(src, '"Cel"');
+  assertEquals(ctx.helpers.has("logic"), true);
+});
+
 Deno.test("emitCodePhraseLiteral uses object form for SNOMED URL terminology ids", () => {
   assertEquals(emitCodePhraseLiteral("openehr", "433"), '"openehr::433"');
   assertEquals(

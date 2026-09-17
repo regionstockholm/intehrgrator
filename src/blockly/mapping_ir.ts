@@ -32,6 +32,7 @@ import { isTemplateEscapeHatch } from "./vms_linter.ts";
 import { walkProductStack } from "./instance_root.ts";
 import { INSTANCE_ENCODING_FIELD, parseInstanceEncoding } from "../core/output/instance_encoding.ts";
 import type { InstanceEncoding } from "../types/mod.ts";
+import { isLoopBlockType, sourcePathFromLoopList } from "./loop_block.ts";
 
 export interface MappingModelExtract {
   slots: Array<{
@@ -48,7 +49,7 @@ export interface MappingModelExtract {
   instanceEncodings: InstanceEncoding[];
 }
 
-const LOOP_TYPES = new Set(["for_each_source", "for_each_list"]);
+const LOOP_TYPES = new Set(["for_each_list", "for_each_source"]); // legacy type still appears mid-migration
 
 export function extractMappingIr(workspace: Workspace): MappingModelExtract {
   const slots = slotsFromWorkspace(workspace);
@@ -163,31 +164,26 @@ function optionalRmFromWorkspace(workspace: Workspace): OptionalRmInsertion[] {
 function loopsFromWorkspace(workspace: Workspace): MappingLoop[] {
   const loops: MappingLoop[] = [];
   for (const block of workspace.getAllBlocks(false)) {
-    if (block.type === "for_each_source") {
-      const inner = block.getInputTargetBlock("DO");
-      const attachSlotId = firstSlotIdInStack(inner);
-      const varName = String(block.getFieldValue("VAR") || "");
-      const path = String(block.getFieldValue("PATH") || "");
-      if (attachSlotId && varName && path) {
-        loops.push({ attachSlotId, varName, path, kind: "source" });
-      }
-      continue;
-    }
-    if (block.type !== "for_each_list") continue;
+    if (!isLoopBlockType(block.type)) continue;
     const inner = block.getInputTargetBlock("DO");
     const attachSlotId = firstSlotIdInStack(inner);
     const varName = String(block.getFieldValue("VAR") || "");
+    if (!attachSlotId || !varName) continue;
+    const sourcePath = sourcePathFromLoopList(block) ??
+      (block.type === "for_each_source" ? String(block.getFieldValue("PATH") || "") : "");
+    if (sourcePath) {
+      loops.push({ attachSlotId, varName, path: sourcePath, kind: "source" });
+      continue;
+    }
     const listBlock = block.getInputTargetBlock("LIST");
     const collection = blockToExpression(listBlock) ?? undefined;
-    if (attachSlotId && varName) {
-      loops.push({
-        attachSlotId,
-        varName,
-        path: "",
-        kind: "list",
-        ...(collection ? { collection } : {}),
-      });
-    }
+    loops.push({
+      attachSlotId,
+      varName,
+      path: "",
+      kind: "list",
+      ...(collection ? { collection } : {}),
+    });
   }
   return loops;
 }
@@ -199,7 +195,7 @@ function firstSlotIdInStack(block: Block | null): string | null {
       const slotId = current.getFieldValue("SLOT_ID");
       if (slotId) return slotId;
     }
-    const nested = current.type === "for_each_source" || current.type === "for_each_list"
+    const nested = isLoopBlockType(current.type)
       ? firstSlotIdInStack(current.getInputTargetBlock("DO"))
       : null;
     if (nested) return nested;

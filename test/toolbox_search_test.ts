@@ -16,7 +16,6 @@ Deno.test("toolbox contains a search category above the minimap covering custom 
     "source_query_number",
     "observation",
     "maps_create_with",
-    "for_each_source",
     "for_each_list",
     "text_handlebars",
   ]) {

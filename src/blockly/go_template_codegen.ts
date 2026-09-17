@@ -36,6 +36,8 @@ import { parseExpression } from "../core/expression/mod.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { generateGoTemplate } from "../core/codegen/go_template.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
+import { sourcePathFromLoopList } from "./loop_block.ts";
+import { migrateForEachSourceState } from "./migrate_for_each_source.ts";
 import {
   injectXmlnsOnOpenTag,
   wrapXmlCdata,
@@ -78,7 +80,9 @@ export function generateGoTemplateFromBlocklyState(
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
   try {
-    const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    const snapshot = migrateForEachSourceState(
+      JSON.parse(JSON.stringify(state)) as Record<string, unknown>,
+    );
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -148,7 +152,6 @@ function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
   const fromExpr = emitExpressionBlock(block, ctx);
   if (fromExpr !== null) return fromExpr;
 
-  if (block.type === "for_each_source") return emitForEachSource(block, ctx);
   if (block.type === "for_each_list") return emitForEachList(block, ctx);
   if (block.type === "controls_if") return emitControlsIf(block, ctx);
   if (block.type === "variables_set") return [];
@@ -196,25 +199,18 @@ function emitExpressionBlock(block: Block, ctx: GoEmitContext): string[] | null 
   return [emitGoExpressionTemplate(parseExpression(serialized), ctx)];
 }
 
-function emitForEachSource(block: Block, _ctx: GoEmitContext): string[] {
-  const path = String(block.getFieldValue("PATH") || "");
-  const varName = String(block.getFieldValue("VAR") || "item");
-  const rangeExpr = loopRangeExpr(path);
-  const body = block.getInputTargetBlock("DO");
-  const lines = [`{{- range ${rangeExpr} }}`];
-  const innerCtx = createGoEmitContext(varName);
-  if (body) lines.push(...emitBlock(body, innerCtx, 0));
-  lines.push(`{{- end }}`);
-  return lines;
-}
-
 function emitForEachList(block: Block, ctx: GoEmitContext): string[] {
   const varName = String(block.getFieldValue("VAR") || "item");
-  const list = block.getInputTargetBlock("LIST");
-  const listParts = list ? emitExpressionBlock(list, ctx) ?? emitBlock(list, ctx, 0) : ['""'];
-  const listExpr = listParts.join("").replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "");
+  const sourcePath = sourcePathFromLoopList(block);
+  const rangeExpr = sourcePath
+    ? loopRangeExpr(sourcePath)
+    : (() => {
+      const list = block.getInputTargetBlock("LIST");
+      const listParts = list ? emitExpressionBlock(list, ctx) ?? emitBlock(list, ctx, 0) : ['""'];
+      return listParts.join("").replace(/^\{\{\s*/, "").replace(/\s*\}\}$/, "") || `index .Data ""`;
+    })();
   const body = block.getInputTargetBlock("DO");
-  const lines = [`{{- range ${listExpr || `index .Data ""`} }}`];
+  const lines = [`{{- range ${rangeExpr} }}`];
   const innerCtx = createGoEmitContext(varName);
   if (body) lines.push(...emitBlock(body, innerCtx, 0));
   lines.push(`{{- end }}`);
@@ -542,7 +538,7 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
 
 function isStructureBlock(type: string): boolean {
   return type === XML_ELEMENT_TYPE || type.startsWith("schema_") || type === "controls_if" ||
-    type === "for_each_source" || type === "for_each_list";
+    type === "for_each_list";
 }
 
 function xmlTagName(block: Block): string {

@@ -50,7 +50,7 @@ A typed Blockly constructor that can occupy the **Product stack**: an **RM Block
 _Avoid_: calling every JSON/XML toolbox block a root, generic file(s) wrapper, treating openEHR CONTRIBUTION as a file format (it is an RM class)
 
 **Product stack**:
-The ordered chain **Conversion start** designates as the conversion product: **Instance roots** plus the remaining VMS loops (`for_each_source`, `for_each_list`). Mapping preview and Generated Export walk it and **juxtapose** each serialized fragment in stack order — no implicit delimiter, array wrapper, or newline. Glue is authorial: a **Text document** for JSONL newlines, MIME boundaries, Kafka/record framing, brackets, or nothing. Loops wrap roots (or nested loops) in their body; each iteration appends fragments. Not a Scratch script and not every leftover statement — `variables_set` and nested RM containers stay out.
+The ordered chain **Conversion start** designates as the conversion product: **Instance roots** plus the remaining VMS loop (`for_each_list`). Mapping preview and Generated Export walk it and **juxtapose** each serialized fragment in stack order — no implicit delimiter, array wrapper, or newline. Glue is authorial: a **Text document** for JSONL newlines, MIME boundaries, Kafka/record framing, brackets, or nothing. Loops wrap roots (or nested loops) in their body; each iteration appends fragments. Not a Scratch script and not every leftover statement — `variables_set` and nested RM containers stay out.
 _Avoid_: untyped statement spine, statement `controls_if` / while / for, treating stack order as side effects, N output files from one stack, a hidden JSON array or JSONL mode
 
 **Conversion start**:
@@ -73,9 +73,9 @@ _Avoid_: mixing attributes and text in one mouth, XML document (the file root)
 XML character data emitted as `<![CDATA[ … ]]>` instead of escaped text. Plugs into an **XML element** text slot.
 _Avoid_: using **Code text** as the only way to emit CDATA
 
-**Source iteration (`for_each_source`)**:
-Blockly loop that binds each node from a multi-valued Source Path to a named variable. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. `for_each_list` is the list-valued twin. Not a driver for many output files.
-_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type
+**Source iteration (`for_each_list`)**:
+Blockly loop that binds each item from a list or each node from a multi-valued Source Path to a named variable. Plug a list (☰) or a `source_query_node` (📂) into the **in** slot. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Not a driver for many output files.
+_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type, a dedicated `for_each_source` block
 
 **Map**:
 A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups. Toolbox: list and map blocks share one **Lists & maps** drawer; **Sheets** is a separate drawer.
@@ -373,4 +373,4 @@ _Avoid_: Mapping file, saved state
 >
 > **Informatician:** I need two compositions in one payload, with brackets around them.
 >
-> **Developer:** Stack the two COMPOSITION **Instance roots** under Start. Put **Text document** fragments between and around them for `[`, `,`, `]`. A `for_each_source` in that stack repeats a root per source node; a `for_each_source` *inside* a COMPOSITION still repeats `content`, not the product list.
+> **Developer:** Stack the two COMPOSITION **Instance roots** under Start. Put **Text document** fragments between and around them for `[`, `,`, `]`. A `for_each_list` in that stack repeats a root per source node; a `for_each_list` *inside* a COMPOSITION still repeats `content`, not the product list.

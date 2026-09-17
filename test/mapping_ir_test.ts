@@ -44,12 +44,18 @@ function connectDo(loop: Blockly.Block, body: Blockly.Block): void {
   loop.getInput("DO")!.connection!.connect(body.previousConnection!);
 }
 
-Deno.test("for_each_source + relative source_query appears with grain fields", () => {
+function attachSourceList(loop: Blockly.Block, path: string): void {
+  const src = loop.workspace.newBlock("source_query_node");
+  src.setFieldValue(path, "EXPRESSION");
+  loop.getInput("LIST")!.connection!.connect(src.outputConnection!);
+}
+
+Deno.test("for_each_list with a source query + relative source_query appears with grain fields", () => {
   ensure();
   const workspace = new Blockly.Workspace();
-  const loop = workspace.newBlock("for_each_source");
+  const loop = workspace.newBlock("for_each_list");
   loop.setFieldValue("measurements", "VAR");
-  loop.setFieldValue("$.measurements", "PATH");
+  attachSourceList(loop, "$.measurements");
 
   const event = workspace.newBlock("event");
   event.setFieldValue("evt-1", "SLOT_ID");
@@ -253,9 +259,9 @@ Deno.test("sheet_lookup in a value slot is a kept expression with sheetNames", (
 Deno.test("Blockly JSON round-trip preserves Mapping Model IR", () => {
   ensure();
   const workspace = new Blockly.Workspace();
-  const loop = workspace.newBlock("for_each_source");
+  const loop = workspace.newBlock("for_each_list");
   loop.setFieldValue("item", "VAR");
-  loop.setFieldValue("/items", "PATH");
+  attachSourceList(loop, "/items");
   const event = workspace.newBlock("event");
   event.setFieldValue("evt-1", "SLOT_ID");
   connectDo(loop, event);

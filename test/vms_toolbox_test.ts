@@ -46,10 +46,17 @@ Deno.test("text_append, text_join, and Variables remain in the default toolbox",
   assertEquals(variables?.name, msg("en").CAT_VARIABLES);
 });
 
-Deno.test("Loops category offers for_each_source and for_each_list only", () => {
+Deno.test("Loops & Logic drawer leads with for_each_list and has no Loops category", () => {
   ensure();
-  const types = drawerTypes(buildDemoToolbox("en"), msg("en").CAT_LOOPS);
-  assertEquals(types, ["for_each_source", "for_each_list"]);
+  const toolbox = buildDemoToolbox("en") as {
+    contents: Array<{ name?: string }>;
+  };
+  const names = toolbox.contents.map((c) => c.name);
+  assertEquals(names.includes(msg("en").CAT_LOGIC), true);
+  assertEquals(names.includes("Loops"), false);
+  const types = drawerTypes(toolbox, msg("en").CAT_LOGIC);
+  assertEquals(types[0], "for_each_list");
+  assertEquals(types.includes("for_each_source"), false);
 });
 
 Deno.test("for_each_list is a custom list-item loop without break/continue", () => {
@@ -84,7 +91,7 @@ Deno.test("for_each_list is a custom list-item loop without break/continue", () 
   workspace.dispose();
 });
 
-Deno.test("Click-to-Map still wraps repeating containers with for_each_source", () => {
+Deno.test("Click-to-Map wraps repeating containers with for_each_list", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const event = workspace.newBlock("event");
@@ -92,6 +99,7 @@ Deno.test("Click-to-Map still wraps repeating containers with for_each_source", 
   const model = createEmptyModel("t1");
   model.loops = [{ attachSlotId: "evt-1", varName: "measurements", path: "$.measurements" }];
   applyModelLoops(workspace, model);
-  assertEquals(event.getParent()?.type, "for_each_source");
+  assertEquals(event.getParent()?.type, "for_each_list");
+  assertEquals(event.getParent()?.getInputTargetBlock("LIST")?.type, "source_query_node");
   workspace.dispose();
 });

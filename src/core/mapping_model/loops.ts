@@ -4,7 +4,7 @@ import type { MappingLoop, MappingModel } from "../../types/mod.ts";
  * When a source path addresses one array item (`$.measurements[1].pulse`)
  * and the target ancestor is repeatable, record a loop over that array and
  * store a path relative to the current node (`pulse`) so Blockly
- * `for_each_source` can iterate a variable number of source nodes.
+ * `for_each_list` with a source query in LIST can iterate a variable number of source nodes.
  */
 export function promoteIndexedSourcePath(path: string): {
   loopPath: string;

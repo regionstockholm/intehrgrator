@@ -13,33 +13,63 @@
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_1",
         "x": 20,
         "y": 68,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.abcde"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_1_src",
+              "fields": {
+                "EXPRESSION": "$.abcde"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_2",
         "x": 20,
         "y": 116,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.andning"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_2_src",
+              "fields": {
+                "EXPRESSION": "$.andning"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_3",
         "x": 20,
         "y": 164,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.ospecificerad_händelse"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_3_src",
+              "fields": {
+                "EXPRESSION": "$.ospecificerad_händelse"
+              }
+            }
+          }
         }
       },
       {

@@ -54,6 +54,7 @@ import {
   openBlockMutator,
   composeOptionalRmExtras,
   workspaceToModelJson,
+  migrateForEachSourceState,
   placeSourceQueryBlock,
   sourceReturnTypeFromSchemaType,
   applyEventRmType,
@@ -420,7 +421,7 @@ async function bootBlockly(): Promise<void> {
   const loadOnce = takeLoadOnceBlocks();
   if (loadOnce) {
     Blockly.serialization.workspaces.load(
-      loadOnce as Record<string, unknown>,
+      migrateForEachSourceState(loadOnce) as Record<string, unknown>,
       workspace,
     );
     lockWorkspaceRootsExpanded(workspace);
@@ -995,7 +996,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         if (s.skeleton.length) registerSchemaBlocksFromSkeleton(s.skeleton);
         workspace.clear();
         Blockly.serialization.workspaces.load(
-          savedState as Record<string, unknown>,
+          migrateForEachSourceState(savedState) as Record<string, unknown>,
           workspace,
         );
         if (!findDefaultsBlock(workspace)) {

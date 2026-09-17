@@ -23,7 +23,7 @@ export interface SourceContext {
   data: unknown;
   json?: unknown;
   xmlDocument?: Document;
-  /** Loop variables (`for_each_source` VAR → current source node). */
+  /** Loop variables (`for_each_list` VAR → current source node or list item). */
   vars?: Record<string, unknown>;
   /**
    * When set, relative source paths walk this node instead of `json`.

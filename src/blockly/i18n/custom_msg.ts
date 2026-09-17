@@ -27,7 +27,6 @@ export interface IntehrMessages {
   CAT_XML: string;
   CAT_TARGET_SCHEMA: string;
   CAT_LOGIC: string;
-  CAT_LOOPS: string;
   CAT_MATH: string;
   CAT_TEXT: string;
   CAT_LISTS_AND_MAPS: string;
@@ -45,10 +44,9 @@ export interface IntehrMessages {
   TEXT_HANDLEBARS_TOOLTIP: string;
   FOR_EACH_SOURCE_PREFIX: string;
   FOR_EACH_SOURCE_IN: string;
-  FOR_EACH_SOURCE_NODES: string;
   FOR_EACH_SOURCE_DO: string;
-  FOR_EACH_SOURCE_TOOLTIP: string;
   FOR_EACH_LIST_TOOLTIP: string;
+  FOR_EACH_IN_TOOLTIP: string;
   LOGIC_ALL: string;
   LOGIC_ANY: string;
   LOGIC_NONE: string;
@@ -89,8 +87,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Target schema",
-    CAT_LOGIC: "Logic",
-    CAT_LOOPS: "Loops",
+    CAT_LOGIC: "Loops & Logic",
     CAT_MATH: "Math",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Lists & maps",
@@ -111,12 +108,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Render a Handlebars script against a Map or a source subtree.",
     FOR_EACH_SOURCE_PREFIX: "for each",
     FOR_EACH_SOURCE_IN: "in",
-    FOR_EACH_SOURCE_NODES: "source nodes",
     FOR_EACH_SOURCE_DO: "do",
-    FOR_EACH_SOURCE_TOOLTIP:
-      "Loop over every node matched by a source path. Current node is stored in the named variable.",
     FOR_EACH_LIST_TOOLTIP:
-      "Loop over every item in a list (or map keys / sheet rows). Current item is stored in the named variable. No break or continue.",
+      "Loop over every item in a list or every node from a source query. Current item is stored in the named variable. No break or continue.",
+    FOR_EACH_IN_TOOLTIP:
+      "Plug in a list (☰) or iterable source nodes (📂). Source queries in this slot iterate every matching node.",
     LOGIC_ALL: "all",
     LOGIC_ANY: "any",
     LOGIC_NONE: "none",
@@ -158,8 +154,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Målschema",
-    CAT_LOGIC: "Logik",
-    CAT_LOOPS: "Loopar",
+    CAT_LOGIC: "Loopar & logik",
     CAT_MATH: "Matematik",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Listor & mappar",
@@ -180,12 +175,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Rendera ett Handlebars-skript mot en Map eller ett källsubträd.",
     FOR_EACH_SOURCE_PREFIX: "för varje",
     FOR_EACH_SOURCE_IN: "i",
-    FOR_EACH_SOURCE_NODES: "källnoder",
     FOR_EACH_SOURCE_DO: "gör",
-    FOR_EACH_SOURCE_TOOLTIP:
-      "Loopa över varje nod som matchas av en källsökväg. Aktuell nod lagras i den namngivna variabeln.",
     FOR_EACH_LIST_TOOLTIP:
-      "Loopa över varje objekt i en lista (eller mapnycklar / kalkylbladsrader). Aktuellt objekt lagras i den namngivna variabeln. Ingen break eller continue.",
+      "Loopa över varje objekt i en lista eller varje nod från en källfråga. Aktuellt objekt lagras i den namngivna variabeln. Ingen break eller continue.",
+    FOR_EACH_IN_TOOLTIP:
+      "Koppla in en lista (☰) eller itererbara källnoder (📂). En källfråga i denna lucka loopar över varje matchande nod.",
     LOGIC_ALL: "alla",
     LOGIC_ANY: "något",
     LOGIC_NONE: "inget",
@@ -227,8 +221,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Zielschema",
-    CAT_LOGIC: "Logik",
-    CAT_LOOPS: "Schleifen",
+    CAT_LOGIC: "Schleifen & Logik",
     CAT_MATH: "Mathematik",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Listen & Maps",
@@ -249,12 +242,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Handlebars-Skript gegen eine Map oder einen Quellen-Teilbaum ausführen.",
     FOR_EACH_SOURCE_PREFIX: "für jedes",
     FOR_EACH_SOURCE_IN: "in",
-    FOR_EACH_SOURCE_NODES: "Quellenknoten",
     FOR_EACH_SOURCE_DO: "mache",
-    FOR_EACH_SOURCE_TOOLTIP:
-      "Schleife über jeden Knoten eines Quellpfads. Der aktuelle Knoten wird in der genannten Variable gespeichert.",
     FOR_EACH_LIST_TOOLTIP:
-      "Schleife über jedes Element einer Liste (oder Map-Schlüssel / Tabellenzeilen). Das aktuelle Element wird in der genannten Variable gespeichert. Kein break oder continue.",
+      "Schleife über jedes Element einer Liste oder jeden Knoten einer Quellenabfrage. Das aktuelle Element wird in der genannten Variable gespeichert. Kein break oder continue.",
+    FOR_EACH_IN_TOOLTIP:
+      "Eine Liste (☰) oder iterierbare Quellenknoten (📂) einstecken. Eine Quellenabfrage in diesem Slot iteriert jeden Treffer.",
     LOGIC_ALL: "alle",
     LOGIC_ANY: "mindestens eines",
     LOGIC_NONE: "keines",
@@ -296,8 +288,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Esquema destino",
-    CAT_LOGIC: "Lógica",
-    CAT_LOOPS: "Bucles",
+    CAT_LOGIC: "Bucles y lógica",
     CAT_MATH: "Matemáticas",
     CAT_TEXT: "Texto",
     CAT_LISTS_AND_MAPS: "Listas y mapas",
@@ -318,12 +309,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Renderiza un script Handlebars contra un Map o un subárbol de origen.",
     FOR_EACH_SOURCE_PREFIX: "para cada",
     FOR_EACH_SOURCE_IN: "en",
-    FOR_EACH_SOURCE_NODES: "nodos de origen",
     FOR_EACH_SOURCE_DO: "hacer",
-    FOR_EACH_SOURCE_TOOLTIP:
-      "Recorre cada nodo coincidente con una ruta de origen. El nodo actual se guarda en la variable indicada.",
     FOR_EACH_LIST_TOOLTIP:
-      "Recorre cada elemento de una lista (o claves de mapa / filas de hoja). El elemento actual se guarda en la variable indicada. Sin break ni continue.",
+      "Recorre cada elemento de una lista o cada nodo de una consulta de origen. El elemento actual se guarda en la variable indicada. Sin break ni continue.",
+    FOR_EACH_IN_TOOLTIP:
+      "Enchufe una lista (☰) o nodos de origen iterables (📂). Una consulta de origen en esta ranura recorre cada coincidencia.",
     LOGIC_ALL: "todos",
     LOGIC_ANY: "alguno",
     LOGIC_NONE: "ninguno",
@@ -365,8 +355,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Esquema de destinació",
-    CAT_LOGIC: "Lògica",
-    CAT_LOOPS: "Bucles",
+    CAT_LOGIC: "Bucles i lògica",
     CAT_MATH: "Matemàtiques",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Llistes i mapes",
@@ -387,12 +376,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Renderitza un script Handlebars contra un Map o un subarbre d'origen.",
     FOR_EACH_SOURCE_PREFIX: "per a cada",
     FOR_EACH_SOURCE_IN: "a",
-    FOR_EACH_SOURCE_NODES: "nodes d'origen",
     FOR_EACH_SOURCE_DO: "fes",
-    FOR_EACH_SOURCE_TOOLTIP:
-      "Recorre cada node que coincideix amb un camí d'origen. El node actual es desa a la variable indicada.",
     FOR_EACH_LIST_TOOLTIP:
-      "Recorre cada element d'una llista (o claus de mapa / files de full). L'element actual es desa a la variable indicada. Sense break ni continue.",
+      "Recorre cada element d'una llista o cada node d'una consulta d'origen. L'element actual es desa a la variable indicada. Sense break ni continue.",
+    FOR_EACH_IN_TOOLTIP:
+      "Connecteu una llista (☰) o nodes d'origen iterables (📂). Una consulta d'origen en aquesta ranura recorre cada coincidència.",
     LOGIC_ALL: "tots",
     LOGIC_ANY: "algun",
     LOGIC_NONE: "cap",
@@ -434,8 +422,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_JSON: "JSON",
     CAT_XML: "XML",
     CAT_TARGET_SCHEMA: "Schéma cible",
-    CAT_LOGIC: "Logique",
-    CAT_LOOPS: "Boucles",
+    CAT_LOGIC: "Boucles et logique",
     CAT_MATH: "Math",
     CAT_TEXT: "Texte",
     CAT_LISTS_AND_MAPS: "Listes et maps",
@@ -456,12 +443,11 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Rend un script Handlebars contre une Map ou un sous-arbre source.",
     FOR_EACH_SOURCE_PREFIX: "pour chaque",
     FOR_EACH_SOURCE_IN: "dans",
-    FOR_EACH_SOURCE_NODES: "nœuds source",
     FOR_EACH_SOURCE_DO: "faire",
-    FOR_EACH_SOURCE_TOOLTIP:
-      "Boucle sur chaque nœud correspondant à un chemin source. Le nœud courant est stocké dans la variable nommée.",
     FOR_EACH_LIST_TOOLTIP:
-      "Boucle sur chaque élément d'une liste (ou clés de map / lignes de feuille). L'élément courant est stocké dans la variable nommée. Pas de break ni continue.",
+      "Boucle sur chaque élément d'une liste ou chaque nœud d'une requête source. L'élément courant est stocké dans la variable nommée. Pas de break ni continue.",
+    FOR_EACH_IN_TOOLTIP:
+      "Branchez une liste (☰) ou des nœuds source itérables (📂). Une requête source dans cette fente parcourt chaque nœud correspondant.",
     LOGIC_ALL: "tous",
     LOGIC_ANY: "au moins un",
     LOGIC_NONE: "aucun",

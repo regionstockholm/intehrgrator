@@ -6,6 +6,8 @@
  */
 
 import { isRmContainerBlockType } from "../../blockly/blocks/rm_blocks.ts";
+import { migrateForEachSourceState } from "../../blockly/migrate_for_each_source.ts";
+import { isSourceQueryBlockType } from "../../blockly/source_query.ts";
 import { MAPS_CREATE_WITH, MAPS_GET } from "../../core/defaults/extract.ts";
 import {
   termPickDropdownOptions,
@@ -143,7 +145,7 @@ export function projectBlocklyState(state: unknown): SpecProjection {
     return toProjection(lines);
   }
 
-  const workspace = state as BlocklyWorkspaceJson;
+  const workspace = migrateForEachSourceState(state) as BlocklyWorkspaceJson;
   const roots = workspace.blocks?.blocks ?? [];
   if (!roots.length) {
     lines.push(emptyLine("(no blocks)", { languageVersion: workspace.blocks?.languageVersion }));
@@ -366,9 +368,9 @@ function walkBlock(
     return;
   }
 
-  if (type === "for_each_source") {
+  if (type === "for_each_list") {
     emit(lines, loopLine(block, indent, attribute, extraAliases), attributeEdit);
-    walkNamedInputs(block, indent + 1, lines, ["DO"]);
+    walkNamedInputs(block, indent + 1, lines, ["LIST", "DO"]);
     if (block.next?.block) walkBlock(block.next.block, indent, lines, attribute, extraAliases, shell);
     return;
   }
@@ -880,20 +882,23 @@ function loopLine(
   extraAliases: string[],
 ): SpecLine {
   const name = stringField(block, "VAR") || "item";
-  const path = stringField(block, "PATH");
+  const list = inputBlock(block, "LIST");
+  const path = list && isSourceQueryBlockType(list.type ?? "")
+    ? stringField(list, "EXPRESSION")
+    : "";
+  const collection = path || (list?.type ?? "list");
   return {
     kind: "container",
     indent,
     blockId: idOf(block),
     aliasIds: extraAliases.length ? extraAliases : undefined,
-    type: "for_each_source",
+    type: "for_each_list",
     label: name,
     attribute,
     editKind: "loop",
-    summary: `${name} in ${path}`,
+    summary: `${name} in ${collection}`,
     editable: [
       { field: "VAR", value: name },
-      { field: "PATH", value: path },
     ],
     info: collectInfo(block),
   };
@@ -977,7 +982,7 @@ function classify(type: string): SpecLineKind {
     type === "xml_element" ||
     type === "xml_document" ||
     type === "defaults_block" ||
-    type === "for_each_source" ||
+    type === "for_each_list" ||
     type === "controls_if" ||
     type === MAPS_CREATE_WITH ||
     isRmContainerBlockType(type)

@@ -2,7 +2,7 @@
  * Blockly workspace → TypeScript conversion script (ehrtslib constructors).
  *
  * Preferred over the skeleton walker when a canvas snapshot is available so
- * Optional RM Insertion, `for_each_source`, and live block edits show up in
+ * Optional RM Insertion, `for_each_list`, and live block edits show up in
  * Generated conversion script(s).
  */
 
@@ -50,6 +50,8 @@ import {
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
+import { isLoopBlockType, sourcePathFromLoopList } from "./loop_block.ts";
+import { migrateForEachSourceState } from "./migrate_for_each_source.ts";
 import {
   INSTANCE_ENCODING_FIELD,
   parseInstanceEncoding,
@@ -89,7 +91,9 @@ export function generateTypeScriptFromBlocklyState(
   if (!state || typeof state !== "object") return null;
   const workspace = new Blockly.Workspace();
   try {
-    const snapshot = JSON.parse(JSON.stringify(state)) as Record<string, unknown>;
+    const snapshot = migrateForEachSourceState(
+      JSON.parse(JSON.stringify(state)) as Record<string, unknown>,
+    );
     let generated: string | null = null;
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
@@ -204,27 +208,24 @@ function emitFragmentPush(
   extraImports: Set<string>,
   webTemplateJson?: string,
 ): string {
-  if (block.type === "for_each_source") {
-    ctx.helpers.add("nodes");
-    const name = String(block.getFieldValue("VAR") || "item");
-    const path = String(block.getFieldValue("PATH") || "/");
-    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__node";
-    const innerCtx: TsEmitContext = { ...ctx, sourceVar: ident, loopVar: ident };
-    const inner: string[] = [];
-    let body = block.getInputTargetBlock("DO");
-    while (body) {
-      inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
-      body = body.getNextBlock();
-    }
-    return `for (const ${ident} of xpathNodes(${JSON.stringify(path)})) {\n${inner.join("\n")}\n}`;
-  }
   if (block.type === "for_each_list") {
     const name = String(block.getFieldValue("VAR") || "item");
     const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+    const sourcePath = sourcePathFromLoopList(block);
+    const inner: string[] = [];
+    if (sourcePath) {
+      ctx.helpers.add("nodes");
+      const innerCtx: TsEmitContext = { ...ctx, sourceVar: ident, loopVar: ident };
+      let body = block.getInputTargetBlock("DO");
+      while (body) {
+        inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
+        body = body.getNextBlock();
+      }
+      return `for (const ${ident} of xpathNodes(${JSON.stringify(sourcePath)})) {\n${inner.join("\n")}\n}`;
+    }
     const listBlock = block.getInputTargetBlock("LIST");
     const list = listBlock ? emitBlock(listBlock, ctx, 0) : "[]";
     const innerCtx: TsEmitContext = { ...ctx, loopVar: ident };
-    const inner: string[] = [];
     let body = block.getInputTargetBlock("DO");
     while (body) {
       inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
@@ -294,7 +295,6 @@ function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
   const fromExpr = emitExpressionBlock(block, ctx);
   if (fromExpr !== null) return wrapCodePhraseSlotEmit(block, fromExpr);
 
-  if (block.type === "for_each_source") return emitForEach(block, ctx, indent);
   if (block.type === "for_each_list") return emitForEachList(block, ctx, indent);
   if (block.type === TERM_PICK_BLOCK_TYPE) return emitTermPick(block, ctx);
   if (block.type === "code_phrase") return emitCodePhrase(block, ctx, indent);
@@ -487,16 +487,14 @@ function emitStatementList(
   }
   if (!blocks.length) return null;
   const asArray = asList || blocks.length > 1 ||
-    blocks.some((block) => block.type === "for_each_source");
+    blocks.some((block) => isLoopBlockType(block.type));
   if (!asArray) {
     const code = emitBlock(blocks[0]!, ctx, indent + 1);
     return isBlankGeneratedExpr(code) ? null : code;
   }
   const parts: string[] = [];
   for (const block of blocks) {
-    const code = block.type === "for_each_source"
-      ? emitForEach(block, ctx, 0)
-      : block.type === "for_each_list"
+    const code = block.type === "for_each_list"
       ? emitForEachList(block, ctx, 0)
       : block.type === "variables_set"
       ? emitVariableSet(block, ctx, indent + 1)
@@ -507,27 +505,24 @@ function emitStatementList(
   return `[\n${parts.join(",\n")},\n${"  ".repeat(indent + 1)}]`;
 }
 
-function emitForEach(block: Block, ctx: TsEmitContext, indent: number): string {
-  ctx.helpers.add("nodes");
-  const name = String(block.getFieldValue("VAR") || "item");
-  const path = String(block.getFieldValue("PATH") || "/");
-  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__node";
-  const innerCtx: TsEmitContext = {
-    ...ctx,
-    sourceVar: ident,
-    loopVar: ident,
-  };
-  const bodyBlock = block.getInputTargetBlock("DO");
-  const body = bodyBlock
-    ? emitBlock(bodyBlock, innerCtx, indent)
-    : "null";
-  return "...xpathNodes(" + JSON.stringify(path) + ").map((" + ident + ") => " +
-    body + ")";
-}
-
 function emitForEachList(block: Block, ctx: TsEmitContext, indent: number): string {
   const name = String(block.getFieldValue("VAR") || "item");
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+  const sourcePath = sourcePathFromLoopList(block);
+  if (sourcePath) {
+    ctx.helpers.add("nodes");
+    const innerCtx: TsEmitContext = {
+      ...ctx,
+      sourceVar: ident,
+      loopVar: ident,
+    };
+    const bodyBlock = block.getInputTargetBlock("DO");
+    const body = bodyBlock
+      ? emitBlock(bodyBlock, innerCtx, indent)
+      : "null";
+    return "...xpathNodes(" + JSON.stringify(sourcePath) + ").map((" + ident + ") => " +
+      body + ")";
+  }
   const listBlock = block.getInputTargetBlock("LIST");
   const list = listBlock ? emitBlock(listBlock, ctx, indent) : "[]";
   const innerCtx: TsEmitContext = {

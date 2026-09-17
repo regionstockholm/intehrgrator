@@ -152,7 +152,7 @@ export interface MappingModel {
   targetFormat?: TargetFormatId;
   slots: MappingSlot[];
   optionalRm: OptionalRmInsertion[];
-  /** Repeatable iteration (`for_each_source` / `for_each_list`). */
+  /** Repeatable iteration (`for_each_list`; source-node grain when LIST is a source query). */
   loops?: MappingLoop[];
   /** Nested target structure (optional RM / schema extras marked `optional`). */
   targetSignature?: TargetSignatureNode[];
@@ -415,7 +415,7 @@ export interface SuggestionEnvelope {
     format: TargetFormatId | string;
     targetId: string;
   };
-  /** Repeatable source→target iteration (`for_each_source` or `for_each_list`). */
+  /** Repeatable source→target iteration (`for_each_list`). */
   loops?: Array<{
     attachSlotId: string;
     block: SuggestionBlock;
@@ -440,7 +440,7 @@ export interface ImportSuggestionsReport {
   applied: number;
   skipped: number;
   errors: string[];
-  /** Validated `loops[]` entries; the canvas wraps `attachSlotId` with `for_each_source`. */
+  /** Validated `loops[]` entries; the canvas wraps `attachSlotId` with `for_each_list`. */
   loopsAccepted: number;
   /** JSON Schema issues against docs/AI_SUGGESTION_FORMAT.schema.json. */
   schemaIssues: SchemaIssue[];

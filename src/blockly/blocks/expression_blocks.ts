@@ -1,8 +1,11 @@
 import { Blockly } from "../blockly_core.ts";
 import { blocklyCheckForReturnType } from "../block_checks.ts";
+import { appendInputTypeGlyph, blocklyCheckTooltip } from "../block_type_glyph.ts";
 import { createHiddenSerializableField } from "../hidden_serializable_field.ts";
 import { msg, detectLocale } from "../i18n/locale.ts";
-import { enforceMouthCaptionLayout } from "../mouth_layout.ts";
+import { FOR_EACH_LIST_BLOCK, LOOP_LIST_CHECK } from "../loop_block.ts";
+import { enforceMouthCaptionLayout, inputAlignRight } from "../mouth_layout.ts";
+import { slotEmojiFieldName } from "../rm_type_emoji.ts";
 import {
   type SourceReturnType,
   sourceBlockTypeForReturnType,
@@ -25,39 +28,24 @@ export function registerExpressionBlocks(): void {
   defineSourceQueryBlock("node", m.SOURCE_QUERY, m.SOURCE_NODE_TOOLTIP);
 
   /**
-   * Loop over nodes from a multi-valued source path.
-   * Complements `for_each_list` (computed list values) for openEHR mapping.
+   * Bounded iteration over a list or iterable source nodes.
+   * Source-node grain: plug `source_query_node` into LIST (replaces retired
+   * `for_each_source`). Not stock `controls_forEach` (no break/continue).
    */
-  Blockly.Blocks["for_each_source"] = {
+  Blockly.Blocks[FOR_EACH_LIST_BLOCK] = {
     init: function (this: Blockly.Block) {
-      this.appendDummyInput()
+      const inField = new Blockly.FieldLabel(m.FOR_EACH_SOURCE_IN);
+      inField.setTooltip(m.FOR_EACH_IN_TOOLTIP);
+      const list = this.appendValueInput("LIST")
+        .setCheck([...LOOP_LIST_CHECK])
+        .setAlign(inputAlignRight())
         .appendField(m.FOR_EACH_SOURCE_PREFIX)
         .appendField(new Blockly.FieldTextInput("item"), "VAR")
-        .appendField(m.FOR_EACH_SOURCE_IN);
-      this.appendDummyInput()
-        .appendField(m.FOR_EACH_SOURCE_NODES)
-        .appendField(new Blockly.FieldTextInput("/path/to/items"), "PATH");
-      this.appendStatementInput("DO")
-        .appendField(m.FOR_EACH_SOURCE_DO);
-      this.setPreviousStatement(true);
-      this.setNextStatement(true);
-      this.setColour(LOOP_COLOUR);
-      this.setTooltip(m.FOR_EACH_SOURCE_TOOLTIP);
-      this.setStyle?.("loop_blocks");
-      enforceMouthCaptionLayout(this);
-    },
-  };
-
-  /**
-   * Bounded iteration over a list / map-keys / sheet-rows value.
-   * Not stock `controls_forEach` (no break/continue; grain is the list item).
-   */
-  Blockly.Blocks["for_each_list"] = {
-    init: function (this: Blockly.Block) {
-      this.appendValueInput("LIST")
-        .appendField(m.FOR_EACH_SOURCE_PREFIX)
-        .appendField(new Blockly.FieldTextInput("item"), "VAR")
-        .appendField(m.FOR_EACH_SOURCE_IN);
+        .appendField(inField);
+      appendInputTypeGlyph(list, LOOP_LIST_CHECK);
+      this.getField(slotEmojiFieldName("LIST"))?.setTooltip(
+        `${m.FOR_EACH_IN_TOOLTIP}\n\n${blocklyCheckTooltip(LOOP_LIST_CHECK)}`,
+      );
       this.appendStatementInput("DO")
         .appendField(m.FOR_EACH_SOURCE_DO);
       this.setPreviousStatement(true);

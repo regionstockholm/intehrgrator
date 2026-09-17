@@ -26,7 +26,6 @@ const NON_OPENEHR_BLOCK_TYPES = new Set([
   "text_document",
   "target_structure",
   "target_value",
-  "for_each_source",
   "for_each_list",
 ]);
 

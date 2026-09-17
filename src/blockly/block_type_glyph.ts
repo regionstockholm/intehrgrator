@@ -187,7 +187,6 @@ const STOCK_GLYPH_BLOCK_TYPES = [
   "lists_split",
   "lists_sort",
   "lists_reverse",
-  "for_each_list",
 ] as const;
 
 const stockGlyphPatches = new Set<string>();

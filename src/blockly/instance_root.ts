@@ -33,7 +33,7 @@ export function applyInstanceRootCap(block: Block): void {
   (block as Block & { isInstanceRoot_?: boolean }).isInstanceRoot_ = true;
 }
 
-const PRODUCT_LOOP_TYPES = new Set(["for_each_source", "for_each_list"]);
+const PRODUCT_LOOP_TYPES = new Set(["for_each_list"]);
 
 /** Ordered Product stack under Conversion start (loops included; nested DO walked separately). */
 export function productStackBlocks(workspace: Blockly.Workspace): Block[] {

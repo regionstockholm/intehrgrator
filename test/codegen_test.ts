@@ -179,7 +179,7 @@ Deno.test("java codegen emits sheetLookup helper for sheet_lookup slots", () => 
   assertStringIncludes(java, "Map<String, Sheet> sheets");
 });
 
-Deno.test("java codegen emits for_each_source iteration with relative loop paths", () => {
+Deno.test("java codegen emits source-node for_each_list iteration with relative loop paths", () => {
   let model = createEmptyModel("pulse-series");
   model = upsertLoop(model, {
     attachSlotId: "evt-1",
@@ -370,7 +370,7 @@ Deno.test("xquery export emits $sheets helpers for sheet accessors", () => {
   assertStringIncludes(xq, '"icd10_snomed"');
 });
 
-Deno.test("xquery export emits for_each_source iteration with relative loop paths", () => {
+Deno.test("xquery export emits source-node for_each_list iteration with relative loop paths", () => {
   let model = createEmptyModel("pulse-series");
   model = upsertLoop(model, {
     attachSlotId: "evt-1",

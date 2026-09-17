@@ -157,8 +157,13 @@ function buildExternalAiEnvelope(prompt: string): string {
     loops: [{
       attachSlotId: pulseEvent.slotId,
       block: {
-        type: "for_each_source",
-        fields: { VAR: "measurements", PATH: "$.measurements" },
+        type: "for_each_list",
+        fields: { VAR: "measurements" },
+        inputs: {
+          LIST: {
+            block: { type: "source_query_node", fields: { EXPRESSION: "$.measurements" } },
+          },
+        },
       },
       note: "Each source measurement is one pulse OBSERVATION any_event. Systolic/diastolic mmHg have no quantity slot on this template (NEWS2 is an ordinal score, not mmHg).",
     }],

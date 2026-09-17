@@ -45,6 +45,7 @@ import {
   validateModel,
 } from "../core/mapping_model/mod.ts";
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
+import { migrateForEachSourceState } from "../blockly/migrate_for_each_source.ts";
 import {
   instanceShapeForEncoding,
   preferredInstanceEncoding,
@@ -884,7 +885,7 @@ export class WorkbenchController {
       this.notifyChange();
       return;
     }
-    this.blocklyState = parsed;
+    this.blocklyState = migrateForEachSourceState(parsed);
     this.blocklyReloadToken += 1;
     this.statusMessage = `Loaded Blockly mapping ${filename}`;
     this.markDirty();
@@ -1555,7 +1556,7 @@ export class WorkbenchController {
       openEhrInstanceShape: DEFAULT_SETTINGS.openEhrInstanceShape,
     };
     this.model = { ...bundle.mapping.model };
-    this.blocklyState = bundle.mapping.blocklyState;
+    this.blocklyState = migrateForEachSourceState(bundle.mapping.blocklyState);
     this.handlebarsTemplate = "";
     this.sheets = normalizeSheets(bundle.mapping.sheets ?? []);
     this.templateFilename = "";

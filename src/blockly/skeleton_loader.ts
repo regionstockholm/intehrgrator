@@ -26,7 +26,8 @@ import {
 import { enforceMouthCaptionLayout } from "./mouth_layout.ts";
 import { createTermPickBlock, isTermPickBlock, configureTermPick } from "./blocks/term_pick.ts";
 import { applySkeletonBlockLabels } from "./block_labels.ts";
-import { createSourceQueryBlock } from "./source_query.ts";
+import { createSourceQueryBlock, isSourceQueryBlockType } from "./source_query.ts";
+import { FOR_EACH_LIST_BLOCK, isLoopBlockType } from "./loop_block.ts";
 import {
   attachDefaultPointLookups,
   captureDefaultsBlockState,
@@ -180,7 +181,7 @@ export function applyModelExpressions(
   else runWithoutBlocklyEvents(apply);
 }
 
-/** Wrap each repeating container with `for_each_source` / `for_each_list`. */
+/** Wrap each repeating container with `for_each_list` (source query or list value). */
 export function applyModelLoops(
   workspace: Blockly.Workspace,
   model: MappingModel,
@@ -188,8 +189,7 @@ export function applyModelLoops(
   for (const loop of model.loops ?? []) {
     const inner = findAttachBlock(workspace, loop.attachSlotId);
     if (!inner) continue;
-    if (loop.kind === "list") wrapBlockWithForEachList(workspace, inner, loop);
-    else wrapBlockWithForEachSource(workspace, inner, loop);
+    wrapBlockWithForEachList(workspace, inner, loop);
   }
 }
 
@@ -200,7 +200,7 @@ function findAttachBlock(
   const matches: Blockly.Block[] = [];
   for (const block of workspace.getAllBlocks(false)) {
     if (block.getFieldValue("SLOT_ID") !== slotId) continue;
-    if (block.type === "for_each_source" || block.type === "for_each_list") continue;
+    if (isLoopBlockType(block.type)) continue;
     matches.push(block);
   }
   const repeating = matches.find((block) =>
@@ -211,22 +211,21 @@ function findAttachBlock(
   return matches.find((block) => Boolean(block.previousConnection)) ?? matches[0] ?? null;
 }
 
-function wrapBlockWithForEachSource(
+function wrapBlockWithForEachList(
   workspace: Blockly.Workspace,
   inner: Blockly.Block,
   loop: MappingLoop,
 ): void {
   const parent = inner.getParent();
-  if (parent?.type === "for_each_source") {
+  if (parent?.type === FOR_EACH_LIST_BLOCK) {
     parent.setFieldValue(loop.varName, "VAR");
-    parent.setFieldValue(loop.path, "PATH");
+    attachLoopCollection(workspace, parent, loop);
     return;
   }
-  if (parent?.type === "for_each_list") return;
 
-  const wrap = workspace.newBlock("for_each_source");
+  const wrap = workspace.newBlock(FOR_EACH_LIST_BLOCK);
   wrap.setFieldValue(loop.varName, "VAR");
-  wrap.setFieldValue(loop.path, "PATH");
+  attachLoopCollection(workspace, wrap, loop);
   const svg = wrap as BlockSvg;
   if (typeof document !== "undefined" && typeof svg.initSvg === "function") {
     svg.initSvg();
@@ -259,52 +258,33 @@ function wrapBlockWithForEachSource(
   }
 }
 
-function wrapBlockWithForEachList(
+function attachLoopCollection(
   workspace: Blockly.Workspace,
-  inner: Blockly.Block,
+  wrap: Blockly.Block,
   loop: MappingLoop,
 ): void {
-  const parent = inner.getParent();
-  if (parent?.type === "for_each_list") {
-    parent.setFieldValue(loop.varName, "VAR");
-    attachListCollection(workspace, parent, loop.collection);
+  if (loop.kind === "list") {
+    attachListCollection(workspace, wrap, loop.collection);
     return;
   }
-  if (parent?.type === "for_each_source") return;
+  attachSourceCollection(workspace, wrap, loop.path);
+}
 
-  const wrap = workspace.newBlock("for_each_list");
-  wrap.setFieldValue(loop.varName, "VAR");
-  attachListCollection(workspace, wrap, loop.collection);
-  const svg = wrap as BlockSvg;
-  if (typeof document !== "undefined" && typeof svg.initSvg === "function") {
-    svg.initSvg();
+function attachSourceCollection(
+  workspace: Blockly.Workspace,
+  wrap: Blockly.Block,
+  path: string,
+): void {
+  const listInput = wrap.getInput("LIST");
+  if (!listInput?.connection) return;
+  const existing = listInput.connection.targetBlock();
+  if (existing && isSourceQueryBlockType(existing.type)) {
+    existing.setFieldValue(path || "/", "EXPRESSION");
+    return;
   }
-
-  const wasTop = !parent;
-  const xy = typeof inner.getRelativeToSurfaceXY === "function"
-    ? inner.getRelativeToSurfaceXY()
-    : { x: 0, y: 0 };
-  const prevTarget = inner.previousConnection?.targetConnection ?? null;
-  const nextBlock = inner.getNextBlock();
-  if (inner.previousConnection?.isConnected()) inner.previousConnection.disconnect();
-  if (inner.nextConnection?.isConnected()) inner.nextConnection.disconnect();
-
-  const doConn = wrap.getInput("DO")?.connection;
-  if (doConn && inner.previousConnection) {
-    doConn.connect(inner.previousConnection);
-  }
-  if (prevTarget && wrap.previousConnection) {
-    prevTarget.connect(wrap.previousConnection);
-  }
-  if (nextBlock?.previousConnection && wrap.nextConnection) {
-    wrap.nextConnection.connect(nextBlock.previousConnection);
-  }
-  if (wasTop && typeof wrap.moveBy === "function") {
-    wrap.moveBy(xy.x, xy.y);
-  }
-  if (typeof document !== "undefined" && typeof svg.render === "function") {
-    svg.render();
-  }
+  if (listInput.connection.isConnected()) listInput.connection.disconnect();
+  const src = createSourceQueryBlock(workspace, path || "/", "node");
+  if (src.outputConnection) listInput.connection.connect(src.outputConnection);
 }
 
 function attachListCollection(

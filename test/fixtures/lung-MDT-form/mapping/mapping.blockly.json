@@ -397,7 +397,7 @@
                           "check": [
                             "schema_TextKeyWord",
                             "controls_if",
-                            "for_each_source"
+                            "for_each_list"
                           ],
                           "card": {
                             "min": 1,
@@ -1813,7 +1813,7 @@
                           "check": [
                             "schema_DatetimeKeyword",
                             "controls_if",
-                            "for_each_source"
+                            "for_each_list"
                           ],
                           "card": {
                             "min": 1,

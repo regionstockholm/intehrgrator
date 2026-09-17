@@ -13,63 +13,123 @@
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_1",
         "x": 20,
         "y": 68,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.rubrik"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_1_src",
+              "fields": {
+                "EXPRESSION": "$.rubrik"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_2",
         "x": 20,
         "y": 116,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.behållare"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_2_src",
+              "fields": {
+                "EXPRESSION": "$.behållare"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_3",
         "x": 20,
         "y": 164,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.deltagare"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_3_src",
+              "fields": {
+                "EXPRESSION": "$.deltagare"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_4",
         "x": 20,
         "y": 212,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.bakgrund"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_4_src",
+              "fields": {
+                "EXPRESSION": "$.bakgrund"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_5",
         "x": 20,
         "y": 260,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.sjukdomshistoria"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_5_src",
+              "fields": {
+                "EXPRESSION": "$.sjukdomshistoria"
+              }
+            }
+          }
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_6",
         "x": 20,
         "y": 308,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.ospecificerad_händelse"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_6_src",
+              "fields": {
+                "EXPRESSION": "$.ospecificerad_händelse"
+              }
+            }
+          }
         }
       },
       {

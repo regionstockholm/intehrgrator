@@ -9,6 +9,7 @@ import {
   hydrateDefaultsMapArgument,
   initBlocklyGenerators,
   loadSkeletonIntoWorkspace,
+  migrateForEachSourceState,
   workspaceToModelJson,
 } from "../blockly/mod.ts";
 import type { MappingModelExtract } from "../blockly/mapping_ir.ts";
@@ -32,7 +33,7 @@ export function syncModelToBlocklyState(
   const workspace = new Blockly.Workspace();
   try {
     Blockly.serialization.workspaces.load(
-      JSON.parse(JSON.stringify(blocklyState)) as Record<string, unknown>,
+      migrateForEachSourceState(JSON.parse(JSON.stringify(blocklyState))) as Record<string, unknown>,
       workspace,
     );
     applyModelExpressions(workspace, model, { recordUndo: false });

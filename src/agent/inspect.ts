@@ -22,7 +22,7 @@ export interface SlotInspectRow {
   /** Ancestor labels that are not raw RM type names (e.g. `Vårdenhet › Namn`). */
   pathLabel?: string;
   multiplicity?: string;
-  /** Repeating ancestor `attachSlotId` for `loops[]` (`for_each_source`). */
+  /** Repeating ancestor `attachSlotId` for `loops[]` (`for_each_list`). */
   attachSlotId?: string;
   mapped: boolean;
   expression?: string;

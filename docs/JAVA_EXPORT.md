@@ -22,7 +22,7 @@ Package `se.regionstockholm.intehrgrator.generated`, class `ConversionScript`:
 - Nested `rm(new Observation(), o -> { o.setData(…); })` for containers;
   compact constructors for data values (`new DvQuantity(units, magnitude, null)`,
   `new DvText(…)`, `new CodePhrase("ISO_639-1::en")`).
-- `for_each_source` → `xpathNodes(path).stream().map(var -> …).toList()` with
+- `for_each_list` (source-node grain) → `xpathNodes(path).stream().map(var -> …).toList()` with
   relative xpath against the loop node.
 - `maps_get("defaults", key)` → `defaults.get(key)`.
 

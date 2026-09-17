@@ -954,7 +954,11 @@ function emitSkeletonValue(
     const term = fields.terminology_id;
     const code = fields.code_string ?? fields.defining_code;
     if (term && expr) {
-      return "`" + escapeTemplate(term) + "::${String(" + expr + ' ?? "")}`';
+      if (codePhraseTerseSafe(term)) {
+        return "`" + escapeTemplate(term) + "::${String(" + expr + ' ?? "")}`';
+      }
+      ctx.types.add("CODE_PHRASE");
+      return `new CODE_PHRASE({ terminology_id: ${JSON.stringify(term)}, code_string: ${asStringExpr(expr)} })`;
     }
     if (term && code) return emitCodePhraseLiteral(term, code);
     if (expr) {

@@ -15,6 +15,7 @@ import {
 import { upsertLoop } from "@intehrgrator/core/mapping_model/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
 import { emitCodePhraseLiteral } from "@intehrgrator/core/codegen/typescript.ts";
+import { CODE_PHRASE } from "ehrtslib/openehr_rm.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
   runGeneratedTypeScript,
@@ -733,10 +734,18 @@ Deno.test("typescript codegen emits lists_getIndex as array access, not xpathStr
 
 Deno.test("emitCodePhraseLiteral uses object form for SNOMED URL terminology ids", () => {
   assertEquals(emitCodePhraseLiteral("openehr", "433"), '"openehr::433"');
+  const snomed = "http://snomed.info/sct/900000000000207008";
+  const emitted = emitCodePhraseLiteral(snomed, "43741000");
   assertEquals(
-    emitCodePhraseLiteral("http://snomed.info/sct/900000000000207008", "43741000"),
-    '{ terminology_id: "http://snomed.info/sct/900000000000207008", code_string: "43741000" }',
+    emitted,
+    `{ terminology_id: "http://snomed.info/sct/900000000000207008", code_string: "43741000" }`,
   );
+  const phrase = new Function(
+    "CODE_PHRASE",
+    `return new CODE_PHRASE(${emitted});`,
+  )(CODE_PHRASE) as { code_string?: string; terminology_id?: { value?: string } };
+  assertEquals(phrase.code_string, "43741000");
+  assertEquals(phrase.terminology_id?.value, snomed);
 });
 
 Deno.test("TypeScript Output mode executes handlebars text block canvas mapping", () => {

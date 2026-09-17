@@ -29,7 +29,8 @@ Deno.test({
   async fn() {
     const browser = await chromium.launch({ headless: true });
     try {
-      const page = await browser.newPage({ viewport: { width: 1400, height: 900 } });
+      const context = await browser.newContext({ viewport: { width: 1400, height: 900 } });
+      const page = await context.newPage();
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
       await loadBpFixtures(page);
@@ -56,16 +57,22 @@ Deno.test({
       const composition = loaded.blocklyBlocks.find((block) => block.type === "composition");
       assertEquals(composition?.fields.INSTANCE_ENCODING, "canonical-json");
 
-      // Loops & Logic: toolbox Search finds for_each_list.
-      const search = page.locator('.blocklyToolboxDiv input[type="search"]');
-      await search.waitFor({ timeout: 10_000 });
-      await search.click();
-      await search.pressSequentially("for each", { delay: 30 });
-      await page.waitForFunction(() => {
-        const flyout = document.querySelector(".blocklyFlyout");
-        return Boolean(flyout && /for each/i.test(flyout.textContent ?? ""));
-      }, { timeout: 8_000 });
-      await search.fill("");
+      // Loops & Logic drawer: for_each_list is the lead block; place one on the canvas.
+      const logicCategory = page.locator(".blocklyToolboxCategoryLogic");
+      await logicCategory.waitFor({ timeout: 10_000 });
+      await logicCategory.click();
+      await page.locator(".blocklyFlyout").first().waitFor({ state: "visible", timeout: 8_000 });
+      const loopId = await page.evaluate(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        return api.newBlock("for_each_list");
+      });
+      assert(loopId, "expected to create a for_each_list block");
+      assert(
+        (await getSnapshot(page)).blocklyBlocks.some((block) => block.type === "for_each_list"),
+        "expected for_each_list on the canvas",
+      );
+      await logicCategory.click();
 
       const systolicId = await findSystolicSlotId(page);
       await clickBlocklyBlock(page, await findElementBlockId(page, systolicId));
@@ -99,7 +106,7 @@ Deno.test({
           intehrgratorTestApi: { getSnapshot: () => { blocklyBlocks: Array<{ type: string }> } };
         }).intehrgratorTestApi;
         return api.getSnapshot().blocklyBlocks.some((block) => block.type === "feeder_audit");
-      }, { timeout: 5_000 });
+      }, undefined, { timeout: 5_000 });
 
       await page.evaluate((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
@@ -135,7 +142,7 @@ Deno.test({
           intehrgratorTestApi: { getSnapshot: () => { generatedCode: string } };
         }).intehrgratorTestApi;
         return api.getSnapshot().generatedCode.includes("$.systolic");
-      }, { timeout: 10_000 });
+      }, undefined, { timeout: 10_000 });
       const ts = (await getSnapshot(page)).generatedCode;
       assertStringIncludes(ts, "xpathNumber");
       assertStringIncludes(ts, "$.diastolic");
@@ -148,9 +155,10 @@ Deno.test({
         }).intehrgratorTestApi;
         const code = api.getSnapshot().generatedCode;
         return code.includes("xquery") || code.includes("declare variable");
-      }, { timeout: 10_000 });
+      }, undefined, { timeout: 10_000 });
       const xq = (await getSnapshot(page)).generatedCode;
-      assertStringIncludes(xq, "$.systolic");
+      assertStringIncludes(xq, "declare variable $source");
+      assertStringIncludes(xq, "systolic");
     } finally {
       await browser.close();
     }

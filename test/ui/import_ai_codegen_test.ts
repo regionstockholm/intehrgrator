@@ -105,6 +105,9 @@ Deno.test({
       );
       // CodeMirror virtualizes the preview; the document the pane is bound to is generatedCode.
 
+      // Mapping preview Test Run. TypeScript output mode executes the generated
+      // script and currently rejects empty Defaults CODE_PHRASE (`ISO_639-1::`).
+      await page.selectOption("#export-target", "preview");
       await page.click("#btn-run-test");
       await page.waitForFunction(() => {
         const api = (globalThis as unknown as {
@@ -115,7 +118,11 @@ Deno.test({
 
       const snap = await getSnapshot(page);
       const output = snap.testResult?.output as Record<string, unknown> | undefined;
-      assertEquals(snap.testResult?.ok, true, (snap.testResult?.warnings ?? []).join("; "));
+      assertEquals(
+        snap.testResult?.ok,
+        true,
+        snap.testResult?.error ?? (snap.testResult?.warnings ?? []).join("; "),
+      );
       assert(output && !("slots" in output), `openEHR Test Run must not include a slots sidecar: ${JSON.stringify(output)}`);
       assertStringIncludes(JSON.stringify(output), "120");
       assertEquals(

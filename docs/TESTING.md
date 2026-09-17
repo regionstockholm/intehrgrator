@@ -65,7 +65,7 @@ Retired Blockly types (`for_each_source`) keep a **migration pin** (`migrate_for
 
 1. Name the test as observable behavior, using terms from [CONTEXT.md](../CONTEXT.md).
 2. Assert a known literal or fixture (systolic `120`, a COMPOSITION `_type`), not a value recomputed the way the code computes it.
-3. Drive UI tests through the DOM and `window.intehrgratorTestApi` (`?testMode=1`). Do not automate the OS file picker; load fixtures via the Test API.
+3. Drive UI tests through the DOM and `window.intehrgratorTestApi` (`?testMode=1`). Do not automate the OS file picker; load fixtures via the Test API. Assert Test Run on **Mapping preview**; TypeScript output mode executes the generated script and needs complete Defaults `CODE_PHRASE` values.
 4. Headless Agent/MCP already covers most authoring. Add Playwright when the bug would be “the button/dialog/toolbox didn’t do it.”
 5. After a new Mapping Editor process step ships, extend `test/ui/green_path_test.ts` so the green-path still walks every major step.
 6. Optional goldens `return` (with a warning) when the engine is missing; they do not `ignore: true` the whole file in a way that hides a broken install in CI that *does* have the engine.

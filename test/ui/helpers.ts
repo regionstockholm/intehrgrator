@@ -113,7 +113,7 @@ export async function runTestAndWait(page: Page): Promise<void> {
       intehrgratorTestApi: { getSnapshot: () => { testResult: unknown } };
     }).intehrgratorTestApi;
     return api.getSnapshot().testResult != null;
-  }, { timeout: 10_000 });
+  }, undefined, { timeout: 10_000 });
 }
 
 /**

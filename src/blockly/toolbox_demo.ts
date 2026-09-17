@@ -7,7 +7,7 @@
  * https://github.com/RaspberryPiFoundation/blockly-samples/blob/main/examples/devsite-landing-demo/toolbox.js
  *
  * intEHRgrator additions: Source + openEHR types (COMPOSITION / DATA_VALUE) categories,
- * `for_each_source` / `for_each_list` in Loops (stock while/for/forEach removed).
+ * `for_each_list` in Loops & Logic (stock while/for/forEach and `for_each_source` removed).
  */
 
 import type { BlocklyOptions } from "blockly/core";
@@ -256,6 +256,13 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
         colour: 262,
         cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryLogic" },
         contents: [
+          {
+            kind: "block",
+            type: "for_each_list",
+            inputs: {
+              LIST: { shadow: { type: "lists_create_with", extraState: { itemCount: 0 } } },
+            },
+          },
           { kind: "block", type: "logic_compare" },
           { kind: "block", type: "logic_operation" },
           { kind: "block", type: "logic_negate" },
@@ -281,22 +288,6 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
             fields: { OP: "AT_LEAST", N: 1 },
           },
           { kind: "block", type: "logic_current_item" },
-        ],
-      },
-      {
-        kind: "category",
-        name: m.CAT_LOOPS,
-        colour: 122,
-        cssconfig: { row: "blocklyToolboxCategory blocklyToolboxCategoryLoops" },
-        contents: [
-          { kind: "block", type: "for_each_source" },
-          {
-            kind: "block",
-            type: "for_each_list",
-            inputs: {
-              LIST: { shadow: { type: "lists_create_with", extraState: { itemCount: 0 } } },
-            },
-          },
         ],
       },
       {

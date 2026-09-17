@@ -21,7 +21,6 @@ export const XML_ATTRIBUTE_CHECK = "xml_attribute";
 export const XML_NEST_CHECK = [
   "xml_element",
   "controls_if",
-  "for_each_source",
   "for_each_list",
 ] as const;
 

@@ -218,7 +218,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
   if (repeatable.length) {
     sections.push(
       "## Repeatable containers",
-      "Copy `attachSlotId` from this list. One loop per repeating container: `for_each_source` when iterating source nodes, `for_each_list` when iterating a computed list value.",
+      "Copy `attachSlotId` from this list. One loop per repeating container: `for_each_list` with a `source_query_node` in LIST when iterating source nodes, or `for_each_list` with a list value when iterating a computed list.",
       "```json",
       JSON.stringify(repeatable, null, 2),
       "```",
@@ -377,10 +377,10 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
-    "**Repeating container** — put `for_each_source` (source nodes) or `for_each_list` (computed list) in top-level `loops[]`; child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list). Optional RM Insertion uses `optional_rm_add` / `optional_rm_remove` tools, not this envelope.",
+    "**Repeating container** — put `for_each_list` in top-level `loops[]` (`source_query_node` in LIST for source nodes, or a list value for a computed collection); child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list). Optional RM Insertion uses `optional_rm_add` / `optional_rm_remove` tools, not this envelope.",
     "",
     "## Instruction",
-    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use a **Decision table** (`decision_table` + `kind: \"decision-table\"` sheet) when several independent inputs, don't-care cells, or FIRST/UNIQUE/COLLECT hit policies make the mapping more readable to humans than nested `if`. Use `sheet_lookup` for 1-key terminology and code translation (named Sheet). Use `maps_get` / `maps_create_with` for Defaults Map keys. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_source` (or `for_each_list` for a list-valued collection) and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
+    "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use a **Decision table** (`decision_table` + `kind: \"decision-table\"` sheet) when several independent inputs, don't-care cells, or FIRST/UNIQUE/COLLECT hit policies make the mapping more readable to humans than nested `if`. Use `sheet_lookup` for 1-key terminology and code translation (named Sheet). Use `maps_get` / `maps_create_with` for Defaults Map keys. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_list` (`source_query_node` in LIST, or a list-valued collection) and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
   );
 
   if (options.delivery === "inline") {
@@ -665,7 +665,7 @@ function collapseSchemaIssues(issues: SchemaIssue[]): SchemaIssue[] {
         path: parent,
         keyword: issue.keyword,
         message:
-          `${parent}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH } or for_each_list { VAR, LIST }, and child fills in suggestions[] with matching loopVar.`,
+          `${parent}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_list { VAR, LIST: source_query_node or list }, and child fills in suggestions[] with matching loopVar.`,
       });
       continue;
     }
@@ -690,11 +690,11 @@ export function explainSuggestionSchemaIssue(
     return `${path}: unexpected "${extra}". Blocks allow only type, fields, inputs, extraState.`;
   }
   if (/^#\/suggestions\/\d+\/(attachSlotId|for_each_source|suggestions)$/.test(pointer)) {
-    return `${path}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_source { VAR, PATH } or for_each_list { VAR, LIST }, and child fills in suggestions[] with matching loopVar.`;
+    return `${path}: nested loops are not allowed here. Put repeating work in top-level loops[] with for_each_list { VAR, LIST: source_query_node or list }, and child fills in suggestions[] with matching loopVar.`;
   }
   if (keyword === "enum" || /does not match any of/i.test(raw)) {
     if (/\.type$/.test(path)) {
-      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, sheet_lookup, decision_table, or maps_create_* (not source_query_string). Loops use for_each_source or for_each_list only in loops[].`;
+      return `${path}: invalid block type. Use source_query, source_query_number, source_query_boolean, source_query_node, text, text_code, text_handlebars, maps_get, sheet_lookup, decision_table, or maps_create_* (not source_query_string). Loops use for_each_list only in loops[].`;
     }
   }
   if (keyword === "const") {
@@ -737,7 +737,7 @@ export function formatImportFollowUp(options: FollowUpOptions): string {
   lines.push(...issues);
   lines.push(
     "",
-    "Fix every error. Copy each `slotId` / `attachSlotId` from the original prompt. Put repeating source nodes in top-level `loops[]` (`for_each_source` with `VAR` + `PATH`, or `for_each_list` with `VAR` + `inputs.LIST`); child mappings use `loopVar` and a **relative** `EXPRESSION`. Prefer Decision tables when combinational rules are clearer than nested if. Do not emit `mutation`, `id`, `x`, `y`, or `source_query_string` (use `source_query` for strings).",
+    "Fix every error. Copy each `slotId` / `attachSlotId` from the original prompt. Put repeating source nodes in top-level `loops[]` (`for_each_list` with `source_query_node` in LIST, or a list-valued collection); child mappings use `loopVar` and a **relative** `EXPRESSION`. Prefer Decision tables when combinational rules are clearer than nested if. Do not emit `mutation`, `id`, `x`, `y`, or `source_query_string` (use `source_query` for strings).",
     "",
     "### Previous payload",
     "```json",
@@ -849,14 +849,20 @@ function collectSuggestionItems(
 }
 
 function coerceLoopBlock(item: Record<string, unknown>): SuggestionBlock | null {
-  if (isRecord(item.block) && (item.block.type === "for_each_source" || item.block.type === "for_each_list")) {
+  if (isRecord(item.block) && item.block.type === "for_each_list") {
     return sanitizeBlock(item.block) as SuggestionBlock;
-  }
-  if (isRecord(item.for_each_source) && item.for_each_source.type === "for_each_source") {
-    return sanitizeBlock(item.for_each_source) as SuggestionBlock;
   }
   if (isRecord(item.for_each_list) && item.for_each_list.type === "for_each_list") {
     return sanitizeBlock(item.for_each_list) as SuggestionBlock;
+  }
+  const sourceBlock = isRecord(item.block) && item.block.type === "for_each_source"
+    ? item.block
+    : isRecord(item.for_each_source) && item.for_each_source.type === "for_each_source"
+    ? item.for_each_source
+    : null;
+  if (sourceBlock) {
+    const fields = isRecord(sourceBlock.fields) ? sourceBlock.fields : {};
+    return sourceLoopBlock(String(fields.VAR ?? item.loopVar ?? "item"), String(fields.PATH ?? ""));
   }
   const path = typeof item.for_each_source === "string"
     ? item.for_each_source
@@ -864,8 +870,19 @@ function coerceLoopBlock(item: Record<string, unknown>): SuggestionBlock | null 
     ? item.PATH
     : "";
   if (!path) return null;
-  const varName = String(item.loopVar ?? "item");
-  return { type: "for_each_source", fields: { VAR: varName, PATH: path } };
+  return sourceLoopBlock(String(item.loopVar ?? "item"), path);
+}
+
+function sourceLoopBlock(varName: string, path: string): SuggestionBlock {
+  return {
+    type: "for_each_list",
+    fields: { VAR: varName || "item" },
+    inputs: {
+      LIST: {
+        block: { type: "source_query_node", fields: { EXPRESSION: path } },
+      },
+    },
+  };
 }
 
 function optionalNote(note: unknown): string | undefined {
@@ -950,7 +967,8 @@ export function importSuggestions(
   for (const loop of payload.loops ?? []) {
     const attachSlotId = resolveKnownSlotId(loop.attachSlotId, knownSlotIds) ?? loop.attachSlotId;
     try {
-      const block = sanitizeBlock(loop.block as unknown as Record<string, unknown>) as SuggestionBlock;
+      const block = coerceLoopBlock({ block: loop.block as unknown as Record<string, unknown> }) ??
+        sanitizeBlock(loop.block as unknown as Record<string, unknown>) as SuggestionBlock;
       validateLoopEntry(block);
       if (!knownSlotIds.has(attachSlotId)) {
         throw new Error(`Unknown attachSlotId: ${loop.attachSlotId}`);
@@ -960,6 +978,17 @@ export function importSuggestions(
       if (block.type === "for_each_list") {
         const listBlock = block.inputs?.LIST?.block;
         if (!listBlock) throw new Error("for_each_list requires inputs.LIST");
+        const sourcePath = sourceQueryExpression(listBlock);
+        if (sourcePath) {
+          const existingPath = loopPaths.get(varName);
+          if (existingPath && existingPath !== sourcePath) {
+            throw new Error(`Duplicate loop VAR: ${varName} with a different collection`);
+          }
+          loopPaths.set(varName, sourcePath);
+          acceptedLoops.push({ attachSlotId, varName, path: sourcePath, kind: "source" });
+          report.loopsAccepted++;
+          continue;
+        }
         const collection = suggestionBlockToExpression(listBlock);
         const existingPath = loopPaths.get(varName);
         if (existingPath && existingPath !== collection) {
@@ -976,8 +1005,8 @@ export function importSuggestions(
         report.loopsAccepted++;
         continue;
       }
-      const path = String(block.fields?.PATH ?? "");
-      if (!path) throw new Error("for_each_source requires VAR and PATH");
+      const path = String(block.fields?.PATH ?? sourceQueryExpression(block.inputs?.LIST?.block) ?? "");
+      if (!path) throw new Error("source loop requires a source query in LIST or a PATH");
       const existingPath = loopPaths.get(varName);
       if (existingPath && existingPath !== path) {
         throw new Error(`Duplicate loop VAR: ${varName} with a different PATH`);
@@ -1052,6 +1081,19 @@ export function suggestionBlockToExpression(
   return expr;
 }
 
+function sourceQueryExpression(block: SuggestionBlock | undefined): string | null {
+  if (!block) return null;
+  const type = BLOCK_TYPE_ALIASES[block.type] ?? block.type;
+  if (
+    type !== "source_query" && type !== "source_query_number" &&
+    type !== "source_query_boolean" && type !== "source_query_node"
+  ) {
+    return null;
+  }
+  const expr = String(block.fields?.EXPRESSION ?? "");
+  return expr || null;
+}
+
 function validateLoopEntry(block: SuggestionBlock): void {
   if (block?.type === "for_each_source") {
     if (block.inputs?.DO?.block) {
@@ -1065,7 +1107,7 @@ function validateLoopEntry(block: SuggestionBlock): void {
     }
     return;
   }
-  throw new Error("loops[].block must be type for_each_source or for_each_list");
+  throw new Error("loops[].block must be type for_each_list");
 }
 
 function validateBlockShape(block: SuggestionBlock, depth = 0): void {

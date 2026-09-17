@@ -4,7 +4,7 @@
  * Free-form Kintegrate templates are not a full IR for Blockly: narrative text,
  * `#if` helpers, and `@index`/`@first` have no faithful block encoding today.
  * This converter extracts source paths (`{{path}}`, `{{#with}}`, `{{#each}}`)
- * into `source_query` / `for_each_source` blocks so they can be reviewed in the
+ * into `source_query` / `for_each_list` blocks so they can be reviewed in the
  * Mapping Spec and reused for Click-to-Map style authoring.
  */
 
@@ -62,13 +62,21 @@ export function handlebarsTemplateToBlocklyState(
   const blocks = refs.map((ref, index) => {
     if (ref.kind === "each") {
       return {
-        type: "for_each_source",
+        type: "for_each_list",
         id: `hbs_each_${index}`,
         x: 20,
         y: 20 + index * yStep,
         fields: {
           VAR: "item",
-          PATH: toFontoxpathHint(ref.path),
+        },
+        inputs: {
+          LIST: {
+            block: {
+              type: "source_query_node",
+              id: `hbs_each_${index}_src`,
+              fields: { EXPRESSION: toFontoxpathHint(ref.path) },
+            },
+          },
         },
       };
     }

@@ -518,7 +518,7 @@ Deno.test("openEHR Test Run nests DV_CODED_TEXT defining_code and DV_IDENTIFIER.
   assertEquals(ids.some((row) => row.id === "CCJ3" && row.value === undefined), true, JSON.stringify(ids));
 });
 
-Deno.test("for_each_source attach prefers repeating ACTION over EVALUATION", async () => {
+Deno.test("for_each_list attach prefers repeating ACTION over EVALUATION", async () => {
   const service = new WorkbenchService();
   const opt = join(
     fixtures,

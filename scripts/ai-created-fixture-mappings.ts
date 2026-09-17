@@ -380,8 +380,13 @@ async function legacySimulatedJsonSeries(): Promise<void> {
       {
         attachSlotId,
         block: {
-          type: "for_each_source",
-          fields: { VAR: "reading", PATH: "$.measurements" },
+          type: "for_each_list",
+          fields: { VAR: "reading" },
+          inputs: {
+            LIST: {
+              block: { type: "source_query_node", fields: { EXPRESSION: "$.measurements" } },
+            },
+          },
         },
         note: "AI-created: repeating measurements",
       },

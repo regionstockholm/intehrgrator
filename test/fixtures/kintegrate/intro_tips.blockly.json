@@ -13,13 +13,23 @@
         }
       },
       {
-        "type": "for_each_source",
+        "type": "for_each_list",
         "id": "hbs_each_1",
         "x": 20,
         "y": 68,
         "fields": {
-          "VAR": "item",
-          "PATH": "$.tip_array"
+          "VAR": "item"
+        },
+        "inputs": {
+          "LIST": {
+            "block": {
+              "type": "source_query_node",
+              "id": "hbs_each_1_src",
+              "fields": {
+                "EXPRESSION": "$.tip_array"
+              }
+            }
+          }
         }
       },
       {

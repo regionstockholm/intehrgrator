@@ -38,8 +38,13 @@ One fence tagged `intehrgrator-suggestions`. Prose outside the fence is ignored.
     {
       "attachSlotId": "string — repeatable container from manifest (multiplicity 0..* / 1..*)",
       "block": {
-        "type": "for_each_source",
-        "fields": { "VAR": "vital", "PATH": "$.vitals" }
+        "type": "for_each_list",
+        "fields": { "VAR": "vital" },
+        "inputs": {
+          "LIST": {
+            "block": { "type": "source_query_node", "fields": { "EXPRESSION": "$.vitals" } }
+          }
+        }
       },
       "note": "optional"
     }
@@ -83,7 +88,7 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Family | Types | Fields / inputs |
 |--------|-------|-----------------|
 | Source | `source_query`, `source_query_number`, `source_query_boolean`, `source_query_node` | `EXPRESSION` (fontoxpath). Pick by `valueType`: number→`_number`, boolean→`_boolean`, node→`_node`, else plain. |
-| Loop | `for_each_source`, `for_each_list` | Statement blocks — **only** in `loops[]`. `for_each_source`: fields `VAR`, `PATH` (absolute multi-node path). `for_each_list`: field `VAR` + input `LIST` (value block for the collection). Leave `DO` empty. |
+| Loop | `for_each_list` | Statement block — **only** in `loops[]`. Field `VAR` + input `LIST`. Source-node grain: `LIST` is `source_query_node` with absolute `EXPRESSION`. List grain: `LIST` is a list/sheet value. Leave `DO` empty. Legacy `for_each_source` `{ VAR, PATH }` is still accepted and rewritten. |
 | Var | `variables_get` | `VAR` = loop variable name (whole node as value; rare). |
 | Sheet lookup | `sheet_lookup`, `sheet_get_cell`, `sheet_get_xy`, `sheet_get_row`, `sheet_get_column`, `sheet_get_header`, `sheet_get_data` | `NAME` = Sheet name. `sheet_lookup` inputs `MATCH_COL`, `MATCH_VAL`, `RETURN_COL`. Use for **1-key terminology** (ICD-10 → SNOMED). |
 | Decision table | `decision_table` | Fields `NAME`, `OUTPUT` (output column or `*` for all outputs). Input `INPUTS` = locals Map whose keys match condition columns. Prefer when combinational rules are easier for humans to read than nested `if`. Grid document via `replace_sheets` (`kind: "decision-table"`), not this envelope. |
@@ -115,8 +120,8 @@ Create or replace Sheet / Decision table **documents** with `replace_sheets` (or
 Use when source has repeating nodes (e.g. several vitals in one encounter) and the target slot’s `multiplicity` is `0..*` / `1..*` (or a child of such a container).
 
 1. Add one `loops[]` entry: `attachSlotId` = repeatable container; `VAR` = short name.
-   - **`for_each_source`:** `PATH` = absolute fontoxpath selecting those nodes.
-   - **`for_each_list`:** `inputs.LIST` = value block for a computed list (sheet column, `source_query_node`, …).
+   - **Source nodes:** `for_each_list` with `inputs.LIST` = `source_query_node` (`EXPRESSION` = absolute fontoxpath).
+   - **Computed list:** `for_each_list` with `inputs.LIST` = a list/sheet value block.
 2. Map child value slots with `loopVar` = that `VAR` and **relative** `EXPRESSION` (child step(s) only).
 3. One source loop ↔ one repeating target container. Do not unroll `[1]`,`[2]`,… unless the user asked for a single instance.
 
@@ -152,7 +157,7 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 
 1. Extract fence (or raw JSON). `format` and `target` may be omitted; the loaded target is used.
 2. Require `version` `"2"`; match `target` when present
-3. Nested `attachSlotId` / `for_each_source` / `for_each_list` groups inside `suggestions[]` are flattened into `loops[]`. Validate loop blocks; keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container on the canvas
+3. Nested `attachSlotId` / `for_each_list` groups inside `suggestions[]` are flattened into `loops[]`. Validate loop blocks; keep `loopVar` + relative `EXPRESSION` as-is; wrap the repeating container on the canvas
 4. Apply each valid suggestion `block` → value slot; skip invalid entries; report applied / skipped / errors. Slots leased by another agent are skipped (S-15).
 5. User **Test Run**
 
@@ -389,8 +394,13 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
     {
       "attachSlotId": "vitals_encounter_v1/content/data/events",
       "block": {
-        "type": "for_each_source",
-        "fields": { "VAR": "vital", "PATH": "$.vitals" }
+        "type": "for_each_list",
+        "fields": { "VAR": "vital" },
+        "inputs": {
+          "LIST": {
+            "block": { "type": "source_query_node", "fields": { "EXPRESSION": "$.vitals" } }
+          }
+        }
       }
     }
   ],

@@ -34,6 +34,7 @@ Deno.test("glyphForBlocklyCheck maps Blockly primitives", () => {
 
 Deno.test("glyphForBlocklyCheck uses abstract glyph for unions", () => {
   assertEquals(glyphForBlocklyCheck(["String", "Number", "Boolean"]), ABSTRACT_SLOT_GLYPH);
+  assertEquals(glyphForBlocklyCheck(["Array", "Source"]), ABSTRACT_SLOT_GLYPH);
 });
 
 Deno.test("measureGlyphWidth reserves room for connection glyphs", () => {

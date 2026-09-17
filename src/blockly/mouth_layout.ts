@@ -66,5 +66,5 @@ export function ensureClassChromeHeader(block: Block): Input {
 
 /** Stock list constructors whose captions should hug mouths like RM slots. */
 export function blockTypeUsesMouthLayout(type: string): boolean {
-  return type.startsWith("lists_") || type === "for_each_list" || type === "for_each_source";
+  return type.startsWith("lists_") || type === "for_each_list";
 }

@@ -746,9 +746,6 @@ body.sheets-fullscreen::before {
 .blockly-mount .blocklyToolboxCategoryLogic {
   border-left: 15px solid #d1c4e9 !important;
 }
-.blockly-mount .blocklyToolboxCategoryLoops {
-  border-left: 15px solid #a5d6a7 !important;
-}
 .blockly-mount .blocklyToolboxCategoryMath {
   border-left: 15px solid #4285f4 !important;
 }

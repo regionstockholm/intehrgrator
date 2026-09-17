@@ -58,7 +58,7 @@ Deno.test("intro Handlebars → Blockly path inventory matches saved one-time co
 
   const projection = projectBlocklyState(saved);
   assertStringIncludes(projection.text, "source_query");
-  assertStringIncludes(projection.text, "for_each_source");
+  assertStringIncludes(projection.text, "for_each_list");
 });
 
 Deno.test("MDK Handlebars → Blockly path inventory includes FLAT |value keys", async () => {
@@ -158,7 +158,7 @@ Deno.test("Full handlebars-script1.hbs → Blockly path inventory is regeneratab
 
   const projection = projectBlocklyState(saved);
   assertStringIncludes(projection.text, "source_query");
-  assertStringIncludes(projection.text, "for_each_source");
+  assertStringIncludes(projection.text, "for_each_list");
 });
 
 Deno.test("Workbench-style Test Run: emergency-ward free-form Handlebars", async () => {

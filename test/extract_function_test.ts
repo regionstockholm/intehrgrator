@@ -52,7 +52,7 @@ Deno.test("extract to function replaces a value block with a call and keeps the 
 Deno.test("extract to function replaces a statement block with a no-return call", () => {
   ensure();
   const workspace = new Blockly.Workspace();
-  const loop = workspace.newBlock("for_each_source");
+  const loop = workspace.newBlock("for_each_list");
   const inner = workspace.newBlock("controls_if");
   loop.getInput("DO")!.connection!.connect(inner.previousConnection!);
 

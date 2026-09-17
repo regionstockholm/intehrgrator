@@ -438,9 +438,15 @@ Deno.test("go-template Blockly walker emits loops and expression blocks", () => 
       languageVersion: 0,
       blocks: [
         {
-          type: "for_each_source",
-          fields: { VAR: "item", PATH: "$.vitals" },
+          type: "for_each_list",
+          fields: { VAR: "item" },
           inputs: {
+            LIST: {
+              block: {
+                type: "source_query_node",
+                fields: { EXPRESSION: "$.vitals" },
+              },
+            },
             DO: {
               block: {
                 type: "xml_element",
@@ -466,8 +472,8 @@ Deno.test("go-template Blockly walker emits loops and expression blocks", () => 
   };
   const fromAdapter = generate(model, "go-template", { blocklyState });
   const fromWalker = generateGoTemplateFromBlocklyState(blocklyState, model);
-  assert(fromAdapter.includes("{{- range "), "adapter should emit range for for_each_source");
-  assert(!fromAdapter.includes("unsupported block: for_each_source"), "for_each_source supported");
+  assert(fromAdapter.includes("{{- range "), "adapter should emit range for for_each_list");
+  assert(!fromAdapter.includes("unsupported block: for_each_list"), "for_each_list supported");
   assert(!fromAdapter.includes("value: logic_ternary"), "logic_ternary supported");
   assert(fromWalker?.includes("{{- range "), "Blockly walker emits range");
 });

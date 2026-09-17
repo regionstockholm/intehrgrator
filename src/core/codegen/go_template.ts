@@ -441,6 +441,10 @@ function emitForEachSource(block: BlockNode, _ctx: GoEmitContext): string[] {
 function emitForEachList(block: BlockNode, ctx: GoEmitContext): string[] {
   const varName = String(block.fields?.VAR ?? "item");
   const list = inputChild(block.inputs?.LIST);
+  const sourcePath = list && isSourceQueryNodeType(list.type)
+    ? String(list.fields?.EXPRESSION ?? "")
+    : "";
+  if (sourcePath) return emitForEachSource({ ...block, fields: { ...block.fields, PATH: sourcePath } }, ctx);
   const listExpr = list
     ? stripDelimiters(emitValueExpression(list, ctx).join(""))
     : "index .Data \"\"";
@@ -450,6 +454,11 @@ function emitForEachList(block: BlockNode, ctx: GoEmitContext): string[] {
   if (body) lines.push(...emitStatementChain(body, innerCtx));
   lines.push(`{{- end }}`);
   return lines;
+}
+
+function isSourceQueryNodeType(type: string | undefined): boolean {
+  return type === "source_query" || type === "source_query_number" ||
+    type === "source_query_boolean" || type === "source_query_node";
 }
 
 function loopRangeExpr(path: string): string {

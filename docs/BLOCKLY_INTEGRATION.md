@@ -95,16 +95,18 @@ including custom Source, openEHR types, Maps (`maps_*` in **Lists & maps**), and
   Boolean `logic_operation` made the two indistinguishable on the canvas.
 - **Source:** `source_query` — XPath/XQuery via [fontoxpath](https://github.com/FontoXML/fontoxpath);
   typed `evaluateXPathTo*` from target slot `DV_*` type (see [SOURCE_QUERY.md](SOURCE_QUERY.md))
-- **Loops (custom):** `for_each_source` and `for_each_list` only. `for_each_source`
-  iterates nodes from a multi-valued source path into a named mapping variable.
-  Click-to-Map on a slot under a repeating container (`0..*` / `1..*`) wraps that
-  container with **`for_each_source`** (not `for_each_list`) and stores **relative**
-  `source_query` paths. `for_each_list` iterates a list / map-keys / sheet-rows
-  **value** (same grain rules; Mapping Model `loops[]` records `kind: "list"`
-  and the collection expression). Do not duplicate
-  EVENT (or other repeating) blocks on the canvas; Test Run expands `HISTORY.events`
-  from the loop. A kintegrate-style Source Pane “context root” is not required — see
-  [future/source-context-root.md](future/source-context-root.md).
+- **Loops & Logic (drawer):** The former Loops category is gone. `for_each_list`
+  leads the **Loops & Logic** drawer, then stock Logic value blocks and list
+  restrictions. `for_each_list` iterates a list / map-keys / sheet-rows **value**,
+  or iterable source nodes when `source_query*` is plugged into **in** (Click-to-Map
+  wraps a repeating container and stores **relative** `source_query` paths). Mapping
+  Model `loops[]` records `kind: "list"` or `kind: "source"` from that LIST child.
+  The **in** slot shows a union glyph (lists ☰ and source nodes 📂) and only those
+  checks connect. Do not duplicate EVENT (or other repeating) blocks on the canvas;
+  Test Run expands `HISTORY.events` from the loop. A kintegrate-style Source Pane
+  “context root” is not required — see
+  [future/source-context-root.md](future/source-context-root.md). Stock
+  while/for/forEach stay registered for leftover JSON but are not in the toolbox.
 
 ### JSON Schema / XML Schema targets
 
@@ -143,7 +145,7 @@ Relevant intEHRgrator files:
 - `src/blockly/theme.ts` (`createModestTheme`)
 - `web/styles.css` (category border rules)
 - `src/blockly/i18n/` (locales: en, sv, de, es, ca, fr — stock strings from
-  `blockly/msg/*`, custom Source / Data values / `for_each_source` strings in
+  `blockly/msg/*`, custom Source / Data values / `for_each_list` strings in
   `custom_msg.ts`)
 
 ## Code generation pipeline

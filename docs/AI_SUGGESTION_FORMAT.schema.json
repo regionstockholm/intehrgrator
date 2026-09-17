@@ -20,7 +20,7 @@
     },
     "loops": {
       "type": "array",
-      "description": "One for_each_source or for_each_list per repeating target container. Do not nest loops inside suggestions[].",
+      "description": "One for_each_list per repeating target container (source_query_node in LIST for source nodes). Do not nest loops inside suggestions[].",
       "items": {
         "$ref": "#/$defs/loopEntry"
       }

@@ -32,6 +32,7 @@ import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
 import {
   SOURCE_QUERY_BLOCK_TYPES,
   fontoxpathFnForReturnType,
+  isSourceQueryBlockType,
   returnTypeFromSourceBlock,
 } from "./source_query.ts";
 
@@ -47,6 +48,8 @@ export {
   slotIdFromBlock,
 } from "./skeleton_loader.ts";
 export { applySkeletonBlockLabels, relabelWorkspaceFromSkeleton } from "./block_labels.ts";
+export { migrateForEachSourceState } from "./migrate_for_each_source.ts";
+export { FOR_EACH_LIST_BLOCK, isLoopBlockType, sourcePathFromLoopList } from "./loop_block.ts";
 export {
   refreshWorkspaceConstraints,
   ABSTRACT_EVENT_WARNING,
@@ -231,26 +234,22 @@ function registerGenerators(): void {
     return [phrase, Order.NEW] as [string, number];
   };
 
-  javascriptGenerator.forBlock["for_each_source"] = (block) => {
-    const name = block.getFieldValue("VAR") || "item";
-    const path = block.getFieldValue("PATH") || "/";
-    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__node";
-    const body = javascriptGenerator.statementToCode(block, "DO").trim();
-    const returned = body ? stripTrailingComma(body) : "null";
-    return (
-      `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}) => {\n` +
-      `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
-      `  return ${returned};\n` +
-      `}),\n`
-    );
-  };
-
   javascriptGenerator.forBlock["for_each_list"] = (block) => {
     const name = block.getFieldValue("VAR") || "item";
     const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
-    const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
     const body = javascriptGenerator.statementToCode(block, "DO").trim();
     const returned = body ? stripTrailingComma(body) : "null";
+    const listBlock = block.getInputTargetBlock("LIST");
+    if (listBlock && isSourceQueryBlockType(listBlock.type)) {
+      const path = listBlock.getFieldValue("EXPRESSION") || "/";
+      return (
+        `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}) => {\n` +
+        `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+        `  return ${returned};\n` +
+        `}),\n`
+      );
+    }
+    const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
     return (
       `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => {\n` +
       `  __vars[${JSON.stringify(name)}] = ${ident};\n` +

@@ -112,7 +112,7 @@ Deno.test("committed AI-created legacy-simulated-json identity mapping Test Run 
   assertEquals(tested.testResult.ok, true, String(tested.testResult.error));
 });
 
-Deno.test("committed AI-created BP series mapping with for_each_source Test Run passes", async () => {
+Deno.test("committed AI-created BP series mapping with source loop Test Run passes", async () => {
   const dir = join(fixtures, "legacy-simulated-json");
   const client = new LocalAgentClient(new WorkbenchService());
   await client.callTool("load_target", { path: join(dir, "bp-series-schema.json") });

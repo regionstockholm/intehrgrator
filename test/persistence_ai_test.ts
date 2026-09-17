@@ -96,7 +96,12 @@ Deno.test("AI import keeps loopVar relative paths", () => {
   assertEquals(report.loopsAccepted, 1);
   assertEquals(report.applied, 1);
   assertEquals(next.slots[0].expression, 'xpathNumber("systolic")');
-  assertEquals(next.loops, [{ attachSlotId: "t1/events", varName: "vital", path: "$.vitals" }]);
+  assertEquals(next.loops, [{
+    attachSlotId: "t1/events",
+    varName: "vital",
+    path: "$.vitals",
+    kind: "source",
+  }]);
 });
 
 Deno.test("AI import applies maps_get suggestion", () => {
@@ -417,12 +422,41 @@ Deno.test("AI import accepts Gemini-shaped envelope (nested loops, aliases, // s
   assertEquals(next.slots.find((s) => s.slotId === pulseTime)?.expression, 'xpathString("timestamp")');
   assertEquals(next.slots.find((s) => s.slotId === respRate)?.expression, 'xpathNumber("respiration_rate")');
   assertEquals(next.loops, [
-    { attachSlotId: pulseEvent, varName: "item", path: "$.readings[*]" },
-    { attachSlotId: respEvent, varName: "item", path: "$.readings[*]" },
+    { attachSlotId: pulseEvent, varName: "item", path: "$.readings[*]", kind: "source" },
+    { attachSlotId: respEvent, varName: "item", path: "$.readings[*]", kind: "source" },
   ]);
 });
 
 Deno.test("suggestion JSON Schema accepts the documented repeating-vitals example", () => {
+  const issues = validateSuggestionEnvelope({
+    format: "intehrgrator-suggestions",
+    version: "2",
+    target: { format: "openehr-template", targetId: "vitals_encounter_v1" },
+    loops: [{
+      attachSlotId: "vitals_encounter_v1/content/data/events",
+      block: {
+        type: "for_each_list",
+        fields: { VAR: "vital" },
+        inputs: {
+          LIST: {
+            block: { type: "source_query_node", fields: { EXPRESSION: "$.vitals" } },
+          },
+        },
+      },
+    }],
+    suggestions: [{
+      slotId: "vitals_encounter_v1/content/data/events/data/items/at0004/value/value/value",
+      loopVar: "vital",
+      block: {
+        type: "source_query_number",
+        fields: { EXPRESSION: "systolic" },
+      },
+    }],
+  });
+  assertEquals(issues, []);
+});
+
+Deno.test("suggestion JSON Schema still accepts legacy for_each_source", () => {
   const issues = validateSuggestionEnvelope({
     format: "intehrgrator-suggestions",
     version: "2",

@@ -166,6 +166,23 @@ export {
   registerExtractToFunctionMenu,
   EXTRACT_TO_FUNCTION_MENU_ID,
 } from "./extract_function.ts";
+export {
+  extractFunctionBundle,
+  extractFunctionBundleFromState,
+  listWorkspaceFunctions,
+  mergeFunctionBundle,
+  mergeFunctionBundleIntoState,
+} from "./function_bundle.ts";
+export {
+  GRAMMATICAL_JOIN_SPECS,
+  JOIN_OXFORD_SPEC,
+  JOIN_SWEDISH_SPEC,
+  buildGrammaticalJoinBundle,
+  defineGrammaticalJoin,
+  defineJoinSwedish,
+  grammaticalJoinTable,
+} from "./grammatical_join.ts";
+export { installFunctionLibraryMenus, registerFunctionLibraryMenus } from "./function_library_menu.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
 export {
   generateTypeScriptFromBlocklyState,
@@ -304,6 +321,8 @@ function registerGenerators(): void {
     const ret = javascriptGenerator.valueToCode(block, "RETURN_COL", Order.NONE) || '""';
     return [`sheetLookup(${name}, ${col}, ${val}, ${ret})`, Order.FUNCTION_CALL] as [string, number];
   };
+  javascriptGenerator.forBlock["sheet"] = () => "";
+  javascriptGenerator.forBlock["decision_table_decl"] = () => "";
   javascriptGenerator.forBlock["decision_table"] = (block) => {
     const name = JSON.stringify(block.getFieldValue("NAME") || "Decision1");
     const inputs = javascriptGenerator.valueToCode(block, "INPUTS", Order.NONE) || "{}";

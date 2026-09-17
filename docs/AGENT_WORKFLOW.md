@@ -46,6 +46,8 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | POST | `/load-source-schema` | `load_source_schema` | Source Schema |
 | POST | `/add-example` | `add_example` | Example Instance |
 | POST | `/load-example-set` | `load_example_set` | Catalogued Example Set (`catalogPath` or `catalogUrl` + `setId`; `includeMapping` default true) |
+| GET | `/function-library` | `list_function_library` | Curated Blockly Function catalog (`catalogPath` / `catalogUrl`; default in-repo `function-library/`) |
+| POST | `/load-function` | `load_function` | Merge a Function (`functionId` / `path` / `bundle`) onto the canvas; `clash` `rename` (default) or `replace` |
 | POST | `/set-active-example` | `set_active_example` | `{ id }` |
 | PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents (revision includes sheets) |
 | POST | `/ui-commit` | — | UI semantic commit `{ bundle, summary, kind? }` |

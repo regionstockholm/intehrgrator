@@ -44,7 +44,9 @@ Pick the skill that matches the task:
 | `prototype` | Throwaway design validation |
 | `grilling` | Stress-testing a plan or decision |
 
-Project-specific: `intehrgrator-mapping` for desktop Agent API / MCP mapping work;
+Project-specific: `intehrgrator-mapping` for desktop Agent API / MCP mapping work
+(Function library: [`function-library/index.md`](function-library/index.md);
+when a contribution issue is accepted, [`function-library/AGENTS.md`](function-library/AGENTS.md));
 `convert-mappings` when translating an existing mapping (Go `text/template`, Handlebars, TypeScript, …) into intEHRgrator Blockly / `intehrgrator-suggestions`.
 
 For specs and design documents, use `docs/prd/` and `docs/design/`.

@@ -96,6 +96,7 @@ No in-app AI API — you bring your own chat tool:
 | **Export Project** | Download a `.intehrgrator` bundle (portable, self-contained) |
 | **Import Project** | Load a `.intehrgrator` file |
 | **Example Sets** (▾) | Load a bundled demo (source + target + optional mapping) from a catalog |
+| **Functions** | Save/load a Blockly Function (definition + Decision tables), browse the Function library, or Contribute via a GitHub issue |
 
 ## 10. Export conversion scripts
 

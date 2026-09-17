@@ -241,8 +241,16 @@ Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.b
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Blockly Function**:
-A stock Blockly procedure (Functions drawer): a definition block plus call sites. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function.
+A stock Blockly procedure (Functions drawer): a definition block plus call sites. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function. Persist one Function (definition + Decision tables it uses) as a **Function bundle**; load from disk or the **Function library**. Name clash: rename (default) or replace.
 _Avoid_: TypeScript/Java export function, Conversion script, custom DSL subroutine
+
+**Function bundle**:
+Portable JSON (`kind: "intehrgrator-function"`, version 1) for one Blockly Function: `name`, `description`, `parameters`, `decisionTables`, `blocklyState` fragment, `sheets`. Filename `*.intehr-function.json`. Not a Project Bundle.
+_Avoid_: Project Bundle, Conversion script module
+
+**Function library**:
+Curated Function bundles at `function-library/` (`catalog.json` + per-Function JSON). Default GitHub catalog is this repo’s `function-library/catalog.json`. Starters: `join_swedish` and `join_oxford` (FIRST Decision tables, not a `join_list` builtin). Contribute files a GitHub issue (description required; signup/login if unauthenticated). Agent index: `function-library/index.md`. Accepting contributions: `function-library/AGENTS.md`.
+_Avoid_: auto-merge contributions, `join_list` Mapping Expression builtin, Conversion script helpers
 
 **Mapping Spec Widget**:
 One projected row in the Mapping Spec tab: a compact, indented view of one semantic mapping (source path, map lookup, sheet lookup, literal, text generation, flattened condition, or container). Safe Blockly fields are editable in the row (paths, map keys, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT). Wrappers that do not change mapping meaning (`xml_text`, `xml_cdata`, `DV_*` shells, unnamed maps) are omitted; their Blockly ids stay on the visible row. Download/Upload still round-trip the **full Blockly JSON document**.
@@ -302,7 +310,7 @@ Programmatic seam exposed as `window.intehrgratorTestApi` when the Web Shell is 
 _Avoid_: formTestApi (kintegrate name), Cypress-only harness
 
 **Workbench Agent API**:
-Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). The compiled / `deno run` entry accepts **`--headless`** (no browser / hidden native window), **`--load`**, **`--port` / `--bind`**, and **`--token`** (required when bind is not loopback). IDE agents and the stdio **MCP** server share the same tools: load target/schema/examples/**Example Set**, inspect slots/source/sheets/product stack, import suggestions, map-slot, Optional RM, Instance encoding, advisory **slot leases**, build-prompt, run-test, undo/redo, generate Conversion Script, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict; 409 also for a foreign slot lease). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
+Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). The compiled / `deno run` entry accepts **`--headless`** (no browser / hidden native window), **`--load`**, **`--port` / `--bind`**, and **`--token`** (required when bind is not loopback). IDE agents and the stdio **MCP** server share the same tools: load target/schema/examples/**Example Set** / **Function library**, inspect slots/source/sheets/product stack, import suggestions, map-slot, Optional RM, Instance encoding, advisory **slot leases**, build-prompt, run-test, undo/redo, generate Conversion Script, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict; 409 also for a foreign slot lease). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
 _Avoid_: conflating with Workbench Test API, treating the GitHub Pages web shell as the Agent API host
 
 **Slot lease**:

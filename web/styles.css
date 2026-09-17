@@ -1078,6 +1078,46 @@ body.sheets-fullscreen::before {
 .status-save.saved { color: var(--success); }
 .status-build { flex-shrink: 0; font-size: 11px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
 
+.function-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+}
+.function-library-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.function-library-row-text {
+  min-width: 0;
+  font-size: 13px;
+}
+.function-library-row-text p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+.function-library-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.function-library-row-actions button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.function-library-empty,
+.function-library-status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 .app-dialog {
   border: 1px solid var(--border);
   border-radius: 8px;

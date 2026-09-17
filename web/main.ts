@@ -84,6 +84,7 @@ import {
   setGridPreviewActivateHandler,
   installDecisionTableSync,
   installExtractToFunctionOnWorkspace,
+  installFunctionLibraryMenus,
 } from "../src/blockly/mod.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
 import {
@@ -109,6 +110,7 @@ import {
   type DocumentSnapshot,
 } from "../src/workbench/document_undo.ts";
 import { SHEET_CHANGE_EVENT_TYPE } from "../src/workbench/sheet_undo.ts";
+import { mountFunctionLibraryDialog } from "../src/ui/function_library_dialog.ts";
 import { mountSheetsPanel } from "../src/ui/sheets_panel.ts";
 import { sheetsChrome } from "../src/ui/sheets_i18n.ts";
 import {
@@ -218,6 +220,7 @@ const specEditor = createMappingSpecEditor(mappingJsonHost, {
 });
 let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
 let specChromeUi: ReturnType<typeof mountMappingSpecChrome> | null = null;
+let functionLibraryUi: ReturnType<typeof mountFunctionLibraryDialog> | null = null;
 
 function refreshMappingSpecView(blocklyState?: unknown): void {
   const state = blocklyState ?? Blockly.serialization.workspaces.save(workspace);
@@ -416,6 +419,10 @@ async function bootBlockly(): Promise<void> {
     renderer: registerCompactThrasosRenderer(),
   });
   installExtractToFunctionOnWorkspace(workspace);
+  installFunctionLibraryMenus(workspace, {
+    save: (name) => functionLibraryUi?.saveNamed(name),
+    contribute: (name) => functionLibraryUi?.contributeNamed(name),
+  });
   installBlocklyFloatingOverlays();
 
   const loadOnce = takeLoadOnceBlocks();
@@ -1248,6 +1255,7 @@ installImportAiDialog({
 });
 installCopyAiMenu();
 installExampleSetsMenu();
+installFunctionLibraryUi();
 installHelpMenu();
 
 const HELP_TUTORIAL_URL =
@@ -1336,6 +1344,30 @@ function installCopyAiMenu(): void {
       void controller.copyAiPrompt(delivery);
     });
   });
+}
+
+function installFunctionLibraryUi(): void {
+  const dialog = document.getElementById("dialog-functions");
+  const clashDialog = document.getElementById("dialog-function-clash");
+  const contributeDialog = document.getElementById("dialog-function-contribute");
+  const button = document.getElementById("btn-functions");
+  if (
+    !(dialog instanceof HTMLDialogElement) ||
+    !(clashDialog instanceof HTMLDialogElement) ||
+    !(contributeDialog instanceof HTMLDialogElement) ||
+    !(button instanceof HTMLButtonElement)
+  ) {
+    return;
+  }
+  functionLibraryUi = mountFunctionLibraryDialog({
+    dialog,
+    clashDialog,
+    contributeDialog,
+    getWorkspace: () => workspace,
+    controller,
+    persistCanvas: () => persistBlocklyCanvas(),
+  });
+  button.addEventListener("click", () => functionLibraryUi?.open());
 }
 
 function installExampleSetsMenu(): void {

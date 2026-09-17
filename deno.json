@@ -64,7 +64,8 @@
     "compile:desktop": "deno run -A scripts/compile-desktop.ts",
     "compile:ehrtslib": "deno run -A scripts/compile-ehrtslib.ts",
     "release": "deno run -A scripts/release.ts",
-    "mcp": "deno run -A src/agent/mcp_stdio.ts"
+    "mcp": "deno run -A src/agent/mcp_stdio.ts",
+    "generate:function-library": "deno run -A --no-check scripts/generate-function-library.ts"
   },
   "lint": {
     "include": ["src", "test", "scripts", "web"],

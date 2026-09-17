@@ -1,0 +1,306 @@
+{
+  "kind": "intehrgrator-function",
+  "version": 1,
+  "name": "join_swedish",
+  "description": "Joins a list of strings as Swedish A, B och C. Parameter `names` (list). Returns a string. Decision table JoinNames (FIRST): first → {{name}}, middle → `, {{name}}`, last → ` och {{name}}`. Not a join_list builtin.",
+  "parameters": [
+    "names"
+  ],
+  "returns": "String",
+  "locale": "sv",
+  "decisionTables": [
+    "JoinNames"
+  ],
+  "blocklyState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "procedures_defreturn",
+          "id": ":$|ba1ZyY[oy;cgZ[[+R",
+          "x": 0,
+          "y": 0,
+          "extraState": {
+            "params": [
+              {
+                "name": "names",
+                "id": "join_swedish_names"
+              }
+            ]
+          },
+          "fields": {
+            "NAME": "join_swedish"
+          },
+          "inputs": {
+            "STACK": {
+              "block": {
+                "type": "variables_set",
+                "id": "[qAPf:y_[BH6{*7k%M~r",
+                "fields": {
+                  "VAR": {
+                    "id": "join_swedish_result"
+                  }
+                },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "text",
+                      "id": "*sMnxy=|q/vI.)$D-1N8",
+                      "fields": {
+                        "TEXT": ""
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "for_each_list",
+                    "id": "PSc8YxhYzunm14P/cy9-",
+                    "fields": {
+                      "VAR": "item"
+                    },
+                    "inputs": {
+                      "LIST": {
+                        "block": {
+                          "type": "variables_get",
+                          "id": "J=eo[nub;%eT}6kh_9g$",
+                          "fields": {
+                            "VAR": {
+                              "id": "join_swedish_names"
+                            }
+                          }
+                        }
+                      },
+                      "DO": {
+                        "block": {
+                          "type": "text_append",
+                          "id": "KdQ|5E}eXGqA;XbR^gqe",
+                          "fields": {
+                            "VAR": {
+                              "id": "join_swedish_result"
+                            }
+                          },
+                          "inputs": {
+                            "TEXT": {
+                              "block": {
+                                "type": "decision_table",
+                                "id": "DR#+b)q!iDK2O3M+$i7c",
+                                "fields": {
+                                  "NAME": "JoinNames",
+                                  "OUTPUT": "snippet"
+                                },
+                                "inputs": {
+                                  "INPUTS": {
+                                    "block": {
+                                      "type": "maps_create_with",
+                                      "id": "%HtG4n]}k{Va`o[3Hp5P",
+                                      "extraState": {
+                                        "itemCount": 3
+                                      },
+                                      "fields": {
+                                        "KEY0": "first",
+                                        "KEY1": "last",
+                                        "KEY2": "name"
+                                      },
+                                      "inputs": {
+                                        "VAL0": {
+                                          "shadow": {
+                                            "type": "text",
+                                            "id": "bfv4lxS[ODXC/fbG][{,",
+                                            "fields": {
+                                              "TEXT": ""
+                                            }
+                                          },
+                                          "block": {
+                                            "type": "logic_compare",
+                                            "id": "n)k6ANAG?{L]HzXCc/M-",
+                                            "fields": {
+                                              "OP": "EQ"
+                                            },
+                                            "inputs": {
+                                              "A": {
+                                                "block": {
+                                                  "type": "logic_loop_index",
+                                                  "id": "d)jh*OWcD!{|@hI%Hgv]",
+                                                  "fields": {
+                                                    "VAR": ""
+                                                  }
+                                                }
+                                              },
+                                              "B": {
+                                                "block": {
+                                                  "type": "math_number",
+                                                  "id": "AYiJQAMm%*raQ|1.t*VO",
+                                                  "fields": {
+                                                    "NUM": 0
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "VAL1": {
+                                          "shadow": {
+                                            "type": "text",
+                                            "id": "oG(3^/{xBYMZEm.QHa,b",
+                                            "fields": {
+                                              "TEXT": ""
+                                            }
+                                          },
+                                          "block": {
+                                            "type": "logic_compare",
+                                            "id": "$K:fRrn}+UqHM=^056!s",
+                                            "fields": {
+                                              "OP": "EQ"
+                                            },
+                                            "inputs": {
+                                              "A": {
+                                                "block": {
+                                                  "type": "logic_loop_index",
+                                                  "id": "`:2xX95+E$7}JoS*[/n0",
+                                                  "fields": {
+                                                    "VAR": ""
+                                                  }
+                                                }
+                                              },
+                                              "B": {
+                                                "block": {
+                                                  "type": "math_arithmetic",
+                                                  "id": "@VE(X`BZL{NX~EO{l~DI",
+                                                  "fields": {
+                                                    "OP": "MINUS"
+                                                  },
+                                                  "inputs": {
+                                                    "A": {
+                                                      "block": {
+                                                        "type": "logic_loop_length",
+                                                        "id": "C_PagBEQHiQi]BG0!5F{",
+                                                        "fields": {
+                                                          "VAR": ""
+                                                        }
+                                                      }
+                                                    },
+                                                    "B": {
+                                                      "block": {
+                                                        "type": "math_number",
+                                                        "id": "-/vcVmwt}jsXW+=5z#^Z",
+                                                        "fields": {
+                                                          "NUM": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "VAL2": {
+                                          "shadow": {
+                                            "type": "text",
+                                            "id": "}.ck:jmFf8E+Q(GJ`f!a",
+                                            "fields": {
+                                              "TEXT": ""
+                                            }
+                                          },
+                                          "block": {
+                                            "type": "logic_current_item",
+                                            "id": "MQ+U77}h,f`o?4T,(EKT",
+                                            "fields": {
+                                              "VAR": ""
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "RETURN": {
+              "block": {
+                "type": "variables_get",
+                "id": "1~F]F7.oA!{J5YK|yu=$",
+                "fields": {
+                  "VAR": {
+                    "id": "join_swedish_result"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "decision_table_decl",
+          "id": "2%ey*Oof6uJQE?qn_By4",
+          "x": 20,
+          "y": 20,
+          "fields": {
+            "NAME": "JoinNames"
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "name": "names",
+        "id": "join_swedish_names"
+      }
+    ]
+  },
+  "sheets": [
+    {
+      "name": "JoinNames",
+      "kind": "decision-table",
+      "headers": [
+        "first",
+        "last",
+        "snippet"
+      ],
+      "values": [
+        [
+          true,
+          "—",
+          "{{name}}"
+        ],
+        [
+          false,
+          false,
+          ", {{name}}"
+        ],
+        [
+          false,
+          true,
+          " och {{name}}"
+        ]
+      ],
+      "columnTypes": [
+        "text",
+        "text",
+        "text"
+      ],
+      "hitPolicy": "FIRST",
+      "decisionColumns": [
+        {
+          "role": "condition"
+        },
+        {
+          "role": "condition"
+        },
+        {
+          "role": "output",
+          "outputKind": "snippet",
+          "valueType": "string"
+        }
+      ]
+    }
+  ]
+}

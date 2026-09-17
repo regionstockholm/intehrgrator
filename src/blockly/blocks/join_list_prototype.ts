@@ -1,0 +1,281 @@
+/**
+ * Throwaway prototype blocks for #85 join_list Blockly discussion.
+ *
+ * Not registered by `initBlocklyGenerators()`. The prototype page
+ * (`web/prototype_join_list.ts`) is the only caller. Glyph helpers are
+ * omitted so this file does not pull ehrtslib.
+ */
+import { Blockly } from "../blockly_core.ts";
+import { FieldDropdownHug } from "../field_dropdown_hug.ts";
+import {
+  enforceMouthCaptionLayout,
+  inputAlignLeft,
+  inputAlignRight,
+} from "../mouth_layout.ts";
+
+const TEXT_COLOUR = "#FFCA28";
+const LOGIC_COLOUR = "#D1C4E9";
+const DT_COLOUR = "#00796B";
+const LIST_COLOUR = "#4DB6AC";
+
+export const PROTOTYPE_JOIN_LIST = "prototype_join_list";
+export const PROTOTYPE_JOIN_FOR_READING = "prototype_join_for_reading";
+export const PROTOTYPE_JOIN_LOCALE = "prototype_join_locale";
+export const PROTOTYPE_JOIN_VIA_TABLE = "prototype_join_via_table";
+export const PROTOTYPE_DECISION_POSITION = "prototype_decision_position";
+export const PROTOTYPE_LIST_IS_FIRST = "prototype_list_is_first";
+export const PROTOTYPE_LIST_IS_LAST = "prototype_list_is_last";
+export const PROTOTYPE_THIS_ITEM = "prototype_this_item";
+export const PROTOTYPE_JOIN_POSITION_RECIPE = "prototype_join_position_recipe";
+
+function quotedField(defaultText: string): Blockly.FieldTextInput {
+  return new Blockly.FieldTextInput(defaultText, undefined, { spellcheck: false });
+}
+
+/**
+ * Prototype-only blocks. Safe to call more than once (idempotent).
+ */
+export function registerJoinListPrototypeBlocks(): void {
+  if (Blockly.Blocks[PROTOTYPE_JOIN_LIST]) return;
+
+  /** Variant A — compact Text-category reporter (issue #85 proposed API). */
+  Blockly.Blocks[PROTOTYPE_JOIN_LIST] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header.appendField("join list");
+      const items = this.appendValueInput("ITEMS").setCheck("Array");
+      items.appendField("items");
+      const between = this.appendDummyInput("BETWEEN").setAlign(inputAlignRight());
+      between
+        .appendField("between")
+        .appendField("“")
+        .appendField(quotedField(", "), "SEP")
+        .appendField("”");
+      const last = this.appendDummyInput("LAST").setAlign(inputAlignRight());
+      last
+        .appendField("before last")
+        .appendField("“")
+        .appendField(quotedField(" och "), "FINAL")
+        .appendField("”");
+      this.setOutput(true, "String");
+      this.setColour(TEXT_COLOUR);
+      this.setStyle?.("text_blocks");
+      this.setTooltip(
+        "Turn a list of strings into readable enumeration. Two items use only the last separator.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  /**
+   * Variant B — named mouths (Erik’s map scaffolding, first-class keys).
+   * Prefix/postfix wrap the whole phrase; separators are not lambdas.
+   */
+  Blockly.Blocks[PROTOTYPE_JOIN_FOR_READING] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header.appendField("join for reading");
+      const items = this.appendValueInput("ITEMS").setCheck("Array").setAlign(
+        inputAlignRight(),
+      );
+      items.appendField("items");
+      const prefix = this.appendValueInput("PREFIX").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      prefix.appendField("prefix");
+      const between = this.appendDummyInput("BETWEEN").setAlign(inputAlignRight());
+      between
+        .appendField("between")
+        .appendField("“")
+        .appendField(quotedField(", "), "SEP")
+        .appendField("”");
+      const last = this.appendDummyInput("LAST").setAlign(inputAlignRight());
+      last
+        .appendField("before last")
+        .appendField("“")
+        .appendField(quotedField(" och "), "FINAL")
+        .appendField("”");
+      const postfix = this.appendValueInput("POSTFIX").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      postfix.appendField("postfix");
+      const skip = this.appendDummyInput("SKIP").setAlign(inputAlignRight());
+      skip.appendField("skip empty").appendField(
+        new Blockly.FieldCheckbox("TRUE"),
+        "SKIP_EMPTY",
+      );
+      this.setOutput(true, "String");
+      this.setColour(TEXT_COLOUR);
+      this.setStyle?.("text_blocks");
+      this.setTooltip(
+        "Same join_list algebra, with optional prefix/postfix and skip-empty. Keys are fixed — not a freeform Map.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  /**
+   * Variant B-rich — per-position item templates (needs a bound `this item`).
+   * Discuss-only: those sockets are lambdas, which Mapping Expression does not have.
+   */
+  Blockly.Blocks[PROTOTYPE_JOIN_POSITION_RECIPE] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header.appendField("join with item templates");
+      const items = this.appendValueInput("ITEMS").setCheck("Array").setAlign(
+        inputAlignRight(),
+      );
+      items.appendField("items");
+      const prefix = this.appendValueInput("PREFIX").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      prefix.appendField("prefix");
+      const first = this.appendValueInput("FIRST").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      first.appendField("first");
+      const middle = this.appendValueInput("MIDDLE").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      middle.appendField("middle");
+      const last = this.appendValueInput("LAST").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      last.appendField("last");
+      const postfix = this.appendValueInput("POSTFIX").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      postfix.appendField("postfix");
+      this.setOutput(true, "String");
+      this.setColour(LIST_COLOUR);
+      this.setStyle?.("list_blocks");
+      this.setTooltip(
+        "Prototype: first/middle/last sockets evaluate once per item (a lambda). Not in Mapping Expression today.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  /** Variant C — locale preset; separators are not authored. */
+  Blockly.Blocks[PROTOTYPE_JOIN_LOCALE] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header.appendField("join list");
+      const items = this.appendValueInput("ITEMS").setCheck("Array");
+      items.appendField("items");
+      const style = this.appendDummyInput("STYLE").setAlign(inputAlignRight());
+      style
+        .appendField("as")
+        .appendField(
+          new FieldDropdownHug([
+            ["Svenska (och)", "sv"],
+            ["English (and)", "en"],
+            ["English (Oxford comma)", "en-oxford"],
+          ]),
+          "LOCALE",
+        );
+      const example = this.appendDummyInput("EXAMPLE").setAlign(inputAlignLeft());
+      example.appendField("e.g. Anna, Bo och Carl");
+      this.setOutput(true, "String");
+      this.setColour(TEXT_COLOUR);
+      this.setStyle?.("text_blocks");
+      this.setTooltip(
+        "Preset separators. v1 of #85 treats locale auto-detection as a non-goal; this is a convenience dropdown.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  /**
+   * Variant D — join by evaluating a Decision table once per item.
+   * Locals first/last/name are bound by the block, not Handlebars @first/@last.
+   */
+  Blockly.Blocks[PROTOTYPE_JOIN_VIA_TABLE] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header
+        .appendField("join list using decision")
+        .appendField(
+          new Blockly.FieldTextInput("NärvarandeList", undefined, { spellcheck: false }),
+          "TABLE",
+        );
+      const items = this.appendValueInput("ITEMS").setCheck("Array").setAlign(
+        inputAlignRight(),
+      );
+      items.appendField("items");
+      const hint = this.appendDummyInput("HINT").setAlign(inputAlignLeft());
+      hint.appendField("binds first, last, name per item → concatenate snippets");
+      this.setOutput(true, "String");
+      this.setColour(DT_COLOUR);
+      this.setTooltip(
+        "Per-item FIRST match on is-first / is-last, then concatenate snippet cells. Not COLLECT of clinical rules.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  /** Lookalike of `decision_table` with named first/last/name mouths (no Map). */
+  Blockly.Blocks[PROTOTYPE_DECISION_POSITION] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header
+        .appendField("decision")
+        .appendField(
+          new Blockly.FieldTextInput("NärvarandeList", undefined, { spellcheck: false }),
+          "NAME",
+        )
+        .appendField("→ snippet");
+      const first = this.appendValueInput("FIRST").setCheck("Boolean").setAlign(
+        inputAlignRight(),
+      );
+      first.appendField("first");
+      const last = this.appendValueInput("LAST").setCheck("Boolean").setAlign(
+        inputAlignRight(),
+      );
+      last.appendField("last");
+      const name = this.appendValueInput("ITEM").setCheck("String").setAlign(
+        inputAlignRight(),
+      );
+      name.appendField("name");
+      this.setOutput(true, "String");
+      this.setColour(DT_COLOUR);
+      this.setTooltip(
+        "One row of the position table. Locals are Blockly reporters, not Handlebars @first/@last.",
+      );
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_LIST_IS_FIRST] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField("is first");
+      this.setOutput(true, "Boolean");
+      this.setColour(LOGIC_COLOUR);
+      this.setStyle?.("logic_blocks");
+      this.setTooltip("True for the first remaining item of the enclosing list join.");
+      this.setInputsInline(true);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_LIST_IS_LAST] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField("is last");
+      this.setOutput(true, "Boolean");
+      this.setColour(LOGIC_COLOUR);
+      this.setStyle?.("logic_blocks");
+      this.setTooltip("True for the last remaining item of the enclosing list join.");
+      this.setInputsInline(true);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_THIS_ITEM] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput().appendField("this item");
+      this.setOutput(true, "String");
+      this.setColour("#EF9A9A");
+      this.setStyle?.("variable_blocks");
+      this.setTooltip("The current list item while a join template or table row evaluates.");
+      this.setInputsInline(true);
+    },
+  };
+}

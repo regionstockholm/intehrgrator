@@ -120,6 +120,47 @@
       "note": "Source over defaults"
     },
     {
+      "slotId": "OrdineradMedicinskOnkologiskBehandling_MedKurdag//context/EVENT_CONTEXT/health_care_facility",
+      "block": {
+        "type": "maps_create_with",
+        "extraState": { "itemCount": 3 },
+        "fields": { "KEY0": "name", "KEY1": "id", "KEY2": "type" },
+        "inputs": {
+          "VAL0": {
+            "block": {
+              "type": "logic_ternary",
+              "inputs": {
+                "IF": { "block": { "type": "source_query", "fields": { "EXPRESSION": "$.Vardenhet_namn" } } },
+                "THEN": { "block": { "type": "source_query", "fields": { "EXPRESSION": "$.Vardenhet_namn" } } },
+                "ELSE": { "block": { "type": "source_query", "fields": { "EXPRESSION": "$.PDL_enhet_Namn" } } }
+              }
+            }
+          },
+          "VAL1": {
+            "block": {
+              "type": "text_join",
+              "extraState": { "itemCount": 2 },
+              "inputs": {
+                "ADD0": { "block": { "type": "text", "fields": { "TEXT": "SE2321000016-" } } },
+                "ADD1": {
+                  "block": {
+                    "type": "logic_ternary",
+                    "inputs": {
+                      "IF": { "block": { "type": "source_query", "fields": { "EXPRESSION": "$.Vardenhet_HSAID" } } },
+                      "THEN": { "block": { "type": "source_query", "fields": { "EXPRESSION": "$.Vardenhet_HSAID" } } },
+                      "ELSE": { "block": { "type": "source_query", "fields": { "EXPRESSION": "$.PDL_enhet_HSAID" } } }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "VAL2": { "block": { "type": "text", "fields": { "TEXT": "urn:oid:1.2.752.29.4.19" } } }
+        }
+      },
+      "note": "Requires optional_rm_add EVENT_CONTEXT.health_care_facility. Tmpl prefers Vardenhet_* over PDL_enhet_*."
+    },
+    {
       "slotId": "OrdineradMedicinskOnkologiskBehandling_MedKurdag//context/EVENT_CONTEXT/other_context/at0001/items[openEHR-EHR-CLUSTER.organisation.v1]/items/at0001/value/DV_TEXT/value",
       "block": {
         "type": "source_query",

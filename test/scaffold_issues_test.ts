@@ -41,7 +41,7 @@ const BP_PARENT = "openEHR-EHR-OBSERVATION.blood_pressure.v2";
 const BP_OVERLAY = "openEHR-EHR-OBSERVATION.ovl-blood_pressure-001.v2";
 
 /** Two sibling observations share at0000; EVALUATION data is RM-mandatory; one event is 0..0. */
-function diagnoseLikeOpt() {
+export function diagnoseLikeOpt() {
   return {
     template_id: { value: "simple-diagnose-and-vitals" },
     original_language: "en",

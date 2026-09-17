@@ -91,3 +91,48 @@ Deno.test("legacy-simulated BP series supports indexed iteration paths", async (
 Deno.test("pathToFontoxpath json", () => {
   assertEquals(pathToFontoxpath("$.patient.id", "json"), "$.patient.id");
 });
+
+Deno.test("openEHR locator predicates evaluate against JSON RM maps", () => {
+  const ctx = createSourceContext(JSON.stringify({
+    content: [
+      {
+        archetype_node_id: "openEHR-EHR-OBSERVATION.pulse.v2",
+        data: {
+          events: [{
+            archetype_node_id: "at0003",
+            data: {
+              items: [{ archetype_node_id: "at0004", value: { magnitude: 72 } }],
+            },
+          }],
+        },
+      },
+      {
+        archetype_node_id: "openEHR-EHR-OBSERVATION.body_temperature.v2",
+        data: {
+          events: [{
+            archetype_node_id: "at0003",
+            data: {
+              items: [{ archetype_node_id: "at0004", value: { magnitude: 37.2 } }],
+            },
+          }],
+        },
+      },
+    ],
+  }), "json");
+  assertEquals(
+    evaluate(
+      'xpathNumber("/content[openEHR-EHR-OBSERVATION.pulse.v2]/data/events[at0003]/data/items[at0004]/value/magnitude")',
+      ctx,
+      "number",
+    ),
+    72,
+  );
+  assertEquals(
+    evaluate(
+      'xpathNumber("/content[openEHR-EHR-OBSERVATION.body_temperature.v2]/data/events[at0003]/data/items[at0004]/value/magnitude")',
+      ctx,
+      "number",
+    ),
+    37.2,
+  );
+});

@@ -378,21 +378,21 @@ Deno.test("list_slots includes attachSlotId for repeating administration ACTION"
   if (!dose) throw new Error(`missing dose slot: ${listed.slots.map((s) => s.slotId).join(",")}`);
   assertEquals(Boolean(dose.attachSlotId), true, JSON.stringify(dose));
   assertEquals(
-    dose.attachSlotId?.endsWith("//content/openEHR-EHR-ACTION.medication.v1"),
+    dose.attachSlotId?.endsWith("//content[openEHR-EHR-ACTION.medication.v1]"),
     true,
     dose.attachSlotId,
   );
   assertEquals(dose.pathLabel?.includes("Administrerad dos"), true, dose.pathLabel);
   assertEquals(
     listed.repeatable.some((row) =>
-      row.slotId.endsWith("//content/openEHR-EHR-ACTION.medication.v1") && row.rmType === "ACTION"
+      row.slotId.endsWith("//content[openEHR-EHR-ACTION.medication.v1]") && row.rmType === "ACTION"
     ),
     true,
     JSON.stringify(listed.repeatable),
   );
   assertEquals(
     listed.slots.some((s) =>
-      s.slotId.includes("//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/")
+      s.slotId.includes("//content[openEHR-EHR-EVALUATION.reason_for_encounter.v1]/")
     ),
     true,
     "EVALUATION content path must use the archetype id, not at0000",

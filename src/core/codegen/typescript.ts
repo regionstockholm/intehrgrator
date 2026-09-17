@@ -15,6 +15,7 @@
 import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
+import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { attributesFor } from "../rm_meta.ts";
 import { usesOpenEhrProduct } from "./product.ts";
 
@@ -184,10 +185,14 @@ function emitXpathCall(
   ctx: TsEmitContext,
 ): string {
   const path = pathAst?.kind === "literal" ? String(pathAst.value).trim() : "";
+  let code = pathCode;
+  if (path && looksLikeOpenEhrLocator(path)) {
+    code = JSON.stringify(compileAuthoringPath(path, "json"));
+  }
   const relative = Boolean(path) && !path.startsWith("$") && !path.startsWith("/");
   const node = relative && ctx.loopVar ? ctx.loopVar : "sourceCtx.data";
-  if (node === "sourceCtx.data") return `${fn}(${pathCode})`;
-  return `${fn}(${pathCode}, ${node})`;
+  if (node === "sourceCtx.data") return `${fn}(${code})`;
+  return `${fn}(${code}, ${node})`;
 }
 
 function emitQuantifierTs(
@@ -386,6 +391,9 @@ function xpathHelpers(helpers: Set<string>): string[] {
   if (helpers.has("string")) {
     lines.push(
       "function xpathString(path: string, node: unknown = sourceCtx.data): string {",
+      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
+      "    return evaluateXPathToString(path, null, null, { source: node });",
+      "  }",
       '  if (path.trim().startsWith("/")) return evaluateXPathToString(path, node);',
       "  return evaluateXPathToString(jsonQuery(path), null, null, { source: node });",
       "}",
@@ -395,6 +403,9 @@ function xpathHelpers(helpers: Set<string>): string[] {
   if (helpers.has("number")) {
     lines.push(
       "function xpathNumber(path: string, node: unknown = sourceCtx.data): number {",
+      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
+      "    return evaluateXPathToNumber(path, null, null, { source: node });",
+      "  }",
       '  if (path.trim().startsWith("/")) return evaluateXPathToNumber(path, node);',
       "  return evaluateXPathToNumber(jsonQuery(path), null, null, { source: node });",
       "}",
@@ -404,6 +415,9 @@ function xpathHelpers(helpers: Set<string>): string[] {
   if (helpers.has("boolean")) {
     lines.push(
       "function xpathBoolean(path: string, node: unknown = sourceCtx.data): boolean {",
+      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
+      "    return evaluateXPathToBoolean(path, null, null, { source: node });",
+      "  }",
       '  if (path.trim().startsWith("/")) return evaluateXPathToBoolean(path, node);',
       "  return evaluateXPathToBoolean(jsonQuery(path), null, null, { source: node });",
       "}",
@@ -413,6 +427,9 @@ function xpathHelpers(helpers: Set<string>): string[] {
   if (helpers.has("nodes")) {
     lines.push(
       "function xpathNodes(path: string, node: unknown = sourceCtx.data): unknown[] {",
+      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
+      "    return evaluateXPathToNodes(path, null, null, { source: node });",
+      "  }",
       '  if (path.trim().startsWith("/")) return evaluateXPathToNodes(path, node);',
       "  return evaluateXPathToNodes(jsonQuery(path), null, null, { source: node });",
       "}",
@@ -425,6 +442,9 @@ function xpathHelpers(helpers: Set<string>): string[] {
       '  if (path.trim().startsWith("/")) return evaluateXPathToFirstNode(path, node);',
       '  const trimmed = path.trim();',
       '  if (!trimmed || trimmed === "$" || trimmed === ".") return node;',
+      '  if (trimmed.startsWith("$source") || trimmed.includes("?*[")) {',
+      "    return evaluateXPathToFirstNode(trimmed, null, null, { source: node });",
+      "  }",
       "  return evaluateXPathToFirstNode(jsonQuery(path), null, null, { source: node });",
       "}",
       "",

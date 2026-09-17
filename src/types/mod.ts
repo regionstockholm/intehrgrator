@@ -214,6 +214,8 @@ export interface SkeletonNode {
   archetypeRef?: string;
   /** Short archetype name for at-code disambiguation in the UI. */
   archetypeShortName?: string;
+  /** Template-constrained LOCATABLE.name (`C_STRING` list / AQL name hint). */
+  nameConstraint?: string;
   kind: SkeletonNodeKind;
   /** RM attribute on the parent object this node occupies (e.g. data, items, value). */
   rmAttribute?: string;

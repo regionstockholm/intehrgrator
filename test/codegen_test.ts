@@ -312,6 +312,27 @@ Deno.test("xquery codegen emits mapping-result module from Blockly slots", () =>
   assertEquals(adapter.mime, "application/xquery");
 });
 
+Deno.test("typescript and xquery compile openEHR locator sugar before emit", () => {
+  const expr =
+    'xpathNumber("/content[openEHR-EHR-OBSERVATION.pulse.v2]/data/events[at0003]/value/magnitude")';
+  const model = applyExpressionEdit(createEmptyModel("vitals"), "s1", expr, {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+  });
+  const ts = generate(model, "typescript");
+  assertStringIncludes(ts, "?*[");
+  assertStringIncludes(ts, "archetype_node_id");
+  assertEquals(ts.includes("[openEHR-EHR-OBSERVATION.pulse.v2]"), false);
+
+  const xq = generate(model, "xquery");
+  assertStringIncludes(xq, "?archetype_node_id");
+  assertStringIncludes(xq, "openEHR-EHR-OBSERVATION.pulse.v2");
+
+  const java = generate(model, "java");
+  assertStringIncludes(java, "@archetype_node_id=");
+  assertEquals(java.includes("[openEHR-EHR-OBSERVATION.pulse.v2]"), false);
+});
+
 Deno.test("xquery expression emit maps builtins and JSON paths", () => {
   assertEquals(
     jsonDollarPathToLookup("$.patient.vitals[1].systolic"),

@@ -8,6 +8,7 @@ import {
   collectValueSlots,
   findSkeletonTrail,
   nearestRepeatingContainer,
+  pathLabelFromTrail,
 } from "../core/skeleton/generate_skeleton.ts";
 import { INSTANCE_ENCODING_FIELD } from "../core/output/instance_encoding.ts";
 import { parseInstanceEncoding } from "../core/output/instance_encoding.ts";
@@ -134,17 +135,6 @@ function cloneAllowedValue(value: AllowedValue): AllowedValue {
     ...(value.terminologyId ? { terminologyId: value.terminologyId } : {}),
     ...(value.assumed ? { assumed: true } : {}),
   };
-}
-
-function pathLabelFromTrail(trail: SkeletonNode[]): string | undefined {
-  const parts: string[] = [];
-  for (const node of trail) {
-    const label = node.label?.trim();
-    if (!label || label === node.rmType) continue;
-    if (parts[parts.length - 1] === label) continue;
-    parts.push(label);
-  }
-  return parts.length ? parts.join(" › ") : undefined;
 }
 
 export function compactSourceTree(

@@ -18,6 +18,7 @@ import type {
 import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
+import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { isListAttribute } from "./typescript.ts";
 import { emitSheetHelpers } from "./xquery_sheets.ts";
 import {
@@ -718,8 +719,15 @@ export function compileLiteralPath(
   if (trimmed.startsWith("./")) {
     return `${cast}((${sourceVar}/${trimmed.slice(2)})[1])`;
   }
+  if (looksLikeOpenEhrLocator(trimmed)) {
+    const lookup = compileAuthoringPath(trimmed, "json", sourceVar);
+    return `${cast}((${lookup})[1])`;
+  }
   if (trimmed.startsWith("/")) {
-    return `${cast}((${sourceVar}${trimmed})[1])`;
+    const xml = looksLikeOpenEhrLocator(trimmed)
+      ? compileAuthoringPath(trimmed, "xml")
+      : trimmed;
+    return `${cast}((${sourceVar}${xml})[1])`;
   }
 
   if (trimmed.startsWith("$")) {

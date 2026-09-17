@@ -80,7 +80,7 @@ export function stripGeneratedTypeScript(source: string): { names: string[]; bod
     String.raw`(?:string|number|boolean|unknown|void|never|any|object|SourceContext|Record<[^>]+>|Array<[^>]+>|[A-Z][A-Za-z0-9_]*)(?:\[\])?`;
   const typeUnion = `${typeName}(?:\\s*\\|\\s*${typeName})*`;
   const typeOrObj = `(?:${typeUnion}|\\{[^}]*\\})`;
-  body = body.replace(new RegExp(`\\)\\s*:\\s*${typeOrObj}(\\s*\\{)`, "g"), ")$1");
+  body = body.replace(new RegExp(`\\)\\s*:\\s*${typeOrObj}(\\s*(?:\\{|=>))`, "g"), ")$1");
   body = body.replace(
     new RegExp(`([A-Za-z_$][\\w$]*)\\s*\\??\\s*:\\s*${typeOrObj}(\\s*[=,)])`, "g"),
     "$1$2",

@@ -655,7 +655,7 @@ function sheetHelpers(): string[] {
     "  if (policy === \"COLLECT\") {",
     "    const join = s.collectJoin ?? \"; \";",
     "    const joinParts = (vals: unknown[]) => {",
-    "      const out: string[] = []; const seen = new Set<string>();",
+    "      const out = []; const seen = new Set();",
     "      for (const p of vals) {",
     "        if (p == null || (typeof p === \"string\" && p.trim() === \"\")) continue;",
     "        const t = String(p);",

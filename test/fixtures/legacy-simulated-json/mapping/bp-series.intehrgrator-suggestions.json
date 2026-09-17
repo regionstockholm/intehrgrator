@@ -15,7 +15,7 @@
           "LIST": {
             "block": {
               "type": "source_query_node",
-              "fields": { "EXPRESSION": "$source?measurements?*" }
+              "fields": { "EXPRESSION": "$.measurements" }
             }
           }
         }

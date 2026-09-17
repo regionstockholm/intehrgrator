@@ -74,3 +74,39 @@ Deno.test({
     }
   },
 });
+
+Deno.test({
+  name: "UI: JSON Schema $defs $ref fields appear in #schema-tree",
+  sanitizeResources: false,
+  sanitizeOps: false,
+  async fn() {
+    const schema = await fixtureText(
+      "test/fixtures/administrerad-medicinsk-onkologisk-behandling/source-schema/AdministrationRCCV1_source_schema.json",
+    );
+    const browser = await chromium.launch({ headless: true });
+    try {
+      const page = await browser.newPage();
+      await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
+      await waitForTestApi(page);
+
+      await dropTextFile(page, "#schema-tree", "AdministrationRCCV1_source_schema.json", schema);
+      await page.waitForSelector('#schema-tree .tree-row[data-path="$.Substanser[*].Dose"]', {
+        timeout: 5_000,
+      });
+      await page.waitForSelector(
+        '#schema-tree .tree-row[data-path="$.Substanser[*].Innholdstoff_ATC"]',
+        { timeout: 5_000 },
+      );
+
+      const snap = await getSnapshot(page);
+      assertEquals(snap.schemaError, null);
+      const defRows = await page.locator('#schema-tree .tree-row[data-path*="$defs"]').count();
+      assertEquals(defRows, 0);
+      const pane = await page.locator("#schema-tree").innerText();
+      assert(pane.includes("Dose"), pane);
+      assert(pane.includes("Innholdstoff_ATC"), pane);
+    } finally {
+      await browser.close();
+    }
+  },
+});

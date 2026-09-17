@@ -23,7 +23,9 @@ Package `se.regionstockholm.intehrgrator.generated`, class `ConversionScript`:
   compact constructors for data values (`new DvQuantity(units, magnitude, null)`,
   `new DvText(…)`, `new CodePhrase("ISO_639-1::en")`).
 - `for_each_list` (source-node grain) → `xpathNodes(path).stream().map(var -> …).toList()` with
-  relative xpath against the loop node.
+  relative xpath against the loop node. **Loop index / Loop length** are not bound yet;
+  see [loop-index-length-codegen-investigation.md](future/loop-index-length-codegen-investigation.md)
+  (#137).
 - `maps_get("defaults", key)` → `defaults.get(key)`.
 
 ### Convert-then-validate hook

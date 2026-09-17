@@ -6,6 +6,7 @@
  */
 
 import { Validator, type Schema, type SchemaDraft } from "@cfworker/json-schema";
+import { unescapeJsonPointerSegment } from "./json_pointer.ts";
 import { appendJsonPath } from "./schema_loader.ts";
 
 export interface JsonSchemaIssue {
@@ -59,7 +60,7 @@ export function jsonPointerToPath(pointer: string): string {
   const segments = raw.split("/").slice(1);
   let path = "$";
   for (const segment of segments) {
-    const key = unescapePointer(segment);
+    const key = unescapeJsonPointerSegment(segment);
     if (/^\d+$/.test(key)) {
       path += `[${Number(key) + 1}]`;
     } else {
@@ -69,12 +70,3 @@ export function jsonPointerToPath(pointer: string): string {
   return path;
 }
 
-function unescapePointer(segment: string): string {
-  let decoded = segment;
-  try {
-    decoded = decodeURIComponent(segment);
-  } catch {
-    // already decoded or malformed — keep the raw segment
-  }
-  return decoded.replace(/~1/g, "/").replace(/~0/g, "~");
-}

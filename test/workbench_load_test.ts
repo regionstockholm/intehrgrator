@@ -72,6 +72,23 @@ Deno.test("controller loads template/schema/example from content", async () => {
   assertStringIncludes(JSON.stringify(composition), "120");
 });
 
+Deno.test("controller inlines JSON Schema $defs so $ref fields are mappable", async () => {
+  const schema = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "fixtures",
+      "administrerad-medicinsk-onkologisk-behandling",
+      "source-schema",
+      "AdministrationRCCV1_source_schema.json",
+    ),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadSchemaContent("AdministrationRCCV1_source_schema.json", schema);
+  assertEquals(controller.lookupSourceSchemaType("$.Substanser[*].Dose"), "number");
+  assertEquals(controller.lookupSourceSchemaType("$.Substanser[*].Innholdstoff_ATC"), "string");
+  assertEquals(controller.lookupSourceSchemaType("$['$defs']"), null);
+});
+
 Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", async () => {
   const opt = await Deno.readTextFile(
     join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),

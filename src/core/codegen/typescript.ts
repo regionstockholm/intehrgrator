@@ -362,8 +362,8 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
 
 function xpathHelpers(helpers: Set<string>): string[] {
   const lines = [
-    "function jsonQuery(path: string): string {",
-    '  const trimmed = path.trim();',
+    "function jsonQuery(path: unknown): string {",
+    '  const trimmed = String(path ?? "").trim();',
     '  if (!trimmed || trimmed.startsWith("/")) return trimmed;',
     '  const asJson = trimmed.startsWith("$") ? trimmed : `$.${trimmed.replace(/^\\./, "")}`;',
     "  let body = asJson.slice(1);",
@@ -408,24 +408,26 @@ function xpathHelpers(helpers: Set<string>): string[] {
   }
   if (helpers.has("number")) {
     lines.push(
-      "function xpathNumber(path: string, node: unknown = sourceCtx.data): number {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToNumber(path, null, null, { source: node });",
+      "function xpathNumber(path: unknown, node: unknown = sourceCtx.data): number {",
+      '  const p = typeof path === "string" ? path : String(path ?? "");',
+      '  if (p.trim().startsWith("$source") || p.includes("?*[")) {',
+      "    return evaluateXPathToNumber(p, null, null, { source: node });",
       "  }",
-      '  if (path.trim().startsWith("/")) return evaluateXPathToNumber(path, node);',
-      "  return evaluateXPathToNumber(jsonQuery(path), null, null, { source: node });",
+      '  if (p.trim().startsWith("/")) return evaluateXPathToNumber(p, node);',
+      "  return evaluateXPathToNumber(jsonQuery(p), null, null, { source: node });",
       "}",
       "",
     );
   }
   if (helpers.has("boolean")) {
     lines.push(
-      "function xpathBoolean(path: string, node: unknown = sourceCtx.data): boolean {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToBoolean(path, null, null, { source: node });",
+      "function xpathBoolean(path: unknown, node: unknown = sourceCtx.data): boolean {",
+      '  const p = typeof path === "string" ? path : String(path ?? "");',
+      '  if (p.trim().startsWith("$source") || p.includes("?*[")) {',
+      "    return evaluateXPathToBoolean(p, null, null, { source: node });",
       "  }",
-      '  if (path.trim().startsWith("/")) return evaluateXPathToBoolean(path, node);',
-      "  return evaluateXPathToBoolean(jsonQuery(path), null, null, { source: node });",
+      '  if (p.trim().startsWith("/")) return evaluateXPathToBoolean(p, node);',
+      "  return evaluateXPathToBoolean(jsonQuery(p), null, null, { source: node });",
       "}",
       "",
     );

@@ -720,6 +720,26 @@ export function convertSourceToComposition() {
   assertEquals(body.includes("composer,"), false, body);
 });
 
+Deno.test("TypeScript Test Run xpath helpers coerce non-string paths", () => {
+  const out = runGeneratedTypeScript(
+    `
+export function convertSourceToComposition() {
+  function jsonQuery(path: unknown): string {
+    const trimmed = String(path ?? "").trim();
+    return trimmed;
+  }
+  function xpathString(path: unknown): string {
+    const p = typeof path === "string" ? path : String(path ?? "");
+    return p;
+  }
+  return xpathString(["Cel", "[degF]"]);
+}
+`,
+    { format: "json", data: {} },
+  );
+  assertEquals(out, "Cel,[degF]");
+});
+
 Deno.test("typescript codegen emits lists_getIndex as array access, not xpathString", () => {
   const ctx = createTsEmitContext();
   const src = emitTsExpression(

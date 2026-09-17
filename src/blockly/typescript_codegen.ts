@@ -576,6 +576,13 @@ function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
     if (!inputName) continue;
     const child = block.getInputTargetBlock(inputName);
     if (!child) continue;
+    // Scaffolded C_QUANTITY / C_CODED unit-or-value pickers are not mappings.
+    if (
+      (child.type === "lists_getIndex" || child.type === "lists_create_with") &&
+      (attr.name === "units" || attr.name === "units_display_name")
+    ) {
+      continue;
+    }
     if (child.isShadow()) {
       if (child.type === "math_number" || isEmptyShadow(child)) continue;
       const shadow = emitBlock(child, ctx, indent + 1);

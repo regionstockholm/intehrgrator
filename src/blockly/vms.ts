@@ -68,6 +68,8 @@ export const VMS_EXPRESSION_BLOCK_TYPES = [
   "logic_ternary",
   "logic_list_restriction",
   "logic_current_item",
+  "logic_loop_index",
+  "logic_loop_length",
   "lists_set_operation",
   "variables_get",
   "maps_get",

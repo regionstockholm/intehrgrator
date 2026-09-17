@@ -288,6 +288,8 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
             fields: { OP: "AT_LEAST", N: 1 },
           },
           { kind: "block", type: "logic_current_item" },
+          { kind: "block", type: "logic_loop_index" },
+          { kind: "block", type: "logic_loop_length" },
         ],
       },
       {

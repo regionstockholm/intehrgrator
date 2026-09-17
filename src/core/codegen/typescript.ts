@@ -13,6 +13,7 @@
  */
 
 import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
+import { loopIndexBinderName, loopLengthBinderName } from "../loop_binders.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
@@ -790,6 +791,7 @@ function emitSkeletonLoop(
   indent: number,
 ): string {
   ctx.helpers.add("nodes");
+  ctx.helpers.add("logic");
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(loop.varName) ? loop.varName : "item";
   const innerCtx: TsEmitContext = {
     ...ctx,
@@ -801,8 +803,14 @@ function emitSkeletonLoop(
   const nestedLoops = loops.filter((item) => item !== loop);
   const props = skeletonContainerProps(node, slots, nestedLoops, innerCtx, indent + 1);
   const constructed = formatRmConstruct(node.rmType, props, indent + 1, innerCtx);
-  return "...xpathNodes(" + JSON.stringify(loop.path) + ").map((" + ident +
-    ") => " + constructed + ")";
+  const bound =
+    `(__vars[${JSON.stringify(loop.varName)}] = ${ident}, ` +
+    `__vars[${JSON.stringify(loopIndexBinderName(loop.varName))}] = ${ident}_i, ` +
+    `__vars[${JSON.stringify(loopLengthBinderName(loop.varName))}] = ${ident}_col.length, ` +
+    `${constructed})`;
+  return (
+    `...xpathNodes(${JSON.stringify(loop.path)}).map((${ident}, ${ident}_i, ${ident}_col) => ${bound})`
+  );
 }
 
 function skeletonContainerProps(

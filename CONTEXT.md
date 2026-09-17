@@ -74,8 +74,12 @@ XML character data emitted as `<![CDATA[ … ]]>` instead of escaped text. Plugs
 _Avoid_: using **Code text** as the only way to emit CDATA
 
 **Source iteration (`for_each_list`)**:
-Blockly loop that binds each item from a list or each node from a multi-valued Source Path to a named variable. Plug a list (☰) or a `source_query_node` (📂) into the **in** slot. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Not a driver for many output files.
-_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type, a dedicated `for_each_source` block
+Blockly loop that binds each item from a list or each node from a multi-valued Source Path to a named variable, plus **Loop index** (0-based) and **Loop length** (collection size at loop entry). Plug a list (☰) or a `source_query_node` (📂) into the **in** slot. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Not a driver for many output files.
+_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type, a dedicated `for_each_source` block, a compact `join_list` builtin (grammatical lists are a Function + this loop + a Decision table; see #85)
+
+**Loop index** / **Loop length**:
+Number reporters (`logic_loop_index` / `logic_loop_length`) for the enclosing `for_each_list`. Same nearest-enclosing dropdown pattern as **Current item**; nested loops can pick an outer item name from the dropdown. They serialize as Mapping Expression `var("item_index")` / `var("item_length")` — not workspace Variables. `is first` is `index = 0`; `is last` is `index = length − 1`; odd/even is the stock Math block `index is odd`. Not bound on **List restriction** (quantifiers stay order-insensitive).
+_Avoid_: Handlebars `@index` / `@first` / `@last` as product names, binding index on `logic_list_restriction`, using index to mint `:n` slot ids
 
 **Map**:
 A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups. Toolbox: list and map blocks share one **Lists & maps** drawer; **Sheets** is a separate drawer.

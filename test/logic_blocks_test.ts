@@ -14,6 +14,8 @@ import {
   LISTS_SET_OPERATION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
   LOGIC_LIST_RESTRICTION_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   restrictionItemName,
   restrictionRequiresItems,
 } from "@intehrgrator/blockly/blocks/logic_blocks.ts";
@@ -63,6 +65,8 @@ Deno.test("list logic blocks are registered and split across Logic and Lists dra
   for (const type of [
     LOGIC_LIST_RESTRICTION_BLOCK,
     LOGIC_CURRENT_ITEM_BLOCK,
+    LOGIC_LOOP_INDEX_BLOCK,
+    LOGIC_LOOP_LENGTH_BLOCK,
     LISTS_SET_OPERATION_BLOCK,
   ]) {
     assert(Blockly.Blocks[type], `missing block ${type}`);
@@ -77,6 +81,8 @@ Deno.test("list logic blocks are registered and split across Logic and Lists dra
   const logic = drawer(labels.CAT_LOGIC);
   assert(logic.includes(LOGIC_LIST_RESTRICTION_BLOCK));
   assert(logic.includes(LOGIC_CURRENT_ITEM_BLOCK));
+  assert(logic.includes(LOGIC_LOOP_INDEX_BLOCK));
+  assert(logic.includes(LOGIC_LOOP_LENGTH_BLOCK));
   // A Boolean drawer must not offer the list-valued set operator alongside `and`/`or`.
   assert(!logic.includes(LISTS_SET_OPERATION_BLOCK));
 

@@ -27,6 +27,7 @@ import {
 } from "../output/instance_encoding.ts";
 import { usesOpenEhrProduct } from "./product.ts";
 import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
+import { loopIndexBinderName, loopLengthBinderName } from "../loop_binders.ts";
 
 /** Host-bound VMS-Hbs render (`run_xquery.ts` / BaseX external). */
 export const INTEHRGRATOR_XQUERY_NS = "http://intehrgrator.local/xquery";
@@ -310,7 +311,11 @@ function emitLoop(loop: MappingLoop, slots: MappingSlot[], needsRm = true): stri
   const sequence = compileLoopSequence(loop);
   const env: XQueryEmitEnv = {
     sourceVar: `$${ident}`,
-    bind: { [loop.varName]: ident },
+    bind: {
+      [loop.varName]: ident,
+      [loopIndexBinderName(loop.varName)]: `${ident}_index`,
+      [loopLengthBinderName(loop.varName)]: `${ident}_length`,
+    },
   };
 
   const attrs = [
@@ -340,7 +345,10 @@ function emitLoop(loop: MappingLoop, slots: MappingSlot[], needsRm = true): stri
   ];
 
   return [
-    `for $${ident} in ${sequence}`,
+    `let $${ident}_col := ${sequence}`,
+    `for $${ident} at $${ident}_pos in $${ident}_col`,
+    `let $${ident}_index := $${ident}_pos - 1`,
+    `let $${ident}_length := count($${ident}_col)`,
     "return",
     ...body.map((line) => `  ${line}`),
   ];
@@ -905,16 +913,27 @@ function emitSkelLoop(
     env: {
       ...ctx.env,
       sourceVar: `$${ident}`,
-      bind: { ...ctx.env.bind, [loop.varName]: ident },
+      bind: {
+        ...ctx.env.bind,
+        [loop.varName]: ident,
+        [loopIndexBinderName(loop.varName)]: `${ident}_index`,
+        [loopLengthBinderName(loop.varName)]: `${ident}_length`,
+      },
     },
   };
   const props = skelProps(node, inner);
   const constructed = formatSkelConstruct(node, props, inner, false);
   const sequence = compileLoopSequence(loop);
+  const flwor =
+    `let $${ident}_col := ${sequence} ` +
+    `for $${ident} at $${ident}_pos in $${ident}_col ` +
+    `let $${ident}_index := $${ident}_pos - 1 ` +
+    `let $${ident}_length := count($${ident}_col) ` +
+    `return ${constructed}`;
   if (ctx.shape === "json") {
-    return `array { for $${ident} in ${sequence} return ${constructed} }`;
+    return `array { ${flwor} }`;
   }
-  return `(for $${ident} in ${sequence} return ${constructed})`;
+  return `(${flwor})`;
 }
 
 function skelProps(

@@ -84,7 +84,7 @@ Deno.test("for_each_list is a custom list-item loop without break/continue", () 
   const list = workspace.newBlock("lists_create_with");
   loop.getInput("LIST")!.connection!.connect(list.outputConnection!);
   const code = javascriptGenerator.blockToCode(loop) as string;
-  assert(code.includes(".map((code)"), code);
+  assert(code.includes(".map((code,"), code);
   assert(code.includes('__vars["code"]'), code);
   assertEquals(code.includes("break"), false);
   assertEquals(code.includes("continue"), false);

@@ -23,7 +23,7 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
 
 **GUI (watch the canvas):** desktop running; MCP `INTEHR_AGENT_URL=http://127.0.0.1:<port>` (add `INTEHR_AGENT_TOKEN` when the desktop was started with `--token`). Done when `GET /api/v1/health` returns `ok`.
 
-**Headless / server:** `deno task mcp` with **no** `INTEHR_AGENT_URL` (embedded `WorkbenchService`), **or** `intEHRgrator --headless [--port n] [--bind addr] [--load file.intehrgrator] [--token secret]`. Non-loopback `--bind` requires `--token`. Done when load/inspect tools answer.
+**Headless / server:** `deno task mcp` with **no** `INTEHR_AGENT_URL` (embedded `WorkbenchService`), **or** `intEHRgrator --headless [--port n] [--bind addr] [--load file.intehrgrator] [--token secret]`. Non-loopback `--bind` requires `--token`. Target load **scaffolds** Conversion start + Template Skeleton (same as the GUI). Done when load/inspect tools answer.
 
 ## Golden path
 
@@ -57,9 +57,14 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - **Decision tables** — prefer `kind: "decision-table"` + `decision_table` when several independent inputs, don't-care cells, or FIRST/UNIQUE/COLLECT hit policies make the mapping **more readable to humans** than nested `if` / `logic_ternary`. Put the grid on the project with `replace_sheets`; the envelope only fills the value slot.
 - **Sheets** — `sheet_lookup` for 1-key terminology (ICD-10 → SNOMED). Not a Decision table.
 - **Defaults Map** — `maps_get("defaults", …)` only when the source has no value. **Source over defaults** for time, facility, composer.
-- **Loops** — `for_each_source` for repeating source nodes; `for_each_list` for a computed list. Product-stack loops and extra Instance roots: inspect `get_product_stack`; encoding via `set_instance_encoding`. `put_blockly` is an escape hatch, not the primary path.
-- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add`.
+- **Loops** — `for_each_source` for repeating source nodes; `for_each_list` for a computed list. Copy `attachSlotId` from `list_slots` (`repeatable` and per-slot `attachSlotId`), not only from `build_prompt`. Product-stack loops and extra Instance roots: inspect `get_product_stack`; encoding via `set_instance_encoding`. `put_blockly` is an escape hatch, not the primary path.
+- **Quantities** — unconstrained `DV_QUANTITY.units` is a shell field. When `list_slots` has no `unitsFixed`, map the quantity slot with `maps_create_with` keys `magnitude` + `units`.
+- **Coded text** — copy `allowedValues` from inspect when present; otherwise `maps_create_with` keys `value`, `code_string` / `defining_code`, `terminology_id`.
+- **Party identity** — `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`, and `health_care_facility` after `optional_rm_add`). Map with `source_query` (name only) or `maps_create_with` keys `name`, `id`, `type`. Not a `/name/value` DV_TEXT leaf.
+- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT).
 - Copy `slotId` / `attachSlotId` verbatim from inspect / the prompt manifest.
+- Copy `slotId` / `attachSlotId` from inspect. Sibling `C_ARCHETYPE_ROOT` nodes that share `at0000` use the archetype id in the path (e.g. `…//content/openEHR-EHR-ACTION.medication.v1`). Duplicate ELEMENT ids (`at0003`) may still share one mapping row. `repeatable` / `attachSlotId` still prefer the `0..*` container when ids collide.
+- Existing mapping in another formalism (`.tmpl`, Handlebars, generated TypeScript, …): use `convert-mappings`, then this skill's golden path to apply and Test Run.
 
 ## Multi-agent etiquette
 

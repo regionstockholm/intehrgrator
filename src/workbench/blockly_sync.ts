@@ -4,8 +4,16 @@
  */
 
 import { Blockly } from "../blockly/blockly_core.ts";
-import { applyModelExpressions, initBlocklyGenerators } from "../blockly/mod.ts";
-import type { MappingModel } from "../types/mod.ts";
+import {
+  applyModelExpressions,
+  hydrateDefaultsMapArgument,
+  initBlocklyGenerators,
+  loadSkeletonIntoWorkspace,
+  workspaceToModelJson,
+} from "../blockly/mod.ts";
+import type { MappingModelExtract } from "../blockly/mapping_ir.ts";
+import type { MappingModel, SkeletonNode, TargetFormatId } from "../types/mod.ts";
+import type { WorkspaceSvg } from "blockly/core";
 let generatorsReady = false;
 
 function ensureGenerators(): void {
@@ -29,6 +37,45 @@ export function syncModelToBlocklyState(
     );
     applyModelExpressions(workspace, model, { recordUndo: false });
     return Blockly.serialization.workspaces.save(workspace);
+  } finally {
+    workspace.dispose();
+  }
+}
+
+/** Headless Template Skeleton: Conversion start, Defaults, default-point lookups. */
+export function scaffoldBlocklyFromSkeleton(
+  skeleton: SkeletonNode[],
+  model: MappingModel,
+  options?: {
+    uiLanguage?: string;
+    targetFormat?: TargetFormatId;
+    defaultsMap?: unknown;
+  },
+): { blocklyState: unknown; extract: MappingModelExtract } {
+  ensureGenerators();
+  const workspace = new Blockly.Workspace();
+  const uiLanguage = options?.uiLanguage ?? "en";
+  try {
+    loadSkeletonIntoWorkspace(
+      workspace as unknown as WorkspaceSvg,
+      skeleton,
+      model,
+      null,
+      uiLanguage,
+      options?.targetFormat,
+    );
+    if (options?.defaultsMap) {
+      hydrateDefaultsMapArgument(
+        workspace,
+        options.defaultsMap,
+        uiLanguage,
+        options.targetFormat,
+      );
+    }
+    return {
+      blocklyState: Blockly.serialization.workspaces.save(workspace),
+      extract: workspaceToModelJson(workspace),
+    };
   } finally {
     workspace.dispose();
   }

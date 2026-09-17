@@ -7,6 +7,7 @@ export function bundleRevision(bundle: ProjectBundle): string {
     model: mapping.model,
     blocklyState: mapping.blocklyState,
     handlebarsTemplate: mapping.handlebarsTemplate ?? "",
+    sheets: mapping.sheets ?? [],
   });
   let hash = 2166136261;
   for (let i = 0; i < payload.length; i++) {

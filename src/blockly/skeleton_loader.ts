@@ -3,7 +3,7 @@ import type { AllowedOrdinal, AllowedValue, MappingLoop, MappingModel, SkeletonN
 import { AUTO_FIXED_LOCATABLE_ATTRS } from "../core/rm_mandatory.ts";
 import { attributesFor, blockTypeForRm, isDataValueType } from "../core/rm_meta.ts";
 import { parseExpression } from "../core/expression/mod.ts";
-import { skeletonNodeForOptionalRm } from "../core/skeleton/generate_skeleton.ts";
+import { skeletonNodeForOptionalRm, isRepeatingMultiplicity } from "../core/skeleton/generate_skeleton.ts";
 import { termSetById, termSetForMandatedCode, termSetForRmAttribute, TERM_PICK_NONE } from "../core/openehr_term_catalog.ts";
 import { astToExpressionBlock } from "./expression_serialize.ts";
 import { Blockly } from "./blockly_core.ts";
@@ -164,6 +164,8 @@ export function applyModelExpressions(
       if (!slot) continue;
       if (block.type === "element") {
         attachExpressionToElement(workspace, block, slot.expression, slot.returnType, slot.rmType);
+      } else if (block.type === "party_identified" || block.type === "party_related") {
+        attachExpressionToPartyName(workspace, block, slot.expression, slot.returnType);
       } else if (isTermPickBlock(block) || isDataValueBlock(block)) {
         attachExpressionToTypedValue(workspace, block, slot.expression, slot.returnType, slot.rmType);
       } else if (isGenericValueBlockType(block.type)) {
@@ -171,6 +173,8 @@ export function applyModelExpressions(
       }
     }
     applyModelLoops(workspace, model);
+    applyModelOptionalSchemaFields(workspace as WorkspaceSvg, model);
+    applyModelOptionalRmInsertions(workspace as WorkspaceSvg, model);
   };
   if (options.recordUndo) apply();
   else runWithoutBlocklyEvents(apply);
@@ -193,14 +197,18 @@ function findAttachBlock(
   workspace: Blockly.Workspace,
   slotId: string,
 ): Blockly.Block | null {
-  let fallback: Blockly.Block | null = null;
+  const matches: Blockly.Block[] = [];
   for (const block of workspace.getAllBlocks(false)) {
     if (block.getFieldValue("SLOT_ID") !== slotId) continue;
     if (block.type === "for_each_source" || block.type === "for_each_list") continue;
-    if (block.previousConnection) return block;
-    fallback = block;
+    matches.push(block);
   }
-  return fallback;
+  const repeating = matches.find((block) =>
+    Boolean(block.previousConnection) &&
+    isRepeatingMultiplicity((block as { slotMultiplicity_?: string }).slotMultiplicity_)
+  );
+  if (repeating) return repeating;
+  return matches.find((block) => Boolean(block.previousConnection)) ?? matches[0] ?? null;
 }
 
 function wrapBlockWithForEachSource(
@@ -395,6 +403,21 @@ function applyModelOptionalSchemaFields(
   }
 }
 
+function applyModelOptionalRmInsertions(
+  workspace: WorkspaceSvg,
+  model: MappingModel,
+): void {
+  for (const extra of model.optionalRm) {
+    const parent = findBlockBySlotId(workspace, extra.attachmentSlotId);
+    if (!parent || isSchemaStructureBlock(parent)) continue;
+    const inputName = parent.getInput(rmAttributeInputName(extra.attributeName))
+      ? rmAttributeInputName(extra.attributeName)
+      : optionalRmInputName(extra.attributeName);
+    if (parent.getInput(inputName)?.connection?.targetBlock()) continue;
+    attachOptionalRmChild(workspace, parent, extra);
+  }
+}
+
 function findBlockBySlotId(
   workspace: Blockly.Workspace,
   slotId: string,
@@ -582,6 +605,7 @@ function buildContainerBlock(
   setFieldIfPresent(block, "RM_TYPE", node.rmType);
   setFieldIfPresent(block, "SLOT_ID", node.slotId);
   setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId ?? "");
+  (block as { slotMultiplicity_?: string }).slotMultiplicity_ = node.multiplicity;
   applySkeletonBlockLabels(block, node);
 
   const visibleChildren = node.children.filter(
@@ -1129,6 +1153,33 @@ function connectStatementChain(
       previous.nextConnection.connect(block.previousConnection);
     }
     previous = block;
+  }
+}
+
+function attachExpressionToPartyName(
+  workspace: Blockly.Workspace,
+  party: Blockly.Block,
+  expression: string,
+  returnType: string,
+): void {
+  const input = party.getInput(rmAttributeInputName("name"));
+  if (!input?.connection) return;
+  const existing = input.connection.targetBlock();
+  if (existing) existing.dispose(false);
+  const exprBlock = expressionToBlock(workspace, expression, returnType);
+  if (!exprBlock.outputConnection) return;
+  try {
+    input.connection.connect(exprBlock.outputConnection);
+  } catch {
+    const prevCheck = input.connection.getCheck();
+    input.setCheck(null);
+    try {
+      input.connection.connect(exprBlock.outputConnection);
+    } catch {
+      /* still incompatible */
+    } finally {
+      if (prevCheck) input.setCheck(prevCheck);
+    }
   }
 }
 

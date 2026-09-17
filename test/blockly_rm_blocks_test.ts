@@ -1079,6 +1079,40 @@ Deno.test("Blockly JSON extraState restores dynamic ATTR_ sockets including EVEN
   loaded.dispose();
 });
 
+Deno.test("optional RM extraState keeps OPT_ mouths distinct from ATTR_", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const context = workspace.newBlock("event_context") as Blockly.Block & {
+    addInput_?: (name: string) => void;
+  };
+  context.addInput_?.("health_care_facility");
+  const mouth = context.getInput(optionalRmInputName("health_care_facility"));
+  assert(mouth?.connection, "expected OPT_health_care_facility after addInput_");
+  const party = workspace.newBlock("party_identified");
+  mouth.connection.connect(party.outputConnection!);
+  const saved = Blockly.serialization.workspaces.save(workspace) as {
+    blocks?: { blocks?: Array<{ extraState?: { extras?: string[]; attrs?: string[] }; inputs?: Record<string, unknown> }> };
+  };
+  workspace.dispose();
+  const ctxSaved = saved.blocks?.blocks?.find((block) =>
+    (block as { type?: string }).type === "event_context"
+  ) as { extraState?: { extras?: string[]; attrs?: string[] }; inputs?: Record<string, unknown>; type?: string } | undefined
+    ?? (saved as { extraState?: { extras?: string[]; attrs?: string[] }; inputs?: Record<string, unknown>; type?: string });
+  assertEquals(ctxSaved?.extraState?.extras?.includes("health_care_facility"), true);
+  assertEquals(ctxSaved?.extraState?.attrs?.includes("health_care_facility"), false);
+  assert(ctxSaved?.inputs && "OPT_health_care_facility" in ctxSaved.inputs);
+
+  const loaded = new Blockly.Workspace();
+  Blockly.serialization.workspaces.load(saved, loaded);
+  const ctx2 = loaded.getAllBlocks(false).find((block) => block.type === "event_context");
+  assert(ctx2?.getInput(optionalRmInputName("health_care_facility")), "OPT_health_care_facility must round-trip");
+  assertEquals(
+    ctx2?.getInputTargetBlock(optionalRmInputName("health_care_facility"))?.type,
+    "party_identified",
+  );
+  loaded.dispose();
+});
+
 Deno.test("PARTY_IDENTIFIED exposes identity slots for compositions", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();

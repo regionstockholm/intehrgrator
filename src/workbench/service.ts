@@ -26,6 +26,7 @@ import type { AgentSnapshot } from "../agent/types.ts";
 import {
   compactSourceTree,
   constraintWarningsInspect,
+  listRepeatableInspect,
   listSlotsInspect,
   productStackInspect,
   sheetSummaries,
@@ -39,13 +40,13 @@ import {
   instanceShapeForEncoding,
   preferredInstanceEncoding,
 } from "../core/output/instance_encoding.ts";
-import { initBlocklyGenerators } from "../blockly/mod.ts";
+import { initBlocklyGenerators, workspaceToModelJson } from "../blockly/mod.ts";
 import { Blockly } from "../blockly/blockly_core.ts";
 import { INSTANCE_ENCODING_FIELD } from "../core/output/instance_encoding.ts";
 import { productStackBlocks } from "../blockly/instance_root.ts";
 import type { SheetDocument } from "../core/sheets/mod.ts";
 import { WorkbenchController } from "./controller.ts";
-import { syncModelToBlocklyState } from "./blockly_sync.ts";
+import { scaffoldBlocklyFromSkeleton, syncModelToBlocklyState } from "./blockly_sync.ts";
 import {
   HistoryLog,
   type HistoryEntry,
@@ -162,7 +163,7 @@ export class WorkbenchService {
   loadTemplateContent(filename: string, content: string, ctx?: MutationContext): void {
     this.mutate(() => {
       this.controller.loadTemplateContent(filename, content);
-      this.syncBlocklyFromModel();
+      this.hydrateSkeletonCanvas();
     }, { ...ctx, kind: "load_bundle", summary: ctx?.summary ?? `Load template ${filename}` });
   }
 
@@ -348,6 +349,11 @@ export class WorkbenchService {
     return listSlotsInspect(s.skeleton, s.model);
   }
 
+  listRepeatable() {
+    const s = this.controller.getState();
+    return listRepeatableInspect(s.skeleton);
+  }
+
   getSourceTree() {
     const s = this.controller.getState();
     return {
@@ -395,7 +401,7 @@ export class WorkbenchService {
   async loadExampleSet(set: ExampleSet, ctx?: MutationContext): Promise<void> {
     const before = this.exportBundle();
     await this.controller.loadExampleSet(set);
-    this.syncBlocklyFromModel();
+    this.hydrateSkeletonCanvas();
     this.recordMutation(before, {
       ...ctx,
       kind: "load_bundle",
@@ -406,7 +412,7 @@ export class WorkbenchService {
   async loadTargetFromUrl(url: string, ctx?: MutationContext): Promise<void> {
     const before = this.exportBundle();
     await this.controller.openTemplateFromUrl(url);
-    this.syncBlocklyFromModel();
+    this.hydrateSkeletonCanvas();
     this.recordMutation(before, {
       ...ctx,
       kind: "load_bundle",
@@ -505,7 +511,7 @@ export class WorkbenchService {
         const target = stack[rootIndex];
         if (!target) throw new Error(`No Instance root with encoding at index ${rootIndex}`);
         target.setFieldValue(encoding, INSTANCE_ENCODING_FIELD);
-        this.controller.syncCanvasSnapshot(Blockly.serialization.workspaces.save(workspace));
+        this.commitWorkspace(workspace);
       } finally {
         workspace.dispose();
       }
@@ -531,6 +537,55 @@ export class WorkbenchService {
 
   private agentIdForLeases(): string | undefined {
     return this.currentActor.kind === "agent" ? this.currentActor.id : undefined;
+  }
+
+  private hydrateSkeletonCanvas(): void {
+    const s = this.controller.getState();
+    if (s.blocklyState) {
+      this.syncBlocklyFromModel();
+      return;
+    }
+    if (!s.skeleton.length) return;
+    const pending = this.controller.consumePendingDefaultsMap();
+    const { extract, blocklyState } = scaffoldBlocklyFromSkeleton(
+      s.skeleton,
+      s.model,
+      {
+        uiLanguage: s.modelLanguage ?? s.settings.modelLanguage ?? "en",
+        targetFormat: s.target?.format,
+        defaultsMap: pending ?? undefined,
+      },
+    );
+    this.controller.syncFromBlockly(
+      blocklyState,
+      extract.slots,
+      extract.loops,
+      extract.optionalRm,
+      {
+        notify: false,
+        targetSignature: extract.targetSignature,
+        unsupported: extract.unsupported,
+        sheetNames: extract.sheetNames,
+        instanceEncodings: extract.instanceEncodings,
+      },
+    );
+  }
+
+  private commitWorkspace(workspace: Blockly.Workspace): void {
+    const extract = workspaceToModelJson(workspace);
+    this.controller.syncFromBlockly(
+      Blockly.serialization.workspaces.save(workspace),
+      extract.slots,
+      extract.loops,
+      extract.optionalRm,
+      {
+        notify: false,
+        targetSignature: extract.targetSignature,
+        unsupported: extract.unsupported,
+        sheetNames: extract.sheetNames,
+        instanceEncodings: extract.instanceEncodings,
+      },
+    );
   }
 
   private syncBlocklyFromModel(): void {

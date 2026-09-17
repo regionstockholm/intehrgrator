@@ -327,6 +327,416 @@ Deno.test("list_constraint_warnings reports unmapped mandatory slots on an OPT",
   assertEquals(built.prompt.includes("## Constraint warnings"), true);
 });
 
+Deno.test("headless load_target scaffolds Conversion start so Instance encoding can be set", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "blood_pressure.opt"),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as {
+    productStack: Array<{ type: string; encoding?: string }>;
+  };
+  assertEquals(
+    snap.productStack.some((row) => row.type === "composition"),
+    true,
+    JSON.stringify(snap.productStack),
+  );
+  assertEquals(
+    snap.productStack.some((row) => row.encoding === "canonical-json"),
+    true,
+    JSON.stringify(snap.productStack),
+  );
+  const encoded = await callAgentTool(service, "set_instance_encoding", {
+    encoding: "flat-json",
+  }) as { stack: Array<{ encoding?: string; type: string }> };
+  assertEquals(
+    encoded.stack.some((row) => row.encoding === "flat-json"),
+    true,
+    JSON.stringify(encoded.stack),
+  );
+});
+
+Deno.test("list_slots includes attachSlotId for repeating administration ACTION", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{
+      slotId: string;
+      attachSlotId?: string;
+      pathLabel?: string;
+      allowedValues?: Array<{ code: string }>;
+      codeFixed?: string;
+    }>;
+    repeatable: Array<{ slotId: string; rmType: string }>;
+  };
+  const dose = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"));
+  if (!dose) throw new Error(`missing dose slot: ${listed.slots.map((s) => s.slotId).join(",")}`);
+  assertEquals(Boolean(dose.attachSlotId), true, JSON.stringify(dose));
+  assertEquals(
+    dose.attachSlotId?.endsWith("//content/openEHR-EHR-ACTION.medication.v1"),
+    true,
+    dose.attachSlotId,
+  );
+  assertEquals(dose.pathLabel?.includes("Administrerad dos"), true, dose.pathLabel);
+  assertEquals(
+    listed.repeatable.some((row) =>
+      row.slotId.endsWith("//content/openEHR-EHR-ACTION.medication.v1") && row.rmType === "ACTION"
+    ),
+    true,
+    JSON.stringify(listed.repeatable),
+  );
+  assertEquals(
+    listed.slots.some((s) =>
+      s.slotId.includes("//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/")
+    ),
+    true,
+    "EVALUATION content path must use the archetype id, not at0000",
+  );
+  const slotIds = listed.slots.map((s) => s.slotId);
+  assertEquals(slotIds.length, new Set(slotIds).size, "list_slots must not repeat slotId");
+  assertEquals(
+    listed.slots.some((s) => Boolean(s.codeFixed) || Boolean(s.allowedValues?.length)),
+    true,
+    "expected a coded slot to publish codeFixed or allowedValues",
+  );
+});
+
+Deno.test("import_suggestions maps_create_with fills DV_QUANTITY magnitude and units", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  await callAgentTool(service, "add_example", {
+    filename: "dose.json",
+    content: JSON.stringify({ Dose: 140, UnitCode: "mg" }),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string }>;
+  };
+  const doseId = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"))?.slotId;
+  if (!doseId) throw new Error("missing Administrerad dos slot");
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      suggestions: [{
+        slotId: doseId,
+        block: {
+          type: "maps_create_with",
+          extraState: { itemCount: 2 },
+          fields: { KEY0: "magnitude", KEY1: "units" },
+          inputs: {
+            VAL0: {
+              block: { type: "source_query_number", fields: { EXPRESSION: "$.Dose" } },
+            },
+            VAL1: {
+              block: { type: "source_query", fields: { EXPRESSION: "$.UnitCode" } },
+            },
+          },
+        },
+      }],
+    }),
+  }) as { report: { applied: number; errors: string[] } };
+  assertEquals(imported.report.applied, 1, imported.report.errors.join("; "));
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { ok: boolean; error?: string; output?: unknown };
+  };
+  assertEquals(tested.testResult.ok, true, String(tested.testResult.error));
+  const qty: Array<{ magnitude?: unknown; units?: unknown }> = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "DV_QUANTITY") qty.push(rec);
+  });
+  assertEquals(qty.some((q) => Number(q.magnitude) === 140 && q.units === "mg"), true, JSON.stringify(qty));
+});
+
+Deno.test("openEHR Test Run nests DV_CODED_TEXT defining_code and DV_IDENTIFIER.id", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  await callAgentTool(service, "add_example", {
+    filename: "id.json",
+    content: JSON.stringify({ HSA: "CCJ3" }),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string }>;
+  };
+  const categoryId = listed.slots.find((s) => s.slotId.includes("//category/"))?.slotId;
+  const identId = listed.slots.find((s) =>
+    s.slotId.includes("other_context") && s.slotId.endsWith("items/at0003/value/DV_IDENTIFIER/value") &&
+    !s.slotId.includes("items/at0000/items/at0000/")
+  )?.slotId;
+  if (!categoryId || !identId) {
+    throw new Error(`missing slots category=${categoryId} ident=${identId}`);
+  }
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      suggestions: [
+        {
+          slotId: categoryId,
+          block: { type: "text", fields: { TEXT: "event" } },
+        },
+        {
+          slotId: identId,
+          block: { type: "source_query", fields: { EXPRESSION: "$.HSA" } },
+        },
+      ],
+    }),
+  }) as { report: { applied: number; errors: string[] } };
+  assertEquals(imported.report.applied, 2, imported.report.errors.join("; "));
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { output?: Record<string, unknown> };
+  };
+  const category = tested.testResult.output?.category as Record<string, unknown> | undefined;
+  const phrase = category?.defining_code as Record<string, unknown> | undefined;
+  assertEquals(typeof phrase, "object", JSON.stringify(category));
+  assertEquals(phrase?._type, "CODE_PHRASE");
+  assertEquals(typeof phrase?.code_string, "string");
+  const ids: Array<{ id?: unknown; value?: unknown }> = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "DV_IDENTIFIER") ids.push(rec);
+  });
+  assertEquals(ids.some((row) => row.id === "CCJ3" && row.value === undefined), true, JSON.stringify(ids));
+});
+
+Deno.test("for_each_source attach prefers repeating ACTION over EVALUATION", async () => {
+  const service = new WorkbenchService();
+  const opt = join(
+    fixtures,
+    "administrerad-medicinsk-onkologisk-behandling",
+    "target-schema",
+    "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+  );
+  await callAgentTool(service, "load_target", { path: opt });
+  await callAgentTool(service, "add_example", {
+    filename: "two.json",
+    content: JSON.stringify({
+      Substanser: [
+        { Dose: 10, UnitCode: "mg", Innholdstoff_Navn: "A" },
+        { Dose: 20, UnitCode: "mg", Innholdstoff_Navn: "B" },
+      ],
+    }),
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string; attachSlotId?: string }>;
+  };
+  const dose = listed.slots.find((s) => s.slotId.endsWith("items/at0139/value/value/value"));
+  if (!dose?.attachSlotId) throw new Error("missing dose attachSlotId");
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      loops: [{
+        attachSlotId: dose.attachSlotId,
+        block: { type: "for_each_source", fields: { VAR: "substans", PATH: "$.Substanser" } },
+      }],
+      suggestions: [{
+        slotId: dose.slotId,
+        loopVar: "substans",
+        block: {
+          type: "maps_create_with",
+          extraState: { itemCount: 2 },
+          fields: { KEY0: "magnitude", KEY1: "units" },
+          inputs: {
+            VAL0: {
+              block: { type: "source_query_number", fields: { EXPRESSION: "Dose" } },
+            },
+            VAL1: {
+              block: { type: "source_query", fields: { EXPRESSION: "UnitCode" } },
+            },
+          },
+        },
+      }],
+    }),
+  }) as { report: { applied: number; errors: string[]; loopsAccepted?: number } };
+  assertEquals(imported.report.applied, 1, imported.report.errors.join("; "));
+  assertEquals(imported.report.loopsAccepted, 1);
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { output?: unknown };
+  };
+  const mags: number[] = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "DV_QUANTITY" && rec.magnitude != null) mags.push(Number(rec.magnitude));
+  });
+  assertEquals(mags.includes(10) && mags.includes(20), true, JSON.stringify(mags));
+});
+
+function walkDv(
+  node: unknown,
+  visit: (rec: Record<string, unknown>) => void,
+): void {
+  if (!node || typeof node !== "object") return;
+  if (Array.isArray(node)) {
+    for (const item of node) walkDv(item, visit);
+    return;
+  }
+  const rec = node as Record<string, unknown>;
+  visit(rec);
+  for (const value of Object.values(rec)) walkDv(value, visit);
+}
+
+const adminOpt = join(
+  fixtures,
+  "administrerad-medicinsk-onkologisk-behandling",
+  "target-schema",
+  "AdministreradMedicinskOnkologiskBehandlingPerSubstans.1.0.0-alpha.5.sv.en.opt",
+);
+
+Deno.test("replace_sheets bumps the Agent API revision", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", {
+    path: join(fixtures, "dummy-json-vitals", "target.schema.json"),
+  });
+  const before = await callAgentTool(service, "get_snapshot", {}) as { revision: string };
+  const sheet = addCatchAllRow(emptyDecisionTable("sbp_band"));
+  const replaced = await callAgentTool(service, "replace_sheets", { sheets: [sheet] }) as {
+    revision: string;
+  };
+  assertEquals(replaced.revision !== before.revision, true, `${before.revision} → ${replaced.revision}`);
+});
+
+Deno.test("OPT load attaches a Web Template for Simplified FLAT Test Run", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", { path: adminOpt });
+  const wt = service.exportBundle().target?.webTemplateJson;
+  assertEquals(Boolean(wt && wt.trim().startsWith("{")), true, "expected webTemplateJson on OPT load");
+});
+
+Deno.test("list_slots includes composer PARTY_IDENTIFIED", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", { path: adminOpt });
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string; valueType: string }>;
+  };
+  const composer = listed.slots.find((s) => s.slotId.endsWith("//composer"));
+  assertEquals(composer?.valueType, "PARTY_IDENTIFIED", JSON.stringify(composer));
+});
+
+Deno.test("optional_rm_add health_care_facility then map party name and identifier", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_target", { path: adminOpt });
+  await callAgentTool(service, "add_example", {
+    filename: "party.json",
+    content: JSON.stringify({
+      SignatureUser_FullName: "TakeCare_Test",
+      SignatureUser_UserName: "A1D8",
+      Vardenhet_namn: "S MBA A10",
+      Vardenhet_HSAID: "C4DS",
+    }),
+  });
+  const listedRm = await callAgentTool(service, "list_optional_rm", {}) as {
+    catalog: Array<{ parentSlotId: string; attachments: Array<{ attributeName: string; rmType: string }> }>;
+  };
+  const context = listedRm.catalog.find((row) =>
+    row.parentSlotId.endsWith("//context/EVENT_CONTEXT") &&
+    row.attachments.some((a) => a.attributeName === "health_care_facility")
+  );
+  if (!context) throw new Error("missing EVENT_CONTEXT health_care_facility catalog row");
+  await callAgentTool(service, "optional_rm_add", {
+    parentSlotId: context.parentSlotId,
+    rmType: "PARTY_IDENTIFIED",
+    attributeName: "health_care_facility",
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
+  const listed = await callAgentTool(service, "list_slots", {}) as {
+    slots: Array<{ slotId: string; valueType: string }>;
+  };
+  const composerId = listed.slots.find((s) => s.slotId.endsWith("//composer"))?.slotId;
+  const facilityId = listed.slots.find((s) =>
+    s.valueType === "PARTY_IDENTIFIED" && s.slotId.includes("health_care_facility")
+  )?.slotId;
+  if (!composerId || !facilityId) {
+    throw new Error(`missing party slots composer=${composerId} facility=${facilityId}`);
+  }
+  const imported = await callAgentTool(service, "import_suggestions", {
+    text: JSON.stringify({
+      format: "intehrgrator-suggestions",
+      version: "2",
+      target: { format: "openehr-template", targetId: snap.templateId },
+      suggestions: [
+        {
+          slotId: composerId,
+          block: {
+            type: "maps_create_with",
+            extraState: { itemCount: 3 },
+            fields: { KEY0: "name", KEY1: "id", KEY2: "type" },
+            inputs: {
+              VAL0: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.SignatureUser_FullName" } },
+              },
+              VAL1: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.SignatureUser_UserName" } },
+              },
+              VAL2: {
+                block: { type: "text", fields: { TEXT: "urn:oid:1.2.752.29.4.19" } },
+              },
+            },
+          },
+        },
+        {
+          slotId: facilityId,
+          block: {
+            type: "maps_create_with",
+            extraState: { itemCount: 2 },
+            fields: { KEY0: "name", KEY1: "id" },
+            inputs: {
+              VAL0: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.Vardenhet_namn" } },
+              },
+              VAL1: {
+                block: { type: "source_query", fields: { EXPRESSION: "$.Vardenhet_HSAID" } },
+              },
+            },
+          },
+        },
+      ],
+    }),
+  }) as { report: { applied: number; errors: string[] } };
+  assertEquals(imported.report.applied, 2, imported.report.errors.join("; "));
+  const tested = await callAgentTool(service, "run_test", {}) as {
+    testResult: { output?: unknown; error?: string };
+  };
+  const names: string[] = [];
+  const ids: string[] = [];
+  walkDv(tested.testResult.output, (rec) => {
+    if (rec._type === "PARTY_IDENTIFIED") {
+      if (typeof rec.name === "string") names.push(rec.name);
+      const ident = rec.identifiers;
+      if (Array.isArray(ident)) {
+        for (const row of ident) {
+          if (row && typeof row === "object" && "id" in row) {
+            ids.push(String((row as { id: unknown }).id));
+          }
+        }
+      }
+    }
+  });
+  assertEquals(names.includes("TakeCare_Test"), true, JSON.stringify(names));
+  assertEquals(names.includes("S MBA A10"), true, JSON.stringify(names));
+  assertEquals(ids.includes("A1D8") && ids.includes("C4DS"), true, JSON.stringify(ids));
+});
+
 Deno.test("list_constraint_warnings includes Decision table catch-all lint", async () => {
   const service = new WorkbenchService();
   await callAgentTool(service, "load_target", {

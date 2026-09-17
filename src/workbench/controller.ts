@@ -34,7 +34,7 @@ import {
   MAPPING_PREVIEW_SCRIPT_PLACEHOLDER,
   unimplementedTestRunMessage,
 } from "../types/mod.ts";
-import { collectValueSlots, collectAllSlotIds, findSkeletonTrail, nearestRepeatingContainer } from "../core/skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectAllSlotIds, findSkeletonTrail, nearestRepeatingContainer, applyOptionalRmToSkeleton } from "../core/skeleton/generate_skeleton.ts";
 import {
   applyExpressionEdit,
   countUnmappedMandatory,
@@ -337,7 +337,7 @@ export class WorkbenchController {
     const previous = this.getBlocklyState?.() ?? this.blocklyState;
     const reloaded = reloadTargetLanguage(this.target, language);
     this.target = reloaded;
-    this.skeleton = reloaded.skeleton;
+    this.skeleton = applyOptionalRmToSkeleton(reloaded.skeleton, this.model.optionalRm);
     this.settings = { ...this.settings, modelLanguage: language };
     this.syncSlotLabelsFromSkeleton();
     if (previous) this.blocklyState = previous;
@@ -728,7 +728,11 @@ export class WorkbenchController {
     next.unsupported = options?.unsupported ? [...options.unsupported] : [];
     next.sheetNames = options?.sheetNames ? [...options.sheetNames] : [];
     next.instanceEncodings = options?.instanceEncodings ? [...options.instanceEncodings] : [];
-    const targetSlots = new Map(collectValueSlots(this.skeleton).map((slot) => [slot.slotId, slot]));
+    const skeleton = applyOptionalRmToSkeleton(
+      this.target?.skeleton ?? this.skeleton,
+      next.optionalRm,
+    );
+    const targetSlots = new Map(collectValueSlots(skeleton).map((slot) => [slot.slotId, slot]));
     for (const item of slots) {
       const targetSlot = targetSlots.get(item.slotId);
       next = applyExpressionEdit(next, item.slotId, item.expression, {
@@ -748,6 +752,7 @@ export class WorkbenchController {
     }
     this.blocklyState = blocklyState;
     this.model = next;
+    this.skeleton = skeleton;
     this.refreshDerived();
     this.dirty = true;
     this.scheduleAutosave();
@@ -1227,6 +1232,7 @@ export class WorkbenchController {
         { attachmentSlotId: parentSlotId, rmType, attributeName },
       ],
     };
+    this.skeleton = applyOptionalRmToSkeleton(this.target?.skeleton ?? [], this.model.optionalRm);
     this.refreshDerived();
     this.markDirty();
   }
@@ -1238,6 +1244,7 @@ export class WorkbenchController {
         !(row.attachmentSlotId === parentSlotId && row.attributeName === attributeName)
       ),
     };
+    this.skeleton = applyOptionalRmToSkeleton(this.target?.skeleton ?? [], this.model.optionalRm);
     this.refreshDerived();
     this.markDirty();
   }
@@ -1567,7 +1574,7 @@ export class WorkbenchController {
       this.templateFilename = storedTarget.filename;
       this.templateContent = storedTarget.content;
       this.templateId = storedTarget.targetId;
-      this.skeleton = storedTarget.skeleton;
+      this.skeleton = applyOptionalRmToSkeleton(storedTarget.skeleton, this.model.optionalRm);
       this.model.targetFormat = storedTarget.format;
       const preferred = this.settings.modelLanguage;
       if (
@@ -1579,7 +1586,7 @@ export class WorkbenchController {
         try {
           const reloaded = reloadTargetLanguage(storedTarget, preferred);
           this.target = reloaded;
-          this.skeleton = reloaded.skeleton;
+          this.skeleton = applyOptionalRmToSkeleton(reloaded.skeleton, this.model.optionalRm);
           this.syncSlotLabelsFromSkeleton();
         } catch {
           // Keep persisted skeleton when regenerate fails.

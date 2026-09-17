@@ -14,7 +14,7 @@ import type {
   TargetFormatId,
 } from "../../types/mod.ts";
 import { applyExpressionEdit } from "../mapping_model/mod.ts";
-import { collectValueSlots, collectRepeatableContainers } from "../skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectRepeatableContainers, findSkeletonTrail, nearestRepeatingContainer } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
 import { Validator, type Schema } from "@cfworker/json-schema";
 import { SUGGESTION_FORMAT_SCHEMA } from "./suggestion_schema.ts";
@@ -124,19 +124,52 @@ export function joinLoopPath(loopPath: string, relative: string): string {
 export function buildPrompt(options: BuildPromptOptions): string {
   const valueSlots = collectValueSlots(options.skeleton);
   const mapped = new Set(options.model.slots.filter((s) => s.expression).map((s) => s.slotId));
+  const seen = new Set<string>();
   const inScope = valueSlots.filter((s) => {
+    if (seen.has(s.slotId)) return false;
+    seen.add(s.slotId);
     if (options.scope === "slot") return s.slotId === options.slotId;
     return !mapped.has(s.slotId);
   });
 
-  const manifest = inScope.map((s) => ({
-    slotId: s.slotId,
-    valueType: s.rmType,
-    label: s.label,
-    ...(s.targetPath ? { targetPath: s.targetPath } : {}),
-    ...(s.multiplicity ? { multiplicity: s.multiplicity } : {}),
-    ...(s.archetypeNodeId ? { archetypeNodeId: s.archetypeNodeId } : {}),
-  }));
+  const manifest = inScope.map((s) => {
+    const trail = findSkeletonTrail(options.skeleton, s.slotId);
+    const repeating = nearestRepeatingContainer(trail);
+    const pathParts: string[] = [];
+    for (const node of trail) {
+      const label = node.label?.trim();
+      if (!label || label === node.rmType) continue;
+      if (pathParts[pathParts.length - 1] === label) continue;
+      pathParts.push(label);
+    }
+    const pathLabel = pathParts.length ? pathParts.join(" › ") : undefined;
+    return {
+      slotId: s.slotId,
+      valueType: s.rmType,
+      label: s.label,
+      ...(pathLabel ? { pathLabel } : {}),
+      ...(s.targetPath ? { targetPath: s.targetPath } : {}),
+      ...(s.multiplicity ? { multiplicity: s.multiplicity } : {}),
+      ...(repeating ? { attachSlotId: repeating.slotId } : {}),
+      ...(s.archetypeNodeId ? { archetypeNodeId: s.archetypeNodeId } : {}),
+      ...(s.fixedFields?.units ? { unitsFixed: s.fixedFields.units } : {}),
+      ...(s.fixedFields?.code_string || s.fixedFields?.defining_code
+        ? { codeFixed: String(s.fixedFields.code_string ?? s.fixedFields.defining_code) }
+        : {}),
+      ...(s.fixedFields?.terminology_id ? { terminologyFixed: s.fixedFields.terminology_id } : {}),
+      ...(s.allowedUnits?.length ? { allowedUnits: s.allowedUnits } : {}),
+      ...(s.allowedValues?.length
+        ? {
+          allowedValues: s.allowedValues.map((v) => ({
+            code: v.code,
+            label: v.label,
+            ...(v.terminologyId ? { terminologyId: v.terminologyId } : {}),
+            ...(v.assumed ? { assumed: true } : {}),
+          })),
+        }
+        : {}),
+    };
+  });
 
   const targetLabel = formatTargetTask(options.targetFormat);
   const sections: string[] = [
@@ -241,7 +274,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
   sections.push(
     "",
     "## Block examples",
-    "Value slots only — no RM containers or DV shells in suggestions. Prefer **Decision tables** (`decision_table`) when combinational rules (several inputs, don't-care, FIRST/UNIQUE/COLLECT) are easier for humans to read than nested `if`. Prefer **Sheets** (`sheet_lookup`) for 1-key terminology tables. Keep `maps_get` for Defaults Map keys.",
+    "Value slots only — no RM containers or DV shells in suggestions. Prefer **Decision tables** (`decision_table`) when combinational rules (several inputs, don't-care, FIRST/UNIQUE/COLLECT) are easier for humans to read than nested `if`. Prefer **Sheets** (`sheet_lookup`) for 1-key terminology tables. Keep `maps_get` for Defaults Map keys. Unconstrained `DV_QUANTITY` units: `maps_create_with` keys `magnitude` + `units` on the quantity slot (not a sibling slot).",
     "",
     "**Terminology translation (ICD-10 → SNOMED CT)** — `sheet_lookup` against a named Sheet (headers `code` / `snomed`), key from source:",
     "```json",
@@ -294,6 +327,27 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
+    "**DV_QUANTITY magnitude + units** — when `unitsFixed` is absent:",
+    "```json",
+    JSON.stringify({
+      slotId: "{targetId}{path/to/quantity/value/value}",
+      loopVar: "item",
+      block: {
+        type: "maps_create_with",
+        extraState: { itemCount: 2 },
+        fields: { KEY0: "magnitude", KEY1: "units" },
+        inputs: {
+          VAL0: {
+            block: { type: "source_query_number", fields: { EXPRESSION: "Dose" } },
+          },
+          VAL1: {
+            block: { type: "source_query", fields: { EXPRESSION: "UnitCode" } },
+          },
+        },
+      },
+    }, null, 2),
+    "```",
+    "",
     "**Defaults vs source** — scaffold often pre-wires `maps_get(\"defaults\", …)` for language/territory/facility/time/composer. **Source wins:** when the source has data for such a slot, map with `source_query` (e.g. context start time, healthcare facility, composer name). Omit defaults-only slots only when the source has no value.",
     "",
     "**Source over defaults (time / composer)** — map from source when present:",
@@ -307,13 +361,25 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
-    "**Party identity `name` slot** (DV_TEXT value leaf; source over defaults):",
+    "**Party identity `name` slot** (PARTY_IDENTIFIED container from `list_slots`; source over defaults). Optional identifiers: `maps_create_with` keys `name`, `id`, `type`:",
     "```json",
     JSON.stringify({
-      slotId: "{targetId}{path/to/composer/name/value}",
+      slotId: "{targetId}//composer",
       block: {
-        type: "source_query",
-        fields: { EXPRESSION: "$.patient.name" },
+        type: "maps_create_with",
+        extraState: { itemCount: 3 },
+        fields: { KEY0: "name", KEY1: "id", KEY2: "type" },
+        inputs: {
+          VAL0: {
+            block: { type: "source_query", fields: { EXPRESSION: "$.author.displayName" } },
+          },
+          VAL1: {
+            block: { type: "source_query", fields: { EXPRESSION: "$.author.id" } },
+          },
+          VAL2: {
+            block: { type: "text", fields: { TEXT: "urn:oid:1.2.752.29.4.19" } },
+          },
+        },
       },
     }, null, 2),
     "```",

@@ -2,8 +2,13 @@
  * Compact inspect payloads for Agent API / MCP (no DOM).
  */
 
-import type { MappingModel, SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
-import { collectValueSlots } from "../core/skeleton/generate_skeleton.ts";
+import type { AllowedValue, MappingModel, SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
+import {
+  collectRepeatableContainers,
+  collectValueSlots,
+  findSkeletonTrail,
+  nearestRepeatingContainer,
+} from "../core/skeleton/generate_skeleton.ts";
 import { INSTANCE_ENCODING_FIELD } from "../core/output/instance_encoding.ts";
 import { parseInstanceEncoding } from "../core/output/instance_encoding.ts";
 import { validateModel } from "../core/mapping_model/mod.ts";
@@ -13,10 +18,29 @@ export interface SlotInspectRow {
   slotId: string;
   valueType: string;
   label?: string;
+  /** Ancestor labels that are not raw RM type names (e.g. `Vårdenhet › Namn`). */
+  pathLabel?: string;
   multiplicity?: string;
+  /** Repeating ancestor `attachSlotId` for `loops[]` (`for_each_source`). */
+  attachSlotId?: string;
   mapped: boolean;
   expression?: string;
   mandatory?: boolean;
+  /** Constrained unique UCUM unit copied onto the DV_QUANTITY shell. */
+  unitsFixed?: string;
+  allowedUnits?: string[];
+  /** Unique constrained code when the template pins a single coded value. */
+  codeFixed?: string;
+  terminologyFixed?: string;
+  /** Template-constrained coded/string choices (ISM, setting, local at-codes). */
+  allowedValues?: AllowedValue[];
+}
+
+export interface RepeatableInspectRow {
+  slotId: string;
+  rmType: string;
+  label?: string;
+  multiplicity?: string;
 }
 
 export interface SourceTreeNode {
@@ -60,19 +84,67 @@ const ABSTRACT_ITEM_STRUCTURE_WARNING =
 
 export function listSlotsInspect(skeleton: SkeletonNode[], model: MappingModel): SlotInspectRow[] {
   const byId = new Map(model.slots.map((s) => [s.slotId, s]));
-  return collectValueSlots(skeleton).map((slot) => {
+  const seen = new Set<string>();
+  const rows: SlotInspectRow[] = [];
+  for (const slot of collectValueSlots(skeleton)) {
+    if (seen.has(slot.slotId)) continue;
+    seen.add(slot.slotId);
     const mapped = byId.get(slot.slotId);
     const expression = mapped?.expression;
-    return {
+    const trail = findSkeletonTrail(skeleton, slot.slotId);
+    const repeating = nearestRepeatingContainer(trail);
+    const pathLabel = pathLabelFromTrail(trail);
+    rows.push({
       slotId: slot.slotId,
       valueType: slot.rmType,
       ...(slot.label ? { label: slot.label } : {}),
+      ...(pathLabel ? { pathLabel } : {}),
       ...(slot.multiplicity ? { multiplicity: slot.multiplicity } : {}),
+      ...(repeating ? { attachSlotId: repeating.slotId } : {}),
       mapped: Boolean(expression),
       ...(expression ? { expression } : {}),
       ...(slot.mandatory ? { mandatory: true } : {}),
-    };
-  });
+      ...(slot.fixedFields?.units ? { unitsFixed: String(slot.fixedFields.units) } : {}),
+      ...(slot.fixedFields?.code_string || slot.fixedFields?.defining_code
+        ? { codeFixed: String(slot.fixedFields.code_string ?? slot.fixedFields.defining_code) }
+        : {}),
+      ...(slot.fixedFields?.terminology_id
+        ? { terminologyFixed: String(slot.fixedFields.terminology_id) }
+        : {}),
+      ...(slot.allowedUnits?.length ? { allowedUnits: [...slot.allowedUnits] } : {}),
+      ...(slot.allowedValues?.length ? { allowedValues: slot.allowedValues.map(cloneAllowedValue) } : {}),
+    });
+  }
+  return rows;
+}
+
+export function listRepeatableInspect(skeleton: SkeletonNode[]): RepeatableInspectRow[] {
+  return collectRepeatableContainers(skeleton).map((node) => ({
+    slotId: node.slotId,
+    rmType: node.rmType,
+    ...(node.label ? { label: node.label } : {}),
+    ...(node.multiplicity ? { multiplicity: node.multiplicity } : {}),
+  }));
+}
+
+function cloneAllowedValue(value: AllowedValue): AllowedValue {
+  return {
+    code: value.code,
+    label: value.label,
+    ...(value.terminologyId ? { terminologyId: value.terminologyId } : {}),
+    ...(value.assumed ? { assumed: true } : {}),
+  };
+}
+
+function pathLabelFromTrail(trail: SkeletonNode[]): string | undefined {
+  const parts: string[] = [];
+  for (const node of trail) {
+    const label = node.label?.trim();
+    if (!label || label === node.rmType) continue;
+    if (parts[parts.length - 1] === label) continue;
+    parts.push(label);
+  }
+  return parts.length ? parts.join(" › ") : undefined;
 }
 
 export function compactSourceTree(

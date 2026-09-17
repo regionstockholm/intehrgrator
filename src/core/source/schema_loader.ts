@@ -5,6 +5,9 @@ type JsonSchemaObject = Record<string, unknown>;
 
 export function loadJsonSchema(content: string, rootName = "root"): SchemaTreeNode {
   const data = parseJsonDocument(content);
+  if (isAvroSchemaDocument(data)) {
+    return avroSchemaToTree(data, rootName, "$");
+  }
   if (isJsonSchemaDocument(data)) {
     return jsonSchemaToTree(data, rootName, "$");
   }
@@ -53,6 +56,94 @@ export function isJsonSchemaDocument(value: unknown): boolean {
   if (o.type === "object" && o.properties) return true;
   if (o.type === "array" && o.items) return true;
   return false;
+}
+
+/** Apache Avro schema (JSON), including Kafka Connect / Schema Registry records. */
+export function isAvroSchemaDocument(value: unknown): boolean {
+  return isAvroRecord(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function isAvroRecord(value: unknown): boolean {
+  return isRecord(value) && value.type === "record" && Array.isArray(value.fields);
+}
+
+function avroSchemaToTree(schema: unknown, name: string, path: string): SchemaTreeNode {
+  const optional = avroTypeIsOptional(schema);
+  const core = unwrapAvroType(schema);
+  if (isAvroRecord(core)) {
+    const children = (core.fields as unknown[]).flatMap((field) => {
+      if (!isRecord(field) || typeof field.name !== "string") return [];
+      return [avroSchemaToTree(field.type, field.name, appendJsonPath(path, field.name))];
+    });
+    return {
+      path,
+      name,
+      type: "object",
+      multiplicity: optional ? "0..1" : "1",
+      children,
+    };
+  }
+  if (isRecord(core) && core.type === "array") {
+    const item = avroSchemaToTree(core.items, `${name}[*]`, `${path}[*]`);
+    return {
+      path,
+      name,
+      type: "array",
+      multiplicity: "0..*",
+      children: [item],
+    };
+  }
+  if (isRecord(core) && core.type === "map") {
+    const item = avroSchemaToTree(core.values, `${name}[*]`, `${path}[*]`);
+    return {
+      path,
+      name,
+      type: "object",
+      multiplicity: optional ? "0..1" : "1",
+      children: [item],
+    };
+  }
+  if (isRecord(core) && core.type === "enum") {
+    return {
+      path,
+      name,
+      type: "string",
+      multiplicity: optional ? "0..1" : "1",
+      children: [],
+    };
+  }
+  const primitive = avroPrimitiveName(core);
+  return {
+    path,
+    name,
+    type: primitive,
+    multiplicity: optional ? "0..1" : "1",
+    children: [],
+  };
+}
+
+function avroTypeIsOptional(type: unknown): boolean {
+  return Array.isArray(type) && type.includes("null");
+}
+
+function unwrapAvroType(type: unknown): unknown {
+  if (Array.isArray(type)) {
+    const nonNull = type.filter((entry) => entry !== "null");
+    return unwrapAvroType(nonNull[0] ?? "null");
+  }
+  return type;
+}
+
+function avroPrimitiveName(type: unknown): string {
+  const raw = isRecord(type) && typeof type.type === "string" ? type.type : type;
+  if (raw === "int" || raw === "long" || raw === "float" || raw === "double") return "number";
+  if (raw === "boolean") return "boolean";
+  if (raw === "null") return "null";
+  return "string";
 }
 
 function jsonSchemaToTree(

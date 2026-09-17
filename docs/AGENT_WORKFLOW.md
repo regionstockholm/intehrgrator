@@ -18,6 +18,7 @@ intEHRgrator --headless [--port <n>] [--bind <addr>] [--load <file.intehrgrator>
 - `--headless`: do not open a browser; on `deno desktop` / the compiled app, hide the native window and keep `Deno.serve` alive.
 - `--bind 0.0.0.0` (or any non-loopback) **requires** `--token` or `INTEHR_AGENT_TOKEN`. When a token is set, every Agent API route except `GET /health` needs `Authorization: Bearer …` or `x-intehr-token`.
 - `--load` hydrates the shared `WorkbenchService` from a Project Bundle zip (`.intehrgrator`) or JSON file at start.
+- Loading a target via Agent API / MCP **scaffolds** the Template Skeleton onto a headless Blockly workspace (Conversion start, Defaults, default-point lookups) so `set_instance_encoding`, loops, and Optional RM match the GUI.
 - `DENO_SERVE_ADDRESS` (Deno desktop webview) still owns listen address; `--port` / `--bind` apply to `deno run`.
 
 Base URL: `http://127.0.0.1:<port>/api/v1/`
@@ -28,7 +29,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 |--------|------|----------|---------|
 | GET | `/health` | — | Liveness (unauthenticated) |
 | GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status |
-| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, multiplicity, expression) |
+| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, unitsFixed / allowedUnits, codeFixed / allowedValues, expression) plus `repeatable` containers for `loops[]` |
 | GET | `/source-tree` | `get_source_tree` | Compact Source Schema + Active Example trees |
 | GET | `/sheets` | `get_sheets` | Sheet / Decision table summaries + documents |
 | GET | `/product-stack` | `get_product_stack` | Conversion start chain (Instance roots, encodings, loops) |
@@ -46,7 +47,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | POST | `/add-example` | `add_example` | Example Instance |
 | POST | `/load-example-set` | `load_example_set` | Catalogued Example Set (`catalogPath` or `catalogUrl` + `setId`; `includeMapping` default true) |
 | POST | `/set-active-example` | `set_active_example` | `{ id }` |
-| PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents |
+| PUT | `/sheets` | `replace_sheets` | Replace Sheet / Decision table documents (revision includes sheets) |
 | POST | `/ui-commit` | — | UI semantic commit `{ bundle, summary, kind? }` |
 | POST | `/import-suggestions` | `import_suggestions` | Apply `intehrgrator-suggestions` JSON (body = text) |
 | POST | `/build-prompt` | `build_prompt` | Copy AI Prompt markdown |

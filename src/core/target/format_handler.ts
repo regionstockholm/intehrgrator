@@ -16,6 +16,7 @@ import {
   generateSkeletonFromWebTemplate,
   collectAllSlotIds,
   isRepeatingMultiplicity,
+  isPartyIdentityRmType,
 } from "../skeleton/generate_skeleton.ts";
 import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
@@ -159,6 +160,7 @@ registerTargetFormatHandler({
         skeleton: generated.skeleton,
         language: generated.language,
         languages: generated.languages,
+        webTemplateJson: generated.webTemplateJson ?? content,
       };
     }
     const generated = generateSkeleton(content, { language: options?.language });
@@ -170,6 +172,7 @@ registerTargetFormatHandler({
       skeleton: generated.skeleton,
       language: generated.language,
       languages: generated.languages,
+      webTemplateJson: generated.webTemplateJson,
     };
   },
   render({ definition, slotValues }) {
@@ -515,23 +518,26 @@ function renderOpenEhrNodeOnce(
     if (isAbsentValue(value)) return undefined;
     if (!node.rmType.startsWith("DV_") && node.rmType !== "CODE_PHRASE") return value;
     const output: Record<string, unknown> = { _type: node.rmType };
-    if (node.rmType === "DV_QUANTITY") output.magnitude = value;
-    else if (node.rmType === "DV_BOOLEAN") output.value = Boolean(value);
-    else if (node.rmType === "DV_COUNT") output.magnitude = Number(value);
-    else output.value = value;
-    Object.assign(output, node.fixedFields ?? {});
+    assignDataValueFields(output, node.rmType, value);
+    applyFixedDataValueFields(output, node.rmType, node.fixedFields);
     return output;
   }
 
   const output: Record<string, unknown> = { _type: node.rmType };
   if (node.archetypeNodeId) output.archetype_node_id = node.archetypeNodeId;
-  if (node.label && node.rmType !== "COMPOSITION") {
+  if (node.label && node.rmType !== "COMPOSITION" && !isPartyIdentityRmType(node.rmType)) {
     output.name = { _type: "DV_TEXT", value: node.label };
+  }
+  if (isPartyIdentityRmType(node.rmType) && Object.hasOwn(values, node.slotId)) {
+    assignPartyIdentityFields(output, values[node.slotId]);
   }
   const grouped = new Map<string, unknown[]>();
   for (const child of node.children) {
     // LOCATABLE identity is copied from the skeleton node, not mapped as DV_TEXT.
     if (isAutoFixedValueSlot(child)) continue;
+    if (isPartyIdentityRmType(node.rmType) && (child.rmAttribute === "name" || child.rmAttribute === "identifiers")) {
+      continue;
+    }
     const value = renderOpenEhrNode(child, values);
     if (value === undefined) continue;
     const attribute = child.rmAttribute ?? child.label;
@@ -543,7 +549,13 @@ function renderOpenEhrNodeOnce(
     }
     grouped.set(attribute, list);
   }
-  if (grouped.size === 0 && !node.mandatory && node.rmType !== "COMPOSITION") {
+  if (
+    grouped.size === 0 &&
+    !node.mandatory &&
+    node.rmType !== "COMPOSITION" &&
+    output.name == null &&
+    output.identifiers == null
+  ) {
     return undefined;
   }
   for (const [attribute, valuesForAttribute] of grouped) {
@@ -609,6 +621,153 @@ function xmlTagName(node: SkeletonNode): string {
   if (node.rmAttribute) return node.rmAttribute;
   const fromPath = node.targetPath?.split("/").filter(Boolean).pop();
   return fromPath || node.label;
+}
+
+function assignDataValueFields(
+  output: Record<string, unknown>,
+  rmType: string,
+  value: unknown,
+): void {
+  const record = asStringKeyedRecord(value);
+  if (rmType === "DV_QUANTITY") {
+    if (record) {
+      if (record.magnitude !== undefined) output.magnitude = record.magnitude;
+      if (record.units !== undefined) output.units = record.units;
+    } else {
+      output.magnitude = value;
+    }
+    return;
+  }
+  if (rmType === "DV_BOOLEAN") {
+    output.value = record && "value" in record ? Boolean(record.value) : Boolean(value);
+    return;
+  }
+  if (rmType === "DV_COUNT") {
+    output.magnitude = record && "magnitude" in record ? Number(record.magnitude) : Number(value);
+    return;
+  }
+  if (rmType === "DV_IDENTIFIER") {
+    if (record) {
+      if (record.id !== undefined) output.id = record.id;
+      else if (record.value !== undefined) output.id = record.value;
+      if (record.type !== undefined) output.type = record.type;
+      if (record.issuer !== undefined) output.issuer = record.issuer;
+    } else {
+      output.id = value;
+    }
+    return;
+  }
+  if (rmType === "DV_CODED_TEXT") {
+    if (record) {
+      if (record.value !== undefined) output.value = record.value;
+      const phrase = codedPhraseFromRecord(record);
+      if (phrase) output.defining_code = phrase;
+    } else {
+      output.value = value;
+    }
+    return;
+  }
+  if (rmType === "CODE_PHRASE") {
+    if (record) {
+      const phrase = codedPhraseFromRecord(record);
+      if (phrase) {
+        Object.assign(output, phrase);
+        return;
+      }
+    }
+    output.value = value;
+    return;
+  }
+  if (record && record.value !== undefined) {
+    output.value = record.value;
+    return;
+  }
+  output.value = value;
+}
+
+function applyFixedDataValueFields(
+  output: Record<string, unknown>,
+  rmType: string,
+  fields: Record<string, string> | undefined,
+): void {
+  if (!fields) return;
+  if (rmType === "DV_CODED_TEXT") {
+    if (fields.value && output.value === undefined) output.value = fields.value;
+    const phrase = codedPhraseFromRecord(fields);
+    if (phrase && output.defining_code == null) output.defining_code = phrase;
+    return;
+  }
+  if (rmType === "CODE_PHRASE") {
+    const phrase = codedPhraseFromRecord(fields);
+    if (phrase) Object.assign(output, phrase);
+    return;
+  }
+  if (rmType === "DV_IDENTIFIER") {
+    if (fields.id && output.id === undefined) output.id = fields.id;
+    if (fields.type) output.type = fields.type;
+    if (fields.issuer) output.issuer = fields.issuer;
+    return;
+  }
+  Object.assign(output, fields);
+}
+
+function asStringKeyedRecord(value: unknown): Record<string, unknown> | null {
+  if (value == null || typeof value !== "object" || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function assignPartyIdentityFields(output: Record<string, unknown>, value: unknown): void {
+  const record = asStringKeyedRecord(value);
+  if (!record) {
+    if (value != null && String(value) !== "") output.name = String(value);
+    return;
+  }
+  const name = record.name ?? record.value;
+  if (name != null && String(name) !== "") output.name = String(name);
+  const id = record.id ?? record.identifier;
+  const type = record.type;
+  if (Array.isArray(record.identifiers)) {
+    const rows = record.identifiers
+      .map((row) => dvIdentifierFromUnknown(row))
+      .filter((row): row is Record<string, unknown> => row != null);
+    if (rows.length) output.identifiers = rows;
+  } else if (id != null && String(id) !== "") {
+    output.identifiers = [dvIdentifierFromParts(id, type)];
+  }
+}
+
+function dvIdentifierFromUnknown(value: unknown): Record<string, unknown> | null {
+  if (value == null) return null;
+  const record = asStringKeyedRecord(value);
+  if (!record) return dvIdentifierFromParts(value, undefined);
+  const id = record.id ?? record.value;
+  if (id == null) return null;
+  return dvIdentifierFromParts(id, record.type);
+}
+
+function dvIdentifierFromParts(id: unknown, type: unknown): Record<string, unknown> {
+  const identifier: Record<string, unknown> = { _type: "DV_IDENTIFIER", id: String(id) };
+  if (type != null && String(type) !== "") identifier.type = String(type);
+  return identifier;
+}
+
+function codedPhraseFromRecord(record: Record<string, unknown>): Record<string, unknown> | null {
+  const nested = record.defining_code;
+  if (nested && typeof nested === "object" && !Array.isArray(nested)) {
+    return { _type: "CODE_PHRASE", ...(nested as Record<string, unknown>) };
+  }
+  const code = record.code_string ?? record.code ??
+    (typeof nested === "string" || typeof nested === "number" ? nested : undefined);
+  const term = record.terminology_id ?? record.terminology;
+  if (code == null && term == null) return null;
+  const phrase: Record<string, unknown> = { _type: "CODE_PHRASE" };
+  if (term != null) {
+    phrase.terminology_id = typeof term === "object"
+      ? term
+      : { _type: "TERMINOLOGY_ID", value: String(term) };
+  }
+  if (code != null) phrase.code_string = String(code);
+  return phrase;
 }
 
 function isAbsentValue(value: unknown): boolean {

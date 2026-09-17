@@ -107,7 +107,10 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
       row.className = "function-library-row";
       const label = document.createElement("div");
       label.className = "function-library-row-text";
-      label.textContent = `${fn.name}(${fn.parameters.join(", ")})`;
+      const params = fn.parameters.join(", ");
+      label.textContent = fn.hasReturn
+        ? `${fn.name}(${params}) → value`
+        : `${fn.name}(${params})`;
       const actions = document.createElement("div");
       actions.className = "function-library-row-actions";
       actions.append(

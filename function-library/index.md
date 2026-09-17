@@ -1,12 +1,18 @@
 # Function library
 
-Reusable **Blockly Functions** (`procedures_defreturn` plus any Decision tables they call). Mapping Specification fragments — not Conversion script helpers.
+Reusable **Blockly Functions** — Mapping Specification fragments, not Conversion script helpers.
 
-Load with MCP / Agent API `list_function_library` then `load_function` (`clash`: `rename` default, or `replace`). Web Shell: **Functions**. Call the Function from a Target value slot; do not `put_blockly` the whole canvas.
+| Blockly block | What it is | Saved? |
+|---------------|------------|--------|
+| `procedures_defreturn` | **Value** Function (returns a value; call from a Target slot) | Yes |
+| `procedures_defnoreturn` | **Statement** Function (does something; no return) | Yes |
+| `procedures_ifreturn` | If-return *inside* a Function body | With the enclosing Function — not a Function of its own |
+
+Load with MCP / Agent API `list_function_library` then `load_function` (`clash`: `rename` default, or `replace`). Web Shell: **Functions**. Call a value Function from a Target slot; do not `put_blockly` the whole canvas.
 
 | id | name | locale | params | returns | Decision tables | what |
 |----|------|--------|--------|---------|-----------------|------|
 | `join_swedish` | `join_swedish` | sv | `names` | String | JoinNames | `A, B och C` (FIRST snippets; not `join_list`) |
 | `join_oxford` | `join_oxford` | en | `names` | String | JoinOxford | `A, B, and C` Oxford comma (FIRST snippets; not `join_list`) |
 
-Catalog: `function-library/catalog.json`. Files: `*.intehr-function.json`. When a contribution issue is accepted, follow [`AGENTS.md`](AGENTS.md).
+Catalog: `function-library/catalog.json`. Files: `*.intehr-function.json` (`hasReturn` true for value Functions). When a contribution issue is accepted, follow [`AGENTS.md`](AGENTS.md).

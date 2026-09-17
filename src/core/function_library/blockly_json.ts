@@ -59,8 +59,20 @@ export function walkWorkspace(
   for (const block of topBlocks(state)) walkBlock(block, visit);
 }
 
+/** Blockly Functions drawer definitions (not `procedures_ifreturn`, which lives inside a body). */
+export const PROCEDURE_DEF_TYPES = ["procedures_defreturn", "procedures_defnoreturn"] as const;
+export type ProcedureDefType = (typeof PROCEDURE_DEF_TYPES)[number];
+
+export function isProcedureDefType(type: string | undefined): type is ProcedureDefType {
+  return (PROCEDURE_DEF_TYPES as readonly string[]).includes(type ?? "");
+}
+
+export function procedureHasReturn(type: string | undefined): boolean {
+  return type === "procedures_defreturn";
+}
+
 export function procedureDefName(block: BlocklyBlockJson): string | undefined {
-  if (!block.type?.startsWith("procedures_def")) return undefined;
+  if (!isProcedureDefType(block.type)) return undefined;
   const name = block.fields?.NAME;
   return typeof name === "string" && name.trim() ? name.trim() : undefined;
 }

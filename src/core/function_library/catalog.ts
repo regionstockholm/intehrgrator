@@ -70,6 +70,7 @@ function parseEntry(item: unknown, catalogUrl: string, index: number): FunctionL
     file,
     locale: optionalString(raw.locale),
     parameters: optionalStringArray(raw.parameters, `${prefix}.parameters`),
+    hasReturn: typeof raw.hasReturn === "boolean" ? raw.hasReturn : undefined,
     returns: optionalString(raw.returns),
     decisionTables: optionalStringArray(raw.decisionTables, `${prefix}.decisionTables`),
   };

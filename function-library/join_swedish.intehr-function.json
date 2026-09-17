@@ -6,6 +6,7 @@
   "parameters": [
     "names"
   ],
+  "hasReturn": true,
   "returns": "String",
   "locale": "sv",
   "decisionTables": [

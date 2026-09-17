@@ -4,6 +4,7 @@
 
 import { Blockly } from "./blockly_core.ts";
 import { detectLocale, msg } from "./i18n/locale.ts";
+import { isProcedureDefType } from "../core/function_library/blockly_json.ts";
 
 export const SAVE_FUNCTION_MENU_ID = "intehrgrator_save_function";
 export const CONTRIBUTE_FUNCTION_MENU_ID = "intehrgrator_contribute_function";
@@ -27,7 +28,7 @@ export interface FunctionLibraryMenuHandlers {
 function isProcedureDef(block: Blockly.Block | null | undefined): block is Blockly.Block {
   return Boolean(
     block &&
-      (block.type === "procedures_defreturn" || block.type === "procedures_defnoreturn") &&
+      isProcedureDefType(block.type) &&
       String(block.getFieldValue("NAME") || "").trim(),
   );
 }

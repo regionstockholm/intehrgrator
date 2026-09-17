@@ -10,6 +10,8 @@ export interface FunctionBundle {
   name: string;
   description: string;
   parameters: string[];
+  /** True for `procedures_defreturn`; false for `procedures_defnoreturn`. */
+  hasReturn: boolean;
   /** Blockly output check when the definition returns a value (`procedures_defreturn`). */
   returns?: string;
   locale?: string;
@@ -27,6 +29,7 @@ export interface FunctionLibraryEntry {
   file: string;
   locale?: string;
   parameters?: string[];
+  hasReturn?: boolean;
   returns?: string;
   decisionTables?: string[];
 }

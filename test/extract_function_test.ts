@@ -23,6 +23,7 @@ Deno.test("stock procedure blocks are registered", () => {
     "procedures_defnoreturn",
     "procedures_callreturn",
     "procedures_callnoreturn",
+    "procedures_ifreturn",
   ]) {
     assert(Blockly.Blocks[type], `missing ${type}`);
   }

@@ -4,6 +4,8 @@ import * as enMsg from "blockly/msg/en";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 import {
+  extractFunctionBundle,
+  listWorkspaceFunctions,
   mergeFunctionBundle,
   mergeFunctionBundleIntoState,
 } from "@intehrgrator/blockly/function_bundle.ts";
@@ -340,5 +342,128 @@ Deno.test("shipped Function library starters parse without join_list", async () 
     assert(loaded.description.length > 20);
     assertEquals(hasBlockType(loaded.blocklyState, "join_list"), false);
     assertEquals(loaded.sheets[0]?.kind, "decision-table");
+    assertEquals(loaded.hasReturn, true);
   }
+});
+
+function appendProcedure(
+  workspace: Blockly.Workspace,
+  type: "procedures_defreturn" | "procedures_defnoreturn",
+  name: string,
+  param: string,
+): Blockly.Block {
+  const paramId = `${name}_${param}`;
+  workspace.createVariable(param, "", paramId);
+  return Blockly.serialization.blocks.append({
+    type,
+    fields: { NAME: name },
+    extraState: {
+      params: [{ name: param, id: paramId }],
+      hasStatements: true,
+    },
+  }, workspace) as Blockly.Block;
+}
+
+Deno.test("statement Function (procedures_defnoreturn) extracts, lists, and keeps call argument slots", () => {
+  ensure();
+  const source = new Blockly.Workspace();
+  const def = appendProcedure(source, "procedures_defnoreturn", "say", "msg");
+  (def as { setStatements_?: (v: boolean) => void }).setStatements_?.(true);
+  const inner = source.newBlock("controls_if");
+  const stack = def.getInput("STACK") ?? def.getInput("STACK0");
+  assert(stack?.connection, "statement Function has a STACK");
+  stack.connection.connect(inner.previousConnection!);
+
+  const listed = listWorkspaceFunctions(source);
+  assertEquals(listed, [{ name: "say", parameters: ["msg"], hasReturn: false }]);
+
+  const bundle = extractFunctionBundle(source, "say", [], { description: "log a message" });
+  source.dispose();
+  assertEquals(bundle.hasReturn, false);
+  assertEquals(bundle.returns, undefined);
+  assertEquals(bundle.parameters, ["msg"]);
+  assertEquals(hasBlockType(bundle.blocklyState, "procedures_defnoreturn"), true);
+  assertEquals(hasBlockType(bundle.blocklyState, "procedures_defreturn"), false);
+  const parsed = parseFunctionBundle(serializeFunctionBundle(bundle));
+  assertEquals(parsed.hasReturn, false);
+
+  const target = new Blockly.Workspace();
+  mergeFunctionBundle(target, bundle, { clash: "rename", sheets: [] });
+  const names = target.getTopBlocks(false)
+    .filter((b) => b.type === "procedures_defnoreturn")
+    .map((b) => String(b.getFieldValue("NAME")));
+  assertEquals(names, ["say"]);
+  const call = Blockly.serialization.blocks.append({
+    type: "procedures_callnoreturn",
+    extraState: { name: "say", params: ["msg"] },
+  }, target) as Blockly.Block;
+  assert(call.getInput("ARG0"), "callnoreturn keeps the msg argument slot");
+  target.dispose();
+});
+
+Deno.test("value Function round-trips procedures_ifreturn in the body", () => {
+  ensure();
+  const source = new Blockly.Workspace();
+  const def = appendProcedure(source, "procedures_defreturn", "maybe", "flag");
+  (def as { setStatements_?: (v: boolean) => void }).setStatements_?.(true);
+  const ifret = source.newBlock("procedures_ifreturn");
+  const stack = def.getInput("STACK") ?? def.getInput("STACK0");
+  assert(stack?.connection, "value Function has a STACK");
+  stack.connection.connect(ifret.previousConnection!);
+  const cond = source.newBlock("logic_boolean");
+  cond.setFieldValue("TRUE", "BOOL");
+  ifret.getInput("CONDITION")!.connection!.connect(cond.outputConnection!);
+  const early = source.newBlock("text");
+  early.setFieldValue("early", "TEXT");
+  const valueInput = ifret.getInput("VALUE");
+  if (valueInput?.connection && early.outputConnection) {
+    valueInput.connection.connect(early.outputConnection);
+  }
+  const late = source.newBlock("text");
+  late.setFieldValue("late", "TEXT");
+  const ret = def.getInput("RETURN") ?? def.getInput("VALUE");
+  ret!.connection!.connect(late.outputConnection!);
+
+  const bundle = extractFunctionBundle(source, "maybe", []);
+  source.dispose();
+  assertEquals(bundle.hasReturn, true);
+  assertEquals(hasBlockType(bundle.blocklyState, "procedures_ifreturn"), true);
+  assertEquals(hasBlockType(bundle.blocklyState, "procedures_defreturn"), true);
+
+  const target = new Blockly.Workspace();
+  mergeFunctionBundle(target, bundle, { clash: "rename", sheets: [] });
+  const restored = target.getAllBlocks(false).find((b) => b.type === "procedures_ifreturn");
+  assert(restored, "if return is still inside the loaded Function");
+  assertEquals(listWorkspaceFunctions(target)[0]?.hasReturn, true);
+  target.dispose();
+});
+
+Deno.test("statement Function round-trips procedures_ifreturn without a value socket", () => {
+  ensure();
+  const source = new Blockly.Workspace();
+  const def = appendProcedure(source, "procedures_defnoreturn", "bail", "flag");
+  (def as { setStatements_?: (v: boolean) => void }).setStatements_?.(true);
+  const ifret = source.newBlock("procedures_ifreturn");
+  const stack = def.getInput("STACK") ?? def.getInput("STACK0");
+  assert(stack?.connection, "statement Function has a STACK");
+  stack.connection.connect(ifret.previousConnection!);
+  const cond = source.newBlock("logic_boolean");
+  cond.setFieldValue("TRUE", "BOOL");
+  ifret.getInput("CONDITION")!.connection!.connect(cond.outputConnection!);
+
+  const bundle = extractFunctionBundle(source, "bail", []);
+  source.dispose();
+  assertEquals(bundle.hasReturn, false);
+  assertEquals(hasBlockType(bundle.blocklyState, "procedures_ifreturn"), true);
+  assertEquals(hasBlockType(bundle.blocklyState, "procedures_defnoreturn"), true);
+
+  const target = new Blockly.Workspace();
+  mergeFunctionBundle(target, bundle, { clash: "rename", sheets: [] });
+  assert(target.getAllBlocks(false).some((b) => b.type === "procedures_ifreturn"));
+  assertEquals(listWorkspaceFunctions(target), [{
+    name: "bail",
+    parameters: ["flag"],
+    hasReturn: false,
+  }]);
+  target.dispose();
 });

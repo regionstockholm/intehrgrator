@@ -34,6 +34,7 @@ for (const spec of GRAMMATICAL_JOIN_SPECS) {
     file: filename,
     locale: bundle.locale,
     parameters: bundle.parameters,
+    hasReturn: bundle.hasReturn,
     returns: bundle.returns,
     decisionTables: bundle.decisionTables,
   });

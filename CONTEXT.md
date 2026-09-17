@@ -241,11 +241,11 @@ Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.b
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Blockly Function**:
-A stock Blockly procedure (Functions drawer): a definition block plus call sites. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function. Persist one Function (definition + Decision tables it uses) as a **Function bundle**; load from disk or the **Function library**. Name clash: rename (default) or replace.
+A stock Blockly procedure (Functions drawer): a **value** definition (`procedures_defreturn`) or a **statement** definition (`procedures_defnoreturn`), plus call sites. `procedures_ifreturn` is an early-return statement *inside* a definition, not a third Function kind. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function. Persist one Function (definition + Decision tables it uses) as a **Function bundle**; load from disk or the **Function library**. Name clash: rename (default) or replace.
 _Avoid_: TypeScript/Java export function, Conversion script, custom DSL subroutine
 
 **Function bundle**:
-Portable JSON (`kind: "intehrgrator-function"`, version 1) for one Blockly Function: `name`, `description`, `parameters`, `decisionTables`, `blocklyState` fragment, `sheets`. Filename `*.intehr-function.json`. Not a Project Bundle.
+Portable JSON (`kind: "intehrgrator-function"`, version 1) for one Blockly Function: `name`, `description`, `parameters`, `hasReturn`, `decisionTables`, `blocklyState` fragment, `sheets`. Filename `*.intehr-function.json`. Not a Project Bundle.
 _Avoid_: Project Bundle, Conversion script module
 
 **Function library**:

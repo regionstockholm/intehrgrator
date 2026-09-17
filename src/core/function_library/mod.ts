@@ -18,8 +18,10 @@ export {
 export {
   asWorkspaceJson,
   findProcedureDef,
+  isProcedureDefType,
   listProcedureDefNames,
   procedureDefName,
+  procedureHasReturn,
   procedureParamNames,
   referencedGridNames,
   uniqueIdentifier,

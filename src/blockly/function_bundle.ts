@@ -15,7 +15,9 @@ import * as enMsg from "blockly/msg/en";
 import {
   asWorkspaceJson,
   offsetTopBlocks,
+  isProcedureDefType,
   procedureDefName,
+  procedureHasReturn,
   procedureParamNames,
   referencedGridNames,
   remapWorkspaceIds,
@@ -60,7 +62,7 @@ export function listWorkspaceFunctions(workspace: Blockly.Workspace): Array<{
 }> {
   const out: Array<{ name: string; parameters: string[]; hasReturn: boolean }> = [];
   for (const block of workspace.getTopBlocks(false)) {
-    if (block.type !== "procedures_defreturn" && block.type !== "procedures_defnoreturn") {
+    if (!isProcedureDefType(block.type)) {
       continue;
     }
     const name = String(block.getFieldValue("NAME") || "").trim();
@@ -69,7 +71,7 @@ export function listWorkspaceFunctions(workspace: Blockly.Workspace): Array<{
     out.push({
       name,
       parameters: saved ? procedureParamNames(saved) : [],
-      hasReturn: block.type === "procedures_defreturn",
+      hasReturn: procedureHasReturn(block.type),
     });
   }
   return out;
@@ -83,7 +85,7 @@ export function extractFunctionBundle(
 ): FunctionBundle {
   ensureEnLocale();
   const def = workspace.getTopBlocks(false).find((block) =>
-    (block.type === "procedures_defreturn" || block.type === "procedures_defnoreturn") &&
+    isProcedureDefType(block.type) &&
     String(block.getFieldValue("NAME") || "") === name
   );
   if (!def) throw new Error(`No Blockly Function named "${name}" on the canvas`);
@@ -111,7 +113,8 @@ export function extractFunctionBundle(
     name,
     description: meta.description ?? "",
     parameters: procedureParamNames(defJson),
-    returns: meta.returns ?? (def.type === "procedures_defreturn" ? "String" : undefined),
+    hasReturn: procedureHasReturn(def.type),
+    returns: meta.returns ?? (procedureHasReturn(def.type) ? "String" : undefined),
     locale: meta.locale,
     decisionTables: [...gridNames],
     blocklyState: blocklyState as Record<string, unknown>,
@@ -235,7 +238,7 @@ function mergeSheets(
 function disposeProcedure(workspace: Blockly.Workspace, name: string): void {
   for (const block of workspace.getTopBlocks(false)) {
     if (
-      (block.type === "procedures_defreturn" || block.type === "procedures_defnoreturn") &&
+      isProcedureDefType(block.type) &&
       String(block.getFieldValue("NAME") || "") === name
     ) {
       block.dispose(false);

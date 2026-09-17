@@ -4,6 +4,7 @@ import {
   asWorkspaceJson,
   findProcedureDef,
   listProcedureDefNames,
+  procedureHasReturn,
   procedureParamNames,
   referencedGridNames,
   renameGridInState,
@@ -54,12 +55,16 @@ export function functionBundleFromUnknown(value: unknown): FunctionBundle {
     throw new Error(`Function bundle blocklyState has no definition named "${name}"`);
   }
   const params = parameters.length ? parameters : procedureParamNames(def);
+  const hasReturn = typeof raw.hasReturn === "boolean"
+    ? raw.hasReturn
+    : procedureHasReturn(def.type);
   return {
     kind: FUNCTION_BUNDLE_KIND,
     version: FUNCTION_BUNDLE_VERSION,
     name,
     description,
     parameters: params,
+    hasReturn,
     returns: optionalString(raw.returns),
     locale: optionalString(raw.locale),
     decisionTables: decisionTables.length ? decisionTables : referencedGridNames(raw.blocklyState),

@@ -20,7 +20,7 @@
           }
         }
       },
-      "note": "One POINT_EVENT per source measurement. Pulse uses a different attachSlotId, so it is mapped from the first reading only."
+      "note": "One POINT_EVENT per source measurement."
     }
   ],
   "suggestions": [
@@ -35,44 +35,42 @@
     {
       "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-EVALUATION.problem_diagnosis.v1]/data/at0001/items/at0002/value/DV_TEXT/value",
       "block": {
-        "type": "source_query",
-        "fields": { "EXPRESSION": "$.diagnosis.display" }
+        "type": "decision_table",
+        "fields": { "NAME": "icd10_display", "OUTPUT": "display" },
+        "inputs": {
+          "INPUTS": {
+            "block": {
+              "type": "maps_create_with",
+              "extraState": { "itemCount": 1 },
+              "fields": { "KEY0": "code" },
+              "inputs": {
+                "VAL0": {
+                  "block": { "type": "source_query", "fields": { "EXPRESSION": "$.diagnosis.code" } }
+                }
+              }
+            }
+          }
+        }
       },
-      "note": "Schema display already matches the ICD-10 title. Sheet icd10_display is available for code→display lookup."
+      "note": "Decision table ICD-10 code → schema display title (same values as $.diagnosis.display)."
     },
     {
       "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.blood_pressure.v2]/data/at0001/events/at0006/data/at0003/items/at0004/value/value/value",
       "loopVar": "reading",
       "block": {
-        "type": "maps_create_with",
-        "extraState": { "itemCount": 2 },
-        "fields": { "KEY0": "magnitude", "KEY1": "units" },
-        "inputs": {
-          "VAL0": {
-            "block": { "type": "source_query_number", "fields": { "EXPRESSION": "systolic" } }
-          },
-          "VAL1": {
-            "block": { "type": "text", "fields": { "TEXT": "mm[Hg]" } }
-          }
-        }
-      }
+        "type": "source_query_number",
+        "fields": { "EXPRESSION": "systolic" }
+      },
+      "note": "unitsFixed mm[Hg]"
     },
     {
       "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.blood_pressure.v2]/data/at0001/events/at0006/data/at0003/items/at0005/value/value/value",
       "loopVar": "reading",
       "block": {
-        "type": "maps_create_with",
-        "extraState": { "itemCount": 2 },
-        "fields": { "KEY0": "magnitude", "KEY1": "units" },
-        "inputs": {
-          "VAL0": {
-            "block": { "type": "source_query_number", "fields": { "EXPRESSION": "diastolic" } }
-          },
-          "VAL1": {
-            "block": { "type": "text", "fields": { "TEXT": "mm[Hg]" } }
-          }
-        }
-      }
+        "type": "source_query_number",
+        "fields": { "EXPRESSION": "diastolic" }
+      },
+      "note": "unitsFixed mm[Hg]"
     },
     {
       "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.blood_pressure.v2]/data/at0001/events/at0006/time/value",
@@ -80,8 +78,7 @@
       "block": {
         "type": "source_query",
         "fields": { "EXPRESSION": "timestamp" }
-      },
-      "note": "Event time from the current measurement (source over defaults)."
+      }
     },
     {
       "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.blood_pressure.v2]/data/at0001/origin/value",
@@ -143,41 +140,7 @@
           }
         }
       },
-      "note": "Decision table sitting→at1001 Sitting, standing→at1000 Standing, lying→at1003 Lying (local)."
-    },
-    {
-      "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.pulse.v2]/data/at0002/events/at0003/data/at0001/items/at0004/value/value/value",
-      "block": {
-        "type": "maps_create_with",
-        "extraState": { "itemCount": 2 },
-        "fields": { "KEY0": "magnitude", "KEY1": "units" },
-        "inputs": {
-          "VAL0": {
-            "block": {
-              "type": "source_query_number",
-              "fields": { "EXPRESSION": "$.measurements[1].pulse" }
-            }
-          },
-          "VAL1": {
-            "block": { "type": "text", "fields": { "TEXT": "/min" } }
-          }
-        }
-      },
-      "note": "Pulse observation has a different attachSlotId; mapped from the first measurement only (no second loop)."
-    },
-    {
-      "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.pulse.v2]/data/at0002/events/at0003/time/value",
-      "block": {
-        "type": "source_query",
-        "fields": { "EXPRESSION": "$.measurements[1].timestamp" }
-      }
-    },
-    {
-      "slotId": "simple-diagnose-and-vitals//content[openEHR-EHR-SECTION.adhoc.v1]/items[openEHR-EHR-OBSERVATION.pulse.v2]/data/at0002/origin/value",
-      "block": {
-        "type": "source_query",
-        "fields": { "EXPRESSION": "$.measurements[1].timestamp" }
-      }
+      "note": "Decision table sitting/standing/lying → Position; catch-all leaves optional position unmapped when the source omits it."
     }
   ]
 }

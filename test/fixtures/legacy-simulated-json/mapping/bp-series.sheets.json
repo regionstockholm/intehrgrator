@@ -12,19 +12,27 @@
     "values": [
       ["sitting", "at1001", "Sitting"],
       ["standing", "at1000", "Standing"],
-      ["lying", "at1003", "Lying"]
+      ["lying", "at1003", "Lying"],
+      ["reclining", "at1002", "Reclining"],
+      ["", "at1001", "Sitting"]
     ],
-    "rowCatchAll": [false, false, false]
+    "rowCatchAll": [false, false, false, false, true]
   },
   {
     "name": "icd10_display",
-    "kind": "sheet",
+    "kind": "decision-table",
+    "hitPolicy": "FIRST",
     "headers": ["code", "display"],
+    "decisionColumns": [
+      { "role": "condition" },
+      { "role": "output", "outputKind": "value", "valueType": "string" }
+    ],
     "values": [
       ["S06.0", "Concussion"],
       ["S42.0", "Fracture of clavicle"],
       ["S52.5", "Fracture of lower end of radius"],
       ["S72.0", "Fracture of neck of femur"]
-    ]
+    ],
+    "rowCatchAll": [false, false, false, false]
   }
 ]

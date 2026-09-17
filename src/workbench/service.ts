@@ -11,6 +11,7 @@ import type {
   ConversionScriptLanguage,
   ImportSuggestionsReport,
   InstanceEncoding,
+  OutputMode,
   ProjectBundle,
   SourceFormatId,
   TestResult,
@@ -323,6 +324,15 @@ export class WorkbenchService {
   runTest(): TestResult {
     this.controller.runTestNow();
     return this.controller.getState().testResult ?? { ok: false, error: "No test result", warnings: [] };
+  }
+
+  /** Session Output mode for Conversion Test Run (Mapping preview vs TypeScript, …). */
+  setOutputMode(mode: OutputMode): void {
+    this.controller.setExportTarget(mode);
+  }
+
+  getOutputMode(): OutputMode {
+    return this.controller.getState().settings.exportTarget;
   }
 
   listHistory(): HistoryEntry[] {

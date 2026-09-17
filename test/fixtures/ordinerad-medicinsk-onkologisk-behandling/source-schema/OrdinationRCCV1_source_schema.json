@@ -30,6 +30,8 @@
     "RekvisisjonStatus": { "type": ["string", "null"] },
     "PDL_enhet_Namn": { "type": "string" },
     "PDL_enhet_HSAID": { "type": "string" },
+    "PDL_vardgivare_Namn": { "type": ["string", "null"] },
+    "PDL_vardgivare_HSAID": { "type": ["string", "null"] },
     "Vardenhet_id": { "type": ["integer", "null"] },
     "Vardenhet_namn": { "type": ["string", "null"] },
     "Vardenhet_HSAID": { "type": ["string", "null"] },

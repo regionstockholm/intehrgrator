@@ -27,6 +27,7 @@ function relativeAssetRefs(
     source?: { schema?: string; instances?: string[] };
     target?: string;
     mapping?: string;
+    sheets?: string;
     defaults?: string;
   },
 ): Array<{ role: string; ref: string }> {
@@ -37,6 +38,7 @@ function relativeAssetRefs(
   }
   if (set.target) out.push({ role: "target", ref: set.target });
   if (set.mapping) out.push({ role: "mapping", ref: set.mapping });
+  if (set.sheets) out.push({ role: "sheets", ref: set.sheets });
   if (set.defaults) out.push({ role: "defaults", ref: set.defaults });
   return out;
 }
@@ -112,6 +114,7 @@ Deno.test("example-sets.json relative asset URIs resolve to existing repo files"
       source?: { schema?: string; instances?: string[] };
       target?: string;
       mapping?: string;
+      sheets?: string;
       defaults?: string;
     }>;
   };
@@ -134,7 +137,7 @@ Deno.test("example-sets.json relative asset URIs resolve to existing repo files"
 Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the catalog URL", async () => {
   const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 8);
+  assertEquals(catalog.sets.length, 9);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
@@ -153,6 +156,9 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
     mapped.defaults,
     `${localFixtures}dummy-json-vitals/defaults.map.json`,
   );
+  const series = catalog.sets.find((set) => set.id === "Simple-vitals-series");
+  if (!series) throw new Error("expected Simple-vitals-series example set");
+  assertEquals(series.source.instances.length, 3);
   const obx = catalog.sets.find((set) => set.id === "obx-mhv1-unmapped-json-to-openehr");
   if (!obx) throw new Error("expected OBX MHV1 example set");
   assertEquals(obx.title, "OBX MHV1, unmapped, JSON --> openEHR");

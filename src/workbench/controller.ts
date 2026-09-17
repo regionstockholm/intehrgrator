@@ -113,6 +113,7 @@ import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
 import {
   cloneSheets,
   normalizeSheets,
+  sheetsFromCatalogJson,
   type SheetDocument,
 } from "../core/sheets/mod.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
@@ -576,6 +577,18 @@ export class WorkbenchController {
       if (set.mapping) {
         const file = await this.host.fetchTextUrl(set.mapping);
         this.loadBlocklyDefinition(file.name, file.text);
+      }
+      if (set.sheets) {
+        const file = await this.host.fetchTextUrl(set.sheets);
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(file.text);
+        } catch (err) {
+          throw new Error(
+            `Sheets JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        this.replaceSheets(sheetsFromCatalogJson(parsed), { silent: true });
       }
       if (set.defaults) {
         const file = await this.host.fetchTextUrl(set.defaults);

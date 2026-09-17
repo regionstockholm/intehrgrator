@@ -6,7 +6,7 @@ import { basename, dirname, resolve, toFileUrl } from "@std/path";
 import { ensureDir } from "@std/fs";
 import type { MutationContext, WorkbenchService } from "../workbench/service.ts";
 import type { ConversionScriptLanguage, SourceFormatId } from "../types/mod.ts";
-import { isConversionScriptLanguage, isInstanceEncoding } from "../types/mod.ts";
+import { isConversionScriptLanguage, isInstanceEncoding, isOutputMode } from "../types/mod.ts";
 import { exportBundle } from "../core/persistence/mod.ts";
 import type { ProjectBundle } from "../types/mod.ts";
 import type { SheetDocument } from "../core/sheets/mod.ts";
@@ -317,8 +317,18 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   },
   {
     name: "run_test",
-    description: "Run Conversion Test against the Active Example. Returns full TestResult including output and Output validation.",
-    inputSchema: { type: "object", properties: { revision: { type: "string" } } },
+    description:
+      "Run Conversion Test against the Active Example. Returns full TestResult including output and Output validation. Pass outputMode typescript to execute the Generated TypeScript Conversion Script (not Mapping preview).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        revision: { type: "string" },
+        outputMode: {
+          type: "string",
+          description: "preview | typescript | handlebars | xquery | go-template | java",
+        },
+      },
+    },
   },
   {
     name: "generate_script",
@@ -606,11 +616,19 @@ export async function callAgentTool(
       return { ok: service.releaseSlot(String(args.slotId), ctx), revision: service.getRevision() };
     case "list_leases":
       return { leases: service.leases.list(), revision: service.getRevision() };
-    case "run_test":
+    case "run_test": {
+      if (typeof args.outputMode === "string") {
+        if (!isOutputMode(args.outputMode)) {
+          throw new Error(`Unsupported outputMode: ${args.outputMode}`);
+        }
+        service.setOutputMode(args.outputMode);
+      }
       return {
         testResult: service.runTest(),
+        outputMode: service.getOutputMode(),
         revision: service.getRevision(),
       };
+    }
     case "generate_script": {
       const language = String(args.language) as ConversionScriptLanguage;
       if (!isConversionScriptLanguage(language)) {
@@ -755,7 +773,9 @@ async function loadExampleSetFromArgs(
     );
   }
   const includeMapping = args.includeMapping !== false;
-  await service.loadExampleSet(includeMapping ? set : { ...set, mapping: undefined });
+  await service.loadExampleSet(
+    includeMapping ? set : { ...set, mapping: undefined, sheets: undefined },
+  );
   return { setId: set.id, title: set.title, catalogUrl: catalog.catalogUrl };
 }
 

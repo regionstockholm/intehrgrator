@@ -11,6 +11,7 @@ import {
   type FunctionClashPolicy,
   type MergeFunctionResult,
 } from "../core/function_library/mod.ts";
+import * as enMsg from "blockly/msg/en";
 import {
   asWorkspaceJson,
   offsetTopBlocks,
@@ -36,6 +37,20 @@ export interface ExtractFunctionMeta {
 export interface MergeFunctionOptions {
   clash: FunctionClashPolicy;
   sheets: SheetDocument[];
+}
+
+let enLocaleReady = false;
+function ensureEnLocale(): void {
+  if (enLocaleReady) return;
+  const Msg = (Blockly as unknown as { Msg?: Record<string, string> }).Msg;
+  if (Msg?.VARIABLES_SET) {
+    enLocaleReady = true;
+    return;
+  }
+  const anyMod = enMsg as { default?: Record<string, string> } & Record<string, string>;
+  const table = anyMod.default && typeof anyMod.default === "object" ? anyMod.default : anyMod;
+  Blockly.setLocale(table);
+  enLocaleReady = true;
 }
 
 export function listWorkspaceFunctions(workspace: Blockly.Workspace): Array<{
@@ -66,6 +81,7 @@ export function extractFunctionBundle(
   sheets: SheetDocument[],
   meta: ExtractFunctionMeta = {},
 ): FunctionBundle {
+  ensureEnLocale();
   const def = workspace.getTopBlocks(false).find((block) =>
     (block.type === "procedures_defreturn" || block.type === "procedures_defnoreturn") &&
     String(block.getFieldValue("NAME") || "") === name
@@ -110,6 +126,7 @@ export function extractFunctionBundleFromState(
   sheets: SheetDocument[],
   meta: ExtractFunctionMeta = {},
 ): FunctionBundle {
+  ensureEnLocale();
   const workspace = new Blockly.Workspace();
   try {
     if (blocklyState && typeof blocklyState === "object") {
@@ -131,6 +148,7 @@ export function mergeFunctionBundleIntoState(
   bundle: FunctionBundle,
   clash: FunctionClashPolicy,
 ): MergeFunctionResult & { blocklyState: unknown } {
+  ensureEnLocale();
   const workspace = new Blockly.Workspace();
   try {
     if (blocklyState && typeof blocklyState === "object") {
@@ -151,6 +169,7 @@ export function mergeFunctionBundle(
   bundle: FunctionBundle,
   options: MergeFunctionOptions,
 ): MergeFunctionResult {
+  ensureEnLocale();
   const current = Blockly.serialization.workspaces.save(workspace);
   const { bundle: next, clashes, warnings } = applyClashPolicy(
     current,

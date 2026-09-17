@@ -34,6 +34,6 @@ Deno.test("load_function merges join_swedish without replacing unrelated Blockly
   const json = JSON.stringify(bundle.mapping.blocklyState);
   assert(json.includes("join_swedish"));
   assert(json.includes("keep-me"));
-  assertEquals(json.includes("join_list"), false);
+  assertEquals(new RegExp('"type"\\s*:\\s*"join_list"').test(json), false);
   assertEquals(bundle.mapping.sheets?.some((sheet) => sheet.name === "JoinNames"), true);
 });

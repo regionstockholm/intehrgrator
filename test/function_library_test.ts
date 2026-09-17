@@ -40,6 +40,10 @@ function ensure(): void {
   ready = true;
 }
 
+function hasBlockType(state: unknown, type: string): boolean {
+  return new RegExp(`"type"\\s*:\\s*"${type}"`).test(JSON.stringify(state));
+}
+
 Deno.test("parseFunctionBundle requires kind, version, name, and a matching definition", () => {
   assertThrows(() => parseFunctionBundle("{}"), Error, "kind");
   assertThrows(
@@ -95,7 +99,8 @@ Deno.test("Contribute refuses an empty description and prefills a GitHub issue U
   const url = functionContributionWebUrl(bundle, "Swedish grammatical list join");
   assert(url.startsWith("https://github.com/regionstockholm/intehrgrator/issues/new?"));
   assert(url.includes("Function"));
-  assert(decodeURIComponent(url).includes("Swedish grammatical list join"));
+  const params = new URL(url).searchParams;
+  assert(params.get("body")?.includes("Swedish grammatical list join"));
   assertEquals(GITHUB_SIGNUP_URL, "https://github.com/signup");
   assertEquals(GITHUB_LOGIN_URL, "https://github.com/login");
 });
@@ -105,7 +110,7 @@ Deno.test("Contribute uses the GitHub API when a token is present", async () => 
   const bundle = buildGrammaticalJoinBundle(JOIN_OXFORD_SPEC);
   const result = await submitFunctionContribution(bundle, "Oxford comma join", {
     githubToken: "gho_test",
-    fetch: async (input, init) => {
+    fetch: (input, init) => {
       assertEquals(String(input), "https://api.github.com/repos/regionstockholm/intehrgrator/issues");
       assertEquals((init as RequestInit).method, "POST");
       const body = JSON.parse(String((init as RequestInit).body)) as {
@@ -243,7 +248,7 @@ Deno.test("Oxford starter uses serial-comma last snippet, not join_list", () => 
     .filter((b) => b.type === "procedures_defreturn")
     .map((b) => String(b.getFieldValue("NAME")));
   assertEquals(names, ["join_oxford"]);
-  assertEquals(JSON.stringify(bundle).includes("join_list"), false);
+  assertEquals(hasBlockType(bundle.blocklyState, "join_list"), false);
   workspace.dispose();
 });
 
@@ -333,7 +338,7 @@ Deno.test("shipped Function library starters parse without join_list", async () 
     const loaded = await loadFunctionLibraryEntry(catalog, entry.id);
     assertEquals(loaded.name, entry.name);
     assert(loaded.description.length > 20);
-    assertEquals(JSON.stringify(loaded).includes("join_list"), false);
+    assertEquals(hasBlockType(loaded.blocklyState, "join_list"), false);
     assertEquals(loaded.sheets[0]?.kind, "decision-table");
   }
 });

@@ -244,7 +244,7 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
     const workspace = getWorkspace();
     if (!workspace) return;
     try {
-      const description = window.prompt(`Description for Function "${name}" (optional):`) ?? "";
+      const description = globalThis.prompt(`Description for Function "${name}" (optional):`) ?? "";
       const bundle = extractFunctionBundle(workspace, name, controller.getSheets(), {
         description,
       });

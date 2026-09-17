@@ -18,13 +18,14 @@ try {
   // artifacts dir may be missing outside Cloud Agent
 }
 
-const variants = ["A", "B", "C", "D", "E"] as const;
+const variants = ["A", "B", "C", "D", "E", "F"] as const;
 const names: Record<typeof variants[number], string> = {
   A: "compact_join_list",
   B: "named_slot_recipe",
   C: "locale_preset",
   D: "decision_table_first_last",
   E: "loop_index_length",
+  F: "function_mapping_call",
 };
 
 const browser = await chromium.launch({ headless: true });

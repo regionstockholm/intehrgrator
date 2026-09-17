@@ -17,6 +17,10 @@ const TEXT_COLOUR = "#FFCA28";
 const LOGIC_COLOUR = "#D1C4E9";
 const DT_COLOUR = "#00796B";
 const LIST_COLOUR = "#4DB6AC";
+const ELEMENT_COLOUR = "#3D7A6A";
+const DV_COLOUR = "#4A6FA5";
+const CLUSTER_COLOUR = "#005C53";
+const SOURCE_COLOUR = "#E87722";
 
 export const PROTOTYPE_JOIN_LIST = "prototype_join_list";
 export const PROTOTYPE_JOIN_FOR_READING = "prototype_join_for_reading";
@@ -30,6 +34,10 @@ export const PROTOTYPE_LIST_INDEX = "prototype_list_index";
 export const PROTOTYPE_LIST_LENGTH = "prototype_list_length";
 export const PROTOTYPE_THIS_ITEM = "prototype_this_item";
 export const PROTOTYPE_JOIN_POSITION_RECIPE = "prototype_join_position_recipe";
+export const PROTOTYPE_ELEMENT = "prototype_element";
+export const PROTOTYPE_DV_TEXT = "prototype_dv_text";
+export const PROTOTYPE_CLUSTER = "prototype_cluster";
+export const PROTOTYPE_SOURCE_LIST = "prototype_source_list";
 
 function quotedField(defaultText: string): Blockly.FieldTextInput {
   return new Blockly.FieldTextInput(defaultText, undefined, { spellcheck: false });
@@ -336,6 +344,83 @@ export function registerJoinListPrototypeBlocks(): void {
       this.setColour("#2196F3");
       this.setStyle?.("math_blocks");
       this.setTooltip("Length of the enclosing loop collection (stable for the duration of the loop).");
+      this.setInputsInline(true);
+    },
+  };
+
+  /**
+   * Slim RM lookalikes for variant F. Real `element` / `dv_text` pull ehrtslib;
+   * these are canvas-only so the playground stays Blockly-only.
+   */
+  Blockly.Blocks[PROTOTYPE_CLUSTER] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header
+        .appendField("CLUSTER")
+        .appendField(
+          new Blockly.FieldTextInput("Lung-MDT", undefined, { spellcheck: false }),
+          "NAME",
+        );
+      const items = this.appendStatementInput("ITEMS").setAlign(inputAlignRight());
+      items.appendField("items").setCheck(["ITEM", "ELEMENT", "CLUSTER"]);
+      this.setPreviousStatement(true, ["ITEM", "CLUSTER"]);
+      this.setNextStatement(true, ["ITEM", "CLUSTER"]);
+      this.setColour(CLUSTER_COLOUR);
+      this.setTooltip("Prototype CLUSTER — statement stack of ELEMENTs (no ehrtslib).");
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_ELEMENT] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header
+        .appendField("ELEMENT")
+        .appendField(
+          new Blockly.FieldTextInput("Närvarande", undefined, { spellcheck: false }),
+          "NAME",
+        );
+      const value = this.appendValueInput("VALUE")
+        .setAlign(inputAlignRight())
+        .setCheck("DATA_VALUE");
+      value.appendField("value");
+      this.setPreviousStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
+      this.setNextStatement(true, ["ITEM", "ELEMENT", "CLUSTER"]);
+      this.setColour(ELEMENT_COLOUR);
+      this.setTooltip("Prototype ELEMENT — named data item with a DATA_VALUE.");
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_DV_TEXT] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      header.appendField("DV_TEXT");
+      const value = this.appendValueInput("VALUE")
+        .setAlign(inputAlignRight())
+        .setCheck("String");
+      value.appendField("value");
+      this.setOutput(true, "DATA_VALUE");
+      this.setColour(DV_COLOUR);
+      this.setTooltip("Prototype DV_TEXT — string value socket.");
+      enforceMouthCaptionLayout(this);
+    },
+  };
+
+  Blockly.Blocks[PROTOTYPE_SOURCE_LIST] = {
+    init: function (this: Blockly.Block) {
+      this.appendDummyInput()
+        .appendField("📋 source list")
+        .appendField(
+          new Blockly.FieldTextInput("deltagare/namn", undefined, { spellcheck: false }),
+          "PATH",
+        );
+      this.setOutput(true, "Array");
+      this.setColour(SOURCE_COLOUR);
+      this.setStyle?.("colour_blocks");
+      this.setTooltip(
+        "Prototype source query that already returns string[] (names extracted earlier).",
+      );
       this.setInputsInline(true);
     },
   };

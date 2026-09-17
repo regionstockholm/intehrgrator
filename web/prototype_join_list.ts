@@ -1,5 +1,5 @@
 /**
- * Throwaway #85 playground: real Blockly, modest theme, four join_list shapes.
+ * Throwaway #85 playground: real Blockly, modest theme, join_list shapes.
  * Open via dist/prototype-join-list.html?variant=A after `deno task build`.
  *
  * Intentionally does not import `src/blockly/mod.ts` (ehrtslib / RM stack).
@@ -10,8 +10,11 @@ import { Blockly } from "../src/blockly/blockly_core.ts";
 import { createModestTheme } from "../src/blockly/theme.ts";
 import { loadBlocklyLocale } from "../src/blockly/i18n/locale.ts";
 import {
+  PROTOTYPE_CLUSTER,
   PROTOTYPE_DECISION_INDEX,
   PROTOTYPE_DECISION_POSITION,
+  PROTOTYPE_DV_TEXT,
+  PROTOTYPE_ELEMENT,
   PROTOTYPE_JOIN_FOR_READING,
   PROTOTYPE_JOIN_LIST,
   PROTOTYPE_JOIN_LOCALE,
@@ -21,11 +24,12 @@ import {
   PROTOTYPE_LIST_IS_FIRST,
   PROTOTYPE_LIST_IS_LAST,
   PROTOTYPE_LIST_LENGTH,
+  PROTOTYPE_SOURCE_LIST,
   PROTOTYPE_THIS_ITEM,
   registerJoinListPrototypeBlocks,
 } from "../src/blockly/blocks/join_list_prototype.ts";
 
-type VariantKey = "A" | "B" | "C" | "D" | "E";
+type VariantKey = "A" | "B" | "C" | "D" | "E" | "F";
 
 interface Variant {
   key: VariantKey;
@@ -39,7 +43,11 @@ interface Variant {
   build: (ws: Blockly.WorkspaceSvg) => void;
 }
 
-const KEYS: VariantKey[] = ["A", "B", "C", "D", "E"];
+const KEYS: VariantKey[] = ["A", "B", "C", "D", "E", "F"];
+
+const JOIN_SWEDISH = "join_swedish";
+const JOIN_SWEDISH_PARAM = "names";
+const JOIN_SWEDISH_PARAM_ID = "join_swedish_names";
 
 function asSvg(block: Blockly.Block): BlockSvg {
   return block as BlockSvg;
@@ -107,6 +115,84 @@ function remainder(ws: Blockly.WorkspaceSvg, dividend: BlockSvg, divisor: BlockS
   plug(op, "DIVIDEND", dividend);
   plug(op, "DIVISOR", divisor);
   return op;
+}
+
+function varGet(ws: Blockly.WorkspaceSvg, name: string, id?: string): BlockSvg {
+  const wsAny = ws as unknown as {
+    getVariable?: (n: string) => { getId: () => string } | null;
+    getVariableById?: (id: string) => { getId: () => string } | null;
+    createVariable?: (n: string, type?: string, id?: string) => { getId: () => string };
+  };
+  let variable = (id && wsAny.getVariableById?.(id)) || wsAny.getVariable?.(name);
+  if (!variable && typeof wsAny.createVariable === "function") {
+    variable = wsAny.createVariable(name, "", id);
+  }
+  const block = ready(ws.newBlock("variables_get"));
+  if (variable) block.setFieldValue(variable.getId(), "VAR");
+  return block;
+}
+
+function appendBlock(
+  ws: Blockly.WorkspaceSvg,
+  state: {
+    type: string;
+    fields?: Record<string, string>;
+    extraState?: { params?: unknown; name?: string };
+  },
+): BlockSvg {
+  const appended = Blockly.serialization.blocks.append(state, ws, {
+    recordUndo: true,
+  }) as Blockly.Block;
+  return ready(appended);
+}
+
+/**
+ * Stock `to …` function wrapping join_list. Separators live here so the
+ * Mapping Model call is one socket: join_swedish(names).
+ */
+function defineJoinSwedish(ws: Blockly.WorkspaceSvg): BlockSvg {
+  const def = appendBlock(ws, {
+    type: "procedures_defreturn",
+    fields: { NAME: JOIN_SWEDISH },
+    extraState: {
+      params: [{ name: JOIN_SWEDISH_PARAM, id: JOIN_SWEDISH_PARAM_ID }],
+    },
+  });
+  const join = ready(ws.newBlock(PROTOTYPE_JOIN_LIST));
+  plug(join, "ITEMS", varGet(ws, JOIN_SWEDISH_PARAM, JOIN_SWEDISH_PARAM_ID));
+  const ret = def.getInput("RETURN") ?? def.getInput("VALUE");
+  ret?.connection?.connect(join.outputConnection!);
+  return ready(def);
+}
+
+function callJoinSwedish(ws: Blockly.WorkspaceSvg, arg: Blockly.Block): BlockSvg {
+  const call = appendBlock(ws, {
+    type: "procedures_callreturn",
+    extraState: {
+      name: JOIN_SWEDISH,
+      params: [JOIN_SWEDISH_PARAM],
+    },
+  });
+  plug(call, "ARG0", arg);
+  return ready(call);
+}
+
+function sourceNames(ws: Blockly.WorkspaceSvg, path: string): BlockSvg {
+  const block = ready(ws.newBlock(PROTOTYPE_SOURCE_LIST));
+  block.setFieldValue(path, "PATH");
+  return block;
+}
+
+function elementNamed(ws: Blockly.WorkspaceSvg, name: string): BlockSvg {
+  const el = ready(ws.newBlock(PROTOTYPE_ELEMENT));
+  el.setFieldValue(name, "NAME");
+  return el;
+}
+
+function dvTextValue(ws: Blockly.WorkspaceSvg, value: Blockly.Block): BlockSvg {
+  const dv = ready(ws.newBlock(PROTOTYPE_DV_TEXT));
+  plug(dv, "VALUE", value);
+  return dv;
 }
 
 function textJoin(ws: Blockly.WorkspaceSvg, left: string, item: BlockSvg): BlockSvg {
@@ -314,6 +400,67 @@ const VARIANTS: Record<VariantKey, Variant> = {
       place(decision, 16, 200);
     },
   },
+  F: {
+    key: "F",
+    name: "Function + mapping call",
+    title: "F — Blockly function; compact Mapping Model call",
+    serializes: `function join_swedish(names)\n  return join_list(names, ", ", " och ")\n\nELEMENT Närvarande\n  DV_TEXT.value = join_swedish(source list "deltagare/namn")`,
+    output: "Anna, Bo och Carl",
+    showSheet: false,
+    sheetHtml: "",
+    notesHtml: `
+      <p>Stock <strong>Functions</strong> block (<code>procedures_defreturn</code>).
+      The yellow <code>join_list</code> lives <em>once</em> in the helper; main code is a
+      one-socket call.</p>
+      <ul>
+        <li>Left: Mapping Model — CLUSTER / ELEMENT / DV_TEXT, the same grain as a
+          real openEHR slot. Lung-MDT <em>Närvarande</em> is this ELEMENT.</li>
+        <li>Call: <code>join_swedish(📋 source list deltagare/namn)</code> — no
+          separators at the slot.</li>
+        <li>Right: the extracted function. Parameter <code>names</code> feeds
+          variant A’s reporter. A second ELEMENT can reuse the same call.</li>
+      </ul>
+      <p>This is the compact main-code shape: bake locale punctuation into a named
+      helper, not into every ELEMENT. A 3-arg <code>join_list(items, sep, final)</code>
+      function is no smaller than putting A on the slot — the win is the 1-arg domain
+      helper.</p>
+      <p class="warn"><code>procedures_callreturn</code> is still a Mapping IR escape
+      hatch until see-through calls land
+      (<code>docs/future/function-test-harnesses.md</code>). The canvas is the
+      authoring question; serialization follows.</p>
+    `,
+    build(ws) {
+      const def = defineJoinSwedish(ws);
+      place(def, 520, 16);
+
+      const cluster = ready(ws.newBlock(PROTOTYPE_CLUSTER));
+      cluster.setFieldValue("Lung-MDT", "NAME");
+
+      const narvarande = elementNamed(ws, "Närvarande");
+      plug(
+        narvarande,
+        "VALUE",
+        dvTextValue(
+          ws,
+          callJoinSwedish(ws, sourceNames(ws, "deltagare/namn")),
+        ),
+      );
+      cluster.getInput("ITEMS")?.connection?.connect(narvarande.previousConnection!);
+
+      const kort = elementNamed(ws, "Deltagare (kort)");
+      plug(
+        kort,
+        "VALUE",
+        dvTextValue(
+          ws,
+          callJoinSwedish(ws, sourceNames(ws, "deltagare/namn")),
+        ),
+      );
+      narvarande.nextConnection?.connect(kort.previousConnection!);
+
+      place(cluster, 16, 16);
+    },
+  },
 };
 
 function currentKey(): VariantKey {
@@ -353,7 +500,7 @@ function loadVariant(key: VariantKey): void {
   workspace.clear();
   const v = VARIANTS[key];
   v.build(workspace);
-  workspace.setScale(key === "E" ? 0.78 : 0.92);
+  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.82 : 0.92);
   workspace.scrollCenter();
   renderSide(v);
   document.body.dataset.protoReady = key;

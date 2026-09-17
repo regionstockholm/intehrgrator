@@ -719,6 +719,7 @@ for SMT lowering on [#41](https://github.com/regionstockholm/intehrgrator/issues
 - [decision-tables-for-mapping.md](decision-tables-for-mapping.md) — mapping-local rule grids (UNIQUE/COLLECT); UNIQUE rows are contract-ready invariants; error rows / catch-all throws are slice E
 - [function-test-harnesses.md](function-test-harnesses.md) — unit tests of **Blockly Function**s and decision-table-shaped oracles; specified points under PBT; chunk-level suite grain
 - [xquery-export-investigation.md](xquery-export-investigation.md) — declarative export precedent; documents slot-manifest limits and open loop emit
+- [loop-index-length-codegen-investigation.md](loop-index-length-codegen-investigation.md) — Java / Go / Handlebars Loop index·length lowering; 0- vs 1-based (#137)
 - [BLOCKLY_INTEGRATION.md](../BLOCKLY_INTEGRATION.md) — block categories and `for_each_source` policy
 - [ADR 0004](../adr/0004-go-template-codegen-only.md) — Blockly canvas as source of truth vs flat Mapping Model
 - [MAPPING_SPECIFICATION.md](../MAPPING_SPECIFICATION.md) — Mapping Model pipeline

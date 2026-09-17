@@ -1,7 +1,7 @@
 import type { Block } from "blockly/core";
 import * as enMsg from "blockly/msg/en";
 import type { ExprAst } from "../core/expression/mod.ts";
-import { serialize } from "../core/expression/mod.ts";
+import { parseExpression, serialize } from "../core/expression/mod.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
   loopIndexBinderName,
@@ -47,6 +47,26 @@ import {
 type BlockSvg = import("blockly/core").BlockSvg;
 type Workspace = import("blockly/core").Workspace;
 
+/**
+ * When Import Suggestions cannot plug a `maps_create_with` / Decision table into a
+ * typed DV mouth, the Mapping Expression is stored as the source-query path.
+ * Detect that so TypeScript export evaluates `map(...)` / `decision_table(...)`
+ * instead of sending the script to fontoxpath.
+ */
+function sourceQueryFieldExpression(expr: string, fn: string): string {
+  const trimmed = String(expr ?? "").trim();
+  if (!trimmed) return `${fn}(${JSON.stringify(expr)})`;
+  try {
+    const ast = parseExpression(trimmed);
+    if (ast.kind === "call" && !String(ast.name).startsWith("xpath")) {
+      return trimmed;
+    }
+  } catch {
+    /* authoring path, not a Mapping Expression */
+  }
+  return `${fn}(${JSON.stringify(expr)})`;
+}
+
 export function blockToExpression(block: Block | null): string | null {
   if (!block) return null;
 
@@ -57,7 +77,7 @@ export function blockToExpression(block: Block | null): string | null {
     case "source_query_node": {
       const expr = block.getFieldValue("EXPRESSION");
       const fn = xpathEvaluatorForReturnType(returnTypeFromSourceBlock(block));
-      return `${fn}(${JSON.stringify(expr)})`;
+      return sourceQueryFieldExpression(String(expr ?? ""), fn);
     }
     // Stock Blockly literals / ops
     case "text":

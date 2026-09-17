@@ -11,6 +11,16 @@ import { exportBundle } from "../core/persistence/mod.ts";
 import type { ProjectBundle } from "../types/mod.ts";
 import type { SheetDocument } from "../core/sheets/mod.ts";
 import { parseExampleSetCatalog } from "../core/example_sets/mod.ts";
+import {
+  BUNDLED_FUNCTION_LIBRARY_PATH,
+  DEFAULT_GITHUB_FUNCTION_LIBRARY_URL,
+  functionBundleFromUnknown,
+  loadFunctionLibraryCatalog,
+  loadFunctionLibraryEntry,
+  parseFunctionBundle,
+  type FunctionBundle,
+  type FunctionLibraryCatalog,
+} from "../core/function_library/mod.ts";
 import { toFetchableUrl } from "../host/fetch_url.ts";
 
 export interface AgentToolDef {
@@ -147,6 +157,35 @@ export const AGENT_TOOLS: AgentToolDef[] = [
         catalogPath: { type: "string" },
         catalogUrl: { type: "string" },
         includeMapping: { type: "boolean" },
+        revision: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "list_function_library",
+    description:
+      "List curated Blockly Functions from the Function library catalog (id, title, description, parameters, Decision tables). Default catalog is the in-repo function-library/ when present.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        catalogPath: { type: "string" },
+        catalogUrl: { type: "string" },
+      },
+    },
+  },
+  {
+    name: "load_function",
+    description:
+      "Merge a Blockly Function onto the current canvas (definition + Decision tables) without replacing unrelated blocks. Prefer this over put_blockly. clash defaults to rename.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        functionId: { type: "string" },
+        catalogPath: { type: "string" },
+        catalogUrl: { type: "string" },
+        path: { type: "string" },
+        bundle: { type: "object" },
+        clash: { enum: ["rename", "replace"] },
         revision: { type: "string" },
       },
     },
@@ -360,6 +399,8 @@ export const AGENT_TOOL_HTTP: Record<string, AgentToolHttp> = {
   load_source_schema: { method: "POST", path: "/load-source-schema", body: "json" },
   add_example: { method: "POST", path: "/add-example", body: "json" },
   load_example_set: { method: "POST", path: "/load-example-set", body: "json" },
+  list_function_library: { method: "GET", path: "/function-library", body: "none" },
+  load_function: { method: "POST", path: "/load-function", body: "json" },
   set_active_example: { method: "POST", path: "/set-active-example", body: "json" },
   replace_sheets: { method: "PUT", path: "/sheets", body: "json" },
   build_prompt: { method: "POST", path: "/build-prompt", body: "json" },
@@ -474,6 +515,27 @@ export async function callAgentTool(
     case "load_example_set": {
       const loaded = await loadExampleSetFromArgs(service, args);
       return { ...loaded, revision: service.getRevision(), snapshot: service.getSnapshot() };
+    }
+    case "list_function_library": {
+      const catalog = await loadFunctionLibraryCatalogFromArgs(args);
+      return {
+        revision: service.getRevision(),
+        catalogUrl: catalog.catalogUrl,
+        functions: catalog.functions,
+      };
+    }
+    case "load_function": {
+      const bundle = await loadFunctionBundleFromArgs(args);
+      const clash = args.clash === "replace" ? "replace" : "rename";
+      const result = service.applyFunctionBundle(bundle, clash, revision, ctx);
+      return {
+        revision: service.getRevision(),
+        name: result.name,
+        renamedFrom: result.renamedFrom,
+        warnings: result.warnings,
+        clashes: result.clashes,
+        sheetNames: result.sheets.map((sheet) => sheet.name),
+      };
     }
     case "set_active_example":
       service.setActiveExample(String(args.id));
@@ -705,4 +767,42 @@ function resolveCatalogUrl(args: Record<string, unknown>): string {
     return toFetchableUrl(args.catalogUrl.trim());
   }
   throw new Error("load_example_set requires catalogPath or catalogUrl");
+}
+
+async function loadFunctionLibraryCatalogFromArgs(
+  args: Record<string, unknown>,
+): Promise<FunctionLibraryCatalog> {
+  const catalogUrl = resolveFunctionLibraryCatalogUrl(args);
+  return await loadFunctionLibraryCatalog(catalogUrl);
+}
+
+async function loadFunctionBundleFromArgs(args: Record<string, unknown>): Promise<FunctionBundle> {
+  if (args.bundle && typeof args.bundle === "object") {
+    return functionBundleFromUnknown(args.bundle);
+  }
+  if (typeof args.path === "string" && args.path.trim()) {
+    return parseFunctionBundle(await Deno.readTextFile(resolve(args.path.trim())));
+  }
+  const functionId = String(args.functionId ?? "").trim();
+  if (!functionId) {
+    throw new Error("load_function requires functionId, bundle, or path");
+  }
+  const catalog = await loadFunctionLibraryCatalogFromArgs(args);
+  return await loadFunctionLibraryEntry(catalog, functionId);
+}
+
+function resolveFunctionLibraryCatalogUrl(args: Record<string, unknown>): string {
+  if (typeof args.catalogPath === "string" && args.catalogPath.trim()) {
+    return toFileUrl(resolve(args.catalogPath.trim())).href;
+  }
+  if (typeof args.catalogUrl === "string" && args.catalogUrl.trim()) {
+    return toFetchableUrl(args.catalogUrl.trim());
+  }
+  const bundled = resolve(BUNDLED_FUNCTION_LIBRARY_PATH);
+  try {
+    Deno.statSync(bundled);
+    return toFileUrl(bundled).href;
+  } catch {
+    return DEFAULT_GITHUB_FUNCTION_LIBRARY_URL;
+  }
 }

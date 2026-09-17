@@ -34,6 +34,11 @@ import {
 import { SlotLeaseRegistry, type SlotLease } from "../agent/leases.ts";
 import { importBundle, exportBundle as zipBundle, validateBundle } from "../core/persistence/mod.ts";
 import type { ExampleSet } from "../core/example_sets/mod.ts";
+import type {
+  FunctionBundle,
+  FunctionClashPolicy,
+  MergeFunctionResult,
+} from "../core/function_library/mod.ts";
 import { collectAllSlotIds } from "../core/skeleton/generate_skeleton.ts";
 import { generate, getExportTargetAdapter } from "../core/codegen/mod.ts";
 import {
@@ -259,6 +264,33 @@ export class WorkbenchService {
     this.mutate(() => {
       this.controller.loadBlocklyDefinition("agent.blockly.json", JSON.stringify(blocklyState));
     }, { ...ctx, kind: "block_graph", summary: ctx?.summary ?? "Replace Blockly workspace" });
+  }
+
+  async loadFunctionLibraryCatalog(url?: string) {
+    return await this.controller.loadFunctionLibraryCatalog(url);
+  }
+
+  async loadFunctionLibraryEntry(catalogUrl: string, id: string) {
+    const catalog = await this.controller.loadFunctionLibraryCatalog(catalogUrl);
+    return await this.controller.loadFunctionLibraryEntry(catalog, id);
+  }
+
+  applyFunctionBundle(
+    bundle: FunctionBundle,
+    clash: FunctionClashPolicy = "rename",
+    expectedRevision?: string,
+    ctx?: MutationContext,
+  ): MergeFunctionResult {
+    this.assertRevision(expectedRevision);
+    let result!: MergeFunctionResult;
+    this.mutate(() => {
+      result = this.controller.applyFunctionBundle(bundle, clash);
+    }, {
+      ...ctx,
+      kind: "block_graph",
+      summary: ctx?.summary ?? `Load Function ${bundle.name}`,
+    });
+    return result;
   }
 
   addOptionalRm(

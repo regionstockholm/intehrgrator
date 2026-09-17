@@ -1,7 +1,7 @@
 import type { UrlHistoryKind } from "./url_history.ts";
 
 /** Distinct remembered folders for file pickers (schema vs examples vs target). */
-export type FilePickerKind = UrlHistoryKind | "project" | "mapping" | "defaults";
+export type FilePickerKind = UrlHistoryKind | "project" | "mapping" | "defaults" | "function";
 
 export function filePickerId(kind?: FilePickerKind): string | undefined {
   return kind ? `intehrgrator-${kind}` : undefined;

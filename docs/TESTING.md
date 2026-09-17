@@ -53,7 +53,7 @@ Coarse index of `test/*_test.ts`. The filename is the lookup; do not copy this t
 | Source formats / XPath / XQuery | `source_format_handler_test.ts`, `source_query_test.ts`, `json_schema_refs_test.ts`, `xquery_runtime_test.ts` | Load/evaluate source; JSON Schema `$ref`/`$defs`; in-app XQuery Test Run |
 | Target / encoding / scaffolding | `target_format_handler_test.ts`, `instance_encoding_test.ts`, `skeleton_test.ts`, `conversion_start_test.ts` | Template Skeleton, Product stack, Instance encoding |
 | Codegen | `codegen_test.ts`, `go_template_codegen_test.ts`, `decision_table_test.ts` | TS / Java / Handlebars / XQuery / Go emit |
-| Persistence / example sets / sheets | `project_persistence_test.ts`, `example_sets_test.ts`, `sheets_test.ts` | Project bundle, catalogs, grids |
+| Persistence / example sets / sheets | `project_persistence_test.ts`, `example_sets_test.ts`, `sheets_test.ts`, `function_library_test.ts` | Project bundle, catalogs, grids, Function bundles |
 | Workbench (headless) | `workbench_load_test.ts`, `workbench_service_test.ts` | Controller load/map/import without a browser |
 | Agent / MCP / desktop | `agent_headless_loop_test.ts`, `desktop_cli_test.ts` | Headless loop: load → map → `run_test` → generate → export |
 | Golden / fixture mappings | `vms_golden_test.ts`, `ai_created_fixtures_test.ts`, `kintegrate_migration_test.ts` | Known-good clinical values and migrations |

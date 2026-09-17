@@ -94,6 +94,21 @@ import {
   type ExampleSet,
   type ExampleSetCatalog,
 } from "../core/example_sets/mod.ts";
+import {
+  BUNDLED_FUNCTION_LIBRARY_PATH,
+  functionBundleFilename,
+  parseFunctionBundle,
+  parseFunctionLibraryCatalog,
+  serializeFunctionBundle,
+  type FunctionBundle,
+  type FunctionClashPolicy,
+  type FunctionLibraryCatalog,
+  type MergeFunctionResult,
+} from "../core/function_library/mod.ts";
+import {
+  initBlocklyGenerators,
+  mergeFunctionBundleIntoState,
+} from "../blockly/mod.ts";
 import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
 import {
   cloneSheets,
@@ -460,6 +475,73 @@ export class WorkbenchController {
       this.notifyChange();
       throw err;
     }
+  }
+
+  /** Fetch and parse a Function library catalog. Relative URIs resolve against the catalog URL. */
+  async loadFunctionLibraryCatalog(url?: string): Promise<FunctionLibraryCatalog> {
+    const catalogUrl = url?.trim() || this.host.resolveAppUrl(BUNDLED_FUNCTION_LIBRARY_PATH);
+    try {
+      const file = await this.host.fetchTextUrl(catalogUrl);
+      const catalog = parseFunctionLibraryCatalog(file.text, catalogUrl);
+      this.statusMessage = `Loaded Function library (${catalog.functions.length})`;
+      this.notifyChange();
+      return catalog;
+    } catch (err) {
+      this.statusMessage = `Function library catalog failed: ${
+        err instanceof Error ? err.message : String(err)
+      }`;
+      this.notifyChange();
+      throw err;
+    }
+  }
+
+  async loadFunctionLibraryEntry(
+    catalog: FunctionLibraryCatalog,
+    id: string,
+  ): Promise<FunctionBundle> {
+    const entry = catalog.functions.find((row) => row.id === id);
+    if (!entry) {
+      throw new Error(
+        `Unknown Function library id "${id}". Known: ${catalog.functions.map((row) => row.id).join(", ")}`,
+      );
+    }
+    const file = await this.host.fetchTextUrl(entry.file);
+    return parseFunctionBundle(file.text);
+  }
+
+  /**
+   * Merge a Function bundle onto the canvas Blockly JSON without replacing unrelated blocks.
+   * Increments the reload token so the Web Shell reloads the workspace snapshot.
+   */
+  applyFunctionBundle(
+    bundle: FunctionBundle,
+    clash: FunctionClashPolicy = "rename",
+  ): MergeFunctionResult {
+    initBlocklyGenerators();
+    const current = this.getBlocklyState?.() ?? this.blocklyState;
+    const merged = mergeFunctionBundleIntoState(current, this.sheets, bundle, clash);
+    this.sheets = normalizeSheets(merged.sheets);
+    this.blocklyState = merged.blocklyState;
+    this.blocklyReloadToken += 1;
+    const renamed = merged.renamedFrom ? ` (renamed from ${merged.renamedFrom})` : "";
+    this.statusMessage = `Loaded Function ${merged.name}${renamed}`;
+    this.markDirty();
+    this.notifyChange();
+    return merged;
+  }
+
+  downloadFunctionBundle(bundle: FunctionBundle): void {
+    void this.host.downloadText(
+      functionBundleFilename(bundle.name),
+      serializeFunctionBundle(bundle),
+      "application/json",
+    );
+  }
+
+  async importFunctionBundleFile(): Promise<FunctionBundle | null> {
+    const file = await this.host.pickTextFile(".json,.intehr-function.json", "function");
+    if (!file) return null;
+    return parseFunctionBundle(file.text);
   }
 
   /** Fetch and parse an example-set catalog. Relative URIs resolve against the catalog URL. */

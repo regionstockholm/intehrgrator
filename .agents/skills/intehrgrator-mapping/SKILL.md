@@ -33,6 +33,7 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
    - `load_example_set` (`catalogPath` / `catalogUrl` + `setId`) when the project is a catalogued use case
    - or `load_target` (content / path / url), `load_source_schema`, `add_example` + `set_active_example`
    - `replace_sheets` for terminology **Sheets** and **Decision tables**
+   - `list_function_library` / `load_function` when a reusable Blockly Function (grammatical join, shared Decision table helper) already lives in the Function library — read [`function-library/index.md`](../../../function-library/index.md). `load_function` merges; it does not `put_blockly`-replace the canvas. `clash` defaults to `rename`.
    Done when snapshot shows `templateId` and `exampleCount >= 1`.
 4. **Inspect** — do not skip to import:
    - `list_slots` (unmapped mandatory first)
@@ -58,6 +59,7 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - **Sheets** — `sheet_lookup` for 1-key terminology (ICD-10 → SNOMED). Not a Decision table.
 - **Defaults Map** — `maps_get("defaults", …)` only when the source has no value. **Source over defaults** for time, facility, composer.
 - **Loops** — `for_each_list` with `source_query_node` in LIST for repeating source nodes, or a list value for a computed collection. Copy `attachSlotId` from `list_slots` (`repeatable` and per-slot `attachSlotId`), not only from `build_prompt`. Product-stack loops and extra Instance roots: inspect `get_product_stack`; encoding via `set_instance_encoding`. `put_blockly` is an escape hatch, not the primary path.
+- **Function library** — reusable Blockly Functions (value `procedures_defreturn` or statement `procedures_defnoreturn`, plus Decision tables they call; `procedures_ifreturn` is inside a body) in `function-library/`. Index: [`function-library/index.md`](../../../function-library/index.md). `list_function_library` then `load_function`. Starters `join_swedish` / `join_oxford` are FIRST Decision-table joins, not a `join_list` builtin. Call a value Function from a slot.
 - **Quantities** — unconstrained `DV_QUANTITY.units` is a shell field. When `list_slots` has no `unitsFixed`, map the quantity slot with `maps_create_with` keys `magnitude` + `units`.
 - **Coded text** — copy `allowedValues` from inspect when present; otherwise `maps_create_with` keys `value`, `code_string` / `defining_code`, `terminology_id`.
 - **Party identity** — `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`, and `health_care_facility` after `optional_rm_add`). Map with `source_query` (name only) or `maps_create_with` keys `name`, `id`, `type`. Not a `/name/value` DV_TEXT leaf.

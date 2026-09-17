@@ -55,6 +55,7 @@
       >▾</button>
       <div id="menu-example-sets" class="split-btn-menu" hidden role="menu"></div>
     </div>
+    <button id="btn-functions" type="button" title="Save, load, or contribute Blockly Functions; browse the GitHub Function library">Functions</button>
     <button id="btn-new-project" type="button">New Project</button>
     <button id="btn-load-project" type="button">Load Project</button>
     <button id="btn-save-project" type="button">Save as</button>
@@ -418,6 +419,69 @@
     <span id="status-build" class="status-build"></span>
   </footer>
 
+  <dialog id="dialog-functions" class="app-dialog app-dialog--wide">
+    <form method="dialog" class="dialog-form">
+      <h2>Functions</h2>
+      <p>
+        Save a Blockly Function (definition + Decision tables) to disk, load one into this mapping,
+        or browse the GitHub Function library. Contribute files a review issue — it does not auto-merge.
+      </p>
+      <h3 class="dialog-subhead">On this canvas</h3>
+      <div id="function-canvas-list" class="function-library-list"></div>
+      <div class="dialog-actions">
+        <button type="button" id="function-library-load-disk">Load from disk…</button>
+      </div>
+      <h3 class="dialog-subhead">Function library</h3>
+      <label class="dialog-label">
+        Catalog URL
+        <input id="function-library-catalog-url" type="text" inputmode="url" autocomplete="url" />
+      </label>
+      <div id="function-library-list" class="function-library-list"></div>
+      <p id="function-library-status" class="function-library-status"></p>
+      <div class="dialog-actions">
+        <button type="button" id="function-library-refresh">Load catalog</button>
+        <span class="dialog-actions-spacer"></span>
+        <button type="button" id="function-library-close" value="cancel">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-function-clash" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>Name already in use</h2>
+      <p id="function-clash-message"></p>
+      <div class="dialog-actions">
+        <button type="button" id="function-clash-cancel" value="cancel">Cancel</button>
+        <button type="submit" value="replace">Replace</button>
+        <button type="submit" value="rename">Rename</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-function-contribute" class="app-dialog app-dialog--wide">
+    <form method="dialog" class="dialog-form" id="function-contribute-form">
+      <h2>Contribute Function</h2>
+      <p>
+        Opens a GitHub issue on <code>regionstockholm/intehrgrator</code> with your description
+        and the Function definition. Maintainers review by hand.
+      </p>
+      <p>Function: <strong id="function-contribute-name"></strong></p>
+      <label class="dialog-label">
+        Description (required)
+        <textarea id="function-contribute-description" rows="5" required placeholder="What it returns, locale, Decision table, parameters…"></textarea>
+      </label>
+      <p>
+        Need a GitHub account?
+        <a id="function-contribute-signup" href="https://github.com/signup" target="_blank" rel="noopener noreferrer">Create an account</a>
+        or
+        <a id="function-contribute-login" href="https://github.com/login" target="_blank" rel="noopener noreferrer">log in</a>,
+        then submit.
+      </p>
+      <p id="function-contribute-error" class="dialog-error" hidden></p>
+      <div class="dialog-actions">
+        <button type="button" id="function-contribute-cancel" value="cancel">Cancel</button>
+        <button type="button" id="function-contribute-submit">Open GitHub issue</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="dialog-save-as" class="app-dialog">
     <form method="dialog" class="dialog-form">
       <h2>Save as</h2>

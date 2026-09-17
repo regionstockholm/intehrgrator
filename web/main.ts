@@ -2399,6 +2399,12 @@ function installWorkbenchTestApi(): void {
       const block = workspace.getBlockById(blockId);
       if (block) composeOptionalRmExtras(block, names);
     },
+    setBlockField(blockId, field, value) {
+      const block = workspace.getBlockById(blockId);
+      if (!block?.getField(field)) return false;
+      block.setFieldValue(value, field);
+      return true;
+    },
     undo() {
       workspace.undo(false);
       refreshUndoButtons();

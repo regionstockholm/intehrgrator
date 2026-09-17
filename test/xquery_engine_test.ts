@@ -38,7 +38,7 @@ function bindSourceInline(xq: string, sourceJson: string): string {
 }
 
 Deno.test({
-  name: "BaseX runs generated for_each_source XQuery against JSON source (optional)",
+  name: "BaseX runs generated for_each_list XQuery against JSON source (optional)",
   ignore: false,
   async fn() {
     if (!(await basexAvailable())) {

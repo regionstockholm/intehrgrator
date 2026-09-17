@@ -39,9 +39,9 @@ Real Blockly (modest theme). Live playground: `deno task prototype:join-list` th
 
 ![E index and length locals](join-list/join_list_variant_e_loop_index_length.png)
 
-### F — Function calls + E position table
+### F — Function with for-each + shared table
 
-![F compact calls plus index/length lookup table](join-list/join_list_variant_f_function_mapping_call.png)
+![F compact calls, join_swedish loops and appends JoinNames snippets](join-list/join_list_variant_f_function_mapping_call.png)
 
 ---
 

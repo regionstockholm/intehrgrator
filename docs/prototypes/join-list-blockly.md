@@ -134,16 +134,23 @@ strings.” They compose.
 
 ## Recommendation for #85 implementation
 
-1. Ship **A** (`join_list`) — cheapest authoring for Oxford / *och*.
+**Main suggestion: variant F** — a 1-arg Blockly Function wrapping the E
+position table. Mapping Model slots stay one-socket calls
+(`join_swedish(source list "participants/name")` /
+`join_swedish(source list "potential_signers/name")`). The table is defined
+once and reused; it can grow (period on last, zebra, first-N) without
+touching every ELEMENT. Easy to (re)use, still compact in main code.
+
+Then:
+
+1. Ship **A** (`join_list`) as the cheap primitive when the rule really is
+   two separators (Oxford / *och*).
 2. Ship **D** as well: per-item Decision table + VMS-Mustache snippets. Same
-   verification track; better when the per-item rule is a table.
+   verification track; F wraps this.
 3. Bind **index** and **length** on `for_each_*` (variant E). Derive
-   `is first` / `is last` from them. That is the substrate D needs, and the
+   `is first` / `is last` from them. That is the substrate D/F need, and the
    semantic image of lung-MDT `@index` / `@first` / `@last`.
 4. Optional yellow-B mouths (prefix/postfix/skip-empty); no teal lambdas.
-5. For compact Mapping Model slots, extract a 1-arg Blockly Function
-   (`join_swedish`) wrapping E’s position table rather than repeating
-   punctuation on every ELEMENT. Two source lists
-   (`participants/name`, `potential_signers/name`) share that helper.
-6. Do not keep VMS-Hbs `@first`/`@last` for compatibility. Transform, then
+5. Do not keep VMS-Hbs `@first`/`@last` for compatibility. Transform, then
    drop.
+

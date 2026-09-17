@@ -471,9 +471,9 @@ const VARIANTS: Record<VariantKey, Variant> = {
       );
       participants.nextConnection?.connect(signers.previousConnection!);
 
-      place(cluster, 16, 16);
-      place(def, 16, 340);
-      place(indexLengthDecision(ws), 16, 560);
+      place(cluster, 16, 8);
+      place(def, 16, 420);
+      place(indexLengthDecision(ws), 16, 700);
     },
   },
 };
@@ -515,7 +515,7 @@ function loadVariant(key: VariantKey): void {
   workspace.clear();
   const v = VARIANTS[key];
   v.build(workspace);
-  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.68 : 0.92);
+  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.62 : 0.92);
   workspace.scrollCenter();
   renderSide(v);
   document.body.dataset.protoReady = key;

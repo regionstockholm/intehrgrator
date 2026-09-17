@@ -10,7 +10,7 @@ Inspired by kintegrate’s `formTestApi` + browser harness pattern ([CyEmulator 
 |------|-------------|
 | Avoid fragile file-picker automation | **Workbench Test API** loads OPT / Source Schema / Example Instance from fixture strings |
 | Still exercise real UI | Arm by clicking the Blockly Target value slot + click Example Instance (Click-to-Map); HTML5 drag from Example Instance onto the Blockly slot; **Run Test** |
-| Assert sensible output | Mapping Model expression, Blockly `source_query` block, Test Run slot value, `#test-output` text |
+| Assert sensible output | Mapping Model expression, Blockly `source_query` block, Test Run payload, `#test-output` text |
 | Stay Deno-native | `deno task test:ui` builds, serves `dist/`, runs Playwright under Deno |
 
 ## Workbench Test API
@@ -29,7 +29,7 @@ Enabled only when the shell is opened with `?testMode=1`.
 | `getBlockClientRect` | Blockly block SVG client rect for real UI click / drop |
 | `clickBlock` | Select a Blockly block (same path as a canvas click; arms Listening Mode when unmapped) |
 | `scrollBlockIntoView` | Pan the Blockly canvas so a block is in view |
-| `setOptionalRmExtras` | Cogwheel compose path for optional RM |
+| `setOptionalRmExtras` | Cogwheel compose path for Optional RM Insertion |
 | `setBlockField` | Set a canvas field (e.g. Instance encoding) |
 
 Global: `window.intehrgratorTestApi` (types in `src/ui_test/test_api.ts`).
@@ -61,7 +61,7 @@ Primary scenarios map systolic (`…/items/at0004/value/value/value`) → `$.sys
 
 | Test | Interaction |
 |------|-------------|
-| `test/ui/green_path_test.ts` | Load → Click-to-Map (systolic + diastolic) → optional RM → toolbox Loops → Test Run → Generated Export |
+| `test/ui/green_path_test.ts` | Load → Click-to-Map (systolic + diastolic) → Optional RM Insertion → toolbox Loops → Test Run → Generated Export |
 | `test/ui/click_to_map_test.ts` | Listening Mode → click Example Instance node |
 | `test/ui/drag_drop_map_test.ts` | Drag Example Instance node onto Blockly Target value slot (no Listening Mode) |
 

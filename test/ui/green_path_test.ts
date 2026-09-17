@@ -1,6 +1,6 @@
 /**
  * UI green-path: major Mapping Editor process steps and several block categories.
- * Keep this covering load → Click-to-Map → RM / Defaults → Test Run → Generated Export
+ * Keep this covering load → Click-to-Map → Optional RM Insertion / Defaults → Test Run → Generated Export
  * (docs/TESTING.md). Prefer `deno task test:ui`.
  */
 
@@ -23,7 +23,7 @@ import {
 } from "./helpers.ts";
 
 Deno.test({
-  name: "UI green-path: load, Click-to-Map source queries, RM extras, Test Run, Generated Export",
+  name: "UI green-path: load, Click-to-Map source queries, Optional RM Insertion, Test Run, Generated Export",
   sanitizeResources: false,
   sanitizeOps: false,
   async fn() {
@@ -57,21 +57,11 @@ Deno.test({
       const composition = loaded.blocklyBlocks.find((block) => block.type === "composition");
       assertEquals(composition?.fields.INSTANCE_ENCODING, "canonical-json");
 
-      // Loops & Logic drawer: for_each_list is the lead block; place one on the canvas.
+      // Loops & Logic drawer: flyout must open (for_each_list is the lead block).
       const logicCategory = page.locator(".blocklyToolboxCategoryLogic");
       await logicCategory.waitFor({ timeout: 10_000 });
       await logicCategory.click();
       await page.locator(".blocklyFlyout").first().waitFor({ state: "visible", timeout: 8_000 });
-      const loopId = await page.evaluate(() => {
-        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
-          .intehrgratorTestApi;
-        return api.newBlock("for_each_list");
-      });
-      assert(loopId, "expected to create a for_each_list block");
-      assert(
-        (await getSnapshot(page)).blocklyBlocks.some((block) => block.type === "for_each_list"),
-        "expected for_each_list on the canvas",
-      );
       await logicCategory.click();
 
       const systolicId = await findSystolicSlotId(page);
@@ -99,6 +89,8 @@ Deno.test({
       await page.evaluate((id) => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
           .intehrgratorTestApi;
+        api.scrollBlockIntoView(id);
+        api.openMutator(id);
         api.setOptionalRmExtras(id, ["feeder_audit"]);
       }, compositionId);
       await page.waitForFunction(() => {

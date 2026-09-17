@@ -17,7 +17,7 @@ Tests observe behavior at a **seam** (a public boundary). Pick the highest seam 
 
 A filename twin (`test/foo_test.ts` and `test/ui/foo_test.ts`) is **complementary** when one asserts a function and the other asserts chrome. Clone an assertion onto a second seam only when that seam can miss a real bug the first cannot see.
 
-The **UI green-path** (`test/ui/green_path_test.ts`) is the one Playwright test that must keep covering the major authoring steps: load Source Schema + Example Instance + target, Click-to-Map a `source_query`, RM COMPOSITION (Defaults Map + optional RM), Test Run, Generated Export. Extend it when you add a major process step; do not replace it with another single-control test.
+The **UI green-path** (`test/ui/green_path_test.ts`) is the one Playwright test that must keep covering the major authoring steps: load Source Schema + Example Instance + target, Click-to-Map a `source_query`, RM COMPOSITION (Defaults Map + Optional RM Insertion), Test Run, Generated Export. Extend it when you add a major process step; do not replace it with another single-control test.
 
 ## How to run
 

@@ -35,7 +35,7 @@ Strategy, seams, facets, and CI gates: **[docs/TESTING.md](docs/TESTING.md)**. P
 | Unit then UI | `deno task test:all` | Local convenience |
 | Optional BaseX XQuery golden | `deno task test:xquery-engine` | When BaseX is on `PATH` (skips otherwise) |
 
-The UI **green-path** (`test/ui/green_path_test.ts`) walks load → Click-to-Map → RM / Defaults → Test Run → Generated Export. Add new Mapping Editor chrome as a focused `test/ui/` case; extend the green-path when the change is a major authoring step.
+The UI **green-path** (`test/ui/green_path_test.ts`) walks load → Click-to-Map → RM COMPOSITION / Defaults / Optional RM Insertion → Test Run → Generated Export. Add new Mapping Editor chrome as a focused `test/ui/` case; extend the green-path when the change is a major authoring step.
 
 ## Deno tasks
 

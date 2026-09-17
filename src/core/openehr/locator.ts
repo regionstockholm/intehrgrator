@@ -104,7 +104,7 @@ export function parseLocator(input: string): OpenEhrLocator {
       applyBracket(step, source.slice(i + 1, close).trim());
       i = close + 1;
     }
-    if (name || step.predicate || step.index !== undefined) steps.push(step);
+    if (step.name || step.predicate || step.index !== undefined) steps.push(step);
   }
 
   return { absolute, dollar, steps: steps.filter((s) => s.name || s.axis === "descendant") };

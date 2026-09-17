@@ -69,6 +69,10 @@ Deno.test("generic JSON index paths are unchanged in spirit", () => {
     compileAuthoringPath("$.vitals[1].systolic", "json"),
     "$source?vitals?1?systolic",
   );
+  assertEquals(
+    compileAuthoringPath('$["vitals/systolic|magnitude"]', "json"),
+    '$source?("vitals/systolic|magnitude")',
+  );
 });
 
 Deno.test("fontoxpath evaluates XML openEHR node-id predicates", () => {

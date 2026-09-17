@@ -205,7 +205,7 @@ function walkComplex(
   );
   const terms = termsForArchetype(nodeArchetypeRef, fallbackTerms, archetypeTerms);
   const nameConstraint = nameConstraintOf(cObj);
-  const label = nameConstraint || resolvedNodeLabel(
+  const label = resolvedNodeLabel(
     nameHint,
     nodeId,
     rmType,
@@ -388,7 +388,7 @@ function walkAttribute(
         slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
-        label: nameConstraint || resolvedNodeLabel(
+        label: resolvedNodeLabel(
           nameHint,
           nodeId,
           rmType,

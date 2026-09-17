@@ -53,7 +53,7 @@ Real Blockly (modest theme). Live playground: `deno task prototype:join-list` th
 | **B** Named mouths | Same algebra + prefix/postfix + skip-empty. Teal “item templates” are a counter-example | `concat(prefix, join_list(...), postfix)` | Yellow part no; teal lambdas **no** |
 | **C** Locale preset | List + `Svenska (och)` / English / Oxford dropdown | Same two strings as A | No |
 | **D** Decision table over position | `join list using decision`; sheet rows on `first`/`last` | Per-item FIRST table, concatenate snippets | Substrate for F |
-| **E** Loop `index` + `length` | Same table; `first`/`last`/`odd` derived with Math | `index = 0`, `index = length − 1`, `index mod 2` | **Yes as loop binders** |
+| **E** Loop `index` + `length` | Same table; `first`/`last`/`odd` derived with Math | `index = 0`, `index = length − 1`, `index is odd` | **Yes as loop binders** |
 | **F** Function + loop + table | `to join_swedish(names)`: `for each` + append JoinNames snippets + return; ELEMENT Participants / Potential signers call it | `join_swedish(source list)` at each slot | **Yes — main suggestion** |
 
 **Do not ship A.** The yellow compact `join_list` reporter is a discuss-only
@@ -103,7 +103,7 @@ bounded.
 | `length` | `\|collection\|` at loop entry | Constant for the loop (VMS has no list mutators) |
 
 `is first` ⇔ `index = 0`. `is last` ⇔ `index = length − 1`. Odd/even ⇔
-`index mod 2` (already a VMS Math block). Handlebars `@index` / `@first` /
+`index is odd` (stock Math `math_number_property`; dropdown also has even). Handlebars `@index` / `@first` /
 `@last` rewrite onto that table; `@key` stays map iteration only.
 
 **Where to bind:** emission loops — `for_each_source` and `for_each_list` —

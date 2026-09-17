@@ -115,11 +115,11 @@ function minus(ws: Blockly.WorkspaceSvg, left: BlockSvg, right: BlockSvg): Block
   return op;
 }
 
-function remainder(ws: Blockly.WorkspaceSvg, dividend: BlockSvg, divisor: BlockSvg): BlockSvg {
-  const op = ready(ws.newBlock("math_modulo"));
-  plug(op, "DIVIDEND", dividend);
-  plug(op, "DIVISOR", divisor);
-  return op;
+function isOdd(ws: Blockly.WorkspaceSvg, value: BlockSvg): BlockSvg {
+  const block = ready(ws.newBlock("math_number_property"));
+  block.setFieldValue("ODD", "PROPERTY");
+  plug(block, "NUMBER_TO_CHECK", value);
+  return block;
 }
 
 function ensureVar(
@@ -201,11 +201,7 @@ function indexLengthDecision(ws: Blockly.WorkspaceSvg, tableName = JOIN_TABLE): 
   plug(
     decision,
     "ODD",
-    eq(
-      ws,
-      remainder(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX)), number(ws, 2)),
-      number(ws, 1),
-    ),
+    isOdd(ws, ready(ws.newBlock(PROTOTYPE_LIST_INDEX))),
   );
   plug(decision, "ITEM", ready(ws.newBlock(PROTOTYPE_THIS_ITEM)));
   return decision;
@@ -427,7 +423,7 @@ const VARIANTS: Record<VariantKey, Variant> = {
     key: "E",
     name: "Loop index + length",
     title: "E — Index and length on the loop (not Handlebars @)",
-    serializes: `first := index = 0\nlast  := index = length - 1\nodd   := index mod 2 = 1`,
+    serializes: `first := index = 0\nlast  := index = length - 1\nodd   := index is odd`,
     output: "Anna, Bo och Carl",
     showSheet: false,
     sheetHtml: "",
@@ -435,7 +431,8 @@ const VARIANTS: Record<VariantKey, Variant> = {
       <p>Bind <code>index</code> (0-based) and <code>length</code> on <code>for_each_source</code> /
       <code>for_each_list</code>, visible to child blocks the same way <code>item</code> is today.
       <code>is first</code> / <code>is last</code> become one-line sugar over those two ints.
-      Odd/even is <code>index mod 2</code> with existing Math blocks.</p>
+      Odd/even is the stock Math block <code>index is odd</code> /
+      <code>is even</code> (dropdown), not a homemade remainder.</p>
       <ul>
         <li>Does <em>not</em> make SMT harder in kind: two extra loop-invariant / loop-index
           integers, <code>0 ≤ index &lt; length</code>, <code>length = |collection|</code> at entry.</li>

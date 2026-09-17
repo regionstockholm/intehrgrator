@@ -1,3 +1,9 @@
+/**
+ * Headless WorkbenchController load / map / import.
+ * Browser counterparts live under `test/ui/` (click_to_map, schema_drop,
+ * load_from_url, import_ai_*). Keep controller regressions here; add Playwright
+ * when chrome can fail independently — see docs/TESTING.md.
+ */
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";

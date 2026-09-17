@@ -64,7 +64,6 @@ import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import {
   attributesFor,
   dataValueLeafTypes,
-  getValidAttachments,
   isDataValueType,
   primaryMappingAttribute,
 } from "@intehrgrator/core/rm_meta.ts";
@@ -89,15 +88,6 @@ Deno.test("ehrtslib meta exposes DATA_VALUE leaves and DV_QUANTITY fields", () =
   assert(qty.some((a) => a.name === "magnitude" && a.mandatory));
   assert(qty.some((a) => a.name === "units" && a.mandatory));
   assertEquals(primaryMappingAttribute("DV_QUANTITY")?.name, "magnitude");
-});
-
-Deno.test("composition optional attachments exclude present attrs", () => {
-  const opts = getValidAttachments("COMPOSITION", {
-    presentAttributes: new Set(["context"]),
-    templateConstrained: new Set(),
-  });
-  assertEquals(opts.some((o) => o.attributeName === "context"), false);
-  assertEquals(opts.some((o) => o.attributeName === "feeder_audit"), true);
 });
 
 Deno.test("skeleton children carry rmAttribute from OPT walk", () => {

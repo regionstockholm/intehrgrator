@@ -30,3 +30,23 @@ jobs:
           name: dist
           path: dist
           if-no-files-found: error
+
+  ui-test:
+    name: UI tests
+    runs-on: ubuntu-latest
+    needs: test-and-build
+    steps:
+      - uses: actions/checkout@v6
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - uses: actions/download-artifact@v7
+        with:
+          name: dist
+          path: dist
+      - name: Install Playwright Chromium
+        run: npx --yes playwright@1.51.0 install --with-deps chromium
+      - name: UI tests
+        env:
+          UI_TEST_SKIP_BUILD: "1"
+        run: deno task test:ui

@@ -112,6 +112,8 @@ export interface IntehrgratorTestApi {
   connectStatement(parentId: string, inputName: string, childId: string): boolean;
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
+  /** Set a Blockly field on a canvas block (Instance encoding, etc.). */
+  setBlockField(blockId: string, field: string, value: string): boolean;
   undo(): void;
   redo(): void;
   undoCount(): number;

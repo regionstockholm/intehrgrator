@@ -26,7 +26,16 @@ deno task dev`  # start and serve on `http://localhost:5173`
 
 ## Tests
 
-TODO: describe which tests exist and how to run them etc
+Strategy, seams, facets, and CI gates: **[docs/TESTING.md](docs/TESTING.md)**. Playwright harness: [docs/UI_TESTING.md](docs/UI_TESTING.md).
+
+| Layer | Command | When it runs |
+|-------|---------|----------------|
+| Unit + Agent/MCP (`test/`, not `test/ui`) | `deno task test` | Locally; CI on every PR; Pages; release |
+| UI / Playwright (`test/ui/`) | `deno task test:ui` | Locally; CI on every PR; release (must pass before publish) |
+| Unit then UI | `deno task test:all` | Local convenience |
+| Optional BaseX XQuery golden | `deno task test:xquery-engine` | When BaseX is on `PATH` (skips otherwise) |
+
+The UI **green-path** (`test/ui/green_path_test.ts`) walks load → Click-to-Map → RM COMPOSITION / Defaults / Optional RM Insertion → Test Run → Generated Export. Add new Mapping Editor chrome as a focused `test/ui/` case; extend the green-path when the change is a major authoring step.
 
 ## Deno tasks
 
@@ -35,8 +44,10 @@ TODO: describe which tests exist and how to run them etc
 | `deno task vendor` | Refresh `vendor/ehrtslib` and example archetypes from upstream |
 | `deno task build` | Static site → `dist/` (includes `examples/` + `test/fixtures/`) (+ desktop www staging) |
 | `deno task dev` | Serve `dist/` on `http://localhost:5173` |
-| `deno task test` | Unit tests (`test/`, parallel, no browser) |
-| `deno task test:ui` | Playwright UI tests — see [docs/UI_TESTING.md](docs/UI_TESTING.md) |
+| `deno task test` | Unit + Agent tests (`test/`, parallel, no browser) |
+| `deno task test:ui` | Playwright UI tests — see [docs/TESTING.md](docs/TESTING.md) and [docs/UI_TESTING.md](docs/UI_TESTING.md) |
+| `deno task test:all` | `test` then `test:ui` |
+| `deno task test:xquery-engine` | Optional BaseX golden (`test/xquery_engine_test.ts`) |
 | `deno task lint` | `deno lint` on `src`, `test`, `scripts` |
 | `deno task check` | Type-check TypeScript sources |
 | `deno task desktop` | Build + run native window (`deno desktop`) |
@@ -85,7 +96,8 @@ CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module change
 | Project persistence | [docs/PROJECT_PERSISTENCE.md](docs/PROJECT_PERSISTENCE.md) |
 | AI suggestion format | [docs/AI_SUGGESTION_FORMAT.md](docs/AI_SUGGESTION_FORMAT.md) |
 | Agent / MCP workflow | [docs/AGENT_WORKFLOW.md](docs/AGENT_WORKFLOW.md) |
-| UI testing | [docs/UI_TESTING.md](docs/UI_TESTING.md) |
+| Testing strategy | [docs/TESTING.md](docs/TESTING.md) |
+| UI testing (Playwright harness) | [docs/UI_TESTING.md](docs/UI_TESTING.md) |
 | Planning | [GitHub Issues](https://github.com/regionstockholm/intehrgrator/issues) — see [docs/agents/issue-tracker.md](docs/agents/issue-tracker.md) |
 | Archived roadmap | [docs/historical-archive/ROADMAP.md](docs/historical-archive/ROADMAP.md) |
 | Deferred ideas | [docs/future/](docs/future/) |
@@ -95,6 +107,7 @@ CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module change
 ### Agent instructions
 
 - **[AGENTS.md](AGENTS.md)** — documentation sources, Deno toolchain, issue tracker, domain docs.
+- **[docs/TESTING.md](docs/TESTING.md)** — test seams, facets, green-path, CI gates (read when adding tests).
 - **[docs/agents/](docs/agents/)** — issue tracker conventions, triage labels, domain modelling.
 
 ### Skills (Matt Pocock engineering skills)

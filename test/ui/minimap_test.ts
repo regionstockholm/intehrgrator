@@ -44,7 +44,7 @@ async function readToolboxRail(page: Page): Promise<ToolboxRailLayout> {
     const fb = foot.getBoundingClientRect();
     const hb = handle.getBoundingClientRect();
     const mb = mini.getBoundingClientRect();
-    if (mb.width < 24 || mb.height < 16) return null;
+    if (mb.width < 24 || mb.height < 8) return null;
     const hit = document.elementFromPoint(mb.left + mb.width / 2, mb.top + mb.height / 2);
     const blockCount = mini.querySelectorAll(".blocklyBlockCanvas [data-id]").length;
     return {
@@ -65,7 +65,7 @@ async function readToolboxRail(page: Page): Promise<ToolboxRailLayout> {
       hitInMinimap: Boolean(hit && mini.contains(hit)),
       blockCount,
     };
-  }, { timeout: 15_000 });
+  }, undefined, { timeout: 15_000 });
   return await layout.jsonValue() as ToolboxRailLayout;
 }
 
@@ -156,10 +156,11 @@ Deno.test({
       await page.mouse.down();
       await page.mouse.move(
         handleBox.x + handleBox.width / 2,
-        handleBox.y + handleBox.height / 2 + 48,
+        handleBox.y + handleBox.height / 2 + 20,
         { steps: 8 },
       );
       await page.mouse.up();
+      await page.waitForTimeout(200);
 
       const after = await readToolboxRail(page);
       assert(

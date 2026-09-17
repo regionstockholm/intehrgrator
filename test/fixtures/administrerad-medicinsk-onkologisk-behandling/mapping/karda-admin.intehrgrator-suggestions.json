@@ -241,10 +241,13 @@
                 }
               }
             }
+          },
+          "ELSE": {
+            "block": { "type": "text", "fields": { "TEXT": "" } }
           }
         }
       },
-      "note": "Omit diagnosis when name or ICD-10 code is missing"
+      "note": "Omit diagnosis when name or ICD-10 code is missing (empty ELSE; VMS has no null literal)"
     },
     {
       "slotId": "AdministreradMedicinskOnkologiskBehandlingPerSubstans//content[openEHR-EHR-ACTION.medication.v1]/ism_transition/at0007/current_state/DV_CODED_TEXT/value",

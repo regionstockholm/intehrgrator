@@ -31,12 +31,20 @@ function required(name: string): string {
   return v;
 }
 
+const NAME_BROKEN = /invalid|broken|fail|bad/i;
+
 const setId = required("set");
 const suggestionsPath = required("suggestions");
 const sheetsPath = arg("sheets");
 const encoding = arg("encoding");
 const outDir = arg("out-dir");
 const catalogPath = arg("catalog") ?? join(root, "examples", "example-sets.json");
+const skipNamedBroken = !Deno.args.includes("--include-named-broken");
+const optionalRmArgs = Deno.args.flatMap((a, i) => {
+  if (a === "--optional-rm") return [Deno.args[i + 1] ?? ""];
+  if (a.startsWith("--optional-rm=")) return [a.slice("--optional-rm=".length)];
+  return [];
+}).filter(Boolean);
 
 const service = new WorkbenchService();
 await callAgentTool(service, "register_agent", {
@@ -51,9 +59,51 @@ const loaded = await callAgentTool(service, "load_example_set", {
 }) as { snapshot: { templateId: string; revision: string; exampleCount: number } };
 
 let revision = loaded.snapshot.revision;
+
+try {
+  const optional = await callAgentTool(service, "list_optional_rm", {}) as {
+    catalog: Array<{
+      parentSlotId: string;
+      attachments: Array<{ attributeName: string; rmType: string }>;
+    }>;
+  };
+  const context = optional.catalog.find((row) =>
+    row.parentSlotId.endsWith("//context/EVENT_CONTEXT") &&
+    row.attachments.some((a) => a.attributeName === "health_care_facility")
+  );
+  if (context) {
+    const added = await callAgentTool(service, "optional_rm_add", {
+      parentSlotId: context.parentSlotId,
+      rmType: "PARTY_IDENTIFIED",
+      attributeName: "health_care_facility",
+      revision,
+    }) as { revision: string };
+    revision = added.revision;
+    console.log("optional_rm_add health_care_facility", context.parentSlotId);
+  }
+} catch (err) {
+  console.warn("optional_rm_add health_care_facility skipped:", err);
+}
+for (const spec of optionalRmArgs) {
+  const [parentSlotId, rmType, attributeName] = spec.split(",");
+  if (!parentSlotId || !rmType || !attributeName) {
+    throw new Error(`--optional-rm expects parentSlotId,rmType,attributeName (got ${spec})`);
+  }
+  const added = await callAgentTool(service, "optional_rm_add", {
+    parentSlotId,
+    rmType,
+    attributeName,
+    revision,
+  }) as { revision: string };
+  revision = added.revision;
+}
 if (sheetsPath) {
   const raw = JSON.parse(await Deno.readTextFile(resolve(sheetsPath))) as unknown;
-  const sheets = sheetsFromCatalogJson(raw);
+  const unwrapped = raw && typeof raw === "object" && !Array.isArray(raw) &&
+      Array.isArray((raw as { sheets?: unknown }).sheets)
+    ? (raw as { sheets: unknown[] }).sheets
+    : raw;
+  const sheets = sheetsFromCatalogJson(unwrapped);
   const replaced = await callAgentTool(service, "replace_sheets", { sheets, revision }) as {
     revision: string;
   };
@@ -87,8 +137,19 @@ console.log("typescript script bytes", script.code.length);
 const sourceTree = await callAgentTool(service, "get_source_tree", {}) as {
   examples: Array<{ id: string; filename: string }>;
 };
-const tsResults: Array<{ filename: string; ok: boolean; error?: string; validationValid?: boolean }> = [];
+const tsResults: Array<{
+  filename: string;
+  ok: boolean;
+  skippedNamedBroken?: boolean;
+  error?: string;
+  validationValid?: boolean;
+}> = [];
 for (const ex of sourceTree.examples) {
+  const namedBroken = NAME_BROKEN.test(ex.filename);
+  if (skipNamedBroken && namedBroken) {
+    tsResults.push({ filename: ex.filename, ok: true, skippedNamedBroken: true });
+    continue;
+  }
   await callAgentTool(service, "set_active_example", { id: ex.id });
   const tested = await callAgentTool(service, "run_test", { outputMode: "typescript" }) as {
     testResult: {

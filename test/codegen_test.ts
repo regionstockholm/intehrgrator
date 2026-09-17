@@ -681,6 +681,41 @@ Deno.test("stripGeneratedTypeScript removes default Handlebars import", () => {
   assertEquals(body.includes("import"), false);
 });
 
+Deno.test("stripGeneratedTypeScript drops optional params and object type annotations", () => {
+  const { body } = stripGeneratedTypeScript(`
+export function convertSourceToComposition(
+  sheets: Record<string, unknown> = {},
+) {
+  function sheetLookup(name: string, returnCol?: string | number) {
+    const rec: Record<string, unknown> = {};
+    const holds = (p: { op: string; a: number; b?: number }, n: number) => n;
+    return (cmp[1] as string) + String(rec) + holds({ op: "range", a: 1 }, 1);
+  }
+  const walk = (cur: unknown, rest: unknown[]): unknown => cur;
+  return walk(sheets, []);
+}
+`);
+  assertEquals(body.includes("?:"), false, body);
+  assertEquals(body.includes(" as string"), false, body);
+  assertEquals(body.includes("Record<"), false, body);
+  assertEquals(/:\s*unknown/.test(body), false, body);
+  const convert = new Function(`${body}\nreturn convertSourceToComposition;`)();
+  assertEquals(typeof convert, "function");
+});
+
+Deno.test("stripGeneratedTypeScript keeps composer object-literal properties", () => {
+  const { body } = stripGeneratedTypeScript(`
+export function convertSourceToComposition() {
+  return new COMPOSITION({
+    composer: { name: xpathString("$.SignatureUser_FullName") },
+    language: "sv",
+  });
+}
+`);
+  assertEquals(body.includes("composer: { name: xpathString"), true, body);
+  assertEquals(body.includes("composer,"), false, body);
+});
+
 Deno.test("TypeScript Output mode executes handlebars text block canvas mapping", () => {
   initBlocklyGenerators();
   const workspace = new Blockly.Workspace();

@@ -76,10 +76,13 @@ export function stripGeneratedTypeScript(source: string): { names: string[]; bod
   body = body.replace(/\bexport\s+function\b/g, "function");
   body = body.replace(/(\]|[\w$])!/g, "$1");
   body = body.replace(/\s+as\s+[A-Za-z_$][\w$]*(?:<[^>]+>)?(?:\[\])?/g, "");
+  body = body.replace(/\bnew\s+(Set|Map|WeakSet|WeakMap|Array)<[^>]+>/g, "new $1");
   const typeName =
     String.raw`(?:string|number|boolean|unknown|void|never|any|object|SourceContext|Record<[^>]+>|Array<[^>]+>|[A-Z][A-Za-z0-9_]*)(?:\[\])?`;
   const typeUnion = `${typeName}(?:\\s*\\|\\s*${typeName})*`;
-  const typeOrObj = `(?:${typeUnion}|\\{[^}]*\\})`;
+  // Object *types* only (`{ op: string; a: number }`), not value literals (`{ name: xpathString(...) }`).
+  const typeObj = String.raw`\{(?:\s*[A-Za-z_$][\w$]*\s*\??\s*:\s*${typeName}\s*;?)*\s*\}`;
+  const typeOrObj = `(?:${typeUnion}|${typeObj})`;
   body = body.replace(new RegExp(`\\)\\s*:\\s*${typeOrObj}(\\s*(?:\\{|=>))`, "g"), ")$1");
   body = body.replace(
     new RegExp(`([A-Za-z_$][\\w$]*)\\s*\\??\\s*:\\s*${typeOrObj}(\\s*[=,)])`, "g"),

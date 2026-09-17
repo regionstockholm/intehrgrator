@@ -258,6 +258,58 @@ Deno.test("java codegen emits source-node for_each_list iteration with relative 
   assertStringIncludes(java, 'new DvQuantity("/min", xpathNumber("pulse", measurements), null)');
 });
 
+Deno.test("java list-kind for_each_list omits xpathNodes helpers", () => {
+  let model = createEmptyModel("pulse-series");
+  model.targetFormat = "openehr-template";
+  model = upsertLoop(model, {
+    attachSlotId: "evt-1",
+    varName: "measurements",
+    path: "",
+    kind: "list",
+    collection: 'list(1, 2)',
+  });
+  const skeleton = [{
+    slotId: "root",
+    blockType: "observation",
+    rmType: "OBSERVATION",
+    label: "Pulse",
+    kind: "container" as const,
+    mandatory: true,
+    children: [{
+      slotId: "evt-1",
+      blockType: "point_event",
+      rmType: "POINT_EVENT",
+      label: "Sample",
+      kind: "container" as const,
+      rmAttribute: "events",
+      mandatory: true,
+      children: [{
+        slotId: "slot/rate",
+        blockType: "dv_quantity",
+        rmType: "DV_QUANTITY",
+        label: "Rate",
+        kind: "value" as const,
+        rmAttribute: "data",
+        mandatory: true,
+        children: [],
+        fixedFields: { units: "/min" },
+      }],
+    }],
+  }];
+  model = applyExpressionEdit(model, "slot/rate", 'maps_get("defaults", "rate")', {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+    label: "Rate",
+  });
+  const java = generate(model, "java", { skeleton });
+  assertStringIncludes(java, "asList(");
+  assertEquals(java.includes("xpathNodes("), false, java);
+  assertEquals(java.includes("xpathNumber("), false, java);
+  const ts = generate(model, "typescript", { skeleton });
+  assertStringIncludes(ts, "asList(");
+  assertEquals(ts.includes("xpathNodes("), false, ts);
+});
+
 Deno.test("java codegen from BP skeleton emits Archie RM constructors", async () => {
   const { java, model, skeleton } = await mappedBpJava();
   assertStringIncludes(java, "public class ConversionScript");

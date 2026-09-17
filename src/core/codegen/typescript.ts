@@ -837,7 +837,6 @@ function emitSkeletonLoop(
   ctx: TsEmitContext,
   indent: number,
 ): string {
-  ctx.helpers.add("nodes");
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(loop.varName) ? loop.varName : "item";
   const innerCtx: TsEmitContext = {
     ...ctx,
@@ -849,6 +848,12 @@ function emitSkeletonLoop(
   const nestedLoops = loops.filter((item) => item !== loop);
   const props = skeletonContainerProps(node, slots, nestedLoops, innerCtx, indent + 1);
   const constructed = formatRmConstruct(node.rmType, props, indent + 1, innerCtx);
+  if (loop.kind === "list" && loop.collection) {
+    ctx.helpers.add("logic");
+    const coll = emitTsExpressionSource(loop.collection, ctx) ?? "[]";
+    return `...asList(${coll}).map((${ident}) => ${constructed})`;
+  }
+  ctx.helpers.add("nodes");
   return "...xpathNodes(" + JSON.stringify(loop.path) + ").map((" + ident +
     ") => " + constructed + ")";
 }

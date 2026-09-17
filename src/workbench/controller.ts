@@ -828,6 +828,9 @@ export class WorkbenchController {
         ) {
           return { ...step, state: "finished" as const };
         }
+        if (state === "running" && i > idx && step.state === "running") {
+          return { ...step, state: "waiting" as const };
+        }
         return step;
       }),
     };

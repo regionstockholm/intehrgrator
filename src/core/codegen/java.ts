@@ -654,7 +654,6 @@ function emitSkeletonLoop(
   ctx: JavaEmitContext,
   indent: number,
 ): string {
-  ctx.helpers.add("nodes");
   const ident = javaIdent(loop.varName, "item");
   const innerCtx: JavaEmitContext = {
     ...ctx,
@@ -673,6 +672,7 @@ function emitSkeletonLoop(
     const coll = emitJavaExpressionSource(loop.collection, ctx) ?? "java.util.List.of()";
     return `asList(${coll}).stream().map(${mapped}).toList()`;
   }
+  ctx.helpers.add("nodes");
   return `xpathNodes(${JSON.stringify(loop.path)}).stream().map(${mapped}).toList()`;
 }
 

@@ -13,6 +13,12 @@ import {
   xpathEvaluatorForReturnType,
 } from "./source_query.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
+import { MAPS_CREATE_WITH } from "../core/defaults/extract.ts";
+import {
+  DECISION_TABLE_BLOCK,
+  registerDecisionTableBlocks,
+} from "./blocks/decision_table_blocks.ts";
+import { registerSheetBlocks, SHEET_LOOKUP } from "./blocks/sheet_blocks.ts";
 import {
   callToRestrictionOp,
   callToSetOp,
@@ -319,6 +325,56 @@ export function astToExpressionBlock(
         ? "node"
         : "string";
       return finalize(createSourceQueryBlock(workspace, xpath, ret));
+    }
+    if (ast.name === "map") {
+      registerMapBlocks();
+      const block = workspace.newBlock(MAPS_CREATE_WITH) as BlockSvg & {
+        itemCount_: number;
+        updateShape_: () => void;
+      };
+      const pairs = Math.floor(ast.args.length / 2);
+      block.itemCount_ = pairs;
+      block.updateShape_();
+      for (let i = 0; i < pairs; i++) {
+        const keyAst = ast.args[i * 2];
+        const valAst = ast.args[i * 2 + 1];
+        if (keyAst?.kind === "literal") {
+          block.setFieldValue(String(keyAst.value), `KEY${i}`);
+        }
+        if (valAst) {
+          const child = astToExpressionBlock(workspace, valAst, returnType, finalize);
+          block.getInput(`VAL${i}`)?.connection?.connect(child.outputConnection!);
+        }
+      }
+      return finalize(block);
+    }
+    if (ast.name === "decision_table") {
+      registerDecisionTableBlocks();
+      const block = workspace.newBlock(DECISION_TABLE_BLOCK) as BlockSvg;
+      const nameAst = ast.args[0];
+      const outputAst = ast.args[2];
+      if (nameAst?.kind === "literal") block.setFieldValue(String(nameAst.value), "NAME");
+      if (outputAst?.kind === "literal") block.setFieldValue(String(outputAst.value), "OUTPUT");
+      if (ast.args[1]) {
+        const inputs = astToExpressionBlock(workspace, ast.args[1], "string", finalize);
+        block.getInput("INPUTS")?.connection?.connect(inputs.outputConnection!);
+      }
+      return finalize(block);
+    }
+    if (ast.name === "sheet_lookup") {
+      registerSheetBlocks();
+      const block = workspace.newBlock(SHEET_LOOKUP) as BlockSvg;
+      const nameAst = ast.args[0];
+      if (nameAst?.kind === "literal") block.setFieldValue(String(nameAst.value), "NAME");
+      const plug = (input: string, arg: ExprAst | undefined) => {
+        if (!arg) return;
+        const child = astToExpressionBlock(workspace, arg, "string", finalize);
+        block.getInput(input)?.connection?.connect(child.outputConnection!);
+      };
+      plug("MATCH_COL", ast.args[1]);
+      plug("MATCH_VAL", ast.args[2]);
+      plug("RETURN_COL", ast.args[3]);
+      return finalize(block);
     }
     if (ast.name === "trim" && ast.args[0]) {
       const block = workspace.newBlock("text_trim") as BlockSvg;

@@ -11,6 +11,7 @@
 import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
+import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { isListAttribute } from "./typescript.ts";
 import { usesOpenEhrProduct } from "./product.ts";
 import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
@@ -277,9 +278,13 @@ function emitXpathCall(
   ctx: JavaEmitContext,
 ): string {
   const path = pathAst?.kind === "literal" ? String(pathAst.value).trim() : "";
+  let code = pathCode;
+  if (path && looksLikeOpenEhrLocator(path) && (path.startsWith("/") || path.startsWith("//"))) {
+    code = JSON.stringify(compileAuthoringPath(path, "xml"));
+  }
   const relative = Boolean(path) && !path.startsWith("$") && !path.startsWith("/");
-  if (relative && ctx.loopVar) return `${fn}(${pathCode}, ${ctx.loopVar})`;
-  return `${fn}(${pathCode})`;
+  if (relative && ctx.loopVar) return `${fn}(${code}, ${ctx.loopVar})`;
+  return `${fn}(${code})`;
 }
 
 function emitQuantifierJava(

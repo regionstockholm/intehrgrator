@@ -14,7 +14,7 @@ import type {
   TargetFormatId,
 } from "../../types/mod.ts";
 import { applyExpressionEdit } from "../mapping_model/mod.ts";
-import { collectValueSlots, collectRepeatableContainers, findSkeletonTrail, nearestRepeatingContainer } from "../skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectRepeatableContainers, findSkeletonTrail, nearestRepeatingContainer, pathLabelFromTrail } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
 import { Validator, type Schema } from "@cfworker/json-schema";
 import { SUGGESTION_FORMAT_SCHEMA } from "./suggestion_schema.ts";
@@ -135,14 +135,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
   const manifest = inScope.map((s) => {
     const trail = findSkeletonTrail(options.skeleton, s.slotId);
     const repeating = nearestRepeatingContainer(trail);
-    const pathParts: string[] = [];
-    for (const node of trail) {
-      const label = node.label?.trim();
-      if (!label || label === node.rmType) continue;
-      if (pathParts[pathParts.length - 1] === label) continue;
-      pathParts.push(label);
-    }
-    const pathLabel = pathParts.length ? pathParts.join(" › ") : undefined;
+    const pathLabel = pathLabelFromTrail(trail);
     return {
       slotId: s.slotId,
       valueType: s.rmType,

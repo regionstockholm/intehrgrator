@@ -14,6 +14,7 @@ import {
   parseJsonDocument,
   unwrapExecuteEnvelope,
 } from "./json_document.ts";
+import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 
 export interface SourceContext {
   format: SourceFormatId;
@@ -175,6 +176,11 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
 
 /** Resolve a JSON authoring path to an array of nodes (`$.measurements`). */
 export function collectJsonNodes(path: string, json: unknown): unknown[] {
+  if (looksLikeOpenEhrLocator(path)) {
+    const query = compileAuthoringPath(path, "json");
+    const nodes = fontoxpath.evaluateXPathToNodes(query, null, null, { source: json });
+    return Array.isArray(nodes) ? nodes : nodes == null ? [] : [nodes];
+  }
   const raw = walkJsonSegments(json, parseJsonAuthoringPath(normalizeJsonAuthoringPath(path)));
   if (Array.isArray(raw)) return raw;
   if (raw === undefined || raw === null) return [];
@@ -195,6 +201,19 @@ function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
   if (ctx.kind === "json") {
     const trimmed = expr.trim();
     const relative = isRelativeJsonPath(trimmed);
+    if (looksLikeOpenEhrLocator(trimmed)) {
+      const query = compileAuthoringPath(trimmed, "json");
+      const walkRoot = relative ? (ctx.relativeRoot ?? ctx.json) : ctx.json;
+      const variables = { source: walkRoot };
+      switch (type) {
+        case "number":
+          return fontoxpath.evaluateXPathToNumber(query, null, null, variables);
+        case "boolean":
+          return fontoxpath.evaluateXPathToBoolean(query, null, null, variables);
+        default:
+          return fontoxpath.evaluateXPathToString(query, null, null, variables);
+      }
+    }
     const path = relative
       ? (trimmed === "." ? "$" : `$.${trimmed.replace(/^\./, "")}`)
       : trimmed;
@@ -217,16 +236,19 @@ function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
     }
   }
 
+  const compiled = looksLikeOpenEhrLocator(expr)
+    ? compileAuthoringPath(expr, "xml")
+    : expr;
   const node = ctx.xmlDocument!;
   switch (type) {
     case "number":
-      return fontoxpath.evaluateXPathToNumber(expr, node);
+      return fontoxpath.evaluateXPathToNumber(compiled, node);
     case "boolean":
-      return fontoxpath.evaluateXPathToBoolean(expr, node);
+      return fontoxpath.evaluateXPathToBoolean(compiled, node);
     case "string":
-      return fontoxpath.evaluateXPathToString(expr, node);
+      return fontoxpath.evaluateXPathToString(compiled, node);
     default:
-      return fontoxpath.evaluateXPathToString(expr, node);
+      return fontoxpath.evaluateXPathToString(compiled, node);
   }
 }
 
@@ -260,16 +282,7 @@ function walkJsonSegments(
 
 /** Convert authoring paths like `$.vitals[1].systolic` to XPath 3.1 map syntax. */
 function toJsonXPath(expr: string): string {
-  if (expr.startsWith("$source")) return expr;
-  const segments = parseJsonAuthoringPath(expr);
-  return segments.reduce<string>((query, segment) => {
-    if (segment === "*") return `${query}?*`;
-    if (typeof segment === "number") return `${query}?${segment}`;
-    if (/^[A-Za-z_][A-Za-z0-9_.-]*$/.test(segment) && !segment.includes(".")) {
-      return `${query}?${segment}`;
-    }
-    return `${query}?(${JSON.stringify(segment)})`;
-  }, "$source");
+  return compileAuthoringPath(expr, "json");
 }
 
 function parseJsonAuthoringPath(expr: string): Array<string | number> {
@@ -343,7 +356,8 @@ export function evalSourceNode(expr: string, ctx: SourceContext): unknown {
   const documentNode = ctx.xmlDocument;
   if (!documentNode) return null;
   const path = !trimmed || trimmed === "$" || trimmed === "." ? "/" : trimmed;
-  const node = fontoxpath.evaluateXPathToFirstNode(path, documentNode);
+  const compiled = looksLikeOpenEhrLocator(path) ? compileAuthoringPath(path, "xml") : path;
+  const node = fontoxpath.evaluateXPathToFirstNode(compiled, documentNode);
   return xmlNodeToJson(node as Node | null);
 }
 

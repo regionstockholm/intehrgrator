@@ -121,16 +121,16 @@ These address Pass 1 hazards 1, 3, 6, 7 (partial):
 - Optional RM extras stay on `OPT_` mouths through Blockly extraState (no longer rewritten as `ATTR_`, which dropped `OPT_health_care_facility` on reload). `optional_rm_add` of `health_care_facility` round-trips. Test Run / `syncFromBlockly` graft `model.optionalRm` onto the OPT skeleton so facility is in the instance.
 - OPT load attaches `webTemplateJson` so `flat-json` Test Run can serialize Simplified FLAT.
 - `bundleRevision` hashes sheets, so `PUT /sheets` bumps `revision`.
-- Unconstrained ICD-10/ATC still use `maps_create_with` on the coded-text value slot (no sibling `|code` leaves). Duplicate parent-org `at0003` slotIds remain.
+- Unconstrained ICD-10/ATC still use `maps_create_with` on the coded-text value slot (no sibling `|code` leaves). Sibling parent-org `at0003` identifiers now have distinct locator slotIds (`items[at0003, 'Identifierare']` vs `items[at0003, 'Organisationsnummer']`).
 
 ### After scaffolding #125 (merged from main)
 
-Sibling `C_ARCHETYPE_ROOT` nodes that share `at0000` now use the archetype id as the path segment. Unique OPTs such as blood_pressure keep `content/at0000`. On this template:
+Sibling `C_ARCHETYPE_ROOT` nodes that share `at0000` now use openEHR locator predicates (`content[openEHR-EHR-ACTION.medication.v1]`), not the archetype id as a path segment. Unique OPTs such as blood_pressure keep `content/at0000`. On this template:
 
-- EVALUATION: `…//content/openEHR-EHR-EVALUATION.reason_for_encounter.v1/…`
-- ACTION (loop attach): `…//content/openEHR-EHR-ACTION.medication.v1`
+- EVALUATION: `…//content[openEHR-EHR-EVALUATION.reason_for_encounter.v1]/…`
+- ACTION (loop attach): `…//content[openEHR-EHR-ACTION.medication.v1]`
 
-Pass 1/2 envelopes were retargeted so they import after the merge. Nested parent-org identifier ELEMENTs that share `at0003` still collide; when those siblings unique-ify they share `…/items/openEHR-EHR-CLUSTER.organisation.v1` (inherited CLUSTER ref), so organisationsnummer still cannot be bound separately. Historical Pass 1 notes above keep the original `content/at0000` story.
+Pass 1/2 envelopes were retargeted so they import after locator predicates. Nested parent-org identifier ELEMENTs that share `at0003` are `items[at0003, 'Identifierare']` vs `items[at0003, 'Organisationsnummer']`. Historical Pass 1 notes above keep the original `content/at0000` story.
 
 ## Pass 2
 
@@ -144,7 +144,7 @@ Agent compared golden Simplified FLAT instances (and, where they disagree, the G
 - Diagnosis and substance are `maps_create_with` (`value` + `code_string` + `terminology_id`). ICD-10 `1.2.752.116.1.1.1`, ATC `2.16.840.1.113883.6.73`.
 - Dose is magnitude + `UnitCode` units. Beställnings-ID is `$.RekvisisjonId`, not `OrderLineId`.
 - Composer / facility party maps (`optional_rm_add` first).
-- Relative `loopVar` `substans` on ACTION leaves (attach is `…//content/openEHR-EHR-ACTION.medication.v1`; prefer-repeat remains as a fallback).
+- Relative `loopVar` `substans` on ACTION leaves (attach is `…//content[openEHR-EHR-ACTION.medication.v1]`; prefer-repeat remains as a fallback).
 - `admin_ism` Decision table kept: every source status including `Stoppad` still emits OPT-only `532` / `at0007` (Swedish rubric `Fullföljd läkemedelsbehandling`). Documents the constraint rather than inventing aborted/at0015.
 
 ### Golden issues (improve the goldens, not the mapping)
@@ -153,19 +153,19 @@ Agent compared golden Simplified FLAT instances (and, where they disagree, the G
 - **Setting 238** is a site convention, not source data. Same for hardcoded organisationsnummer `2321000016`.
 - **`administration-example_target_used_for_mapping.json` is stale vs its paired source:** composer `"TakeCare _Test"` (space), vårdgivare name `REGION STOCKHOLM` / HSA `…-39KJ` (source is `PDL-vårdgivare SLL IdP TEST` / `…-I1MN`), `start_time` `2024-01-03` vs `EncounterDate` `2024-05-21`, plus `_instruction_details` with no source. `TESTFALL-PRÖV` golden also uses `…-39KJ` while its source is `…-I1MN`. Prefer TESTFALL-A/C as oracles; regenerate the others from the tmpl.
 - **`_instruction_details` / `_uid`** are writer-pipeline fields, not this mapping.
-- **Duplicate `at0003`.** Goldens emit both HSA and organisationsnummer. One `slotId` — Pass 2 maps HSA only.
+- **Duplicate `at0003` (fixed in locator predicates).** Goldens emit both HSA and organisationsnummer. Slot ids are now unique; Pass 2 still maps HSA only (`items[at0003, 'Identifierare']`).
 
 ### What was difficult
 
-1. **`pathLabel` collision.** Outer CLUSTER `at0000` (vårdenhet, role `43741000`) and nested `at0000` (vårdgivare) both labelled “Vårdgivare”. Role `codeFixed` is the reliable discriminator.
+1. **`pathLabel` collision (fixed).** Outer CLUSTER `at0000` (vårdenhet) vs nested `at0000` (vårdgivare) now use the template name constraint (`Vårdenhet` vs `Vårdgivare`). Role `codeFixed` remains a useful extra discriminator.
 2. **FLAT path ≠ `slotId`.** `_health_care_facility` is Optional RM; `|code`/`|terminology` are maps on one DV_CODED_TEXT socket; `|unit` is a quantity map key.
 3. **Goldens disagree with tmpl+source** on the “used_for_mapping” pair — comparing only goldens would have copied stale vårdgivare HSA.
 4. Decision table still cannot emit a full `DV_CODED_TEXT` object; `codeFixed` fills the code when the output is the rubric.
 
 ### Suggested improvements
 
-- Unique `slotId`s when sibling ELEMENTs reuse `at0003` (include C_STRING name or a sibling index).
-- `pathLabel` should use the CLUSTER name constraint (`Vårdenhet` vs `Vårdgivare`), not only the at-code term.
+- Unique `slotId`s when sibling ELEMENTs reuse `at0003` — landed as `[at0003, 'Identifierare']` / `[at0003, 'Organisationsnummer']`.
+- `pathLabel` uses the CLUSTER name constraint (`Vårdenhet` vs `Vårdgivare`).
 - Goldens: regenerate from the tmpl; drop or annotate `_instruction_details`; document Stoppad→completed.
 - **`toLocalDateTime` timezone** (`+02:00` on goldens vs naive source) is encoding, not a slot mapping.
 - **`flat-json` Test Run** still serializes only a handful of `ctx/*` keys for this composition (Web Template flatten vs canonical RM JSON). Pass 2 oracle is canonical JSON; FLAT goldens are compared by field, not by a full flatten round-trip.

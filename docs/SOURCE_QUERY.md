@@ -27,7 +27,8 @@ All `get_source` / source-query blocks store an **XPath or XQuery expression** s
 |-------------|------------------------------|--------------------|
 | JSON instance | Parsed JSON (map/array context) | `$.patient.vitals?1.systolic` or XQuery JSON syntax per fontoxpath |
 | JSON schema | Schema structure as navigable tree | Structural paths for authoring; Test Run still needs instance |
-| XML instance | `DOMParser` document node | `/patient/vitals[1]/systolic` |
+| XML instance | `DOMParser` document node | `/patient/vitals[1]/systolic`; openEHR locators `/content[at0003]` compile to `[@archetype_node_id='at0003']` before evaluation |
+| Canonical JSON RM | Parsed JSON map | `/content[openEHR-EHR-ACTION.medication.v1]` compiles to `$source?content?*[?archetype_node_id = '…']` |
 
 Exact JSON path authoring rules will follow fontoxpath's JSON/XQuery conventions during implementation; the Source Pane tree generates compatible expressions on click-to-map.
 

@@ -204,7 +204,8 @@ function walkComplex(
     termScopeOf(cObj as TermScopeMeta & { archetype_ref?: string }, archetypeRef),
   );
   const terms = termsForArchetype(nodeArchetypeRef, fallbackTerms, archetypeTerms);
-  const label = resolvedNodeLabel(
+  const nameConstraint = nameConstraintOf(cObj);
+  const label = nameConstraint || resolvedNodeLabel(
     nameHint,
     nodeId,
     rmType,
@@ -230,6 +231,7 @@ function walkComplex(
       archetypeNodeId: nodeId,
       archetypeId: templateId,
       ...archetypeCtx,
+      ...(nameConstraint ? { nameConstraint } : {}),
       kind: "value",
       mandatory,
       multiplicity,
@@ -331,6 +333,7 @@ function walkComplex(
     archetypeNodeId: nodeId,
     archetypeId: templateId,
     ...archetypeCtx,
+    ...(nameConstraint ? { nameConstraint } : {}),
     kind: "container",
     mandatory,
     multiplicity,
@@ -358,7 +361,8 @@ function walkAttribute(
     ) ?? archetypeRef;
     const rmType = child.rm_type_name ?? "DV_TEXT";
     const { nodeId, nameHint } = splitAqlStyleNodeId(child.node_id as string | undefined);
-    const childPath = `${path}/${pathSegmentForChild(child, visibleChildren)}`;
+    const childPath = locatorChildPath(path, child, visibleChildren);
+    const nameConstraint = nameConstraintOf(child);
     const isDv = isDataValueType(rmType);
     if (!isDv || child.attributes) {
       const node = walkComplex(
@@ -379,10 +383,10 @@ function walkAttribute(
         : {};
       const terms = termsForArchetype(childArchetypeRef, fallbackTerms, archetypeTerms);
       nodes.push({
-        slotId: `${templateId}${path}/${nodeId ?? "value"}/value`,
+        slotId: `${templateId}${childPath}/value`,
         blockType: blockTypeForRm(rmType),
         rmType,
-        label: resolvedNodeLabel(
+        label: nameConstraint || resolvedNodeLabel(
           nameHint,
           nodeId,
           rmType,
@@ -396,6 +400,7 @@ function walkAttribute(
         archetypeId: templateId,
         rmAttribute: attr.rm_attribute_name as string | undefined,
         ...archetypeCtx,
+        ...(nameConstraint ? { nameConstraint } : {}),
         kind: "value",
         mandatory: isMandatory(child),
         multiplicity: multiplicityOfAm(child),
@@ -695,11 +700,14 @@ function pathNodeSegment(nodeId: string | undefined, rmType: string): string {
 }
 
 /**
- * Sibling C_ARCHETYPE_ROOT nodes often share `at0000`. Use the archetype id as
- * the path segment only when that would otherwise collide (keeps unique OPTs
- * such as blood_pressure.opt stable).
+ * Sibling C_ARCHETYPE_ROOT nodes often share `at0000`. Unique children keep
+ * `attr/atNNNN` (no predicate). Colliding siblings use BASE locator brackets:
+ * `[openEHR-EHR-ACTION.medication.v1]` at chaining points, then
+ * `[at0003, 'Organisationsnummer']` when the node id is reused.
+ *
+ * @see https://specifications.openehr.org/releases/BASE/development/architecture_overview.html#_paths_and_locators
  */
-function pathSegmentForChild(child: AmObject, siblings: AmObject[]): string {
+function locatorChildPath(attrPath: string, child: AmObject, siblings: AmObject[]): string {
   const { nodeId } = splitAqlStyleNodeId(child.node_id as string | undefined);
   const rmType = (child.rm_type_name as string | undefined) ?? "ITEM_TREE";
   const base = pathNodeSegment(nodeId, rmType);
@@ -708,13 +716,59 @@ function pathSegmentForChild(child: AmObject, siblings: AmObject[]): string {
       sibling.rm_type_name;
     return id === base;
   });
-  if (same.length <= 1) return base;
-  const ref = publicArchetypeRef(
-    termScopeOf(child as TermScopeMeta & { archetype_ref?: string }),
-  ) ?? (child.archetype_ref as string | undefined);
-  if (ref) return ref;
-  const index = same.indexOf(child);
-  return index > 0 ? `${base}~${index}` : base;
+  if (same.length <= 1) return `${attrPath}/${base}`;
+
+  const ownRef = ownArchetypeRefOf(child);
+  const name = nameConstraintOf(child);
+  const sameRef = ownRef
+    ? same.filter((sibling) => ownArchetypeRefOf(sibling) === ownRef)
+    : same;
+  if (ownRef && sameRef.length === 1) {
+    return `${attrPath}[${ownRef}]`;
+  }
+
+  const predHead = ownRef ?? base;
+  if (name) {
+    const sameName = same.filter((sibling) => nameConstraintOf(sibling) === name);
+    if (sameName.length === 1) {
+      return `${attrPath}[${predHead}, '${name.replace(/'/g, "''")}']`;
+    }
+  }
+
+  const index = same.indexOf(child) + 1;
+  return `${attrPath}[${predHead}][${index}]`;
+}
+
+/** Own chaining-point archetype id — not an inherited term-scope parent CLUSTER. */
+function ownArchetypeRefOf(child: AmObject): string | undefined {
+  const ref = child.archetype_ref as string | undefined;
+  return typeof ref === "string" && ref ? publicArchetypeRef(ref) : undefined;
+}
+
+function nameConstraintOf(cObj: AmObject): string | undefined {
+  const hinted = splitAqlStyleNodeId(cObj.node_id as string | undefined).nameHint;
+  if (hinted) return hinted;
+  for (const attr of (cObj.attributes ?? []) as AmObject[]) {
+    if ((attr.rm_attribute_name as string | undefined) !== "name") continue;
+    for (const child of (attr.children ?? []) as AmObject[]) {
+      const text = constrainedStringOf(child);
+      if (text) return text;
+    }
+  }
+}
+
+function constrainedStringOf(node: AmObject): string | undefined {
+  const list = (node?.item as AmObject | undefined)?.list ?? node?.list;
+  if (Array.isArray(list) && list.length === 1 && typeof list[0] === "string" && list[0]) {
+    return list[0];
+  }
+  for (const attr of (node.attributes ?? []) as AmObject[]) {
+    if ((attr.rm_attribute_name as string | undefined) !== "value") continue;
+    for (const child of (attr.children ?? []) as AmObject[]) {
+      const text = constrainedStringOf(child);
+      if (text) return text;
+    }
+  }
 }
 
 export function multiplicityOfAm(cObj: AmObject): string | undefined {
@@ -780,6 +834,29 @@ export function findSkeletonTrail(nodes: SkeletonNode[], slotId: string): Skelet
     return Boolean(node && node.kind === "container" && isRepeatingMultiplicity(node.multiplicity));
   });
   return repeating ?? hits[0] ?? [];
+}
+
+/** Inspect / prompt path: name constraint, then term label, skipping raw RM type names. */
+export function pathLabelFromTrail(trail: SkeletonNode[]): string | undefined {
+  const parts: string[] = [];
+  for (const node of trail) {
+    const part = pathLabelPart(node);
+    if (!part) continue;
+    if (parts[parts.length - 1] === part) continue;
+    parts.push(part);
+  }
+  return parts.length ? parts.join(" › ") : undefined;
+}
+
+function pathLabelPart(node: SkeletonNode): string | undefined {
+  if (node.kind === "value" && node.rmAttribute === "name") return "name";
+  const name = node.nameConstraint?.trim();
+  if (name) return name;
+  const label = node.label?.trim();
+  if (!label || label === node.rmType) {
+    return node.archetypeShortName ? `${node.rmType} (${node.archetypeShortName})` : undefined;
+  }
+  return label;
 }
 
 export function nearestRepeatingContainer(trail: SkeletonNode[]): SkeletonNode | null {
@@ -877,6 +954,8 @@ function skeletonNodesForWebTemplateNode(
       if (rmType && sk.rmType !== rmType) return false;
       return sk.archetypeNodeId === nodeId ||
         sk.slotId.includes(`/${nodeId}/`) ||
+        sk.slotId.includes(`[${nodeId}]`) ||
+        sk.slotId.includes(`[${nodeId},`) ||
         sk.slotId.endsWith(`/${nodeId}`) ||
         sk.slotId.endsWith(`/${nodeId}/value`);
     });

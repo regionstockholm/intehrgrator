@@ -395,7 +395,10 @@ Deno.test("xquery export emits source-node for_each_list iteration with relative
   });
 
   const xq = generate(model, "xquery");
-  assertStringIncludes(xq, "for $measurements in local:iterable-sequence($source?measurements)");
+  assertStringIncludes(xq, "let $measurements_col := local:iterable-sequence($source?measurements)");
+  assertStringIncludes(xq, "for $measurements at $measurements_pos in $measurements_col");
+  assertStringIncludes(xq, "let $measurements_index := $measurements_pos - 1");
+  assertStringIncludes(xq, "let $measurements_length := count($measurements_col)");
   assertStringIncludes(xq, "element loops");
   assertStringIncludes(xq, 'attribute attach-slot-id { "evt-1" }');
   assertStringIncludes(xq, 'attribute id { "slot/rate" }');

@@ -4,6 +4,10 @@ import type { ExprAst } from "../core/expression/mod.ts";
 import { serialize } from "../core/expression/mod.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
+  loopIndexBinderName,
+  loopLengthBinderName,
+} from "./loop_block.ts";
+import {
   createSourceQueryBlock,
   returnTypeFromSourceBlock,
   xpathEvaluatorForReturnType,
@@ -13,12 +17,15 @@ import {
   callToRestrictionOp,
   callToSetOp,
   currentItemName,
+  currentLoopItemName,
   DEFAULT_ITEM_NAME,
   isRestrictionCall,
   isSetCall,
   LISTS_SET_OPERATION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
   LOGIC_LIST_RESTRICTION_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   registerLogicBlocks,
   restrictionCount,
   restrictionItemName,
@@ -241,6 +248,10 @@ export function blockToExpression(block: Block | null): string | null {
     }
     case LOGIC_CURRENT_ITEM_BLOCK:
       return `var(${JSON.stringify(currentItemName(block))})`;
+    case LOGIC_LOOP_INDEX_BLOCK:
+      return `var(${JSON.stringify(loopIndexBinderName(currentLoopItemName(block)))})`;
+    case LOGIC_LOOP_LENGTH_BLOCK:
+      return `var(${JSON.stringify(loopLengthBinderName(currentLoopItemName(block)))})`;
     case LISTS_SET_OPERATION_BLOCK: {
       const a = blockToExpression(block.getInputTargetBlock("A")) ?? "list()";
       const b = blockToExpression(block.getInputTargetBlock("B")) ?? "list()";

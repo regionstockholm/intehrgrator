@@ -14,9 +14,12 @@ import {
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import {
   currentItemName,
+  currentLoopItemName,
   LISTS_SET_OPERATION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
   LOGIC_LIST_RESTRICTION_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   registerLogicBlocks,
   restrictionCount,
   restrictionItemName,
@@ -29,6 +32,11 @@ import { registerGoTemplateExportAdapter } from "./go_template_codegen.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
+import {
+  loopIndexBinderName,
+  loopIsInsideProcedure,
+  loopLengthBinderName,
+} from "./loop_block.ts";
 import {
   SOURCE_QUERY_BLOCK_TYPES,
   fontoxpathFnForReturnType,
@@ -234,29 +242,7 @@ function registerGenerators(): void {
     return [phrase, Order.NEW] as [string, number];
   };
 
-  javascriptGenerator.forBlock["for_each_list"] = (block) => {
-    const name = block.getFieldValue("VAR") || "item";
-    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
-    const body = javascriptGenerator.statementToCode(block, "DO").trim();
-    const returned = body ? stripTrailingComma(body) : "null";
-    const listBlock = block.getInputTargetBlock("LIST");
-    if (listBlock && isSourceQueryBlockType(listBlock.type)) {
-      const path = listBlock.getFieldValue("EXPRESSION") || "/";
-      return (
-        `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}) => {\n` +
-        `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
-        `  return ${returned};\n` +
-        `}),\n`
-      );
-    }
-    const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
-    return (
-      `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => {\n` +
-      `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
-      `  return ${returned};\n` +
-      `}),\n`
-    );
-  };
+  javascriptGenerator.forBlock["for_each_list"] = (block) => emitForEachListJs(block);
 
   javascriptGenerator.forBlock["maps_get"] = (block) => {
     const name = String(block.getFieldValue("NAME") || "defaults");
@@ -418,6 +404,18 @@ function registerGenerators(): void {
   javascriptGenerator.forBlock[LOGIC_CURRENT_ITEM_BLOCK] = (block) =>
     [`__vars[${JSON.stringify(currentItemName(block))}]`, Order.MEMBER] as [string, number];
 
+  javascriptGenerator.forBlock[LOGIC_LOOP_INDEX_BLOCK] = (block) =>
+    [
+      `__vars[${JSON.stringify(loopIndexBinderName(currentLoopItemName(block)))}]`,
+      Order.MEMBER,
+    ] as [string, number];
+
+  javascriptGenerator.forBlock[LOGIC_LOOP_LENGTH_BLOCK] = (block) =>
+    [
+      `__vars[${JSON.stringify(loopLengthBinderName(currentLoopItemName(block)))}]`,
+      Order.MEMBER,
+    ] as [string, number];
+
   javascriptGenerator.forBlock[LISTS_SET_OPERATION_BLOCK] = (block) => {
     const a = javascriptGenerator.valueToCode(block, "A", Order.NONE) || "[]";
     const b = javascriptGenerator.valueToCode(block, "B", Order.NONE) || "[]";
@@ -547,6 +545,44 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
     }
     return `rm(${rmType}, { ${parts.join(", ")} }),\n`;
   };
+}
+
+function emitForEachListJs(block: Blockly.Block): string {
+  const name = String(block.getFieldValue("VAR") || "item");
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+  const indexName = loopIndexBinderName(name);
+  const lengthName = loopLengthBinderName(name);
+  const body = javascriptGenerator.statementToCode(block, "DO").trim();
+  const listBlock = block.getInputTargetBlock("LIST");
+  const collection = listBlock && isSourceQueryBlockType(listBlock.type)
+    ? `evaluateXPathToNodes(${JSON.stringify(listBlock.getFieldValue("EXPRESSION") || "/")}, sourceCtx.data)`
+    : (() => {
+      const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
+      return `(Array.isArray(${list}) ? ${list} : [])`;
+    })();
+  const bind =
+    `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+    `  __vars[${JSON.stringify(indexName)}] = ${ident}_i;\n` +
+    `  __vars[${JSON.stringify(lengthName)}] = ${ident}_col.length;\n`;
+  if (loopIsInsideProcedure(block)) {
+    return (
+      `{\n` +
+      `  const ${ident}_col = ${collection};\n` +
+      `  for (let ${ident}_i = 0; ${ident}_i < ${ident}_col.length; ${ident}_i++) {\n` +
+      `    const ${ident} = ${ident}_col[${ident}_i];\n` +
+      bind.replace(/^ {2}/gm, "    ") +
+      (body ? `    ${body}\n` : "") +
+      `  }\n` +
+      `}\n`
+    );
+  }
+  const returned = body ? stripTrailingComma(body) : "null";
+  return (
+    `...${collection}.map((${ident}, ${ident}_i, ${ident}_col) => {\n` +
+    bind +
+    `  return ${returned};\n` +
+    `}),\n`
+  );
 }
 
 function stripTrailingComma(code: string): string {

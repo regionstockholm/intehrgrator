@@ -62,6 +62,10 @@ export interface IntehrMessages {
   LOGIC_THIS_ITEM: string;
   LOGIC_RESTRICTION_TOOLTIP: string;
   LOGIC_CURRENT_ITEM_TOOLTIP: string;
+  LOGIC_LOOP_INDEX: string;
+  LOGIC_LOOP_LENGTH: string;
+  LOGIC_LOOP_INDEX_TOOLTIP: string;
+  LOGIC_LOOP_LENGTH_TOOLTIP: string;
   LOGIC_SET_BOTH: string;
   LOGIC_SET_EITHER: string;
   LOGIC_SET_NOT_IN: string;
@@ -110,7 +114,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     FOR_EACH_SOURCE_IN: "in",
     FOR_EACH_SOURCE_DO: "do",
     FOR_EACH_LIST_TOOLTIP:
-      "Loop over every item in a list or every node from a source query. Current item is stored in the named variable. No break or continue.",
+      "Loop over every item in a list or every node from a source query. The named item, its 0-based index, and the collection length are visible to blocks in the body. No break or continue.",
     FOR_EACH_IN_TOOLTIP:
       "Plug in a list (☰) or iterable source nodes (📂). Source queries in this slot iterate every matching node.",
     LOGIC_ALL: "all",
@@ -129,7 +133,13 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_RESTRICTION_TOOLTIP:
       "True when the required number of list items match the condition. Source paths in the condition are relative to each item. An empty list makes all, none and at most true — tick require at least one item to rule that out. (OWL Manchester only/some/none and min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
-      "The list item the surrounding restriction is testing right now.",
+      "The list item the surrounding restriction or for-each loop is using right now.",
+    LOGIC_LOOP_INDEX: "index",
+    LOGIC_LOOP_LENGTH: "length",
+    LOGIC_LOOP_INDEX_TOOLTIP:
+      "0-based index of the current item in the enclosing for each. Nested loops: pick the outer item name. Not bound on list restrictions.",
+    LOGIC_LOOP_LENGTH_TOOLTIP:
+      "Length of the enclosing for-each collection, fixed at loop entry. Nested loops: pick the outer item name.",
     LOGIC_SET_BOTH: "items in both",
     LOGIC_SET_EITHER: "items in either",
     LOGIC_SET_NOT_IN: "items in",
@@ -197,6 +207,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Sant när det begärda antalet listobjekt matchar villkoret. Källsökvägar i villkoret är relativa till varje objekt. Tom lista gör alla, inget och högst sanna — kryssa kräv minst ett objekt för att utesluta det. (OWL Manchester only/some/none och min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
       "Det listobjekt som den omgivande restriktionen just nu prövar.",
+    LOGIC_LOOP_INDEX: "index",
+    LOGIC_LOOP_LENGTH: "längd",
+    LOGIC_LOOP_INDEX_TOOLTIP:
+      "0-baserat index för aktuellt objekt i omgivande for each. Nästlade loopar: välj det yttre objektnamnet. Bindas inte på listrestriktioner.",
+    LOGIC_LOOP_LENGTH_TOOLTIP:
+      "Längden på den omgivande for-each-samlingen, låst vid loopstart. Nästlade loopar: välj det yttre objektnamnet.",
     LOGIC_SET_BOTH: "objekt i båda",
     LOGIC_SET_EITHER: "objekt i någon av",
     LOGIC_SET_NOT_IN: "objekt i",
@@ -264,6 +280,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Wahr, wenn die verlangte Anzahl der Listenelemente die Bedingung erfüllt. Quellpfade in der Bedingung sind relativ zu jedem Element. Leere Liste: alle, keines und höchstens sind wahr — mindestens ein Element verlangen schließt das aus. (OWL Manchester only/some/none und min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
       "Das Listenelement, das die umgebende Restriktion gerade prüft.",
+    LOGIC_LOOP_INDEX: "Index",
+    LOGIC_LOOP_LENGTH: "Länge",
+    LOGIC_LOOP_INDEX_TOOLTIP:
+      "0-basierter Index des aktuellen Elements in der umgebenden for-each-Schleife. Verschachtelte Schleifen: äußeren Elementnamen wählen. Nicht an Listenrestriktionen gebunden.",
+    LOGIC_LOOP_LENGTH_TOOLTIP:
+      "Länge der umgebenden for-each-Sammlung, fest beim Schleifeneintritt. Verschachtelte Schleifen: äußeren Elementnamen wählen.",
     LOGIC_SET_BOTH: "Elemente in beiden",
     LOGIC_SET_EITHER: "Elemente in einer von",
     LOGIC_SET_NOT_IN: "Elemente in",
@@ -331,6 +353,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Verdadero cuando el número requerido de elementos de la lista cumple la condición. Las rutas de origen de la condición son relativas a cada elemento. Lista vacía: todos, ninguno y como máximo son verdaderos — marque exigir al menos un elemento para descartarlo. (OWL Manchester only/some/none y min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
       "El elemento de la lista que la restricción circundante está evaluando.",
+    LOGIC_LOOP_INDEX: "índice",
+    LOGIC_LOOP_LENGTH: "longitud",
+    LOGIC_LOOP_INDEX_TOOLTIP:
+      "Índice (desde 0) del elemento actual en el for each envolvente. Bucles anidados: elija el nombre del elemento exterior. No se enlaza en restricciones de lista.",
+    LOGIC_LOOP_LENGTH_TOOLTIP:
+      "Longitud de la colección del for each envolvente, fija al entrar en el bucle. Bucles anidados: elija el nombre del elemento exterior.",
     LOGIC_SET_BOTH: "elementos en ambas",
     LOGIC_SET_EITHER: "elementos en alguna de",
     LOGIC_SET_NOT_IN: "elementos en",
@@ -398,6 +426,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Cert quan el nombre requerit d'elements de la llista compleix la condició. Els camins d'origen de la condició són relatius a cada element. Llista buida: tots, cap i com a màxim són certs — marqueu exigeix com a mínim un element per descartar-ho. (OWL Manchester only/some/none i min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
       "L'element de la llista que la restricció circumdant està avaluant.",
+    LOGIC_LOOP_INDEX: "índex",
+    LOGIC_LOOP_LENGTH: "longitud",
+    LOGIC_LOOP_INDEX_TOOLTIP:
+      "Índex (des de 0) de l'element actual en el for each envolupant. Bucles imbricats: trieu el nom de l'element exterior. No es lliga a les restriccions de llista.",
+    LOGIC_LOOP_LENGTH_TOOLTIP:
+      "Longitud de la col·lecció del for each envolupant, fixa a l'entrada del bucle. Bucles imbricats: trieu el nom de l'element exterior.",
     LOGIC_SET_BOTH: "elements en totes dues",
     LOGIC_SET_EITHER: "elements en alguna de",
     LOGIC_SET_NOT_IN: "elements en",
@@ -465,6 +499,12 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
       "Vrai lorsque le nombre requis d'éléments de la liste satisfait la condition. Les chemins source de la condition sont relatifs à chaque élément. Liste vide : tous, aucun et au plus sont vrais — cochez exiger au moins un élément pour l'exclure. (OWL Manchester only/some/none et min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
       "L'élément de liste que la restriction environnante évalue actuellement.",
+    LOGIC_LOOP_INDEX: "index",
+    LOGIC_LOOP_LENGTH: "longueur",
+    LOGIC_LOOP_INDEX_TOOLTIP:
+      "Index (à partir de 0) de l'élément courant dans le for each englobant. Boucles imbriquées : choisissez le nom de l'élément extérieur. Non lié aux restrictions de liste.",
+    LOGIC_LOOP_LENGTH_TOOLTIP:
+      "Longueur de la collection du for each englobant, fixée à l'entrée de la boucle. Boucles imbriquées : choisissez le nom de l'élément extérieur.",
     LOGIC_SET_BOTH: "éléments dans les deux",
     LOGIC_SET_EITHER: "éléments dans l'une de",
     LOGIC_SET_NOT_IN: "éléments dans",

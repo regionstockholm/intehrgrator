@@ -80,6 +80,23 @@ await esbuild.build({
 
 await esbuild.build({
   absWorkingDir: root,
+  plugins: [xmlEmbedPlugin, ...denoPlugins({ configPath })],
+  entryPoints: ["web/prototype_join_list.ts"],
+  bundle: true,
+  outfile: "dist/prototype-join-list.js",
+  format: "esm",
+  target: "es2022",
+  platform: "browser",
+  sourcemap: true,
+  define: {
+    "process.env.NODE_ENV": '"development"',
+    "__BUILD_ID__": JSON.stringify(buildId),
+    "__BUILD_TIMESTAMP__": JSON.stringify(buildTimestamp),
+  },
+});
+
+await esbuild.build({
+  absWorkingDir: root,
   plugins: [xmlEmbedPlugin, vscodeExternal, ...denoPlugins({ configPath })],
   entryPoints: ["extension/extension.ts"],
   bundle: true,
@@ -92,6 +109,11 @@ await esbuild.build({
 });
 
 await copy(join(root, "web", "index.html"), join(outDir, "index.html"), { overwrite: true });
+await copy(
+  join(root, "web", "prototype-join-list.html"),
+  join(outDir, "prototype-join-list.html"),
+  { overwrite: true },
+);
 await copy(join(root, "web", "styles.css"), join(outDir, "styles.css"), { overwrite: true });
 await copy(join(root, "web", "manifest.webmanifest"), join(outDir, "manifest.webmanifest"), {
   overwrite: true,

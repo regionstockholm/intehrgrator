@@ -5,6 +5,7 @@ import type { IntehrgratorTestApi, WorkbenchTestSnapshot } from "../../src/ui_te
 export const root = join(dirname(fromFileUrl(import.meta.url)), "../..");
 export const baseUrl = Deno.env.get("UI_TEST_BASE_URL") ?? "http://127.0.0.1:5173";
 export const systolicSuffix = "items/at0004/value/value/value";
+export const diastolicSuffix = "items/at0005/value/value/value";
 
 export async function fixtureText(rel: string): Promise<string> {
   return await Deno.readTextFile(join(root, rel));
@@ -40,14 +41,18 @@ export async function loadBpFixtures(page: Page): Promise<void> {
   await page.waitForTimeout(300);
 }
 
-export async function findSystolicSlotId(page: Page): Promise<string> {
-  const slotId = await page.evaluate((suffix) => {
+export async function findSlotIdEndingWith(page: Page, suffix: string): Promise<string> {
+  const slotId = await page.evaluate((end) => {
     const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
       .intehrgratorTestApi;
-    return api.findSlotIdBySuffix(suffix);
-  }, systolicSuffix);
-  if (!slotId) throw new Error(`expected systolic slot ending with ${systolicSuffix}`);
+    return api.findSlotIdBySuffix(end);
+  }, suffix);
+  if (!slotId) throw new Error(`expected slot ending with ${suffix}`);
   return slotId;
+}
+
+export async function findSystolicSlotId(page: Page): Promise<string> {
+  return await findSlotIdEndingWith(page, systolicSuffix);
 }
 
 export async function getSnapshot(page: Page): Promise<WorkbenchTestSnapshot> {
@@ -79,14 +84,36 @@ export async function findElementBlockId(page: Page, slotId: string): Promise<st
   return id;
 }
 
-export async function waitForMappedSlot(page: Page, slotId: string): Promise<void> {
-  await page.waitForFunction((id) => {
-    const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
-      .intehrgratorTestApi;
-    const snap = api.getSnapshot();
-    const slot = snap.model.slots.find((s) => s.slotId === id);
-    return Boolean(slot?.expression?.includes("systolic"));
-  }, slotId, { timeout: 10_000 });
+export async function waitForMappedSlot(
+  page: Page,
+  slotId: string,
+  pathFragment = "systolic",
+): Promise<void> {
+  await page.waitForFunction(
+    ({ id, fragment }) => {
+      const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+        .intehrgratorTestApi;
+      const snap = api.getSnapshot();
+      const slot = snap.model.slots.find((s) => s.slotId === id);
+      return Boolean(slot?.expression?.includes(fragment));
+    },
+    { id: slotId, fragment: pathFragment },
+    { timeout: 10_000 },
+  );
+}
+
+export async function clickExamplePath(page: Page, path: string): Promise<void> {
+  await page.click(`#example-tree .tree-row[data-path="${path}"] .tree-label`);
+}
+
+export async function runTestAndWait(page: Page): Promise<void> {
+  await page.click("#btn-run-test");
+  await page.waitForFunction(() => {
+    const api = (globalThis as unknown as {
+      intehrgratorTestApi: { getSnapshot: () => { testResult: unknown } };
+    }).intehrgratorTestApi;
+    return api.getSnapshot().testResult != null;
+  }, { timeout: 10_000 });
 }
 
 /**

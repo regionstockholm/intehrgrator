@@ -63,10 +63,14 @@ try {
   await waitForServer(baseUrl);
 
   // Ensure Chromium is available. Prefer npx — Deno's `npm:playwright install`
-  // has hung on browser extraction in some environments.
+  // has hung on browser extraction in some environments. `--with-deps` pulls
+  // Ubuntu libraries on GitHub Actions (`CI=true`).
   console.log("→ playwright install chromium (if needed)");
   try {
-    await run(["npx", "--yes", "playwright@1.51.0", "install", "chromium"]);
+    const pwInstall = ["npx", "--yes", "playwright@1.51.0", "install"];
+    if (Deno.env.get("CI") === "true") pwInstall.push("--with-deps");
+    pwInstall.push("chromium");
+    await run(pwInstall);
   } catch (err) {
     console.warn("playwright install warning:", err);
   }

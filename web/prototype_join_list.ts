@@ -413,12 +413,12 @@ const VARIANTS: Record<VariantKey, Variant> = {
       The yellow <code>join_list</code> lives <em>once</em> in the helper; main code is a
       one-socket call.</p>
       <ul>
-        <li>Left: Mapping Model — CLUSTER / ELEMENT / DV_TEXT, the same grain as a
+        <li>Top: Mapping Model — CLUSTER / ELEMENT / DV_TEXT, the same grain as a
           real openEHR slot. Lung-MDT <em>Närvarande</em> is this ELEMENT.</li>
         <li>Call: <code>join_swedish(📋 source list deltagare/namn)</code> — no
           separators at the slot.</li>
-        <li>Right: the extracted function. Parameter <code>names</code> feeds
-          variant A’s reporter. A second ELEMENT can reuse the same call.</li>
+        <li>Below: the extracted function. Parameter <code>names</code> feeds
+          variant A’s reporter. A second ELEMENT reuses the same call.</li>
       </ul>
       <p>This is the compact main-code shape: bake locale punctuation into a named
       helper, not into every ELEMENT. A 3-arg <code>join_list(items, sep, final)</code>
@@ -431,8 +431,6 @@ const VARIANTS: Record<VariantKey, Variant> = {
     `,
     build(ws) {
       const def = defineJoinSwedish(ws);
-      place(def, 520, 16);
-
       const cluster = ready(ws.newBlock(PROTOTYPE_CLUSTER));
       cluster.setFieldValue("Lung-MDT", "NAME");
 
@@ -459,6 +457,9 @@ const VARIANTS: Record<VariantKey, Variant> = {
       narvarande.nextConnection?.connect(kort.previousConnection!);
 
       place(cluster, 16, 16);
+      // Function library sits under the Mapping Model so the two call sites
+      // stay a compact left-to-right tree (CLUSTER is wide).
+      place(def, 16, 340);
     },
   },
 };
@@ -500,7 +501,7 @@ function loadVariant(key: VariantKey): void {
   workspace.clear();
   const v = VARIANTS[key];
   v.build(workspace);
-  workspace.setScale(key === "E" ? 0.78 : key === "F" ? 0.82 : 0.92);
+  workspace.setScale(key === "E" || key === "F" ? 0.78 : 0.92);
   workspace.scrollCenter();
   renderSide(v);
   document.body.dataset.protoReady = key;

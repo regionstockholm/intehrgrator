@@ -58,6 +58,36 @@ Deno.test("typescript codegen contains template id", () => {
   assertEquals(ts.includes('"defaults" === "defaults"'), false);
 });
 
+Deno.test("typescript codegen omits unused xpath helpers", () => {
+  const numberOnly = applyExpressionEdit(
+    createEmptyModel("vitals"),
+    "s1",
+    'xpathNumber("$.n")',
+    { rmType: "DV_QUANTITY", returnType: "number" },
+  );
+  const ts = generate(numberOnly, "typescript");
+  assertStringIncludes(ts, "evaluateXPathToNumber");
+  assertStringIncludes(ts, "function xpathNumber");
+  assertEquals(ts.includes("evaluateXPathToString"), false, ts);
+  assertEquals(ts.includes("evaluateXPathToBoolean"), false, ts);
+  assertEquals(ts.includes("evaluateXPathToNodes"), false, ts);
+});
+
+Deno.test("java codegen omits unused xpath helpers", () => {
+  const numberOnly = applyExpressionEdit(
+    createEmptyModel("vitals"),
+    "s1",
+    'xpathNumber("$.n")',
+    { rmType: "DV_QUANTITY", returnType: "number" },
+  );
+  numberOnly.targetFormat = "openehr-template";
+  const java = generate(numberOnly, "java");
+  assertStringIncludes(java, "xpathNumber");
+  assertEquals(java.includes("xpathBoolean("), false, java);
+  assertEquals(java.includes("xpathNodes("), false, java);
+  assertEquals(java.includes("xpathString("), false, java);
+});
+
 Deno.test("typescript codegen emits sheetLookup helper for sheet_lookup slots", () => {
   const model = applyExpressionEdit(
     createEmptyModel("terms"),
@@ -228,6 +258,58 @@ Deno.test("java codegen emits source-node for_each_list iteration with relative 
   assertStringIncludes(java, 'new DvQuantity("/min", xpathNumber("pulse", measurements), null)');
 });
 
+Deno.test("java list-kind for_each_list omits xpathNodes helpers", () => {
+  let model = createEmptyModel("pulse-series");
+  model.targetFormat = "openehr-template";
+  model = upsertLoop(model, {
+    attachSlotId: "evt-1",
+    varName: "measurements",
+    path: "",
+    kind: "list",
+    collection: 'list(1, 2)',
+  });
+  const skeleton = [{
+    slotId: "root",
+    blockType: "observation",
+    rmType: "OBSERVATION",
+    label: "Pulse",
+    kind: "container" as const,
+    mandatory: true,
+    children: [{
+      slotId: "evt-1",
+      blockType: "point_event",
+      rmType: "POINT_EVENT",
+      label: "Sample",
+      kind: "container" as const,
+      rmAttribute: "events",
+      mandatory: true,
+      children: [{
+        slotId: "slot/rate",
+        blockType: "dv_quantity",
+        rmType: "DV_QUANTITY",
+        label: "Rate",
+        kind: "value" as const,
+        rmAttribute: "data",
+        mandatory: true,
+        children: [],
+        fixedFields: { units: "/min" },
+      }],
+    }],
+  }];
+  model = applyExpressionEdit(model, "slot/rate", 'maps_get("defaults", "rate")', {
+    rmType: "DV_QUANTITY",
+    returnType: "number",
+    label: "Rate",
+  });
+  const java = generate(model, "java", { skeleton });
+  assertStringIncludes(java, "asList(");
+  assertEquals(java.includes("xpathNodes("), false, java);
+  assertEquals(java.includes("xpathNumber("), false, java);
+  const ts = generate(model, "typescript", { skeleton });
+  assertStringIncludes(ts, "asList(");
+  assertEquals(ts.includes("xpathNodes("), false, ts);
+});
+
 Deno.test("java codegen from BP skeleton emits Archie RM constructors", async () => {
   const { java, model, skeleton } = await mappedBpJava();
   assertStringIncludes(java, "public class ConversionScript");
@@ -267,18 +349,15 @@ Deno.test("Handlebars Output mode codegen prefers canvas text_handlebars SCRIPT"
   );
 });
 
-Deno.test("Java codegen emits a Handlebars render helper for canvas text_handlebars", () => {
+Deno.test("Java codegen compiles canvas VMS-Hbs to native strings (no Handlebars.java)", () => {
   initBlocklyGenerators();
   const model = createEmptyModel("greeting");
   model.targetFormat = "free-form";
   const java = generate(model, "java", { blocklyState: handlebarsGreetingCanvas() });
-  assertStringIncludes(java, "handlebars(");
-  assertStringIncludes(java, HANDLEBARS_GREETING_TEMPLATE);
-  assertEquals(java.includes('asString("Hello {{name}}!")') && !java.includes("handlebars("), false);
-  assert(
-    java.includes("com.github.jknack.handlebars") || java.includes("VMS-Hbs"),
-    "Java handlebars() must be a real render path or a loud VMS-Hbs stub",
-  );
+  assertStringIncludes(java, "vmsHbs_");
+  assertEquals(java.includes("com.github.jknack.handlebars"), false, java);
+  assertStringIncludes(java, "Hello ");
+  assertStringIncludes(java, "xpathString");
 });
 
 Deno.test("xquery codegen emits mapping-result module from Blockly slots", () => {
@@ -710,8 +789,9 @@ Deno.test("TypeScript Output mode executes handlebars text block canvas mapping"
     model.targetFormat = "free-form";
     const ts = generateTypeScriptFromWorkspace(workspace, model);
     assert(ts, "expected generated TypeScript from handlebars canvas");
-    assertStringIncludes(ts!, 'import Handlebars from "handlebars"');
-    assertStringIncludes(ts!, 'handlebars("My: {{a}} + {{b}}"');
+    assertEquals(ts!.includes('import Handlebars from "handlebars"'), false, ts);
+    assertStringIncludes(ts!, "vmsHbs_");
+    assertStringIncludes(ts!, "My: ");
 
     const out = runGeneratedTypeScript(ts!, { format: "json", data: {} }, {});
     assertEquals(out, "My: foo + 2foo");
@@ -751,8 +831,9 @@ Deno.test("TypeScript Test Run matches Mapping preview for canvas handlebars()",
   model.targetFormat = "free-form";
   const canvas = handlebarsGreetingCanvas();
   const ts = generate(model, "typescript", { blocklyState: canvas });
-  assertStringIncludes(ts, "handlebars(");
-  assertStringIncludes(ts, HANDLEBARS_GREETING_TEMPLATE);
+  assertEquals(ts.includes('import Handlebars from "handlebars"'), false, ts);
+  assertStringIncludes(ts, "vmsHbs_");
+  assertStringIncludes(ts, "Hello ");
   const preview = runTest(model, HANDLEBARS_GREETING_SOURCE, "json", {
     outputMode: "preview",
     blocklyState: canvas,

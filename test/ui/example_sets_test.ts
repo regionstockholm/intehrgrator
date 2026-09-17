@@ -23,6 +23,8 @@ Deno.test({
       await item.waitFor({ timeout: 10_000 });
       await item.click();
 
+      await page.locator("#task-progress-overlay:not([hidden])").waitFor({ timeout: 10_000 });
+
       await page.waitForFunction(() => {
         const api = (globalThis as unknown as {
           intehrgratorTestApi?: { getSnapshot: () => { exampleCount: number } };

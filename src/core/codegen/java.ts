@@ -15,6 +15,11 @@ import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locato
 import { isListAttribute } from "./typescript.ts";
 import { usesOpenEhrProduct } from "./product.ts";
 import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
+import {
+  compileVmsHbs,
+  emitVmsHbsJavaMethod,
+  vmsHbsRuntimeJava,
+} from "../output/vms_hbs_compile.ts";
 
 const GENERIC_RM = new Set(["HISTORY", "POINT_EVENT", "INTERVAL_EVENT", "EVENT"]);
 
@@ -108,7 +113,8 @@ export type JavaHelper =
   | "logic"
   | "rm"
   | "flatten"
-  | "handlebars";
+  | "handlebars"
+  | "vmsHbs";
 
 export interface JavaEmitContext {
   sourceVar: string;
@@ -116,10 +122,11 @@ export interface JavaEmitContext {
   types: Set<string>;
   helpers: Set<JavaHelper>;
   idents: Map<string, number>;
+  vmsHbsFns: string[];
 }
 
 export function createJavaEmitContext(sourceVar = "sourceRoot"): JavaEmitContext {
-  return { sourceVar, types: new Set(), helpers: new Set(), idents: new Map() };
+  return { sourceVar, types: new Set(), helpers: new Set(), idents: new Map(), vmsHbsFns: [] };
 }
 
 export function javaClassName(rmType: string): string {
@@ -237,8 +244,7 @@ export function emitJavaExpression(ast: ExprAst, ctx: JavaEmitContext): string {
           ctx.helpers.add("node");
           return emitXpathCall("xpathNode", ast.args[0], args[0] ?? '""', ctx);
         case "handlebars":
-          ctx.helpers.add("handlebars");
-          return `handlebars(${args[0] ?? '""'}, ${args[1] ?? "mapOf()"})`;
+          return emitHandlebarsJava(ast, args, ctx);
         case "map":
           ctx.helpers.add("logic");
           return `mapOf(${args.join(", ")})`;
@@ -269,6 +275,27 @@ function emitSheetCall(name: string, args: string[]): string {
 
 function javaMethodName(name: string): string {
   return name.replace(/_([a-z])/g, (_, ch: string) => ch.toUpperCase());
+}
+
+function emitHandlebarsJava(
+  ast: Extract<ExprAst, { kind: "call" }>,
+  args: string[],
+  ctx: JavaEmitContext,
+): string {
+  const templateAst = ast.args[0];
+  if (templateAst?.kind === "literal" && typeof templateAst.value === "string") {
+    const program = compileVmsHbs(templateAst.value);
+    if (program) {
+      ctx.helpers.add("vmsHbs");
+      const name = `vmsHbs_${
+        ctx.vmsHbsFns.filter((line) => /^private String vmsHbs_\d+/.test(line)).length
+      }`;
+      ctx.vmsHbsFns.push(...emitVmsHbsJavaMethod(program, name));
+      return `${name}(${args[1] ?? "mapOf()"})`;
+    }
+  }
+  ctx.helpers.add("handlebars");
+  return `handlebars(${args[0] ?? '""'}, ${args[1] ?? "mapOf()"})`;
 }
 
 function emitXpathCall(
@@ -481,6 +508,7 @@ function generateJavaFromExpression(model: MappingModel, expression: string): st
     helpers: ctx.helpers,
     source: "blockly",
     archie: false,
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 
@@ -503,6 +531,7 @@ function generateJavaGeneric(model: MappingModel): string {
     helpers: ctx.helpers,
     source: "slots",
     archie: false,
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 
@@ -563,6 +592,7 @@ export function generateJavaFromSkeleton(
     helpers: ctx.helpers,
     source: "skeleton",
     archie: true,
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 
@@ -588,6 +618,7 @@ export function generateJavaFromSlots(model: MappingModel): string {
     helpers: ctx.helpers,
     source: "slots",
     archie: true,
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 
@@ -623,7 +654,6 @@ function emitSkeletonLoop(
   ctx: JavaEmitContext,
   indent: number,
 ): string {
-  ctx.helpers.add("nodes");
   const ident = javaIdent(loop.varName, "item");
   const innerCtx: JavaEmitContext = {
     ...ctx,
@@ -642,6 +672,7 @@ function emitSkeletonLoop(
     const coll = emitJavaExpressionSource(loop.collection, ctx) ?? "java.util.List.of()";
     return `asList(${coll}).stream().map(${mapped}).toList()`;
   }
+  ctx.helpers.add("nodes");
   return `xpathNodes(${JSON.stringify(loop.path)}).stream().map(${mapped}).toList()`;
 }
 
@@ -818,6 +849,7 @@ interface JavaModuleParts {
   source: "skeleton" | "slots" | "blockly";
   /** When false, omit Archie RM / OPT validator imports (non-openEHR product). */
   archie: boolean;
+  vmsHbsFns?: string[];
 }
 
 function wrapJavaModule(parts: JavaModuleParts): string {
@@ -942,6 +974,16 @@ function wrapJavaModule(parts: JavaModuleParts): string {
   }
   lines.push(...indentLines(coerceHelpers(), 1));
 
+  if (parts.helpers.has("vmsHbs")) {
+    lines.push("");
+    lines.push(...indentLines(vmsHbsRuntimeJava(), 1));
+    const fns = parts.vmsHbsFns ?? [];
+    if (fns.length) {
+      lines.push("");
+      lines.push(...indentLines(fns, 1));
+    }
+  }
+
   if (parts.helpers.has("handlebars")) {
     lines.push("");
     lines.push(...indentLines(handlebarsHelper(), 1));
@@ -949,7 +991,7 @@ function wrapJavaModule(parts: JavaModuleParts): string {
 
   if (usesXpath) {
     lines.push("");
-    lines.push(...indentLines(xpathHelpers(), 1));
+    lines.push(...indentLines(xpathHelpers(parts.helpers), 1));
   }
   if (parts.helpers.has("logic") || parts.helpers.has("flatten")) {
     lines.push("");
@@ -1047,57 +1089,95 @@ function handlebarsHelper(): string[] {
   ];
 }
 
-function xpathHelpers(): string[] {
-  const lines = [
+function xpathHelpers(helpers: Set<JavaHelper>): string[] {
+  const useString = helpers.has("string");
+  const useNumber = helpers.has("number");
+  const useBoolean = helpers.has("boolean");
+  const useNode = helpers.has("node") || helpers.has("nodes");
+  const useNodes = helpers.has("nodes");
+  const useXmlString = useString || useNumber || useBoolean;
+  const lines: string[] = [
     "private static final com.fasterxml.jackson.databind.ObjectMapper JSON = new com.fasterxml.jackson.databind.ObjectMapper();",
     "",
-    "private String xpathString(String path) { return xpathString(path, sourceRoot); }",
-    "private double xpathNumber(String path) { return xpathNumber(path, sourceRoot); }",
-    "private boolean xpathBoolean(String path) { return xpathBoolean(path, sourceRoot); }",
-    "private Object xpathNode(String path) { return xpathNode(path, sourceRoot); }",
-    "private List<Object> xpathNodes(String path) { return xpathNodes(path, sourceRoot); }",
-    "",
-    "private String xpathString(String path, Object node) {",
-    '  if (path.trim().startsWith("/")) return xmlString(path, node);',
-    "  com.fasterxml.jackson.databind.JsonNode found = jsonAt(path, node);",
-    '  return found == null || found.isNull() || found.isMissingNode() ? "" : found.asText();',
-    "}",
-    "",
-    "private double xpathNumber(String path, Object node) {",
-    '  if (path.trim().startsWith("/")) {',
-    "    try { return Double.parseDouble(xmlString(path, node)); } catch (NumberFormatException e) { return 0d; }",
-    "  }",
-    "  com.fasterxml.jackson.databind.JsonNode found = jsonAt(path, node);",
-    "  if (found == null || found.isNull() || found.isMissingNode()) return 0d;",
-    "  if (found.isNumber()) return found.asDouble();",
-    "  try { return Double.parseDouble(found.asText()); } catch (NumberFormatException e) { return 0d; }",
-    "}",
-    "",
-    "private boolean xpathBoolean(String path, Object node) {",
-    '  if (path.trim().startsWith("/")) return Boolean.parseBoolean(xmlString(path, node));',
-    "  com.fasterxml.jackson.databind.JsonNode found = jsonAt(path, node);",
-    "  return found != null && found.asBoolean(false);",
-    "}",
-    "",
-    "private Object xpathNode(String path, Object node) {",
-    '  String trimmed = path.trim();',
-    '  if (trimmed.startsWith("/")) return xmlNode(path, node);',
-    '  if (trimmed.isEmpty() || trimmed.equals("$") || trimmed.equals(".")) return node;',
-    "  return jsonAt(path, node);",
-    "}",
-    "",
-    "private List<Object> xpathNodes(String path, Object node) {",
-    "  Object found = xpathNode(path, node);",
-    "  if (found instanceof List<?> list) return new ArrayList<>(list);",
-    "  if (found instanceof com.fasterxml.jackson.databind.JsonNode jn && jn.isArray()) {",
-    "    List<Object> out = new ArrayList<>();",
-    "    jn.forEach(out::add);",
-    "    return out;",
-    "  }",
-    "  if (found == null) return List.of();",
-    "  return List.of(found);",
-    "}",
-    "",
+  ];
+  if (useString) {
+    lines.push("private String xpathString(String path) { return xpathString(path, sourceRoot); }");
+  }
+  if (useNumber) {
+    lines.push("private double xpathNumber(String path) { return xpathNumber(path, sourceRoot); }");
+  }
+  if (useBoolean) {
+    lines.push("private boolean xpathBoolean(String path) { return xpathBoolean(path, sourceRoot); }");
+  }
+  if (helpers.has("node")) {
+    lines.push("private Object xpathNode(String path) { return xpathNode(path, sourceRoot); }");
+  }
+  if (useNodes) {
+    lines.push("private List<Object> xpathNodes(String path) { return xpathNodes(path, sourceRoot); }");
+  }
+  lines.push("");
+  if (useString) {
+    lines.push(
+      "private String xpathString(String path, Object node) {",
+      '  if (path.trim().startsWith("/")) return xmlString(path, node);',
+      "  com.fasterxml.jackson.databind.JsonNode found = jsonAt(path, node);",
+      '  return found == null || found.isNull() || found.isMissingNode() ? "" : found.asText();',
+      "}",
+      "",
+    );
+  }
+  if (useNumber) {
+    lines.push(
+      "private double xpathNumber(String path, Object node) {",
+      '  if (path.trim().startsWith("/")) {',
+      "    try { return Double.parseDouble(xmlString(path, node)); } catch (NumberFormatException e) { return 0d; }",
+      "  }",
+      "  com.fasterxml.jackson.databind.JsonNode found = jsonAt(path, node);",
+      "  if (found == null || found.isNull() || found.isMissingNode()) return 0d;",
+      "  if (found.isNumber()) return found.asDouble();",
+      "  try { return Double.parseDouble(found.asText()); } catch (NumberFormatException e) { return 0d; }",
+      "}",
+      "",
+    );
+  }
+  if (useBoolean) {
+    lines.push(
+      "private boolean xpathBoolean(String path, Object node) {",
+      '  if (path.trim().startsWith("/")) return Boolean.parseBoolean(xmlString(path, node));',
+      "  com.fasterxml.jackson.databind.JsonNode found = jsonAt(path, node);",
+      "  return found != null && found.asBoolean(false);",
+      "}",
+      "",
+    );
+  }
+  if (useNode) {
+    lines.push(
+      "private Object xpathNode(String path, Object node) {",
+      "  String trimmed = path.trim();",
+      '  if (trimmed.startsWith("/")) return xmlNode(path, node);',
+      '  if (trimmed.isEmpty() || trimmed.equals("$") || trimmed.equals(".")) return node;',
+      "  return jsonAt(path, node);",
+      "}",
+      "",
+    );
+  }
+  if (useNodes) {
+    lines.push(
+      "private List<Object> xpathNodes(String path, Object node) {",
+      "  Object found = xpathNode(path, node);",
+      "  if (found instanceof List<?> list) return new ArrayList<>(list);",
+      "  if (found instanceof com.fasterxml.jackson.databind.JsonNode jn && jn.isArray()) {",
+      "    List<Object> out = new ArrayList<>();",
+      "    jn.forEach(out::add);",
+      "    return out;",
+      "  }",
+      "  if (found == null) return List.of();",
+      "  return List.of(found);",
+      "}",
+      "",
+    );
+  }
+  lines.push(
     "private com.fasterxml.jackson.databind.JsonNode jsonAt(String path, Object node) {",
     "  com.fasterxml.jackson.databind.JsonNode tree = toJsonNode(node);",
     "  String query = jsonQuery(path);",
@@ -1137,9 +1217,9 @@ function xpathHelpers(): string[] {
     "  StringBuilder q = new StringBuilder();",
     "  int i = 0;",
     "  while (i < body.length()) {",
-    '    if (body.charAt(i) == \'.\') { i++; continue; }',
-    '    if (body.charAt(i) == \'[\') {',
-    '      int close = body.indexOf(\']\', i + 1);',
+    "    if (body.charAt(i) == '.') { i++; continue; }",
+    "    if (body.charAt(i) == '[') {",
+    "      int close = body.indexOf(']', i + 1);",
     "      if (close < 0) break;",
     "      if (q.length() > 0) q.append('.');",
     "      q.append(body, i + 1, close);",
@@ -1147,7 +1227,7 @@ function xpathHelpers(): string[] {
     "      continue;",
     "    }",
     "    int end = i;",
-    '    while (end < body.length() && body.charAt(end) != \'.\' && body.charAt(end) != \'[\') end++;',
+    "    while (end < body.length() && body.charAt(end) != '.' && body.charAt(end) != '[') end++;",
     "    if (q.length() > 0) q.append('.');",
     "    q.append(body, i, end);",
     "    i = end;",
@@ -1155,11 +1235,17 @@ function xpathHelpers(): string[] {
     '  return q.length() == 0 ? "$" : q.toString();',
     "}",
     "",
-    "private String xmlString(String path, Object node) {",
-    "  org.w3c.dom.Node xml = xmlNode(path, node);",
-    '  return xml == null ? "" : xml.getTextContent() == null ? "" : xml.getTextContent();',
-    "}",
-    "",
+  );
+  if (useXmlString) {
+    lines.push(
+      "private String xmlString(String path, Object node) {",
+      "  org.w3c.dom.Node xml = xmlNode(path, node);",
+      '  return xml == null ? "" : xml.getTextContent() == null ? "" : xml.getTextContent();',
+      "}",
+      "",
+    );
+  }
+  lines.push(
     "private org.w3c.dom.Node xmlNode(String path, Object node) {",
     "  try {",
     "    org.w3c.dom.Document doc;",
@@ -1178,7 +1264,7 @@ function xpathHelpers(): string[] {
     "    return null;",
     "  }",
     "}",
-  ];
+  );
   return lines;
 }
 

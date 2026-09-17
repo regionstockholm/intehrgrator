@@ -1,6 +1,7 @@
 import * as Blockly from "blockly/core";
 import { createHostAdapter } from "../src/host/create_host.ts";
 import { WorkbenchController } from "../src/workbench/controller.ts";
+import { TASK_PROGRESS_OVERLAY_ID, taskProgressInnerHtml } from "../src/workbench/task_progress.ts";
 import { ensureGoTemplateWasm } from "../src/core/output/go_template_runtime.ts";
 import {
   renderSchemaTree,
@@ -180,6 +181,7 @@ const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
 const statusSave = document.getElementById("status-save")!;
 const statusBuild = document.getElementById("status-build")!;
+const taskProgressOverlay = document.getElementById(TASK_PROGRESS_OVERLAY_ID)!;
 const exportTargetSelect = document.getElementById("export-target") as HTMLSelectElement;
 const instanceShapeSelect = document.getElementById("openehr-instance-shape") as HTMLSelectElement;
 const instanceShapeWrap = document.getElementById("openehr-instance-shape-wrap") as HTMLLabelElement;
@@ -1952,6 +1954,14 @@ function render(): void {
 
   statusBuild.textContent = `v${APP_VERSION} · ${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
+  if (s.taskProgress) {
+    taskProgressOverlay.innerHTML = taskProgressInnerHtml(s.taskProgress);
+    taskProgressOverlay.hidden = false;
+  } else {
+    taskProgressOverlay.innerHTML = "";
+    taskProgressOverlay.hidden = true;
+  }
+
   syncModelLanguageMenu(s);
 
   if (s.schemaTree) {
@@ -2305,6 +2315,7 @@ function installWorkbenchTestApi(): void {
         testResult: s.testResult,
         generatedCode: s.generatedCode,
         statusMessage: s.statusMessage,
+        taskProgress: s.taskProgress,
         schemaError: s.schemaError,
         exampleIssueCount: s.activeExampleValidation.length,
         autoplay: s.settings.autoplay,

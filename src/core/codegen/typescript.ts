@@ -14,6 +14,11 @@
 
 import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
+import {
+  compileVmsHbs,
+  emitVmsHbsTsFunction,
+  vmsHbsRuntimeTs,
+} from "../output/vms_hbs_compile.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { attributesFor } from "../rm_meta.ts";
@@ -37,16 +42,30 @@ const LIST_ATTRS = new Set([
   "other_participations",
 ]);
 
+export type TsHelper =
+  | "string"
+  | "number"
+  | "boolean"
+  | "nodes"
+  | "rm"
+  | "node"
+  | "handlebars"
+  | "sheets"
+  | "logic"
+  | "vmsHbs";
+
 export interface TsEmitContext {
   sourceVar: string;
   /** When set, relative source paths evaluate against this loop node. */
   loopVar?: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets" | "logic">;
+  helpers: Set<TsHelper>;
+  /** Native VMS-Hbs functions compiled from literal `handlebars("…")` templates. */
+  vmsHbsFns: string[];
 }
 
 export function createTsEmitContext(sourceVar = "sourceCtx.data"): TsEmitContext {
-  return { sourceVar, types: new Set(), helpers: new Set() };
+  return { sourceVar, types: new Set(), helpers: new Set(), vmsHbsFns: [] };
 }
 
 export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
@@ -130,8 +149,7 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
           ctx.helpers.add("node");
           return emitXpathCall("xpathNode", ast.args[0], args[0] ?? '""', ctx);
         case "handlebars":
-          ctx.helpers.add("handlebars");
-          return `handlebars(${args[0] ?? '""'}, ${args[1] ?? "{}"})`;
+          return emitHandlebarsTs(ast, args, ctx);
         case "map":
           return emitMapLiteral(ast, args);
         case "xpath":
@@ -176,6 +194,25 @@ function emitMapLiteral(
     parts.push(`${key}: ${args[i + 1]}`);
   }
   return `({ ${parts.join(", ")} })`;
+}
+
+function emitHandlebarsTs(
+  ast: Extract<ExprAst, { kind: "call" }>,
+  args: string[],
+  ctx: TsEmitContext,
+): string {
+  const templateAst = ast.args[0];
+  if (templateAst?.kind === "literal" && typeof templateAst.value === "string") {
+    const program = compileVmsHbs(templateAst.value);
+    if (program) {
+      ctx.helpers.add("vmsHbs");
+      const name = `vmsHbs_${ctx.vmsHbsFns.filter((line) => /^function vmsHbs_\d+/.test(line)).length}`;
+      ctx.vmsHbsFns.push(...emitVmsHbsTsFunction(program, name));
+      return `${name}(${args[1] ?? "{}"})`;
+    }
+  }
+  ctx.helpers.add("handlebars");
+  return `handlebars(${args[0] ?? '""'}, ${args[1] ?? "{}"})`;
 }
 
 function emitXpathCall(
@@ -264,11 +301,12 @@ export interface TypeScriptModuleParts {
   templateId: string;
   body: string;
   types: Set<string>;
-  helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets" | "logic">;
+  helpers: Set<TsHelper>;
   rootType?: string;
   /** Where the RM tree was walked from. */
   source?: "blockly" | "skeleton" | "slots";
   extraImports?: string[];
+  vmsHbsFns?: string[];
 }
 
 export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
@@ -335,6 +373,15 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
   if (parts.helpers.has("rm")) {
     lines.push(...indentLines(rmHelper(), 1));
     lines.push("");
+  }
+  if (parts.helpers.has("vmsHbs")) {
+    lines.push(...indentLines(vmsHbsRuntimeTs(), 1));
+    lines.push("");
+    const fns = parts.vmsHbsFns ?? [];
+    if (fns.length) {
+      lines.push(...indentLines(fns, 1));
+      lines.push("");
+    }
   }
   if (parts.helpers.has("handlebars")) {
     lines.push(...indentLines(handlebarsHelper(), 1));
@@ -754,6 +801,7 @@ export function generateTypeScriptFromSkeleton(
     helpers: ctx.helpers,
     rootType,
     source: "skeleton",
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 
@@ -789,7 +837,6 @@ function emitSkeletonLoop(
   ctx: TsEmitContext,
   indent: number,
 ): string {
-  ctx.helpers.add("nodes");
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(loop.varName) ? loop.varName : "item";
   const innerCtx: TsEmitContext = {
     ...ctx,
@@ -801,6 +848,12 @@ function emitSkeletonLoop(
   const nestedLoops = loops.filter((item) => item !== loop);
   const props = skeletonContainerProps(node, slots, nestedLoops, innerCtx, indent + 1);
   const constructed = formatRmConstruct(node.rmType, props, indent + 1, innerCtx);
+  if (loop.kind === "list" && loop.collection) {
+    ctx.helpers.add("logic");
+    const coll = emitTsExpressionSource(loop.collection, ctx) ?? "[]";
+    return `...asList(${coll}).map((${ident}) => ${constructed})`;
+  }
+  ctx.helpers.add("nodes");
   return "...xpathNodes(" + JSON.stringify(loop.path) + ").map((" + ident +
     ") => " + constructed + ")";
 }
@@ -971,6 +1024,7 @@ export function generateTypeScriptFromCanvasExpression(
     helpers: ctx.helpers,
     rootType: "string",
     source: "blockly",
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 
@@ -1004,6 +1058,7 @@ export function generateTypeScriptFromSlots(model: MappingModel): string {
     helpers: ctx.helpers,
     rootType: openEhr ? "COMPOSITION" : undefined,
     source: "slots",
+    vmsHbsFns: ctx.vmsHbsFns,
   });
 }
 

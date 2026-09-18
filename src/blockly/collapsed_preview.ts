@@ -44,6 +44,7 @@ const HIDDEN_FIELDS = new Set([
 
 const SKIP_INPUTS = new Set([
   "HEADER",
+  "ENCODING",
   "EDITOR",
   "GRID_PREVIEW",
   "_TEMP_COLLAPSED_INPUT",

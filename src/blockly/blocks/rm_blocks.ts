@@ -1152,13 +1152,16 @@ function defineContainerBlock(
         this.setFieldValue(options.rmType, "RM_TYPE");
       }
       header.appendField(new FieldSkeletonTitle(options.rmType), "NAME");
+      if (options.expandable) appendMutatorCogwheel(header);
       if (options.rmType === "COMPOSITION") {
-        header.appendField(
+        // Own row under the class title so a long "Canonical JSON" label
+        // does not stretch the HEADER (and every C-mouth under it).
+        const encoding = this.appendDummyInput("ENCODING").setAlign(inputAlignLeft());
+        encoding.appendField(
           new FieldDropdownHug(instanceEncodingDropdownOptions()),
           INSTANCE_ENCODING_FIELD,
         );
       }
-      if (options.expandable) appendMutatorCogwheel(header);
       if (options.specializationCheck) {
         const kind = this.appendValueInput(RM_SPECIALIZATION_INPUT)
           .setAlign(inputAlignRight());

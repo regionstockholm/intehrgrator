@@ -1,5 +1,6 @@
 import type { SchemaTreeNode, SourceFormatId } from "../../types/mod.ts";
 import { parseJsonDocument, unwrapExecuteEnvelope } from "./json_document.ts";
+import { resolveJsonPointer } from "./json_pointer.ts";
 
 type JsonSchemaObject = Record<string, unknown>;
 
@@ -52,6 +53,9 @@ export function isJsonSchemaDocument(value: unknown): boolean {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const o = value as JsonSchemaObject;
   if (typeof o.$schema === "string") return true;
+  if (typeof o.$ref === "string") return true;
+  if (o.$defs && typeof o.$defs === "object") return true;
+  if (o.definitions && typeof o.definitions === "object") return true;
   if (o.properties && typeof o.properties === "object") return true;
   if (o.type === "object" && o.properties) return true;
   if (o.type === "array" && o.items) return true;
@@ -150,9 +154,11 @@ function jsonSchemaToTree(
   schema: JsonSchemaObject,
   name: string,
   path: string,
+  root: JsonSchemaObject = schema,
   parentRequired?: Set<string>,
+  resolvingRefs: ReadonlySet<string> = new Set(),
 ): SchemaTreeNode {
-  const resolved = resolveSchema(schema);
+  const { schema: resolved, refs } = derefJsonSchema(schema, root, resolvingRefs);
   const type = schemaType(resolved);
   const multiplicity = schemaMultiplicity(resolved, name, parentRequired);
 
@@ -160,7 +166,14 @@ function jsonSchemaToTree(
     const items = resolved.items;
     const itemSchema = Array.isArray(items) ? items[0] : items;
     const children = itemSchema && typeof itemSchema === "object"
-      ? [jsonSchemaToTree(itemSchema as JsonSchemaObject, `${name}[*]`, `${path}[*]`)]
+      ? [jsonSchemaToTree(
+        itemSchema as JsonSchemaObject,
+        `${name}[*]`,
+        `${path}[*]`,
+        root,
+        undefined,
+        refs,
+      )]
       : [];
     return {
       path,
@@ -178,7 +191,7 @@ function jsonSchemaToTree(
       Array.isArray(resolved.required) ? resolved.required.map(String) : [],
     );
     const children = Object.entries(props).map(([key, prop]) =>
-      jsonSchemaToTree(prop, key, appendJsonPath(path, key), required)
+      jsonSchemaToTree(prop, key, appendJsonPath(path, key), root, required, refs)
     );
     return {
       path,
@@ -207,17 +220,53 @@ function schemaDescription(schema: JsonSchemaObject): string | undefined {
   return trimmed || undefined;
 }
 
-function resolveSchema(schema: JsonSchemaObject): JsonSchemaObject {
-  if (schema.$ref && typeof schema.$ref === "string") {
-    // Unresolved refs fall back to the ref token as type hint.
-    const refName = schema.$ref.split("/").pop() ?? "ref";
-    return { type: refName };
+/**
+ * Inline in-document `$ref` (`#/$defs/…`, `#/definitions/…`).
+ * `$defs` / `definitions` stay schema vocabulary — they are not instance properties.
+ * Cyclic refs keep the target's type but do not expand properties again (avoids UI blow-up).
+ */
+function derefJsonSchema(
+  schema: JsonSchemaObject,
+  root: JsonSchemaObject,
+  resolvingRefs: ReadonlySet<string>,
+): { schema: JsonSchemaObject; refs: Set<string> } {
+  const refs = new Set(resolvingRefs);
+  let current: JsonSchemaObject = schema;
+  while (typeof current.$ref === "string") {
+    const ref = current.$ref;
+    const siblings = { ...current };
+    delete siblings.$ref;
+    if (refs.has(ref)) {
+      const target = resolveJsonPointer(root, ref);
+      current = {
+        ...(isRecord(target) ? schemaTypeHint(target) : {}),
+        ...siblings,
+      };
+      break;
+    }
+    const target = resolveJsonPointer(root, ref);
+    if (!isRecord(target)) {
+      const refName = ref.split("/").pop() ?? "ref";
+      return { schema: { type: refName, ...siblings }, refs };
+    }
+    refs.add(ref);
+    current = { ...target, ...siblings };
   }
-  if (Array.isArray(schema.type)) {
-    const preferred = schema.type.find((t) => t !== "null") ?? schema.type[0];
-    return { ...schema, type: preferred };
+  if (Array.isArray(current.type)) {
+    const preferred = current.type.find((t) => t !== "null") ?? current.type[0];
+    current = { ...current, type: preferred };
   }
-  return schema;
+  return { schema: current, refs };
+}
+
+/** Type-only view of a schema so a cyclic `$ref` does not re-walk properties/items. */
+function schemaTypeHint(schema: JsonSchemaObject): JsonSchemaObject {
+  if (typeof schema.type === "string" || Array.isArray(schema.type)) {
+    return { type: schema.type };
+  }
+  if (schema.properties) return { type: "object" };
+  if (schema.items) return { type: "array" };
+  return {};
 }
 
 function schemaType(schema: JsonSchemaObject): string {

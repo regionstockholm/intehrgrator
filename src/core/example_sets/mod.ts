@@ -33,6 +33,13 @@ export interface ExampleSet {
   target?: string;
   /** Optional Blockly workspace JSON URI. */
   mapping?: string;
+  /**
+   * Optional Sheet / Decision table document URI. The file is a JSON
+   * `SheetDocument` or an array of them (same shape as Project Bundle
+   * `mapping.sheets`). Loaded after Blockly so Decision tables used by the
+   * mapping are present at convert time.
+   */
+  sheets?: string;
   /** Optional Defaults Map (`maps_create_with` Blockly JSON) URI. */
   defaults?: string;
 }
@@ -112,6 +119,9 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
   const mapping = raw.mapping === undefined
     ? undefined
     : resolveCatalogUri(requiredString(raw.mapping, `${prefix}.mapping`), catalogUrl);
+  const sheets = raw.sheets === undefined
+    ? undefined
+    : resolveCatalogUri(requiredString(raw.sheets, `${prefix}.sheets`), catalogUrl);
   const defaults = raw.defaults === undefined
     ? undefined
     : resolveCatalogUri(requiredString(raw.defaults, `${prefix}.defaults`), catalogUrl);
@@ -123,6 +133,7 @@ function parseSet(item: unknown, catalogUrl: string, index: number): ExampleSet 
     source: { schema, instances },
     target,
     ...(mapping ? { mapping } : {}),
+    ...(sheets ? { sheets } : {}),
     ...(defaults ? { defaults } : {}),
   };
 }

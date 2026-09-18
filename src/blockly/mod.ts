@@ -14,9 +14,12 @@ import {
 import { registerTextBlocks } from "./blocks/text_blocks.ts";
 import {
   currentItemName,
+  currentLoopItemName,
   LISTS_SET_OPERATION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
   LOGIC_LIST_RESTRICTION_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   registerLogicBlocks,
   restrictionCount,
   restrictionItemName,
@@ -24,14 +27,17 @@ import {
   restrictionRequiresItems,
 } from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
-import { registerLoopAccessorBlocks, LOOP_INDEX_BLOCK, LOOP_LENGTH_BLOCK } from "./blocks/loop_accessor_blocks.ts";
-import { registerCollapsedSummaries } from "./collapsed_summary.ts";
 import { registerStockMutatorChrome } from "./stock_mutator_chrome.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { registerGoTemplateExportAdapter } from "./go_template_codegen.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
 import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { TERM_PICK_BLOCK_TYPE } from "./blocks/term_pick.ts";
+import {
+  loopIndexBinderName,
+  loopIsInsideProcedure,
+  loopLengthBinderName,
+} from "./loop_block.ts";
 import {
   SOURCE_QUERY_BLOCK_TYPES,
   fontoxpathFnForReturnType,
@@ -161,7 +167,26 @@ export {
   registerExtractToFunctionMenu,
   EXTRACT_TO_FUNCTION_MENU_ID,
 } from "./extract_function.ts";
+export {
+  extractFunctionBundle,
+  extractFunctionBundleFromState,
+  listWorkspaceFunctions,
+  mergeFunctionBundle,
+  mergeFunctionBundleIntoState,
+} from "./function_bundle.ts";
+export {
+  GRAMMATICAL_JOIN_SPECS,
+  JOIN_OXFORD_SPEC,
+  JOIN_SWEDISH_SPEC,
+  buildGrammaticalJoinBundle,
+  defineGrammaticalJoin,
+  defineJoinSwedish,
+  grammaticalJoinTable,
+} from "./grammatical_join.ts";
+export { installFunctionLibraryMenus, registerFunctionLibraryMenus } from "./function_library_menu.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
+export { installCollapsedPreview } from "./field_collapsed_preview.ts";
+export { collapsedHtmlForBlock, shortArchetypeLabel } from "./collapsed_preview.ts";
 export {
   generateTypeScriptFromBlocklyState,
   generateTypeScriptFromWorkspace,
@@ -174,6 +199,7 @@ export {
 } from "./go_template_codegen.ts";
 
 import { registerConversionStartBlock } from "./instance_root.ts";
+import { installCollapsedPreview } from "./field_collapsed_preview.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -185,13 +211,12 @@ export function initBlocklyGenerators(): void {
   registerTextBlocks();
   registerConversionStartBlock();
   registerLogicBlocks();
-  registerLoopAccessorBlocks();
   registerStockMutatorChrome();
-  registerCollapsedSummaries();
   registerExtractToFunctionMenu();
   registerGenerators();
   registerTypeScriptExportAdapter();
   registerGoTemplateExportAdapter();
+  installCollapsedPreview();
 }
 
 function registerGenerators(): void {
@@ -240,37 +265,7 @@ function registerGenerators(): void {
     return [phrase, Order.NEW] as [string, number];
   };
 
-  javascriptGenerator.forBlock["for_each_list"] = (block) => {
-    const name = block.getFieldValue("VAR") || "item";
-    const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
-    const body = javascriptGenerator.statementToCode(block, "DO").trim();
-    const returned = body ? stripTrailingComma(body) : "null";
-    const listBlock = block.getInputTargetBlock("LIST");
-    if (listBlock && isSourceQueryBlockType(listBlock.type)) {
-      const path = listBlock.getFieldValue("EXPRESSION") || "/";
-      return (
-        `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}, __loopIndex) => {\n` +
-        `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
-        `  const __loopLength = evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).length;\n` +
-        `  return ${returned};\n` +
-        `}),\n`
-      );
-    }
-    const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
-    return (
-      `...(Array.isArray(${list}) ? ${list} : []).map((${ident}, __loopIndex) => {\n` +
-      `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
-      `  const __loopLength = (${list}).length;\n` +
-      `  return ${returned};\n` +
-      `}),\n`
-    );
-  };
-
-  javascriptGenerator.forBlock[LOOP_INDEX_BLOCK] = () =>
-    ["__loopIndex", Order.ATOMIC] as [string, number];
-
-  javascriptGenerator.forBlock[LOOP_LENGTH_BLOCK] = () =>
-    ["__loopLength", Order.ATOMIC] as [string, number];
+  javascriptGenerator.forBlock["for_each_list"] = (block) => emitForEachListJs(block);
 
   javascriptGenerator.forBlock["maps_get"] = (block) => {
     const name = String(block.getFieldValue("NAME") || "defaults");
@@ -332,6 +327,8 @@ function registerGenerators(): void {
     const ret = javascriptGenerator.valueToCode(block, "RETURN_COL", Order.NONE) || '""';
     return [`sheetLookup(${name}, ${col}, ${val}, ${ret})`, Order.FUNCTION_CALL] as [string, number];
   };
+  javascriptGenerator.forBlock["sheet"] = () => "";
+  javascriptGenerator.forBlock["decision_table_decl"] = () => "";
   javascriptGenerator.forBlock["decision_table"] = (block) => {
     const name = JSON.stringify(block.getFieldValue("NAME") || "Decision1");
     const inputs = javascriptGenerator.valueToCode(block, "INPUTS", Order.NONE) || "{}";
@@ -431,6 +428,18 @@ function registerGenerators(): void {
 
   javascriptGenerator.forBlock[LOGIC_CURRENT_ITEM_BLOCK] = (block) =>
     [`__vars[${JSON.stringify(currentItemName(block))}]`, Order.MEMBER] as [string, number];
+
+  javascriptGenerator.forBlock[LOGIC_LOOP_INDEX_BLOCK] = (block) =>
+    [
+      `__vars[${JSON.stringify(loopIndexBinderName(currentLoopItemName(block)))}]`,
+      Order.MEMBER,
+    ] as [string, number];
+
+  javascriptGenerator.forBlock[LOGIC_LOOP_LENGTH_BLOCK] = (block) =>
+    [
+      `__vars[${JSON.stringify(loopLengthBinderName(currentLoopItemName(block)))}]`,
+      Order.MEMBER,
+    ] as [string, number];
 
   javascriptGenerator.forBlock[LISTS_SET_OPERATION_BLOCK] = (block) => {
     const a = javascriptGenerator.valueToCode(block, "A", Order.NONE) || "[]";
@@ -561,6 +570,44 @@ function rmObjectStatement(rmType: string, attrs: string[]) {
     }
     return `rm(${rmType}, { ${parts.join(", ")} }),\n`;
   };
+}
+
+function emitForEachListJs(block: Blockly.Block): string {
+  const name = String(block.getFieldValue("VAR") || "item");
+  const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+  const indexName = loopIndexBinderName(name);
+  const lengthName = loopLengthBinderName(name);
+  const body = javascriptGenerator.statementToCode(block, "DO").trim();
+  const listBlock = block.getInputTargetBlock("LIST");
+  const collection = listBlock && isSourceQueryBlockType(listBlock.type)
+    ? `evaluateXPathToNodes(${JSON.stringify(listBlock.getFieldValue("EXPRESSION") || "/")}, sourceCtx.data)`
+    : (() => {
+      const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
+      return `(Array.isArray(${list}) ? ${list} : [])`;
+    })();
+  const bind =
+    `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+    `  __vars[${JSON.stringify(indexName)}] = ${ident}_i;\n` +
+    `  __vars[${JSON.stringify(lengthName)}] = ${ident}_col.length;\n`;
+  if (loopIsInsideProcedure(block)) {
+    return (
+      `{\n` +
+      `  const ${ident}_col = ${collection};\n` +
+      `  for (let ${ident}_i = 0; ${ident}_i < ${ident}_col.length; ${ident}_i++) {\n` +
+      `    const ${ident} = ${ident}_col[${ident}_i];\n` +
+      bind.replace(/^ {2}/gm, "    ") +
+      (body ? `    ${body}\n` : "") +
+      `  }\n` +
+      `}\n`
+    );
+  }
+  const returned = body ? stripTrailingComma(body) : "null";
+  return (
+    `...${collection}.map((${ident}, ${ident}_i, ${ident}_col) => {\n` +
+    bind +
+    `  return ${returned};\n` +
+    `}),\n`
+  );
 }
 
 function stripTrailingComma(code: string): string {

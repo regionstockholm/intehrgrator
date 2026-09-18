@@ -375,6 +375,17 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .mapping-spec-download,
 .mapping-spec-upload { margin-left: 4px; font-size: 11px; padding: 3px 8px; }
 .mapping-spec-download { margin-left: auto; }
+.mapping-spec-bulk-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+.mapping-spec-bulk-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
 .mapping-editor-tab {
   border: 1px solid var(--border); border-radius: 4px; background: #fff;
   color: var(--text-secondary); padding: 3px 7px; font-size: 11px; cursor: pointer;
@@ -1098,6 +1109,46 @@ body.sheets-fullscreen::before {
 .status-save.saved { color: var(--success); }
 .status-build { flex-shrink: 0; font-size: 11px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
 
+.function-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+}
+.function-library-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.function-library-row-text {
+  min-width: 0;
+  font-size: 13px;
+}
+.function-library-row-text p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+.function-library-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.function-library-row-actions button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.function-library-empty,
+.function-library-status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
 .app-dialog {
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1258,6 +1309,76 @@ body.sheets-fullscreen::before {
 .load-project-item:hover { border-color: var(--primary); background: #f8fcfb; }
 .load-project-item-kind { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
 .load-project-empty { font-size: 13px; color: var(--text-secondary); padding: 8px 0; }
+
+/* Collapsed Blockly ZipEHR / generic HTML preview (#101). */
+.blockly-collapsed-preview-host {
+  display: inline-block;
+  width: max-content;
+  max-width: 1200px;
+  overflow: hidden;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  color: #202124;
+  white-space: nowrap;
+  pointer-events: all;
+}
+.collapsed-preview {
+  display: inline;
+}
+.collapsed-preview .collapsed-node,
+.collapsed-preview .collapsed-leaf {
+  display: inline-block;
+  padding: 0 0.18em;
+  margin: 0 0.04em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--collapsed-colour, #c5c8ce) 42%, white);
+  vertical-align: middle;
+}
+.collapsed-preview .collapsed-node::before,
+.collapsed-preview .collapsed-leaf::before {
+  content: attr(data-glyph) " ";
+}
+.collapsed-preview .collapsed-node.collapsed-hover,
+.collapsed-preview .collapsed-leaf.collapsed-hover {
+  outline: 2px solid rgba(32, 33, 36, 0.78);
+  outline-offset: 1px;
+}
+.collapsed-preview .collapsed-mapping {
+  display: inline;
+  padding: 0 0.22em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--collapsed-colour, #e87722) 48%, white);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+.collapsed-preview .collapsed-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 0.9em;
+  margin-inline-end: 0.12em;
+  border-radius: 1px;
+  background: #ffeb3b;
+  clip-path: polygon(50% 6%, 100% 94%, 0 94%);
+  font-size: 8px;
+  font-weight: 700;
+  color: #3e2723;
+  vertical-align: middle;
+}
+.blockly-collapsed-tip {
+  position: fixed;
+  z-index: 10001;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #202124;
+  color: #fff;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  white-space: pre-line;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  display: none;
+}
 
 @media (max-width: 1100px) {
   .panes {

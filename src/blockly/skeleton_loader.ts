@@ -1159,11 +1159,37 @@ function attachExpressionToPartyName(
   expression: string,
   returnType: string,
 ): void {
+  const exprBlock = expressionToBlock(workspace, expression, returnType);
+  if (exprBlock.type === "maps_create_with") {
+    const count = Number((exprBlock as Blockly.Block & { itemCount_?: number }).itemCount_ ?? 0);
+    for (let i = 0; i < count; i++) {
+      const key = String(exprBlock.getFieldValue(`KEY${i}`) ?? "");
+      const child = exprBlock.getInputTargetBlock(`VAL${i}`);
+      if (key !== "name" || !child || child.isShadow()) continue;
+      child.outputConnection?.disconnect();
+      const input = party.getInput(rmAttributeInputName("name"));
+      if (!input?.connection || !child.outputConnection) continue;
+      const existing = input.connection.targetBlock();
+      if (existing) existing.dispose(false);
+      try {
+        input.connection.connect(child.outputConnection);
+      } catch {
+        const prev = input.connection.getCheck();
+        input.setCheck(null);
+        try {
+          input.connection.connect(child.outputConnection);
+        } finally {
+          if (prev) input.setCheck(prev);
+        }
+      }
+    }
+    exprBlock.dispose(false);
+    return;
+  }
   const input = party.getInput(rmAttributeInputName("name"));
   if (!input?.connection) return;
   const existing = input.connection.targetBlock();
   if (existing) existing.dispose(false);
-  const exprBlock = expressionToBlock(workspace, expression, returnType);
   if (!exprBlock.outputConnection) return;
   try {
     input.connection.connect(exprBlock.outputConnection);

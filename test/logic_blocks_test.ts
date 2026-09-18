@@ -14,6 +14,8 @@ import {
   LISTS_SET_OPERATION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
   LOGIC_LIST_RESTRICTION_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   restrictionItemName,
   restrictionRequiresItems,
 } from "@intehrgrator/blockly/blocks/logic_blocks.ts";
@@ -63,6 +65,8 @@ Deno.test("list logic blocks are registered and split across Logic and Lists dra
   for (const type of [
     LOGIC_LIST_RESTRICTION_BLOCK,
     LOGIC_CURRENT_ITEM_BLOCK,
+    LOGIC_LOOP_INDEX_BLOCK,
+    LOGIC_LOOP_LENGTH_BLOCK,
     LISTS_SET_OPERATION_BLOCK,
   ]) {
     assert(Blockly.Blocks[type], `missing block ${type}`);
@@ -77,6 +81,8 @@ Deno.test("list logic blocks are registered and split across Logic and Lists dra
   const logic = drawer(labels.CAT_LOGIC);
   assert(logic.includes(LOGIC_LIST_RESTRICTION_BLOCK));
   assert(logic.includes(LOGIC_CURRENT_ITEM_BLOCK));
+  assert(logic.includes(LOGIC_LOOP_INDEX_BLOCK));
+  assert(logic.includes(LOGIC_LOOP_LENGTH_BLOCK));
   // A Boolean drawer must not offer the list-valued set operator alongside `and`/`or`.
   assert(!logic.includes(LISTS_SET_OPERATION_BLOCK));
 
@@ -361,5 +367,34 @@ Deno.test("lists_create_with of non-expression children does not fake list(false
   shell.setFieldValue("DV_CODED_TEXT", "RM_TYPE");
   list.getInput("ADD1")!.connection!.connect(shell.outputConnection!);
   assertEquals(blockToExpression(list), null);
+  workspace.dispose();
+});
+
+Deno.test("map and decision_table expressions hydrate to Blockly blocks, not source_query", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const mapExpr = 'map("position", xpathString("$.bodyPosition"))';
+  const mapBlock = astToExpressionBlock(
+    workspace,
+    parseExpression(mapExpr),
+    "string",
+    (block) => block,
+  );
+  assertEquals(mapBlock.type, "maps_create_with");
+  assertEquals(mapBlock.getFieldValue("KEY0"), "position");
+  assertEquals(blockToExpression(mapBlock), mapExpr);
+
+  const dtExpr =
+    'decision_table("body_position", map("position", xpathString("$.bodyPosition")), "label")';
+  const dtBlock = astToExpressionBlock(
+    workspace,
+    parseExpression(dtExpr),
+    "string",
+    (block) => block,
+  );
+  assertEquals(dtBlock.type, "decision_table");
+  assertEquals(dtBlock.getFieldValue("NAME"), "body_position");
+  assertEquals(dtBlock.getFieldValue("OUTPUT"), "label");
+  assertEquals(blockToExpression(dtBlock), dtExpr);
   workspace.dispose();
 });

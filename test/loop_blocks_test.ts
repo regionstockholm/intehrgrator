@@ -70,7 +70,7 @@ Deno.test("for_each_list with a source query binds the loop variable from path",
   assert(code.includes("evaluateXPathToNodes"), code);
   assert(code.includes('"/patient/vitals"'), code);
   assert(code.includes('__vars["vital"]'), code);
-  assertEquals(code.includes(".map((vital)"), true);
+  assertEquals(code.includes(".map((vital,"), true);
   workspace.dispose();
 });
 

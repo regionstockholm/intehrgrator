@@ -1,3 +1,9 @@
+/**
+ * Headless WorkbenchController load / map / import.
+ * Browser counterparts live under `test/ui/` (click_to_map, schema_drop,
+ * load_from_url, import_ai_*). Keep controller regressions here; add Playwright
+ * when chrome can fail independently — see docs/TESTING.md.
+ */
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
@@ -64,6 +70,23 @@ Deno.test("controller loads template/schema/example from content", async () => {
   assertEquals(composition?._type, "COMPOSITION");
   assertEquals("slots" in (composition ?? {}), false, "openEHR Test Run must not include a slots sidecar");
   assertStringIncludes(JSON.stringify(composition), "120");
+});
+
+Deno.test("controller inlines JSON Schema $defs so $ref fields are mappable", async () => {
+  const schema = await Deno.readTextFile(
+    join(
+      import.meta.dirname!,
+      "fixtures",
+      "administrerad-medicinsk-onkologisk-behandling",
+      "source-schema",
+      "AdministrationRCCV1_source_schema.json",
+    ),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadSchemaContent("AdministrationRCCV1_source_schema.json", schema);
+  assertEquals(controller.lookupSourceSchemaType("$.Substanser[*].Dose"), "number");
+  assertEquals(controller.lookupSourceSchemaType("$.Substanser[*].Innholdstoff_ATC"), "string");
+  assertEquals(controller.lookupSourceSchemaType("$['$defs']"), null);
 });
 
 Deno.test("mapNodeToSlot binds without Listening Mode (drag-and-drop path)", async () => {

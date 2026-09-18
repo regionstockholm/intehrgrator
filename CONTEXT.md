@@ -74,8 +74,12 @@ XML character data emitted as `<![CDATA[ … ]]>` instead of escaped text. Plugs
 _Avoid_: using **Code text** as the only way to emit CDATA
 
 **Source iteration (`for_each_list`)**:
-Blockly loop that binds each item from a list or each node from a multi-valued Source Path to a named variable. Plug a list (☰) or a `source_query_node` (📂) into the **in** slot. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Not a driver for many output files.
-_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type, a dedicated `for_each_source` block
+Blockly loop that binds each item from a list or each node from a multi-valued Source Path to a named variable, plus **Loop index** (0-based) and **Loop length** (collection size at loop entry). Plug a list (☰) or a `source_query_node` (📂) into the **in** slot. Same block, two grains: nested inside an **Instance root** it repeats a target container (Click-to-Map wraps `HISTORY.events` and stores relative paths); in the **Product stack** it wraps **Instance roots** and each iteration appends fragments. Preferred way to map over a substructure — not a Source Pane “context root” framing (kintegrate Handlebars pattern). See `docs/future/source-context-root.md`. Not a driver for many output files.
+_Avoid_: Context boundary, frame as context root (unless discussing kintegrate), using this loop as NDJSON/multi-file packaging, a second product-only loop type, a dedicated `for_each_source` block, a compact `join_list` builtin (grammatical lists are a Function + this loop + a Decision table; see #85)
+
+**Loop index** / **Loop length**:
+Number reporters (`logic_loop_index` / `logic_loop_length`) for the enclosing `for_each_list`. Same nearest-enclosing dropdown pattern as **Current item**; nested loops can pick an outer item name from the dropdown. They serialize as Mapping Expression `var("item_index")` / `var("item_length")` — not workspace Variables. `is first` is `index = 0`; `is last` is `index = length − 1`; odd/even is the stock Math block `index is odd`. Not bound on **List restriction** (quantifiers stay order-insensitive).
+_Avoid_: Handlebars `@index` / `@first` / `@last` as product names, binding index on `logic_list_restriction`, using index to mint `:n` slot ids
 
 **Map**:
 A key-value collection in the Mapping Editor, parallel to a Blockly List. Entries are retrieved by key, not by index. Used for a **Defaults Map** and other 1D lookups. Toolbox: list and map blocks share one **Lists & maps** drawer; **Sheets** is a separate drawer.
@@ -237,8 +241,16 @@ Canonical interchange is native Blockly workspace JSON (`ProjectBundle.mapping.b
 _Avoid_: Private `@template` DSL, Mapping script as a third language, treating the canvas as a sequential script
 
 **Blockly Function**:
-A stock Blockly procedure (Functions drawer): a definition block plus call sites. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function.
+A stock Blockly procedure (Functions drawer): a **value** definition (`procedures_defreturn`) or a **statement** definition (`procedures_defnoreturn`), plus call sites. `procedures_ifreturn` is an early-return statement *inside* a definition, not a third Function kind. **Extract to function** on a block context menu moves that subtree onto a new definition and leaves a call in place. Still Mapping Specification (Blockly JSON), not a Conversion script function. Persist one Function (definition + Decision tables it uses) as a **Function bundle**; load from disk or the **Function library**. Name clash: rename (default) or replace.
 _Avoid_: TypeScript/Java export function, Conversion script, custom DSL subroutine
+
+**Function bundle**:
+Portable JSON (`kind: "intehrgrator-function"`, version 1) for one Blockly Function: `name`, `description`, `parameters`, `hasReturn`, `decisionTables`, `blocklyState` fragment, `sheets`. Filename `*.intehr-function.json`. Not a Project Bundle.
+_Avoid_: Project Bundle, Conversion script module
+
+**Function library**:
+Curated Function bundles at `function-library/` (`catalog.json` + per-Function JSON). Default GitHub catalog is this repo’s `function-library/catalog.json`. Starters: `join_swedish` and `join_oxford` (FIRST Decision tables, not a `join_list` builtin). Contribute files a GitHub issue (description required; signup/login if unauthenticated). Agent index: `function-library/index.md`. Accepting contributions: `function-library/AGENTS.md`.
+_Avoid_: auto-merge contributions, `join_list` Mapping Expression builtin, Conversion script helpers
 
 **Mapping Spec Widget**:
 One projected row in the Mapping Spec tab: a compact, indented view of one semantic mapping (source path, map lookup, sheet lookup, literal, text generation, flattened condition, or container). Safe Blockly fields are editable in the row (paths, map keys, literals, compare operands, loop VAR/PATH, `text_code` LANG/TEXT). Wrappers that do not change mapping meaning (`xml_text`, `xml_cdata`, `DV_*` shells, unnamed maps) are omitted; their Blockly ids stay on the visible row. Download/Upload still round-trip the **full Blockly JSON document**.
@@ -298,7 +310,7 @@ Programmatic seam exposed as `window.intehrgratorTestApi` when the Web Shell is 
 _Avoid_: formTestApi (kintegrate name), Cypress-only harness
 
 **Workbench Agent API**:
-Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). The compiled / `deno run` entry accepts **`--headless`** (no browser / hidden native window), **`--load`**, **`--port` / `--bind`**, and **`--token`** (required when bind is not loopback). IDE agents and the stdio **MCP** server share the same tools: load target/schema/examples/**Example Set**, inspect slots/source/sheets/product stack, import suggestions, map-slot, Optional RM, Instance encoding, advisory **slot leases**, build-prompt, run-test, undo/redo, generate Conversion Script, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict; 409 also for a foreign slot lease). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
+Headless localhost HTTP surface on the **desktop app** (`/api/v1/*`), backed by **`WorkbenchService`** (Blockly JSON / Mapping Model / Project Bundle — no DOM). The compiled / `deno run` entry accepts **`--headless`** (no browser / hidden native window), **`--load`**, **`--port` / `--bind`**, and **`--token`** (required when bind is not loopback). IDE agents and the stdio **MCP** server share the same tools: load target/schema/examples/**Example Set** / **Function library**, inspect slots/source/sheets/product stack, import suggestions, map-slot, Optional RM, Instance encoding, advisory **slot leases**, build-prompt, run-test, undo/redo, generate Conversion Script, and bundle load/export. Mutations return a **session revision** token (`If-Match` / 409 on conflict; 409 also for a foreign slot lease). The open UI polls `/api/v1/snapshot` and reloads the bundle when revision changes. Disabled with `INTEHR_AGENT_API=0`. See `docs/AGENT_WORKFLOW.md`.
 _Avoid_: conflating with Workbench Test API, treating the GitHub Pages web shell as the Agent API host
 
 **Slot lease**:

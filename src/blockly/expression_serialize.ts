@@ -1,25 +1,37 @@
 import type { Block } from "blockly/core";
 import * as enMsg from "blockly/msg/en";
 import type { ExprAst } from "../core/expression/mod.ts";
-import { serialize } from "../core/expression/mod.ts";
+import { parseExpression, serialize } from "../core/expression/mod.ts";
 import { Blockly } from "./blockly_core.ts";
+import {
+  loopIndexBinderName,
+  loopLengthBinderName,
+} from "./loop_block.ts";
 import {
   createSourceQueryBlock,
   returnTypeFromSourceBlock,
   xpathEvaluatorForReturnType,
 } from "./source_query.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
-import { LOOP_INDEX_BLOCK, LOOP_LENGTH_BLOCK } from "./blocks/loop_accessor_blocks.ts";
+import { MAPS_CREATE_WITH } from "../core/defaults/extract.ts";
+import {
+  DECISION_TABLE_BLOCK,
+  registerDecisionTableBlocks,
+} from "./blocks/decision_table_blocks.ts";
+import { registerSheetBlocks, SHEET_LOOKUP } from "./blocks/sheet_blocks.ts";
 import {
   callToRestrictionOp,
   callToSetOp,
   currentItemName,
+  currentLoopItemName,
   DEFAULT_ITEM_NAME,
   isRestrictionCall,
   isSetCall,
   LISTS_SET_OPERATION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
   LOGIC_LIST_RESTRICTION_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   registerLogicBlocks,
   restrictionCount,
   restrictionItemName,
@@ -35,6 +47,26 @@ import {
 type BlockSvg = import("blockly/core").BlockSvg;
 type Workspace = import("blockly/core").Workspace;
 
+/**
+ * When Import Suggestions cannot plug a `maps_create_with` / Decision table into a
+ * typed DV mouth, the Mapping Expression is stored as the source-query path.
+ * Detect that so TypeScript export evaluates `map(...)` / `decision_table(...)`
+ * instead of sending the script to fontoxpath.
+ */
+function sourceQueryFieldExpression(expr: string, fn: string): string {
+  const trimmed = String(expr ?? "").trim();
+  if (!trimmed) return `${fn}(${JSON.stringify(expr)})`;
+  try {
+    const ast = parseExpression(trimmed);
+    if (ast.kind === "call" && !String(ast.name).startsWith("xpath")) {
+      return trimmed;
+    }
+  } catch {
+    /* authoring path, not a Mapping Expression */
+  }
+  return `${fn}(${JSON.stringify(expr)})`;
+}
+
 export function blockToExpression(block: Block | null): string | null {
   if (!block) return null;
 
@@ -45,7 +77,7 @@ export function blockToExpression(block: Block | null): string | null {
     case "source_query_node": {
       const expr = block.getFieldValue("EXPRESSION");
       const fn = xpathEvaluatorForReturnType(returnTypeFromSourceBlock(block));
-      return `${fn}(${JSON.stringify(expr)})`;
+      return sourceQueryFieldExpression(String(expr ?? ""), fn);
     }
     // Stock Blockly literals / ops
     case "text":
@@ -242,10 +274,10 @@ export function blockToExpression(block: Block | null): string | null {
     }
     case LOGIC_CURRENT_ITEM_BLOCK:
       return `var(${JSON.stringify(currentItemName(block))})`;
-    case LOOP_INDEX_BLOCK:
-      return "loop_index()";
-    case LOOP_LENGTH_BLOCK:
-      return "loop_length()";
+    case LOGIC_LOOP_INDEX_BLOCK:
+      return `var(${JSON.stringify(loopIndexBinderName(currentLoopItemName(block)))})`;
+    case LOGIC_LOOP_LENGTH_BLOCK:
+      return `var(${JSON.stringify(loopLengthBinderName(currentLoopItemName(block)))})`;
     case LISTS_SET_OPERATION_BLOCK: {
       const a = blockToExpression(block.getInputTargetBlock("A")) ?? "list()";
       const b = blockToExpression(block.getInputTargetBlock("B")) ?? "list()";
@@ -313,6 +345,56 @@ export function astToExpressionBlock(
         ? "node"
         : "string";
       return finalize(createSourceQueryBlock(workspace, xpath, ret));
+    }
+    if (ast.name === "map") {
+      registerMapBlocks();
+      const block = workspace.newBlock(MAPS_CREATE_WITH) as BlockSvg & {
+        itemCount_: number;
+        updateShape_: () => void;
+      };
+      const pairs = Math.floor(ast.args.length / 2);
+      block.itemCount_ = pairs;
+      block.updateShape_();
+      for (let i = 0; i < pairs; i++) {
+        const keyAst = ast.args[i * 2];
+        const valAst = ast.args[i * 2 + 1];
+        if (keyAst?.kind === "literal") {
+          block.setFieldValue(String(keyAst.value), `KEY${i}`);
+        }
+        if (valAst) {
+          const child = astToExpressionBlock(workspace, valAst, returnType, finalize);
+          block.getInput(`VAL${i}`)?.connection?.connect(child.outputConnection!);
+        }
+      }
+      return finalize(block);
+    }
+    if (ast.name === "decision_table") {
+      registerDecisionTableBlocks();
+      const block = workspace.newBlock(DECISION_TABLE_BLOCK) as BlockSvg;
+      const nameAst = ast.args[0];
+      const outputAst = ast.args[2];
+      if (nameAst?.kind === "literal") block.setFieldValue(String(nameAst.value), "NAME");
+      if (outputAst?.kind === "literal") block.setFieldValue(String(outputAst.value), "OUTPUT");
+      if (ast.args[1]) {
+        const inputs = astToExpressionBlock(workspace, ast.args[1], "string", finalize);
+        block.getInput("INPUTS")?.connection?.connect(inputs.outputConnection!);
+      }
+      return finalize(block);
+    }
+    if (ast.name === "sheet_lookup") {
+      registerSheetBlocks();
+      const block = workspace.newBlock(SHEET_LOOKUP) as BlockSvg;
+      const nameAst = ast.args[0];
+      if (nameAst?.kind === "literal") block.setFieldValue(String(nameAst.value), "NAME");
+      const plug = (input: string, arg: ExprAst | undefined) => {
+        if (!arg) return;
+        const child = astToExpressionBlock(workspace, arg, "string", finalize);
+        block.getInput(input)?.connection?.connect(child.outputConnection!);
+      };
+      plug("MATCH_COL", ast.args[1]);
+      plug("MATCH_VAL", ast.args[2]);
+      plug("RETURN_COL", ast.args[3]);
+      return finalize(block);
     }
     if (ast.name === "trim" && ast.args[0]) {
       const block = workspace.newBlock("text_trim") as BlockSvg;

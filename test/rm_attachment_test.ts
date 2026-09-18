@@ -1,3 +1,4 @@
+/** Catalog seam for optional RM attachments (not duplicated in Blockly RM tests). */
 import { assertEquals } from "@std/assert";
 import { getValidAttachments } from "@intehrgrator/core/rm_attachment_catalog.ts";
 

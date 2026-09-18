@@ -131,6 +131,14 @@ function normalizeDecisionColumns(
   return out;
 }
 
+/** Catalog `sheets` URI: a `SheetDocument` array, or a single document. */
+export function sheetsFromCatalogJson(raw: unknown): SheetDocument[] {
+  if (raw == null) return [];
+  if (Array.isArray(raw)) return normalizeSheets(raw);
+  if (typeof raw === "object") return normalizeSheets([raw]);
+  throw new Error("Catalog sheets JSON must be a Sheet document or an array of them");
+}
+
 export function normalizeSheets(raw: unknown): SheetDocument[] {
   if (raw == null) return [];
   if (!Array.isArray(raw)) throw new Error("Sheets must be an array");

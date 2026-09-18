@@ -37,6 +37,8 @@ import type { InstanceEncoding, MappingModel } from "../types/mod.ts";
 import {
   asStringExpr,
   createTsEmitContext,
+  emitCodePhraseLiteral,
+  codePhraseTerseSafe,
   emitTsExpressionSource,
   formatObjectLiteral,
   formatRmConstruct,
@@ -50,7 +52,7 @@ import {
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
-import { isLoopBlockType, sourcePathFromLoopList } from "./loop_block.ts";
+import { isLoopBlockType, loopIndexBinderName, loopLengthBinderName, sourcePathFromLoopList } from "./loop_block.ts";
 import { migrateForEachSourceState } from "./migrate_for_each_source.ts";
 import {
   INSTANCE_ENCODING_FIELD,
@@ -213,6 +215,7 @@ function emitFragmentPush(
     const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
     const sourcePath = sourcePathFromLoopList(block);
     const inner: string[] = [];
+    ctx.helpers.add("logic");
     if (sourcePath) {
       ctx.helpers.add("nodes");
       const innerCtx: TsEmitContext = { ...ctx, sourceVar: ident, loopVar: ident };
@@ -221,7 +224,7 @@ function emitFragmentPush(
         inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
         body = body.getNextBlock();
       }
-      return `for (const ${ident} of xpathNodes(${JSON.stringify(sourcePath)})) {\n${inner.join("\n")}\n}`;
+      return emitTsIndexedFor(name, ident, `xpathNodes(${JSON.stringify(sourcePath)})`, inner);
     }
     const listBlock = block.getInputTargetBlock("LIST");
     const list = listBlock ? emitBlock(listBlock, ctx, 0) : "[]";
@@ -231,7 +234,7 @@ function emitFragmentPush(
       inner.push(emitFragmentPush(body, innerCtx, extraImports, webTemplateJson));
       body = body.getNextBlock();
     }
-    return `for (const ${ident} of (Array.isArray(${list}) ? ${list} : [])) {\n${inner.join("\n")}\n}`;
+    return emitTsIndexedFor(name, ident, `(Array.isArray(${list}) ? ${list} : [])`, inner);
   }
   if (block.type === TEXT_DOCUMENT_BLOCK_TYPE) {
     const value = block.getInputTargetBlock("VALUE");
@@ -505,41 +508,47 @@ function emitStatementList(
   return `[\n${parts.join(",\n")},\n${"  ".repeat(indent + 1)}]`;
 }
 
+function emitTsLoopBind(name: string, ident: string): string {
+  return (
+    `__vars[${JSON.stringify(name)}] = ${ident}, ` +
+    `__vars[${JSON.stringify(loopIndexBinderName(name))}] = ${ident}_i, ` +
+    `__vars[${JSON.stringify(loopLengthBinderName(name))}] = ${ident}_col.length,`
+  );
+}
+
+function emitTsIndexedFor(
+  name: string,
+  ident: string,
+  collection: string,
+  inner: string[],
+): string {
+  const body = [emitTsLoopBind(name, ident), ...inner].filter(Boolean).join("\n");
+  return (
+    `{\nconst ${ident}_col = ${collection};\n` +
+    `for (let ${ident}_i = 0; ${ident}_i < ${ident}_col.length; ${ident}_i++) {\n` +
+    `const ${ident} = ${ident}_col[${ident}_i];\n` +
+    `${body}\n}\n}`
+  );
+}
+
 function emitForEachList(block: Block, ctx: TsEmitContext, indent: number): string {
   const name = String(block.getFieldValue("VAR") || "item");
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(name) ? name : "__item";
+  ctx.helpers.add("logic");
   const sourcePath = sourcePathFromLoopList(block);
+  const innerCtx: TsEmitContext = sourcePath
+    ? { ...ctx, sourceVar: ident, loopVar: ident }
+    : { ...ctx, loopVar: ident };
+  const bodyBlock = block.getInputTargetBlock("DO");
+  const body = bodyBlock ? emitBlock(bodyBlock, innerCtx, indent) : "null";
+  const bound = `(${emitTsLoopBind(name, ident)} ${body})`;
   if (sourcePath) {
     ctx.helpers.add("nodes");
-    const innerCtx: TsEmitContext = {
-      ...ctx,
-      sourceVar: ident,
-      loopVar: ident,
-    };
-    const bodyBlock = block.getInputTargetBlock("DO");
-    const body = bodyBlock
-      ? emitBlock(bodyBlock, innerCtx, indent)
-      : "null";
-    const nodesExpr = "xpathNodes(" + JSON.stringify(sourcePath) + ")";
-    return `...${nodesExpr}.map((${ident}, __loopIndex) => {\n` +
-      `${"  ".repeat(indent + 1)}const __loopLength = ${nodesExpr}.length;\n` +
-      `${"  ".repeat(indent + 1)}return ${body};\n` +
-      `${"  ".repeat(indent)}})`;
+    return `...xpathNodes(${JSON.stringify(sourcePath)}).map((${ident}, ${ident}_i, ${ident}_col) => ${bound})`;
   }
   const listBlock = block.getInputTargetBlock("LIST");
   const list = listBlock ? emitBlock(listBlock, ctx, indent) : "[]";
-  const innerCtx: TsEmitContext = {
-    ...ctx,
-    loopVar: ident,
-  };
-  const bodyBlock = block.getInputTargetBlock("DO");
-  const body = bodyBlock
-    ? emitBlock(bodyBlock, innerCtx, indent)
-    : "null";
-  return `...(Array.isArray(${list}) ? ${list} : []).map((${ident}, __loopIndex) => {\n` +
-    `${"  ".repeat(indent + 1)}const __loopLength = (${list}).length;\n` +
-    `${"  ".repeat(indent + 1)}return ${body};\n` +
-    `${"  ".repeat(indent)}})`;
+  return `...(Array.isArray(${list}) ? ${list} : []).map((${ident}, ${ident}_i, ${ident}_col) => ${bound})`;
 }
 
 function emitVariableSet(block: Block, ctx: TsEmitContext, indent: number): string {
@@ -567,6 +576,13 @@ function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
     if (!inputName) continue;
     const child = block.getInputTargetBlock(inputName);
     if (!child) continue;
+    // Scaffolded C_QUANTITY / C_CODED unit-or-value pickers are not mappings.
+    if (
+      (child.type === "lists_getIndex" || child.type === "lists_create_with") &&
+      (attr.name === "units" || attr.name === "units_display_name")
+    ) {
+      continue;
+    }
     if (child.isShadow()) {
       if (child.type === "math_number" || isEmptyShadow(child)) continue;
       const shadow = emitBlock(child, ctx, indent + 1);
@@ -609,11 +625,16 @@ function emitCodePhrase(block: Block, ctx: TsEmitContext, indent: number): strin
   const codeLit = stringLiteralValue(code);
   if (termLit !== null && codeLit !== null) {
     if (!codeLit) return "";
-    return JSON.stringify(`${termLit}::${codeLit}`);
+    return emitCodePhraseLiteral(termLit, codeLit);
   }
   if (termLit !== null) {
     if (isBlankGeneratedExpr(code) || isEmptyLiteral(code)) return "";
-    return "`" + escapeTemplate(termLit) + "::${String(" + code + ' ?? "")}`';
+    if (!codePhraseTerseSafe(termLit)) {
+      return `({ terminology_id: ${JSON.stringify(termLit)}, code_string: String(${code} ?? "") })`;
+    }
+    return "((c) => { const s = String(c ?? \"\").trim(); return s ? `" +
+      escapeTemplate(termLit) +
+      "::${s}` : undefined; })(" + code + ")";
   }
   if (isBlankGeneratedExpr(code) && isBlankGeneratedExpr(term)) return "";
   ctx.types.add("CODE_PHRASE");
@@ -633,7 +654,7 @@ function emitTermPick(block: Block, _ctx: TsEmitContext): string {
   if (set?.valueRmType === "DV_CODED_TEXT") {
     return JSON.stringify(`${terminology}::${code}|${rubric}|`);
   }
-  return JSON.stringify(`${terminology}::${code}`);
+  return emitCodePhraseLiteral(terminology, code);
 }
 
 function shouldEmitLocatableName(rmType: string, name: string): boolean {

@@ -18,6 +18,7 @@ import { collectValueSlots, collectRepeatableContainers, findSkeletonTrail, near
 import { validateExpressionSource } from "../expression/mod.ts";
 import { Validator, type Schema } from "@cfworker/json-schema";
 import { SUGGESTION_FORMAT_SCHEMA } from "./suggestion_schema.ts";
+import { loopIndexBinderName, loopLengthBinderName } from "../loop_binders.ts";
 import { jsonPointerToDotPath } from "./json_locate.ts";
 import type { SheetDocument } from "../sheets/mod.ts";
 
@@ -96,6 +97,8 @@ const VALUE_BLOCK_TYPES = new Set([
   "logic_negate",
   "logic_list_restriction",
   "logic_current_item",
+  "logic_loop_index",
+  "logic_loop_length",
   "lists_set_operation",
 ]);
 
@@ -377,7 +380,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
     }, null, 2),
     "```",
     "",
-    "**Repeating container** — put `for_each_list` in top-level `loops[]` (`source_query_node` in LIST for source nodes, or a list value for a computed collection); child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list). Optional RM Insertion uses `optional_rm_add` / `optional_rm_remove` tools, not this envelope.",
+    "**Repeating container** — put `for_each_list` in top-level `loops[]` (`source_query_node` in LIST for source nodes, or a list value for a computed collection); child slots use `loopVar` + relative `EXPRESSION` (see Repeatable containers list). Loop body reporters `logic_loop_index` / `logic_loop_length` serialize as `var(\"<item>_index\")` / `var(\"<item>_length\")` (0-based; length fixed at loop entry). Grammatical list join (Swedish *och* / Oxford comma) is a 1-arg Blockly Function that loops, appends a FIRST Decision-table snippet, and is called from the slot — not a `join_list` builtin. Optional RM Insertion uses `optional_rm_add` / `optional_rm_remove` tools, not this envelope.",
     "",
     "## Instruction",
     "Return exactly one `intehrgrator-suggestions` fenced JSON block. Copy each `slotId` from the slot manifest. Prefer `source_query*` blocks with fontoxpath in `EXPRESSION`. Use a **Decision table** (`decision_table` + `kind: \"decision-table\"` sheet) when several independent inputs, don't-care cells, or FIRST/UNIQUE/COLLECT hit policies make the mapping more readable to humans than nested `if`. Use `sheet_lookup` for 1-key terminology and code translation (named Sheet). Use `maps_get` / `maps_create_with` for Defaults Map keys. Scaffold often wires Defaults Map slots — omit those only when the source has no value; when source data exists for time, healthcare facility, composer, or similar, map from source (source takes precedence over defaults). For repeating `multiplicity` (`0..*` / `1..*`), emit `loops` with `for_each_list` (`source_query_node` in LIST, or a list-valued collection) and child suggestions with matching `loopVar` + relative `EXPRESSION` (do not join onto PATH). Do not map source quantities onto ordinal/score fields unless the source is already that score. Leave unmatched slots out rather than inventing a mapping.",
@@ -1353,6 +1356,14 @@ function blockJsonToExpression(
     }
     case "logic_current_item":
       return `var(${JSON.stringify(String(fields.VAR || "item"))})`;
+    case "logic_loop_index": {
+      const loopItem = String(fields.VAR || "item") || "item";
+      return `var(${JSON.stringify(loopIndexBinderName(loopItem))})`;
+    }
+    case "logic_loop_length": {
+      const loopItem = String(fields.VAR || "item") || "item";
+      return `var(${JSON.stringify(loopLengthBinderName(loopItem))})`;
+    }
     case "lists_set_operation": {
       const a = child("A") ? blockJsonToExpression(child("A")!, rewriteSourcePath) : "list()";
       const b = child("B") ? blockJsonToExpression(child("B")!, rewriteSourcePath) : "list()";

@@ -1,5 +1,6 @@
 export {
   blocklyJsonDocument,
+  blocklyJsonDocumentForRoot,
   projectBlocklyState,
   slotAttributeFromInputName,
   type BlocklyJsonDocument,
@@ -12,6 +13,15 @@ export {
 } from "./project.ts";
 
 export {
+  blocksEligibleForBulkMark,
+  deleteMarkedSpecBlocks,
+  isOptionalUnmappedScaffoldBlock,
+  pruneCheckedBlockIds,
+  specRowBlockIdsEligibleForBulkMark,
+  topLevelBlockIds,
+} from "./bulk_actions.ts";
+
+export {
   createMappingSpecEditor,
   mappingSpecDocumentText,
   setMappingSpecFromBlockly,
@@ -20,6 +30,7 @@ export {
   type MappingSpecEditorOptions,
   type SpecFieldEditHandler,
   type SpecBlockSelectHandler,
+  type SpecBlockCheckHandler,
   type SpecChrome,
 } from "./editor.ts";
 

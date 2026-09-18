@@ -21,6 +21,8 @@ export type SpecFieldEditHandler = (
 
 export type SpecBlockSelectHandler = (blockId: string) => void;
 
+export type SpecBlockCheckHandler = (blockId: string, checked: boolean) => void;
+
 /** Block-level widget that replaces one projected Spec line. */
 export class MappingSpecWidget extends WidgetType {
   constructor(
@@ -29,6 +31,8 @@ export class MappingSpecWidget extends WidgetType {
     readonly onSelect?: SpecBlockSelectHandler,
     readonly warning: string | null = null,
     readonly selected = false,
+    readonly checked = false,
+    readonly onCheckToggle?: SpecBlockCheckHandler,
   ) {
     super();
   }
@@ -62,7 +66,8 @@ export class MappingSpecWidget extends WidgetType {
       JSON.stringify(this.line.aliasIds) === JSON.stringify(other.line.aliasIds) &&
       JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
       this.warning === other.warning &&
-      this.selected === other.selected
+      this.selected === other.selected &&
+      this.checked === other.checked
     );
   }
 
@@ -86,11 +91,25 @@ export class MappingSpecWidget extends WidgetType {
     row.className = `spec-widget spec-widget--${this.line.kind}`;
     if (this.line.editKind === "code") row.classList.add("spec-widget--multiline");
     if (this.selected) row.classList.add("spec-widget--selected");
+    if (this.checked) row.classList.add("spec-widget--checked");
     row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
     if (this.line.blockId) row.dataset.blockId = this.line.blockId;
     if (this.warning) {
       row.title = this.warning;
       row.dataset.warning = "1";
+    }
+
+    if (this.line.blockId) {
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "spec-widget-checkbox";
+      checkbox.checked = this.checked;
+      checkbox.setAttribute("aria-label", "Select row for bulk action");
+      checkbox.addEventListener("mousedown", (event) => event.stopPropagation());
+      checkbox.addEventListener("change", () => {
+        this.onCheckToggle?.(this.line.blockId!, checkbox.checked);
+      });
+      row.appendChild(checkbox);
     }
 
     if (this.warning) {
@@ -164,7 +183,7 @@ export class MappingSpecWidget extends WidgetType {
         const target = event.target;
         if (
           target instanceof Element &&
-          target.closest("input, select, textarea, button, .info-tip, .info-tip-balloon")
+          target.closest("input, select, textarea, button, .info-tip, .info-tip-balloon, .spec-widget-checkbox")
         ) {
           return;
         }

@@ -44,8 +44,12 @@ Pick the skill that matches the task:
 | `prototype` | Throwaway design validation |
 | `grilling` | Stress-testing a plan or decision |
 
-Project-specific: `intehrgrator-mapping` for desktop Agent API / MCP mapping work;
+Project-specific: `intehrgrator-mapping` for desktop Agent API / MCP mapping work
+(Function library: [`function-library/index.md`](function-library/index.md);
+when a contribution issue is accepted, [`function-library/AGENTS.md`](function-library/AGENTS.md));
 `convert-mappings` when translating an existing mapping (Go `text/template`, Handlebars, TypeScript, …) into intEHRgrator Blockly / `intehrgrator-suggestions`.
+
+**Tests.** When adding, changing, or reviewing tests, read [docs/TESTING.md](docs/TESTING.md) first: pick the existing seam (unit, WorkbenchController, Playwright UI, or Agent/MCP), keep the UI green-path covering major authoring steps, and skip cloning an assertion onto a second layer unless that layer can miss a real bug.
 
 For specs and design documents, use `docs/prd/` and `docs/design/`.
 Planning lives in **GitHub Issues** ([docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)).
@@ -84,6 +88,9 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
   [BaseX](https://basex.org) on `PATH` (Java 21 is already present). See
   `docs/agents/xquery-engine.md` for install/bind hints (`parse-json` for JSON
   Example Instances; `BASEX_CMD` override).
+- Playwright UI tests (`deno task test:ui`) need Chromium
+  (`npx playwright@1.51.0 install chromium`). CI runs them on pull requests and
+  releases; see [docs/TESTING.md](docs/TESTING.md).
 
 ## Agent skills
 

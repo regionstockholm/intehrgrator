@@ -11,14 +11,20 @@ import { inputAlignLeft, inputAlignRight, enforceMouthCaptionLayout } from "../m
 
 const LOGIC_COLOUR = "#D1C4E9";
 const LIST_COLOUR = "#4DB6AC";
+/** Match for_each_list / Loops & Logic family (#150). */
+const LOOP_COLOUR = "#A5D6A7";
 
 export const LOGIC_LIST_RESTRICTION_BLOCK = "logic_list_restriction";
 export const LOGIC_CURRENT_ITEM_BLOCK = "logic_current_item";
+export const LOGIC_LOOP_INDEX_BLOCK = "logic_loop_index";
+export const LOGIC_LOOP_LENGTH_BLOCK = "logic_loop_length";
 export const LISTS_SET_OPERATION_BLOCK = "lists_set_operation";
 
 export const LIST_LOGIC_BLOCK_TYPES = [
   LOGIC_LIST_RESTRICTION_BLOCK,
   LOGIC_CURRENT_ITEM_BLOCK,
+  LOGIC_LOOP_INDEX_BLOCK,
+  LOGIC_LOOP_LENGTH_BLOCK,
   LISTS_SET_OPERATION_BLOCK,
 ] as const;
 
@@ -292,9 +298,35 @@ export function registerLogicBlocks(): void {
       appendBlockOutputGlyph(header, "Boolean");
       header.appendField(new FieldItemDropdown(currentItemOptions), "VAR");
       this.setOutput(true, "Boolean");
-      this.setColour(LOGIC_COLOUR);
+      this.setColour(LOOP_COLOUR);
       this.setTooltip(m.LOGIC_CURRENT_ITEM_TOOLTIP);
-      this.setStyle?.("logic_blocks");
+      this.setStyle?.("loop_blocks");
+    },
+  };
+
+  Blockly.Blocks[LOGIC_LOOP_INDEX_BLOCK] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, "Number");
+      header.appendField(new FieldItemDropdown(loopBinderOptions(m.LOGIC_LOOP_INDEX)), "VAR");
+      this.setOutput(true, "Number");
+      this.setColour(LOOP_COLOUR);
+      this.setTooltip(m.LOGIC_LOOP_INDEX_TOOLTIP);
+      this.setStyle?.("loop_blocks");
+      this.setInputsInline(true);
+    },
+  };
+
+  Blockly.Blocks[LOGIC_LOOP_LENGTH_BLOCK] = {
+    init: function (this: Blockly.Block) {
+      const header = this.appendDummyInput("HEADER").setAlign(inputAlignLeft());
+      appendBlockOutputGlyph(header, "Number");
+      header.appendField(new FieldItemDropdown(loopBinderOptions(m.LOGIC_LOOP_LENGTH)), "VAR");
+      this.setOutput(true, "Number");
+      this.setColour(LOOP_COLOUR);
+      this.setTooltip(m.LOGIC_LOOP_LENGTH_TOOLTIP);
+      this.setStyle?.("loop_blocks");
+      this.setInputsInline(true);
     },
   };
 
@@ -450,6 +482,21 @@ export function currentItemName(block: Blockly.Block): string {
   return enclosingItemNames(block)[0] ?? DEFAULT_ITEM_NAME;
 }
 
+/** Item names of enclosing `for_each_list` binders, innermost first. */
+export function enclosingLoopNames(block: Blockly.Block | null): string[] {
+  const names = enclosingBinders(block)
+    .filter((binder) => binder.type === "for_each_list")
+    .map(binderItemName);
+  return names.filter((name, index) => names.indexOf(name) === index);
+}
+
+/** The loop item whose index/length a loop-local reporter reads. */
+export function currentLoopItemName(block: Blockly.Block): string {
+  const chosen = String(block.getFieldValue("VAR") ?? NEAREST_ITEM);
+  if (chosen !== NEAREST_ITEM) return chosen;
+  return enclosingLoopNames(block)[0] ?? DEFAULT_ITEM_NAME;
+}
+
 /** "this item" plus any outer item names, so nested restrictions stay reachable. */
 // deno-lint-ignore no-explicit-any
 function currentItemOptions(this: any): Array<[string, string]> {
@@ -464,4 +511,21 @@ function currentItemOptions(this: any): Array<[string, string]> {
     options.push([current, current]);
   }
   return options;
+}
+
+/** Nearest enclosing for_each_list, plus outer loop item names when nested. */
+function loopBinderOptions(nearestLabel: string) {
+  // deno-lint-ignore no-explicit-any
+  return function (this: any): Array<[string, string]> {
+    const options: Array<[string, string]> = [[nearestLabel, NEAREST_ITEM]];
+    const block = this?.getSourceBlock?.() as Blockly.Block | null;
+    for (const name of enclosingLoopNames(block).slice(1)) {
+      options.push([name, name]);
+    }
+    const current = String(this?.getValue?.() ?? NEAREST_ITEM);
+    if (current !== NEAREST_ITEM && !options.some(([, value]) => value === current)) {
+      options.push([current, current]);
+    }
+    return options;
+  };
 }

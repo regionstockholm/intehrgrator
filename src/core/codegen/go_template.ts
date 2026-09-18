@@ -824,10 +824,6 @@ export function emitGoExpr(ast: ExprAst, ctx: GoEmitContext = createGoEmitContex
           return args[0] ?? '""';
         case "var":
           return `.`;
-        case "loop_index":
-          return `$index`;
-        case "loop_length":
-          return `len .`;
         case "eq":
           return `eq (${args[0]}) (${args[1]})`;
         case "ne":

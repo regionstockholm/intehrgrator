@@ -28,6 +28,33 @@ Deno.test("target format handlers cover structured and free-form outputs", () =>
   assertEquals(detectTargetFormat("summary.hbs", ""), "free-form");
 });
 
+Deno.test("JSON Schema target skeleton inlines $defs $ref children", () => {
+  const schema = JSON.stringify({
+    $id: "bundle",
+    title: "Bundle",
+    type: "object",
+    properties: {
+      items: {
+        type: "array",
+        items: { $ref: "#/$defs/Item" },
+      },
+    },
+    $defs: {
+      Item: {
+        type: "object",
+        properties: { sku: { type: "string" } },
+      },
+    },
+  });
+  const target = getTargetFormatHandler("json-schema").load("bundle.json", schema);
+  const sku = target.skeleton[0]?.children
+    .find((node) => node.label === "items")
+    ?.children[0]
+    ?.children.find((node) => node.label === "sku");
+  assert(sku, "expected sku target slot from $defs Item");
+  assertEquals(sku.targetPath, "$.items[*].sku");
+});
+
 Deno.test("JSON Schema target produces mappable tree and object output", () => {
   const schema = JSON.stringify({
     $id: "patient-summary",

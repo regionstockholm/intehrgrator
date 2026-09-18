@@ -184,6 +184,8 @@ export {
 } from "./grammatical_join.ts";
 export { installFunctionLibraryMenus, registerFunctionLibraryMenus } from "./function_library_menu.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
+export { installCollapsedPreview } from "./field_collapsed_preview.ts";
+export { collapsedHtmlForBlock, shortArchetypeLabel } from "./collapsed_preview.ts";
 export {
   generateTypeScriptFromBlocklyState,
   generateTypeScriptFromWorkspace,
@@ -196,6 +198,7 @@ export {
 } from "./go_template_codegen.ts";
 
 import { registerConversionStartBlock } from "./instance_root.ts";
+import { installCollapsedPreview } from "./field_collapsed_preview.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -211,6 +214,7 @@ export function initBlocklyGenerators(): void {
   registerGenerators();
   registerTypeScriptExportAdapter();
   registerGoTemplateExportAdapter();
+  installCollapsedPreview();
 }
 
 function registerGenerators(): void {

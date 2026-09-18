@@ -1290,6 +1290,76 @@ body.sheets-fullscreen::before {
 .load-project-item-kind { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
 .load-project-empty { font-size: 13px; color: var(--text-secondary); padding: 8px 0; }
 
+/* Collapsed Blockly ZipEHR / generic HTML preview (#101). */
+.blockly-collapsed-preview-host {
+  display: inline-block;
+  width: max-content;
+  max-width: 1200px;
+  overflow: hidden;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  color: #202124;
+  white-space: nowrap;
+  pointer-events: all;
+}
+.collapsed-preview {
+  display: inline;
+}
+.collapsed-preview .collapsed-node,
+.collapsed-preview .collapsed-leaf {
+  display: inline-block;
+  padding: 0 0.18em;
+  margin: 0 0.04em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--collapsed-colour, #c5c8ce) 42%, white);
+  vertical-align: middle;
+}
+.collapsed-preview .collapsed-node::before,
+.collapsed-preview .collapsed-leaf::before {
+  content: attr(data-glyph) " ";
+}
+.collapsed-preview .collapsed-node.collapsed-hover,
+.collapsed-preview .collapsed-leaf.collapsed-hover {
+  outline: 2px solid rgba(32, 33, 36, 0.78);
+  outline-offset: 1px;
+}
+.collapsed-preview .collapsed-mapping {
+  display: inline;
+  padding: 0 0.22em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--collapsed-colour, #e87722) 48%, white);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+.collapsed-preview .collapsed-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 0.9em;
+  margin-inline-end: 0.12em;
+  border-radius: 1px;
+  background: #ffeb3b;
+  clip-path: polygon(50% 6%, 100% 94%, 0 94%);
+  font-size: 8px;
+  font-weight: 700;
+  color: #3e2723;
+  vertical-align: middle;
+}
+.blockly-collapsed-tip {
+  position: fixed;
+  z-index: 10001;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #202124;
+  color: #fff;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  white-space: pre-line;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  display: none;
+}
+
 @media (max-width: 1100px) {
   .panes {
     height: calc(100vh - 88px);

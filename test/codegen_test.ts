@@ -9,9 +9,13 @@ import {
   compileLoopSequence,
   emitJavaExpression,
   createJavaEmitContext,
+  createTsEmitContext,
+  emitTsExpression,
 } from "@intehrgrator/core/codegen/mod.ts";
 import { upsertLoop } from "@intehrgrator/core/mapping_model/mod.ts";
 import { parseExpression } from "@intehrgrator/core/expression/mod.ts";
+import { emitCodePhraseLiteral } from "@intehrgrator/core/codegen/typescript.ts";
+import { CODE_PHRASE } from "ehrtslib/openehr_rm.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 import {
   runGeneratedTypeScript,
@@ -679,6 +683,89 @@ Deno.test("stripGeneratedTypeScript removes default Handlebars import", () => {
   );
   assertEquals(names.includes("Handlebars"), true);
   assertEquals(body.includes("import"), false);
+});
+
+Deno.test("stripGeneratedTypeScript drops optional params and object type annotations", () => {
+  const { body } = stripGeneratedTypeScript(`
+export function convertSourceToComposition(
+  sheets: Record<string, unknown> = {},
+) {
+  function sheetLookup(name: string, returnCol?: string | number) {
+    const rec: Record<string, unknown> = {};
+    const holds = (p: { op: string; a: number; b?: number }, n: number) => n;
+    return (cmp[1] as string) + String(rec) + holds({ op: "range", a: 1 }, 1);
+  }
+  const walk = (cur: unknown, rest: unknown[]): unknown => cur;
+  return walk(sheets, []);
+}
+`);
+  assertEquals(body.includes("?:"), false, body);
+  assertEquals(body.includes(" as string"), false, body);
+  assertEquals(body.includes("Record<"), false, body);
+  assertEquals(/:\s*unknown/.test(body), false, body);
+  const convert = new Function(`${body}\nreturn convertSourceToComposition;`)();
+  assertEquals(typeof convert, "function");
+});
+
+Deno.test("stripGeneratedTypeScript keeps composer object-literal properties", () => {
+  const { body } = stripGeneratedTypeScript(`
+export function convertSourceToComposition() {
+  return new COMPOSITION({
+    composer: { name: xpathString("$.SignatureUser_FullName") },
+    language: "sv",
+  });
+}
+`);
+  assertEquals(body.includes("composer: { name: xpathString"), true, body);
+  assertEquals(body.includes("composer,"), false, body);
+});
+
+Deno.test("TypeScript Test Run xpath helpers coerce non-string paths", () => {
+  const out = runGeneratedTypeScript(
+    `
+export function convertSourceToComposition() {
+  function jsonQuery(path: unknown): string {
+    const trimmed = String(path ?? "").trim();
+    return trimmed;
+  }
+  function xpathString(path: unknown): string {
+    const p = typeof path === "string" ? path : String(path ?? "");
+    return p;
+  }
+  return xpathString(["Cel", "[degF]"]);
+}
+`,
+    { format: "json", data: {} },
+  );
+  assertEquals(out, "Cel,[degF]");
+});
+
+Deno.test("typescript codegen emits lists_getIndex as array access, not xpathString", () => {
+  const ctx = createTsEmitContext();
+  const src = emitTsExpression(
+    parseExpression('lists_getIndex(list("Cel", "[degF]"), "FROM_START", 1)'),
+    ctx,
+  );
+  assertEquals(src.includes("xpathString"), false, src);
+  assertStringIncludes(src, "listGetIndex");
+  assertStringIncludes(src, '"Cel"');
+  assertEquals(ctx.helpers.has("logic"), true);
+});
+
+Deno.test("emitCodePhraseLiteral uses object form for SNOMED URL terminology ids", () => {
+  assertEquals(emitCodePhraseLiteral("openehr", "433"), '"openehr::433"');
+  const snomed = "http://snomed.info/sct/900000000000207008";
+  const emitted = emitCodePhraseLiteral(snomed, "43741000");
+  assertEquals(
+    emitted,
+    `{ terminology_id: "http://snomed.info/sct/900000000000207008", code_string: "43741000" }`,
+  );
+  const phrase = new Function(
+    "CODE_PHRASE",
+    `return new CODE_PHRASE(${emitted});`,
+  )(CODE_PHRASE) as { code_string?: string; terminology_id?: { value?: string } };
+  assertEquals(phrase.code_string, "43741000");
+  assertEquals(phrase.terminology_id?.value, snomed);
 });
 
 Deno.test("TypeScript Output mode executes handlebars text block canvas mapping", () => {

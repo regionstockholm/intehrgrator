@@ -27,6 +27,10 @@ export function isConversionScriptLanguage(
   return (CONVERSION_SCRIPT_LANGUAGES as readonly string[]).includes(value);
 }
 
+export function isOutputMode(value: string): value is OutputMode {
+  return value === "preview" || isConversionScriptLanguage(value);
+}
+
 export function conversionScriptLanguageLabel(
   language: ConversionScriptLanguage,
 ): string {

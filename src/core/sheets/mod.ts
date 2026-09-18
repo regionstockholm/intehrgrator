@@ -29,6 +29,7 @@ export {
   insertRow,
   normalizeSheet,
   normalizeSheets,
+  sheetsFromCatalogJson,
   setCellA1,
   setColumn,
   setData,

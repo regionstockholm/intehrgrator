@@ -27,6 +27,7 @@ function relativeAssetRefs(
     source?: { schema?: string; instances?: string[] };
     target?: string;
     mapping?: string;
+    sheets?: string;
     defaults?: string;
   },
 ): Array<{ role: string; ref: string }> {
@@ -37,6 +38,7 @@ function relativeAssetRefs(
   }
   if (set.target) out.push({ role: "target", ref: set.target });
   if (set.mapping) out.push({ role: "mapping", ref: set.mapping });
+  if (set.sheets) out.push({ role: "sheets", ref: set.sheets });
   if (set.defaults) out.push({ role: "defaults", ref: set.defaults });
   return out;
 }
@@ -86,6 +88,24 @@ async function stubbedCatalogFiles(): Promise<Record<string, { name: string; tex
     "dummy-json-vitals/target.schema.json",
     "dummy-json-vitals/mapping.blockly.json",
     "dummy-json-vitals/defaults.map.json",
+    "legacy-simulated-json/bp-schema.json",
+    "legacy-simulated-json/instances/bp-inst.json",
+    "legacy-simulated-json/instances/bp-inst-2.json",
+    "legacy-simulated-json/instances/bp-inst-3-invalid.json",
+    "legacy-simulated-json/mapping/simple-vitals.blockly.json",
+    "legacy-simulated-json/mapping/simple-vitals.sheets.json",
+    "legacy-simulated-json/bp-series-schema.json",
+    "legacy-simulated-json/instances-series/bp-series-inst.json",
+    "legacy-simulated-json/instances-series/bp-series-inst-2.json",
+    "legacy-simulated-json/instances-series/bp-series-inst-3-invalid.json",
+    "legacy-simulated-json/mapping/bp-series.blockly.json",
+    "legacy-simulated-json/mapping/bp-series.sheets.json",
+    "Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
+    "Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
+    "Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
+    "Obstetrix-MHV1/source-instance/3-komplex-mhv3.json",
+    "Obstetrix-MHV1/mapping/mapping.blockly.json",
+    "Obstetrix-MHV1/mapping/mapping.sheets.json",
     "patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
     "patient-reported-chemotherapy-symptoms/defaults.map.json",
     "patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
@@ -96,6 +116,20 @@ async function stubbedCatalogFiles(): Promise<Record<string, { name: string; tex
     "TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
     "lung-MDT-form/mapping/mapping.blockly.json",
     "lung-MDT-form/defaults.map.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-schema/OrdinationRCCV1_source_schema.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-example_source_used_for_mapping.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-A-source-example.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-B-source-example.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-C-source-example.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-D-source-example.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-E-source-example.json",
+    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-PRÖV-läkemedel-source-example.json",
+    "ordinerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json",
+    "ordinerad-medicinsk-onkologisk-behandling/mapping/mapping.sheets.json",
+    "administrerad-medicinsk-onkologisk-behandling/source-schema/AdministrationRCCV1_source_schema.avsc",
+    "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-example_source_used_for_mapping.json",
+    "administrerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json",
+    "administrerad-medicinsk-onkologisk-behandling/mapping/mapping.sheets.json",
   ];
   for (const part of parts) {
     const url = fixtureUrl(part);
@@ -112,6 +146,7 @@ Deno.test("example-sets.json relative asset URIs resolve to existing repo files"
       source?: { schema?: string; instances?: string[] };
       target?: string;
       mapping?: string;
+      sheets?: string;
       defaults?: string;
     }>;
   };
@@ -134,7 +169,7 @@ Deno.test("example-sets.json relative asset URIs resolve to existing repo files"
 Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the catalog URL", async () => {
   const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 8);
+  assertEquals(catalog.sets.length, 9);
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
@@ -153,11 +188,38 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
     mapped.defaults,
     `${localFixtures}dummy-json-vitals/defaults.map.json`,
   );
+  const simpleVitals = catalog.sets.find((set) => set.id === "Simple-vitals");
+  if (!simpleVitals) throw new Error("expected Simple-vitals example set");
+  assertEquals(
+    simpleVitals.mapping,
+    `${localFixtures}legacy-simulated-json/mapping/simple-vitals.blockly.json`,
+  );
+  assertEquals(
+    simpleVitals.sheets,
+    `${localFixtures}legacy-simulated-json/mapping/simple-vitals.sheets.json`,
+  );
+  const series = catalog.sets.find((set) => set.id === "Simple-vitals-series");
+  if (!series) throw new Error("expected Simple-vitals-series example set");
+  assertEquals(series.source.instances.length, 3);
+  assertEquals(
+    series.mapping,
+    `${localFixtures}legacy-simulated-json/mapping/bp-series.blockly.json`,
+  );
+  assertEquals(
+    series.sheets,
+    `${localFixtures}legacy-simulated-json/mapping/bp-series.sheets.json`,
+  );
   const obx = catalog.sets.find((set) => set.id === "obx-mhv1-unmapped-json-to-openehr");
   if (!obx) throw new Error("expected OBX MHV1 example set");
-  assertEquals(obx.title, "OBX MHV1, unmapped, JSON --> openEHR");
-  assertEquals(obx.mapping, undefined);
-  assertEquals(obx.defaults, undefined);
+  assertEquals(obx.title, "OBX MHV1, JSON --> openEHR");
+  assertEquals(
+    obx.mapping,
+    `${localFixtures}Obstetrix-MHV1/mapping/mapping.blockly.json`,
+  );
+  assertEquals(
+    obx.sheets,
+    `${localFixtures}Obstetrix-MHV1/mapping/mapping.sheets.json`,
+  );
   assertEquals(
     obx.source.schema,
     `${localFixtures}Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json`,
@@ -170,6 +232,18 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
   assertEquals(
     obx.target,
     "https://raw.githubusercontent.com/regionstockholm/CKM-mirror-via-modellbibliotek/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json",
+  );
+  const kardaOrd = catalog.sets.find((set) => set.id === "karda-ordinationsdata-to-openehr-flat");
+  if (!kardaOrd) throw new Error("expected karda ordination example set");
+  assertEquals(
+    kardaOrd.mapping,
+    `${localFixtures}ordinerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json`,
+  );
+  const kardaAdmin = catalog.sets.find((set) => set.id === "karda-administreringsdata-to-openehr-flat");
+  if (!kardaAdmin) throw new Error("expected karda administration example set");
+  assertEquals(
+    kardaAdmin.mapping,
+    `${localFixtures}administrerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json`,
   );
   const chemo = catalog.sets.find((set) => set.id === "chemo-symptoms-flat-to-tc-xml");
   if (!chemo) throw new Error("expected chemo example set");

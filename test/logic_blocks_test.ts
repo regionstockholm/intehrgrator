@@ -369,3 +369,32 @@ Deno.test("lists_create_with of non-expression children does not fake list(false
   assertEquals(blockToExpression(list), null);
   workspace.dispose();
 });
+
+Deno.test("map and decision_table expressions hydrate to Blockly blocks, not source_query", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const mapExpr = 'map("position", xpathString("$.bodyPosition"))';
+  const mapBlock = astToExpressionBlock(
+    workspace,
+    parseExpression(mapExpr),
+    "string",
+    (block) => block,
+  );
+  assertEquals(mapBlock.type, "maps_create_with");
+  assertEquals(mapBlock.getFieldValue("KEY0"), "position");
+  assertEquals(blockToExpression(mapBlock), mapExpr);
+
+  const dtExpr =
+    'decision_table("body_position", map("position", xpathString("$.bodyPosition")), "label")';
+  const dtBlock = astToExpressionBlock(
+    workspace,
+    parseExpression(dtExpr),
+    "string",
+    (block) => block,
+  );
+  assertEquals(dtBlock.type, "decision_table");
+  assertEquals(dtBlock.getFieldValue("NAME"), "body_position");
+  assertEquals(dtBlock.getFieldValue("OUTPUT"), "label");
+  assertEquals(blockToExpression(dtBlock), dtExpr);
+  workspace.dispose();
+});

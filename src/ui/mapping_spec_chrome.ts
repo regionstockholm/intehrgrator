@@ -101,7 +101,13 @@ export function installSpecLayoutMenu(options: {
   menu: HTMLElement;
   onLayout: (layout: SpecRootLayout) => void;
 }): AnchoredMenuHandle {
-  let handle: AnchoredMenuHandle;
+  const handle = installAnchoredMenu({
+    menu: options.menu,
+    trigger: options.chevron,
+    roots: [options.main],
+    referenceEls: [options.main, options.chevron],
+    minWidth: options.main.parentElement ?? options.chevron,
+  });
   for (const item of options.menu.querySelectorAll<HTMLButtonElement>("[data-spec-layout]")) {
     item.classList.add("split-btn-menu-item");
     item.addEventListener("click", () => {
@@ -111,12 +117,5 @@ export function installSpecLayoutMenu(options: {
       options.onLayout(layout);
     });
   }
-  handle = installAnchoredMenu({
-    menu: options.menu,
-    trigger: options.chevron,
-    roots: [options.main],
-    referenceEls: [options.main, options.chevron],
-    minWidth: options.main.parentElement ?? options.chevron,
-  });
   return handle;
 }

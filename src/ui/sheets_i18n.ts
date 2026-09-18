@@ -29,7 +29,7 @@ export interface SheetsChrome {
 
 const CHROME: Record<IntehrLocale, SheetsChrome> = {
   en: {
-    tab: "Sheets",
+    tab: "Tables & Sheets",
     add: "Add sheet",
     addDecision: "Add decision table",
     addCondition: "Add condition",
@@ -55,7 +55,7 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     collectDedupe: "COLLECT dedupe",
   },
   sv: {
-    tab: "Kalkylblad",
+    tab: "Tabeller & kalkylblad",
     add: "Nytt blad",
     addDecision: "Ny beslutstabell",
     addCondition: "Nytt villkor",
@@ -81,7 +81,7 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     collectDedupe: "COLLECT-deduplicering",
   },
   de: {
-    tab: "Tabellen",
+    tab: "Tabellen & Blätter",
     add: "Blatt hinzufügen",
     addDecision: "Entscheidungstabelle",
     addCondition: "Bedingung",
@@ -107,7 +107,7 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     collectDedupe: "COLLECT-Deduplizierung",
   },
   es: {
-    tab: "Hojas",
+    tab: "Tablas y hojas",
     add: "Añadir hoja",
     addDecision: "Tabla de decisión",
     addCondition: "Añadir condición",
@@ -133,7 +133,7 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     collectDedupe: "COLLECT sin duplicados",
   },
   ca: {
-    tab: "Fulls",
+    tab: "Taules i fulls",
     add: "Afegeix full",
     addDecision: "Taula de decisió",
     addCondition: "Afegeix condició",
@@ -159,7 +159,7 @@ const CHROME: Record<IntehrLocale, SheetsChrome> = {
     collectDedupe: "COLLECT sense duplicats",
   },
   fr: {
-    tab: "Feuilles",
+    tab: "Tableaux et feuilles",
     add: "Ajouter une feuille",
     addDecision: "Table de décision",
     addCondition: "Ajouter une condition",

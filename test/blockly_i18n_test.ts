@@ -26,4 +26,7 @@ Deno.test("custom messages localize Source and Loops & Logic", () => {
   assertEquals(msg("en").LOGIC_ALL, "all");
   assertEquals(msg("sv").LOGIC_MATCH, "matchar");
   assertEquals(msg("de").LOGIC_SET_CONN_NOT_IN, "aber nicht in");
+  assertEquals(msg("en").CAT_SHEETS, "Tables & Sheets");
+  assertEquals(msg("en").LOOP_INDEX, "index");
+  assertEquals(msg("en").LOOP_LENGTH, "length");
 });

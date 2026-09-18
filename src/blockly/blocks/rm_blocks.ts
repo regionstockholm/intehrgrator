@@ -75,6 +75,20 @@ export const ITEM_STRUCTURE_KIND_OPTIONS: Array<[string, string]> = [
 ];
 
 export const OPTIONAL_INPUT_PREFIX = "OPT_";
+
+/** ENTRY metadata mouths scaffolded last and collapsed by default (issue #150). */
+export const ENTRY_TAIL_ATTRS = ["language", "encoding", "subject"] as const;
+
+export function sortEntryTailExtras(names: string[]): string[] {
+  const tail = ENTRY_TAIL_ATTRS.filter((name) => names.includes(name));
+  const rest = names.filter((name) => !(ENTRY_TAIL_ATTRS as readonly string[]).includes(name));
+  return [...rest, ...tail];
+}
+
+export function isEntryFamilyRmType(rmType: string): boolean {
+  const upper = rmType.toUpperCase();
+  return upper === "ENTRY" || mandatoryAttributesFor(upper).includes("subject");
+}
 const OPTIONAL_DV_FIELD_PREFIX = "OPTFLD_";
 export const RM_ATTR_INPUT_PREFIX = "ATTR_";
 export const DV_FIELD_PREFIX = "FLD_";
@@ -1649,7 +1663,9 @@ function registerOptionalRmMutator(): void {
         }
         item = item.getNextBlock();
       }
-      this.extraInputs_ = next;
+      this.extraInputs_ = isEntryFamilyRmType(rmTypeOfBlock(this))
+        ? sortEntryTailExtras(next)
+        : next;
       this.updateShape_?.();
       for (const name of next) {
         const mouth = this.getInput(rmAttributeInputName(name))
@@ -1692,7 +1708,11 @@ function registerOptionalRmMutator(): void {
           this.removeInput(input.name);
         }
       }
-      for (const name of this.extraInputs_ ?? []) {
+      const extras = isEntryFamilyRmType(rmTypeOfBlock(this))
+        ? sortEntryTailExtras(this.extraInputs_ ?? [])
+        : (this.extraInputs_ ?? []);
+      if (extras !== this.extraInputs_) this.extraInputs_ = extras;
+      for (const name of extras) {
         const parentRm = rmTypeOfBlock(this);
         // Skip attrs that already have a fixed ATTR_ mouth (e.g. HISTORY.events).
         if (this.getInput(rmAttributeInputName(name))) continue;

@@ -22,6 +22,7 @@ import {
   rmAttributeInputName,
   syncRmAttributeInputs,
   ensureIntervalEventMathFunctionScaffold,
+  ENTRY_TAIL_ATTRS,
 } from "./blocks/rm_blocks.ts";
 import { enforceMouthCaptionLayout } from "./mouth_layout.ts";
 import { createTermPickBlock, isTermPickBlock, configureTermPick } from "./blocks/term_pick.ts";
@@ -101,6 +102,7 @@ export function loadSkeletonIntoWorkspace(
     }
     applyModelOptionalSchemaFields(workspace, model);
     setAllBlocksCollapsed(workspace, false);
+    collapseEntryMetadataBlocks(workspace);
     for (const block of workspace.getAllBlocks(false)) {
       enforceMouthCaptionLayout(block);
     }
@@ -124,6 +126,21 @@ export function lockWorkspaceRootsExpanded(workspace: Blockly.Workspace): void {
 /**
  * Collapse or expand every nested block. Workspace roots are always left expanded.
  */
+/** Collapse ENTRY language/encoding/subject mouths after scaffold (issue #150). */
+export function collapseEntryMetadataBlocks(workspace: Blockly.Workspace): void {
+  for (const block of workspace.getAllBlocks(false)) {
+    if (typeof block.isShadow === "function" && block.isShadow()) continue;
+    for (const attr of ENTRY_TAIL_ATTRS) {
+      const input = block.getInput(optionalRmInputName(attr)) ??
+        block.getInput(rmAttributeInputName(attr));
+      const child = input?.connection?.targetBlock();
+      if (child && typeof child.setCollapsed === "function" && !child.isCollapsed?.()) {
+        child.setCollapsed(true);
+      }
+    }
+  }
+}
+
 export function setAllBlocksCollapsed(
   workspace: Blockly.Workspace,
   collapsed: boolean,

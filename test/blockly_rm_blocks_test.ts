@@ -287,9 +287,14 @@ Deno.test("imported skeleton starts expanded; collapse-all skips the root", () =
     return typeof block.isShadow !== "function" || !block.isShadow();
   });
   assert(nested.length > 0, "expected nested blocks under the root");
+  const entryMetadataRe = /\/(language|encoding|subject)(\/|$)/;
   assert(
-    nested.every((block) => !block.isCollapsed()),
-    "imported nested blocks should start expanded",
+    nested.every((block) => {
+      if (!block.isCollapsed()) return true;
+      const slotId = String(block.getFieldValue("SLOT_ID") ?? "");
+      return entryMetadataRe.test(slotId);
+    }),
+    "imported nested blocks should start expanded except ENTRY language/encoding/subject metadata",
   );
 
   setAllBlocksCollapsed(workspace, true);

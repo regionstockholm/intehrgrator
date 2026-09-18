@@ -67,6 +67,8 @@ const BUILTIN_NAMES = new Set([
   "map",
   "list",
   "lists_getIndex",
+  "loop_index",
+  "loop_length",
   ...LOGIC_COMPARE_NAMES,
   ...LOGIC_BOOL_NAMES,
   ...LOGIC_QUANTIFY_NAMES,

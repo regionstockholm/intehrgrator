@@ -9,6 +9,7 @@ import {
   xpathEvaluatorForReturnType,
 } from "./source_query.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
+import { LOOP_INDEX_BLOCK, LOOP_LENGTH_BLOCK } from "./blocks/loop_accessor_blocks.ts";
 import {
   callToRestrictionOp,
   callToSetOp,
@@ -241,6 +242,10 @@ export function blockToExpression(block: Block | null): string | null {
     }
     case LOGIC_CURRENT_ITEM_BLOCK:
       return `var(${JSON.stringify(currentItemName(block))})`;
+    case LOOP_INDEX_BLOCK:
+      return "loop_index()";
+    case LOOP_LENGTH_BLOCK:
+      return "loop_length()";
     case LISTS_SET_OPERATION_BLOCK: {
       const a = blockToExpression(block.getInputTargetBlock("A")) ?? "list()";
       const b = blockToExpression(block.getInputTargetBlock("B")) ?? "list()";

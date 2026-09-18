@@ -158,6 +158,10 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
         }
         case "var":
           return ctx.vars?.[String(args[0])] ?? null;
+        case "loop_index":
+          return (ctx as { loopIndex?: number }).loopIndex ?? null;
+        case "loop_length":
+          return (ctx as { loopLength?: number }).loopLength ?? null;
         case "maps_get": {
           const mapName = String(args[0] ?? "defaults");
           const key = String(args[1] ?? "");

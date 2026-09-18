@@ -520,8 +520,11 @@ function emitForEachList(block: Block, ctx: TsEmitContext, indent: number): stri
     const body = bodyBlock
       ? emitBlock(bodyBlock, innerCtx, indent)
       : "null";
-    return "...xpathNodes(" + JSON.stringify(sourcePath) + ").map((" + ident + ") => " +
-      body + ")";
+    const nodesExpr = "xpathNodes(" + JSON.stringify(sourcePath) + ")";
+    return `...${nodesExpr}.map((${ident}, __loopIndex) => {\n` +
+      `${"  ".repeat(indent + 1)}const __loopLength = ${nodesExpr}.length;\n` +
+      `${"  ".repeat(indent + 1)}return ${body};\n` +
+      `${"  ".repeat(indent)}})`;
   }
   const listBlock = block.getInputTargetBlock("LIST");
   const list = listBlock ? emitBlock(listBlock, ctx, indent) : "[]";
@@ -533,7 +536,10 @@ function emitForEachList(block: Block, ctx: TsEmitContext, indent: number): stri
   const body = bodyBlock
     ? emitBlock(bodyBlock, innerCtx, indent)
     : "null";
-  return `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => ${body})`;
+  return `...(Array.isArray(${list}) ? ${list} : []).map((${ident}, __loopIndex) => {\n` +
+    `${"  ".repeat(indent + 1)}const __loopLength = (${list}).length;\n` +
+    `${"  ".repeat(indent + 1)}return ${body};\n` +
+    `${"  ".repeat(indent)}})`;
 }
 
 function emitVariableSet(block: Block, ctx: TsEmitContext, indent: number): string {

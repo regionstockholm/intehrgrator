@@ -191,7 +191,7 @@ function mapsGetKey(block: Blockly.Block): string {
   return String(keyBlock.getFieldValue("TEXT") ?? keyBlock.getFieldValue("NUM") ?? "").trim();
 }
 
-function summarizeValueBlock(block: Blockly.Block | null): string {
+export function summarizeValueBlock(block: Blockly.Block | null): string {
   if (!block) return "(empty)";
   if (block.type === "text") return JSON.stringify(String(block.getFieldValue("TEXT") ?? ""));
   if (block.type === "term_pick") {

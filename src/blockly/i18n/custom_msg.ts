@@ -60,6 +60,10 @@ export interface IntehrMessages {
   LOGIC_NAME_ITEM: string;
   LOGIC_HIDE_ITEM_NAME: string;
   LOGIC_THIS_ITEM: string;
+  LOOP_INDEX: string;
+  LOOP_LENGTH: string;
+  LOOP_INDEX_TOOLTIP: string;
+  LOOP_LENGTH_TOOLTIP: string;
   LOGIC_RESTRICTION_TOOLTIP: string;
   LOGIC_CURRENT_ITEM_TOOLTIP: string;
   LOGIC_SET_BOTH: string;
@@ -91,7 +95,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Math",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Lists & maps",
-    CAT_SHEETS: "Sheets",
+    CAT_SHEETS: "Tables & Sheets",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Functions",
     EXTRACT_TO_FUNCTION: "Extract to function",
@@ -126,6 +130,10 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_NAME_ITEM: "Name the current item",
     LOGIC_HIDE_ITEM_NAME: "Hide the item name",
     LOGIC_THIS_ITEM: "this item",
+    LOOP_INDEX: "index",
+    LOOP_LENGTH: "length",
+    LOOP_INDEX_TOOLTIP: "Zero-based index of the current item in the enclosing for-each loop.",
+    LOOP_LENGTH_TOOLTIP: "Number of items in the list iterated by the enclosing for-each loop.",
     LOGIC_RESTRICTION_TOOLTIP:
       "True when the required number of list items match the condition. Source paths in the condition are relative to each item. An empty list makes all, none and at most true — tick require at least one item to rule that out. (OWL Manchester only/some/none and min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
@@ -158,7 +166,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Matematik",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Listor & mappar",
-    CAT_SHEETS: "Kalkylblad",
+    CAT_SHEETS: "Tabeller & kalkylblad",
     CAT_VARIABLES: "Variabler",
     CAT_PROCEDURES: "Funktioner",
     EXTRACT_TO_FUNCTION: "Bryt ut till funktion",
@@ -193,6 +201,10 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_NAME_ITEM: "Namnge aktuellt objekt",
     LOGIC_HIDE_ITEM_NAME: "Dölj objektnamnet",
     LOGIC_THIS_ITEM: "detta objekt",
+    LOOP_INDEX: "index",
+    LOOP_LENGTH: "längd",
+    LOOP_INDEX_TOOLTIP: "Nollbaserat index för aktuellt objekt i den omslutande for-each-loopen.",
+    LOOP_LENGTH_TOOLTIP: "Antal objekt i listan som den omslutande for-each-loopen itererar över.",
     LOGIC_RESTRICTION_TOOLTIP:
       "Sant när det begärda antalet listobjekt matchar villkoret. Källsökvägar i villkoret är relativa till varje objekt. Tom lista gör alla, inget och högst sanna — kryssa kräv minst ett objekt för att utesluta det. (OWL Manchester only/some/none och min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
@@ -225,7 +237,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Mathematik",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Listen & Maps",
-    CAT_SHEETS: "Tabellen",
+    CAT_SHEETS: "Tabellen & Blätter",
     CAT_VARIABLES: "Variablen",
     CAT_PROCEDURES: "Funktionen",
     EXTRACT_TO_FUNCTION: "In Funktion auslagern",
@@ -260,6 +272,10 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_NAME_ITEM: "Aktuelles Element benennen",
     LOGIC_HIDE_ITEM_NAME: "Elementnamen ausblenden",
     LOGIC_THIS_ITEM: "dieses Element",
+    LOOP_INDEX: "Index",
+    LOOP_LENGTH: "Länge",
+    LOOP_INDEX_TOOLTIP: "Nullbasierter Index des aktuellen Elements in der umschließenden For-each-Schleife.",
+    LOOP_LENGTH_TOOLTIP: "Anzahl der Elemente in der von der umschließenden For-each-Schleife iterierten Liste.",
     LOGIC_RESTRICTION_TOOLTIP:
       "Wahr, wenn die verlangte Anzahl der Listenelemente die Bedingung erfüllt. Quellpfade in der Bedingung sind relativ zu jedem Element. Leere Liste: alle, keines und höchstens sind wahr — mindestens ein Element verlangen schließt das aus. (OWL Manchester only/some/none und min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
@@ -292,7 +308,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Matemáticas",
     CAT_TEXT: "Texto",
     CAT_LISTS_AND_MAPS: "Listas y mapas",
-    CAT_SHEETS: "Hojas",
+    CAT_SHEETS: "Tablas y hojas",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funciones",
     EXTRACT_TO_FUNCTION: "Extraer a función",
@@ -327,6 +343,10 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_NAME_ITEM: "Nombrar el elemento actual",
     LOGIC_HIDE_ITEM_NAME: "Ocultar el nombre del elemento",
     LOGIC_THIS_ITEM: "este elemento",
+    LOOP_INDEX: "índice",
+    LOOP_LENGTH: "longitud",
+    LOOP_INDEX_TOOLTIP: "Índice basado en cero del elemento actual en el bucle for-each envolvente.",
+    LOOP_LENGTH_TOOLTIP: "Número de elementos en la lista iterada por el bucle for-each envolvente.",
     LOGIC_RESTRICTION_TOOLTIP:
       "Verdadero cuando el número requerido de elementos de la lista cumple la condición. Las rutas de origen de la condición son relativas a cada elemento. Lista vacía: todos, ninguno y como máximo son verdaderos — marque exigir al menos un elemento para descartarlo. (OWL Manchester only/some/none y min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
@@ -359,7 +379,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Matemàtiques",
     CAT_TEXT: "Text",
     CAT_LISTS_AND_MAPS: "Llistes i mapes",
-    CAT_SHEETS: "Fulls",
+    CAT_SHEETS: "Taules i fulls",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funcions",
     EXTRACT_TO_FUNCTION: "Extreure a funció",
@@ -394,6 +414,10 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_NAME_ITEM: "Anomena l'element actual",
     LOGIC_HIDE_ITEM_NAME: "Amaga el nom de l'element",
     LOGIC_THIS_ITEM: "aquest element",
+    LOOP_INDEX: "índex",
+    LOOP_LENGTH: "longitud",
+    LOOP_INDEX_TOOLTIP: "Índex basat en zero de l'element actual en el bucle for-each que l'envolta.",
+    LOOP_LENGTH_TOOLTIP: "Nombre d'elements de la llista iterada pel bucle for-each que l'envolta.",
     LOGIC_RESTRICTION_TOOLTIP:
       "Cert quan el nombre requerit d'elements de la llista compleix la condició. Els camins d'origen de la condició són relatius a cada element. Llista buida: tots, cap i com a màxim són certs — marqueu exigeix com a mínim un element per descartar-ho. (OWL Manchester only/some/none i min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:
@@ -426,7 +450,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_MATH: "Math",
     CAT_TEXT: "Texte",
     CAT_LISTS_AND_MAPS: "Listes et maps",
-    CAT_SHEETS: "Feuilles",
+    CAT_SHEETS: "Tableaux et feuilles",
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Fonctions",
     EXTRACT_TO_FUNCTION: "Extraire vers une fonction",
@@ -461,6 +485,10 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LOGIC_NAME_ITEM: "Nommer l'élément courant",
     LOGIC_HIDE_ITEM_NAME: "Masquer le nom de l'élément",
     LOGIC_THIS_ITEM: "cet élément",
+    LOOP_INDEX: "index",
+    LOOP_LENGTH: "longueur",
+    LOOP_INDEX_TOOLTIP: "Index (base zéro) de l'élément courant dans la boucle for-each englobante.",
+    LOOP_LENGTH_TOOLTIP: "Nombre d'éléments dans la liste parcourue par la boucle for-each englobante.",
     LOGIC_RESTRICTION_TOOLTIP:
       "Vrai lorsque le nombre requis d'éléments de la liste satisfait la condition. Les chemins source de la condition sont relatifs à chaque élément. Liste vide : tous, aucun et au plus sont vrais — cochez exiger au moins un élément pour l'exclure. (OWL Manchester only/some/none et min/max/exactly.)",
     LOGIC_CURRENT_ITEM_TOOLTIP:

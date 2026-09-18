@@ -308,7 +308,20 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   color: var(--warning); font-size: 13px; line-height: 1; flex-shrink: 0;
 }
 
-.example-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.example-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.example-tabs .example-tab,
+.example-tabs .example-tab--with-close {
+  flex: 0 0 auto;
+}
 .example-tab {
   border: 1px solid var(--border); background: #fff; border-radius: 4px;
   padding: 4px 8px; font-size: 12px; cursor: pointer;
@@ -890,12 +903,19 @@ body.sheets-fullscreen::before {
 }
 .blockly-mount .blocklyText .blockly-slot-overlay-delta,
 .blockly-mount .blocklyText .blockly-slot-overlay-effective {
-  fill: #0f766e;
-  font-weight: 600;
+  fill: #ffeb3b;
+  font-weight: 700;
 }
 .blockly-mount .blocklyText .blockly-slot-overlay-rm {
-  fill: #64748b;
+  fill: rgba(255, 255, 255, 0.72);
   text-decoration: line-through;
+}
+
+/* Collapsed block summary: clearer hover/focus on the summary label */
+.blockly-mount .blocklyCollapsed > .blocklyText:hover,
+.blockly-mount .blocklyCollapsed > .blocklyText:focus {
+  outline: 2px solid #ffeb3b;
+  outline-offset: 2px;
 }
 .blockly-mount .blocklyText.blockly-slot-label--abstract,
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,

@@ -24,6 +24,9 @@ import {
   restrictionRequiresItems,
 } from "./blocks/logic_blocks.ts";
 import { registerExtractToFunctionMenu } from "./extract_function.ts";
+import { registerLoopAccessorBlocks, LOOP_INDEX_BLOCK, LOOP_LENGTH_BLOCK } from "./blocks/loop_accessor_blocks.ts";
+import { registerCollapsedSummaries } from "./collapsed_summary.ts";
+import { registerStockMutatorChrome } from "./stock_mutator_chrome.ts";
 import { registerTypeScriptExportAdapter } from "./typescript_codegen.ts";
 import { registerGoTemplateExportAdapter } from "./go_template_codegen.ts";
 import { attributesFor, dataValueLeafTypes, blockTypeForRm, isPrimitiveRmType } from "../core/rm_meta.ts";
@@ -182,6 +185,9 @@ export function initBlocklyGenerators(): void {
   registerTextBlocks();
   registerConversionStartBlock();
   registerLogicBlocks();
+  registerLoopAccessorBlocks();
+  registerStockMutatorChrome();
+  registerCollapsedSummaries();
   registerExtractToFunctionMenu();
   registerGenerators();
   registerTypeScriptExportAdapter();
@@ -243,20 +249,28 @@ function registerGenerators(): void {
     if (listBlock && isSourceQueryBlockType(listBlock.type)) {
       const path = listBlock.getFieldValue("EXPRESSION") || "/";
       return (
-        `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}) => {\n` +
+        `...evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).map((${ident}, __loopIndex) => {\n` +
         `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+        `  const __loopLength = evaluateXPathToNodes(${JSON.stringify(path)}, sourceCtx.data).length;\n` +
         `  return ${returned};\n` +
         `}),\n`
       );
     }
     const list = javascriptGenerator.valueToCode(block, "LIST", Order.ATOMIC) || "[]";
     return (
-      `...(Array.isArray(${list}) ? ${list} : []).map((${ident}) => {\n` +
+      `...(Array.isArray(${list}) ? ${list} : []).map((${ident}, __loopIndex) => {\n` +
       `  __vars[${JSON.stringify(name)}] = ${ident};\n` +
+      `  const __loopLength = (${list}).length;\n` +
       `  return ${returned};\n` +
       `}),\n`
     );
   };
+
+  javascriptGenerator.forBlock[LOOP_INDEX_BLOCK] = () =>
+    ["__loopIndex", Order.ATOMIC] as [string, number];
+
+  javascriptGenerator.forBlock[LOOP_LENGTH_BLOCK] = () =>
+    ["__loopLength", Order.ATOMIC] as [string, number];
 
   javascriptGenerator.forBlock["maps_get"] = (block) => {
     const name = String(block.getFieldValue("NAME") || "defaults");

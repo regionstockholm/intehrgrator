@@ -80,6 +80,20 @@ export function registerCompactThrasosRenderer(): string {
      * `[caption][mouth]` sits as a pack on the right (openEHR slot look).
      */
     // deno-lint-ignore no-explicit-any
+    /**
+     * Statement mouths with right-packed captions should not inherit the full
+     * block width — only caption + child stack (issue #150).
+     */
+    // deno-lint-ignore no-explicit-any
+    getDesiredRowWidth_(row: any) {
+      applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
+      if (row?.align === AlignRight && row?.hasStatement) {
+        return Number(row.width ?? 0);
+      }
+      return super.getDesiredRowWidth_(row);
+    }
+
+    // deno-lint-ignore no-explicit-any
     alignStatementRow_(row: any) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
       if (row?.align !== AlignRight) {

@@ -77,6 +77,10 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
         case "var":
           ctx.helpers.add("logic");
           return `__vars[${args[0]}]`;
+        case "loop_index":
+          return "__loopIndex";
+        case "loop_length":
+          return "__loopLength";
         case "eq":
           ctx.helpers.add("logic");
           return `sameItem(${args[0]}, ${args[1]})`;

@@ -19,7 +19,10 @@ import {
   RM_ATTR_INPUT_PREFIX,
   OPTIONAL_INPUT_PREFIX,
 } from "./blocks/rm_blocks.ts";
+import { isSchemaOptionalInput } from "./blocks/schema_mutator.ts";
 import { isTermPickBlock } from "./blocks/term_pick.ts";
+import { hasPlaceholderSourceQuery, isPlaceholderSourcePath } from "./listening.ts";
+import { isSourceQueryBlockType } from "./source_query.ts";
 import {
   cardinalityFieldOnInput,
   formatSlotCardinality,
@@ -36,6 +39,14 @@ export const ABSTRACT_EVENT_WARNING =
 
 export const ABSTRACT_ITEM_STRUCTURE_WARNING =
   "ITEM_STRUCTURE is abstract. Choose ITEM_TREE, ITEM_LIST, ITEM_TABLE, or ITEM_SINGLE — runtime instances cannot be the abstract ITEM_STRUCTURE class.";
+
+export const UNMAPPED_OPTIONAL_SCAFFOLD_WARNING = "Unmapped optional scaffold";
+
+const PROTECTED_SPEC_BLOCK_TYPES = new Set([
+  "conversion_start",
+  "defaults_block",
+  "maps_create_with",
+]);
 
 const STATEMENT_INPUT_TYPE = 3;
 
@@ -72,6 +83,14 @@ export function blockConstraintMessages(block: Block): string[] {
 
   if (isMandatoryFlag(block) && isUnmappedValueBlock(block)) {
     messages.push("Unmapped mandatory value");
+  }
+
+  if (
+    !isMandatoryFlag(block) &&
+    block.getFieldValue("SLOT_ID") &&
+    isUnmappedBlockTree(block)
+  ) {
+    messages.push(UNMAPPED_OPTIONAL_SCAFFOLD_WARNING);
   }
 
   for (const unmet of unmetSlotCards(block)) {
@@ -164,8 +183,69 @@ export function countInputChildren(block: Block, inputName: string): number {
 }
 
 function isMandatoryFlag(block: Block): boolean {
+  return isMandatoryBlock(block);
+}
+
+export function isMandatoryBlock(block: Block): boolean {
   const raw = block.getFieldValue("MANDATORY");
   return raw === "1" || raw === "true";
+}
+
+export function isProtectedSpecBlock(block: Block): boolean {
+  return PROTECTED_SPEC_BLOCK_TYPES.has(block.type);
+}
+
+function parentConnectionInputName(block: Block): string | null {
+  const parent = block.getParent();
+  if (!parent) return null;
+  for (const input of parent.inputList) {
+    if (input.connection?.targetBlock()?.id === block.id) return input.name;
+  }
+  return null;
+}
+
+/** Template-optional slot or block without the mandatory flag. */
+export function isInNonMandatoryField(block: Block): boolean {
+  if (!isMandatoryBlock(block)) return true;
+  const inputName = parentConnectionInputName(block);
+  if (!inputName) return false;
+  return inputName.startsWith(OPTIONAL_INPUT_PREFIX) || isSchemaOptionalInput(inputName);
+}
+
+export function blockHasMappedExpression(block: Block): boolean {
+  if (isSourceQueryBlockType(block.type)) {
+    return !isPlaceholderSourcePath(block.getFieldValue("EXPRESSION"));
+  }
+  if (isTermPickBlock(block)) {
+    const code = block.getFieldValue("CODE");
+    return Boolean(code && code !== TERM_PICK_NONE);
+  }
+  if (isDataValueBlock(block)) {
+    const expr = expressionBlockFromDataValueShell(block);
+    return expr ? blockHasMappedExpression(expr) : false;
+  }
+  if (block.type === "element" || isGenericValueBlockType(block.type)) {
+    return !isUnmappedValueBlock(block) && !hasPlaceholderSourceQuery(block);
+  }
+  if (
+    block.type === "text" ||
+    block.type === "math_number" ||
+    block.type === "logic_boolean" ||
+    block.type === "text_handlebars" ||
+    block.type === "text_code"
+  ) {
+    return true;
+  }
+  for (const child of block.getChildren(false)) {
+    if (blockHasMappedExpression(child)) return true;
+  }
+  return false;
+}
+
+/** True when the block and its descendants have no mapped expressions yet. */
+export function isUnmappedBlockTree(block: Block): boolean {
+  if (isProtectedSpecBlock(block)) return false;
+  return !blockHasMappedExpression(block);
 }
 
 export function isUnmappedValueBlock(block: Block): boolean {

@@ -14,7 +14,7 @@ import {
   type BlocklyJsonDocument,
   type SpecLine,
 } from "./project.ts";
-import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler } from "./widgets.ts";
+import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler, type SpecBlockCheckHandler } from "./widgets.ts";
 import { specOverviewTickTopPx, specWarningMarkers } from "./overview.ts";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
@@ -49,12 +49,26 @@ const selectFacet = Facet.define<
   },
 });
 
+const checkFacet = Facet.define<
+  SpecBlockCheckHandler | undefined,
+  SpecBlockCheckHandler | undefined
+>({
+  combine(values) {
+    return values.find((value) => value !== undefined);
+  },
+});
+
 export interface SpecChrome {
   warnings: Record<string, string>;
   selectedBlockId: string | null;
+  checkedBlockIds: ReadonlySet<string>;
 }
 
-const emptyChrome: SpecChrome = { warnings: {}, selectedBlockId: null };
+const emptyChrome: SpecChrome = {
+  warnings: {},
+  selectedBlockId: null,
+  checkedBlockIds: new Set(),
+};
 
 const setSpecChromeEffect = StateEffect.define<SpecChrome>();
 
@@ -87,10 +101,17 @@ function lineIsSelected(line: SpecLine, selectedBlockId: string | null): boolean
  * Replace decorations that span line breaks must come from a StateField,
  * not a ViewPlugin (CodeMirror: "may not be specified via plugins").
  */
+function lineIsChecked(line: SpecLine, checkedBlockIds: ReadonlySet<string>): boolean {
+  if (!line.blockId) return false;
+  if (checkedBlockIds.has(line.blockId)) return true;
+  return (line.aliasIds ?? []).some((id) => checkedBlockIds.has(id));
+}
+
 function buildDecorations(state: EditorState): DecorationSet {
   const doc = state.field(jsonDocField);
   const onEdit = state.facet(editFacet);
   const onSelect = state.facet(selectFacet);
+  const onCheck = state.facet(checkFacet);
   const chrome = state.field(specChromeField);
   if (!doc.widgets.length) return Decoration.none;
 
@@ -104,6 +125,8 @@ function buildDecorations(state: EditorState): DecorationSet {
           onSelect,
           warningForLine(widget.line, chrome.warnings),
           lineIsSelected(widget.line, chrome.selectedBlockId),
+          lineIsChecked(widget.line, chrome.checkedBlockIds),
+          onCheck,
         ),
         block: widget.line.editKind === "code",
         inclusive: widget.line.editKind !== "code",
@@ -200,6 +223,16 @@ const specTheme = EditorView.theme({
     fontSize: "12px",
     lineHeight: "14px",
     cursor: "help",
+  },
+  ".spec-widget-checkbox": {
+    flex: "0 0 auto",
+    width: "14px",
+    height: "14px",
+    margin: "0 2px 0 0",
+    cursor: "pointer",
+  },
+  ".spec-widget--checked": {
+    background: "#eef7ff",
   },
   ".spec-widget--term_pick": {
     overflow: "visible",
@@ -414,6 +447,7 @@ const specTheme = EditorView.theme({
 export interface MappingSpecEditorOptions {
   onFieldEdit?: SpecFieldEditHandler;
   onSelect?: SpecBlockSelectHandler;
+  onCheckToggle?: SpecBlockCheckHandler;
 }
 
 function specOverview(onSelect?: SpecBlockSelectHandler) {
@@ -504,6 +538,7 @@ export function createMappingSpecEditor(
         specChromeField.init(() => emptyChrome),
         editFacet.of(options.onFieldEdit),
         selectFacet.of(options.onSelect),
+        checkFacet.of(options.onCheckToggle),
         jsonDecorations,
         specOverview(options.onSelect),
         EditorView.editable.of(false),
@@ -542,8 +577,11 @@ export function setMappingSpecFromBlockly(
 
 export function setMappingSpecChrome(view: EditorView, chrome: SpecChrome): void {
   const prev = view.state.field(specChromeField);
+  const prevChecked = [...prev.checkedBlockIds].sort().join(",");
+  const nextChecked = [...chrome.checkedBlockIds].sort().join(",");
   if (
     prev.selectedBlockId === chrome.selectedBlockId &&
+    prevChecked === nextChecked &&
     JSON.stringify(prev.warnings) === JSON.stringify(chrome.warnings)
   ) {
     return;
@@ -567,4 +605,4 @@ export function mappingSpecDocumentText(view: EditorView): string {
   return view.state.doc.toString();
 }
 
-export type { SpecFieldEditHandler, SpecBlockSelectHandler, SpecLine };
+export type { SpecFieldEditHandler, SpecBlockSelectHandler, SpecBlockCheckHandler, SpecLine };

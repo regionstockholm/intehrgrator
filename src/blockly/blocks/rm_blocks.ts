@@ -364,7 +364,9 @@ export function orderedRmAttributes(rmType: string, present: string[]): string[]
   const ordered: string[] = [];
   const meta = attributesFor(rmType);
   const silent = new Set(mandatoryAttributesFor(rmType));
-  const boilerplate = new Set<string>(ENTRY_BOILERPLATE_ATTRS);
+  const boilerplate = isEntryRmType(rmType)
+    ? new Set<string>(ENTRY_BOILERPLATE_ATTRS)
+    : new Set<string>();
   const mandatoryNames = meta
     .filter((a) => a.mandatory || silent.has(a.name))
     .map((a) => a.name);

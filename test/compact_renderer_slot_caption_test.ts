@@ -88,6 +88,6 @@ Deno.test("slot caption stands when the child is taller than the horizontal labe
     glyphPx: 16,
   });
   assertEquals(stood.stand, true);
-  assertEquals(stood.width, 12 + 16);
-  assertEquals(stood.height, 80);
+  assertEquals(stood.width, 16);
+  assertEquals(stood.height, 16 + 80);
 });

@@ -147,6 +147,20 @@ Deno.test("orderedRmAttributes trails ENTRY subject language encoding", () => {
   );
 });
 
+Deno.test("orderedRmAttributes does not trail COMPOSITION language", () => {
+  const ordered = orderedRmAttributes("COMPOSITION", [
+    "content",
+    "language",
+    "territory",
+    "category",
+    "composer",
+    "context",
+  ]);
+  assertEquals(ordered.includes("language"), true);
+  assertEquals(ordered.indexOf("language") < ordered.indexOf("content"), true);
+  assertEquals(ordered.at(-1) === "language", false);
+});
+
 /** Dummy inputs with no connection sit as empty rows in Thrasos. */
 function dummyRowsAfterHeader(block: Blockly.Block): number {
   const inputs = block.inputList;

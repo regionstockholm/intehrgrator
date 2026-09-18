@@ -32,7 +32,7 @@
     {
       "id": "Simple-vitals",
       "title": "Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template)",
-      "description": "Minimal JSON Schema source, two valid instances one invalid, and a simple openehr template target. No mapping. Uses the operational template (.opt), which is self-contained; the sibling .t.json is a differential Archetype Designer file that needs overlay parent ADLs to flatten.",
+      "description": "Minimal JSON Schema source, two valid instances one invalid, and a simple openehr template target. Includes a polished Blockly mapping (vitals + body position decision table). Load the body_position decision table from Sheets after opening the mapping. Uses the operational template (.opt), which is self-contained; the sibling .t.json is a differential Archetype Designer file that needs overlay parent ADLs to flatten.",
       "source": {
         "schema": "../test/fixtures/legacy-simulated-json/bp-schema.json",
         "instances": [
@@ -41,7 +41,8 @@
           "../test/fixtures/legacy-simulated-json/instances/bp-inst-3-invalid.json"
         ]
       },
-      "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt"
+      "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt",
+      "mapping": "../test/fixtures/legacy-simulated-json/mapping/simple-diagnose-and-vitals-to-openEHR-mapped-and-pruned.blockly.json"
     },
     {
       "id": "obx-mhv1-unmapped-json-to-openehr",

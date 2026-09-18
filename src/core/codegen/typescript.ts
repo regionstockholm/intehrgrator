@@ -325,7 +325,7 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
     "  sourceCtx: SourceContext,",
     "  defaults: Record<string, unknown> = {},",
     ...(parts.helpers.has("sheets")
-      ? ["  sheets: Record<string, { name?: string; kind?: string; headers: string[]; values: unknown[][]; rowNames?: string[]; hitPolicy?: string; collectJoin?: string; collectDedupe?: boolean; rowCatchAll?: boolean[]; decisionColumns?: Array<{ role: string; outputKind?: string; valueType?: string }> }> = {},"]
+      ? ["  sheets: Record<string, unknown> = {},"]
       : []),
     `)${root !== "unknown" ? `: ${root}` : ""} {`,
   );

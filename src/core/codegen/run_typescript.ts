@@ -75,12 +75,171 @@ export function stripGeneratedTypeScript(source: string): { names: string[]; bod
   );
   body = body.replace(/\bexport\s+function\b/g, "function");
   body = body.replace(/(\]|[\w$])!/g, "$1");
-  body = body.replace(/\)\s*:\s*[A-Za-z0-9_.<>,\s\[\]|&]+(\s*\{)/g, ")$1");
-  body = body.replace(
-    /([A-Za-z_$][\w$]*)\s*:\s*[A-Za-z0-9_.<>,\s\[\]|&]+(\s*[=,)])/g,
-    "$1$2",
-  );
+  body = stripFunctionTypesInBody(body);
+  body = stripArrowFunctionTypes(body);
+  body = stripVariableTypeAnnotations(body);
+  body = stripTypeAssertions(body);
+  body = stripGenericInstantiations(body);
   return { names: [...new Set(names)], body };
+}
+
+function stripGenericInstantiations(body: string): string {
+  return body.replace(/\bnew Set<[^>]+>\(\)/g, "new Set()");
+}
+
+function stripFunctionTypesInBody(body: string): string {
+  let result = "";
+  let i = 0;
+  while (i < body.length) {
+    const fn = body.slice(i).match(/^function\s+([A-Za-z_$][\w$]*)\s*\(/);
+    if (fn) {
+      const name = fn[1]!;
+      const openParen = i + fn[0].length - 1;
+      const closeParen = findMatchingParen(body, openParen);
+      const params = body.slice(openParen + 1, closeParen);
+      let after = closeParen + 1;
+      const retType = body.slice(after).match(/^\s*:\s*[A-Za-z0-9_.<>,\s\[\]|&]+(?=\s*\{)/);
+      if (retType) after += retType[0].length;
+      result += `function ${name}(${stripParameterTypes(params)})`;
+      i = after;
+      continue;
+    }
+    result += body[i];
+    i++;
+  }
+  return result;
+}
+
+function stripArrowFunctionTypes(body: string): string {
+  let result = "";
+  let i = 0;
+  while (i < body.length) {
+    if (body[i] === "(") {
+      const closeParen = findMatchingParen(body, i);
+      const inner = body.slice(i + 1, closeParen);
+      if (/^\s*[A-Za-z_$][\w$]*\s*:/.test(inner)) {
+        const after = body.slice(closeParen + 1);
+        if (/^\s*=>/.test(after)) {
+          result += `(${stripParameterTypes(inner)})`;
+          i = closeParen + 1;
+          continue;
+        }
+      }
+    }
+    result += body[i];
+    i++;
+  }
+  return result;
+}
+
+/** Drop TypeScript parameter annotations; keep default initializer expressions. */
+function stripParameterTypes(params: string): string {
+  const parts: string[] = [];
+  let i = 0;
+  while (i < params.length) {
+    const leading = params.slice(i).match(/^\s*/)?.[0] ?? "";
+    i += leading.length;
+    if (i >= params.length) break;
+
+    const nameMatch = params.slice(i).match(/^([A-Za-z_$][\w$]*)(\?)?/);
+    if (!nameMatch) {
+      parts.push(params[i]!);
+      i++;
+      continue;
+    }
+    parts.push(leading + nameMatch[1]!);
+    i += nameMatch[0].length;
+
+    if (/^\s*:/.test(params.slice(i))) {
+      i += params.slice(i).match(/^\s*:\s*/)?.[0].length ?? 0;
+      i = skipTypeAnnotation(params, i);
+    }
+
+    const defaultStart = params.slice(i).match(/^\s*=\s*/);
+    if (defaultStart) {
+      const defFrom = i;
+      i += defaultStart[0].length;
+      i = skipDefaultValue(params, i);
+      parts.push(params.slice(defFrom, i));
+    }
+
+    const comma = params.slice(i).match(/^\s*,\s*/);
+    if (comma && !/^\s*\)/.test(params.slice(i + comma[0].length))) {
+      parts.push(", ");
+      i += comma[0].length;
+    }
+  }
+  return parts.join("");
+}
+
+function stripVariableTypeAnnotations(body: string): string {
+  let result = "";
+  let i = 0;
+  while (i < body.length) {
+    const decl = body.slice(i).match(/^(const|let)\s+([A-Za-z_$][\w$]*)\s*:/);
+    if (decl) {
+      result += `${decl[1]} ${decl[2]}`;
+      i += decl[0].length;
+      i = skipTypeAnnotation(body, i);
+      const ws = body.slice(i).match(/^\s*/)?.[0] ?? "";
+      result += ws;
+      i += ws.length;
+      continue;
+    }
+    result += body[i];
+    i++;
+  }
+  return result;
+}
+
+function stripTypeAssertions(body: string): string {
+  return body.replace(
+    /\s+as\s+(?:Record<string,\s*unknown>|[A-Za-z_$][\w$]*(?:<[^>]+>)?)/g,
+    "",
+  );
+}
+
+function findMatchingParen(source: string, openIndex: number): number {
+  let depth = 0;
+  for (let i = openIndex; i < source.length; i++) {
+    const ch = source[i]!;
+    if (ch === "(") depth++;
+    else if (ch === ")") {
+      depth--;
+      if (depth === 0) return i;
+    }
+  }
+  return source.length - 1;
+}
+
+function skipTypeAnnotation(source: string, start: number): number {
+  let i = start;
+  let depth = 0;
+  while (i < source.length) {
+    const ch = source[i]!;
+    if ("{(<[".includes(ch)) depth++;
+    else if ("})>]".includes(ch)) {
+      depth--;
+      if (depth < 0) return i;
+    } else if (depth === 0 && (ch === "=" || ch === ",")) {
+      return i;
+    }
+    i++;
+  }
+  return i;
+}
+
+function skipDefaultValue(source: string, start: number): number {
+  let i = start;
+  let depth = 0;
+  while (i < source.length) {
+    const ch = source[i]!;
+    if ("{([".includes(ch)) depth++;
+    else if ("})]".includes(ch)) depth--;
+    else if (depth === 0 && ch === ",") return i;
+    i++;
+  }
+  return i;
 }
 
 export function runGeneratedTypeScript(

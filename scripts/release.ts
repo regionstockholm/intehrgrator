@@ -9,6 +9,8 @@
  *   deno task release -- --version 0.6.0
  *   deno task release -- --current          # tag current deno.json version
  *   deno task release -- --version 0.6.0 --dry-run
+ *   deno task release -- --version 0.6.0 --no-test
+ *   deno task release:no-test -- --version 0.6.0
  */
 import {
   assertCleanGitTree,
@@ -22,14 +24,16 @@ import {
 
 function usage(): void {
   console.log(`Usage:
-  deno task release -- --version <semver> [--message <tag message>] [--dry-run]
-  deno task release -- --current [--message <tag message>] [--dry-run]
+  deno task release -- --version <semver> [--message <tag message>] [--dry-run] [--no-test]
+  deno task release -- --current [--message <tag message>] [--dry-run] [--no-test]
+  deno task release:no-test -- --version <semver> [--message <tag message>] [--dry-run]
 
 Options:
   --version   New package version to write before releasing
   --current   Release the version already in deno.json (no bump)
   --message   Annotated tag message (default: intEHRgrator desktop <version>)
   --dry-run   Validate and build, but do not commit, tag, or push
+  --no-test   Skip local unit tests (vendor + build still run; CI still tests the tag)
 `);
 }
 
@@ -37,6 +41,7 @@ function parseArgs(argv: string[]) {
   let version: string | undefined;
   let useCurrent = false;
   let dryRun = false;
+  let noTest = false;
   let message: string | undefined;
 
   for (let i = 0; i < argv.length; i++) {
@@ -57,6 +62,10 @@ function parseArgs(argv: string[]) {
       dryRun = true;
       continue;
     }
+    if (arg === "--no-test") {
+      noTest = true;
+      continue;
+    }
     if (arg === "--help" || arg === "-h") {
       usage();
       Deno.exit(0);
@@ -67,7 +76,7 @@ function parseArgs(argv: string[]) {
   if (version && useCurrent) throw new Error("Use either --version or --current, not both");
   if (!version && !useCurrent) throw new Error("Pass --version <semver> or --current");
 
-  return { version, useCurrent, dryRun, message };
+  return { version, useCurrent, dryRun, noTest, message };
 }
 
 const args = parseArgs(Deno.args);
@@ -96,7 +105,11 @@ if (args.version) {
 }
 
 await run("deno", ["task", "vendor"]);
-await run("deno", ["task", "test"]);
+if (args.noTest) {
+  console.log("Skipping local tests (--no-test); CI still runs unit + UI on the tag");
+} else {
+  await run("deno", ["task", "test"]);
+}
 await run("deno", ["task", "build"]);
 
 if (args.dryRun) {

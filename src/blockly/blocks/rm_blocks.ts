@@ -86,6 +86,9 @@ const CONTAINER_COLOUR = "#005C53";
 const DV_COLOUR = "#4A6FA5";
 const ELEMENT_COLOUR = "#3D7A6A";
 
+/** ENTRY attrs shown last and collapsed on scaffold (issue #150). */
+export const ENTRY_BOILERPLATE_ATTRS = ["subject", "language", "encoding"] as const;
+
 const RM_CONTAINER_TYPES = new Set<string>();
 
 const EXTRA_RM_CONTAINERS = [
@@ -361,6 +364,7 @@ export function orderedRmAttributes(rmType: string, present: string[]): string[]
   const ordered: string[] = [];
   const meta = attributesFor(rmType);
   const silent = new Set(mandatoryAttributesFor(rmType));
+  const boilerplate = new Set<string>(ENTRY_BOILERPLATE_ATTRS);
   const mandatoryNames = meta
     .filter((a) => a.mandatory || silent.has(a.name))
     .map((a) => a.name);
@@ -371,18 +375,41 @@ export function orderedRmAttributes(rmType: string, present: string[]): string[]
   const fallback = preferred.length ? preferred : mandatoryAttributesFor(rmType);
 
   for (const attr of fallback) {
-    if (present.includes(attr) && !seen.has(attr)) {
+    if (present.includes(attr) && !seen.has(attr) && !boilerplate.has(attr)) {
       ordered.push(attr);
       seen.add(attr);
     }
   }
   for (const attr of present) {
-    if (!seen.has(attr)) {
+    if (!seen.has(attr) && !boilerplate.has(attr)) {
+      ordered.push(attr);
+      seen.add(attr);
+    }
+  }
+  for (const attr of ENTRY_BOILERPLATE_ATTRS) {
+    if (present.includes(attr) && !seen.has(attr)) {
       ordered.push(attr);
       seen.add(attr);
     }
   }
   return ordered;
+}
+
+export function isEntryRmType(rmType: string): boolean {
+  const name = (rmType || "").toUpperCase();
+  return name === "ENTRY" || isSubtypeOf(name, "ENTRY");
+}
+
+/** Collapse subject / language / encoding children on ENTRY subclasses. */
+export function collapseEntryBoilerplateChildren(block: Blockly.Block): void {
+  if (!isEntryRmType(rmTypeOfBlock(block))) return;
+  for (const attr of ENTRY_BOILERPLATE_ATTRS) {
+    const child = block.getInputTargetBlock(rmAttributeInputName(attr)) ??
+      block.getInputTargetBlock(optionalRmInputName(attr));
+    if (!child) continue;
+    if (typeof child.isShadow === "function" && child.isShadow()) continue;
+    if (typeof child.setCollapsed === "function") child.setCollapsed(true);
+  }
 }
 
 /** Replace dynamic RM-attribute statement inputs (labels = lowercase RM names). */
@@ -680,7 +707,7 @@ function appendRmAttributeInput(
     return;
   }
   const stmt = block.appendStatementInput(rmAttributeInputName(attr))
-    .setAlign(inputAlignRight());
+    .setAlign(inputAlignLeft());
   const check = checkOverride ?? statementCheckForAttr(rmType, attr);
   if (check) stmt.setCheck(check);
   appendSlotLabel(stmt, attr, labelOpts);
@@ -1078,6 +1105,18 @@ type StatementInputDef = {
   check?: string | string[] | null;
 };
 
+function withEntryBoilerplate(
+  rmType: string,
+  inputs: StatementInputDef[],
+): StatementInputDef[] {
+  if (!isEntryRmType(rmType)) return inputs;
+  const names = new Set(inputs.map((row) => row.name));
+  const extra = ENTRY_BOILERPLATE_ATTRS
+    .filter((name) => !names.has(name))
+    .map((name) => ({ name }));
+  return [...inputs, ...extra];
+}
+
 function defineContainerBlock(
   type: string,
   inputs: StatementInputDef[],
@@ -1115,8 +1154,11 @@ function defineContainerBlock(
         kind.setCheck(options.specializationCheck);
         appendSlotTypeEmoji(kind, options.rmType);
       }
-      for (const input of inputs) {
-        appendRmAttributeInput(this, options.rmType, input.name, input.check);
+      const inputDefs = withEntryBoilerplate(options.rmType, inputs);
+      const byName = new Map(inputDefs.map((row) => [row.name, row]));
+      for (const attr of orderedRmAttributes(options.rmType, inputDefs.map((row) => row.name))) {
+        const def = byName.get(attr);
+        appendRmAttributeInput(this, options.rmType, attr, def?.check);
       }
       if (isPartyIdentityType(options.rmType)) {
         for (const attr of partyIdentityAttributes()) {
@@ -1797,7 +1839,7 @@ function registerOptionalRmMutator(): void {
           continue;
         }
         const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
-          .setAlign(inputAlignRight());
+          .setAlign(inputAlignLeft());
         appendSlotLabel(stmt, name, { card, rmCard, rmType: slotType });
       }
       enforceOpenEhrBlockLayout(this);

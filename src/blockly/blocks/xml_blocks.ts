@@ -55,9 +55,8 @@ export const XML_BLOCK_TYPES = [
 ] as const;
 
 /**
- * Keep header chrome left; mouth captions hug sockets (openEHR slot style).
- * External (non-inline) rows are required so Align.RIGHT padding can pull
- * captions against statement/value mouths instead of leaving a mid-block gap.
+ * Keep header chrome left; statement C-mouths LEFT (stock Blockly), value
+ * sockets RIGHT so captions hug the puzzle tab.
  */
 function enforceXmlMouthLayout(block: Block): void {
   enforceMouthCaptionLayout(block);

@@ -74,10 +74,9 @@ export function registerCompactThrasosRenderer(): string {
     }
 
     /**
-     * Thrasos stretches the statement C to the full block width, which leaves a
-     * large empty mouth to the right of a right-aligned caption. For RIGHT rows,
-     * keep a compact C and put the leftover width on the left so
-     * `[caption][mouth]` sits as a pack on the right (openEHR slot look).
+     * Statement rows are LEFT-packed so the C starts just after the caption
+     * (stock Blockly). Value rows stay RIGHT. The leftover-on-left pack is
+     * retained only if a row is still RIGHT-aligned.
      */
     // deno-lint-ignore no-explicit-any
     alignStatementRow_(row: any) {
@@ -251,13 +250,17 @@ export function isMouthRow_(row: any): boolean {
 }
 
 /**
- * Mouth rows always hug the socket. Class chrome lives on a dummy HEADER (see
- * `ensureClassChromeHeader`) so stock lists/maps icons stay left of the puzzle
- * tab instead of riding a right-packed mouth row. Exported for unit tests.
+ * Statement C-mouths start after the caption (LEFT, stock Blockly). Value
+ * sockets hug the right. Class chrome lives on a dummy HEADER (see
+ * `ensureClassChromeHeader`). Exported for unit tests.
  */
 // deno-lint-ignore no-explicit-any
 export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
   if (!row?.elements) return;
+  if (row?.hasStatement) {
+    row.align = alignLeft;
+    return;
+  }
   if (isMouthRow_(row)) {
     row.align = alignRight;
     return;
@@ -301,6 +304,10 @@ export function pinnedSlotCaptionCenterline_(row: any, elem: any, constants: any
         constants?.MIN_BLOCK_HEIGHT ??
         24,
     );
+    const fieldH = Number(elem?.height ?? 0);
+    // A 90°-stood caption is taller than the empty C: grow downward from the
+    // row top so the glyph stays at the mouth instead of centering mid-child.
+    if (fieldH > emptyH) return y + fieldH / 2;
     return y + emptyH / 2;
   }
   // Value socket (inline or external): offset from the top of the row.

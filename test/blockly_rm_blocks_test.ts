@@ -13,6 +13,8 @@ import {
   ensureElementDataValueShell,
   isDataValueBlock,
   orderedRmAttributes,
+  presentFixedAttributeNames,
+  ENTRY_BOILERPLATE_ATTRS,
   registerRmBlocks,
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
@@ -26,15 +28,12 @@ import {
   applyEventRmType,
   applyItemStructureRmType,
   enforceOpenEhrBlockLayout,
+  isEntryRmType,
+  rmTypeOfBlock,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { registerExpressionBlocks } from "@intehrgrator/blockly/blocks/expression_blocks.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { findInstanceRootUnderStart } from "@intehrgrator/blockly/instance_root.ts";
-
-function compositionRoot(workspace: Blockly.Workspace): Blockly.Block | undefined {
-  return findInstanceRootUnderStart(workspace) ??
-    workspace.getTopBlocks(false).find((block) => block.type === "composition");
-}
 import { zipehrEmojiForRmType } from "@intehrgrator/core/rm_emoji.ts";
 import {
   ABSTRACT_SLOT_GLYPH,
@@ -68,6 +67,20 @@ import {
   primaryMappingAttribute,
 } from "@intehrgrator/core/rm_meta.ts";
 import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
+
+function compositionRoot(workspace: Blockly.Workspace): Blockly.Block | undefined {
+  return findInstanceRootUnderStart(workspace) ??
+    workspace.getTopBlocks(false).find((block) => block.type === "composition");
+}
+
+function isBoilerplateDescendant(block: Blockly.Block, ids: Set<string>): boolean {
+  let current: Blockly.Block | null = block.getParent();
+  while (current) {
+    if (ids.has(current.id)) return true;
+    current = current.getParent();
+  }
+  return false;
+}
 
 const fixture = await Deno.readTextFile(
   join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
@@ -118,6 +131,19 @@ Deno.test("orderedRmAttributes puts mandatory RM attrs first", () => {
   assertEquals(
     orderedRmAttributes("OBSERVATION", ["protocol", "data"]),
     ["data", "protocol"],
+  );
+});
+
+Deno.test("orderedRmAttributes trails ENTRY subject language encoding", () => {
+  assertEquals(
+    orderedRmAttributes("OBSERVATION", [
+      "encoding",
+      "data",
+      "subject",
+      "protocol",
+      "language",
+    ]),
+    ["data", "protocol", "subject", "language", "encoding"],
   );
 });
 
@@ -188,6 +214,17 @@ Deno.test("hidden metadata is not extra dummy rows under HEADER", () => {
     `term_pick extra dummy rows, inputs=${inputNames(pick)}`,
   );
 
+  workspace.dispose();
+});
+
+Deno.test("ENTRY observation mouths trail subject language encoding", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const observation = workspace.newBlock("observation");
+  const attrs = presentFixedAttributeNames(observation);
+  assertEquals(attrs.slice(-3), [...ENTRY_BOILERPLATE_ATTRS]);
+  assert(attrs.indexOf("data") >= 0);
+  assert(attrs.indexOf("data") < attrs.indexOf("subject"));
   workspace.dispose();
 });
 
@@ -277,10 +314,39 @@ Deno.test("imported skeleton starts expanded; collapse-all skips the root", () =
     return typeof block.isShadow !== "function" || !block.isShadow();
   });
   assert(nested.length > 0, "expected nested blocks under the root");
-  assert(
-    nested.every((block) => !block.isCollapsed()),
-    "imported nested blocks should start expanded",
-  );
+
+  const boilerplate = new Set<string>();
+  for (const block of workspace.getAllBlocks(false)) {
+    if (!isEntryRmType(rmTypeOfBlock(block))) continue;
+    for (const attr of ENTRY_BOILERPLATE_ATTRS) {
+      const child = block.getInputTargetBlock(rmAttributeInputName(attr)) ??
+        block.getInputTargetBlock(optionalRmInputName(attr));
+      if (child && !child.isShadow?.()) boilerplate.add(child.id);
+    }
+  }
+  assert(boilerplate.size > 0, "ENTRY boilerplate children are present");
+  for (const block of nested) {
+    if (boilerplate.has(block.id)) {
+      assertEquals(
+        block.isCollapsed(),
+        true,
+        `${block.type} (${rmTypeOfBlock(block)}) boilerplate child starts collapsed`,
+      );
+      continue;
+    }
+    if (isBoilerplateDescendant(block, boilerplate)) continue;
+    assertEquals(
+      block.isCollapsed(),
+      false,
+      `${block.type} (${rmTypeOfBlock(block)}) starts expanded`,
+    );
+  }
+
+  for (const id of boilerplate) {
+    const block = workspace.getBlockById(id);
+    assert(block, "boilerplate child exists");
+    assertEquals(block.isCollapsed(), true, `${block.type} starts collapsed`);
+  }
 
   setAllBlocksCollapsed(workspace, true);
   assertEquals(root.isCollapsed(), false, "root must stay expanded after collapse-all");
@@ -557,7 +623,7 @@ Deno.test("openEHR class chrome stays left; slot captions hug mouths", () => {
   assertEquals(observation.getInputsInline(), false);
   assertEquals(observation.getInput("HEADER")?.align, Blockly.inputs.Align.LEFT);
   const data = observation.getInput(rmAttributeInputName("data"));
-  assertEquals(data?.align, Blockly.inputs.Align.RIGHT);
+  assertEquals(data?.align, Blockly.inputs.Align.LEFT);
 
   const element = workspace.newBlock("element");
   assertEquals(element.getInputsInline(), false);

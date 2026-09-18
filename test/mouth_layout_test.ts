@@ -11,8 +11,10 @@ import { enforceMouthCaptionLayout } from "@intehrgrator/blockly/mouth_layout.ts
 import {
   DV_FIELDS_MUTATOR_CONTAINER,
   OPTIONAL_RM_MUTATOR_CONTAINER,
+  composeOptionalRmExtras,
   dvFieldInputName,
   registerRmBlocks,
+  rmAttributeInputName,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import {
   applyOpenEhrRowAlign_,
@@ -84,26 +86,27 @@ Deno.test("XML and RM still hug mouths after the shared layout routine", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const el = ws.newBlock(XML_ELEMENT_TYPE);
-  assertEquals(el.getInput(XML_ATTRIBUTES_INPUT)?.align, AlignRight());
+  assertEquals(el.getInput(XML_ATTRIBUTES_INPUT)?.align, AlignLeft());
   const observation = ws.newBlock("observation");
   assertEquals(observation.getInput("HEADER")?.align, AlignLeft());
+  assertEquals(observation.getInput(rmAttributeInputName("data"))?.align, AlignLeft());
   assertEquals(observation.getInputsInline(), false);
   ws.dispose();
 });
 
-Deno.test("renderer: a mutator cog on a mouth row does not left-align the caption", () => {
+Deno.test("renderer: a mutator cog on a statement row left-aligns like stock Blockly", () => {
   const AlignL = -1;
   const AlignR = 1;
   const mouth = {
     hasStatement: true,
-    align: AlignL,
+    align: AlignR,
     elements: [
       { field: { name: "MUTATOR_COG" } },
       { field: { name: "TEXT" } },
     ],
   };
   applyOpenEhrRowAlign_(mouth, AlignL, AlignR);
-  assertEquals(mouth.align, AlignR);
+  assertEquals(mouth.align, AlignL);
 
   const header = {
     hasStatement: false,
@@ -164,7 +167,7 @@ Deno.test("stretched C still snaps at the drawn tooth xPos, not width-minus-C = 
   assertEquals(Number(row.xPos) + Number(row.statementEdge) + 15, 103);
 });
 
-Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
+Deno.test("mutator STACK mouths start after the caption (LEFT, stock Blockly)", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const types = [
@@ -179,13 +182,24 @@ Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
     const stack = block.getInput("STACK");
     assertEquals(
       stack?.align,
-      AlignRight(),
-      `${type} STACK should hug its mouth`,
+      AlignLeft(),
+      `${type} STACK should start after its caption`,
     );
     assert(
       (stack?.fieldRow.length ?? 0) > 0,
       `${type} STACK title sits on the statement row, not a dummy row`,
     );
   }
+  ws.dispose();
+});
+
+Deno.test("ITEM_TREE items statement mouth starts after the caption (LEFT)", () => {
+  ensure();
+  const ws = new Blockly.Workspace();
+  const tree = ws.newBlock("item_tree");
+  composeOptionalRmExtras(tree, ["items"]);
+  const items = tree.getInput("ATTR_items") ?? tree.getInput("OPT_items");
+  assert(items, "items mouth");
+  assertEquals(items.align, AlignLeft());
   ws.dispose();
 });

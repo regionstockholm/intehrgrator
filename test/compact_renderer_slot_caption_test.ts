@@ -3,7 +3,7 @@
  * the vertical midpoint of a connected child (Thrasos default for value rows).
  */
 import { assertEquals } from "@std/assert";
-import { FieldSlotLabel } from "@intehrgrator/blockly/slot_label.ts";
+import { FieldSlotLabel, slotCaptionStandMetrics } from "@intehrgrator/blockly/slot_label.ts";
 import {
   pinnedSlotCaptionCenterline_,
   shouldPinSlotCaptionToMouth_,
@@ -54,4 +54,40 @@ Deno.test("pinned caption centerline hugs mouth, not mid-child height", () => {
     constants,
   );
   assertEquals(stmtY, 50 + 12);
+});
+
+Deno.test("stood caption taller than the empty C grows downward from the row top", () => {
+  const constants = {
+    EMPTY_STATEMENT_INPUT_HEIGHT: 24,
+    MIN_BLOCK_HEIGHT: 24,
+  };
+  const y = pinnedSlotCaptionCenterline_(
+    { yPos: 50, height: 5000, hasStatement: true },
+    { height: 180, field: new FieldSlotLabel("items") },
+    constants,
+  );
+  assertEquals(y, 50 + 90);
+});
+
+Deno.test("slot caption stands when the child is taller than the horizontal label", () => {
+  const flat = slotCaptionStandMetrics({
+    childHeightPx: 40,
+    bodyWidthPx: 80,
+    glyphWidthPx: 16,
+    bodyPx: 12,
+    glyphPx: 16,
+  });
+  assertEquals(flat.stand, false);
+  assertEquals(flat.width, 96);
+
+  const stood = slotCaptionStandMetrics({
+    childHeightPx: 200,
+    bodyWidthPx: 80,
+    glyphWidthPx: 16,
+    bodyPx: 12,
+    glyphPx: 16,
+  });
+  assertEquals(stood.stand, true);
+  assertEquals(stood.width, 12 + 16);
+  assertEquals(stood.height, 80);
 });

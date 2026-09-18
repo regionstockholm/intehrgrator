@@ -12,7 +12,7 @@ import {
   sourceQueryFieldLabel,
 } from "../source_query.ts";
 
-const LOOP_COLOUR = "#A5D6A7";
+import { LOOP_BLOCK_COLOUR } from "../block_colours.ts";
 const SOURCE_COLOUR = "#E87722";
 
 /**
@@ -50,7 +50,7 @@ export function registerExpressionBlocks(): void {
         .appendField(m.FOR_EACH_SOURCE_DO);
       this.setPreviousStatement(true);
       this.setNextStatement(true);
-      this.setColour(LOOP_COLOUR);
+      this.setColour(LOOP_BLOCK_COLOUR);
       this.setTooltip(m.FOR_EACH_LIST_TOOLTIP);
       this.setStyle?.("loop_blocks");
       enforceMouthCaptionLayout(this);

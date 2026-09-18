@@ -123,3 +123,11 @@ Deno.test("maps_create_with uses mutator quark stack instead of +/-", () => {
   }
   workspace.dispose();
 });
+
+Deno.test("maps_create_with uses the header mutator cogwheel", () => {
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  const map = workspace.newBlock(MAPS_CREATE_WITH);
+  assert(map.getField("MUTATOR_COG"), "header cogwheel");
+  workspace.dispose();
+});

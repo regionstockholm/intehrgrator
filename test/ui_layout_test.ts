@@ -1,4 +1,5 @@
-import { assertEquals } from "@std/assert";
+import { assert, assertEquals } from "@std/assert";
+import { join } from "@std/path";
 import { yJustBelowDefaults } from "@intehrgrator/blockly/defaults_canvas.ts";
 import { startYAboveRoot } from "@intehrgrator/blockly/conversion_start_canvas.ts";
 import {
@@ -6,6 +7,11 @@ import {
   NARROW_MAIN_PANES_MAX_WIDTH_PX,
   visualAxisFromFlexDirection,
 } from "@intehrgrator/ui/split_pane.ts";
+import {
+  COLLAPSED_HOVER_OUTLINE,
+  SLOT_OVERLAY_DELTA_FILL,
+  SLOT_OVERLAY_RM_FILL,
+} from "@intehrgrator/blockly/block_colours.ts";
 
 Deno.test("scaffold top sits a small gap under Defaults, not a Defaults-height jump", () => {
   assertEquals(yJustBelowDefaults(160), 20 + 160 + 16);
@@ -33,3 +39,34 @@ Deno.test("narrow viewports treat Mapping Editors as the lead pane", () => {
   assertEquals(mappingPaneLeadsOnNarrow(375), true);
   assertEquals(mappingPaneLeadsOnNarrow(1280), false);
 });
+
+Deno.test("example and test-output tabs scroll sideways instead of wrapping", async () => {
+  const css = await Deno.readTextFile(join(import.meta.dirname!, "..", "web", "styles.css"));
+  const tabsRule = css.slice(css.indexOf(".example-tabs {"), css.indexOf(".example-tab {"));
+  assert(tabsRule.includes("flex-wrap: nowrap"), tabsRule);
+  assert(tabsRule.includes("overflow-x: auto"), tabsRule);
+});
+
+Deno.test("template overlay fills contrast against RM container teal", () => {
+  const rmTeal = "#003B49";
+  assertEquals(contrastRatio(SLOT_OVERLAY_DELTA_FILL, rmTeal) > 7, true);
+  assertEquals(contrastRatio(SLOT_OVERLAY_RM_FILL, rmTeal) > 7, true);
+  assertEquals(SLOT_OVERLAY_DELTA_FILL, COLLAPSED_HOVER_OUTLINE);
+});
+
+function contrastRatio(a: string, b: string): number {
+  const L1 = relativeLuminance(a);
+  const L2 = relativeLuminance(b);
+  const hi = Math.max(L1, L2);
+  const lo = Math.min(L1, L2);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function relativeLuminance(hex: string): number {
+  const n = hex.replace("#", "");
+  const rgb = [0, 2, 4].map((i) => {
+    const c = parseInt(n.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * rgb[0]! + 0.7152 * rgb[1]! + 0.0722 * rgb[2]!;
+}

@@ -14,6 +14,12 @@ import {
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import { XML_ELEMENT_TYPE } from "@intehrgrator/core/xml_shape.ts";
 import { createSourceQueryBlock } from "@intehrgrator/blockly/source_query.ts";
+import { configureTermPick } from "@intehrgrator/blockly/blocks/term_pick.ts";
+import {
+  termPickDropdownOptions,
+  termSetById,
+} from "@intehrgrator/core/openehr_term_catalog.ts";
+import { labelForPickValue } from "@intehrgrator/ui/searchable_pick.ts";
 
 let ready = false;
 function ensure(): void {
@@ -193,5 +199,53 @@ Deno.test("collapsed nodes use muted Blockly colours", () => {
   const observation = workspace.newBlock("observation");
   const html = collapsedHtmlForBlock(observation);
   assert(html.includes("--collapsed-colour:#003b49") || html.includes("--collapsed-colour:#003B49"), html);
+  workspace.dispose();
+});
+
+Deno.test("collapsed map shows keys and the root of each value", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const map = workspace.newBlock("maps_create_with") as Blockly.Block & {
+    itemCount_: number;
+    updateShape_: () => void;
+  };
+  map.itemCount_ = 2;
+  map.updateShape_();
+  map.setFieldValue("language", "KEY0");
+  map.setFieldValue("encoding", "KEY1");
+  const lang = workspace.newBlock("text");
+  lang.setFieldValue("en", "TEXT");
+  connectValue(map, "VAL0", lang);
+  const nested = workspace.newBlock("maps_create_with") as Blockly.Block & {
+    itemCount_: number;
+    updateShape_: () => void;
+  };
+  nested.itemCount_ = 1;
+  nested.updateShape_();
+  nested.setFieldValue("inner", "KEY0");
+  connectValue(map, "VAL1", nested);
+  const html = collapsedHtmlForBlock(map);
+  assert(html.includes("language"), html);
+  assert(html.includes("en"), html);
+  assert(html.includes("encoding"), html);
+  assert(html.includes("collapsed-map-pair"), html);
+  const visible = html.replace(/<[^>]+>/g, " ");
+  assert(!visible.includes("inner"), "nested map keys stay out of the parent preview");
+  workspace.dispose();
+});
+
+Deno.test("collapsed term_pick shows the pick-list label", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const pick = workspace.newBlock("term_pick");
+  const set = termSetById("openehr:setting");
+  assert(set, "expected setting term set");
+  const home = set.codes.find((item) => item.rubric.toLowerCase() === "home");
+  assert(home, "expected home setting code");
+  configureTermPick(pick, set, home.code);
+  const html = collapsedHtmlForBlock(pick);
+  const expected = labelForPickValue(termPickDropdownOptions(set.id), home.code);
+  assert(html.includes(expected), html);
+  assert(html.includes("data-glyph"), html);
   workspace.dispose();
 });

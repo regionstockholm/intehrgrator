@@ -25,6 +25,7 @@ import {
   inputAlignLeft,
   inputAlignRight,
 } from "./mouth_layout.ts";
+import { ensureHeaderMutatorCog } from "./dynamic_mutator.ts";
 
 export { inputAlignLeft, inputAlignRight };
 
@@ -178,6 +179,7 @@ const STOCK_GLYPH_BLOCK_TYPES = [
   "logic_negate",
   "logic_boolean",
   "logic_ternary",
+  "text_join",
   "lists_create_with",
   "lists_length",
   "lists_isEmpty",
@@ -188,6 +190,8 @@ const STOCK_GLYPH_BLOCK_TYPES = [
   "lists_sort",
   "lists_reverse",
 ] as const;
+
+const STOCK_MUTATOR_COG_TYPES = new Set(["text_join", "lists_create_with"]);
 
 const stockGlyphPatches = new Set<string>();
 
@@ -203,6 +207,7 @@ export function registerStockBlocklyGlyphs(): void {
       ensureBlockOutputHeaderGlyph(this);
       decorateValueInputGlyphs(this);
       if (blockTypeUsesMouthLayout(type)) enforceMouthCaptionLayout(this);
+      if (STOCK_MUTATOR_COG_TYPES.has(type)) ensureHeaderMutatorCog(this);
     };
     const originalUpdate = def.updateShape_ as ((this: Block) => void) | undefined;
     if (typeof originalUpdate === "function" && blockTypeUsesMouthLayout(type)) {
@@ -210,6 +215,7 @@ export function registerStockBlocklyGlyphs(): void {
         originalUpdate.call(this);
         ensureBlockOutputHeaderGlyph(this);
         enforceMouthCaptionLayout(this);
+        if (STOCK_MUTATOR_COG_TYPES.has(type)) ensureHeaderMutatorCog(this);
       };
     }
     const originalUpdateAt = def.updateAt_ as ((this: Block, hasAt: boolean) => void) | undefined;

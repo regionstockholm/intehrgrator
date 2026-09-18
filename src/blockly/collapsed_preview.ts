@@ -21,6 +21,9 @@ import {
   XML_BLOCK_TYPES,
 } from "./blocks/target_blocks.ts";
 import { isTermPickBlock } from "./blocks/term_pick.ts";
+import { MAPS_CREATE_WITH } from "../core/defaults/extract.ts";
+import { termPickDropdownOptions } from "../core/openehr_term_catalog.ts";
+import { labelForPickValue } from "../ui/searchable_pick.ts";
 import { XML_ELEMENT_TYPE, XML_ATTRIBUTE_TYPE, XML_DOCUMENT_TYPE } from "../core/xml_shape.ts";
 import { isSourceQueryBlockType } from "./source_query.ts";
 import { isLoopBlockType } from "./loop_block.ts";
@@ -68,14 +71,15 @@ export function collapsedHtmlForBlock(block: Block): string {
 }
 
 function renderBlock(block: Block): string {
+  if (isTermPickBlock(block)) return renderTermPick(block);
+  if (block.type === MAPS_CREATE_WITH) return renderMapBlock(block);
   if (isOpenEhrBlock(block)) return renderRmBlock(block);
   if (isValueExpression(block)) return renderValue(block);
   return renderGenericBlock(block);
 }
 
 function isOpenEhrBlock(block: Block): boolean {
-  return isRmContainerBlockType(block.type) || isDataValueBlock(block) ||
-    isTermPickBlock(block);
+  return isRmContainerBlockType(block.type) || isDataValueBlock(block);
 }
 
 function isValueExpression(block: Block): boolean {
@@ -124,6 +128,67 @@ function renderRmBlock(block: Block): string {
     inner.push(renderChildInputs(block));
   }
   return `<${tag} ${attrs.join(" ")}>${inner.join("")}</${tag}>`;
+}
+
+function renderTermPick(block: Block): string {
+  const rmType = rmTypeOfBlock(block) || "CODE_PHRASE";
+  const glyph = zipehrEmojiForRmType(rmType) ?? rmType;
+  const tag = rmCustomTag(rmType);
+  const setId = String(block.getFieldValue("SET") || "");
+  const code = String(block.getFieldValue("CODE") || "");
+  const pickLabel = labelForPickValue(termPickDropdownOptions(setId), code);
+  const colour = blockColour(block);
+  const attrs = [
+    `class="collapsed-node collapsed-rm collapsed-term-pick"`,
+    `data-collapsed-node="1"`,
+    `data-glyph="${escapeAttr(glyph)}"`,
+    `data-rm-type="${escapeAttr(rmType)}"`,
+    `aria-label="${escapeAttr(pickLabel || rmType)}"`,
+    `style="--collapsed-colour:${escapeAttr(colour)}"`,
+  ];
+  const inner = [warningBadge(block)];
+  if (pickLabel && pickLabel !== "choose…") inner.push(escapeHtml(pickLabel));
+  return `<${tag} ${attrs.join(" ")}>${inner.join("")}</${tag}>`;
+}
+
+function renderMapBlock(block: Block): string {
+  const tag = genericTag(block);
+  const glyph = genericGlyph(block);
+  const colour = blockColour(block);
+  const extras = hiddenExtras(block);
+  const attrs = [
+    `class="collapsed-node collapsed-generic collapsed-map"`,
+    `data-collapsed-node="1"`,
+    `data-glyph="${escapeAttr(glyph)}"`,
+    `data-tag="${escapeAttr(block.type)}"`,
+    `aria-label="${escapeAttr(genericHover(glyph, block.type, extras))}"`,
+    `style="--collapsed-colour:${escapeAttr(colour)}"`,
+  ];
+  if (extras) attrs.push(`data-extra="${escapeAttr(extras)}"`);
+  const pairs: string[] = [warningBadge(block)];
+  for (const input of block.inputList) {
+    if (!input.name.startsWith("VAL")) continue;
+    const index = input.name.slice(3);
+    const key = String(block.getFieldValue(`KEY${index}`) || "");
+    const child = input.connection?.targetBlock();
+    const value = child ? renderValueRoot(child) : "";
+    pairs.push(
+      `<span class="collapsed-map-pair">${escapeHtml(key)}:${value}</span>`,
+    );
+  }
+  return `<${tag} ${attrs.join(" ")}>${pairs.join("")}</${tag}>`;
+}
+
+/** First-level value only — not nested map/list contents. */
+function renderValueRoot(block: Block): string {
+  if (isValueExpression(block) || LITERAL_BLOCK_TYPES.has(block.type)) {
+    return renderValue(block);
+  }
+  if (isTermPickBlock(block)) return renderTermPick(block);
+  const glyph = isOpenEhrBlock(block)
+    ? (zipehrEmojiForRmType(rmTypeOfBlock(block) || block.type.toUpperCase()) ?? block.type)
+    : genericGlyph(block);
+  return escapeHtml(glyph);
 }
 
 function renderDvContents(block: Block, rmType: string): string {

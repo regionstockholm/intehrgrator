@@ -21,8 +21,9 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * Row alignment: class chrome (emoji / skeleton title / cog) stays LEFT on
  * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
  * from riding a right-aligned value/statement row after inline merges.
- * After packing a compact statement C on the right, pin `statementEdge` to
- * that C so snap/highlight sit on the bump (issue #105).
+ * After packing a compact statement C, pin `statementEdge` to that C so
+ * snap/highlight sit on the bump (issue #105). Statement rows are
+ * LEFT-packed (issue #150) so the bump is just after the caption.
  *
  * Vertical: Thrasos pins statement-row fields to the notch, but still
  * centers fields on tall *value* rows (`row.height / 2`). Schema single-

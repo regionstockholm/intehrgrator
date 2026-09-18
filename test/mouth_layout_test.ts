@@ -153,6 +153,19 @@ Deno.test("RIGHT-packed statement mouths snap at the visual C bump, not the left
   assertEquals(connX, 165);
 });
 
+Deno.test("LEFT-packed statement mouths snap after the caption, not at ownWidth", () => {
+  // COMPOSITION.content (issue #150): caption ~66px, outline 316px, leftover
+  // on the right of the C. Pin to the drawn tooth, not the far outline edge.
+  const row = {
+    xPos: 0,
+    width: 316,
+    statementEdge: 316,
+    getLastInput: () => ({ width: 40, xPos: 66, notchOffset: 15 }),
+  };
+  pinStatementRowNotch_(row);
+  assertEquals(row.statementEdge, 66);
+});
+
 Deno.test("stretched C still snaps at the drawn tooth xPos, not width-minus-C = 0", () => {
   // Mutator STACK / XML document: Thrasos stretched input.width to the row,
   // then compact packing moved the C right. Visual tooth is input.xPos.

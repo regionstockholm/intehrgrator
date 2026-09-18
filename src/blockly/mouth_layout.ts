@@ -42,7 +42,7 @@ export function enforceMouthCaptionLayout(block: Block): void {
 /**
  * Title on the STACK statement row so `[caption][C]` packs like COMPOSITION.content.
  * A separate dummy title row left the C-only STACK row with statementEdge ≈ 0,
- * so snap/highlight sat inside the block instead of on the right tooth.
+ * so snap/highlight sat inside the block instead of on the C bump.
  */
 export function initMutatorStackMouth(block: Block, title: string): void {
   const stack = block.appendStatementInput("STACK").setAlign(inputAlignLeft());

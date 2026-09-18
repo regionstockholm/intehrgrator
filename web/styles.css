@@ -362,6 +362,17 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .mapping-spec-download,
 .mapping-spec-upload { margin-left: 4px; font-size: 11px; padding: 3px 8px; }
 .mapping-spec-download { margin-left: auto; }
+.mapping-spec-bulk-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+.mapping-spec-bulk-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
 .mapping-editor-tab {
   border: 1px solid var(--border); border-radius: 4px; background: #fff;
   color: var(--text-secondary); padding: 3px 7px; font-size: 11px; cursor: pointer;

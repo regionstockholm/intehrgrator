@@ -28,6 +28,11 @@ import {
   mappingSpecDocumentText,
   setMappingSpecFromBlockly,
   scrollMappingSpecToBlock,
+  blocklyJsonDocument,
+  blocklyJsonDocumentForRoot,
+  deleteMarkedSpecBlocks,
+  pruneCheckedBlockIds,
+  specRowBlockIdsEligibleForBulkMark,
   type SpecChrome,
 } from "../src/workbench/mapping_spec/mod.ts";
 import {
@@ -43,7 +48,7 @@ import {
   slotIdFromBlock,
   listeningTargetFromBlock,
   owningValueSlotId,
-  warningTextOf,
+  blockConstraintMessages,
   createModestTheme,
   buildDemoToolbox,
   setOptionalRmMutatorChangeHandler,
@@ -195,6 +200,9 @@ const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButt
 const uploadSpecBtn = document.getElementById("btn-upload-spec") as HTMLButtonElement;
 const mappingJsonHost = document.getElementById("spec-editor")!;
 const sheetsHost = document.getElementById("sheets-host")!;
+const specBulkBar = document.getElementById("mapping-spec-bulk-bar")!;
+const specMarkWarnedBtn = document.getElementById("btn-spec-mark-warned") as HTMLButtonElement;
+const specDeleteMarkedBtn = document.getElementById("btn-spec-delete-marked") as HTMLButtonElement;
 
 const dialogSaveAs = document.getElementById("dialog-save-as") as HTMLDialogElement;
 const saveAsNameInput = document.getElementById("save-as-name") as HTMLInputElement;
@@ -217,16 +225,59 @@ const specEditor = createMappingSpecEditor(mappingJsonHost, {
     // Workspace change listener runs syncFromBlockly → Spec refresh.
   },
   onSelect: (blockId) => applyBlockSelection(blockId, "spec"),
+  onCheckToggle: (blockId, checked) => toggleSpecBlockCheck(blockId, checked),
 });
 let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
 let specChromeUi: ReturnType<typeof mountMappingSpecChrome> | null = null;
 let functionLibraryUi: ReturnType<typeof mountFunctionLibraryDialog> | null = null;
+let specCheckedBlockIds = new Set<string>();
 
 function refreshMappingSpecView(blocklyState?: unknown): void {
+  if (workspace) {
+    specCheckedBlockIds = pruneCheckedBlockIds(workspace, specCheckedBlockIds);
+  }
   const state = blocklyState ?? Blockly.serialization.workspaces.save(workspace);
   const layout = specChromeUi?.getLayout() ?? "list";
   const rootId = layout === "tabs" ? specChromeUi?.getActiveRootId() ?? null : null;
   setMappingSpecFromBlockly(specEditor, state, specChrome(), { rootId });
+  updateSpecBulkButtons();
+}
+
+function toggleSpecBlockCheck(blockId: string, checked: boolean): void {
+  if (checked) specCheckedBlockIds.add(blockId);
+  else specCheckedBlockIds.delete(blockId);
+  refreshMappingSpecView();
+}
+
+function markAllWarnedOptionalUnmapped(): void {
+  if (!workspace) return;
+  const warnings = collectConstraintWarnings();
+  const state = Blockly.serialization.workspaces.save(workspace);
+  const layout = specChromeUi?.getLayout() ?? "list";
+  const rootId = layout === "tabs" ? specChromeUi?.getActiveRootId() ?? null : null;
+  const doc = rootId
+    ? blocklyJsonDocumentForRoot(state, rootId)
+    : blocklyJsonDocument(state);
+  for (const id of specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings)) {
+    specCheckedBlockIds.add(id);
+  }
+  refreshMappingSpecView();
+}
+
+function deleteMarkedSpecBlocksFromCanvas(): void {
+  if (!workspace) return;
+  const deleted = deleteMarkedSpecBlocks(workspace, specCheckedBlockIds);
+  if (!deleted.length) return;
+  for (const id of deleted) specCheckedBlockIds.delete(id);
+  if (selectedBlockId && deleted.includes(selectedBlockId)) {
+    selectedBlockId = null;
+  }
+  persistBlocklyCanvas({ summary: "Delete marked mapping spec nodes" });
+  refreshMappingSpecView();
+}
+
+function updateSpecBulkButtons(): void {
+  specDeleteMarkedBtn.disabled = specCheckedBlockIds.size === 0;
 }
 
 function wireMappingSpecLayoutMenu(): void {
@@ -295,6 +346,7 @@ function showTextView(view: "mapping-json" | "sheets"): void {
   const showSheets = view === "sheets";
   mappingJsonHost.hidden = showSheets;
   sheetsHost.hidden = !showSheets;
+  specBulkBar.hidden = showSheets;
   mappingJsonTab.classList.toggle("active", view === "mapping-json");
   sheetsTab?.classList.toggle("active", showSheets);
   downloadSpecBtn.hidden = showSheets;
@@ -304,6 +356,8 @@ function showTextView(view: "mapping-json" | "sheets"): void {
 
 mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 sheetsTab?.addEventListener("click", () => showTextView("sheets"));
+specMarkWarnedBtn.addEventListener("click", () => markAllWarnedOptionalUnmapped());
+specDeleteMarkedBtn.addEventListener("click", () => deleteMarkedSpecBlocksFromCanvas());
 downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
 uploadSpecBtn?.addEventListener("click", () =>
   void withUndoableDocumentReplace(() => controller.importBlocklyDefinition())
@@ -849,8 +903,8 @@ function collectConstraintWarnings(): Record<string, string> {
   const warnings: Record<string, string> = {};
   if (!workspace) return warnings;
   for (const block of workspace.getAllBlocks(false)) {
-    const text = warningTextOf(block);
-    if (text) warnings[block.id] = text;
+    const messages = blockConstraintMessages(block);
+    if (messages.length) warnings[block.id] = messages.join("\n");
   }
   return warnings;
 }
@@ -859,6 +913,7 @@ function specChrome(): SpecChrome {
   return {
     warnings: collectConstraintWarnings(),
     selectedBlockId,
+    checkedBlockIds: specCheckedBlockIds,
   };
 }
 

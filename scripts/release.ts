@@ -66,6 +66,9 @@ function parseArgs(argv: string[]) {
       noTest = true;
       continue;
     }
+    if (arg === "--") {
+      continue;
+    }
     if (arg === "--help" || arg === "-h") {
       usage();
       Deno.exit(0);

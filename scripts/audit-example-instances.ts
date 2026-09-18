@@ -242,22 +242,49 @@ await flagKardaSchema(
   await listJsonFiles(ordInstDir),
 );
 
-const asJson = Deno.args.includes("--json");
-if (asJson) {
-  console.log(JSON.stringify({ rows, schemaFlags }, null, 2));
-} else {
-  console.log("| Set | Instance | Catalog | Named-broken | Schema-valid | Notes |");
-  console.log("| --- | --- | --- | --- | --- | --- |");
+function renderValidationMarkdown(): string {
+  const lines = [
+    "| Set | Instance | Catalog | Named-broken | Schema-valid | Notes |",
+    "| --- | --- | --- | --- | --- | --- |",
+  ];
   for (const r of rows) {
-    const status = r.namedBroken ? (r.ok ? "unexpectedly valid" : "invalid (expected)") : (r.ok ? "valid" : "INVALID");
+    const status = r.namedBroken
+      ? (r.ok ? "unexpectedly valid" : "invalid (expected)")
+      : (r.ok ? "valid" : "INVALID");
     const notes = [...r.notes, ...r.issues.slice(0, 3)].join("; ").replace(/\|/g, "/");
-    console.log(
+    lines.push(
       `| ${r.setId} | \`${r.instance}\` | ${r.inCatalog ? "yes" : "no"} | ${r.namedBroken ? "yes" : "no"} | ${status} | ${notes || "—"} |`,
     );
   }
-  console.log("\n## Schema flags\n");
-  if (!schemaFlags.length) console.log("(none)");
-  else for (const f of schemaFlags) console.log(`- ${f}`);
+  lines.push("", "### Schema flags", "");
+  if (!schemaFlags.length) lines.push("(none)");
+  else for (const f of schemaFlags) lines.push(`- ${f}`);
+  return lines.join("\n");
+}
+
+async function updateAuditMarkdown(section: string): Promise<void> {
+  const auditDoc = join(root, "docs", "agents", "example-sets-audit.md");
+  const begin = "<!-- BEGIN:instance-validation -->";
+  const end = "<!-- END:instance-validation -->";
+  let text: string;
+  try {
+    text = await Deno.readTextFile(auditDoc);
+  } catch {
+    return;
+  }
+  const start = text.indexOf(begin);
+  const stop = text.indexOf(end);
+  if (start < 0 || stop < 0 || stop < start) return;
+  const updated = `${text.slice(0, start + begin.length)}\n${section}\n${text.slice(stop)}`;
+  await Deno.writeTextFile(auditDoc, updated);
+}
+
+const asJson = Deno.args.includes("--json");
+const validationMarkdown = renderValidationMarkdown();
+if (asJson) {
+  console.log(JSON.stringify({ rows, schemaFlags }, null, 2));
+} else {
+  console.log(validationMarkdown);
 }
 
 await Deno.mkdir("/opt/cursor/artifacts", { recursive: true });
@@ -265,3 +292,4 @@ await Deno.writeTextFile(
   "/opt/cursor/artifacts/example-instance-audit.json",
   JSON.stringify({ rows, schemaFlags }, null, 2),
 );
+await updateAuditMarkdown(validationMarkdown);

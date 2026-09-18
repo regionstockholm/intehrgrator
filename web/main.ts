@@ -49,7 +49,6 @@ import {
   listeningTargetFromBlock,
   owningValueSlotId,
   blockConstraintMessages,
-  warningTextOf,
   createModestTheme,
   buildDemoToolbox,
   setOptionalRmMutatorChangeHandler,

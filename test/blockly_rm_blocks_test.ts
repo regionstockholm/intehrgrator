@@ -15,6 +15,7 @@ import {
   orderedRmAttributes,
   presentFixedAttributeNames,
   ENTRY_BOILERPLATE_ATTRS,
+  sortEntryBoilerplateExtras,
   registerRmBlocks,
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
@@ -159,6 +160,17 @@ Deno.test("orderedRmAttributes does not trail COMPOSITION language", () => {
   assertEquals(ordered.includes("language"), true);
   assertEquals(ordered.indexOf("language") < ordered.indexOf("content"), true);
   assertEquals(ordered.at(-1) === "language", false);
+});
+
+Deno.test("optional RM extras on ENTRY trail subject language encoding", () => {
+  assertEquals(
+    sortEntryBoilerplateExtras("OBSERVATION", ["protocol", "encoding", "subject", "language"]),
+    ["protocol", "subject", "language", "encoding"],
+  );
+  assertEquals(
+    sortEntryBoilerplateExtras("COMPOSITION", ["content", "language", "context"]),
+    ["content", "language", "context"],
+  );
 });
 
 /** Dummy inputs with no connection sit as empty rows in Thrasos. */

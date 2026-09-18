@@ -316,6 +316,12 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.example-tabs .example-tab,
+.example-tabs .example-tab--with-close {
+  flex: 0 0 auto;
 }
 .example-tab {
   border: 1px solid var(--border); background: #fff; border-radius: 4px;
@@ -917,6 +923,13 @@ body.sheets-fullscreen::before {
 .blockly-mount .blocklyText .blockly-slot-overlay-rm {
   fill: #E2E8F0;
   text-decoration: line-through;
+}
+
+/* Native Blockly collapsed labels (ZipEHR HTML uses .collapsed-hover). */
+.blockly-mount .blocklyCollapsed > .blocklyText:hover,
+.blockly-mount .blocklyCollapsed > .blocklyText:focus {
+  outline: 2px solid #FDE68A;
+  outline-offset: 2px;
 }
 .blockly-mount .blocklyText.blockly-slot-label--abstract,
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,

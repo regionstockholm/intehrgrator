@@ -251,6 +251,7 @@ function toggleSpecBlockCheck(blockId: string, checked: boolean): void {
 
 function markAllWarnedOptionalUnmapped(): void {
   if (!workspace) return;
+  refreshWorkspaceConstraints(workspace);
   const warnings = collectConstraintWarnings();
   const state = Blockly.serialization.workspaces.save(workspace);
   const layout = specChromeUi?.getLayout() ?? "list";
@@ -258,9 +259,9 @@ function markAllWarnedOptionalUnmapped(): void {
   const doc = rootId
     ? blocklyJsonDocumentForRoot(state, rootId)
     : blocklyJsonDocument(state);
-  for (const id of specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings)) {
-    specCheckedBlockIds.add(id);
-  }
+  specCheckedBlockIds = new Set(
+    specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings),
+  );
   refreshMappingSpecView();
 }
 
@@ -268,10 +269,11 @@ function deleteMarkedSpecBlocksFromCanvas(): void {
   if (!workspace) return;
   const deleted = deleteMarkedSpecBlocks(workspace, specCheckedBlockIds);
   if (!deleted.length) return;
-  for (const id of deleted) specCheckedBlockIds.delete(id);
+  specCheckedBlockIds = new Set();
   if (selectedBlockId && deleted.includes(selectedBlockId)) {
     selectedBlockId = null;
   }
+  refreshWorkspaceConstraints(workspace);
   persistBlocklyCanvas({ summary: "Delete marked mapping spec nodes" });
   refreshMappingSpecView();
 }
@@ -639,6 +641,7 @@ async function bootBlockly(): Promise<void> {
     }
     if (event.type === CANVAS_SWAP_EVENT_TYPE) {
       refreshUndoButtons();
+      refreshWorkspaceConstraints(workspace);
       return;
     }
     if (event.type === Blockly.Events.CLICK) {

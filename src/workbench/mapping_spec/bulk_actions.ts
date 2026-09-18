@@ -17,13 +17,8 @@ function lineWarning(line: SpecLine, warnings: Record<string, string>): string |
   return null;
 }
 
-/** Block id whose constraint message is shown on this spec row, if any. */
-function warningSourceBlockId(line: SpecLine, warnings: Record<string, string>): string | null {
-  if (line.blockId && warnings[line.blockId]) return line.blockId;
-  for (const id of line.aliasIds ?? []) {
-    if (warnings[id]) return id;
-  }
-  return null;
+function lineAssociatedBlockIds(line: SpecLine): string[] {
+  return [line.blockId, ...(line.aliasIds ?? [])].filter((id): id is string => Boolean(id));
 }
 
 /** Optional unmapped scaffold tree eligible for bulk mark/delete. */
@@ -59,26 +54,51 @@ export function topLevelBlockIds(workspace: Workspace, ids: Iterable<string>): s
   });
 }
 
+/** Outermost workspace blocks that root an optional unmapped scaffold subtree. */
+export function optionalUnmappedScaffoldRootIds(workspace: Workspace): Set<string> {
+  const eligible = blocksEligibleForBulkMark(workspace);
+  return new Set(topLevelBlockIds(workspace, eligible));
+}
+
+/** True when the block is a root or descendant of an optional unmapped scaffold tree. */
+export function isWithinOptionalUnmappedScaffold(
+  workspace: Workspace,
+  blockId: string,
+  roots: ReadonlySet<string> = optionalUnmappedScaffoldRootIds(workspace),
+): boolean {
+  if (roots.has(blockId)) return true;
+  const block = workspace.getBlockById(blockId);
+  if (!block) return false;
+  let current: Block | null = block;
+  while (current) {
+    if (roots.has(current.id)) return true;
+    current = current.getParent() ?? current.getSurroundParent?.() ?? null;
+  }
+  return false;
+}
+
 /**
- * Every mapping-spec row block id that shows an optional unmapped scaffold
- * warning triangle (matches visible spec chrome, including nested rows).
+ * Every mapping-spec row block id inside an optional unmapped scaffold subtree
+ * that shows a constraint warning (root clusters, nested elements, units, …).
  */
 export function specRowBlockIdsEligibleForBulkMark(
   workspace: Workspace,
   doc: BlocklyJsonDocument,
   warnings: Record<string, string>,
 ): string[] {
+  const roots = optionalUnmappedScaffoldRootIds(workspace);
+  if (!roots.size) return [];
+
   const ids: string[] = [];
   const seen = new Set<string>();
   for (const widget of doc.widgets) {
     const line = widget.line;
     if (line.kind === "header" || !line.blockId) continue;
-    const warning = lineWarning(line, warnings);
-    if (!warning) continue;
-    const sourceId = warningSourceBlockId(line, warnings);
-    if (!sourceId) continue;
-    const block = workspace.getBlockById(sourceId);
-    if (!block || !isOptionalUnmappedScaffoldBlock(block, warning)) continue;
+    if (!lineWarning(line, warnings)) continue;
+    const inSubtree = lineAssociatedBlockIds(line).some((id) =>
+      isWithinOptionalUnmappedScaffold(workspace, id, roots)
+    );
+    if (!inSubtree) continue;
     if (seen.has(line.blockId)) continue;
     seen.add(line.blockId);
     ids.push(line.blockId);

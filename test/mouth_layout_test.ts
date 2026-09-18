@@ -11,8 +11,10 @@ import { enforceMouthCaptionLayout } from "@intehrgrator/blockly/mouth_layout.ts
 import {
   DV_FIELDS_MUTATOR_CONTAINER,
   OPTIONAL_RM_MUTATOR_CONTAINER,
+  composeOptionalRmExtras,
   dvFieldInputName,
   registerRmBlocks,
+  rmAttributeInputName,
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import {
   applyOpenEhrRowAlign_,
@@ -87,11 +89,12 @@ Deno.test("XML and RM still hug mouths after the shared layout routine", () => {
   assertEquals(el.getInput(XML_ATTRIBUTES_INPUT)?.align, AlignRight());
   const observation = ws.newBlock("observation");
   assertEquals(observation.getInput("HEADER")?.align, AlignLeft());
+  assertEquals(observation.getInput(rmAttributeInputName("data"))?.align, AlignRight());
   assertEquals(observation.getInputsInline(), false);
   ws.dispose();
 });
 
-Deno.test("renderer: a mutator cog on a mouth row does not left-align the caption", () => {
+Deno.test("renderer: statement-row captions RIGHT-align so they hug the C", () => {
   const AlignL = -1;
   const AlignR = 1;
   const mouth = {
@@ -150,6 +153,19 @@ Deno.test("RIGHT-packed statement mouths snap at the visual C bump, not the left
   assertEquals(connX, 165);
 });
 
+Deno.test("LEFT-packed statement mouths snap after the caption, not at ownWidth", () => {
+  // COMPOSITION.content (issue #150): caption ~66px, outline 316px, leftover
+  // on the right of the C. Pin to the drawn tooth, not the far outline edge.
+  const row = {
+    xPos: 0,
+    width: 316,
+    statementEdge: 316,
+    getLastInput: () => ({ width: 40, xPos: 66, notchOffset: 15 }),
+  };
+  pinStatementRowNotch_(row);
+  assertEquals(row.statementEdge, 66);
+});
+
 Deno.test("stretched C still snaps at the drawn tooth xPos, not width-minus-C = 0", () => {
   // Mutator STACK / XML document: Thrasos stretched input.width to the row,
   // then compact packing moved the C right. Visual tooth is input.xPos.
@@ -164,7 +180,7 @@ Deno.test("stretched C still snaps at the drawn tooth xPos, not width-minus-C = 
   assertEquals(Number(row.xPos) + Number(row.statementEdge) + 15, 103);
 });
 
-Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
+Deno.test("mutator STACK mouths hug the C (RIGHT, leftover left of the caption)", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const types = [
@@ -180,12 +196,23 @@ Deno.test("mutator STACK mouths hug the right like COMPOSITION content", () => {
     assertEquals(
       stack?.align,
       AlignRight(),
-      `${type} STACK should hug its mouth`,
+      `${type} STACK caption should hug the C`,
     );
     assert(
       (stack?.fieldRow.length ?? 0) > 0,
       `${type} STACK title sits on the statement row, not a dummy row`,
     );
   }
+  ws.dispose();
+});
+
+Deno.test("ITEM_TREE items statement mouth hugs the C (RIGHT)", () => {
+  ensure();
+  const ws = new Blockly.Workspace();
+  const tree = ws.newBlock("item_tree");
+  composeOptionalRmExtras(tree, ["items"]);
+  const items = tree.getInput("ATTR_items") ?? tree.getInput("OPT_items");
+  assert(items, "items mouth");
+  assertEquals(items.align, AlignRight());
   ws.dispose();
 });

@@ -10,7 +10,7 @@ export const COLLAPSED_INPUT_NAME = "_TEMP_COLLAPSED_INPUT";
 export const COLLAPSED_FIELD_NAME = "_TEMP_COLLAPSED_FIELD";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
-const MAX_WIDTH_PX = 1200;
+const MAX_WIDTH_PX = 576;
 const MIN_HEIGHT_PX = 18;
 
 // deno-lint-ignore no-explicit-any

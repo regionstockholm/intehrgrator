@@ -22,6 +22,10 @@ import {
   OVERLAY_DELTA,
   constraintOverlayHelp,
 } from "./slot_cardinality.ts";
+import {
+  SLOT_OVERLAY_DELTA_FILL,
+  SLOT_OVERLAY_RM_FILL,
+} from "./block_colours.ts";
 
 export const SLOT_LABEL_FIELD_PREFIX = "SLOT_LABEL_";
 
@@ -65,6 +69,8 @@ export class FieldSlotLabel extends FieldLabelBase {
   /** Schema property docs when not using openEHR RM attribute tables. */
   private documentation_ = "";
   private attrTspan_: SVGTSpanElement | null = null;
+  private glyphElement_: SVGTextElement | null = null;
+  private standing_ = false;
   readonly pinId = `slot-label-${++pinSeq}`;
 
   /** Lets block_constraints refresh unmet cardinality on this caption. */
@@ -296,18 +302,39 @@ export class FieldSlotLabel extends FieldLabelBase {
     const glyphWidth = typeGlyph
       ? measureCaptionWidth(` ${typeGlyph}`, glyphPx, abstract)
       : 0;
-    this.size_.width = bodyWidth + glyphWidth;
-    // Field height follows the tallest ink so mixed font sizes center cleanly.
-    this.size_.height = Math.max(14, bodyPx, typeGlyph ? glyphPx : bodyPx);
+    const childH = connectedChildHeightPx(this);
+    const metrics = slotCaptionStandMetrics({
+      childHeightPx: childH,
+      bodyWidthPx: bodyWidth,
+      glyphWidthPx: glyphWidth,
+      bodyPx,
+      glyphPx: typeGlyph ? glyphPx : bodyPx,
+    });
+    this.standing_ = metrics.stand;
+    this.size_.width = metrics.width;
+    this.size_.height = metrics.height;
+    this.fieldGroup_?.classList.toggle("blockly-slot-label--stand", metrics.stand);
     const el = this.textElement_ as SVGTextElement | null;
     if (!el) return;
     el.setAttribute("dominant-baseline", "central");
     el.setAttribute("alignment-baseline", "central");
     el.setAttribute("dy", "0");
-    el.setAttribute("y", String(this.size_.height / 2));
     el.setAttribute("text-anchor", "start");
-    el.setAttribute("x", "0");
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
+    if (metrics.stand) {
+      // 90° CCW under the glyph: glyph stays at the mouth (right of the field);
+      // the caption body hangs in the same column hugging the C.
+      el.setAttribute("x", "0");
+      el.setAttribute("y", "0");
+      el.setAttribute(
+        "transform",
+        `translate(${metrics.width}, ${metrics.height}) rotate(-90)`,
+      );
+    } else {
+      el.removeAttribute("transform");
+      el.setAttribute("x", "0");
+      el.setAttribute("y", String(this.size_.height / 2));
+    }
     this.rebuildCaption_(
       el,
       card,
@@ -316,6 +343,7 @@ export class FieldSlotLabel extends FieldLabelBase {
       abstract,
       bodyPx,
       glyphPx,
+      metrics.stand,
     );
   }
 
@@ -327,6 +355,7 @@ export class FieldSlotLabel extends FieldLabelBase {
     abstractGlyph: boolean,
     bodyPx: number,
     glyphPx: number,
+    stand: boolean,
   ): void {
     if (typeof document === "undefined") return;
     while (el.firstChild) el.removeChild(el.firstChild);
@@ -367,34 +396,61 @@ export class FieldSlotLabel extends FieldLabelBase {
       const cardNode = document.createTextNode(` ${card}`);
       el.appendChild(cardNode);
     }
-    if (glyph) {
-      el.appendChild(document.createTextNode(" "));
-      if (abstractGlyph) {
-        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-        tspan.setAttribute("class", "blockly-slot-abstract-glyph");
-        tspan.setAttribute("dominant-baseline", "central");
-        tspan.setAttribute("alignment-baseline", "central");
-        tspan.textContent = glyph;
-        tspan.style.cursor = "pointer";
-        tspan.style.setProperty("font-size", `${glyphPx}px`, "important");
-        tspan.addEventListener("mousedown", (event) => event.stopPropagation());
-        tspan.addEventListener("click", (event) => {
-          event.stopPropagation();
-          dismissSpecHelpPopup();
-          pinSlotLabelTip(this);
-        });
-        el.appendChild(tspan);
-      } else {
-        const tspan = document.createElementNS("http://www.w3.org/2000/svg", "tspan");
-        tspan.setAttribute("class", "blockly-slot-type-glyph");
-        tspan.setAttribute("dominant-baseline", "central");
-        tspan.setAttribute("alignment-baseline", "central");
-        tspan.textContent = glyph;
-        tspan.style.setProperty("font-size", `${glyphPx}px`, "important");
-        el.appendChild(tspan);
-      }
-    }
+    this.syncGlyphElement_(glyph, abstractGlyph, glyphPx, stand, bodyPx);
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
+  }
+
+  private syncGlyphElement_(
+    glyph: string,
+    abstractGlyph: boolean,
+    glyphPx: number,
+    stand: boolean,
+    bodyPx: number,
+  ): void {
+    const group = this.fieldGroup_ as SVGGElement | null;
+    if (!group) return;
+    if (!glyph) {
+      this.glyphElement_?.remove();
+      this.glyphElement_ = null;
+      return;
+    }
+    let glyphEl = this.glyphElement_;
+    if (!glyphEl) {
+      glyphEl = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      glyphEl.setAttribute("class", "blocklyText");
+      group.appendChild(glyphEl);
+      this.glyphElement_ = glyphEl;
+    }
+    glyphEl.setAttribute("dominant-baseline", "central");
+    glyphEl.setAttribute("alignment-baseline", "central");
+    glyphEl.setAttribute("text-anchor", "start");
+    glyphEl.style.setProperty("font-size", `${glyphPx}px`, "important");
+    glyphEl.textContent = glyph;
+    glyphEl.classList.toggle("blockly-slot-abstract-glyph", abstractGlyph);
+    glyphEl.classList.toggle("blockly-slot-type-glyph", !abstractGlyph);
+    if (abstractGlyph) {
+      glyphEl.style.cursor = "pointer";
+      glyphEl.onmousedown = (event) => event.stopPropagation();
+      glyphEl.onclick = (event) => {
+        event.stopPropagation();
+        dismissSpecHelpPopup();
+        pinSlotLabelTip(this);
+      };
+    } else {
+      glyphEl.style.cursor = "";
+      glyphEl.onmousedown = null;
+      glyphEl.onclick = null;
+    }
+    const width = Number(this.size_?.width ?? 0);
+    const height = Number(this.size_?.height ?? 0);
+    if (stand) {
+      glyphEl.setAttribute("x", String(Math.max(0, width - measureCaptionWidth(glyph, glyphPx, abstractGlyph))));
+      glyphEl.setAttribute("y", String(Math.max(glyphPx, bodyPx) / 2));
+    } else {
+      const bodyW = Math.max(0, width - measureCaptionWidth(` ${glyph}`, glyphPx, abstractGlyph));
+      glyphEl.setAttribute("x", String(bodyW));
+      glyphEl.setAttribute("y", String(height / 2));
+    }
   }
 }
 
@@ -402,6 +458,44 @@ export function isSlotLabelField(
   field: Field | null | undefined,
 ): field is FieldSlotLabel {
   return Boolean(field && (field as FieldSlotLabel).isSlotLabelField);
+}
+
+/**
+ * Rotate the caption body 90° CCW when the nested child is taller than the
+ * horizontal label is wide, so the C-mouth can start further left.
+ */
+export function slotCaptionStandMetrics(args: {
+  childHeightPx: number;
+  bodyWidthPx: number;
+  glyphWidthPx: number;
+  bodyPx: number;
+  glyphPx: number;
+}): { stand: boolean; width: number; height: number } {
+  const horizontalWidth = args.bodyWidthPx + args.glyphWidthPx;
+  const stand = args.childHeightPx > horizontalWidth && horizontalWidth > 0;
+  if (!stand) {
+    return {
+      stand: false,
+      width: horizontalWidth,
+      height: Math.max(14, args.bodyPx, args.glyphPx),
+    };
+  }
+  return {
+    stand: true,
+    width: Math.max(args.glyphWidthPx, args.bodyPx),
+    height: args.glyphPx + args.bodyWidthPx,
+  };
+}
+
+function connectedChildHeightPx(field: FieldSlotLabel): number {
+  const block = field.getSourceBlock?.();
+  if (!block) return 0;
+  const input = field.getParentInput?.() ??
+    block.inputList.find((row) => row.fieldRow.includes(field));
+  const child = input?.connection?.targetBlock();
+  if (!child) return 0;
+  if (typeof child.isShadow === "function" && child.isShadow()) return 0;
+  return Number(child.getHeightWidth?.()?.height ?? 0);
 }
 
 export function slotLabelFieldName(inputName: string): string {
@@ -471,6 +565,12 @@ function appendOverlayTspans(
     tspan.setAttribute("class", className);
     tspan.textContent = text;
     tspan.style.setProperty("font-size", `${bodyPx}px`, "important");
+    tspan.style.setProperty(
+      "fill",
+      className === "blockly-slot-overlay-rm"
+        ? SLOT_OVERLAY_RM_FILL
+        : SLOT_OVERLAY_DELTA_FILL,
+    );
     if (help) {
       tspan.style.cursor = "pointer";
       tspan.setAttribute("title", help);

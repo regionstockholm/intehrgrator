@@ -100,7 +100,7 @@ import {
   pointInRect,
 } from "../src/blockly/source_drop.ts";
 import { registerServiceWorker } from "./pwa.ts";
-import { mountMappingSpecChrome, type SpecRootLayout } from "../src/ui/mapping_spec_chrome.ts";
+import { mountMappingSpecChrome, installSpecLayoutMenu } from "../src/ui/mapping_spec_chrome.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
 import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
@@ -284,28 +284,21 @@ function updateSpecBulkButtons(): void {
 
 function wireMappingSpecLayoutMenu(): void {
   const chevron = document.getElementById("tab-mapping-json-menu");
+  const main = document.getElementById("tab-mapping-json");
   const menu = document.getElementById("menu-mapping-spec-layout");
-  if (!chevron || !menu) return;
-  const close = () => {
-    menu.hidden = true;
-    chevron.setAttribute("aria-expanded", "false");
-  };
-  chevron.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const open = menu.hidden;
-    menu.hidden = !open;
-    chevron.setAttribute("aria-expanded", open ? "true" : "false");
-  });
-  document.addEventListener("click", (event) => {
-    if (!menu.contains(event.target as Node) && event.target !== chevron) close();
-  });
-  for (const item of menu.querySelectorAll<HTMLButtonElement>("[data-spec-layout]")) {
-    item.addEventListener("click", () => {
-      const layout = item.dataset.specLayout as SpecRootLayout;
-      specChromeUi?.setLayout(layout);
-      close();
-    });
+  if (
+    !(chevron instanceof HTMLButtonElement) ||
+    !(main instanceof HTMLButtonElement) ||
+    !menu
+  ) {
+    return;
   }
+  installSpecLayoutMenu({
+    chevron,
+    main,
+    menu,
+    onLayout: (layout) => specChromeUi?.setLayout(layout),
+  });
 }
 const exportEditor = createReadonlyEditor(
   document.getElementById("export-editor")!,

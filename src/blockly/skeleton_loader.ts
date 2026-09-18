@@ -12,6 +12,7 @@ import * as enMsg from "blockly/msg/en";
 import {
   applyFixedFieldsToDataValueShell,
   applyOrdinalFieldsToDataValueShell,
+  collapseEntryBoilerplateChildren,
   configureElementValueSlot,
   connectExpressionToDataValueShell,
   dvFieldInputName,
@@ -102,6 +103,7 @@ export function loadSkeletonIntoWorkspace(
     applyModelOptionalSchemaFields(workspace, model);
     setAllBlocksCollapsed(workspace, false);
     for (const block of workspace.getAllBlocks(false)) {
+      collapseEntryBoilerplateChildren(block);
       enforceMouthCaptionLayout(block);
     }
     highlightListeningSlot(workspace, listeningSlotId);

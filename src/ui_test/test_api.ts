@@ -76,8 +76,9 @@ export interface IntehrgratorTestApi {
   /** Open the native mutator bubble (cogwheel) on a block. */
   openMutator(blockId: string): void;
   /**
-   * Rendered statement-input connection offset on a canvas block.
-   * `ownWidth` is the block outline without nested children (issue #105).
+   * Statement mouths: captions hug the C (RIGHT). `ownWidth` is the block
+   * outline without nested children (issue #105). offsetX sits on the C after
+   * the caption, which may be far left of ownWidth on a wide block.
    */
   getStatementInputMetrics(
     blockId: string,

@@ -7,11 +7,11 @@ import {
   ensureBlockOutputHeaderGlyph,
   registerStockBlocklyGlyphs,
 } from "../block_type_glyph.ts";
+import { LOOP_BLOCK_COLOUR } from "../block_colours.ts";
 import { inputAlignLeft, inputAlignRight, enforceMouthCaptionLayout } from "../mouth_layout.ts";
 
 const LOGIC_COLOUR = "#D1C4E9";
 const LIST_COLOUR = "#4DB6AC";
-const LOOP_INDEX_COLOUR = "#2196F3";
 
 export const LOGIC_LIST_RESTRICTION_BLOCK = "logic_list_restriction";
 export const LOGIC_CURRENT_ITEM_BLOCK = "logic_current_item";
@@ -297,9 +297,9 @@ export function registerLogicBlocks(): void {
       appendBlockOutputGlyph(header, "Boolean");
       header.appendField(new FieldItemDropdown(currentItemOptions), "VAR");
       this.setOutput(true, "Boolean");
-      this.setColour(LOGIC_COLOUR);
+      this.setColour(LOOP_BLOCK_COLOUR);
       this.setTooltip(m.LOGIC_CURRENT_ITEM_TOOLTIP);
-      this.setStyle?.("logic_blocks");
+      this.setStyle?.("loop_blocks");
     },
   };
 
@@ -309,9 +309,9 @@ export function registerLogicBlocks(): void {
       appendBlockOutputGlyph(header, "Number");
       header.appendField(new FieldItemDropdown(loopBinderOptions(m.LOGIC_LOOP_INDEX)), "VAR");
       this.setOutput(true, "Number");
-      this.setColour(LOOP_INDEX_COLOUR);
+      this.setColour(LOOP_BLOCK_COLOUR);
       this.setTooltip(m.LOGIC_LOOP_INDEX_TOOLTIP);
-      this.setStyle?.("math_blocks");
+      this.setStyle?.("loop_blocks");
       this.setInputsInline(true);
     },
   };
@@ -322,9 +322,9 @@ export function registerLogicBlocks(): void {
       appendBlockOutputGlyph(header, "Number");
       header.appendField(new FieldItemDropdown(loopBinderOptions(m.LOGIC_LOOP_LENGTH)), "VAR");
       this.setOutput(true, "Number");
-      this.setColour(LOOP_INDEX_COLOUR);
+      this.setColour(LOOP_BLOCK_COLOUR);
       this.setTooltip(m.LOGIC_LOOP_LENGTH_TOOLTIP);
-      this.setStyle?.("math_blocks");
+      this.setStyle?.("loop_blocks");
       this.setInputsInline(true);
     },
   };

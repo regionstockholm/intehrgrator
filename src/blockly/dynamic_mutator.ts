@@ -2,8 +2,9 @@
  * Blockly mutator with a per-option flyout (no attribute dropdown) and a
  * header cogwheel field to the right of the skeleton title.
  */
-import type { BlockSvg } from "blockly/core";
+import type { Block, BlockSvg } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
+import { ensureClassChromeHeader } from "./mouth_layout.ts";
 
 const MutatorIcon = Blockly.icons.MutatorIcon;
 
@@ -40,6 +41,16 @@ export function appendMutatorCogwheel(
     ),
     "MUTATOR_COG",
   );
+}
+
+/**
+ * Header cogwheel used by RM / maps / stock `text_join` and `lists_create_with`.
+ * Keeps the MutatorIcon for the bubble, but hides Blockly's default top-left badge.
+ */
+export function ensureHeaderMutatorCog(block: Block): void {
+  const header = ensureClassChromeHeader(block);
+  if (!block.getField("MUTATOR_COG")) appendMutatorCogwheel(header);
+  hideDefaultMutatorIcon(block);
 }
 
 /** Hide Blockly's default top-left mutator icon; the header cogwheel replaces it. */

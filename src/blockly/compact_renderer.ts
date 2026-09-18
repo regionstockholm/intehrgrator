@@ -21,8 +21,9 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * Row alignment: class chrome (emoji / skeleton title / cog) stays LEFT on
  * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
  * from riding a right-aligned value/statement row after inline merges.
- * After packing a compact statement C on the right, pin `statementEdge` to
- * that C so snap/highlight sit on the bump (issue #105).
+ * After packing a compact statement C, pin `statementEdge` to that C so
+ * snap/highlight sit on the bump (issue #105). Statement captions hug that
+ * C (RIGHT); leftover in the statement column sits left of the caption.
  *
  * Vertical: Thrasos pins statement-row fields to the notch, but still
  * centers fields on tall *value* rows (`row.height / 2`). Schema single-
@@ -74,36 +75,15 @@ export function registerCompactThrasosRenderer(): string {
     }
 
     /**
-     * Thrasos stretches the statement C to the full block width, which leaves a
-     * large empty mouth to the right of a right-aligned caption. For RIGHT rows,
-     * keep a compact C and put the leftover width on the left so
-     * `[caption][mouth]` sits as a pack on the right (openEHR slot look).
+     * Statement captions hug the C (RIGHT): leftover in the statement column
+     * sits left of the caption. Stock `alignStatementRow_` then stretches the
+     * C to the right — do not pad that remainder onto the first spacer or the
+     * C slides to the far right tooth (issue #105).
      */
     // deno-lint-ignore no-explicit-any
     alignStatementRow_(row: any) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
-      if (row?.align !== AlignRight) {
-        return super.alignStatementRow_(row);
-      }
-      // deno-lint-ignore no-explicit-any
-      const input = row.getLastInput?.() as any;
-      if (!input) return super.alignStatementRow_(row);
-
-      const beforeStmt = row.width - input.width;
-      const edgePad = Number(this.statementEdge ?? 0) - beforeStmt;
-      if (edgePad > 0) this.addAlignmentPadding_(row, edgePad);
-
-      input.height = Math.max(Number(input.height ?? 0), Number(row.height ?? 0));
-
-      const desired = Number(
-        this.getDesiredRowWidth_?.(row) ?? row.width,
-      );
-      const remaining = desired - Number(row.width ?? 0);
-      if (remaining > 0) {
-        // RIGHT → first spacer (see Blockly addAlignmentPadding_).
-        this.addAlignmentPadding_(row, remaining);
-      }
-
+      super.alignStatementRow_(row);
       const notchX = pinStatementRowNotch_(row);
       const connected = Number(row.connectedBlockWidths ?? 0);
       row.widthWithConnectedBlocks = Math.max(
@@ -251,13 +231,16 @@ export function isMouthRow_(row: any): boolean {
 }
 
 /**
- * Mouth rows always hug the socket. Class chrome lives on a dummy HEADER (see
- * `ensureClassChromeHeader`) so stock lists/maps icons stay left of the puzzle
- * tab instead of riding a right-packed mouth row. Exported for unit tests.
+ * Statement and value captions hug their mouths (RIGHT). Class chrome lives
+ * on a dummy HEADER (see `ensureClassChromeHeader`). Exported for unit tests.
  */
 // deno-lint-ignore no-explicit-any
 export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
   if (!row?.elements) return;
+  if (row?.hasStatement) {
+    row.align = alignRight;
+    return;
+  }
   if (isMouthRow_(row)) {
     row.align = alignRight;
     return;
@@ -301,6 +284,10 @@ export function pinnedSlotCaptionCenterline_(row: any, elem: any, constants: any
         constants?.MIN_BLOCK_HEIGHT ??
         24,
     );
+    const fieldH = Number(elem?.height ?? 0);
+    // A 90°-stood caption is taller than the empty C: grow downward from the
+    // row top so the glyph stays at the mouth instead of centering mid-child.
+    if (fieldH > emptyH) return y + fieldH / 2;
     return y + emptyH / 2;
   }
   // Value socket (inline or external): offset from the top of the row.

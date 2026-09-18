@@ -308,10 +308,26 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   color: var(--warning); font-size: 13px; line-height: 1; flex-shrink: 0;
 }
 
-.example-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.example-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.example-tabs .example-tab,
+.example-tabs .example-tab--with-close {
+  flex: 0 0 auto;
+}
 .example-tab {
   border: 1px solid var(--border); background: #fff; border-radius: 4px;
   padding: 4px 8px; font-size: 12px; cursor: pointer;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .example-tab.active { border-color: var(--accent); background: #fff4ea; }
 .example-tab--with-close {
@@ -901,12 +917,19 @@ body.sheets-fullscreen::before {
 }
 .blockly-mount .blocklyText .blockly-slot-overlay-delta,
 .blockly-mount .blocklyText .blockly-slot-overlay-effective {
-  fill: #0f766e;
+  fill: #FDE68A;
   font-weight: 600;
 }
 .blockly-mount .blocklyText .blockly-slot-overlay-rm {
-  fill: #64748b;
+  fill: #E2E8F0;
   text-decoration: line-through;
+}
+
+/* Native Blockly collapsed labels (ZipEHR HTML uses .collapsed-hover). */
+.blockly-mount .blocklyCollapsed > .blocklyText:hover,
+.blockly-mount .blocklyCollapsed > .blocklyText:focus {
+  outline: 2px solid #FDE68A;
+  outline-offset: 2px;
 }
 .blockly-mount .blocklyText.blockly-slot-label--abstract,
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,
@@ -1290,19 +1313,23 @@ body.sheets-fullscreen::before {
 .load-project-item-kind { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
 .load-project-empty { font-size: 13px; color: var(--text-secondary); padding: 8px 0; }
 
-/* Collapsed Blockly ZipEHR / generic HTML preview (#101). */
+/* Collapsed Blockly ZipEHR / generic HTML preview (#101 / #150). */
 .blockly-collapsed-preview-host {
   display: inline-block;
   width: max-content;
-  max-width: 1200px;
+  max-width: 36rem;
   overflow: hidden;
   font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
   color: #202124;
-  white-space: nowrap;
+  white-space: normal;
   pointer-events: all;
 }
 .collapsed-preview {
-  display: inline;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12em;
+  max-width: 36rem;
 }
 .collapsed-preview .collapsed-node,
 .collapsed-preview .collapsed-leaf {
@@ -1319,7 +1346,7 @@ body.sheets-fullscreen::before {
 }
 .collapsed-preview .collapsed-node.collapsed-hover,
 .collapsed-preview .collapsed-leaf.collapsed-hover {
-  outline: 2px solid rgba(32, 33, 36, 0.78);
+  outline: 2px solid #FDE68A;
   outline-offset: 1px;
 }
 .collapsed-preview .collapsed-mapping {

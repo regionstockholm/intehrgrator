@@ -16,10 +16,16 @@ export function inputAlignRight(): number {
   return (Blockly.inputs?.Align?.RIGHT ?? Blockly.ALIGN_RIGHT ?? 1) as number;
 }
 
+/** Blockly `inputTypes.STATEMENT` (value sockets stay RIGHT-packed). */
+export function isStatementInput(input: Input): boolean {
+  const statement = Blockly.inputs?.inputTypes?.STATEMENT ?? 3;
+  return input.type === statement;
+}
+
 /**
- * Keep HEADER left-aligned; every connected input hugs its mouth.
- * Call after init / shape sync so JSON `inputsInline: true` cannot merge
- * HEADER onto a right-aligned value row.
+ * Keep HEADER left-aligned. Slot captions (statement C and value sockets)
+ * hug their mouths (RIGHT). Call after init / shape sync so JSON
+ * `inputsInline: true` cannot merge HEADER onto a mouth row.
  */
 export function enforceMouthCaptionLayout(block: Block): void {
   block.setInputsInline(false);
@@ -27,14 +33,15 @@ export function enforceMouthCaptionLayout(block: Block): void {
   if (header) header.setAlign(inputAlignLeft());
   for (const input of block.inputList) {
     if (input.name === "HEADER") continue;
-    if (input.connection) input.setAlign(inputAlignRight());
+    if (!input.connection) continue;
+    input.setAlign(inputAlignRight());
   }
 }
 
 /**
  * Title on the STACK statement row so `[caption][C]` packs like COMPOSITION.content.
  * A separate dummy title row left the C-only STACK row with statementEdge ≈ 0,
- * so snap/highlight sat inside the block instead of on the right tooth.
+ * so snap/highlight sat inside the block instead of on the C bump.
  */
 export function initMutatorStackMouth(block: Block, title: string): void {
   const stack = block.appendStatementInput("STACK").setAlign(inputAlignRight());
@@ -66,5 +73,5 @@ export function ensureClassChromeHeader(block: Block): Input {
 
 /** Stock list constructors whose captions should hug mouths like RM slots. */
 export function blockTypeUsesMouthLayout(type: string): boolean {
-  return type.startsWith("lists_") || type === "for_each_list";
+  return type.startsWith("lists_") || type === "for_each_list" || type === "text_join";
 }

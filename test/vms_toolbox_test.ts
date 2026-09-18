@@ -56,6 +56,9 @@ Deno.test("Loops & Logic drawer leads with for_each_list and has no Loops catego
   assertEquals(names.includes("Loops"), false);
   const types = drawerTypes(toolbox, msg("en").CAT_LOGIC);
   assertEquals(types[0], "for_each_list");
+  assertEquals(types[1], "logic_current_item");
+  assertEquals(types[2], "logic_loop_index");
+  assertEquals(types[3], "logic_loop_length");
   assertEquals(types.includes("for_each_source"), false);
 });
 
@@ -88,6 +91,16 @@ Deno.test("for_each_list is a custom list-item loop without break/continue", () 
   assert(code.includes('__vars["code"]'), code);
   assertEquals(code.includes("break"), false);
   assertEquals(code.includes("continue"), false);
+  workspace.dispose();
+});
+
+Deno.test("text_join and lists_create_with use the header mutator cogwheel", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const join = workspace.newBlock("text_join");
+  const list = workspace.newBlock("lists_create_with");
+  assert(join.getField("MUTATOR_COG"), "text_join header cog");
+  assert(list.getField("MUTATOR_COG"), "lists_create_with header cog");
   workspace.dispose();
 });
 

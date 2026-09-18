@@ -86,27 +86,27 @@ Deno.test("XML and RM still hug mouths after the shared layout routine", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const el = ws.newBlock(XML_ELEMENT_TYPE);
-  assertEquals(el.getInput(XML_ATTRIBUTES_INPUT)?.align, AlignLeft());
+  assertEquals(el.getInput(XML_ATTRIBUTES_INPUT)?.align, AlignRight());
   const observation = ws.newBlock("observation");
   assertEquals(observation.getInput("HEADER")?.align, AlignLeft());
-  assertEquals(observation.getInput(rmAttributeInputName("data"))?.align, AlignLeft());
+  assertEquals(observation.getInput(rmAttributeInputName("data"))?.align, AlignRight());
   assertEquals(observation.getInputsInline(), false);
   ws.dispose();
 });
 
-Deno.test("renderer: a mutator cog on a statement row left-aligns like stock Blockly", () => {
+Deno.test("renderer: statement-row captions RIGHT-align so they hug the C", () => {
   const AlignL = -1;
   const AlignR = 1;
   const mouth = {
     hasStatement: true,
-    align: AlignR,
+    align: AlignL,
     elements: [
       { field: { name: "MUTATOR_COG" } },
       { field: { name: "TEXT" } },
     ],
   };
   applyOpenEhrRowAlign_(mouth, AlignL, AlignR);
-  assertEquals(mouth.align, AlignL);
+  assertEquals(mouth.align, AlignR);
 
   const header = {
     hasStatement: false,
@@ -180,7 +180,7 @@ Deno.test("stretched C still snaps at the drawn tooth xPos, not width-minus-C = 
   assertEquals(Number(row.xPos) + Number(row.statementEdge) + 15, 103);
 });
 
-Deno.test("mutator STACK mouths start after the caption (LEFT, stock Blockly)", () => {
+Deno.test("mutator STACK mouths hug the C (RIGHT, leftover left of the caption)", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const types = [
@@ -195,8 +195,8 @@ Deno.test("mutator STACK mouths start after the caption (LEFT, stock Blockly)", 
     const stack = block.getInput("STACK");
     assertEquals(
       stack?.align,
-      AlignLeft(),
-      `${type} STACK should start after its caption`,
+      AlignRight(),
+      `${type} STACK caption should hug the C`,
     );
     assert(
       (stack?.fieldRow.length ?? 0) > 0,
@@ -206,13 +206,13 @@ Deno.test("mutator STACK mouths start after the caption (LEFT, stock Blockly)", 
   ws.dispose();
 });
 
-Deno.test("ITEM_TREE items statement mouth starts after the caption (LEFT)", () => {
+Deno.test("ITEM_TREE items statement mouth hugs the C (RIGHT)", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const tree = ws.newBlock("item_tree");
   composeOptionalRmExtras(tree, ["items"]);
   const items = tree.getInput("ATTR_items") ?? tree.getInput("OPT_items");
   assert(items, "items mouth");
-  assertEquals(items.align, AlignLeft());
+  assertEquals(items.align, AlignRight());
   ws.dispose();
 });

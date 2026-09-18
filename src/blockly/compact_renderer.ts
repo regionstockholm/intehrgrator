@@ -22,8 +22,8 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
  * from riding a right-aligned value/statement row after inline merges.
  * After packing a compact statement C, pin `statementEdge` to that C so
- * snap/highlight sit on the bump (issue #105). Statement rows are
- * LEFT-packed (issue #150) so the bump is just after the caption.
+ * snap/highlight sit on the bump (issue #105). Statement captions hug that
+ * C (RIGHT); leftover in the statement column sits left of the caption.
  *
  * Vertical: Thrasos pins statement-row fields to the notch, but still
  * centers fields on tall *value* rows (`row.height / 2`). Schema single-
@@ -75,35 +75,15 @@ export function registerCompactThrasosRenderer(): string {
     }
 
     /**
-     * Statement rows are LEFT-packed so the C starts just after the caption
-     * (stock Blockly). Value rows stay RIGHT. The leftover-on-left pack is
-     * retained only if a row is still RIGHT-aligned.
+     * Statement captions hug the C (RIGHT): leftover in the statement column
+     * sits left of the caption. Stock `alignStatementRow_` then stretches the
+     * C to the right — do not pad that remainder onto the first spacer or the
+     * C slides to the far right tooth (issue #105).
      */
     // deno-lint-ignore no-explicit-any
     alignStatementRow_(row: any) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
-      if (row?.align !== AlignRight) {
-        return super.alignStatementRow_(row);
-      }
-      // deno-lint-ignore no-explicit-any
-      const input = row.getLastInput?.() as any;
-      if (!input) return super.alignStatementRow_(row);
-
-      const beforeStmt = row.width - input.width;
-      const edgePad = Number(this.statementEdge ?? 0) - beforeStmt;
-      if (edgePad > 0) this.addAlignmentPadding_(row, edgePad);
-
-      input.height = Math.max(Number(input.height ?? 0), Number(row.height ?? 0));
-
-      const desired = Number(
-        this.getDesiredRowWidth_?.(row) ?? row.width,
-      );
-      const remaining = desired - Number(row.width ?? 0);
-      if (remaining > 0) {
-        // RIGHT → first spacer (see Blockly addAlignmentPadding_).
-        this.addAlignmentPadding_(row, remaining);
-      }
-
+      super.alignStatementRow_(row);
       const notchX = pinStatementRowNotch_(row);
       const connected = Number(row.connectedBlockWidths ?? 0);
       row.widthWithConnectedBlocks = Math.max(
@@ -251,15 +231,14 @@ export function isMouthRow_(row: any): boolean {
 }
 
 /**
- * Statement C-mouths start after the caption (LEFT, stock Blockly). Value
- * sockets hug the right. Class chrome lives on a dummy HEADER (see
- * `ensureClassChromeHeader`). Exported for unit tests.
+ * Statement and value captions hug their mouths (RIGHT). Class chrome lives
+ * on a dummy HEADER (see `ensureClassChromeHeader`). Exported for unit tests.
  */
 // deno-lint-ignore no-explicit-any
 export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
   if (!row?.elements) return;
   if (row?.hasStatement) {
-    row.align = alignLeft;
+    row.align = alignRight;
     return;
   }
   if (isMouthRow_(row)) {

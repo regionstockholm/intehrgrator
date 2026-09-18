@@ -76,7 +76,7 @@ Deno.test("xml_element mouths: attributes stack, one text slot, nested children"
   ws.dispose();
 });
 
-Deno.test("xml_element mouth captions hug sockets (statement LEFT, value RIGHT)", () => {
+Deno.test("xml_element mouth captions hug sockets (statement and value RIGHT)", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const el = ws.newBlock(XML_ELEMENT_TYPE);
@@ -84,11 +84,11 @@ Deno.test("xml_element mouth captions hug sockets (statement LEFT, value RIGHT)"
   const AlignRight = Blockly.inputs.Align.RIGHT;
   const AlignLeft = Blockly.inputs.Align.LEFT;
   assertEquals(el.getInput("HEADER")?.align, AlignLeft);
-  const statementLeft = [XML_ATTRIBUTES_INPUT, XML_CHILDREN_INPUT];
-  for (const name of statementLeft) {
+  const statementMouths = [XML_ATTRIBUTES_INPUT, XML_CHILDREN_INPUT];
+  for (const name of statementMouths) {
     const input = el.getInput(name);
     assert(input, name);
-    assertEquals(input.align, AlignLeft, `${name} statement C starts after the caption`);
+    assertEquals(input.align, AlignRight, `${name} statement caption hugs the C`);
     assert(
       input.fieldRow.some((f) => (f as { isSlotLabelField?: boolean }).isSlotLabelField),
       `${name} uses FieldSlotLabel`,
@@ -103,7 +103,7 @@ Deno.test("xml_element mouth captions hug sockets (statement LEFT, value RIGHT)"
   );
   const doc = ws.newBlock(XML_DOCUMENT_TYPE);
   assertEquals(doc.getInputsInline(), false);
-  assertEquals(doc.getInput(XML_ROOT_INPUT)?.align, AlignLeft);
+  assertEquals(doc.getInput(XML_ROOT_INPUT)?.align, AlignRight);
   assert(
     doc.getInput(XML_ROOT_INPUT)?.fieldRow.some(
       (f) => (f as { isSlotLabelField?: boolean }).isSlotLabelField,

@@ -1,14 +1,14 @@
 /**
  * Browser UI: statement-mouth snap sits on the visual C bump after the caption
- * (issue #105; LEFT pack from issue #150).
+ * (issue #105; captions hug the C from issue #150).
  */
 import { assert, assertEquals } from "@std/assert";
 import { chromium } from "npm:playwright@1.51.0";
 import type { IntehrgratorTestApi } from "../../src/ui_test/test_api.ts";
 import { baseUrl, loadBpFixtures, waitForTestApi } from "./helpers.ts";
 
-/** Blockly Align.LEFT — statement C starts just after the caption. */
-const ALIGN_LEFT = -1;
+/** Blockly Align.RIGHT — statement captions hug the C. */
+const ALIGN_RIGHT = 1;
 
 type MouthMetrics = {
   offsetX: number;
@@ -18,10 +18,10 @@ type MouthMetrics = {
 } | null;
 
 /**
- * Issue #150 packs statement mouths LEFT (stock Blockly). On a wide outline
- * (COMPOSITION.content, XML document) leftover sits to the right of the C, so
- * offsetX is far from ownWidth. A tight mutator STACK row is just caption+C,
- * so offsetX is near ownWidth — still after the caption, not at x≈0.
+ * Statement captions hug the C (RIGHT). On a wide outline (COMPOSITION.content,
+ * XML document) leftover still sits to the right of the C, so offsetX is far
+ * from ownWidth. A tight mutator STACK row is just caption+C, so offsetX is
+ * near ownWidth — still after the caption, not at x≈0 or the right tooth.
  */
 function assertNotchOnLeftCBump(metrics: MouthMetrics, label: string): void {
   assert(metrics, `${label} metrics missing`);
@@ -31,8 +31,8 @@ function assertNotchOnLeftCBump(metrics: MouthMetrics, label: string): void {
   );
   assertEquals(
     metrics.align,
-    ALIGN_LEFT,
-    `${label} should be LEFT-aligned so the C starts after the caption`,
+    ALIGN_RIGHT,
+    `${label} should be RIGHT-aligned so the caption hugs the C`,
   );
   assert(
     metrics.offsetX > 20,

@@ -718,7 +718,7 @@ function appendRmAttributeInput(
     return;
   }
   const stmt = block.appendStatementInput(rmAttributeInputName(attr))
-    .setAlign(inputAlignLeft());
+    .setAlign(inputAlignRight());
   const check = checkOverride ?? statementCheckForAttr(rmType, attr);
   if (check) stmt.setCheck(check);
   appendSlotLabel(stmt, attr, labelOpts);
@@ -1853,7 +1853,7 @@ function registerOptionalRmMutator(): void {
           continue;
         }
         const stmt = this.appendStatementInput(`${OPTIONAL_INPUT_PREFIX}${name}`)
-          .setAlign(inputAlignLeft());
+          .setAlign(inputAlignRight());
         appendSlotLabel(stmt, name, { card, rmCard, rmType: slotType });
       }
       enforceOpenEhrBlockLayout(this);

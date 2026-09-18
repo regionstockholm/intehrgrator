@@ -322,13 +322,13 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("text-anchor", "start");
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
     if (metrics.stand) {
-      // 90° CCW under the glyph: glyph stays at the mouth (top of the field);
-      // the caption body hangs in the same column.
+      // 90° CCW under the glyph: glyph stays at the mouth (right of the field);
+      // the caption body hangs in the same column hugging the C.
       el.setAttribute("x", "0");
       el.setAttribute("y", "0");
       el.setAttribute(
         "transform",
-        `translate(${metrics.width / 2}, ${metrics.height}) rotate(-90)`,
+        `translate(${metrics.width}, ${metrics.height}) rotate(-90)`,
       );
     } else {
       el.removeAttribute("transform");

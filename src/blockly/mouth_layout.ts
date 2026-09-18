@@ -23,10 +23,9 @@ export function isStatementInput(input: Input): boolean {
 }
 
 /**
- * Keep HEADER left-aligned. Statement C-mouths start just after their caption
- * (stock Blockly LEFT). Value sockets stay RIGHT so captions hug the puzzle tab.
- * Call after init / shape sync so JSON `inputsInline: true` cannot merge
- * HEADER onto a mouth row.
+ * Keep HEADER left-aligned. Slot captions (statement C and value sockets)
+ * hug their mouths (RIGHT). Call after init / shape sync so JSON
+ * `inputsInline: true` cannot merge HEADER onto a mouth row.
  */
 export function enforceMouthCaptionLayout(block: Block): void {
   block.setInputsInline(false);
@@ -35,7 +34,7 @@ export function enforceMouthCaptionLayout(block: Block): void {
   for (const input of block.inputList) {
     if (input.name === "HEADER") continue;
     if (!input.connection) continue;
-    input.setAlign(isStatementInput(input) ? inputAlignLeft() : inputAlignRight());
+    input.setAlign(inputAlignRight());
   }
 }
 
@@ -45,7 +44,7 @@ export function enforceMouthCaptionLayout(block: Block): void {
  * so snap/highlight sat inside the block instead of on the C bump.
  */
 export function initMutatorStackMouth(block: Block, title: string): void {
-  const stack = block.appendStatementInput("STACK").setAlign(inputAlignLeft());
+  const stack = block.appendStatementInput("STACK").setAlign(inputAlignRight());
   stack.appendField(title);
   enforceMouthCaptionLayout(block);
 }

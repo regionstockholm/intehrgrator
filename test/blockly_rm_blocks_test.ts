@@ -649,7 +649,7 @@ Deno.test("openEHR class chrome stays left; slot captions hug mouths", () => {
   assertEquals(observation.getInputsInline(), false);
   assertEquals(observation.getInput("HEADER")?.align, Blockly.inputs.Align.LEFT);
   const data = observation.getInput(rmAttributeInputName("data"));
-  assertEquals(data?.align, Blockly.inputs.Align.LEFT);
+  assertEquals(data?.align, Blockly.inputs.Align.RIGHT);
 
   const element = workspace.newBlock("element");
   assertEquals(element.getInputsInline(), false);

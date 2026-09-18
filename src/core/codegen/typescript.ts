@@ -100,6 +100,9 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
           return `!(${args[0]})`;
         case "list":
           return `[${args.join(", ")}]`;
+        case "lists_getIndex":
+          ctx.helpers.add("logic");
+          return `listGetIndex(${args[0]}, ${args[1] ?? '"FIRST"'}, ${args[2] ?? "1"})`;
         case "intersection":
           ctx.helpers.add("logic");
           return `setIntersection(asList(${args[0]}), asList(${args[1]}))`;
@@ -359,8 +362,8 @@ export function wrapTypeScriptModule(parts: TypeScriptModuleParts): string {
 
 function xpathHelpers(helpers: Set<string>): string[] {
   const lines = [
-    "function jsonQuery(path: string): string {",
-    '  const trimmed = path.trim();',
+    "function jsonQuery(path: unknown): string {",
+    '  const trimmed = String(path ?? "").trim();',
     '  if (!trimmed || trimmed.startsWith("/")) return trimmed;',
     '  const asJson = trimmed.startsWith("$") ? trimmed : `$.${trimmed.replace(/^\\./, "")}`;',
     "  let body = asJson.slice(1);",
@@ -383,6 +386,7 @@ function xpathHelpers(helpers: Set<string>): string[] {
     "    i = end;",
     "  }",
     '  return segments.reduce((q, seg) => {',
+    '    if (seg === "*") return `${q}?*`;',
     '    if (/^\\d+$/.test(seg) || /^[A-Za-z_][A-Za-z0-9_]*$/.test(seg)) return `${q}?${seg}`;',
     "    return `${q}?(${JSON.stringify(seg)})`;",
     '  }, "$source");',
@@ -392,47 +396,101 @@ function xpathHelpers(helpers: Set<string>): string[] {
   if (helpers.has("string")) {
     lines.push(
       "function xpathString(path: string, node: unknown = sourceCtx.data): string {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToString(path, null, null, { source: node });",
+      '  const p = typeof path === "string" ? path : String(path ?? "");',
+      '  if (p.trim().startsWith("$source") || p.includes("?*[")) {',
+      "    return evaluateXPathToString(p, null, null, { source: node });",
       "  }",
-      '  if (path.trim().startsWith("/")) return evaluateXPathToString(path, node);',
-      "  return evaluateXPathToString(jsonQuery(path), null, null, { source: node });",
+      '  if (p.trim().startsWith("/")) return evaluateXPathToString(p, node);',
+      "  return evaluateXPathToString(jsonQuery(p), null, null, { source: node });",
       "}",
       "",
     );
   }
   if (helpers.has("number")) {
     lines.push(
-      "function xpathNumber(path: string, node: unknown = sourceCtx.data): number {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToNumber(path, null, null, { source: node });",
+      "function xpathNumber(path: unknown, node: unknown = sourceCtx.data): number {",
+      '  const p = typeof path === "string" ? path : String(path ?? "");',
+      '  if (p.trim().startsWith("$source") || p.includes("?*[")) {',
+      "    return evaluateXPathToNumber(p, null, null, { source: node });",
       "  }",
-      '  if (path.trim().startsWith("/")) return evaluateXPathToNumber(path, node);',
-      "  return evaluateXPathToNumber(jsonQuery(path), null, null, { source: node });",
+      '  if (p.trim().startsWith("/")) return evaluateXPathToNumber(p, node);',
+      "  return evaluateXPathToNumber(jsonQuery(p), null, null, { source: node });",
       "}",
       "",
     );
   }
   if (helpers.has("boolean")) {
     lines.push(
-      "function xpathBoolean(path: string, node: unknown = sourceCtx.data): boolean {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToBoolean(path, null, null, { source: node });",
+      "function xpathBoolean(path: unknown, node: unknown = sourceCtx.data): boolean {",
+      '  const p = typeof path === "string" ? path : String(path ?? "");',
+      '  if (p.trim().startsWith("$source") || p.includes("?*[")) {',
+      "    return evaluateXPathToBoolean(p, null, null, { source: node });",
       "  }",
-      '  if (path.trim().startsWith("/")) return evaluateXPathToBoolean(path, node);',
-      "  return evaluateXPathToBoolean(jsonQuery(path), null, null, { source: node });",
+      '  if (p.trim().startsWith("/")) return evaluateXPathToBoolean(p, node);',
+      "  return evaluateXPathToBoolean(jsonQuery(p), null, null, { source: node });",
       "}",
       "",
     );
   }
   if (helpers.has("nodes")) {
     lines.push(
-      "function xpathNodes(path: string, node: unknown = sourceCtx.data): unknown[] {",
-      '  if (path.trim().startsWith("$source") || path.includes("?*[")) {',
-      "    return evaluateXPathToNodes(path, null, null, { source: node });",
+      "function jsonWalk(path: string, node: unknown): unknown {",
+      "  const trimmed = path.trim();",
+      '  if (!trimmed || trimmed === "$" || trimmed === "." || trimmed === "$source") return node;',
+      "  let body = trimmed;",
+      '  if (body.startsWith("$source")) body = body.slice(7);',
+      '  else if (body.startsWith("$")) body = body.slice(1);',
+      '  if (body.startsWith(".") || body.startsWith("?")) body = body.slice(1);',
+      "  const segs = [];",
+      "  let i = 0;",
+      "  while (i < body.length) {",
+      "    const ch = body[i];",
+      '    if (ch === "." || ch === "?") { i++; continue; }',
+      '    if (ch === "*") { segs.push("*"); i++; continue; }',
+      '    if (ch === "[") {',
+      '      const close = body.indexOf("]", i + 1);',
+      "      if (close < 0) break;",
+      "      const tok = body.slice(i + 1, close).trim();",
+      '      segs.push(tok === "*" ? "*" : tok.replace(/^["\']|["\']$/g, ""));',
+      "      i = close + 1;",
+      "      continue;",
+      "    }",
+      "    let end = i;",
+      '    while (end < body.length && !".?[*".includes(body[end] ?? "")) end++;',
+      "    if (end > i) segs.push(body.slice(i, end));",
+      "    i = end > i ? end : i + 1;",
       "  }",
+      "  function walk(cur, rest) {",
+      "    if (rest.length === 0) return cur;",
+      "    const head = rest[0];",
+      "    const tail = rest.slice(1);",
+      '    if (head === "*") {',
+      "      if (!Array.isArray(cur)) return [];",
+      "      if (tail.length === 0) return cur;",
+      "      const out = [];",
+      "      for (const item of cur) {",
+      "        const v = walk(item, tail);",
+      "        if (Array.isArray(v)) out.push(...v);",
+      "        else if (v != null) out.push(v);",
+      "      }",
+      "      return out;",
+      "    }",
+      '    if (head && /^\\d+$/.test(head)) {',
+      "      if (!Array.isArray(cur)) return undefined;",
+      "      const n = Number(head);",
+      "      return walk(cur[n >= 1 ? n - 1 : n], tail);",
+      "    }",
+      '    if (cur == null || typeof cur !== "object") return undefined;',
+      "    return walk(cur[head], tail);",
+      "  }",
+      "  return walk(node, segs);",
+      "}",
+      "function xpathNodes(path: string, node: unknown = sourceCtx.data): unknown[] {",
       '  if (path.trim().startsWith("/")) return evaluateXPathToNodes(path, node);',
-      "  return evaluateXPathToNodes(jsonQuery(path), null, null, { source: node });",
+      "  const found = jsonWalk(path, node);",
+      "  if (Array.isArray(found)) return found;",
+      "  if (found == null) return [];",
+      "  return [found];",
       "}",
       "",
     );
@@ -461,6 +519,14 @@ function logicHelpers(): string[] {
     "  if (Array.isArray(value)) return value;",
     "  if (value == null) return [];",
     "  return [value];",
+    "}",
+    "function listGetIndex(items: unknown, where: string, at: unknown = 1): unknown {",
+    "  const list = asList(items);",
+    '  if (where === "FIRST") return list[0] ?? null;',
+    '  if (where === "LAST") return list[list.length - 1] ?? null;',
+    "  const n = Number(at);",
+    '  if (where === "FROM_END") return list[list.length - n] ?? null;',
+    "  return list[n - 1] ?? null;",
     "}",
     "function sameItem(a: unknown, b: unknown): boolean {",
     "  if (Object.is(a, b)) return true;",
@@ -603,7 +669,7 @@ function sheetHelpers(): string[] {
     "  if (policy === \"COLLECT\") {",
     "    const join = s.collectJoin ?? \"; \";",
     "    const joinParts = (vals: unknown[]) => {",
-    "      const out: string[] = []; const seen = new Set<string>();",
+    "      const out = []; const seen = new Set();",
     "      for (const p of vals) {",
     "        if (p == null || (typeof p === \"string\" && p.trim() === \"\")) continue;",
     "        const t = String(p);",
@@ -691,6 +757,19 @@ export function asNumberExpr(expr: string): string {
 export function asStringExpr(expr: string): string {
   if (/^(xpathString|String)\(/.test(expr)) return expr;
   return `String(${expr} ?? "")`;
+}
+
+/** Terse `terminology::code` is unsafe when terminology_id contains `:` (SNOMED URLs). */
+export function codePhraseTerseSafe(terminology: string): boolean {
+  return /^[A-Za-z0-9_.-]+$/.test(terminology);
+}
+
+/** CODE_PHRASE init: terse when safe, otherwise `{ terminology_id, code_string }`. */
+export function emitCodePhraseLiteral(terminology: string, code: string): string {
+  if (codePhraseTerseSafe(terminology) && !code.includes("::")) {
+    return JSON.stringify(`${terminology}::${code}`);
+  }
+  return `{ terminology_id: ${JSON.stringify(terminology)}, code_string: ${JSON.stringify(code)} }`;
 }
 
 export function asBooleanExpr(expr: string): string {
@@ -877,9 +956,13 @@ function emitSkeletonValue(
     const term = fields.terminology_id;
     const code = fields.code_string ?? fields.defining_code;
     if (term && expr) {
-      return "`" + escapeTemplate(term) + "::${String(" + expr + ' ?? "")}`';
+      if (codePhraseTerseSafe(term)) {
+        return "`" + escapeTemplate(term) + "::${String(" + expr + ' ?? "")}`';
+      }
+      ctx.types.add("CODE_PHRASE");
+      return `new CODE_PHRASE({ terminology_id: ${JSON.stringify(term)}, code_string: ${asStringExpr(expr)} })`;
     }
-    if (term && code) return JSON.stringify(`${term}::${code}`);
+    if (term && code) return emitCodePhraseLiteral(term, code);
     if (expr) {
       ctx.types.add("CODE_PHRASE");
       return `new CODE_PHRASE({ code_string: ${asStringExpr(expr)} })`;
@@ -892,7 +975,15 @@ function emitSkeletonValue(
     const code = fields.defining_code ?? fields.code_string;
     const rubric = fields.value ??
       (node.label && node.label !== rmType ? node.label : "");
-    if (code) return JSON.stringify(`${term}::${code}|${rubric}|`);
+    if (code) {
+      if (codePhraseTerseSafe(term) && !code.includes("::")) {
+        return JSON.stringify(`${term}::${code}|${rubric}|`);
+      }
+      ctx.types.add("DV_CODED_TEXT");
+      return `new DV_CODED_TEXT({ value: ${JSON.stringify(rubric)}, defining_code: ${
+        emitCodePhraseLiteral(term, code)
+      } })`;
+    }
     if (expr) {
       ctx.types.add("DV_CODED_TEXT");
       return `new DV_CODED_TEXT({ value: String(${expr} ?? "") })`;

@@ -56,6 +56,14 @@ jobs:
       - name: Build Web Shell
         run: deno task build
 
+      - name: Install Playwright Chromium
+        run: npx --yes playwright@1.51.0 install --with-deps chromium
+
+      - name: UI tests
+        env:
+          UI_TEST_SKIP_BUILD: "1"
+        run: deno task test:ui
+
       # Pages first so a desktop compile failure cannot block the frozen Web Shell.
       - name: Assemble versioned GitHub Pages tree
         run: deno run -A scripts/assemble-pages.ts release "${{ steps.rel.outputs.tag }}" dist dist-pages

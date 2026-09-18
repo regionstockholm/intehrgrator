@@ -37,6 +37,8 @@ import type { InstanceEncoding, MappingModel } from "../types/mod.ts";
 import {
   asStringExpr,
   createTsEmitContext,
+  emitCodePhraseLiteral,
+  codePhraseTerseSafe,
   emitTsExpressionSource,
   formatObjectLiteral,
   formatRmConstruct,
@@ -574,6 +576,13 @@ function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
     if (!inputName) continue;
     const child = block.getInputTargetBlock(inputName);
     if (!child) continue;
+    // Scaffolded C_QUANTITY / C_CODED unit-or-value pickers are not mappings.
+    if (
+      (child.type === "lists_getIndex" || child.type === "lists_create_with") &&
+      (attr.name === "units" || attr.name === "units_display_name")
+    ) {
+      continue;
+    }
     if (child.isShadow()) {
       if (child.type === "math_number" || isEmptyShadow(child)) continue;
       const shadow = emitBlock(child, ctx, indent + 1);
@@ -616,11 +625,16 @@ function emitCodePhrase(block: Block, ctx: TsEmitContext, indent: number): strin
   const codeLit = stringLiteralValue(code);
   if (termLit !== null && codeLit !== null) {
     if (!codeLit) return "";
-    return JSON.stringify(`${termLit}::${codeLit}`);
+    return emitCodePhraseLiteral(termLit, codeLit);
   }
   if (termLit !== null) {
     if (isBlankGeneratedExpr(code) || isEmptyLiteral(code)) return "";
-    return "`" + escapeTemplate(termLit) + "::${String(" + code + ' ?? "")}`';
+    if (!codePhraseTerseSafe(termLit)) {
+      return `({ terminology_id: ${JSON.stringify(termLit)}, code_string: String(${code} ?? "") })`;
+    }
+    return "((c) => { const s = String(c ?? \"\").trim(); return s ? `" +
+      escapeTemplate(termLit) +
+      "::${s}` : undefined; })(" + code + ")";
   }
   if (isBlankGeneratedExpr(code) && isBlankGeneratedExpr(term)) return "";
   ctx.types.add("CODE_PHRASE");
@@ -640,7 +654,7 @@ function emitTermPick(block: Block, _ctx: TsEmitContext): string {
   if (set?.valueRmType === "DV_CODED_TEXT") {
     return JSON.stringify(`${terminology}::${code}|${rubric}|`);
   }
-  return JSON.stringify(`${terminology}::${code}`);
+  return emitCodePhraseLiteral(terminology, code);
 }
 
 function shouldEmitLocatableName(rmType: string, name: string): boolean {

@@ -362,6 +362,17 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 .mapping-spec-download,
 .mapping-spec-upload { margin-left: 4px; font-size: 11px; padding: 3px 8px; }
 .mapping-spec-download { margin-left: auto; }
+.mapping-spec-bulk-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+.mapping-spec-bulk-btn {
+  font-size: 11px;
+  padding: 3px 8px;
+  white-space: nowrap;
+}
 .mapping-editor-tab {
   border: 1px solid var(--border); border-radius: 4px; background: #fff;
   color: var(--text-secondary); padding: 3px 7px; font-size: 11px; cursor: pointer;
@@ -1077,6 +1088,46 @@ body.sheets-fullscreen::before {
 .status-save.unsaved { color: var(--error); font-weight: 600; }
 .status-save.saved { color: var(--success); }
 .status-build { flex-shrink: 0; font-size: 11px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
+
+.function-library-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow: auto;
+}
+.function-library-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.function-library-row-text {
+  min-width: 0;
+  font-size: 13px;
+}
+.function-library-row-text p {
+  margin: 4px 0 0;
+  font-size: 12px;
+}
+.function-library-row-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.function-library-row-actions button {
+  font-size: 12px;
+  padding: 4px 8px;
+}
+.function-library-empty,
+.function-library-status {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
 
 .app-dialog {
   border: 1px solid var(--border);

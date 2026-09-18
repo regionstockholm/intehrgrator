@@ -157,6 +157,8 @@ Deno.test("MCP stdio tools/list writes the full JSON-RPC body", async () => {
   const msg = JSON.parse(payload) as { result: { tools: Array<{ name: string }> } };
   const names = msg.result.tools.map((t) => t.name);
   assertEquals(names.includes("load_example_set"), true);
+  assertEquals(names.includes("list_function_library"), true);
+  assertEquals(names.includes("load_function"), true);
   assertEquals(names.includes("lease_slot"), true);
   assertEquals(names.length, AGENT_TOOLS.length);
 });

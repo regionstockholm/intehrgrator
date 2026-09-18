@@ -10,6 +10,7 @@ Deno.test("filePickerId is distinct per load button", () => {
   assertEquals(filePickerId("schema"), "intehrgrator-schema");
   assertEquals(filePickerId("example"), "intehrgrator-example");
   assertEquals(filePickerId("target"), "intehrgrator-target");
+  assertEquals(filePickerId("function"), "intehrgrator-function");
   assertEquals(filePickerId(), undefined);
 });
 

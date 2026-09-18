@@ -964,6 +964,9 @@ export function connectExpressionToDataValueShell(
   shell: Blockly.Block,
   exprBlock: Blockly.Block,
 ): boolean {
+  if (exprBlock.type === "maps_create_with" && unpackMapCreateOntoDataValue(shell, exprBlock)) {
+    return true;
+  }
   const rmType = shell.getFieldValue("RM_TYPE") || shell.type.toUpperCase();
   const primary = primaryMappingAttribute(rmType);
   if (!primary) return false;
@@ -976,6 +979,88 @@ export function connectExpressionToDataValueShell(
     input.connection.connect(exprBlock.outputConnection);
   }
   return true;
+}
+
+type MapCreateBlock = Blockly.Block & { itemCount_?: number };
+
+/** Wire `map("magnitude", …, "units", …)` / coded-text keys onto DV field sockets. */
+function unpackMapCreateOntoDataValue(
+  shell: Blockly.Block,
+  mapBlock: MapCreateBlock,
+): boolean {
+  const count = Number(mapBlock.itemCount_ ?? 0);
+  const pairs: Array<{ key: string; value: Blockly.Block | null }> = [];
+  for (let i = 0; i < count; i++) {
+    pairs.push({
+      key: String(mapBlock.getFieldValue(`KEY${i}`) ?? ""),
+      value: mapBlock.getInputTargetBlock(`VAL${i}`),
+    });
+  }
+  const known = new Set([
+    "magnitude",
+    "units",
+    "value",
+    "code_string",
+    "terminology_id",
+    "defining_code",
+    "id",
+    "type",
+  ]);
+  if (!pairs.some((pair) => known.has(pair.key))) return false;
+
+  const rmType = (shell.getFieldValue("RM_TYPE") || shell.type || "").toUpperCase();
+  let phrase: Blockly.Block | null = null;
+  const needsPhrase = pairs.some((pair) =>
+    pair.key === "code_string" || pair.key === "defining_code" || pair.key === "terminology_id"
+  ) && rmType !== "CODE_PHRASE" && shell.type !== "code_phrase";
+  if (needsPhrase) {
+    ensureDvFieldVisible(shell, "defining_code");
+    phrase = ensureNestedCodePhrase(shell.workspace, shell, dvFieldInputName("defining_code"));
+  }
+
+  for (const pair of pairs) {
+    const child = pair.value;
+    if (!child || child.isShadow()) continue;
+    child.outputConnection?.disconnect();
+    if (
+      pair.key === "code_string" || pair.key === "defining_code" || pair.key === "terminology_id"
+    ) {
+      const target = phrase ?? shell;
+      const field = pair.key === "defining_code" ? "code_string" : pair.key;
+      ensureDvFieldVisible(target, field);
+      connectBlockToDvField(target, field, child);
+      continue;
+    }
+    ensureDvFieldVisible(shell, pair.key);
+    connectBlockToDvField(shell, pair.key, child);
+  }
+  mapBlock.dispose(false);
+  return true;
+}
+
+function connectBlockToDvField(
+  parent: Blockly.Block,
+  attr: string,
+  child: Blockly.Block,
+): void {
+  const input = parent.getInput(dvFieldInputName(attr)) ??
+    parent.getInput(`${OPTIONAL_DV_FIELD_PREFIX}${attr}`);
+  if (!input?.connection || !child.outputConnection) return;
+  const existing = input.connection.targetBlock();
+  if (existing) existing.dispose(false);
+  try {
+    input.connection.connect(child.outputConnection);
+  } catch {
+    const prev = input.connection.getCheck();
+    input.setCheck(null);
+    try {
+      input.connection.connect(child.outputConnection);
+    } catch {
+      /* still incompatible */
+    } finally {
+      if (prev) input.setCheck(prev);
+    }
+  }
 }
 
 export function expressionBlockFromDataValueShell(

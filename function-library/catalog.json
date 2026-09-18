@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "functions": [
+    {
+      "id": "join_swedish",
+      "name": "join_swedish",
+      "title": "Swedish list join",
+      "description": "Joins a list of strings as Swedish A, B och C. Parameter `names` (list). Returns a string. Decision table JoinNames (FIRST): first → {{name}}, middle → `, {{name}}`, last → ` och {{name}}`. Not a join_list builtin.",
+      "file": "join_swedish.intehr-function.json",
+      "locale": "sv",
+      "parameters": [
+        "names"
+      ],
+      "hasReturn": true,
+      "returns": "String",
+      "decisionTables": [
+        "JoinNames"
+      ]
+    },
+    {
+      "id": "join_oxford",
+      "name": "join_oxford",
+      "title": "Oxford serial-comma join",
+      "description": "Joins a list of strings with an English Oxford / serial comma: A, B, and C. Parameter `names` (list). Returns a string. Decision table JoinOxford (FIRST): first → {{name}}, middle → `, {{name}}`, last → `, and {{name}}`. Not a join_list builtin.",
+      "file": "join_oxford.intehr-function.json",
+      "locale": "en",
+      "parameters": [
+        "names"
+      ],
+      "hasReturn": true,
+      "returns": "String",
+      "decisionTables": [
+        "JoinOxford"
+      ]
+    }
+  ]
+}

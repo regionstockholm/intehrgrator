@@ -1,0 +1,307 @@
+{
+  "kind": "intehrgrator-function",
+  "version": 1,
+  "name": "join_oxford",
+  "description": "Joins a list of strings with an English Oxford / serial comma: A, B, and C. Parameter `names` (list). Returns a string. Decision table JoinOxford (FIRST): first → {{name}}, middle → `, {{name}}`, last → `, and {{name}}`. Not a join_list builtin.",
+  "parameters": [
+    "names"
+  ],
+  "hasReturn": true,
+  "returns": "String",
+  "locale": "en",
+  "decisionTables": [
+    "JoinOxford"
+  ],
+  "blocklyState": {
+    "blocks": {
+      "languageVersion": 0,
+      "blocks": [
+        {
+          "type": "procedures_defreturn",
+          "id": "aG,1:$Eo?eA-fum{gQG=",
+          "x": 0,
+          "y": 0,
+          "extraState": {
+            "params": [
+              {
+                "name": "names",
+                "id": "join_oxford_names"
+              }
+            ]
+          },
+          "fields": {
+            "NAME": "join_oxford"
+          },
+          "inputs": {
+            "STACK": {
+              "block": {
+                "type": "variables_set",
+                "id": "U2J!^L(g,Oc]YQX{eI:I",
+                "fields": {
+                  "VAR": {
+                    "id": "join_oxford_result"
+                  }
+                },
+                "inputs": {
+                  "VALUE": {
+                    "block": {
+                      "type": "text",
+                      "id": "Acb(@/aeHlo)QN#hi,J.",
+                      "fields": {
+                        "TEXT": ""
+                      }
+                    }
+                  }
+                },
+                "next": {
+                  "block": {
+                    "type": "for_each_list",
+                    "id": "i:(UDH_3l3lUqLft^$xS",
+                    "fields": {
+                      "VAR": "item"
+                    },
+                    "inputs": {
+                      "LIST": {
+                        "block": {
+                          "type": "variables_get",
+                          "id": "nE/pd,qum+:Efa#:.#X@",
+                          "fields": {
+                            "VAR": {
+                              "id": "join_oxford_names"
+                            }
+                          }
+                        }
+                      },
+                      "DO": {
+                        "block": {
+                          "type": "text_append",
+                          "id": "jFuxPQ_`E#@e#Q}m]~i}",
+                          "fields": {
+                            "VAR": {
+                              "id": "join_oxford_result"
+                            }
+                          },
+                          "inputs": {
+                            "TEXT": {
+                              "block": {
+                                "type": "decision_table",
+                                "id": ",r_QN;BtFjmx%q]ax%Z$",
+                                "fields": {
+                                  "NAME": "JoinOxford",
+                                  "OUTPUT": "snippet"
+                                },
+                                "inputs": {
+                                  "INPUTS": {
+                                    "block": {
+                                      "type": "maps_create_with",
+                                      "id": "/T%4{P}j5|}8}2%XtQqC",
+                                      "extraState": {
+                                        "itemCount": 3
+                                      },
+                                      "fields": {
+                                        "KEY0": "first",
+                                        "KEY1": "last",
+                                        "KEY2": "name"
+                                      },
+                                      "inputs": {
+                                        "VAL0": {
+                                          "shadow": {
+                                            "type": "text",
+                                            "id": "J,Pw%RGq$JN#eft]/qMm",
+                                            "fields": {
+                                              "TEXT": ""
+                                            }
+                                          },
+                                          "block": {
+                                            "type": "logic_compare",
+                                            "id": "I-y?Ky=L~7#mB]Q!eZPt",
+                                            "fields": {
+                                              "OP": "EQ"
+                                            },
+                                            "inputs": {
+                                              "A": {
+                                                "block": {
+                                                  "type": "logic_loop_index",
+                                                  "id": "._;%y66W1Pqh%P2*:{)T",
+                                                  "fields": {
+                                                    "VAR": ""
+                                                  }
+                                                }
+                                              },
+                                              "B": {
+                                                "block": {
+                                                  "type": "math_number",
+                                                  "id": "`7%hQipTXl9}y@Ob56]T",
+                                                  "fields": {
+                                                    "NUM": 0
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "VAL1": {
+                                          "shadow": {
+                                            "type": "text",
+                                            "id": ",M|d(XI|FMbU=urkjD]b",
+                                            "fields": {
+                                              "TEXT": ""
+                                            }
+                                          },
+                                          "block": {
+                                            "type": "logic_compare",
+                                            "id": "aX9|FLEZ/e+lNN%3vfBP",
+                                            "fields": {
+                                              "OP": "EQ"
+                                            },
+                                            "inputs": {
+                                              "A": {
+                                                "block": {
+                                                  "type": "logic_loop_index",
+                                                  "id": "*l,3)c{RCWAu,Jgk]Q:Z",
+                                                  "fields": {
+                                                    "VAR": ""
+                                                  }
+                                                }
+                                              },
+                                              "B": {
+                                                "block": {
+                                                  "type": "math_arithmetic",
+                                                  "id": "JwBf;FhPA*_m+x_2spG,",
+                                                  "fields": {
+                                                    "OP": "MINUS"
+                                                  },
+                                                  "inputs": {
+                                                    "A": {
+                                                      "block": {
+                                                        "type": "logic_loop_length",
+                                                        "id": "Fca2m]XtJ)n*Y-b-SK!y",
+                                                        "fields": {
+                                                          "VAR": ""
+                                                        }
+                                                      }
+                                                    },
+                                                    "B": {
+                                                      "block": {
+                                                        "type": "math_number",
+                                                        "id": "M2jP@btfX@QRnM8V)lkT",
+                                                        "fields": {
+                                                          "NUM": 1
+                                                        }
+                                                      }
+                                                    }
+                                                  }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        },
+                                        "VAL2": {
+                                          "shadow": {
+                                            "type": "text",
+                                            "id": "w2bz3Rqff6z6#G9Mq*%[",
+                                            "fields": {
+                                              "TEXT": ""
+                                            }
+                                          },
+                                          "block": {
+                                            "type": "logic_current_item",
+                                            "id": "Jk%%DZi~)s)Ww1T1f2?r",
+                                            "fields": {
+                                              "VAR": ""
+                                            }
+                                          }
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "RETURN": {
+              "block": {
+                "type": "variables_get",
+                "id": "G!M~BFnnj`*~@Y6IfEi-",
+                "fields": {
+                  "VAR": {
+                    "id": "join_oxford_result"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "decision_table_decl",
+          "id": "nc=9o#`dIk;h,SD.mj5}",
+          "x": 20,
+          "y": 20,
+          "fields": {
+            "NAME": "JoinOxford"
+          }
+        }
+      ]
+    },
+    "variables": [
+      {
+        "name": "names",
+        "id": "join_oxford_names"
+      }
+    ]
+  },
+  "sheets": [
+    {
+      "name": "JoinOxford",
+      "kind": "decision-table",
+      "headers": [
+        "first",
+        "last",
+        "snippet"
+      ],
+      "values": [
+        [
+          true,
+          "—",
+          "{{name}}"
+        ],
+        [
+          false,
+          false,
+          ", {{name}}"
+        ],
+        [
+          false,
+          true,
+          ", and {{name}}"
+        ]
+      ],
+      "columnTypes": [
+        "text",
+        "text",
+        "text"
+      ],
+      "hitPolicy": "FIRST",
+      "decisionColumns": [
+        {
+          "role": "condition"
+        },
+        {
+          "role": "condition"
+        },
+        {
+          "role": "output",
+          "outputKind": "snippet",
+          "valueType": "string"
+        }
+      ]
+    }
+  ]
+}

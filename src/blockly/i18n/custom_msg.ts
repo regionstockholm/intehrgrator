@@ -34,6 +34,8 @@ export interface IntehrMessages {
   CAT_VARIABLES: string;
   CAT_PROCEDURES: string;
   EXTRACT_TO_FUNCTION: string;
+  SAVE_FUNCTION: string;
+  CONTRIBUTE_FUNCTION: string;
   SOURCE_QUERY: string;
   SOURCE_QUERY_TOOLTIP: string;
   SOURCE_NODE_TOOLTIP: string;
@@ -99,6 +101,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Functions",
     EXTRACT_TO_FUNCTION: "Extract to function",
+    SAVE_FUNCTION: "Save Function…",
+    CONTRIBUTE_FUNCTION: "Contribute Function…",
     SOURCE_QUERY: "source",
     SOURCE_QUERY_TOOLTIP: "XPath/XQuery against the loaded source (fontoxpath)",
     SOURCE_NODE_TOOLTIP:
@@ -172,6 +176,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_VARIABLES: "Variabler",
     CAT_PROCEDURES: "Funktioner",
     EXTRACT_TO_FUNCTION: "Bryt ut till funktion",
+    SAVE_FUNCTION: "Spara funktion…",
+    CONTRIBUTE_FUNCTION: "Bidra med funktion…",
     SOURCE_QUERY: "källa",
     SOURCE_QUERY_TOOLTIP: "XPath/XQuery mot laddad källdata (fontoxpath)",
     SOURCE_NODE_TOOLTIP:
@@ -245,6 +251,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_VARIABLES: "Variablen",
     CAT_PROCEDURES: "Funktionen",
     EXTRACT_TO_FUNCTION: "In Funktion auslagern",
+    SAVE_FUNCTION: "Funktion speichern…",
+    CONTRIBUTE_FUNCTION: "Funktion beitragen…",
     SOURCE_QUERY: "Quelle",
     SOURCE_QUERY_TOOLTIP: "XPath/XQuery gegen die geladene Quelle (fontoxpath)",
     SOURCE_NODE_TOOLTIP:
@@ -318,6 +326,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funciones",
     EXTRACT_TO_FUNCTION: "Extraer a función",
+    SAVE_FUNCTION: "Guardar función…",
+    CONTRIBUTE_FUNCTION: "Contribuir función…",
     SOURCE_QUERY: "origen",
     SOURCE_QUERY_TOOLTIP: "XPath/XQuery sobre el origen cargado (fontoxpath)",
     SOURCE_NODE_TOOLTIP:
@@ -391,6 +401,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Funcions",
     EXTRACT_TO_FUNCTION: "Extreure a funció",
+    SAVE_FUNCTION: "Desar funció…",
+    CONTRIBUTE_FUNCTION: "Contribuir funció…",
     SOURCE_QUERY: "origen",
     SOURCE_QUERY_TOOLTIP: "XPath/XQuery sobre l'origen carregat (fontoxpath)",
     SOURCE_NODE_TOOLTIP:
@@ -464,6 +476,8 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     CAT_VARIABLES: "Variables",
     CAT_PROCEDURES: "Fonctions",
     EXTRACT_TO_FUNCTION: "Extraire vers une fonction",
+    SAVE_FUNCTION: "Enregistrer la fonction…",
+    CONTRIBUTE_FUNCTION: "Proposer la fonction…",
     SOURCE_QUERY: "source",
     SOURCE_QUERY_TOOLTIP: "XPath/XQuery sur la source chargée (fontoxpath)",
     SOURCE_NODE_TOOLTIP:

@@ -28,9 +28,11 @@ import {
   mappingSpecDocumentText,
   setMappingSpecFromBlockly,
   scrollMappingSpecToBlock,
-  blocksEligibleForBulkMark,
+  blocklyJsonDocument,
+  blocklyJsonDocumentForRoot,
   deleteMarkedSpecBlocks,
   pruneCheckedBlockIds,
+  specRowBlockIdsEligibleForBulkMark,
   type SpecChrome,
 } from "../src/workbench/mapping_spec/mod.ts";
 import {
@@ -46,6 +48,7 @@ import {
   slotIdFromBlock,
   listeningTargetFromBlock,
   owningValueSlotId,
+  blockConstraintMessages,
   warningTextOf,
   createModestTheme,
   buildDemoToolbox,
@@ -249,7 +252,14 @@ function toggleSpecBlockCheck(blockId: string, checked: boolean): void {
 
 function markAllWarnedOptionalUnmapped(): void {
   if (!workspace) return;
-  for (const id of blocksEligibleForBulkMark(workspace)) {
+  const warnings = collectConstraintWarnings();
+  const state = Blockly.serialization.workspaces.save(workspace);
+  const layout = specChromeUi?.getLayout() ?? "list";
+  const rootId = layout === "tabs" ? specChromeUi?.getActiveRootId() ?? null : null;
+  const doc = rootId
+    ? blocklyJsonDocumentForRoot(state, rootId)
+    : blocklyJsonDocument(state);
+  for (const id of specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings)) {
     specCheckedBlockIds.add(id);
   }
   refreshMappingSpecView();
@@ -894,8 +904,8 @@ function collectConstraintWarnings(): Record<string, string> {
   const warnings: Record<string, string> = {};
   if (!workspace) return warnings;
   for (const block of workspace.getAllBlocks(false)) {
-    const text = warningTextOf(block);
-    if (text) warnings[block.id] = text;
+    const messages = blockConstraintMessages(block);
+    if (messages.length) warnings[block.id] = messages.join("\n");
   }
   return warnings;
 }

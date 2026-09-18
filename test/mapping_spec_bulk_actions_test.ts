@@ -10,16 +10,41 @@ import {
   UNMAPPED_OPTIONAL_SCAFFOLD_WARNING,
   blockConstraintMessages,
 } from "@intehrgrator/blockly/block_constraints.ts";
+import { blocklyJsonDocument } from "@intehrgrator/workbench/mapping_spec/project.ts";
+import { specWarningMarkers } from "@intehrgrator/workbench/mapping_spec/overview.ts";
 import {
   blocksEligibleForBulkMark,
   deleteMarkedSpecBlocks,
   pruneCheckedBlockIds,
+  specRowBlockIdsEligibleForBulkMark,
   topLevelBlockIds,
 } from "@intehrgrator/workbench/mapping_spec/bulk_actions.ts";
 
 function ensureBlocks(): void {
   registerRmBlocks();
   registerMapBlocks();
+}
+
+function optionalObservation(label: string, slotId: string): SkeletonNode {
+  return {
+    slotId,
+    blockType: "observation",
+    rmType: "OBSERVATION",
+    label,
+    rmAttribute: "content",
+    kind: "container",
+    mandatory: false,
+    children: [],
+  };
+}
+
+function warningsForWorkspace(workspace: Blockly.Workspace): Record<string, string> {
+  const warnings: Record<string, string> = {};
+  for (const block of workspace.getAllBlocks(false)) {
+    const messages = blockConstraintMessages(block);
+    if (messages.length) warnings[block.id] = messages.join("\n");
+  }
+  return warnings;
 }
 
 Deno.test("optional scaffolded observation gets unmapped optional warning", () => {
@@ -31,16 +56,7 @@ Deno.test("optional scaffolded observation gets unmapped optional warning", () =
     label: "Encounter",
     kind: "container",
     mandatory: true,
-    children: [{
-      slotId: "t/content/bp",
-      blockType: "observation",
-      rmType: "OBSERVATION",
-      label: "Blood pressure",
-      rmAttribute: "content",
-      kind: "container",
-      mandatory: false,
-      children: [],
-    }],
+    children: [optionalObservation("Blood pressure", "t/content/bp")],
   }];
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
@@ -54,7 +70,7 @@ Deno.test("optional scaffolded observation gets unmapped optional warning", () =
   workspace.dispose();
 });
 
-Deno.test("blocksEligibleForBulkMark returns optional unmapped scaffold roots", () => {
+Deno.test("blocksEligibleForBulkMark returns every optional unmapped scaffold block", () => {
   ensureBlocks();
   const skeleton: SkeletonNode[] = [{
     slotId: "t",
@@ -63,25 +79,47 @@ Deno.test("blocksEligibleForBulkMark returns optional unmapped scaffold roots", 
     label: "Encounter",
     kind: "container",
     mandatory: true,
-    children: [{
-      slotId: "t/content/bp",
-      blockType: "observation",
-      rmType: "OBSERVATION",
-      label: "Blood pressure",
-      rmAttribute: "content",
-      kind: "container",
-      mandatory: false,
-      children: [],
-    }],
+    children: [
+      optionalObservation("Blood pressure", "t/content/bp"),
+      optionalObservation("Pulse oximetry", "t/content/pulse"),
+    ],
   }];
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
   refreshWorkspaceConstraints(workspace);
-  const bp = workspace.getAllBlocks(false).find(
-    (block) => block.getFieldValue("NAME") === "Blood pressure",
+  const eligible = blocksEligibleForBulkMark(workspace);
+  assertEquals(eligible.length, 2);
+  workspace.dispose();
+});
+
+Deno.test("specRowBlockIdsEligibleForBulkMark marks every warned spec row", () => {
+  ensureBlocks();
+  const skeleton: SkeletonNode[] = [{
+    slotId: "t",
+    blockType: "composition",
+    rmType: "COMPOSITION",
+    label: "Encounter",
+    kind: "container",
+    mandatory: true,
+    children: [
+      optionalObservation("Blood pressure", "t/content/bp"),
+      optionalObservation("Pulse oximetry", "t/content/pulse"),
+    ],
+  }];
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  refreshWorkspaceConstraints(workspace);
+  const state = Blockly.serialization.workspaces.save(workspace);
+  const warnings = warningsForWorkspace(workspace);
+  const doc = blocklyJsonDocument(state);
+  const markers = specWarningMarkers(doc, warnings);
+  const eligible = specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings);
+  assert(markers.length >= 2, `expected at least 2 warned spec rows, got ${markers.length}`);
+  assertEquals(
+    eligible.length,
+    markers.length,
+    "every warned optional scaffold spec row should be eligible for bulk mark",
   );
-  assert(bp);
-  assertEquals(blocksEligibleForBulkMark(workspace), [bp.id]);
   workspace.dispose();
 });
 
@@ -105,16 +143,7 @@ Deno.test("deleteMarkedSpecBlocks removes checked optional scaffold as one undo 
     label: "Encounter",
     kind: "container",
     mandatory: true,
-    children: [{
-      slotId: "t/content/bp",
-      blockType: "observation",
-      rmType: "OBSERVATION",
-      label: "Blood pressure",
-      rmAttribute: "content",
-      kind: "container",
-      mandatory: false,
-      children: [],
-    }],
+    children: [optionalObservation("Blood pressure", "t/content/bp")],
   }];
   const workspace = new Blockly.Workspace();
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);

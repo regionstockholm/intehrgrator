@@ -1,5 +1,6 @@
 export {
   blocklyJsonDocument,
+  blocklyJsonDocumentForRoot,
   projectBlocklyState,
   slotAttributeFromInputName,
   type BlocklyJsonDocument,
@@ -14,7 +15,9 @@ export {
 export {
   blocksEligibleForBulkMark,
   deleteMarkedSpecBlocks,
+  isOptionalUnmappedScaffoldBlock,
   pruneCheckedBlockIds,
+  specRowBlockIdsEligibleForBulkMark,
   topLevelBlockIds,
 } from "./bulk_actions.ts";
 

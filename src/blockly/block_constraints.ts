@@ -196,7 +196,7 @@ export function isProtectedSpecBlock(block: Block): boolean {
 }
 
 function parentConnectionInputName(block: Block): string | null {
-  const parent = block.getParent();
+  const parent = block.getParent() ?? block.getSurroundParent?.() ?? null;
   if (!parent) return null;
   for (const input of parent.inputList) {
     if (input.connection?.targetBlock()?.id === block.id) return input.name;

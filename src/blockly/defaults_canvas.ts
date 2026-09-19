@@ -3,6 +3,7 @@ import type { SkeletonNode, TargetFormatId } from "../types/mod.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
   bindDefaultPoints,
+  OPENEHR_DEFAULT_POINTS,
   DEFAULTS_BLOCK_TYPE,
   DEFAULTS_MAP_NAME,
   factoryDefaultsMapBlockState,
@@ -16,6 +17,7 @@ import {
   expressionBlockFromDataValueShell,
   isDataValueBlock,
   registerRmBlocks,
+  optionalRmInputName,
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
 } from "./blocks/rm_blocks.ts";
@@ -47,7 +49,7 @@ export function createEmptyMapBlock(workspace: Blockly.Workspace): Blockly.Block
   return finalize(map);
 }
 
-/** Factory Defaults Map from bundled `defaults-with-subject.map.json` (language ← UI). */
+/** Factory Defaults Map from bundled `defaults_openEHR_1.map.json` (language ← UI). */
 export function createFactoryMapBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
@@ -180,6 +182,16 @@ function slotAlreadyMapped(block: Blockly.Block): boolean {
   return true;
 }
 
+function isPartyValueBlock(block: Blockly.Block | null): boolean {
+  return Boolean(
+    block &&
+      (block.type === "party_identified" ||
+        block.type === "party_related" ||
+        block.type === "party_self" ||
+        block.type === "party_proxy"),
+  );
+}
+
 /** Replace abstract party shells with a Defaults Map lookup of the whole party. */
 function attachPartyLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: string): void {
   // Prefer plugging into PARTY_PROXY.KIND so the shell (and its SLOT_ID) stay.
@@ -197,19 +209,24 @@ function attachPartyLookup(workspace: Blockly.Workspace, target: Blockly.Block, 
       return;
     }
   }
+  attachPartyObjectLookup(workspace, target, key);
+}
+
+/** Plug `maps_get` into COMPOSITION.composer / EVENT_CONTEXT.health_care_facility. */
+function attachPartyObjectLookup(
+  workspace: Blockly.Workspace,
+  target: Blockly.Block,
+  key: string,
+): void {
+  if (target.type === MAPS_GET) return;
   const parentConnection = target.outputConnection?.targetConnection;
   if (!parentConnection) return;
-  if (target.type !== "party_proxy" && target.type !== MAPS_GET) {
-    if (!target.isShadow()) return;
-  }
   const slotId = target.getFieldValue("SLOT_ID");
+  const rmType = target.getFieldValue("RM_TYPE") || "PARTY_IDENTIFIED";
   target.dispose(false);
-  const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key);
+  const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key, { slotId, rmType });
   finalize(lookup);
-  if (lookup.outputConnection) {
-    parentConnection.connect(lookup.outputConnection);
-  }
-  if (slotId && lookup.getField("SLOT_ID")) lookup.setFieldValue(slotId, "SLOT_ID");
+  if (lookup.outputConnection) parentConnection.connect(lookup.outputConnection);
   finalize(lookup);
 }
 
@@ -240,6 +257,10 @@ function attachLookup(
   const mapValue = defaultsMapValueBlock(workspace, key);
   if (isTermPickBlock(mapValue) || isTermPickBlock(target)) {
     attachPhraseLookup(workspace, target, key);
+    return;
+  }
+  if (isPartyValueBlock(mapValue) && target.type !== "party_proxy") {
+    attachPartyObjectLookup(workspace, target, key);
     return;
   }
   if (slotAlreadyMapped(target)) return;
@@ -277,9 +298,9 @@ export type OptionalInsertFn = (
 
 /**
  * Scaffold Default points: optional RM insert when needed, then Map lookup.
- * Object-valued Defaults Map keys (`term_pick`) plug into the RM attribute mouth
- * (COMPOSITION.language, ENTRY.encoding, …). Scalar keys still plug into the
- * typed-shell leaf (time, composer name, facility).
+ * Object-valued Defaults Map keys (`term_pick`, `PARTY_IDENTIFIED`) plug into
+ * the RM attribute mouth (COMPOSITION.language, EVENT_CONTEXT.health_care_facility, …).
+ * Scalar keys (`time`) still plug into the typed-shell leaf.
  * Skips slots that already have a non-shadow, non-literal mapping.
  * `subject` only wires when the Defaults Map currently has a `subject` key.
  */
@@ -290,9 +311,10 @@ export function attachDefaultPointLookups(
 ): void {
   registerMapBlocks();
   const mapKeys = defaultsMapKeys(workspace as Blockly.Workspace);
-  const bound = bindDefaultPoints(skeleton);
-  for (const { point, node, parent } of bound) {
-    if (point.requireMapKey && !mapKeys.has(point.mapKey)) continue;
+  const bound = bindDefaultPoints(skeleton, OPENEHR_DEFAULT_POINTS, mapKeys);
+  for (const { point, node, parent, mapKey } of bound) {
+    const key = mapKey || point.mapKey;
+    if (point.requireMapKey && !mapKeys.has(key) && !mapKeys.has(point.mapKey)) continue;
     let targets = findBlocksBySlotId(workspace, node.slotId);
     if (!targets.length && point.optionalInsert) {
       const parentBlock = findBlocksBySlotId(workspace, parent.slotId)[0] ?? null;
@@ -304,11 +326,12 @@ export function attachDefaultPointLookups(
       }
       targets = findBlocksBySlotId(workspace, node.slotId);
       const fallback = parentBlock?.getInputTargetBlock(rmAttributeInputName(point.rmAttribute)) ??
+        parentBlock?.getInputTargetBlock(optionalRmInputName(point.rmAttribute)) ??
         null;
       if (!targets.length && fallback) targets = [fallback];
     }
     for (const target of targets) {
-      attachLookup(workspace, target, point.mapKey, point.leaf);
+      attachLookup(workspace, target, key, point.leaf);
     }
   }
 }

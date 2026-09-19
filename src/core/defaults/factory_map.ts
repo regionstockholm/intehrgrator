@@ -1,9 +1,10 @@
 /**
- * Bundled Blockly JSON for the factory Defaults Map (includes `subject` → PARTY_SELF).
+ * Bundled Blockly JSON for the factory openEHR Defaults Map
+ * (`defaults_openEHR_1.map.json`: term picks + party objects).
  * Used when opening a blank project / scaffolding when the browser has no other
  * Defaults Map plugged into the Defaults block yet.
  */
-import factoryMapJson from "./defaults-with-subject.map.json" with { type: "json" };
+import factoryMapJson from "./defaults_openEHR_1.map.json" with { type: "json" };
 import { termSetIdForDefaultsKey } from "../openehr_term_catalog.ts";
 
 /** Deep-clone the bundled factory `maps_create_with` block, patching UI language. */

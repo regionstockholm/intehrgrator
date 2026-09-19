@@ -14,7 +14,7 @@ export interface FactoryDefaultsEntry {
 
 /**
  * Bundled factory Defaults Map entries (literal strings).
- * The canvas factory prefers `defaults-with-subject.map.json`; this list stays
+ * The canvas factory prefers `defaults_openEHR_1.map.json`; this list stays
  * the source of truth for keys/order and for headless tests.
  */
 export function factoryDefaultsEntries(uiLanguage: string): FactoryDefaultsEntry[] {

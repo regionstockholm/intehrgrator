@@ -298,9 +298,9 @@ export type OptionalInsertFn = (
 
 /**
  * Scaffold Default points: optional RM insert when needed, then Map lookup.
- * Object-valued Defaults Map keys (`term_pick`) plug into the RM attribute mouth
- * (COMPOSITION.language, ENTRY.encoding, …). Scalar keys still plug into the
- * typed-shell leaf (time, composer name, facility).
+ * Object-valued Defaults Map keys (`term_pick`, `PARTY_IDENTIFIED`) plug into
+ * the RM attribute mouth (COMPOSITION.language, EVENT_CONTEXT.health_care_facility, …).
+ * Scalar keys (`time`) still plug into the typed-shell leaf.
  * Skips slots that already have a non-shadow, non-literal mapping.
  * `subject` only wires when the Defaults Map currently has a `subject` key.
  */

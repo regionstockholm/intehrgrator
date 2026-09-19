@@ -41,6 +41,7 @@ export const OPENEHR_DEFAULT_POINTS: DefaultPoint[] = [
     mapKey: "health_care_facility",
     parentRmType: "EVENT_CONTEXT",
     rmAttribute: "health_care_facility",
+    // Plug maps_get into the party mouth (inserted PARTY_IDENTIFIED often has no ATTR_name).
     leaf: "party",
     optionalInsert: { rmType: "PARTY_IDENTIFIED" },
   },

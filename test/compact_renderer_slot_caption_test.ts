@@ -3,7 +3,15 @@
  * the vertical midpoint of a connected child (Thrasos default for value rows).
  */
 import { assertEquals } from "@std/assert";
-import { FieldSlotLabel, slotCaptionStandMetrics } from "@intehrgrator/blockly/slot_label.ts";
+import {
+  FieldSlotLabel,
+  slotCaptionBodyEndXPx,
+  slotCaptionStandMetrics,
+  stoodCaptionBodyLayout,
+  stoodCaptionMouthGapPx,
+  stoodCaptionPivotXPx,
+  stoodCaptionTranslateXPx,
+} from "@intehrgrator/blockly/slot_label.ts";
 import {
   pinnedSlotCaptionCenterline_,
   shouldPinSlotCaptionToMouth_,
@@ -90,4 +98,40 @@ Deno.test("slot caption stands when the child is taller than the horizontal labe
   assertEquals(stood.stand, true);
   assertEquals(stood.width, 16);
   assertEquals(stood.height, 16 + 80);
+});
+
+Deno.test("stood caption pivot sits left of the mouth with an eighth-em gap", () => {
+  const bodyPx = 12;
+  assertEquals(stoodCaptionMouthGapPx(bodyPx), 1.5);
+  assertEquals(stoodCaptionTranslateXPx(16, bodyPx), 8);
+  assertEquals(stoodCaptionTranslateXPx(20, bodyPx), 12);
+});
+
+Deno.test("stood caption pivot insets only on statement C-mouths, not puzzle sockets", () => {
+  const bodyPx = 12;
+  assertEquals(stoodCaptionPivotXPx(16, bodyPx, true), 8);
+  assertEquals(stoodCaptionPivotXPx(16, bodyPx, false), 16);
+  assertEquals(stoodCaptionPivotXPx(20, bodyPx, true), 12);
+  assertEquals(stoodCaptionPivotXPx(20, bodyPx, false), 20);
+});
+
+Deno.test("caption body is right-aligned against the glyph (horizontal and stood)", () => {
+  assertEquals(slotCaptionBodyEndXPx(96, 16), 80);
+  assertEquals(slotCaptionBodyEndXPx(16, 16), 0);
+  const stood = stoodCaptionBodyLayout({
+    fieldWidth: 16,
+    glyphPx: 16,
+    bodyPx: 12,
+    statementMouth: true,
+  });
+  assertEquals(stood.textAnchor, "end");
+  assertEquals(stood.transform, "translate(8, 16) rotate(-90)");
+  const puzzle = stoodCaptionBodyLayout({
+    fieldWidth: 16,
+    glyphPx: 16,
+    bodyPx: 12,
+    statementMouth: false,
+  });
+  assertEquals(puzzle.textAnchor, "end");
+  assertEquals(puzzle.transform, "translate(16, 16) rotate(-90)");
 });

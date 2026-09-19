@@ -106,6 +106,11 @@ export class FieldSlotLabel extends FieldLabelBase {
     this.refreshText_();
   }
 
+  initView(): void {
+    super.initView?.();
+    this.updateSize_?.();
+  }
+
   rmType(): string {
     return this.rmType_;
   }
@@ -163,19 +168,10 @@ export class FieldSlotLabel extends FieldLabelBase {
   }
 
   showEditor_(): void {
-    // Blockly opens the editor from field-group mousedown. Prefer the
-    // abstract ⁇ tip over attribute help so concrete-implementation lists
-    // are not swallowed when both apply (common for RM slots).
-    const action = slotLabelOverlayForEditor({
-      isAbstractSlot: this.isAbstractSlot_(),
-      hasAttrHelp: this.hasAttrHelp_(),
-    });
-    if (action === "abstract-tip") {
-      dismissSpecHelpPopup();
-      pinSlotLabelTip(this);
-      return;
-    }
-    if (action !== "help") return;
+    // Abstract ⁇ and overlay Δ handle their own click/hover on those
+    // glyphs. Field-level showEditor_ used to open the abstract tip for
+    // the whole caption, so the hyperlink looked like it had moved.
+    if (!this.hasAttrHelp_()) return;
     dismissSlotLabelTip();
     const help = this.attributeHelp_();
     if (!help) return;
@@ -200,8 +196,9 @@ export class FieldSlotLabel extends FieldLabelBase {
           { min: this.min, max: this.max },
         ),
     );
-    const help = this.overlayHelp();
-    this.setTooltip?.(help || "");
+    // Overlay help lives on the Δ / cardinality tspans, not the whole field —
+    // otherwise hover on the attribute name steals the constraint tooltip.
+    this.setTooltip?.("");
   }
 
   private isAbstractSlot_(): boolean {
@@ -247,24 +244,12 @@ export class FieldSlotLabel extends FieldLabelBase {
       ? "pointer"
       : "default";
     this.syncClass_();
-    this.syncTipAttr_();
     this.updateSize_?.();
   }
 
   private syncClass_(): void {
     // Do not put --abstract on the whole caption — only the ⁇ tspan is underlined.
     this.setClass?.(cssClass(this.unmet, false));
-  }
-
-  private syncTipAttr_(): void {
-    if (!this.rmType_) {
-      this.fieldGroup_?.removeAttribute("data-rm-type-tip");
-      return;
-    }
-    const tip = rmTypeConnectionTooltip(this.rmType_);
-    this.fieldGroup_?.setAttribute("data-rm-type-tip", tip);
-    const click = this.getClickTarget_?.();
-    click?.setAttribute("data-rm-type-tip", tip);
   }
 
   updateSize_(): void {
@@ -320,26 +305,25 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("dominant-baseline", "central");
     el.setAttribute("alignment-baseline", "central");
     el.setAttribute("dy", "0");
-    el.setAttribute("text-anchor", "start");
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
     if (metrics.stand) {
-      // 90° CCW under the glyph: glyph stays at the socket (right of the field).
-      // Statement C-mouths need a left inset so glyphs do not sit half inside the C;
-      // puzzle-tab value sockets keep the full-width pivot.
-      const translateX = stoodCaptionPivotXPx(
-        metrics.width,
+      // 90° CCW: right-align the string so it packs upward toward the glyph
+      // at the top of the field. Statement C-mouths also inset X so letter
+      // boxes sit left of the opening.
+      const layout = stoodCaptionBodyLayout({
+        fieldWidth: metrics.width,
+        glyphPx: typeGlyph ? glyphPx : bodyPx,
         bodyPx,
-        slotLabelOnStatementMouth(this),
-      );
+        statementMouth: slotLabelOnStatementMouth(this),
+      });
+      el.setAttribute("text-anchor", layout.textAnchor);
       el.setAttribute("x", "0");
       el.setAttribute("y", "0");
-      el.setAttribute(
-        "transform",
-        `translate(${translateX}, ${metrics.height}) rotate(-90)`,
-      );
+      el.setAttribute("transform", layout.transform);
     } else {
       el.removeAttribute("transform");
-      el.setAttribute("x", "0");
+      el.setAttribute("text-anchor", "end");
+      el.setAttribute("x", String(slotCaptionBodyEndXPx(metrics.width, glyphWidth)));
       el.setAttribute("y", String(this.size_.height / 2));
     }
     this.rebuildCaption_(
@@ -451,13 +435,24 @@ export class FieldSlotLabel extends FieldLabelBase {
     const width = Number(this.size_?.width ?? 0);
     const height = Number(this.size_?.height ?? 0);
     if (stand) {
-      glyphEl.setAttribute("x", String(Math.max(0, width - measureCaptionWidth(glyph, glyphPx, abstractGlyph))));
+      const pivotX = stoodCaptionPivotXPx(
+        width,
+        bodyPx,
+        slotLabelOnStatementMouth(this),
+      );
+      const glyphW = measureCaptionWidth(glyph, glyphPx, abstractGlyph);
+      glyphEl.setAttribute(
+        "x",
+        String(Math.max(0, Math.min(width - glyphW, pivotX - glyphW / 2))),
+      );
       glyphEl.setAttribute("y", String(Math.max(glyphPx, bodyPx) / 2));
     } else {
       const bodyW = Math.max(0, width - measureCaptionWidth(` ${glyph}`, glyphPx, abstractGlyph));
       glyphEl.setAttribute("x", String(bodyW));
       glyphEl.setAttribute("y", String(height / 2));
     }
+    const tip = this.rmType_ ? rmTypeConnectionTooltip(this.rmType_) : "";
+    bindSlotElementTooltip(glyphEl, tip, "data-rm-type-tip");
   }
 }
 
@@ -489,6 +484,32 @@ export function stoodCaptionPivotXPx(
   return statementMouth
     ? stoodCaptionTranslateXPx(fieldWidth, bodyPx)
     : fieldWidth;
+}
+
+/**
+ * Right edge of the caption body (where the type glyph starts). Used so the
+ * attribute title hugs the glyph even if Blockly stretches the field.
+ */
+export function slotCaptionBodyEndXPx(fieldWidth: number, glyphWidth: number): number {
+  return Math.max(0, fieldWidth - glyphWidth);
+}
+
+/**
+ * Stood body transform: `text-anchor: end` + origin at the glyph row so the
+ * string packs upward toward the ⁇ (right-align after 90° CCW).
+ */
+export function stoodCaptionBodyLayout(args: {
+  fieldWidth: number;
+  glyphPx: number;
+  bodyPx: number;
+  statementMouth: boolean;
+}): { textAnchor: "end"; transform: string } {
+  const translateX = stoodCaptionPivotXPx(args.fieldWidth, args.bodyPx, args.statementMouth);
+  const translateY = Math.max(args.glyphPx, args.bodyPx);
+  return {
+    textAnchor: "end",
+    transform: `translate(${translateX}, ${translateY}) rotate(-90)`,
+  };
 }
 
 function slotLabelParentInput(field: FieldSlotLabel): Input | null {
@@ -594,6 +615,24 @@ function cssClass(unmet: boolean, abstractSlot: boolean): string {
   return parts.join(" ");
 }
 
+function bindSlotElementTooltip(
+  el: Element,
+  text: string,
+  attr: "data-rm-type-tip" | "data-constraint-overlay-tip",
+): void {
+  Blockly.Tooltip?.unbindMouseEvents?.(el);
+  if (!text) {
+    el.removeAttribute(attr);
+    el.removeAttribute("title");
+    (el as Element & { tooltip?: string }).tooltip = "";
+    return;
+  }
+  el.setAttribute(attr, text);
+  el.setAttribute("title", text);
+  (el as Element & { tooltip?: string }).tooltip = text;
+  Blockly.Tooltip?.bindMouseEvents?.(el);
+}
+
 function appendOverlayTspans(
   el: SVGTextElement,
   field: FieldSlotLabel,
@@ -615,8 +654,8 @@ function appendOverlayTspans(
         : SLOT_OVERLAY_DELTA_FILL,
     );
     if (help) {
+      bindSlotElementTooltip(tspan, help, "data-constraint-overlay-tip");
       tspan.style.cursor = "pointer";
-      tspan.setAttribute("title", help);
       tspan.addEventListener("mousedown", (event) => event.stopPropagation());
       tspan.addEventListener("click", (event) => {
         event.stopPropagation();

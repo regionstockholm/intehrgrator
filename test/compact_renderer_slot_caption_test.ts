@@ -5,7 +5,9 @@
 import { assertEquals } from "@std/assert";
 import {
   FieldSlotLabel,
+  slotCaptionBodyEndXPx,
   slotCaptionStandMetrics,
+  stoodCaptionBodyLayout,
   stoodCaptionMouthGapPx,
   stoodCaptionPivotXPx,
   stoodCaptionTranslateXPx,
@@ -111,4 +113,25 @@ Deno.test("stood caption pivot insets only on statement C-mouths, not puzzle soc
   assertEquals(stoodCaptionPivotXPx(16, bodyPx, false), 16);
   assertEquals(stoodCaptionPivotXPx(20, bodyPx, true), 12);
   assertEquals(stoodCaptionPivotXPx(20, bodyPx, false), 20);
+});
+
+Deno.test("caption body is right-aligned against the glyph (horizontal and stood)", () => {
+  assertEquals(slotCaptionBodyEndXPx(96, 16), 80);
+  assertEquals(slotCaptionBodyEndXPx(16, 16), 0);
+  const stood = stoodCaptionBodyLayout({
+    fieldWidth: 16,
+    glyphPx: 16,
+    bodyPx: 12,
+    statementMouth: true,
+  });
+  assertEquals(stood.textAnchor, "end");
+  assertEquals(stood.transform, "translate(8, 16) rotate(-90)");
+  const puzzle = stoodCaptionBodyLayout({
+    fieldWidth: 16,
+    glyphPx: 16,
+    bodyPx: 12,
+    statementMouth: false,
+  });
+  assertEquals(puzzle.textAnchor, "end");
+  assertEquals(puzzle.transform, "translate(16, 16) rotate(-90)");
 });

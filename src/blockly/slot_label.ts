@@ -196,9 +196,7 @@ export class FieldSlotLabel extends FieldLabelBase {
           { min: this.min, max: this.max },
         ),
     );
-    // Overlay help lives on the Δ / cardinality tspans, not the whole field —
-    // otherwise hover on the attribute name steals the constraint tooltip.
-    this.setTooltip?.("");
+    // Overlay help lives on the Δ / cardinality tspans, not the whole field.
   }
 
   private isAbstractSlot_(): boolean {
@@ -425,12 +423,17 @@ export class FieldSlotLabel extends FieldLabelBase {
       glyphEl.onclick = (event) => {
         event.stopPropagation();
         dismissSpecHelpPopup();
-        pinSlotLabelTip(this);
+        pinSlotLabelTip(this, glyphEl);
+      };
+      glyphEl.onpointerenter = () => {
+        dismissSpecHelpPopup();
+        pinSlotLabelTip(this, glyphEl, { toggle: false });
       };
     } else {
       glyphEl.style.cursor = "";
       glyphEl.onmousedown = null;
       glyphEl.onclick = null;
+      glyphEl.onpointerenter = null;
     }
     const width = Number(this.size_?.width ?? 0);
     const height = Number(this.size_?.height ?? 0);
@@ -637,6 +640,15 @@ function bindSlotElementTooltip(
   el.setAttribute(attr, text);
   el.setAttribute("title", text);
   bound.tooltip = text;
+  // Blockly Field.bindMouseEvents uses currentTarget=fieldGroup, which
+  // would steal hover from the glyph/overlay. Stop bubbling so the
+  // element-local tooltip wins.
+  if (!(el as Element & { _slotTipStop?: boolean })._slotTipStop) {
+    (el as Element & { _slotTipStop?: boolean })._slotTipStop = true;
+    el.addEventListener("pointerover", (event) => event.stopPropagation());
+    el.addEventListener("pointerout", (event) => event.stopPropagation());
+    el.addEventListener("pointermove", (event) => event.stopPropagation());
+  }
   Blockly.Tooltip?.bindMouseEvents?.(el);
 }
 
@@ -669,6 +681,10 @@ function appendOverlayTspans(
         dismissSpecHelpPopup();
         pinOverlayHelpTip(field, tspan);
       });
+      tspan.addEventListener("pointerenter", () => {
+        dismissSpecHelpPopup();
+        pinOverlayHelpTip(field, tspan, { toggle: false });
+      });
     }
     el.appendChild(tspan);
   };
@@ -679,14 +695,18 @@ function appendOverlayTspans(
 
 const OVERLAY_TIP_ID = "blockly-slot-overlay-tip";
 
-function pinOverlayHelpTip(field: FieldSlotLabel, anchor: Element): void {
+function pinOverlayHelpTip(
+  field: FieldSlotLabel,
+  anchor: Element,
+  options?: { toggle?: boolean },
+): void {
   if (typeof document === "undefined") return;
   Blockly.Tooltip?.hide?.();
   const text = field.overlayHelp();
   if (!text) return;
   let tip = document.getElementById(OVERLAY_TIP_ID);
   if (tip && tip.dataset.anchor === field.pinId) {
-    dismissOverlayHelpTip();
+    if (options?.toggle !== false) dismissOverlayHelpTip();
     return;
   }
   dismissOverlayHelpTip();
@@ -762,18 +782,23 @@ function dismissSlotLabelTip(): void {
   tip.remove();
 }
 
-function pinSlotLabelTip(field: FieldSlotLabel): void {
+function pinSlotLabelTip(
+  field: FieldSlotLabel,
+  anchor?: Element,
+  options?: { toggle?: boolean },
+): void {
   if (typeof document === "undefined") return;
   Blockly.Tooltip?.hide?.();
-  const target = (field as unknown as { getClickTarget_?: () => Element | null })
-    .getClickTarget_?.() ?? field.fieldGroup_;
+  const target = anchor ??
+    (field as unknown as { getClickTarget_?: () => Element | null })
+      .getClickTarget_?.() ?? field.fieldGroup_;
   if (!target || !("getBoundingClientRect" in target)) return;
   const text = rmTypeConnectionTooltip(field.rmType());
   if (!text) return;
 
   let tip = document.getElementById(PIN_ID);
   if (tip && tip.dataset.anchor === field.pinId) {
-    dismissSlotLabelTip();
+    if (options?.toggle !== false) dismissSlotLabelTip();
     return;
   }
   dismissSlotLabelTip();

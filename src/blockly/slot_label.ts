@@ -323,12 +323,13 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
     if (metrics.stand) {
       // 90° CCW under the glyph: glyph stays at the mouth (right of the field);
-      // the caption body hangs in the same column hugging the C.
+      // the caption body hangs left of the C with a small margin.
+      const translateX = stoodCaptionTranslateXPx(metrics.width, bodyPx);
       el.setAttribute("x", "0");
       el.setAttribute("y", "0");
       el.setAttribute(
         "transform",
-        `translate(${metrics.width}, ${metrics.height}) rotate(-90)`,
+        `translate(${translateX}, ${metrics.height}) rotate(-90)`,
       );
     } else {
       el.removeAttribute("transform");
@@ -458,6 +459,19 @@ export function isSlotLabelField(
   field: Field | null | undefined,
 ): field is FieldSlotLabel {
   return Boolean(field && (field as FieldSlotLabel).isSlotLabelField);
+}
+
+/** Gap between stood caption glyphs and the C-mouth (~⅛ em). */
+export function stoodCaptionMouthGapPx(bodyPx: number): number {
+  return bodyPx / 8;
+}
+
+/**
+ * X pivot for a 90° CCW stood caption so glyph boxes sit left of the mouth
+ * with {@link stoodCaptionMouthGapPx} clearance (not half inside the C).
+ */
+export function stoodCaptionTranslateXPx(fieldWidth: number, bodyPx: number): number {
+  return fieldWidth - Math.round(bodyPx / 2 + stoodCaptionMouthGapPx(bodyPx));
 }
 
 /**

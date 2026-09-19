@@ -3,7 +3,12 @@
  * the vertical midpoint of a connected child (Thrasos default for value rows).
  */
 import { assertEquals } from "@std/assert";
-import { FieldSlotLabel, slotCaptionStandMetrics } from "@intehrgrator/blockly/slot_label.ts";
+import {
+  FieldSlotLabel,
+  slotCaptionStandMetrics,
+  stoodCaptionMouthGapPx,
+  stoodCaptionTranslateXPx,
+} from "@intehrgrator/blockly/slot_label.ts";
 import {
   pinnedSlotCaptionCenterline_,
   shouldPinSlotCaptionToMouth_,
@@ -90,4 +95,11 @@ Deno.test("slot caption stands when the child is taller than the horizontal labe
   assertEquals(stood.stand, true);
   assertEquals(stood.width, 16);
   assertEquals(stood.height, 16 + 80);
+});
+
+Deno.test("stood caption pivot sits left of the mouth with an eighth-em gap", () => {
+  const bodyPx = 12;
+  assertEquals(stoodCaptionMouthGapPx(bodyPx), 1.5);
+  assertEquals(stoodCaptionTranslateXPx(16, bodyPx), 8);
+  assertEquals(stoodCaptionTranslateXPx(20, bodyPx), 12);
 });

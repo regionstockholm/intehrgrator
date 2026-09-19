@@ -1,6 +1,7 @@
 export {
   bindDefaultPoints,
   OPENEHR_DEFAULT_POINTS,
+  resolveDefaultsMapKey,
   type BoundDefaultPoint,
   type DefaultPoint,
   type DefaultPointLeaf,

@@ -18,13 +18,13 @@ export function skeletonBlockTooltip(node: SkeletonNode): string {
 }
 
 export function applySkeletonBlockLabels(block: Block, node: SkeletonNode): void {
-  if (!isTermPickBlock(block)) {
-    setFieldIfPresent(block, "NAME", node.label);
-  }
   const nameField = block.getField("NAME");
-  if (isSkeletonTitleField(nameField)) {
-    if (node.rmType && !isTermPickBlock(block)) nameField.setClassName(node.rmType);
-    if (!isTermPickBlock(block)) nameField.setAtCode(node.archetypeNodeId ?? "");
+  // `maps_get` (and other lookups) reuse field name NAME for the Map name.
+  // Relabel must not overwrite that with the skeleton slot label (e.g. "territory").
+  if (isSkeletonTitleField(nameField) && !isTermPickBlock(block)) {
+    nameField.setValue(node.label);
+    if (node.rmType) nameField.setClassName(node.rmType);
+    nameField.setAtCode(node.archetypeNodeId ?? "");
     nameField.setDocumentation(node.documentation);
   } else if (node.archetypeNodeId) {
     setFieldIfPresent(block, "AT_CODE", node.archetypeNodeId);

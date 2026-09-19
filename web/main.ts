@@ -1087,6 +1087,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       applyPendingDefaultsMap();
       return;
     } else {
+      applyPendingDefaultsMap();
       loadSkeletonIntoWorkspace(
         workspace,
         s.skeleton,

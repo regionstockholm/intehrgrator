@@ -625,7 +625,7 @@ Deno.test("OPT load attaches a Web Template for Simplified FLAT Test Run", async
   assertEquals(Boolean(wt && wt.trim().startsWith("{")), true, "expected webTemplateJson on OPT load");
 });
 
-Deno.test("list_slots includes composer PARTY_IDENTIFIED", async () => {
+Deno.test("list_slots includes composer and scaffolded health_care_facility", async () => {
   const service = new WorkbenchService();
   await callAgentTool(service, "load_target", { path: adminOpt });
   const listed = await callAgentTool(service, "list_slots", {}) as {
@@ -633,7 +633,35 @@ Deno.test("list_slots includes composer PARTY_IDENTIFIED", async () => {
   };
   const composer = listed.slots.find((s) => s.slotId.endsWith("//composer"));
   assertEquals(composer?.valueType, "PARTY_IDENTIFIED", JSON.stringify(composer));
+  const facility = listed.slots.find((s) =>
+    s.valueType === "PARTY_IDENTIFIED" && s.slotId.includes("health_care_facility")
+  );
+  assertEquals(Boolean(facility), true, JSON.stringify(listed.slots.map((s) => s.slotId)));
 });
+
+async function ensureOptionalRm(
+  service: WorkbenchService,
+  parentSuffix: string,
+  attributeName: string,
+  rmType: string,
+): Promise<void> {
+  const listedRm = await callAgentTool(service, "list_optional_rm", {}) as {
+    catalog: Array<{
+      parentSlotId: string;
+      attachments: Array<{ attributeName: string; rmType: string }>;
+    }>;
+  };
+  const row = listedRm.catalog.find((item) =>
+    item.parentSlotId.endsWith(parentSuffix) &&
+    item.attachments.some((a) => a.attributeName === attributeName)
+  );
+  if (!row) return;
+  await callAgentTool(service, "optional_rm_add", {
+    parentSlotId: row.parentSlotId,
+    rmType,
+    attributeName,
+  });
+}
 
 Deno.test("optional_rm_add health_care_facility then map party name and identifier", async () => {
   const service = new WorkbenchService();
@@ -647,19 +675,12 @@ Deno.test("optional_rm_add health_care_facility then map party name and identifi
       Vardenhet_HSAID: "C4DS",
     }),
   });
-  const listedRm = await callAgentTool(service, "list_optional_rm", {}) as {
-    catalog: Array<{ parentSlotId: string; attachments: Array<{ attributeName: string; rmType: string }> }>;
-  };
-  const context = listedRm.catalog.find((row) =>
-    row.parentSlotId.endsWith("//context/EVENT_CONTEXT") &&
-    row.attachments.some((a) => a.attributeName === "health_care_facility")
+  await ensureOptionalRm(
+    service,
+    "//context/EVENT_CONTEXT",
+    "health_care_facility",
+    "PARTY_IDENTIFIED",
   );
-  if (!context) throw new Error("missing EVENT_CONTEXT health_care_facility catalog row");
-  await callAgentTool(service, "optional_rm_add", {
-    parentSlotId: context.parentSlotId,
-    rmType: "PARTY_IDENTIFIED",
-    attributeName: "health_care_facility",
-  });
   const snap = await callAgentTool(service, "get_snapshot", {}) as { templateId: string };
   const listed = await callAgentTool(service, "list_slots", {}) as {
     slots: Array<{ slotId: string; valueType: string }>;

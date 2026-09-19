@@ -620,16 +620,23 @@ function bindSlotElementTooltip(
   text: string,
   attr: "data-rm-type-tip" | "data-constraint-overlay-tip",
 ): void {
-  Blockly.Tooltip?.unbindMouseEvents?.(el);
+  const bound = el as Element & { mouseOverWrapper_?: unknown; tooltip?: string };
+  if (bound.mouseOverWrapper_) {
+    try {
+      Blockly.Tooltip?.unbindMouseEvents?.(el);
+    } catch {
+      // First bind, or a Blockly build without wrappers.
+    }
+  }
   if (!text) {
     el.removeAttribute(attr);
     el.removeAttribute("title");
-    (el as Element & { tooltip?: string }).tooltip = "";
+    bound.tooltip = "";
     return;
   }
   el.setAttribute(attr, text);
   el.setAttribute("title", text);
-  (el as Element & { tooltip?: string }).tooltip = text;
+  bound.tooltip = text;
   Blockly.Tooltip?.bindMouseEvents?.(el);
 }
 

@@ -26,6 +26,7 @@ import {
   SLOT_OVERLAY_DELTA_FILL,
   SLOT_OVERLAY_RM_FILL,
 } from "./block_colours.ts";
+import { isStatementInput } from "./mouth_layout.ts";
 
 export const SLOT_LABEL_FIELD_PREFIX = "SLOT_LABEL_";
 
@@ -322,9 +323,14 @@ export class FieldSlotLabel extends FieldLabelBase {
     el.setAttribute("text-anchor", "start");
     el.style.setProperty("font-size", `${bodyPx}px`, "important");
     if (metrics.stand) {
-      // 90° CCW under the glyph: glyph stays at the mouth (right of the field);
-      // the caption body hangs left of the C with a small margin.
-      const translateX = stoodCaptionTranslateXPx(metrics.width, bodyPx);
+      // 90° CCW under the glyph: glyph stays at the socket (right of the field).
+      // Statement C-mouths need a left inset so glyphs do not sit half inside the C;
+      // puzzle-tab value sockets keep the full-width pivot.
+      const translateX = stoodCaptionPivotXPx(
+        metrics.width,
+        bodyPx,
+        slotLabelOnStatementMouth(this),
+      );
       el.setAttribute("x", "0");
       el.setAttribute("y", "0");
       el.setAttribute(
@@ -467,11 +473,34 @@ export function stoodCaptionMouthGapPx(bodyPx: number): number {
 }
 
 /**
- * X pivot for a 90° CCW stood caption so glyph boxes sit left of the mouth
- * with {@link stoodCaptionMouthGapPx} clearance (not half inside the C).
+ * X pivot for a 90° CCW stood caption on a statement C-mouth so glyph boxes
+ * sit left of the opening with {@link stoodCaptionMouthGapPx} clearance.
  */
 export function stoodCaptionTranslateXPx(fieldWidth: number, bodyPx: number): number {
   return fieldWidth - Math.round(bodyPx / 2 + stoodCaptionMouthGapPx(bodyPx));
+}
+
+/** Stood-caption X pivot: inset only on statement mouths, not puzzle-tab sockets. */
+export function stoodCaptionPivotXPx(
+  fieldWidth: number,
+  bodyPx: number,
+  statementMouth: boolean,
+): number {
+  return statementMouth
+    ? stoodCaptionTranslateXPx(fieldWidth, bodyPx)
+    : fieldWidth;
+}
+
+function slotLabelParentInput(field: FieldSlotLabel): Input | null {
+  const block = field.getSourceBlock?.();
+  if (!block) return null;
+  return field.getParentInput?.() ??
+    block.inputList.find((row) => row.fieldRow.includes(field)) ?? null;
+}
+
+function slotLabelOnStatementMouth(field: FieldSlotLabel): boolean {
+  const input = slotLabelParentInput(field);
+  return input ? isStatementInput(input) : false;
 }
 
 /**

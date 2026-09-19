@@ -7,6 +7,7 @@ import {
   FieldSlotLabel,
   slotCaptionStandMetrics,
   stoodCaptionMouthGapPx,
+  stoodCaptionPivotXPx,
   stoodCaptionTranslateXPx,
 } from "@intehrgrator/blockly/slot_label.ts";
 import {
@@ -102,4 +103,12 @@ Deno.test("stood caption pivot sits left of the mouth with an eighth-em gap", ()
   assertEquals(stoodCaptionMouthGapPx(bodyPx), 1.5);
   assertEquals(stoodCaptionTranslateXPx(16, bodyPx), 8);
   assertEquals(stoodCaptionTranslateXPx(20, bodyPx), 12);
+});
+
+Deno.test("stood caption pivot insets only on statement C-mouths, not puzzle sockets", () => {
+  const bodyPx = 12;
+  assertEquals(stoodCaptionPivotXPx(16, bodyPx, true), 8);
+  assertEquals(stoodCaptionPivotXPx(16, bodyPx, false), 16);
+  assertEquals(stoodCaptionPivotXPx(20, bodyPx, true), 12);
+  assertEquals(stoodCaptionPivotXPx(20, bodyPx, false), 20);
 });

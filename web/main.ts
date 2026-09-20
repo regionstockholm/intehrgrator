@@ -636,7 +636,7 @@ async function bootBlockly(): Promise<void> {
 
   initSplitPanes(document, () => Blockly.svgResize(workspace));
   controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
-  initBlocklySourceDrop();
+  initBlocklyCanvasDrop();
   initOutputTabs();
   initSlideAway();
 
@@ -1666,10 +1666,11 @@ function initSlideAway(): void {
   setOutputSlidAway(readStoredFlag(OUTPUT_SLIDE_STORAGE));
 }
 
-/** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
-function initBlocklySourceDrop(): void {
-  let lastAppliedAt = 0;
+/** Drop Source paths or Target schema nodes onto Blockly. */
+function initBlocklyCanvasDrop(): void {
+  let lastSourceAt = 0;
   let lastAppliedPath = "";
+  let lastTargetAt = 0;
   let lastTargetSlot = "";
   let lastOverX = 0;
   let lastOverY = 0;
@@ -1686,9 +1687,9 @@ function initBlocklySourceDrop(): void {
       clientY >= mountRect.top && clientY <= mountRect.bottom;
     if (!inMount) return false;
     const now = Date.now();
-    if (payload.path === lastAppliedPath && now - lastAppliedAt < 250) return true;
+    if (payload.path === lastAppliedPath && now - lastSourceAt < 250) return true;
     lastAppliedPath = payload.path;
-    lastAppliedAt = now;
+    lastSourceAt = now;
     try {
       const slotId = findSlotIdAtPoint(clientX, clientY);
       if (slotId) {
@@ -1713,9 +1714,9 @@ function initBlocklySourceDrop(): void {
       clientY >= mountRect.top && clientY <= mountRect.bottom;
     if (!inMount) return false;
     const now = Date.now();
-    if (payload.slotId === lastTargetSlot && now - lastAppliedAt < 250) return true;
+    if (payload.slotId === lastTargetSlot && now - lastTargetAt < 250) return true;
     lastTargetSlot = payload.slotId;
-    lastAppliedAt = now;
+    lastTargetAt = now;
     if (findSlotIdAtPoint(clientX, clientY)) {
       controller.setStatusMessage(
         "Drop onto empty canvas to add a Target schema subtree.",
@@ -2216,15 +2217,10 @@ function render(): void {
     schemaTreeEl.textContent = "Load a schema file.";
   }
 
-  if (s.skeleton.length) {
-    renderTargetSchemaTree(
-      targetSchemaTreeEl,
-      targetSchemaTreeFromSkeleton(s.skeleton),
-    );
-  } else {
-    targetSchemaTreeEl.classList.add("target-schema-tree");
-    targetSchemaTreeEl.textContent = "Load a target schema or template.";
-  }
+  renderTargetSchemaTree(
+    targetSchemaTreeEl,
+    s.skeleton.length ? targetSchemaTreeFromSkeleton(s.skeleton) : [],
+  );
 
   renderExampleTabs(s);
   renderTestOutputTabs(s);

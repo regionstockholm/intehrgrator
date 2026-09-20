@@ -24,6 +24,7 @@ import {
 } from "./blocks/rm_blocks.ts";
 import { isTermPickBlock, registerTermPickBlock } from "./blocks/term_pick.ts";
 import { defaultsMapValueBlock, listDefaultContextMapEntries } from "./hardcode_defaults.ts";
+import { isSourceQueryBlockType } from "./source_query.ts";
 
 const DEFAULTS_X = 20;
 const DEFAULTS_Y = 20;
@@ -257,12 +258,20 @@ function attachPhraseLookup(workspace: Blockly.Workspace, target: Blockly.Block,
   finalize(lookup);
 }
 
+function blockHoldsSourceQuery(block: Blockly.Block): boolean {
+  if (isSourceQueryBlockType(block.type)) return true;
+  const nested = typeof block.getDescendants === "function" ? block.getDescendants(false) : [];
+  return nested.some((child) => isSourceQueryBlockType(child.type));
+}
+
 function attachLookup(
   workspace: Blockly.Workspace,
   target: Blockly.Block,
   key: string,
   leaf: string,
 ): void {
+  if (target.type === MAPS_GET) return;
+  if (blockHoldsSourceQuery(target)) return;
   if (leaf === "party") {
     attachPartyLookup(workspace, target, key);
     return;

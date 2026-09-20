@@ -26,11 +26,13 @@ import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
 import { loadSkeletonIntoWorkspace } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { relabelWorkspaceFromSkeleton } from "@intehrgrator/blockly/block_labels.ts";
 import {
+  applyDefaultContextMap,
   ensureDefaultsBlock,
   findDefaultsBlock,
   hydrateDefaultsMapArgument,
 } from "@intehrgrator/blockly/defaults_canvas.ts";
-import { workspaceToModelJson } from "@intehrgrator/blockly/mod.ts";
+import { createSourceQueryBlock } from "@intehrgrator/blockly/source_query.ts";
+import { initBlocklyGenerators, workspaceToModelJson } from "@intehrgrator/blockly/mod.ts";
 import {
   optionalRmInputName,
   rmAttributeInputName,
@@ -542,6 +544,37 @@ Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute m
   );
 
   workspace.dispose();
+});
+
+Deno.test("Apply default context map keeps a Source query on language", () => {
+  initBlocklyGenerators();
+  const workspace = new Blockly.Workspace();
+  try {
+    const { skeleton } = generateSkeleton(opt);
+    loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null, "sv");
+    const composition = workspace.getAllBlocks(false).find((block) => block.type === "composition");
+    assertExists(composition);
+    const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
+    assertEquals(language?.type, "maps_get");
+    const parentConn = language!.outputConnection?.targetConnection;
+    assertExists(parentConn);
+    language!.dispose(false);
+    const source = createSourceQueryBlock(workspace, "$.lang", "string");
+    assertExists(source.outputConnection);
+    source.outputConnection.setCheck(null);
+    parentConn.connect(source.outputConnection);
+    assertEquals(
+      composition.getInputTargetBlock(rmAttributeInputName("language"))?.type,
+      "source_query",
+      "language mouth should hold the Source query before Apply",
+    );
+    applyDefaultContextMap(workspace, skeleton);
+    const after = composition.getInputTargetBlock(rmAttributeInputName("language"));
+    assertEquals(after?.type, "source_query");
+    assertEquals(after?.getFieldValue("EXPRESSION"), "$.lang");
+  } finally {
+    workspace.dispose();
+  }
 });
 
 Deno.test("hydrateDefaultsMapArgument loads maps_create_with field-key JSON", () => {

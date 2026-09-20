@@ -19,7 +19,16 @@ Deno.test({
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
       await loadBpFixtures(page);
-      await page.waitForTimeout(600);
+      await page.waitForFunction(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        const snap = api.getSnapshot();
+        return snap.blocklyBlocks.some((block) => block.type === "composition") &&
+          snap.blocklyBlocks.some((block) => block.type === "maps_get") &&
+          snap.blocklyBlocks.some((block) =>
+            block.type === "term_pick" && block.fields.SET === "ISO_639-1"
+          );
+      }, undefined, { timeout: 20_000 });
 
       const spec = await page.evaluate(() => {
         const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
@@ -46,6 +55,37 @@ Deno.test({
       assert(languagePicks.length > 0, "expected ISO_639-1 term_pick on the canvas");
       const mapsGets = snap.blocklyBlocks.filter((block) => block.type === "maps_get");
       assert(mapsGets.length > 0, "expected Default point maps_get lookups");
+      assert(
+        mapsGets.some((block) => block.fields.NAME === "defaults"),
+        "language / territory Default points look up the default context map by name",
+      );
+    } finally {
+      await browser.close();
+    }
+  },
+});
+
+      const termPickControls = page.locator(
+        '.spec-widget--term_pick input, .spec-widget--term_pick select, .searchable-pick-input',
+      );
+      await termPickControls.first().waitFor({ timeout: 10_000 });
+      assert(await termPickControls.count() >= 2, "TERM_PICK rows should expose SET and CODE editors");
+
+      const snap = await page.evaluate(() => {
+        const api = (globalThis as unknown as { intehrgratorTestApi: IntehrgratorTestApi })
+          .intehrgratorTestApi;
+        return api.getSnapshot();
+      });
+      const languagePicks = snap.blocklyBlocks.filter((block) =>
+        block.type === "term_pick" && block.fields.SET === "ISO_639-1"
+      );
+      assert(languagePicks.length > 0, "expected ISO_639-1 term_pick on the canvas");
+      const mapsGets = snap.blocklyBlocks.filter((block) => block.type === "maps_get");
+      assert(mapsGets.length > 0, "expected Default point maps_get lookups");
+      assert(
+        mapsGets.some((block) => block.fields.NAME === "defaults"),
+        "language / territory Default points look up the default context map by name",
+      );
     } finally {
       await browser.close();
     }

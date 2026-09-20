@@ -31,7 +31,7 @@ Deno.test({
       }, undefined, { timeout: 15_000 });
 
       const snap = await getSnapshot(page);
-      assertEquals(snap.exampleCount, 2, snap.statusMessage);
+      assertEquals(snap.exampleCount, 3, snap.statusMessage);
       assertStringIncludes(snap.statusMessage, "Dummy vitals");
     } finally {
       await browser.close();

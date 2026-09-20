@@ -68,6 +68,9 @@ Deno.test("loadExampleSet reports waiting/running/finished substeps", async () =
   const instance2 = await Deno.readTextFile(
     join(fixturesDir, "dummy-json-vitals", "instance-2.json"),
   );
+  const instance3 = await Deno.readTextFile(
+    join(fixturesDir, "dummy-json-vitals", "instance-3.json"),
+  );
   const target = await Deno.readTextFile(
     join(fixturesDir, "dummy-json-vitals", "target.schema.json"),
   );
@@ -84,6 +87,10 @@ Deno.test("loadExampleSet reports waiting/running/finished substeps", async () =
     "https://app.test/test/fixtures/dummy-json-vitals/instance-2.json": {
       name: "instance-2.json",
       text: instance2,
+    },
+    "https://app.test/test/fixtures/dummy-json-vitals/instance-3.json": {
+      name: "instance-3.json",
+      text: instance3,
     },
     "https://app.test/test/fixtures/dummy-json-vitals/target.schema.json": {
       name: "target.schema.json",
@@ -116,6 +123,7 @@ Deno.test("loadExampleSet reports waiting/running/finished substeps", async () =
   assert(ids.includes("schema"), ids.join(","));
   assert(ids.includes("example-0"), ids.join(","));
   assert(ids.includes("example-1"), ids.join(","));
+  assert(ids.includes("example-2"), ids.join(","));
   assert(ids.includes("generate"), ids.join(","));
 
   const sawWaiting = snapshots.some((p) => p.steps.some((s) => s.state === "waiting"));

@@ -111,6 +111,14 @@ import {
 } from "../blockly/mod.ts";
 import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
 import {
+  buildRefreshMergePrompt,
+  diffSourceRefresh,
+  diffTargetRefresh,
+  formatRefreshReport,
+  mappedSourcePathsFromExpressions,
+  type RefreshDiffReport,
+} from "../core/target/refresh_diff.ts";
+import {
   cloneSheets,
   normalizeSheets,
   sheetsFromCatalogJson,
@@ -177,6 +185,7 @@ export class WorkbenchController {
   private blocklyState: unknown = null;
   private blocklyReloadToken = 0;
   private pendingDefaultsMap: unknown | null = null;
+  private lastRefreshReport: RefreshDiffReport | null = null;
   private getBlocklyState: (() => unknown) | null = null;
   private debounceTimer: number | null = null;
   private postLoadTimer: number | null = null;
@@ -208,11 +217,16 @@ export class WorkbenchController {
     this.refreshDerived();
   }
 
-  /** Take a queued Defaults Map (`maps_create_with` JSON) for the canvas to hydrate. */
+  /** Take a queued default context map (unique block JSON) for the canvas to hydrate. */
   consumePendingDefaultsMap(): unknown | null {
     const value = this.pendingDefaultsMap;
     this.pendingDefaultsMap = null;
     return value;
+  }
+
+  /** Queue a default context map to hydrate before the next Template Skeleton. */
+  queuePendingDefaultsMap(mapBlock: unknown | null): void {
+    this.pendingDefaultsMap = mapBlock;
   }
 
   getSheets(): SheetDocument[] {
@@ -281,6 +295,7 @@ export class WorkbenchController {
       urlHistory: this.captureUrlHistory(),
       modelLanguage: this.target?.language ?? this.settings.modelLanguage ?? null,
       modelLanguages: this.target?.languages ?? [],
+      lastRefreshReport: this.lastRefreshReport,
     };
   }
 
@@ -328,7 +343,8 @@ export class WorkbenchController {
     filename: string,
     content: string,
     format: TargetFormatId = detectTargetFormat(filename, stripBom(content)),
-  ): void {
+    mode: "replace" | "browse" | "refresh" = "replace",
+  ): RefreshDiffReport | null {
     content = stripBom(content);
     if (isTemplateJson(content)) {
       throw new Error(
@@ -339,7 +355,31 @@ export class WorkbenchController {
     const target = getTargetFormatHandler(format).load(filename, content, {
       language: preferredLanguage,
     });
-    this.applyLoadedTarget(target);
+    return this.applyLoadedTarget(target, mode);
+  }
+
+  refreshTargetContent(filename: string, content: string): RefreshDiffReport {
+    const report = this.loadTargetContent(
+      filename,
+      content,
+      detectTargetFormat(filename, stripBom(content)),
+      "refresh",
+    );
+    return report ?? {
+      kind: "target",
+      previousFilename: filename,
+      nextFilename: filename,
+      warnings: [],
+    };
+  }
+
+  loadTargetForBrowse(filename: string, content: string): void {
+    this.loadTargetContent(
+      filename,
+      content,
+      detectTargetFormat(filename, stripBom(content)),
+      "browse",
+    );
   }
 
   /**
@@ -363,18 +403,59 @@ export class WorkbenchController {
     this.markDirty();
   }
 
-  private applyLoadedTarget(target: TargetDefinition): void {
+  private applyLoadedTarget(
+    target: TargetDefinition,
+    mode: "replace" | "browse" | "refresh" = "replace",
+  ): RefreshDiffReport | null {
+    const previousSkeleton = this.skeleton;
+    const previousFilename = this.templateFilename;
+    const previousContent = this.templateContent;
     this.target = target;
     this.templateContent = target.content;
     this.templateFilename = target.filename;
     this.templateId = target.targetId;
-    this.skeleton = target.skeleton;
     this.targetOriginUrl = null;
-    this.model = createEmptyModel(this.templateId);
-    this.model.targetFormat = target.format;
     if (target.language) {
       this.settings = { ...this.settings, modelLanguage: target.language };
     }
+    if (mode === "refresh") {
+      this.skeleton = applyOptionalRmToSkeleton(target.skeleton, this.model.optionalRm);
+      this.model = { ...this.model, templateId: this.templateId, targetFormat: target.format };
+      this.syncSlotLabelsFromSkeleton();
+      this.blocklyState = this.getBlocklyState?.() ?? this.blocklyState;
+      this.blocklyReloadToken += 1;
+      const mappedSlotIds = this.model.slots
+        .filter((slot) => slot.expression?.trim())
+        .map((slot) => slot.slotId);
+      const report = diffTargetRefresh({
+        previousSkeleton,
+        nextSkeleton: this.skeleton,
+        mappedSlotIds,
+        previousFilename,
+        nextFilename: target.filename,
+        previousContent,
+        nextContent: target.content,
+      });
+      this.lastRefreshReport = report;
+      this.refreshDerived();
+      this.statusMessage = formatRefreshReport(report);
+      this.markDirty();
+      return report;
+    }
+    if (mode === "browse") {
+      this.skeleton = target.skeleton;
+      if (!this.model.templateId) this.model = createEmptyModel(this.templateId);
+      this.model.targetFormat = target.format;
+      this.blocklyState = this.getBlocklyState?.() ?? this.blocklyState;
+      this.blocklyReloadToken += 1;
+      this.refreshDerived();
+      this.statusMessage = `Loaded ${target.format} target ${this.templateId} into Target schema (no product scaffold yet)`;
+      this.markDirty();
+      return null;
+    }
+    this.skeleton = target.skeleton;
+    this.model = createEmptyModel(this.templateId);
+    this.model.targetFormat = target.format;
     if (target.format === "free-form" && target.content.trim()) {
       this.blocklyState = seedHandlebarsProductOnCanvas(null, target.content);
     } else {
@@ -385,6 +466,7 @@ export class WorkbenchController {
     this.refreshDerived();
     this.statusMessage = `Loaded ${target.format} target ${this.templateId}`;
     this.markDirty();
+    return null;
   }
 
   private syncSlotLabelsFromSkeleton(): void {
@@ -439,8 +521,17 @@ export class WorkbenchController {
   }
 
   /** Load Source Schema from in-memory content — used by Workbench Test API and hosts. */
-  loadSchemaContent(filename: string, content: string): void {
-    this.tryApplySchemaFile(filename, content);
+  loadSchemaContent(filename: string, content: string, refresh = false): RefreshDiffReport | null {
+    return this.tryApplySchemaFile(filename, content, refresh);
+  }
+
+  refreshSchemaContent(filename: string, content: string): RefreshDiffReport {
+    return this.tryApplySchemaFile(filename, content, true) ?? {
+      kind: "source",
+      previousFilename: filename,
+      nextFilename: filename,
+      warnings: [],
+    };
   }
 
   async loadSchemaFromDrop(file: PickedTextFile): Promise<void> {
@@ -602,7 +693,7 @@ export class WorkbenchController {
         }
         const mapBlock = mapBlockFromDefaultsJson(parsed);
         if (!mapBlock) {
-          throw new Error("Defaults JSON must be a maps_create_with block or workspace");
+          throw new Error("Defaults JSON must be a default context map, maps_create_with block, or workspace");
         }
         this.pendingDefaultsMap = mapBlock;
       }
@@ -1050,6 +1141,13 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
+  buildRefreshMergePrompt(): string {
+    if (!this.lastRefreshReport) {
+      return "No target or source refresh to merge yet.";
+    }
+    return buildRefreshMergePrompt(this.lastRefreshReport);
+  }
+
   async copyAiPrompt(
     delivery: AiArtifactDelivery = "inline",
     scope: "full" | "slot" = "full",
@@ -1401,13 +1499,18 @@ export class WorkbenchController {
     }`;
   }
 
-  private tryApplySchemaFile(filename: string, content: string): void {
+  private tryApplySchemaFile(
+    filename: string,
+    content: string,
+    refresh = false,
+  ): RefreshDiffReport | null {
     try {
-      this.applySchemaFile(filename, content);
+      return this.applySchemaFile(filename, content, refresh);
     } catch (err) {
       this.schemaTree = null;
       const detail = err instanceof Error ? err.message : String(err);
       this.setSchemaError(`Could not load ${filename}: ${detail}`);
+      return null;
     }
   }
 
@@ -1418,7 +1521,14 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
-  private applySchemaFile(filename: string, content: string): void {
+  private applySchemaFile(
+    filename: string,
+    content: string,
+    refresh = false,
+  ): RefreshDiffReport | null {
+    const previousTree = this.schemaTree;
+    const previousFilename = this.schemaFilename;
+    const previousContent = this.schemaContent;
     this.schemaError = null;
     this.schemaFilename = filename;
     this.schemaContent = content;
@@ -1429,8 +1539,27 @@ export class WorkbenchController {
       content,
       filename.replace(/\.[^.]+$/, ""),
     );
+    if (refresh) {
+      const mappedPaths = mappedSourcePathsFromExpressions(
+        this.model.slots.map((slot) => slot.expression ?? ""),
+      );
+      const report = diffSourceRefresh({
+        previousTree,
+        nextTree: this.schemaTree,
+        mappedPaths,
+        previousFilename,
+        nextFilename: filename,
+        previousContent,
+        nextContent: content,
+      });
+      this.lastRefreshReport = report;
+      this.statusMessage = formatRefreshReport(report);
+      this.markDirty();
+      return report;
+    }
     this.statusMessage = `Loaded schema ${filename}`;
     this.markDirty();
+    return null;
   }
 
   private applyExampleFile(filename: string, content: string): string {

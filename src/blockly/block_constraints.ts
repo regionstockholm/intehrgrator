@@ -33,6 +33,10 @@ import { blockHatchMessages } from "./vms_linter.ts";
 import { DECISION_TABLE_BLOCK, DECISION_TABLE_DECL } from "./blocks/decision_table_blocks.ts";
 import { workspaceSheet } from "./sheets_bridge.ts";
 import { lintDecisionTable } from "../core/sheets/decision_table.ts";
+import { DEFAULT_CONTEXT_MAP_TYPE, runtimeKeyWarnings } from "../core/defaults/mod.ts";
+import { FieldScaffoldTargets } from "./field_scaffold_targets.ts";
+import { parseTargetsField } from "../core/defaults/context_map.ts";
+import { contextMapItemCount } from "./blocks/default_context_map.ts";
 
 export const ABSTRACT_EVENT_WARNING =
   "EVENT is abstract. Choose POINT_EVENT or INTERVAL_EVENT — runtime instances cannot be the abstract EVENT class.";
@@ -44,6 +48,7 @@ export const UNMAPPED_OPTIONAL_SCAFFOLD_WARNING = "Unmapped optional scaffold";
 
 const PROTECTED_SPEC_BLOCK_TYPES = new Set([
   "conversion_start",
+  "default_context_map",
   "defaults_block",
   "maps_create_with",
 ]);
@@ -110,6 +115,19 @@ export function blockConstraintMessages(block: Block): string[] {
         messages.push(d.message);
       }
     }
+  }
+
+  if (block.type === DEFAULT_CONTEXT_MAP_TYPE) {
+    const count = contextMapItemCount(block);
+    const entries = [];
+    for (let i = 0; i < count; i++) {
+      const runtimeKey = String(block.getFieldValue(`KEY${i}`) ?? "");
+      const field = block.getField(`TARGETS${i}`) as FieldScaffoldTargets | null;
+      const scaffoldTargets = field?.getTargets() ??
+        parseTargetsField(block.getFieldValue(`TARGETS${i}`));
+      entries.push({ runtimeKey, scaffoldTargets });
+    }
+    messages.push(...runtimeKeyWarnings(entries));
   }
   return messages;
 }

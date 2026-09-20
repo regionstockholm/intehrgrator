@@ -1,12 +1,13 @@
 import type { SkeletonNode } from "../../types/mod.ts";
 import { attributesFor, baseRmTypeName, isSubtypeOf } from "../rm_meta.ts";
 import { skeletonNodeForOptionalRm } from "../skeleton/generate_skeleton.ts";
+import type { DefaultContextMapEntry } from "./context_map.ts";
 
 /** Leaf on the typed shell / party block that a Map lookup plugs into. */
 export type DefaultPointLeaf = "code_string" | "value" | "party";
 
 export interface DefaultPoint {
-  /** Defaults Map key that lit this slot (`*.language`, `COMPOSITION.composer`, …). */
+  /** Runtime key for `maps_get("defaults", …)` (`language`, `facility`, …). */
   mapKey: string;
   /** RM type of the parent that owns `rmAttribute`. */
   parentRmType: string;
@@ -21,31 +22,31 @@ export interface BoundDefaultPoint {
   /** Skeleton node for the attribute (language CODE_PHRASE, composer PARTY_IDENTIFIED, …). */
   node: SkeletonNode;
   parent: SkeletonNode;
-  /** Defaults Map key for `maps_get`. */
+  /** Runtime key for `maps_get`. */
   mapKey: string;
 }
 
 /**
- * Bind Default points from live Defaults Map keys only.
- * Keys are RM paths: `Class.attribute`, ancestor paths
- * (`COMPOSITION.context.health_care_facility`), and wildcards (`*.language`).
- * Bare simplified-format `ctx` names are ignored.
+ * Bind Default points from **scaffold targets** on default context map entries.
+ * Convert-time lookups use each entry's **runtime key**, not the path string.
+ * Bare simplified-format `ctx` names are ignored as targets.
  */
 export function bindDefaultPoints(
   skeleton: SkeletonNode[],
-  mapKeys?: ReadonlySet<string>,
+  entries?: readonly DefaultContextMapEntry[],
 ): BoundDefaultPoint[] {
-  if (!mapKeys?.size) return [];
+  const expanded = expandScaffoldTargets(entries);
+  if (!expanded.length) return [];
   const bound: BoundDefaultPoint[] = [];
   const seen = new Set<string>();
-  const keys = [...mapKeys]
-    .filter((key) => parseDefaultsPathKey(key))
-    .sort((a, b) => pathKeySpecificity(b) - pathKeySpecificity(a));
-  for (const key of keys) {
-    const parsed = parseDefaultsPathKey(key);
+  const keys = [...expanded].sort((a, b) =>
+    pathKeySpecificity(b.target) - pathKeySpecificity(a.target)
+  );
+  for (const { runtimeKey, target } of keys) {
+    const parsed = parseDefaultsPathKey(target);
     if (!parsed) continue;
     walkContainers(skeleton, [], (parent, trail) => {
-      if (!pathKeyMatches(key, trail, parsed.attribute)) return;
+      if (!pathKeyMatches(target, trail, parsed.attribute)) return;
       const id = `${parent.slotId}::${parsed.attribute}`;
       if (seen.has(id)) return;
       if (isProhibited(parent, parsed.attribute)) return;
@@ -59,7 +60,7 @@ export function bindDefaultPoints(
       const node = existing ?? skeletonNodeForOptionalRm(parent, slot.rmType, parsed.attribute);
       bound.push({
         point: {
-          mapKey: key,
+          mapKey: runtimeKey,
           parentRmType: parent.rmType,
           rmAttribute: parsed.attribute,
           leaf: leafForRmType(slot.rmType),
@@ -67,11 +68,26 @@ export function bindDefaultPoints(
         },
         node,
         parent,
-        mapKey: key,
+        mapKey: runtimeKey,
       });
     });
   }
   return bound;
+}
+
+function expandScaffoldTargets(
+  entries?: readonly DefaultContextMapEntry[],
+): Array<{ runtimeKey: string; target: string }> {
+  if (!entries?.length) return [];
+  const out: Array<{ runtimeKey: string; target: string }> = [];
+  for (const entry of entries) {
+    const runtimeKey = entry.runtimeKey.trim();
+    if (!runtimeKey) continue;
+    for (const target of entry.scaffoldTargets) {
+      if (parseDefaultsPathKey(target)) out.push({ runtimeKey, target });
+    }
+  }
+  return out;
 }
 
 /** Last path segment of a Class.attribute / wildcard key; `undefined` for bare names. */
@@ -86,21 +102,23 @@ export function parseDefaultsPathKey(
 }
 
 /**
- * Choose the most specific Defaults Map key that lights `attribute` on `trail`.
+ * Choose the most specific **scaffold target** that lights `attribute` on `trail`.
+ * Returns that entry's **runtime key** for `maps_get`.
  */
 export function resolveDefaultsMapKey(
-  mapKeys: ReadonlySet<string> | undefined,
+  entries: readonly DefaultContextMapEntry[] | undefined,
   trail: readonly SkeletonNode[],
   attribute: string,
 ): string | undefined {
-  if (!mapKeys?.size) return undefined;
-  let best: { key: string; score: number } | undefined;
-  for (const key of mapKeys) {
-    if (!pathKeyMatches(key, trail, attribute)) continue;
-    const score = pathKeySpecificity(key);
-    if (!best || score > best.score) best = { key, score };
+  const expanded = expandScaffoldTargets(entries);
+  if (!expanded.length) return undefined;
+  let best: { runtimeKey: string; score: number } | undefined;
+  for (const { runtimeKey, target } of expanded) {
+    if (!pathKeyMatches(target, trail, attribute)) continue;
+    const score = pathKeySpecificity(target);
+    if (!best || score > best.score) best = { runtimeKey, score };
   }
-  return best?.key;
+  return best?.runtimeKey;
 }
 
 function pathKeySpecificity(key: string): number {

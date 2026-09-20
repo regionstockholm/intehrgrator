@@ -6,7 +6,7 @@ Link this doc in prompts; do not paraphrase. Machine-readable contract: [AI_SUGG
 
 Copy-paste AI assist (no in-app API): app builds a prompt → user pastes into an external chat → AI returns one fenced JSON block → **Import Suggestions** applies it.
 
-Live Agent API / MCP agents may instead map **node-by-node** with `map_slot` (one Target value slot per call). That is first-class and better for GUI transparency (canvas pulse, attributed history). Use this envelope for Copy AI Prompt, loops, Decision tables, Sheet lookups, and other blocks `map_slot` cannot express.
+Live Agent API / MCP agents may instead map **node-by-node** with `map_slot` (one Target value slot per call). That is first-class and better for GUI transparency (canvas pulse, attributed history). Use this envelope for Copy prompt, loops, Decision tables, Sheet lookups, and other blocks `map_slot` cannot express.
 
 Canonical mapping structure is Blockly JSON. AI returns a **slot-keyed subset** (no skeleton RM containers, ids, or `x`/`y`).
 
@@ -92,7 +92,7 @@ Blockly JSON (`type`, `fields`, `inputs`, `extraState` only). No `id`/`x`/`y`/`s
 | Var | `variables_get` | `VAR` = loop variable name (whole node as value; rare). |
 | Sheet lookup | `sheet_lookup`, `sheet_get_cell`, `sheet_get_xy`, `sheet_get_row`, `sheet_get_column`, `sheet_get_header`, `sheet_get_data` | `NAME` = Sheet name. `sheet_lookup` inputs `MATCH_COL`, `MATCH_VAL`, `RETURN_COL`. Use for **1-key terminology** (ICD-10 → SNOMED). |
 | Decision table | `decision_table` | Fields `NAME`, `OUTPUT` (output column or `*` for all outputs). Input `INPUTS` = locals Map whose keys match condition columns. Prefer when combinational rules are easier for humans to read than nested `if`. Grid document via `replace_sheets` (`kind: "decision-table"`), not this envelope. |
-| Map lookup | `maps_get` | `NAME` = map name; input `KEY`. Use for **Defaults Map** keys, not terminology tables. |
+| Map lookup | `maps_get` | `NAME` = map name; input `KEY`. Use for **default context map** **runtime keys**, not terminology tables or scaffold-target path strings. |
 | Map literal | `maps_create_with`, `maps_create_empty` | Inline key/value table: `KEY0`… fields + `VAL0`… value sockets; `extraState.itemCount`. Emits `map("k1", v1, …)`. |
 | Literal | `text`, `text_code`, `math_number`, `logic_boolean` | `TEXT` / `NUM` / `BOOL` (`TRUE`\|`FALSE`). `text_handlebars` wraps a script + context Map. |
 | Text | `text_trim`, `text_join` | `MODE`; `text_join` may need `extraState.itemCount` + `ADD0`… |
@@ -111,7 +111,7 @@ No JS wrappers (`xpathNumber("…")`). No RM containers, `DV_*` shells, Optional
 |-----------|------|
 | **Sheet** + `sheet_lookup` | 1-key terminology / reference data (ICD-10 → SNOMED). |
 | **Decision table** + `decision_table` | Combinational rules: several independent inputs, don't-care cells, FIRST / UNIQUE / COLLECT. Prefer this when the table is **more readable to humans** than nested `logic_ternary`. |
-| **Defaults Map** + `maps_get` | Scaffold language / territory / encoding keys — only when the source has no value. |
+| **Default context map** + `maps_get` | Scaffold language / territory / encoding **runtime keys** — only when the source has no value. |
 
 Create or replace Sheet / Decision table **documents** with `replace_sheets` (or the Sheets tab). The envelope only fills value slots.
 
@@ -129,7 +129,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 
 ## Prompt / input
 
-**Copy AI Prompt** clipboard markdown:
+**Copy prompt** clipboard markdown:
 
 1. Task (source → loaded **Target instance format**)
 2. Target / source schema / examples (format, filename, origin)
@@ -137,7 +137,7 @@ Use when source has repeating nodes (e.g. several vitals in one encounter) and t
 4. Link to this doc
 5. Slot manifest: `{ slotId, valueType, label, pathLabel?, targetPath?, multiplicity?, attachSlotId?, unitsFixed?, allowedUnits?, codeFixed?, terminologyFixed?, allowedValues? }` — `valueType` is format-native (openEHR `DV_*`, JSON Schema `string`/`number`, XSD type, or `PARTY_IDENTIFIED`). `attachSlotId` is the repeating ancestor to copy into `loops[]`. Unconstrained `DV_QUANTITY` units are not a separate value slot: put `maps_create_with` keys `magnitude` + `units` on the quantity slot. Unconstrained `DV_CODED_TEXT`: `maps_create_with` keys `value` + `code_string` + `terminology_id`. Unique constrained codes appear as `codeFixed`; lists of choices as `allowedValues`. Party identity (`composer`, `health_care_facility`) is the PARTY_IDENTIFIED container slot, not `/name/value`.
 6. Artifact delivery (below)
-7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer a **Decision table** when several inputs / don't-care / hit policies make the mapping easier for humans to read than nested `if`. Prefer **`sheet_lookup`** for 1-key terminology (e.g. ICD-10 → SNOMED CT). Keep **`maps_get`** for Defaults Map keys. Target scaffold generation often wires Defaults Map lookups (`maps_get` with `"defaults"`) before Copy AI Prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score. Copy AI Prompt includes Sheet / Decision table previews, the Product stack, an **Optional RM Insertion** catalog (`optional_rm_add` ids), and **Constraint warnings** (`list_constraint_warnings`) when present.
+7. Instruction: one version-`2` fence; use `loops` + relative paths when `multiplicity` is repeating (repeatable containers are listed separately for `attachSlotId`). Prefer a **Decision table** when several inputs / don't-care / hit policies make the mapping easier for humans to read than nested `if`. Prefer **`sheet_lookup`** for 1-key terminology (e.g. ICD-10 → SNOMED CT). Keep **`maps_get`** for **default context map** **runtime keys**. Target scaffold generation often wires Default point lookups (`maps_get` with `"defaults"`) before Copy prompt — **omit those slots only when the source has no value** and the user did not ask otherwise. **When the source has data for a slot that scaffold/defaults would fill, map from the source** (`source_query` / `text`); source wins over defaults. Typical examples: **context start time**, **healthcare facility**, **composer** (name/id). Party identity value slots map via `source_query` / `text` on the manifest leaf, not RM container blocks. Do not map source quantities onto ordinal/score fields unless the source is already that score. Copy prompt includes Sheet / Decision table previews, the Product stack, an **Optional RM Insertion** catalog (`optional_rm_add` ids), and **Constraint warnings** (`list_constraint_warnings`) when present.
 
 ### Artifact delivery
 
@@ -153,7 +153,7 @@ GitHub `.t.json` closures: `uri` → root URL; `inline` → each fileset file.
 
 ## Import
 
-**Import Suggestions** opens a paste dialog (clipboard is pre-filled only when the text looks like a suggestion envelope, not a Copy AI Prompt). The pasted JSON is validated against [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json). Schema and apply errors stay in that dialog; **Copy errors for AI** puts a follow-up prompt on the clipboard.
+**Import Suggestions** opens a paste dialog (clipboard is pre-filled only when the text looks like a suggestion envelope, not a Copy prompt). The pasted JSON is validated against [AI_SUGGESTION_FORMAT.schema.json](AI_SUGGESTION_FORMAT.schema.json). Schema and apply errors stay in that dialog; **Copy errors for AI** puts a follow-up prompt on the clipboard.
 
 1. Extract fence (or raw JSON). `format` and `target` may be omitted; the loaded target is used.
 2. Require `version` `"2"`; match `target` when present

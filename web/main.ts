@@ -11,6 +11,7 @@ import {
 } from "../src/workbench/tree_views.ts";
 import {
   findSkeletonNodeIn,
+  findParentSkeletonNode,
   getActiveTargetDrag,
   parseTargetDragPayload,
   renderTargetSchemaTree,
@@ -85,9 +86,15 @@ import {
   CONVERSION_START_TYPE,
   hydrateDefaultsMapArgument,
   serializeDefaultsMapArgument,
+  applyDefaultContextMap,
   setDefaultsMapPickHandler,
   setDefaultsMapInfoHandler,
   setDefaultsMapHardcodeHandler,
+  setDefaultContextMapApplyHandler,
+  appendContextMapEntry,
+  scaffoldTargetFieldAtClientPoint,
+  defaultContextMapAtClientPoint,
+  contextMapValueInputAtClientPoint,
   hardcodeDefaultsMapKey,
   listDefaultsMapEntries,
   setSheetFocusHandler,
@@ -166,6 +173,13 @@ import {
 import { openAgentObserver, updateAgentObserverActivity } from "../src/web/agent_observer.ts";
 import { isSemanticBlocklyEvent, summarizeBlocklyEvent } from "../src/workbench/semantic_events.ts";
 import { installImportAiDialog } from "../src/ui/import_ai.ts";
+import {
+  callChatCompletions,
+  clearAiCredentials,
+  hasAiCredentials,
+  loadAiCredentials,
+  saveAiCredentials,
+} from "../src/core/ai/credentials.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
 import {
@@ -175,7 +189,7 @@ import {
 } from "../src/core/example_sets/mod.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
-import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson } from "../src/core/defaults/mod.ts";
+import { createIndexedDbDefaultsCatalog, factoryDefaultsMapBlockState, mapBlockFromDefaultsJson, classAttributeScaffoldTarget } from "../src/core/defaults/mod.ts";
 import {
   createBetterFormBridge,
   probeBetterRenderer,
@@ -506,7 +520,7 @@ async function bootBlockly(): Promise<void> {
     lockWorkspaceRootsExpanded(workspace);
   }
   runWithoutBlocklyEvents(() => {
-    ensureDefaultsBlock(workspace, blocklyLocale);
+    ensureDefaultsBlock(workspace, blocklyLocale, undefined, { factory: false });
     ensureConversionStartOnScaffold(workspace);
   });
 
@@ -526,6 +540,9 @@ async function bootBlockly(): Promise<void> {
   });
   setDefaultsMapHardcodeHandler(() => {
     openHardcodeDefaultsDialog();
+  });
+  setDefaultContextMapApplyHandler(() => {
+    applyDefaultContextMapFromCanvas();
   });
   setSheetFocusHandler((name, opts) => {
     showTextView("sheets");
@@ -1015,13 +1032,45 @@ function fillListeningSourceQuery(blockId: string, path: string, format: string)
   controller.setStatusMessage(`Mapped source query ${xpath}`);
 }
 
-function applyPendingDefaultsMap(): void {
+function applyPendingDefaultsMap(): boolean {
   const pending = controller.consumePendingDefaultsMap();
-  if (!pending) return;
+  if (!pending) return false;
   runWithoutBlocklyEvents(() => {
     hydrateDefaultsMapArgument(workspace, pending, blocklyLocale, targetFormatOf(controller.getState()));
   });
   persistBlocklyCanvas();
+  return true;
+}
+
+function applyDefaultContextMapFromCanvas(): void {
+  const s = controller.getState();
+  if (!s.skeleton.length) {
+    controller.setStatusMessage("Load a target into Target schema first, then Apply default context map.");
+    return;
+  }
+  const hasProduct = workspace.getTopBlocks(false).some((block) =>
+    block.type !== "default_context_map" &&
+    block.type !== "conversion_start" &&
+    block.type !== "maps_create_with"
+  );
+  if (!hasProduct) {
+    loadSkeletonIntoWorkspace(
+      workspace,
+      s.skeleton,
+      s.model,
+      null,
+      blocklyLocale,
+      targetFormatOf(s),
+      { factory: false },
+    );
+  } else {
+    applyDefaultContextMap(workspace, s.skeleton, (parent, insertion) =>
+      attachOptionalRmChild(workspace, parent, insertion)
+    );
+  }
+  persistBlocklyCanvas({ summary: "Apply default context map" });
+  controller.setStatusMessage("Applied default context map");
+  render();
 }
 
 function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
@@ -1048,7 +1097,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklyLabelLanguage = "";
     blocklySlotSignature = "";
     runWithoutBlocklyEvents(() => {
-      ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+      ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s), { factory: false });
       ensureConversionStartOnScaffold(workspace);
     });
     applyPendingDefaultsMap();
@@ -1060,7 +1109,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklyLabelLanguage = "";
       blocklySlotSignature = "";
       runWithoutBlocklyEvents(() => {
-        ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+        ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s), { factory: false });
         ensureConversionStartOnScaffold(workspace);
       });
       applyPendingDefaultsMap();
@@ -1083,7 +1132,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           workspace,
         );
         if (!findDefaultsBlock(workspace)) {
-          ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+          ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s), { factory: false });
         }
         ensureConversionStartOnScaffold(workspace);
         applyModelLoops(workspace, s.model);
@@ -1112,7 +1161,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       applyPendingDefaultsMap();
       return;
     } else {
-      applyPendingDefaultsMap();
+      const hadPending = applyPendingDefaultsMap();
       loadSkeletonIntoWorkspace(
         workspace,
         s.skeleton,
@@ -1120,6 +1169,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         s.listeningSlotId,
         blocklyLocale,
         targetFormatOf(s),
+        { factory: !hadPending },
       );
       const derived = workspaceToModelJson(workspace);
       if (s.blocklyReloadToken > 0) {
@@ -1198,6 +1248,10 @@ installUrlLoadUi({
       menu: requireEl("menu-load-schema"),
       fromFile: () => controller.loadSchema(),
       fromUrl: (url) => controller.loadSchemaFromUrl(url),
+      refresh: {
+        fromFile: () => void refreshSchemaFromFile(),
+        fromUrl: (url) => refreshSchemaFromUrl(url),
+      },
       title: "Load schema from URL",
       hint: "JSON, XML, XSD, or a GitHub .t.json template (archetypes are fetched from the same repo). GitHub file pages are converted to raw content.",
       placeholder: "https://raw.githubusercontent.com/…/schema.json",
@@ -1235,12 +1289,16 @@ installUrlLoadUi({
       main: requireEl<HTMLButtonElement>("btn-open-template"),
       chevron: requireEl<HTMLButtonElement>("btn-open-template-menu"),
       menu: requireEl("menu-open-template"),
-      fromFile: () => withUndoableDocumentReplace(() => controller.openTemplate()),
+      fromFile: () => openJointLoadDialog(),
       fromUrl: (url) => withUndoableDocumentReplace(() => controller.openTemplateFromUrl(url)),
-      title: "Open target from URL",
+      title: "Load target from URL",
       hint: "OPT, Web Template, JSON Schema, or a GitHub .t.json. GitHub file pages are converted to raw content.",
       placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
       historyHeading: "Recent target URLs",
+      refresh: {
+        fromFile: () => void refreshTargetFromFile(),
+        fromUrl: (url) => refreshTargetFromUrl(url),
+      },
       github: {
         label: "From GitHub template…",
         title: "Open openEHR template from GitHub",
@@ -1316,7 +1374,6 @@ bind("btn-load-project", () => void openLoadProjectDialog());
 bind("btn-save-project", () => openSaveAsDialog());
 bind("btn-export-project", () => controller.exportProject());
 bind("btn-import-project", () => void withUndoableDocumentReplace(() => controller.importProject()));
-bind("btn-copy-ai", () => controller.copyAiPrompt(lastAiDelivery()));
 installImportAiDialog({
   dialog: requireEl<HTMLDialogElement>("dialog-import-ai"),
   textarea: requireEl<HTMLTextAreaElement>("import-ai-text"),
@@ -1412,6 +1469,28 @@ function installCopyAiMenu(): void {
     minWidth: main.parentElement ?? chevron,
   });
 
+  main.addEventListener("click", () => {
+    if (hasAiCredentials(localStorage)) {
+      void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
+    } else {
+      void controller.copyAiPrompt(lastAiDelivery());
+    }
+  });
+
+  menu.querySelectorAll<HTMLButtonElement>("[data-ai-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.aiAction;
+      handle.close();
+      if (action === "copy") {
+        void controller.copyAiPrompt(lastAiDelivery());
+      } else if (action === "call") {
+        void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
+      } else if (action === "credentials") {
+        openAiCredentialsDialog();
+      }
+    });
+  });
+
   menu.querySelectorAll<HTMLButtonElement>("[data-ai-delivery]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const delivery = btn.dataset.aiDelivery;
@@ -1421,6 +1500,8 @@ function installCopyAiMenu(): void {
       void controller.copyAiPrompt(delivery);
     });
   });
+
+  updateCopyAiButtonLabel();
 }
 
 function installFunctionLibraryUi(): void {
@@ -1717,17 +1798,55 @@ function initBlocklyCanvasDrop(): void {
     if (payload.slotId === lastTargetSlot && now - lastTargetAt < 250) return true;
     lastTargetSlot = payload.slotId;
     lastTargetAt = now;
-    if (findSlotIdAtPoint(clientX, clientY)) {
-      controller.setStatusMessage(
-        "Drop onto empty canvas to add a Target schema subtree.",
-      );
-      return true;
-    }
     const skeleton = controller.getState().skeleton;
     const node = findSkeletonNodeIn(skeleton, payload.slotId) ??
       findSkeletonNode(payload.slotId);
     if (!node) {
       controller.setStatusMessage("That Target schema node is not in the loaded target.");
+      return true;
+    }
+    const parent = findParentSkeletonNode(skeleton, payload.slotId);
+    const leaf = !node.children.length || node.kind === "value";
+    const chipPath = node.rmAttribute
+      ? classAttributeScaffoldTarget(parent?.rmType || node.rmType, node.rmAttribute)
+      : "";
+    const chipField = scaffoldTargetFieldAtClientPoint(workspace, clientX, clientY);
+    if (leaf && chipField && chipPath) {
+      chipField.addTarget(chipPath);
+      persistBlocklyCanvas({ summary: "Add scaffold target chip" });
+      controller.setStatusMessage(`Scaffold target ${chipPath} (click the chip to toggle *.)`);
+      return true;
+    }
+    const valueHit = contextMapValueInputAtClientPoint(workspace, clientX, clientY);
+    if (valueHit) {
+      const placed = placeSkeletonSubtreeOnWorkspace(workspace, node, {
+        x: 40,
+        y: 40,
+        skeleton,
+        targetFormat: controller.getState().target?.format,
+      });
+      const input = valueHit.block.getInput(`VAL${valueHit.index}`);
+      if (placed?.outputConnection && input?.connection) {
+        const existing = input.connection.targetBlock();
+        if (existing && !existing.isShadow()) existing.dispose(false);
+        input.connection.connect(placed.outputConnection);
+      }
+      persistBlocklyCanvas({ summary: "Drop Target schema onto default context map value" });
+      controller.setStatusMessage(`Nested ${node.label || node.rmType} on the default context map`);
+      return true;
+    }
+    const mapHit = defaultContextMapAtClientPoint(workspace, clientX, clientY);
+    if (mapHit && leaf && chipPath) {
+      const runtimeKey = chipPath.split(".").filter(Boolean).at(-1) ?? node.rmAttribute ?? "";
+      const index = appendContextMapEntry(mapHit, runtimeKey, [chipPath]);
+      persistBlocklyCanvas({ summary: "Add default context map entry from Target schema" });
+      controller.setStatusMessage(`Added entry ${runtimeKey} (${chipPath}) at row ${index + 1}`);
+      return true;
+    }
+    if (findSlotIdAtPoint(clientX, clientY)) {
+      controller.setStatusMessage(
+        "Drop a leaf onto scaffold-target chips, a subtree onto a value socket, or onto empty canvas.",
+      );
       return true;
     }
     const { x, y } = workspacePositionFromClient(workspace, clientX, clientY);
@@ -2033,7 +2152,7 @@ function openHardcodeDefaultsDialog(): void {
 function applyDefaultsMapJson(text: string): void {
   const parsed = JSON.parse(text) as unknown;
   const mapBlock = mapBlockFromDefaultsJson(parsed);
-  if (!mapBlock) throw new Error("JSON must be a maps_create_with block or workspace");
+  if (!mapBlock) throw new Error("JSON must be a default context map, maps_create_with block, or workspace");
   hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale, targetFormatOf(controller.getState()));
   persistBlocklyCanvas();
 }
@@ -2102,6 +2221,278 @@ dialogDefaultsSaveAs.addEventListener("close", () => {
       alert(err instanceof Error ? err.message : String(err));
     }
   })();
+});
+
+let jointPendingTarget: { name: string; text: string } | null = null;
+let jointPendingMapFile: unknown | null = null;
+
+function emptyContextMapJson(): Record<string, unknown> {
+  return { type: "default_context_map", extraState: { itemCount: 0, targets: [] }, fields: {} };
+}
+
+async function openJointLoadDialog(): Promise<void> {
+  const dialog = document.getElementById("dialog-joint-load") as HTMLDialogElement | null;
+  const summary = document.getElementById("joint-target-summary");
+  const catalogEl = document.getElementById("joint-map-catalog");
+  const useCurrent = document.getElementById("joint-target-current") as HTMLButtonElement | null;
+  if (!dialog || !summary || !catalogEl) return;
+  jointPendingTarget = null;
+  jointPendingMapFile = null;
+  const fileOption = document.getElementById("joint-map-file-option");
+  if (fileOption) fileOption.hidden = true;
+  const state = controller.getState();
+  summary.textContent = state.templateId
+    ? `Loaded: ${state.templateFilename || state.templateId}`
+    : "No target selected yet.";
+  if (useCurrent) useCurrent.hidden = !state.templateId;
+  catalogEl.replaceChildren();
+  try {
+    const entries = await defaultsCatalog.list();
+    for (const entry of entries) {
+      const label = document.createElement("label");
+      label.className = "joint-load-option";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "joint-map";
+      input.value = `catalog:${entry.id}`;
+      label.append(input, document.createTextNode(` Saved: ${entry.displayName}`));
+      catalogEl.append(label);
+    }
+  } catch {
+    // catalog optional
+  }
+  const factoryRadio = dialog.querySelector<HTMLInputElement>('input[name="joint-map"][value="factory"]');
+  if (factoryRadio) factoryRadio.checked = true;
+  dialog.showModal();
+}
+
+function selectedJointMapChoice(): string {
+  const dialog = document.getElementById("dialog-joint-load");
+  const checked = dialog?.querySelector<HTMLInputElement>('input[name="joint-map"]:checked');
+  return checked?.value ?? "factory";
+}
+
+async function confirmJointLoad(): Promise<void> {
+  const dialog = document.getElementById("dialog-joint-load") as HTMLDialogElement | null;
+  const choice = selectedJointMapChoice();
+  const isNew = choice === "new";
+  let mapBlock: unknown | null = null;
+  if (choice === "factory") {
+    mapBlock = factoryDefaultsMapBlockState(blocklyLocale);
+  } else if (choice === "current") {
+    mapBlock = serializeDefaultsMapArgument(workspace);
+  } else if (choice === "new") {
+    mapBlock = emptyContextMapJson();
+  } else if (choice === "file") {
+    mapBlock = jointPendingMapFile;
+  } else if (choice.startsWith("catalog:")) {
+    mapBlock = await defaultsCatalog.load(choice.slice("catalog:".length));
+  }
+  if (jointPendingTarget) {
+    controller.queuePendingDefaultsMap(mapBlock);
+    if (isNew) {
+      await withUndoableDocumentReplace(() => {
+        controller.loadTargetForBrowse(jointPendingTarget!.name, jointPendingTarget!.text);
+      });
+    } else {
+      await withUndoableDocumentReplace(() => {
+        controller.loadTargetContent(jointPendingTarget!.name, jointPendingTarget!.text);
+      });
+    }
+  } else if (controller.getState().templateId) {
+    controller.queuePendingDefaultsMap(mapBlock);
+    if (isNew) {
+      hydrateDefaultsMapArgument(
+        workspace,
+        mapBlock,
+        blocklyLocale,
+        targetFormatOf(controller.getState()),
+      );
+      persistBlocklyCanvas({ summary: "New default context map" });
+      controller.setStatusMessage("Empty default context map ready — pull from Target schema, then Apply.");
+    } else if (mapBlock) {
+      hydrateDefaultsMapArgument(
+        workspace,
+        mapBlock,
+        blocklyLocale,
+        targetFormatOf(controller.getState()),
+      );
+      applyDefaultContextMapFromCanvas();
+    }
+  } else {
+    controller.setStatusMessage("Pick a target file first.");
+    return;
+  }
+  dialog?.close();
+  render();
+}
+
+document.getElementById("joint-target-file")?.addEventListener("click", () => {
+  void (async () => {
+    const file = await host.pickTextFile(
+      ".opt,.opt2,.json,.xsd,.xml,.adl,.adls,.hbs,.handlebars,.txt,.md,.html,.csv",
+      "target",
+    );
+    if (!file) return;
+    jointPendingTarget = { name: file.name, text: file.text };
+    const summary = document.getElementById("joint-target-summary");
+    if (summary) summary.textContent = `Selected: ${file.name}`;
+  })();
+});
+document.getElementById("joint-target-current")?.addEventListener("click", () => {
+  jointPendingTarget = null;
+  const state = controller.getState();
+  const summary = document.getElementById("joint-target-summary");
+  if (summary) summary.textContent = `Using loaded: ${state.templateFilename || state.templateId}`;
+});
+document.getElementById("joint-map-browse")?.addEventListener("click", () => {
+  void (async () => {
+    const file = await host.pickTextFile(".json", "defaults");
+    if (!file) return;
+    try {
+      jointPendingMapFile = mapBlockFromDefaultsJson(JSON.parse(file.text));
+      const dialog = document.getElementById("dialog-joint-load");
+      const fileOption = document.getElementById("joint-map-file-option");
+      const fileRadio = dialog?.querySelector<HTMLInputElement>('input[name="joint-map"][value="file"]');
+      const fileLabel = document.getElementById("joint-map-file-label");
+      if (fileOption) fileOption.hidden = !jointPendingMapFile;
+      if (fileLabel) fileLabel.textContent = `Browsed file: ${file.name}`;
+      if (jointPendingMapFile && fileRadio) fileRadio.checked = true;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
+document.getElementById("joint-load-cancel")?.addEventListener("click", () => {
+  (document.getElementById("dialog-joint-load") as HTMLDialogElement | null)?.close();
+});
+document.getElementById("dialog-joint-load")?.querySelector("form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void confirmJointLoad();
+});
+
+function showRefreshReport(): void {
+  const dialog = document.getElementById("dialog-refresh-report") as HTMLDialogElement | null;
+  const body = document.getElementById("refresh-report-body");
+  const report = controller.getState().lastRefreshReport;
+  if (!dialog || !body || !report) return;
+  body.textContent = [
+    `${report.kind} ${report.previousFilename} → ${report.nextFilename}`,
+    report.warnings.length ? `${report.warnings.length} warning(s):` : "No mapping conflicts.",
+    ...report.warnings.map((warning) => `• ${warning.message}`),
+  ].join("\n");
+  dialog.showModal();
+}
+
+async function refreshTargetFromFile(): Promise<void> {
+  const file = await host.pickTextFile(
+    ".opt,.opt2,.json,.xsd,.xml,.adl,.adls,.hbs,.handlebars,.txt,.md,.html,.csv",
+    "target",
+  );
+  if (!file) return;
+  controller.refreshTargetContent(file.name, file.text);
+  showRefreshReport();
+}
+
+async function refreshTargetFromUrl(url: string): Promise<void> {
+  const file = await host.fetchTextUrl(url);
+  controller.refreshTargetContent(file.name, file.text);
+  showRefreshReport();
+}
+
+async function refreshSchemaFromFile(): Promise<void> {
+  const file = await host.pickTextFile(".json,.xml,.xsd,application/json,application/xml", "schema");
+  if (!file) return;
+  controller.refreshSchemaContent(file.name, file.text);
+  showRefreshReport();
+}
+
+async function refreshSchemaFromUrl(url: string): Promise<void> {
+  const file = await host.fetchTextUrl(url);
+  controller.refreshSchemaContent(file.name, file.text);
+  showRefreshReport();
+}
+
+document.getElementById("refresh-copy-prompt")?.addEventListener("click", () => {
+  void host.copyToClipboard(controller.buildRefreshMergePrompt()).then(() => {
+    controller.setStatusMessage("Refresh merge prompt copied");
+  });
+});
+document.getElementById("refresh-call-ai")?.addEventListener("click", () => {
+  void callAiWithPrompt(controller.buildRefreshMergePrompt());
+});
+
+function updateCopyAiButtonLabel(): void {
+  const main = document.getElementById("btn-copy-ai") as HTMLButtonElement | null;
+  if (!main) return;
+  if (hasAiCredentials(localStorage)) {
+    main.textContent = "Call AI";
+    main.title = "Call the configured AI endpoint with the mapping prompt";
+  } else {
+    main.textContent = "Copy prompt";
+    main.title = "Copy AI prompt with files embedded";
+  }
+}
+
+function openAiCredentialsDialog(): void {
+  const dialog = document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null;
+  if (!dialog) return;
+  const creds = loadAiCredentials(localStorage);
+  const endpoint = document.getElementById("ai-endpoint") as HTMLInputElement | null;
+  const apiKey = document.getElementById("ai-api-key") as HTMLInputElement | null;
+  const model = document.getElementById("ai-model") as HTMLInputElement | null;
+  if (endpoint) endpoint.value = creds?.endpoint ?? "";
+  if (apiKey) apiKey.value = creds?.apiKey ?? "";
+  if (model) model.value = creds?.model ?? "";
+  dialog.showModal();
+}
+
+async function callAiWithPrompt(prompt: string): Promise<void> {
+  const creds = loadAiCredentials(localStorage);
+  if (!creds) {
+    openAiCredentialsDialog();
+    controller.setStatusMessage("Save AI credentials to Call AI, or use Copy prompt.");
+    return;
+  }
+  controller.setStatusMessage("Calling AI…");
+  try {
+    const result = await callChatCompletions(creds, prompt);
+    const imported = controller.importAiSuggestions(result.text);
+    controller.setStatusMessage(
+      `Call AI: ${imported.applied} applied · ${imported.errors.length} errors`,
+    );
+    if (imported.errors.length && !imported.applied) {
+      alert(imported.errors.slice(0, 8).join("\n"));
+    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    controller.setStatusMessage(`Call AI failed: ${message}`);
+    alert(message);
+  }
+}
+
+document.getElementById("ai-credentials-cancel")?.addEventListener("click", () => {
+  (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
+});
+document.getElementById("ai-credentials-clear")?.addEventListener("click", () => {
+  clearAiCredentials(localStorage);
+  updateCopyAiButtonLabel();
+  (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
+  controller.setStatusMessage("AI credentials cleared");
+});
+document.getElementById("dialog-ai-credentials")?.querySelector("form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const endpoint = (document.getElementById("ai-endpoint") as HTMLInputElement | null)?.value ?? "";
+  const apiKey = (document.getElementById("ai-api-key") as HTMLInputElement | null)?.value ?? "";
+  const model = (document.getElementById("ai-model") as HTMLInputElement | null)?.value ?? "";
+  try {
+    saveAiCredentials(localStorage, { endpoint, apiKey, model });
+    updateCopyAiButtonLabel();
+    (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
+    controller.setStatusMessage("AI credentials saved in this browser");
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
 });
 
 function handleNewProject(): void {
@@ -2498,6 +2889,12 @@ function installWorkbenchTestApi(): void {
     addExample(filename, content) {
       controller.addExampleContent(filename, content);
     },
+    refreshTarget(filename, content) {
+      controller.refreshTargetContent(filename, content);
+    },
+    refreshSchema(filename, content) {
+      controller.refreshSchemaContent(filename, content);
+    },
     armSlot(slotId) {
       controller.armSlot(slotId);
     },
@@ -2557,6 +2954,18 @@ function installWorkbenchTestApi(): void {
         autoplay: s.settings.autoplay,
         unmappedMandatory: s.unmappedMandatory,
         blocklyBlocks,
+        lastRefreshReport: s.lastRefreshReport
+          ? {
+            kind: s.lastRefreshReport.kind,
+            previousFilename: s.lastRefreshReport.previousFilename,
+            nextFilename: s.lastRefreshReport.nextFilename,
+            warnings: s.lastRefreshReport.warnings.map((warning) => ({
+              kind: warning.kind,
+              path: warning.path,
+              message: warning.message,
+            })),
+          }
+          : null,
       };
     },
     findSlotIdBySuffix(suffix) {

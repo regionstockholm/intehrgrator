@@ -8,14 +8,14 @@ This document details the split-screen mapping interface and its architectural c
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ intEHRgrator  … [Copy AI Prompt] [Import Suggestions] [New Project] [Load Project]     │
+│               [Copy prompt / Call AI] [Import Suggestions] [New Project] [Load Project]     │
 │               [Save as] [Export Project] [Import Project]                              │
 ├───────────────┬──────────────────────────────────────────┬─────────────────────────────┤
 │ LEFT PANE     │ CENTER PANE                              │ RIGHT PANE                  │
 │ Source        │ Mapping Editor                           │ Target & Previews           │
 │ (slide-away)  │                                          │ (tabbed, slide-away)        │
 │               │                                          │                             │
-│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Open + Output mode          │
+│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Load target & map           │
 │ [Load Schema] │ │ nested RM blocks                     │ │ tabs: Target schema |       │
 │               │ │ toolbox: Source/Literals/            │ │ Generated conversion        │
 │ Examples      │ │ Logic/Variables                      │ │ script(s) | Conversion      │
@@ -85,9 +85,9 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 
 ### Right Pane: Target & Previews
 - **Purpose:** Load the target, browse its schema, preview generated conversion-script code, and run conversion tests
-- **Header:** pane title **Target & Previews**; **Open**; **Output mode**; slide-away toggle
+- **Header:** pane title **Target & Previews**; **Load target & default context map**; **Output mode**; slide-away toggle
 - **Tabs** (Shoelace `sl-tab-group`; usually not needed at the same time):
-  1. **Target schema** — tree of the loaded target. Pull a leaf or subtree onto empty canvas → corresponding Blockly, scaffolded from the current **Defaults Map**
+  1. **Target schema** — tree of the loaded target. Pull a leaf or subtree onto empty canvas → corresponding Blockly, scaffolded from the current **default context map**. Leaf → **scaffold target** chips; subtree → map value socket.
   2. **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)
   3. **Conversion Test Run(s)** — runs mapping against the **active example tab**; displays the produced instance. Section header includes **Run Test** and **Autoplay / Pause**.
 - Unmapped mandatory slots and unmet cardinality show as **Constraint warning** triangles on Blockly and on the matching Mapping Spec Widgets. Click a spec widget or Blockly block to **Select** (yellow border + pan); placeholder Source query blocks also enter **Listening Mode**.
@@ -104,7 +104,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| Copy AI Prompt | Generate markdown prompt to clipboard (▾: embed / attach / browse URIs) | ✓ |
+| Copy prompt / Call AI | Copy markdown prompt, or POST it when AI credentials are saved (▾: Copy prompt, Call AI, credentials, embed / attach / URI) | ✓ |
 | Import Suggestions | Parse pasted `intehrgrator-suggestions` JSON and apply mappings | ✓ |
 | Example Sets | Load a complete example set (source schema + instances, target, optional mapping) from a URI catalog | ✓ |
 | New Project | Reset workspace to empty project (confirm if content present) | ✓ |
@@ -119,7 +119,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 |--------|----------|--------|-----|
 | Load Schema | Source → Schema section | Split control: main click loads a schema file; chevron offers **From file**, **From URL**, and recent URLs | ✓ |
 | + Add Example | Source → Examples section | Split control: main click opens a JSON/XML instance; chevron offers file, URL, and recent URLs | ✓ |
-| Open target Schema/Template | Target & Previews header | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
+| Load target & default context map | Target & Previews header | Split control: main click opens the joint target + default context map dialog; chevron offers file, URL, GitHub, and non-destructive refresh | ✓ |
 | Slide-away | Source / Target & Previews headers | Hide the pane so the Mapping Editor takes the width; rail tabs restore it | ✓ |
 | Export TS | Target & Previews pane header | Download the generated TypeScript mapping script | ✓ |
 | Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
@@ -160,15 +160,15 @@ The test runner is a core informatician workflow, not a nice-to-have.
 
 **Out of scope v1:** Java test execution, uploading results to a CDR.
 
-## AI Assist — Copy-Paste (v1)
+## AI Assist
 
-No in-app AI API in the web shell. Integrated AI is deferred to VS Code; see [docs/future/integrated-ai-assist.md](future/integrated-ai-assist.md).
+**Copy prompt** builds markdown for an external chat. **Call AI** POSTs that prompt when optional OpenAI-compatible credentials are saved (localStorage, never the Project Bundle). See [docs/future/integrated-ai-assist.md](future/integrated-ai-assist.md).
 
-### Copy AI Prompt
+### Copy prompt / Call AI
 
 1. User optionally selects a single value slot (scopes prompt to that `slotId`) or leaves unselected (all unmapped slots)
-2. Clicks **Copy AI Prompt** (main button uses last delivery mode; ▾ chooses mode)
-3. App copies markdown to clipboard containing:
+2. Clicks **Copy prompt** or **Call AI** (main button is Call AI when credentials exist; ▾ chooses Copy prompt, Call AI, credentials, and delivery)
+3. App copies markdown to clipboard (or POSTs it) containing:
    - Task description (map source → loaded **Target instance format**) and scope (`slot` | `full`)
    - Target: format, `targetId`, filename, origin (file or URI), structure summary
    - Source schema and example instance(s): format, filename, origin

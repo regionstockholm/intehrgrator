@@ -120,6 +120,7 @@ export function generateTypeScriptFromWorkspace(
   const instanceRoot = findInstanceRootUnderStart(workspace);
   const roots = workspace.getTopBlocks(true).filter((block) =>
     block.type !== DEFAULTS_BLOCK_TYPE &&
+    block.type !== "default_context_map" &&
     block.type !== "maps_create_with" &&
     block.type !== CONVERSION_START_TYPE
   );

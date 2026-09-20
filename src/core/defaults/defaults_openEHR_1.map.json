@@ -1,18 +1,56 @@
 {
-  "type": "maps_create_with",
+  "type": "default_context_map",
   "extraState": {
-    "itemCount": 9
+    "itemCount": 9,
+    "targets": [
+      [
+        "*.language"
+      ],
+      [
+        "COMPOSITION.territory"
+      ],
+      [
+        "*.encoding"
+      ],
+      [
+        "*.start_time"
+      ],
+      [
+        "*.origin"
+      ],
+      [
+        "*.time"
+      ],
+      [
+        "COMPOSITION.composer"
+      ],
+      [
+        "EVENT_CONTEXT.health_care_facility"
+      ],
+      [
+        "*.subject"
+      ]
+    ]
   },
   "fields": {
-    "KEY0": "*.language",
-    "KEY1": "COMPOSITION.territory",
-    "KEY2": "*.encoding",
-    "KEY3": "*.start_time",
-    "KEY4": "*.origin",
-    "KEY5": "*.time",
-    "KEY6": "COMPOSITION.composer",
-    "KEY7": "EVENT_CONTEXT.health_care_facility",
-    "KEY8": "*.subject"
+    "KEY0": "language",
+    "TARGETS0": "[\"*.language\"]",
+    "KEY1": "territory",
+    "TARGETS1": "[\"COMPOSITION.territory\"]",
+    "KEY2": "encoding",
+    "TARGETS2": "[\"*.encoding\"]",
+    "KEY3": "start_time",
+    "TARGETS3": "[\"*.start_time\"]",
+    "KEY4": "origin",
+    "TARGETS4": "[\"*.origin\"]",
+    "KEY5": "time",
+    "TARGETS5": "[\"*.time\"]",
+    "KEY6": "composer",
+    "TARGETS6": "[\"COMPOSITION.composer\"]",
+    "KEY7": "facility",
+    "TARGETS7": "[\"EVENT_CONTEXT.health_care_facility\"]",
+    "KEY8": "subject",
+    "TARGETS8": "[\"*.subject\"]"
   },
   "inputs": {
     "VAL0": {
@@ -107,7 +145,11 @@
         "type": "party_identified",
         "extraState": {
           "extras": [],
-          "attrs": ["external_ref", "identifiers", "name"],
+          "attrs": [
+            "external_ref",
+            "identifiers",
+            "name"
+          ],
           "rmType": "PARTY_IDENTIFIED",
           "prohibited": [],
           "slotCards": {},
@@ -133,7 +175,11 @@
                   "block": {
                     "type": "dv_identifier",
                     "extraState": {
-                      "fields": ["issuer", "assigner", "type"]
+                      "fields": [
+                        "issuer",
+                        "assigner",
+                        "type"
+                      ]
                     },
                     "fields": {
                       "NAME": "Identifier",
@@ -202,7 +248,11 @@
         "type": "party_identified",
         "extraState": {
           "extras": [],
-          "attrs": ["name", "identifiers", "external_ref"],
+          "attrs": [
+            "name",
+            "identifiers",
+            "external_ref"
+          ],
           "rmType": "PARTY_IDENTIFIED",
           "prohibited": [],
           "slotCards": {},

@@ -75,6 +75,7 @@ export function scaffoldBlocklyFromSkeleton(
       null,
       uiLanguage,
       options?.targetFormat,
+      { factory: !options?.defaultsMap },
     );
     return {
       blocklyState: Blockly.serialization.workspaces.save(workspace),

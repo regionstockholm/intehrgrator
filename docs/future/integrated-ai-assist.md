@@ -1,22 +1,21 @@
-# Deferred: Integrated In-App AI Assist
+# In-app and copy-paste AI assist
 
-**Status:** Not in v1 web shell. v1 uses copy-paste AI assist per [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
+**Status:** Web Shell has optional **Call AI** (OpenAI-compatible chat completions, credentials in localStorage). Copy-paste and IDE/MCP remain first-class. Richer native assist (VS Code Language Model API) is still deferred.
 
-## Idea
+## Web Shell
 
-Call AI APIs directly from the app to suggest mappings without copy-paste. Natural fit for the **VS Code extension** (Language Model API) and optionally a configured endpoint in web Settings later.
+- **Copy prompt** — markdown prompt with target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`
+- **Call AI** — POST that prompt; default toolbar action when credentials exist
+- **AI credentials…** — endpoint, API key, model. Never stored in the Project Bundle. CORS-friendly proxies may be required.
+- **Import Suggestions** — parses `intehrgrator-suggestions` JSON version 2 (same path as Call AI)
+- Target/source **refresh** reports offer Copy merge prompt / Call AI; detached Blockly stays
 
-## v1 substitute: Copy-Paste AI Assist
-
-- **Copy AI Prompt** — generates markdown prompt with target/source origins (file or URI), delivery mode (inline multipart / attach checklist / URI browse), slot manifest (`valueType`), and link to `AI_SUGGESTION_FORMAT.md`
-- **Import Suggestions** — parses `intehrgrator-suggestions` JSON version 2 (Blockly block subset)
-
-## When to integrate natively
+## When to integrate more natively
 
 | Host | Mechanism |
 |------|-----------|
 | VS Code extension | `vscode.lm` Language Model API; suggest for selected slot or full unmapped manifest |
-| Web (later) | User-configured API key + endpoint in Settings; same suggestion format internally |
+| Web | Already: user-configured endpoint + key; same suggestion format internally |
 
 ## Migration path
 

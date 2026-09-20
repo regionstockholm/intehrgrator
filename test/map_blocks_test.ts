@@ -24,7 +24,7 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   assert(Blockly.Blocks["maps_length"]);
   assert(Blockly.Blocks["maps_isEmpty"]);
   assert(Blockly.Blocks["maps_create_empty"]);
-  assert(Blockly.Blocks["defaults_block"]);
+  assert(Blockly.Blocks["default_context_map"]);
 
   const workspace = new Blockly.Workspace();
   const map = workspace.newBlock(MAPS_CREATE_WITH) as MapCreateBlock;
@@ -36,14 +36,14 @@ Deno.test("map blocks register create/get/keys/length/isEmpty and Defaults", () 
   lookup.setFieldValue("defaults", "NAME");
   assertEquals(lookup.getFieldValue("NAME"), "defaults");
 
-  const defaults = workspace.newBlock("defaults_block");
+  const defaults = workspace.newBlock("default_context_map");
   const headerFields = defaults.getInput("HEADER")?.fieldRow ?? [];
   const imageAlts = headerFields
     .filter((field) => field instanceof Blockly.FieldImage)
     .map((field) => field.getText());
   assertEquals(imageAlts.includes("Load/save"), true);
   assert(
-    imageAlts.some((alt) => alt.includes("execution-context") || alt.includes("design-time")),
+    imageAlts.some((alt) => /runtime key|Default context map/i.test(alt)),
     `expected info FieldImage, got ${JSON.stringify(imageAlts)}`,
   );
   workspace.dispose();

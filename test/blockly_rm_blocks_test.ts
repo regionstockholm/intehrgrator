@@ -742,12 +742,12 @@ Deno.test("skeleton canvas plugs language and territory Defaults lookups into CO
   const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
   assert(language, "expected maps_get on COMPOSITION.language");
   assertEquals(language.type, "maps_get");
-  assertEquals(language.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "*.language");
+  assertEquals(language.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "language");
   assertEquals(language.type === "element", false);
 
   const territory = composition.getInputTargetBlock(rmAttributeInputName("territory"));
   assertEquals(territory?.type, "maps_get");
-  assertEquals(territory?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "COMPOSITION.territory");
+  assertEquals(territory?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "territory");
 
   const category = composition.getInputTargetBlock(rmAttributeInputName("category"));
   assertEquals(category?.type, "term_pick");
@@ -764,7 +764,7 @@ Deno.test("skeleton canvas plugs language and territory Defaults lookups into CO
   assert(observation, "expected observation");
   const encoding = observation.getInputTargetBlock(rmAttributeInputName("encoding"));
   assertEquals(encoding?.type, "maps_get");
-  assertEquals(encoding?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "*.encoding");
+  assertEquals(encoding?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "encoding");
 
   workspace.dispose();
 });

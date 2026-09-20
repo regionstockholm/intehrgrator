@@ -69,6 +69,7 @@ export function loadSkeletonIntoWorkspace(
   listeningSlotId: string | null = null,
   uiLanguage = "en",
   targetFormat?: TargetFormatId,
+  options?: { factory?: boolean },
 ): void {
   setSchemaCatalog(skeleton);
   if (targetFormat === "json-schema" || targetFormat === "xml-schema") {
@@ -89,9 +90,10 @@ export function loadSkeletonIntoWorkspace(
       y += height + 24;
     }
     applyModelExpressions(workspace, model);
-    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat);
+    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat, options);
     const scaffoldRoot = workspace.getTopBlocks(false).find((b) =>
-      b.type !== "defaults_block" && b.type !== "maps_create_with" && b.type !== "conversion_start"
+      b.type !== "default_context_map" && b.type !== "defaults_block" &&
+      b.type !== "maps_create_with" && b.type !== "conversion_start"
     );
     if (scaffoldRoot) attachStartToInstanceRoot(workspace, scaffoldRoot);
     placeDefaultsBesideSkeleton(workspace);

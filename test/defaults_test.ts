@@ -8,6 +8,8 @@ import {
   FACTORY_HEALTH_CARE_FACILITY,
   FACTORY_TIME,
   FACTORY_TERRITORY,
+  DEFAULT_CONTEXT_MAP_TYPE,
+  entriesFromScaffoldTargetList,
   factoryDefaultsEntries,
   mapBlockFromDefaultsJson,
   mapsGetExpression,
@@ -40,19 +42,22 @@ const opt = await Deno.readTextFile(
   join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
 );
 
-Deno.test("factory Defaults Map seeds UI language once and dummy facility", () => {
+Deno.test("factory default context map seeds UI language once and dummy facility", () => {
   const entries = factoryDefaultsEntries("sv");
-  const byKey = Object.fromEntries(entries.map((entry) => [entry.key, entry.value]));
-  assertEquals(byKey["*.language"], "sv");
-  assertEquals(byKey["COMPOSITION.territory"], FACTORY_TERRITORY);
-  assertEquals(byKey["*.encoding"], FACTORY_ENCODING);
-  assertEquals(byKey["*.start_time"], FACTORY_TIME);
-  assertEquals(byKey["*.origin"], FACTORY_TIME);
-  assertEquals(byKey["*.time"], FACTORY_TIME);
-  assertEquals(byKey["COMPOSITION.composer"], "Dr. Who Demo");
-  assertEquals(byKey["EVENT_CONTEXT.health_care_facility"], FACTORY_HEALTH_CARE_FACILITY);
-  assertEquals(byKey["*.subject"], "PARTY_SELF");
-  assertEquals(factoryDefaultsEntries("de").find((e) => e.key === "*.language")?.value, "de");
+  const byKey = Object.fromEntries(entries.map((entry) => [entry.runtimeKey, entry]));
+  assertEquals(byKey["language"]?.value, "sv");
+  assertEquals(byKey["language"]?.scaffoldTargets, ["*.language"]);
+  assertEquals(byKey["territory"]?.value, FACTORY_TERRITORY);
+  assertEquals(byKey["territory"]?.scaffoldTargets, ["COMPOSITION.territory"]);
+  assertEquals(byKey["encoding"]?.value, FACTORY_ENCODING);
+  assertEquals(byKey["start_time"]?.value, FACTORY_TIME);
+  assertEquals(byKey["origin"]?.value, FACTORY_TIME);
+  assertEquals(byKey["time"]?.value, FACTORY_TIME);
+  assertEquals(byKey["composer"]?.value, "Dr. Who Demo");
+  assertEquals(byKey["facility"]?.value, FACTORY_HEALTH_CARE_FACILITY);
+  assertEquals(byKey["facility"]?.scaffoldTargets, ["EVENT_CONTEXT.health_care_facility"]);
+  assertEquals(byKey["subject"]?.value, "PARTY_SELF");
+  assertEquals(factoryDefaultsEntries("de").find((e) => e.runtimeKey === "language")?.value, "de");
 });
 
 Deno.test("namedMapsFromBlocklyState reads field keys and value sockets", () => {
@@ -60,19 +65,12 @@ Deno.test("namedMapsFromBlocklyState reads field keys and value sockets", () => 
     blocks: {
       blocks: [
         {
-          type: "defaults_block",
+          type: DEFAULT_CONTEXT_MAP_TYPE,
+          extraState: { itemCount: 2, targets: [[], []] },
+          fields: { KEY0: "language", KEY1: "territory" },
           inputs: {
-            MAP: {
-              block: {
-                type: "maps_create_with",
-                extraState: { itemCount: 2 },
-                fields: { KEY0: "language", KEY1: "territory" },
-                inputs: {
-                  VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
-                  VAL1: { shadow: { type: "text", fields: { TEXT: "SE" } } },
-                },
-              },
-            },
+            VAL0: { shadow: { type: "text", fields: { TEXT: "sv" } } },
+            VAL1: { shadow: { type: "text", fields: { TEXT: "SE" } } },
           },
         },
       ],
@@ -88,21 +86,14 @@ Deno.test("namedMapsFromBlocklyState reads term_pick codes from Defaults Map val
     blocks: {
       blocks: [
         {
-          type: "defaults_block",
+          type: DEFAULT_CONTEXT_MAP_TYPE,
+          extraState: { itemCount: 1, targets: [["*.language"]] },
+          fields: { KEY0: "language" },
           inputs: {
-            MAP: {
-              block: {
-                type: "maps_create_with",
-                extraState: { itemCount: 1 },
-                fields: { KEY0: "language" },
-                inputs: {
-                  VAL0: {
-                    shadow: {
-                      type: "term_pick",
-                      fields: { SET: "ISO_639-1", CODE: "sv" },
-                    },
-                  },
-                },
+            VAL0: {
+              shadow: {
+                type: "term_pick",
+                fields: { SET: "ISO_639-1", CODE: "sv" },
               },
             },
           },
@@ -113,20 +104,21 @@ Deno.test("namedMapsFromBlocklyState reads term_pick codes from Defaults Map val
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
 });
 
-Deno.test("mapBlockFromDefaultsJson accepts a maps_create_with block or a workspace", () => {
+Deno.test("mapBlockFromDefaultsJson converts maps_create_with / workspace to a default context map", () => {
   const block = { type: "maps_create_with", extraState: { itemCount: 0 } };
-  assertEquals(mapBlockFromDefaultsJson(block), block);
+  const converted = mapBlockFromDefaultsJson(block) as { type?: string };
+  assertEquals(converted?.type, DEFAULT_CONTEXT_MAP_TYPE);
   const wrapped = {
     blocks: { blocks: [{ type: "defaults_block", inputs: { MAP: { block } } }] },
   };
-  assertEquals(mapBlockFromDefaultsJson(wrapped), block);
+  assertEquals((mapBlockFromDefaultsJson(wrapped) as { type?: string })?.type, DEFAULT_CONTEXT_MAP_TYPE);
   assertEquals(mapBlockFromDefaultsJson({ nested: { x: 1 } }), null);
   const fromPlain = mapBlockFromDefaultsJson({ Time: "20250101000000", PatientId: "194002287086" }) as {
     type?: string;
     extraState?: { itemCount?: number };
     fields?: Record<string, string>;
   };
-  assertEquals(fromPlain?.type, "maps_create_with");
+  assertEquals(fromPlain?.type, DEFAULT_CONTEXT_MAP_TYPE);
   assertEquals(fromPlain?.extraState?.itemCount, 2);
   assertEquals(fromPlain?.fields?.KEY0, "Time");
   assertEquals(fromPlain?.fields?.KEY1, "PatientId");
@@ -190,25 +182,22 @@ Deno.test("memory Defaults catalog save/load", async () => {
 
 Deno.test("bindDefaultPoints matches COMPOSITION language on a BP OPT", () => {
   const { skeleton } = generateSkeleton(opt);
-  const bound = bindDefaultPoints(
-    skeleton,
-    new Set(factoryDefaultsEntries("sv").map((entry) => entry.key)),
-  );
-  assert(bound.some((item) => item.point.mapKey === "*.language" && item.parent.rmType === "COMPOSITION"));
-  assert(bound.some((item) => item.point.mapKey === "COMPOSITION.territory"));
-  assert(bound.some((item) => item.point.mapKey === "*.encoding" && item.parent.rmType === "OBSERVATION"));
-  assert(bound.some((item) => item.point.mapKey === "COMPOSITION.composer"));
-  assert(bound.some((item) => item.point.mapKey === "*.subject" && item.point.leaf === "party"));
-  assert(bound.some((item) => item.point.mapKey === "*.start_time"));
-  assert(bound.some((item) => item.point.mapKey === "*.origin"));
-  assert(bound.some((item) => item.point.mapKey === "*.time"));
+  const bound = bindDefaultPoints(skeleton, factoryDefaultsEntries("sv"));
+  assert(bound.some((item) => item.point.mapKey === "language" && item.parent.rmType === "COMPOSITION"));
+  assert(bound.some((item) => item.point.mapKey === "territory"));
+  assert(bound.some((item) => item.point.mapKey === "encoding" && item.parent.rmType === "OBSERVATION"));
+  assert(bound.some((item) => item.point.mapKey === "composer"));
+  assert(bound.some((item) => item.point.mapKey === "subject" && item.point.leaf === "party"));
+  assert(bound.some((item) => item.point.mapKey === "start_time"));
+  assert(bound.some((item) => item.point.mapKey === "origin"));
+  assert(bound.some((item) => item.point.mapKey === "time"));
 });
 
-Deno.test("bindDefaultPoints ignores bare simplified-format ctx names", () => {
+Deno.test("bindDefaultPoints ignores runtime keys with empty scaffold targets", () => {
   const { skeleton } = generateSkeleton(opt);
   const bound = bindDefaultPoints(
     skeleton,
-    new Set([
+    [
       "language",
       "territory",
       "encoding",
@@ -216,7 +205,7 @@ Deno.test("bindDefaultPoints ignores bare simplified-format ctx names", () => {
       "composer_name",
       "health_care_facility",
       "subject",
-    ]),
+    ].map((runtimeKey) => ({ runtimeKey, scaffoldTargets: [] })),
   );
   assertEquals(bound.length, 0);
 });
@@ -232,21 +221,24 @@ function mapsGetKey(block: { getInputTargetBlock: (name: string) => { getFieldVa
   return String(block?.getInputTargetBlock("KEY")?.getFieldValue("TEXT") ?? "");
 }
 
-Deno.test("bindDefaultPoints inserts optional EVENT_CONTEXT.health_care_facility when the map has that key", () => {
+Deno.test("bindDefaultPoints inserts optional EVENT_CONTEXT.health_care_facility when the map has that target", () => {
   const { skeleton } = generateSkeleton(opt);
-  const withoutKey = bindDefaultPoints(skeleton, new Set(["*.language", "COMPOSITION.territory"]));
+  const withoutKey = bindDefaultPoints(
+    skeleton,
+    entriesFromScaffoldTargetList(["*.language", "COMPOSITION.territory"]),
+  );
   assertFalse(
     withoutKey.some((item) => item.point.rmAttribute === "health_care_facility"),
     "optional facility is not a silent-mandatory skeleton child",
   );
   const withBareKey = bindDefaultPoints(
     skeleton,
-    new Set(["health_care_facility"]),
+    [{ runtimeKey: "facility", scaffoldTargets: [] }],
   );
   assertEquals(
     withBareKey.filter((item) => item.point.rmAttribute === "health_care_facility").length,
     0,
-    "bare ctx names do not insert optional RM",
+    "runtime-only keys do not insert optional RM",
   );
 });
 
@@ -254,30 +246,30 @@ Deno.test("bindDefaultPoints lights optional facility from EVENT_CONTEXT.health_
   const { skeleton } = generateSkeleton(opt);
   const fromType = bindDefaultPoints(
     skeleton,
-    new Set(["EVENT_CONTEXT.health_care_facility"]),
+    [{ runtimeKey: "facility", scaffoldTargets: ["EVENT_CONTEXT.health_care_facility"] }],
   );
   assertEquals(
     fromType.find((item) => item.point.rmAttribute === "health_care_facility")?.mapKey,
-    "EVENT_CONTEXT.health_care_facility",
+    "facility",
   );
   const fromPath = bindDefaultPoints(
     skeleton,
-    new Set(["COMPOSITION.context.health_care_facility"]),
+    [{ runtimeKey: "facility", scaffoldTargets: ["COMPOSITION.context.health_care_facility"] }],
   );
   assertEquals(
     fromPath.find((item) => item.point.rmAttribute === "health_care_facility")?.mapKey,
-    "COMPOSITION.context.health_care_facility",
+    "facility",
   );
 });
 
 Deno.test("bindDefaultPoints wildcard *.territory binds COMPOSITION.territory", () => {
   const { skeleton } = generateSkeleton(opt);
-  const bound = bindDefaultPoints(skeleton, new Set(["*.territory"]));
+  const bound = bindDefaultPoints(skeleton, entriesFromScaffoldTargetList(["*.territory"]));
   const territory = bound.find((item) =>
     item.point.rmAttribute === "territory" && item.parent.rmType === "COMPOSITION"
   );
   assertExists(territory);
-  assertEquals(territory.mapKey, "*.territory");
+  assertEquals(territory.mapKey, "territory");
 });
 
 Deno.test("bindDefaultPoints does not invent missing mandatory language on a bare OBSERVATION", () => {
@@ -299,36 +291,39 @@ Deno.test("bindDefaultPoints does not invent missing mandatory language on a bar
       children: [],
     }],
   }];
-  const bound = bindDefaultPoints(skeleton, new Set(["*.language"]));
+  const bound = bindDefaultPoints(skeleton, entriesFromScaffoldTargetList(["*.language"]));
   assertEquals(
     bound.filter((item) => item.parent.rmType === "OBSERVATION").length,
     0,
   );
 });
 
-Deno.test("bindDefaultPoints prefers Class.attribute over a wildcard", () => {
+Deno.test("bindDefaultPoints prefers Class.attribute over a wildcard when choosing a runtime key", () => {
   const { skeleton } = generateSkeleton(opt);
   const bound = bindDefaultPoints(
     skeleton,
-    new Set(["*.language", "COMPOSITION.language"]),
+    [
+      { runtimeKey: "all_language", scaffoldTargets: ["*.language"] },
+      { runtimeKey: "composition_language", scaffoldTargets: ["COMPOSITION.language"] },
+    ],
   );
   assertEquals(
     bound.find((item) =>
       item.parent.rmType === "COMPOSITION" && item.point.rmAttribute === "language"
     )?.mapKey,
-    "COMPOSITION.language",
+    "composition_language",
   );
   assertEquals(
     bound.find((item) =>
       item.parent.rmType === "OBSERVATION" && item.point.rmAttribute === "language"
     )?.mapKey,
-    "*.language",
+    "all_language",
   );
 });
 
 Deno.test("bindDefaultPoints ENTRY.language lights OBSERVATION language", () => {
   const { skeleton } = generateSkeleton(opt);
-  const bound = bindDefaultPoints(skeleton, new Set(["ENTRY.language"]));
+  const bound = bindDefaultPoints(skeleton, entriesFromScaffoldTargetList(["ENTRY.language"]));
   assert(
     bound.some((item) =>
       item.parent.rmType === "OBSERVATION" && item.point.rmAttribute === "language"
@@ -396,7 +391,7 @@ Deno.test("namedMapsFromBlocklyState reads party name and identifiers from Defau
       ],
     },
   });
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.["COMPOSITION.composer"], {
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.["composer"], {
     rmType: "PARTY_IDENTIFIED",
     name: "Dr. Who Demo",
     identifiers: [{
@@ -420,20 +415,20 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assertExists(defaults);
   assertEquals(defaults.id, beforeId);
   const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.["*.language"], "sv");
-  assertEquals(maps[DEFAULTS_MAP_NAME]?.["*.encoding"], FACTORY_ENCODING);
-  const factoryMap = defaults.getInputTargetBlock("MAP");
-  assertEquals(factoryMap?.getFieldValue("KEY0"), "*.language");
-  assert(!factoryMap?.getInput("KEY0"));
-  const languageVal = factoryMap?.getInputTargetBlock("VAL0");
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "sv");
+  assertEquals(maps[DEFAULTS_MAP_NAME]?.encoding, FACTORY_ENCODING);
+  assertEquals(defaults.type, DEFAULT_CONTEXT_MAP_TYPE);
+  assertEquals(defaults.getFieldValue("KEY0"), "language");
+  assert(!defaults.getInput("MAP"));
+  const languageVal = defaults.getInputTargetBlock("VAL0");
   assertEquals(languageVal?.type, "term_pick");
   assertEquals(languageVal?.getFieldValue("SET"), "ISO_639-1");
   assertEquals(languageVal?.getFieldValue("CODE"), "sv");
   const encodingIndex = [...Array(12).keys()].find((i) =>
-    factoryMap?.getFieldValue(`KEY${i}`) === "*.encoding"
+    defaults.getFieldValue(`KEY${i}`) === "encoding"
   );
   assertEquals(encodingIndex, 2);
-  const encodingVal = factoryMap?.getInputTargetBlock(`VAL${encodingIndex}`);
+  const encodingVal = defaults.getInputTargetBlock(`VAL${encodingIndex}`);
   assertEquals(encodingVal?.type, "term_pick");
   assertEquals(encodingVal?.getFieldValue("SET"), "IANA_character-sets");
   assertEquals(encodingVal?.getFieldValue("CODE"), FACTORY_ENCODING);
@@ -442,29 +437,29 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assert(
     lookups.some((block) =>
       block.getFieldValue("NAME") === "defaults" &&
-      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "*.language"
+      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "language"
     ),
     "expected a language Default point lookup",
   );
   assert(
     lookups.some((block) =>
       block.getFieldValue("NAME") === "defaults" &&
-      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "*.encoding"
+      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "encoding"
     ),
     "expected an encoding Default point lookup",
   );
   assert(
     lookups.some((block) =>
       block.getFieldValue("NAME") === "defaults" &&
-      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "*.subject"
+      block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "subject"
     ),
     "expected a subject Default point lookup when Defaults Map has subject",
   );
   const subjectIndex = [...Array(12).keys()].find((i) =>
-    factoryMap?.getFieldValue(`KEY${i}`) === "*.subject"
+    defaults.getFieldValue(`KEY${i}`) === "subject"
   );
   assertExists(subjectIndex);
-  assertEquals(factoryMap?.getInputTargetBlock(`VAL${subjectIndex}`)?.type, "party_self");
+  assertEquals(defaults.getInputTargetBlock(`VAL${subjectIndex}`)?.type, "party_self");
   const partyProxy = workspace.getAllBlocks(false).find((block) =>
     block.type === "party_proxy" &&
     block.getInputTargetBlock("KIND")?.type === "maps_get"
@@ -472,15 +467,15 @@ Deno.test("skeleton scaffolding joins an existing Defaults block and plugs langu
   assertExists(partyProxy, "subject should keep PARTY_PROXY shell with maps_get in KIND");
   assertEquals(
     partyProxy.getInputTargetBlock("KIND")?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"),
-    "*.subject",
+    "subject",
   );
   const derived = workspaceToModelJson(workspace);
   assert(
-    derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "*.language")')),
+    derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "language")')),
     "language lookup should appear in the Mapping Model",
   );
   assert(
-    derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "*.encoding")')),
+    derived.slots.some((slot) => slot.expression.includes('maps_get("defaults", "encoding")')),
     "encoding lookup should appear in the Mapping Model",
   );
   workspace.dispose();
@@ -499,7 +494,7 @@ Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute m
   const language = composition.getInputTargetBlock(rmAttributeInputName("language"));
   assertEquals(language?.type, "maps_get");
   assertEquals(language?.getParent()?.type, "composition");
-  assertEquals(language?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "*.language");
+  assertEquals(language?.getInputTargetBlock("KEY")?.getFieldValue("TEXT"), "language");
   assert(language?.getFieldValue("SLOT_ID"), "language maps_get should keep the skeleton slot id");
 
   const territory = composition.getInputTargetBlock(rmAttributeInputName("territory"));
@@ -508,7 +503,7 @@ Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute m
 
   const encodingLookups = workspace.getAllBlocks(false).filter((block) =>
     block.type === "maps_get" &&
-    block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "*.encoding"
+    block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "encoding"
   );
   assert(encodingLookups.length > 0, "expected encoding Default point lookups");
   for (const lookup of encodingLookups) {
@@ -522,7 +517,7 @@ Deno.test("object-valued Defaults Map keys plug maps_get into the RM attribute m
   const timeLookups = workspace.getAllBlocks(false).filter((block) => {
     const key = String(block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") ?? "");
     return block.type === "maps_get" &&
-      (key === "*.time" || key === "*.start_time" || key === "*.origin");
+      (key === "time" || key === "start_time" || key === "origin");
   });
   assert(
     timeLookups.some((block) => {
@@ -561,9 +556,10 @@ Deno.test("hydrateDefaultsMapArgument loads maps_create_with field-key JSON", ()
       VAL0: { shadow: { type: "text", fields: { TEXT: "xx" } } },
     },
   }, "sv");
-  const map = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP");
+  const map = findDefaultsBlock(workspace);
+  assertEquals(map?.type, DEFAULT_CONTEXT_MAP_TYPE);
   assertEquals(map?.getFieldValue("KEY0"), "language");
-  assert(!map?.getInput("KEY0"));
+  assert(!map?.getInput("MAP"));
   const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
   assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "xx");
   workspace.dispose();
@@ -574,21 +570,21 @@ Deno.test("openEHR factory Defaults Map uses party objects for composer and faci
   registerMapBlocks();
   const workspace = new Blockly.Workspace();
   ensureDefaultsBlock(workspace, "sv");
-  const map = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP");
+  const map = findDefaultsBlock(workspace);
   assertExists(map);
   const composerIndex = [...Array(12).keys()].find((i) =>
-    map.getFieldValue(`KEY${i}`) === "COMPOSITION.composer"
+    map.getFieldValue(`KEY${i}`) === "composer"
   );
   const facilityIndex = [...Array(12).keys()].find((i) =>
-    map.getFieldValue(`KEY${i}`) === "EVENT_CONTEXT.health_care_facility"
+    map.getFieldValue(`KEY${i}`) === "facility"
   );
   assertExists(composerIndex);
   assertExists(facilityIndex);
   assertEquals(map.getInputTargetBlock(`VAL${composerIndex}`)?.type, "party_identified");
   assertEquals(map.getInputTargetBlock(`VAL${facilityIndex}`)?.type, "party_identified");
   const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
-  const composer = maps[DEFAULTS_MAP_NAME]?.["COMPOSITION.composer"] as { name?: string } | undefined;
-  const facility = maps[DEFAULTS_MAP_NAME]?.["EVENT_CONTEXT.health_care_facility"] as { name?: string } | undefined;
+  const composer = maps[DEFAULTS_MAP_NAME]?.composer as { name?: string } | undefined;
+  const facility = maps[DEFAULTS_MAP_NAME]?.facility as { name?: string } | undefined;
   assertEquals(composer?.name, "Dr. Who Demo");
   assertEquals(facility?.name, FACTORY_HEALTH_CARE_FACILITY);
   workspace.dispose();
@@ -604,12 +600,12 @@ Deno.test("scaffolding inserts EVENT_CONTEXT.health_care_facility lookup from th
   const facility = facilityLookups(workspace);
   assertEquals(facility?.type, "maps_get");
   assertEquals(facility?.getFieldValue("NAME"), "defaults");
-  assertEquals(mapsGetKey(facility), "EVENT_CONTEXT.health_care_facility");
+  assertEquals(mapsGetKey(facility), "facility");
   const composition = workspace.getAllBlocks(false).find((block) => block.type === "composition");
   const composer = composition?.getInputTargetBlock(rmAttributeInputName("composer"));
   assertEquals(composer?.type, "maps_get");
   assertEquals(composer?.getFieldValue("NAME"), "defaults");
-  assertEquals(mapsGetKey(composer), "COMPOSITION.composer");
+  assertEquals(mapsGetKey(composer), "composer");
   workspace.dispose();
 });
 
@@ -655,7 +651,7 @@ Deno.test("path-qualified Defaults Map key scaffolds the matching optional RM sl
     : facility.getInputTargetBlock(rmAttributeInputName("name"));
   assertEquals(lookup?.type, "maps_get", `facility mouth was ${facility.type}`);
   assertEquals(lookup?.getFieldValue("NAME"), "defaults");
-  assertEquals(mapsGetKey(lookup), "EVENT_CONTEXT.health_care_facility");
+  assertEquals(mapsGetKey(lookup), "facility");
   workspace.dispose();
 });
 
@@ -694,10 +690,49 @@ Deno.test("scaffoldBlocklyFromSkeleton binds optional RM from a pending Defaults
   assertExists(facility, JSON.stringify(extract.optionalRm));
   const lookup = extract.slots.find((slot) =>
     slot.slotId.includes("health_care_facility") &&
-    slot.expression.includes("EVENT_CONTEXT.health_care_facility")
+    slot.expression.includes("facility")
   );
   assertExists(lookup, JSON.stringify(extract.slots.map((slot) => ({
     slotId: slot.slotId,
     expression: slot.expression,
   }))));
+});
+
+Deno.test("blank canvas default context map has no factory rows", () => {
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  try {
+    const block = ensureDefaultsBlock(workspace, "sv", undefined, { factory: false });
+    assertEquals(block.type, DEFAULT_CONTEXT_MAP_TYPE);
+    const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
+    assertEquals(Object.keys(maps[DEFAULTS_MAP_NAME] ?? {}).length, 0);
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("hydrating another default context map does not rebuild the Product stack", () => {
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  try {
+    const { skeleton } = generateSkeleton(opt);
+    loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null, "sv");
+    const compositionId = workspace.getAllBlocks(false).find((block) => block.type === "composition")
+      ?.id;
+    assertExists(compositionId);
+    hydrateDefaultsMapArgument(workspace, {
+      type: DEFAULT_CONTEXT_MAP_TYPE,
+      extraState: { itemCount: 1, targets: [["*.language"]] },
+      fields: { KEY0: "language" },
+      inputs: { VAL0: { shadow: { type: "text", fields: { TEXT: "de" } } } },
+    }, "sv");
+    assert(
+      workspace.getAllBlocks(false).some((block) => block.id === compositionId),
+      "Product stack COMPOSITION must survive picking another saved map",
+    );
+    const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
+    assertEquals(maps[DEFAULTS_MAP_NAME]?.language, "de");
+  } finally {
+    workspace.dispose();
+  }
 });

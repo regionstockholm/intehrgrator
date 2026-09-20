@@ -106,6 +106,7 @@ export function generateGoTemplateFromWorkspace(
   const instanceRoot = findInstanceRootUnderStart(workspace);
   const roots = workspace.getTopBlocks(true).filter((block) =>
     block.type !== DEFAULTS_BLOCK_TYPE &&
+    block.type !== "default_context_map" &&
     block.type !== "maps_create_with" &&
     block.type !== CONVERSION_START_TYPE
   );
@@ -155,7 +156,11 @@ function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
   if (block.type === "for_each_list") return emitForEachList(block, ctx);
   if (block.type === "controls_if") return emitControlsIf(block, ctx);
   if (block.type === "variables_set") return [];
-  if (block.type === "defaults_block" || block.type === "maps_create_with") return [];
+  if (
+    block.type === "defaults_block" ||
+    block.type === "default_context_map" ||
+    block.type === "maps_create_with"
+  ) return [];
 
   if (block.type === "xml_text" || block.type === "xml_cdata") {
     return emitXmlTextishLive(block, ctx, indent);

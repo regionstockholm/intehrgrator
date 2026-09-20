@@ -5,7 +5,7 @@ export interface SavedDefaultsMapEntry {
 }
 
 export interface SavedDefaultsMapRecord extends SavedDefaultsMapEntry {
-  /** Blockly JSON for a `maps_create_with` block (the Defaults Map argument). */
+  /** Blockly JSON for a unique `default_context_map` block. */
   mapBlock: unknown;
 }
 

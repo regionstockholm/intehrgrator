@@ -1,6 +1,6 @@
 # Default context map (accepted design)
 
-**Status:** accepted in grilling 2026-09-20. **Not implemented.** Root `CONTEXT.md` still describes the shipped #157 plugged **Map**. Apply [proposed glossary](CONTEXT-default-context-map-proposed.md) when #158 lands.
+**Status:** implemented (#158 unique **default context map**; #159 tabbed **Target & Previews**; #140 remainder: non-destructive refresh + in-app **Call AI**). Root `CONTEXT.md` matches this glossary.
 
 **ADR:** [0011](../adr/0011-default-context-map-runtime-keys.md) (extends [0002](../adr/0002-convert-time-defaults.md)).
 

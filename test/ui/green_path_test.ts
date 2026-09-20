@@ -33,6 +33,12 @@ Deno.test({
       const page = await context.newPage();
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
+      const loadBtn = page.locator("#btn-open-template");
+      await loadBtn.waitFor({ timeout: 10_000 });
+      assertEquals((await loadBtn.innerText()).trim(), "Load target & default context map");
+      await loadBtn.click();
+      await page.locator("#dialog-joint-load").waitFor({ state: "visible", timeout: 5_000 });
+      await page.locator("#joint-load-cancel").click();
       await loadBpFixtures(page);
 
       await page.waitForFunction(() => {
@@ -49,8 +55,8 @@ Deno.test({
         "expected RM COMPOSITION instance root after loading the target",
       );
       assert(
-        loaded.blocklyBlocks.some((block) => block.type.startsWith("maps_create")),
-        `expected Defaults Map (maps_create*) on the canvas, got: ${
+        loaded.blocklyBlocks.some((block) => block.type === "default_context_map"),
+        `expected unique default context map on the canvas, got: ${
           loaded.blocklyBlocks.map((block) => block.type).join(", ")
         }`,
       );

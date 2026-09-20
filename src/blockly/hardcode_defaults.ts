@@ -1,42 +1,57 @@
 /**
- * Hardcode (inline) a Defaults Map entry: replace canvas `maps_get("defaults", key)`
- * lookups with a copy of that map entry's value block.
+ * Hardcode (inline) a default context map entry: replace canvas
+ * `maps_get("defaults", runtimeKey)` lookups with a copy of that entry's value.
  */
 import type { Workspace } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 import {
-  DEFAULTS_BLOCK_TYPE,
+  DEFAULT_CONTEXT_MAP_TYPE,
   DEFAULTS_MAP_NAME,
   MAPS_GET,
-} from "../core/defaults/extract.ts";
+  parseTargetsField,
+} from "../core/defaults/mod.ts";
+import { FieldScaffoldTargets } from "./field_scaffold_targets.ts";
+import { contextMapItemCount } from "./blocks/default_context_map.ts";
 
 export interface DefaultsMapEntryInfo {
-  key: string;
+  runtimeKey: string;
+  scaffoldTargets: string[];
   index: number;
-  /** Short summary of the plugged-in value for the hardcode picker. */
+  /** Alias of runtimeKey (hardcode picker / older tests). */
+  key: string;
   summary: string;
 }
 
-/** Keys currently present on the Defaults Map plugged into the Defaults block. */
+/** Runtime keys currently present on the unique default context map. */
 export function defaultsMapKeys(workspace: Workspace): Set<string> {
-  return new Set(listDefaultsMapEntries(workspace).map((entry) => entry.key));
+  return new Set(
+    listDefaultContextMapEntries(workspace).map((entry) => entry.runtimeKey).filter(Boolean),
+  );
 }
 
 export function listDefaultsMapEntries(workspace: Workspace): DefaultsMapEntryInfo[] {
+  return listDefaultContextMapEntries(workspace);
+}
+
+export function listDefaultContextMapEntries(workspace: Workspace): DefaultsMapEntryInfo[] {
   const map = findDefaultsMapBlock(workspace);
   if (!map) return [];
-  const count = Number(
-    (map as Blockly.Block & { itemCount_?: number }).itemCount_ ??
-      mapCountFromInputs(map),
-  );
+  const count = contextMapItemCount(map);
+  const extra = (map as Blockly.Block & {
+    saveExtraState?: () => { targets?: string[][] };
+  }).saveExtraState?.();
   const entries: DefaultsMapEntryInfo[] = [];
   for (let i = 0; i < count; i++) {
-    const key = String(map.getFieldValue(`KEY${i}`) ?? "").trim();
-    if (!key) continue;
+    const runtimeKey = String(map.getFieldValue(`KEY${i}`) ?? "").trim();
+    const field = map.getField(`TARGETS${i}`) as FieldScaffoldTargets | null;
+    const fromField = field?.getTargets() ?? parseTargetsField(map.getFieldValue(`TARGETS${i}`));
+    const scaffoldTargets = fromField.length ? fromField : extra?.targets?.[i] ?? [];
     const value = map.getInputTargetBlock(`VAL${i}`);
     entries.push({
-      key,
+      runtimeKey,
+      scaffoldTargets,
       index: i,
+      key: runtimeKey,
       summary: summarizeValueBlock(value),
     });
   }
@@ -45,18 +60,14 @@ export function listDefaultsMapEntries(workspace: Workspace): DefaultsMapEntryIn
 
 /**
  * Replace every `maps_get("defaults", key)` on the canvas with a clone of the
- * Defaults Map value for that key. Returns how many lookups were inlined.
- *
- * When the stored value is a `term_pick` (or similar) that cannot plug into the
- * parent mouth (e.g. `code_string` expects a String), the selected code is
- * inlined as a `text` literal instead — matching convert-time map lookup.
+ * entry value for that **runtime key**. Returns how many lookups were inlined.
  */
 export function hardcodeDefaultsMapKey(workspace: Workspace, key: string): number {
   const wanted = key.trim();
   if (!wanted) return 0;
   const map = findDefaultsMapBlock(workspace);
   if (!map || typeof Blockly.serialization?.blocks?.save !== "function") return 0;
-  const entry = listDefaultsMapEntries(workspace).find((item) => item.key === wanted);
+  const entry = listDefaultContextMapEntries(workspace).find((item) => item.runtimeKey === wanted);
   if (!entry) return 0;
   const valueBlock = map.getInputTargetBlock(`VAL${entry.index}`);
   if (!valueBlock) return 0;
@@ -131,10 +142,14 @@ function literalFallbackBlock(
     text.setFieldValue(code, "TEXT");
     return text;
   }
-  if (valueBlock.type === "text" || valueBlock.type === "math_number" ||
-    valueBlock.type === "logic_boolean" || valueBlock.type.startsWith("party_")) {
-    if (typeof Blockly.serialization?.blocks?.save !== "function" ||
-      typeof Blockly.serialization?.blocks?.append !== "function") {
+  if (
+    valueBlock.type === "text" || valueBlock.type === "math_number" ||
+    valueBlock.type === "logic_boolean" || valueBlock.type.startsWith("party_")
+  ) {
+    if (
+      typeof Blockly.serialization?.blocks?.save !== "function" ||
+      typeof Blockly.serialization?.blocks?.append !== "function"
+    ) {
       return null;
     }
     const state = Blockly.serialization.blocks.save(valueBlock, { addCoordinates: false });
@@ -162,10 +177,7 @@ export function defaultsMapValueBlock(
   if (!map) return null;
   const wanted = key.trim();
   if (!wanted) return null;
-  const count = Number(
-    (map as Blockly.Block & { itemCount_?: number }).itemCount_ ??
-      mapCountFromInputs(map),
-  );
+  const count = contextMapItemCount(map);
   for (let i = 0; i < count; i++) {
     if (String(map.getFieldValue(`KEY${i}`) ?? "").trim() !== wanted) continue;
     return map.getInputTargetBlock(`VAL${i}`);
@@ -175,17 +187,9 @@ export function defaultsMapValueBlock(
 
 function findDefaultsMapBlock(workspace: Workspace): Blockly.Block | null {
   for (const block of workspace.getTopBlocks(false)) {
-    if (block.type === DEFAULTS_BLOCK_TYPE) {
-      return block.getInputTargetBlock("MAP");
-    }
+    if (block.type === DEFAULT_CONTEXT_MAP_TYPE) return block;
   }
   return null;
-}
-
-function mapCountFromInputs(map: Blockly.Block): number {
-  let n = 0;
-  while (map.getInput(`VAL${n}`) || map.getField(`KEY${n}`)) n++;
-  return n;
 }
 
 function mapsGetKey(block: Blockly.Block): string {

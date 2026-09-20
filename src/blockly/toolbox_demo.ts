@@ -469,7 +469,7 @@ export function buildDemoToolbox(locale: string, context: ToolboxContext = {}): 
             type: "maps_get",
             fields: { NAME: "defaults" },
             inputs: {
-              KEY: { shadow: { type: "text", fields: { TEXT: "*.language" } } },
+              KEY: { shadow: { type: "text", fields: { TEXT: "language" } } },
             },
           },
           { kind: "block", type: "maps_keys" },

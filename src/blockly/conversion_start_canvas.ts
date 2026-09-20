@@ -98,7 +98,7 @@ export function findScaffoldInstanceRoot(workspace: Blockly.Workspace): Blockly.
   if (underStart) return underStart;
   for (const top of workspace.getTopBlocks(false)) {
     if (top.type === DEFAULTS_BLOCK_TYPE || top.type === CONVERSION_START_TYPE) continue;
-    if (top.type === "maps_create_with") continue;
+    if (top.type === "default_context_map" || top.type === "maps_create_with") continue;
     if (isInstanceRootBlockType(top.type) || top.type === "composition") return top;
     if (top.type.startsWith("schema_")) return top;
   }

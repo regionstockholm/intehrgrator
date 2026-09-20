@@ -35,6 +35,12 @@ export interface WorkbenchTestSnapshot {
   autoplay: boolean;
   unmappedMandatory: number;
   blocklyBlocks: BlocklyBlockSummary[];
+  lastRefreshReport: {
+    kind: "target" | "source";
+    previousFilename: string;
+    nextFilename: string;
+    warnings: Array<{ kind: string; path: string; message: string }>;
+  } | null;
 }
 
 export interface IntehrgratorTestApi {
@@ -43,6 +49,9 @@ export interface IntehrgratorTestApi {
   loadTemplate(filename: string, content: string): void;
   loadSchema(filename: string, content: string): void;
   addExample(filename: string, content: string): void;
+  /** Non-destructive refresh — keeps canvas mappings and records lastRefreshReport. */
+  refreshTarget(filename: string, content: string): void;
+  refreshSchema(filename: string, content: string): void;
   armSlot(slotId: string): void;
   /** Programmatic bind (same path as Click-to-Map after Listening Mode). */
   bindFromNode(path: string, format: SourceFormatId): void;

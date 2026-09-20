@@ -140,9 +140,15 @@ export function restoreDefaultsBlockState(
   options?: EnsureDefaultsOptions,
 ): void {
   const converted = state ? contextMapFromDefaultsJson(state) ?? state : null;
-  // An empty map is a real choice (New / blank canvas). Do not replace it with
-  // the openEHR factory when a saved block is present.
-  if (converted && typeof Blockly.serialization?.blocks?.append === "function") {
+  const allowFactory = options?.factory !== false &&
+    targetFormat !== "json-schema" &&
+    targetFormat !== "xml-schema";
+  // New map (`factory: false`) keeps an empty block. The blank-canvas
+  // placeholder is also empty — first target load / Test API pass
+  // `{ factory: true }` so we dump the openEHR factory instead of restoring it.
+  const restoreSaved = converted &&
+    !(allowFactory && isEmptyContextMapState(converted));
+  if (restoreSaved && typeof Blockly.serialization?.blocks?.append === "function") {
     try {
       Blockly.serialization.blocks.append(converted as Record<string, unknown>, workspace);
       const block = findDefaultsBlock(workspace);

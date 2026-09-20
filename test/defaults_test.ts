@@ -665,7 +665,15 @@ Deno.test("empty Defaults Map does not insert optional health_care_facility", ()
     extraState: { itemCount: 0 },
   }, "sv");
   const { skeleton } = generateSkeleton(opt);
-  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null, "sv");
+  loadSkeletonIntoWorkspace(
+    workspace,
+    skeleton,
+    createEmptyModel("t"),
+    null,
+    "sv",
+    undefined,
+    { factory: false },
+  );
   const context = workspace.getAllBlocks(false).find((block) => block.type === "event_context");
   assertExists(context);
   assertEquals(
@@ -712,6 +720,73 @@ Deno.test("blank canvas default context map has no factory rows", () => {
     assertEquals(block.type, DEFAULT_CONTEXT_MAP_TYPE);
     const maps = namedMapsFromBlocklyState(Blockly.serialization.workspaces.save(workspace));
     assertEquals(Object.keys(maps[DEFAULTS_MAP_NAME] ?? {}).length, 0);
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("first target scaffold dumps factory when the canvas map is still empty", () => {
+  registerRmBlocks();
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  try {
+    ensureDefaultsBlock(workspace, "sv", undefined, { factory: false });
+    assertEquals(
+      (findDefaultsBlock(workspace) as { itemCount_?: number } | null)?.itemCount_,
+      0,
+    );
+    const { skeleton } = generateSkeleton(opt);
+    loadSkeletonIntoWorkspace(
+      workspace,
+      skeleton,
+      createEmptyModel("t"),
+      null,
+      "sv",
+      undefined,
+      { factory: true },
+    );
+    const defaults = findDefaultsBlock(workspace);
+    assertExists(defaults);
+    assertEquals(defaults.getFieldValue("KEY0"), "language");
+    assertEquals(defaults.getInputTargetBlock("VAL0")?.type, "term_pick");
+    assertEquals(defaults.getInputTargetBlock("VAL0")?.getFieldValue("SET"), "ISO_639-1");
+    const lookups = workspace.getAllBlocks(false).filter((block) => block.type === "maps_get");
+    assert(lookups.length > 0, "expected Default point maps_get lookups after factory dump");
+    assert(
+      lookups.some((block) =>
+        block.getFieldValue("NAME") === "defaults" &&
+        block.getInputTargetBlock("KEY")?.getFieldValue("TEXT") === "language"
+      ),
+      "language Default point should look up runtime key language",
+    );
+  } finally {
+    workspace.dispose();
+  }
+});
+
+Deno.test("New empty default context map survives skeleton load when factory dump is off", () => {
+  registerRmBlocks();
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  try {
+    ensureDefaultsBlock(workspace, "sv", undefined, { factory: false });
+    const { skeleton } = generateSkeleton(opt);
+    loadSkeletonIntoWorkspace(
+      workspace,
+      skeleton,
+      createEmptyModel("t"),
+      null,
+      "sv",
+      undefined,
+      { factory: false },
+    );
+    const defaults = findDefaultsBlock(workspace);
+    assertExists(defaults);
+    assertEquals((defaults as { itemCount_?: number }).itemCount_, 0);
+    assertEquals(
+      workspace.getAllBlocks(false).filter((block) => block.type === "maps_get").length,
+      0,
+    );
   } finally {
     workspace.dispose();
   }

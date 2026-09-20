@@ -58,6 +58,11 @@ export function findParentSkeletonNode(
   }
   return null;
 }
+
+export function findSkeletonNodeIn(
+  nodes: SkeletonNode[],
+  slotId: string,
+): SkeletonNode | undefined {
   for (const node of nodes) {
     if (node.slotId === slotId) return node;
     const nested = findSkeletonNodeIn(node.children, slotId);

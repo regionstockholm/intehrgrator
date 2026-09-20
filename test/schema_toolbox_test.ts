@@ -12,6 +12,7 @@ import {
   ensureDefaultsBlock,
   findDefaultsBlock,
 } from "@intehrgrator/blockly/defaults_canvas.ts";
+import { DEFAULT_CONTEXT_MAP_TYPE } from "@intehrgrator/core/defaults/mod.ts";
 import {
   attachOptionalSchemaChild,
   loadSkeletonIntoWorkspace,
@@ -24,7 +25,6 @@ import { msg } from "@intehrgrator/blockly/i18n/custom_msg.ts";
 import { skeletonToolboxSignature } from "@intehrgrator/blockly/schema_catalog.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
-import { MAPS_CREATE_WITH } from "@intehrgrator/core/defaults/mod.ts";
 import "blockly/blocks";
 
 type ToolboxItem = { kind?: string; name?: string; contents?: unknown[]; type?: string };
@@ -129,10 +129,8 @@ Deno.test("JSON/XSD targets get empty Defaults Map block", () => {
   ensureDefaultsBlock(workspace, "en", "json-schema");
   const defaults = findDefaultsBlock(workspace);
   assert(defaults);
-  const map = defaults!.getInputTargetBlock("MAP");
-  assert(map);
-  assertEquals(map!.type, MAPS_CREATE_WITH);
-  assertEquals((map as { itemCount_?: number }).itemCount_, 0);
+  assertEquals(defaults!.type, DEFAULT_CONTEXT_MAP_TYPE);
+  assertEquals((defaults as { itemCount_?: number }).itemCount_, 0);
   workspace.dispose();
 });
 
@@ -215,7 +213,7 @@ Deno.test("JSON schema skeleton load replaces openEHR Defaults Map with empty ma
   registerMapBlocks();
   const workspace = new Blockly.Workspace();
   ensureDefaultsBlock(workspace, "en", "openehr-template");
-  const before = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP") as { itemCount_?: number } | null;
+  const before = findDefaultsBlock(workspace) as { itemCount_?: number } | null;
   assert(before && before.itemCount_! > 0, "openEHR defaults should start with factory keys");
 
   const target = getTargetFormatHandler("json-schema").load("summary.json", schema);
@@ -227,7 +225,7 @@ Deno.test("JSON schema skeleton load replaces openEHR Defaults Map with empty ma
     "en",
     "json-schema",
   );
-  const after = findDefaultsBlock(workspace)?.getInputTargetBlock("MAP") as { itemCount_?: number } | null;
+  const after = findDefaultsBlock(workspace) as { itemCount_?: number } | null;
   assertEquals(after?.itemCount_, 0);
   workspace.dispose();
 });

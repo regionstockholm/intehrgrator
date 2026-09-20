@@ -3,9 +3,11 @@ import {
   AI_CREDENTIALS_STORAGE_KEY,
   callChatCompletions,
   clearAiCredentials,
+  forwardChatCompletionsProxy,
   hasAiCredentials,
   loadAiCredentials,
   parseAiCredentials,
+  providerAuthHeaders,
   saveAiCredentials,
 } from "@intehrgrator/core/ai/credentials.ts";
 
@@ -45,6 +47,7 @@ Deno.test("parseAiCredentials requires endpoint, key, and model", () => {
       endpoint: "https://api.example/v1/chat/completions",
       apiKey: "sk-test",
       model: "gpt-4.1",
+      mappingMode: "tools",
     },
   );
 });
@@ -96,6 +99,48 @@ Deno.test("callChatCompletions posts Bearer auth and reads choice text", async (
     },
   );
   assertEquals(result.text.includes("intehrgrator-suggestions"), true);
+});
+
+Deno.test("forwardChatCompletionsProxy posts Bearer to the provider URL", async () => {
+  const res = await forwardChatCompletionsProxy(
+    {
+      endpoint: "https://api.example/v1/chat/completions",
+      apiKey: "sk-proxy",
+      body: { model: "m", messages: [] },
+    },
+    {
+      fetch: (async (input, init) => {
+        assertEquals(String(input), "https://api.example/v1/chat/completions");
+        assertEquals(new Headers(init?.headers).get("authorization"), "Bearer sk-proxy");
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }) as typeof fetch,
+    },
+  );
+  assertEquals(res.status, 200);
+  assertEquals(JSON.parse(await res.text()).ok, true);
+});
+
+Deno.test("Anthropic endpoints send Bearer and x-api-key", async () => {
+  assertEquals(
+    providerAuthHeaders("https://api.anthropic.com/v1/chat/completions", "sk-ant"),
+    { authorization: "Bearer sk-ant", "x-api-key": "sk-ant" },
+  );
+  const res = await forwardChatCompletionsProxy(
+    {
+      endpoint: "https://api.anthropic.com/v1/chat/completions",
+      apiKey: "sk-ant",
+      body: { model: "claude-sonnet-4-6", messages: [] },
+    },
+    {
+      fetch: (async (_input, init) => {
+        const headers = new Headers(init?.headers);
+        assertEquals(headers.get("authorization"), "Bearer sk-ant");
+        assertEquals(headers.get("x-api-key"), "sk-ant");
+        return new Response("{}", { status: 200 });
+      }) as typeof fetch,
+    },
+  );
+  assertEquals(res.status, 200);
 });
 
 Deno.test("callChatCompletions surfaces HTTP errors", async () => {

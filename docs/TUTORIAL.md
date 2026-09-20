@@ -81,13 +81,29 @@ The **Sheets** tab in the Mapping Editor embeds a spreadsheet for editing projec
 
 ## 8. AI-assisted mapping
 
-1. **Copy prompt** (toolbar) builds a markdown prompt (▾: embed / attach / URI delivery).
-2. Paste into ChatGPT, Claude, Cursor, or similar — **or** save **AI credentials** and use **Call AI** (default when credentials exist).
-3. Copy the `intehrgrator-suggestions` JSON from the response, or let Call AI import it.
-4. **Import AI suggestions** still accepts a pasted block if you used Copy prompt.
-5. **Run Test** to verify.
+Three ways to bring a model onto the mapping:
 
-Refreshing a target or source opens a report with **Copy merge prompt** / **Call AI** for slots that no longer fit. Detached Blockly stays on the canvas.
+1. **Copy prompt** (toolbar ▾: embed / attach / URI) → paste into ChatGPT, Claude, Cursor, … → **Import AI suggestions**.
+2. **Call AI** — save **AI credentials…** (provider presets + key links). Default mode sends mapping **tools** named like MCP (`map_slot`, `import_suggestions`, `run_test`, …) and applies them on the live canvas. **Suggestions JSON only** is the older one-shot import. Desktop forwards the provider call so browser CORS does not block Gemini/OpenAI/Anthropic/HF/Zen.
+3. **IDE + MCP** (desktop) — see Appendix A. OpenCode’s cloud runner / `opencode serve` can use the same HTTP Agent API when it can reach the desktop.
+
+Provider key pages (also linked from the credentials dialog). Longer walkthrough: [Call AI credentials](AI_CREDENTIALS.md).
+
+| Provider | Create credentials |
+|----------|-------------------|
+| Google Gemini | [AI Studio API keys](https://aistudio.google.com/app/apikey) · [OpenAI-compat docs](https://ai.google.dev/gemini-api/docs/openai) |
+| OpenAI | [API keys](https://platform.openai.com/api-keys) · [Chat completions](https://platform.openai.com/docs/api-reference/chat) |
+| Anthropic Claude | [Console keys](https://console.anthropic.com/settings/keys) · [OpenAI SDK compat](https://platform.claude.com/docs/en/api/openai-sdk) |
+| Ollama local | [OpenAI compatibility](https://docs.ollama.com/openai) (dummy key `ollama`) |
+| Ollama Cloud | [API keys](https://ollama.com/settings/keys) · [Cloud](https://docs.ollama.com/cloud) |
+| LM Studio local | [OpenAI compat](https://lmstudio.ai/docs/developer/openai-compat) · [Auth tokens](https://lmstudio.ai/docs/developer/core/authentication) |
+| LM Studio cloud / remote | [LM Link](https://lmstudio.ai/docs/lmlink/basics) · [Bionic models](https://lmstudio.ai/docs/bionic/models) (LAN `:1234`; Bionic Cloud is in-app credits) |
+| Hugging Face | [Access tokens](https://huggingface.co/settings/tokens) · [Inference Providers](https://huggingface.co/docs/inference-providers/en/index) |
+| OpenCode Zen | [Auth / API key](https://opencode.ai/auth) · [Zen](https://opencode.ai/docs/zen/) |
+| OpenCode cloud runner | [Server](https://opencode.ai/docs/server/) · [Railway `railway ca desktop --opencode`](https://docs.railway.com/cloud-agents/opencode) — point the runner at MCP / Agent API; Zen key is still what Call AI uses |
+
+Refreshing a target or source opens a report with **Copy merge prompt** / **Call AI**. Detached Blockly stays on the canvas.
+**Run Test** after any AI pass.
 
 ## 9. Save and share projects
 
@@ -186,4 +202,4 @@ Full API reference: [docs/AGENT_WORKFLOW.md](AGENT_WORKFLOW.md).
 | **openEHR assistant** | Archetype/template lookup, terminology, spec guidance |
 | **DeepWiki** | ehrtslib and openEHR library questions |
 
-The web app (GitHub Pages) does not expose the Agent API — use copy-paste AI assist or the desktop build for IDE integration.
+The web app (GitHub Pages) does not expose the Agent API to IDEs. Use **Call AI** (in-app tools against the open project), copy-paste, or the desktop build for MCP / remote Agent API.

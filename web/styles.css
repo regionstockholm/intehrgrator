@@ -1347,6 +1347,28 @@ body.sheets-fullscreen::before {
 .dialog-label textarea.import-ai-text--invalid {
   border-color: var(--error);
 }
+.ai-provider-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.ai-provider-links {
+  margin: 0;
+  font-size: 12px;
+}
+.ai-provider-links a { color: var(--primary-dark); }
+.ai-mapping-mode {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0;
+}
+.ai-mapping-mode legend {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 0 4px;
+}
 .import-ai-report {
   margin: 0;
   padding: 8px 10px;

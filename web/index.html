@@ -647,12 +647,29 @@
       </div>
     </form>
   </dialog>
-  <dialog id="dialog-ai-credentials" class="app-dialog">
+  <dialog id="dialog-ai-credentials" class="app-dialog app-dialog--wide">
     <form method="dialog" class="dialog-form">
       <h2>AI credentials</h2>
       <p>
-        Optional OpenAI-compatible chat endpoint so <strong>Call AI</strong> can run in the Web Shell.
-        Credentials stay in this browser only — not in the Project Bundle. IDE / MCP mapping remains valid without this.
+        Optional OpenAI-compatible chat endpoint so <strong>Call AI</strong> can map from the Web Shell.
+        Credentials stay in this browser only — not in the Project Bundle.
+        <strong>Call AI</strong> can use the same mapping tools as MCP / the HTTP Agent API
+        (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …).
+        An AI-assisted IDE with local MCP remains a separate, fully valid path.
+        Step-by-step key pages:
+        <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Call AI credentials</a>.
+      </p>
+      <label class="dialog-label">
+        Provider
+        <select id="ai-provider">
+          <option value="custom">Custom OpenAI-compatible endpoint</option>
+        </select>
+      </label>
+      <p id="ai-provider-help" class="ai-provider-help"></p>
+      <p class="ai-provider-links">
+        <a id="ai-key-docs" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">Get an API key</a>
+        ·
+        <a id="ai-provider-docs" href="https://platform.openai.com/docs/api-reference/chat" target="_blank" rel="noopener noreferrer">Provider docs</a>
       </p>
       <label class="dialog-label">
         Endpoint
@@ -666,6 +683,17 @@
         Model
         <input id="ai-model" type="text" placeholder="gpt-4.1" />
       </label>
+      <fieldset class="ai-mapping-mode">
+        <legend>How Call AI maps</legend>
+        <label class="dialog-label dialog-label--checkbox">
+          <input type="radio" name="ai-mapping-mode" id="ai-mapping-mode-tools" value="tools" checked />
+          Mapping tools (MCP / Agent API names on the live workbench)
+        </label>
+        <label class="dialog-label dialog-label--checkbox">
+          <input type="radio" name="ai-mapping-mode" id="ai-mapping-mode-suggestions" value="suggestions" />
+          Suggestions JSON only (one-shot import)
+        </label>
+      </fieldset>
       <div class="dialog-actions">
         <button type="button" id="ai-credentials-clear">Clear</button>
         <span class="dialog-actions-spacer"></span>

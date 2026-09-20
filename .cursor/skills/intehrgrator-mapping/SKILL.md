@@ -25,6 +25,10 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
 
 **Headless / server:** `deno task mcp` with **no** `INTEHR_AGENT_URL` (embedded `WorkbenchService`), **or** `intEHRgrator --headless [--port n] [--bind addr] [--load file.intehrgrator] [--token secret]`. Non-loopback `--bind` requires `--token`. Target load **scaffolds** Conversion start + Template Skeleton (same as the GUI). Done when load/inspect tools answer.
 
+**Call AI (in-app):** Web Shell / desktop toolbar with saved AI credentials. intEHRgrator calls the provider and executes the same tool names (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) on the open project. Provider key walkthrough: [docs/AI_CREDENTIALS.md](../../../docs/AI_CREDENTIALS.md). A remote OpenCode server / cloud runner uses the **Headless / server** path (HTTP Agent API), not the in-app key dialog.
+
+**Copy prompt:** no API. User pastes the markdown; apply the envelope with `import_suggestions` / Import Suggestions.
+
 ## Golden path
 
 1. **`register_agent`** — note `agentId`, `displayName`, `color`. Pass those headers / `_agent*` args on writes. Done when register returns an id.

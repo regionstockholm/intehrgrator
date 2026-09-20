@@ -307,7 +307,7 @@ Second Host adapter (`VsCodeWebviewHostAdapter` + `extension/`) packaging the sa
 _Avoid_: Separate fork of the workbench
 
 **AI Assist**:
-**Copy prompt** builds a markdown prompt (target/source origins as file or URI; delivery mode: inline multipart, chat attach, or URI browse; slot manifest; link to response format spec). **Call AI** POSTs that prompt to an optional OpenAI-compatible chat endpoint whose credentials live in Host localStorage — never in the Project Bundle. Default toolbar action is **Call AI** when credentials exist, otherwise **Copy prompt**. **Import Suggestions** parses `intehrgrator-suggestions` JSON. IDE/MCP mapping remains valid without in-app credentials.
+**Copy prompt** builds a markdown prompt (target/source origins as file or URI; delivery mode: inline multipart, chat attach, or URI browse; slot manifest; link to response format spec). **Call AI** POSTs that prompt to an optional OpenAI-compatible chat endpoint whose credentials live in Host localStorage — never in the Project Bundle. Default Call AI mode loops MCP / Agent API tool names (`map_slot`, `import_suggestions`, `run_test`, …) on the live workbench; **Suggestions JSON only** is the one-shot import. Default toolbar action is **Call AI** when credentials exist, otherwise **Copy prompt**. IDE/MCP mapping and a remote HTTP Agent API remain valid without in-app credentials. Provider keys: `docs/AI_CREDENTIALS.md`.
 _Avoid_: AI Suggest button as the only path, baking API keys into the Project Bundle
 
 **Mapping Suggestion Import**:

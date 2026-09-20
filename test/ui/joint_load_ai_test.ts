@@ -28,6 +28,32 @@ Deno.test({
       await page.locator('[data-ai-action="credentials"]').waitFor({ state: "visible" });
       await page.click('[data-ai-action="credentials"]');
       await page.locator("#dialog-ai-credentials").waitFor({ state: "visible", timeout: 5_000 });
+      await page.selectOption("#ai-provider", "gemini");
+      assertEquals(
+        await page.locator("#ai-endpoint").inputValue(),
+        "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      );
+      assertEquals(
+        await page.locator("#ai-key-docs").getAttribute("href"),
+        "https://aistudio.google.com/app/apikey",
+      );
+      assertEquals(await page.locator("#ai-mapping-mode-tools").isChecked(), true);
+      assert(
+        (await page.locator("#ai-credentials-guide").getAttribute("href"))?.includes("AI_CREDENTIALS.md"),
+      );
+      await page.selectOption("#ai-provider", "openai");
+      assertEquals(await page.locator("#ai-endpoint").inputValue(), "https://api.openai.com/v1/chat/completions");
+      await page.selectOption("#ai-provider", "huggingface");
+      assertEquals(
+        await page.locator("#ai-key-docs").getAttribute("href"),
+        "https://huggingface.co/settings/tokens",
+      );
+      await page.selectOption("#ai-provider", "ollama-local");
+      assertEquals(await page.locator("#ai-api-key").inputValue(), "ollama");
+      await page.selectOption("#ai-provider", "opencode-cloud");
+      assert(
+        (await page.locator("#ai-provider-help").innerText()).includes("opencode serve"),
+      );
       await page.click("#ai-credentials-cancel");
     } finally {
       await browser.close();

@@ -86,12 +86,11 @@ export function parseDefaultsPathKey(
 }
 
 /**
- * Choose the most specific Defaults Map key that lights `parent.rmAttribute`.
+ * Choose the most specific Defaults Map key that lights `attribute` on `trail`.
  */
 export function resolveDefaultsMapKey(
   mapKeys: ReadonlySet<string> | undefined,
   trail: readonly SkeletonNode[],
-  parent: SkeletonNode,
   attribute: string,
 ): string | undefined {
   if (!mapKeys?.size) return undefined;

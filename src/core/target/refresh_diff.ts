@@ -114,9 +114,7 @@ export function diffSourceRefresh(options: {
   for (const path of options.mappedPaths) {
     if (!path) continue;
     if (pathExists(next, path)) continue;
-    if (!pathExists(previous, path) && ![...previous].some((item) => item.includes(path) || path.includes(item))) {
-      continue;
-    }
+    if (!pathExists(previous, path)) continue;
     warnings.push({
       kind: "removed-path",
       path,
@@ -141,11 +139,18 @@ export function diffSourceRefresh(options: {
   };
 }
 
+/** JSONPath `$` / XML `/` are roots: they do not mean every descendant exists. */
+function normalizeIndexedPath(path: string): string {
+  return path.replace(/\[(\d+)\]/g, "[*]");
+}
+
 function pathExists(paths: Set<string>, wanted: string): boolean {
+  if (!wanted) return false;
   if (paths.has(wanted)) return true;
+  const wantedNorm = normalizeIndexedPath(wanted);
   for (const path of paths) {
-    if (path === wanted || path.endsWith(wanted) || wanted.endsWith(path)) return true;
-    if (path.includes(wanted) || wanted.includes(path)) return true;
+    if (path === wanted) return true;
+    if (normalizeIndexedPath(path) === wantedNorm) return true;
   }
   return false;
 }

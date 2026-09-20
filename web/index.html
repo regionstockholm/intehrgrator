@@ -597,6 +597,13 @@
           <button type="button" id="joint-target-file">From file…</button>
           <button type="button" id="joint-target-current" hidden>Use loaded target</button>
         </div>
+        <label class="dialog-label">
+          Target URL
+          <input id="joint-target-url" type="url" inputmode="url" autocomplete="url" placeholder="https://…" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="joint-target-url-load">Fetch URL</button>
+        </div>
       </fieldset>
       <fieldset class="joint-load-fieldset">
         <legend>Default context map</legend>
@@ -624,7 +631,7 @@
       <div class="dialog-actions">
         <span class="dialog-actions-spacer"></span>
         <button type="button" id="joint-load-cancel" value="cancel">Cancel</button>
-        <button type="submit" id="joint-load-confirm" value="confirm">Load &amp; scaffold</button>
+        <button type="submit" id="joint-load-confirm" value="confirm" disabled>Load &amp; scaffold</button>
       </div>
     </form>
   </dialog>

@@ -668,8 +668,14 @@ Deno.test("empty Defaults Map does not insert optional health_care_facility", ()
   loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null, "sv");
   const context = workspace.getAllBlocks(false).find((block) => block.type === "event_context");
   assertExists(context);
-  assertEquals(context.getInputTargetBlock(optionalRmInputName("health_care_facility")), null);
-  assertEquals(context.getInputTargetBlock(rmAttributeInputName("health_care_facility")), null);
+  assertEquals(
+    context.getInputTargetBlock(optionalRmInputName("health_care_facility"))?.type ?? null,
+    null,
+  );
+  assertEquals(
+    context.getInputTargetBlock(rmAttributeInputName("health_care_facility"))?.type ?? null,
+    null,
+  );
   workspace.dispose();
 });
 

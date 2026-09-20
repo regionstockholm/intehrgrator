@@ -79,6 +79,30 @@ Deno.test("source refresh warns on mapped paths that left the schema", () => {
   assertEquals(report.warnings.some((w) => w.path === "$.systolic"), false);
 });
 
+Deno.test("source refresh treats JSON root $ as not covering child paths", () => {
+  const previous: SchemaTreeNode = {
+    name: "root",
+    path: "$",
+    type: "object",
+    children: [{ name: "gone", path: "$.gone", type: "string", children: [] }],
+  };
+  const next: SchemaTreeNode = {
+    name: "root",
+    path: "$",
+    type: "object",
+    children: [{ name: "pulse", path: "$.pulse", type: "number", children: [] }],
+  };
+  const report = diffSourceRefresh({
+    previousTree: previous,
+    nextTree: next,
+    mappedPaths: ["$.gone"],
+    previousFilename: "old.json",
+    nextFilename: "new.json",
+  });
+  assert(report.warnings.some((w) => w.kind === "removed-path" && w.path === "$.gone"));
+  assertEquals(report.warnings.some((w) => w.path === "$"), false);
+});
+
 Deno.test("mappedSourcePathsFromExpressions pulls quoted paths", () => {
   assertEquals(
     mappedSourcePathsFromExpressions(['xpathNumber("$.systolic")', "maps_get(\"defaults\", \"language\")"]),

@@ -1073,6 +1073,22 @@ function applyDefaultContextMapFromCanvas(): void {
   render();
 }
 
+/** Target refresh is a scaffold act: join new Default points, keep source-over-defaults. */
+function applyDefaultContextMapAfterRefresh(): void {
+  const s = controller.getState();
+  if (!s.skeleton.length) return;
+  const hasProduct = workspace.getTopBlocks(false).some((block) =>
+    block.type !== "default_context_map" &&
+    block.type !== "conversion_start" &&
+    block.type !== "maps_create_with"
+  );
+  if (!hasProduct) return;
+  applyDefaultContextMap(workspace, s.skeleton, (parent, insertion) =>
+    attachOptionalRmChild(workspace, parent, insertion)
+  );
+  persistBlocklyCanvas({ summary: "Refresh target — apply default context map" });
+}
+
 function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
   const sig = s.skeleton.length ? skeletonToolboxSignature(s.skeleton) : "";
   const key = `${s.target?.format ?? ""}|${s.templateId}|${sig}|${s.modelLanguage ?? ""}`;
@@ -2230,14 +2246,29 @@ function emptyContextMapJson(): Record<string, unknown> {
   return { type: "default_context_map", extraState: { itemCount: 0, targets: [] }, fields: {} };
 }
 
+function jointHasTarget(): boolean {
+  return Boolean(jointPendingTarget || controller.getState().templateId);
+}
+
+function syncJointConfirmButton(): void {
+  const confirm = document.getElementById("joint-load-confirm") as HTMLButtonElement | null;
+  if (!confirm) return;
+  confirm.disabled = !jointHasTarget();
+  confirm.textContent = selectedJointMapChoice() === "new"
+    ? "Load into Target schema"
+    : "Load & scaffold";
+}
+
 async function openJointLoadDialog(): Promise<void> {
   const dialog = document.getElementById("dialog-joint-load") as HTMLDialogElement | null;
   const summary = document.getElementById("joint-target-summary");
   const catalogEl = document.getElementById("joint-map-catalog");
   const useCurrent = document.getElementById("joint-target-current") as HTMLButtonElement | null;
+  const urlInput = document.getElementById("joint-target-url") as HTMLInputElement | null;
   if (!dialog || !summary || !catalogEl) return;
   jointPendingTarget = null;
   jointPendingMapFile = null;
+  if (urlInput) urlInput.value = "";
   const fileOption = document.getElementById("joint-map-file-option");
   if (fileOption) fileOption.hidden = true;
   const state = controller.getState();
@@ -2263,6 +2294,7 @@ async function openJointLoadDialog(): Promise<void> {
   }
   const factoryRadio = dialog.querySelector<HTMLInputElement>('input[name="joint-map"][value="factory"]');
   if (factoryRadio) factoryRadio.checked = true;
+  syncJointConfirmButton();
   dialog.showModal();
 }
 
@@ -2274,6 +2306,10 @@ function selectedJointMapChoice(): string {
 
 async function confirmJointLoad(): Promise<void> {
   const dialog = document.getElementById("dialog-joint-load") as HTMLDialogElement | null;
+  if (!jointHasTarget()) {
+    controller.setStatusMessage("Pick a target file or URL first.");
+    return;
+  }
   const choice = selectedJointMapChoice();
   const isNew = choice === "new";
   let mapBlock: unknown | null = null;
@@ -2320,7 +2356,7 @@ async function confirmJointLoad(): Promise<void> {
       applyDefaultContextMapFromCanvas();
     }
   } else {
-    controller.setStatusMessage("Pick a target file first.");
+    controller.setStatusMessage("Pick a target file or URL first.");
     return;
   }
   dialog?.close();
@@ -2337,6 +2373,7 @@ document.getElementById("joint-target-file")?.addEventListener("click", () => {
     jointPendingTarget = { name: file.name, text: file.text };
     const summary = document.getElementById("joint-target-summary");
     if (summary) summary.textContent = `Selected: ${file.name}`;
+    syncJointConfirmButton();
   })();
 });
 document.getElementById("joint-target-current")?.addEventListener("click", () => {
@@ -2344,6 +2381,26 @@ document.getElementById("joint-target-current")?.addEventListener("click", () =>
   const state = controller.getState();
   const summary = document.getElementById("joint-target-summary");
   if (summary) summary.textContent = `Using loaded: ${state.templateFilename || state.templateId}`;
+  syncJointConfirmButton();
+});
+document.getElementById("joint-target-url-load")?.addEventListener("click", () => {
+  void (async () => {
+    const urlInput = document.getElementById("joint-target-url") as HTMLInputElement | null;
+    const url = urlInput?.value.trim() ?? "";
+    if (!url) {
+      alert("Paste a target URL first.");
+      return;
+    }
+    try {
+      const file = await host.fetchTextUrl(url);
+      jointPendingTarget = { name: file.name, text: file.text };
+      const summary = document.getElementById("joint-target-summary");
+      if (summary) summary.textContent = `Fetched: ${file.name}`;
+      syncJointConfirmButton();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
 });
 document.getElementById("joint-map-browse")?.addEventListener("click", () => {
   void (async () => {
@@ -2365,6 +2422,12 @@ document.getElementById("joint-map-browse")?.addEventListener("click", () => {
 });
 document.getElementById("joint-load-cancel")?.addEventListener("click", () => {
   (document.getElementById("dialog-joint-load") as HTMLDialogElement | null)?.close();
+});
+document.getElementById("dialog-joint-load")?.addEventListener("change", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.name === "joint-map") {
+    syncJointConfirmButton();
+  }
 });
 document.getElementById("dialog-joint-load")?.querySelector("form")?.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -2391,12 +2454,14 @@ async function refreshTargetFromFile(): Promise<void> {
   );
   if (!file) return;
   controller.refreshTargetContent(file.name, file.text);
+  applyDefaultContextMapAfterRefresh();
   showRefreshReport();
 }
 
 async function refreshTargetFromUrl(url: string): Promise<void> {
   const file = await host.fetchTextUrl(url);
   controller.refreshTargetContent(file.name, file.text);
+  applyDefaultContextMapAfterRefresh();
   showRefreshReport();
 }
 
@@ -2456,8 +2521,14 @@ async function callAiWithPrompt(prompt: string): Promise<void> {
   }
   controller.setStatusMessage("Calling AI…");
   try {
-    const result = await callChatCompletions(creds, prompt);
+    const result = await callChatCompletions(creds, prompt, {
+      signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+        ? AbortSignal.timeout(120_000)
+        : undefined,
+    });
     const imported = controller.importAiSuggestions(result.text);
+    persistBlocklyCanvas({ summary: "Call AI" });
+    render();
     controller.setStatusMessage(
       `Call AI: ${imported.applied} applied · ${imported.errors.length} errors`,
     );
@@ -2891,6 +2962,7 @@ function installWorkbenchTestApi(): void {
     },
     refreshTarget(filename, content) {
       controller.refreshTargetContent(filename, content);
+      applyDefaultContextMapAfterRefresh();
     },
     refreshSchema(filename, content) {
       controller.refreshSchemaContent(filename, content);

@@ -27,7 +27,7 @@ Click **+ Add Example** to load one or more JSON/XML instance files (or a GitHub
 
 ## 3. Load a target
 
-In **Target & Previews** (right pane), click **Load target & default context map**. Pick a target file and a **default context map** (openEHR factory, a saved snapshot, a file, or **New**). Confirm scaffolds the **Template Skeleton** and **Default point**s. After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure. Drag a leaf onto **scaffold target** chips, or a subtree onto a map value socket, to author the map.
+In **Target & Previews** (right pane), click **Load target & default context map**. Pick a target (file, URL, or the one already loaded) and a **default context map** (openEHR factory, a saved snapshot, a file, or **New**). Confirm scaffolds the **Template Skeleton** and **Default point**s. **New** loads the target into the **Target schema** tab only so you can pull chips and values, then Apply. After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure. Drag a leaf onto **scaffold target** chips, or a subtree onto a map value socket, to author the map.
 
 Supported targets:
 

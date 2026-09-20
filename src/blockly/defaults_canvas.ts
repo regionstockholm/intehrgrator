@@ -140,8 +140,9 @@ export function restoreDefaultsBlockState(
   options?: EnsureDefaultsOptions,
 ): void {
   const converted = state ? contextMapFromDefaultsJson(state) ?? state : null;
-  const empty = !converted || isEmptyContextMapState(converted);
-  if (converted && !empty && typeof Blockly.serialization?.blocks?.append === "function") {
+  // An empty map is a real choice (New / blank canvas). Do not replace it with
+  // the openEHR factory when a saved block is present.
+  if (converted && typeof Blockly.serialization?.blocks?.append === "function") {
     try {
       Blockly.serialization.blocks.append(converted as Record<string, unknown>, workspace);
       const block = findDefaultsBlock(workspace);
@@ -378,9 +379,12 @@ export function hydrateDefaultsMapArgument(
     : { x: DEFAULTS_X, y: DEFAULTS_Y };
   existing?.dispose(false);
   const converted = mapBlockState ? contextMapFromDefaultsJson(mapBlockState) : null;
+  const allowFactory = targetFormat !== "json-schema" &&
+    targetFormat !== "xml-schema" &&
+    !isEmptyContextMapState(converted);
   if (!converted || typeof Blockly.serialization?.blocks?.append !== "function") {
     const block = ensureDefaultsBlock(workspace, uiLanguage, targetFormat, {
-      factory: targetFormat !== "json-schema" && targetFormat !== "xml-schema",
+      factory: allowFactory,
     });
     moveTo(block, xy.x, xy.y);
     return;
@@ -390,7 +394,7 @@ export function hydrateDefaultsMapArgument(
     workspace,
   ) as Blockly.Block | undefined;
   if (!appended) {
-    ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
+    ensureDefaultsBlock(workspace, uiLanguage, targetFormat, { factory: allowFactory });
     return;
   }
   appended.setDeletable(false);

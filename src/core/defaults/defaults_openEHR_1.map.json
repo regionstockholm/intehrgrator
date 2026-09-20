@@ -1,16 +1,18 @@
 {
   "type": "maps_create_with",
   "extraState": {
-    "itemCount": 7
+    "itemCount": 9
   },
   "fields": {
-    "KEY0": "language",
-    "KEY1": "territory",
-    "KEY2": "encoding",
-    "KEY3": "time",
-    "KEY4": "composer_name",
-    "KEY5": "health_care_facility",
-    "KEY6": "subject"
+    "KEY0": "*.language",
+    "KEY1": "COMPOSITION.territory",
+    "KEY2": "*.encoding",
+    "KEY3": "*.start_time",
+    "KEY4": "*.origin",
+    "KEY5": "*.time",
+    "KEY6": "COMPOSITION.composer",
+    "KEY7": "EVENT_CONTEXT.health_care_facility",
+    "KEY8": "*.subject"
   },
   "inputs": {
     "VAL0": {
@@ -79,6 +81,22 @@
       }
     },
     "VAL4": {
+      "shadow": {
+        "type": "text",
+        "fields": {
+          "TEXT": "2026-08-01T09:13:58+02:00"
+        }
+      }
+    },
+    "VAL5": {
+      "shadow": {
+        "type": "text",
+        "fields": {
+          "TEXT": "2026-08-01T09:13:58+02:00"
+        }
+      }
+    },
+    "VAL6": {
       "shadow": {
         "type": "text",
         "fields": {
@@ -173,7 +191,7 @@
         }
       }
     },
-    "VAL5": {
+    "VAL7": {
       "shadow": {
         "type": "text",
         "fields": {
@@ -210,7 +228,7 @@
         }
       }
     },
-    "VAL6": {
+    "VAL8": {
       "shadow": {
         "type": "text",
         "fields": {

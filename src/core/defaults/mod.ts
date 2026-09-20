@@ -1,6 +1,6 @@
 export {
   bindDefaultPoints,
-  OPENEHR_DEFAULT_POINTS,
+  parseDefaultsPathKey,
   resolveDefaultsMapKey,
   type BoundDefaultPoint,
   type DefaultPoint,
@@ -12,6 +12,7 @@ export {
   FACTORY_ENCODING,
   FACTORY_HEALTH_CARE_FACILITY,
   FACTORY_SUBJECT,
+  FACTORY_TIME,
   FACTORY_TERRITORY,
   factoryDefaultsEntries,
 } from "./factory.ts";

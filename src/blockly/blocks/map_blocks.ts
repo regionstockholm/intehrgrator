@@ -352,7 +352,7 @@ export function registerMapBlocks(): void {
         INFO_SVG,
         18,
         18,
-        "Default context mapping: design-time table of execution-context values (language, territory, time, composer, facility, …). Folder: load, save, or download.",
+        "Default context mapping: design-time table keyed by RM paths (Class.attribute, wildcards such as *.language). Folder: load, save, or download.",
         () => {
           defaultsMapInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
         },

@@ -648,7 +648,12 @@
   <span id="defaults-map-block-info" class="info-tip info-tip--anchor-host">
     <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About default context mapping">i</button>
     <span id="tip-defaults-map-block" class="info-tip-balloon" role="tooltip">
-      <strong>Default context mapping</strong> is the design-time table you author on the canvas (language, territory, time, composer, facility, nested objects, …). At <em>convert time</em>, generated Conversion Scripts receive it as a <code>defaults</code> argument. Runtime code can merge that bag with per-message values, other named maps, and Sheet grids — the canvas map is the reusable baseline, not literals baked into every slot.<br>
+      <strong>Default context mapping</strong> is the design-time table you author on the canvas. At <em>convert time</em>, generated Conversion Scripts receive it as a <code>defaults</code> argument. Runtime code can merge that bag with per-message values, other named maps, and Sheet grids — the canvas map is the reusable baseline, not literals baked into every slot.<br>
+      <strong>Keys are RM paths</strong>, not simplified-format <code>ctx</code> names. Scaffolding fills matching skeleton slots from those keys:
+      <code>Class.attribute</code> (e.g. <code>COMPOSITION.composer</code>, <code>EVENT_CONTEXT.health_care_facility</code>),
+      ancestor paths (<code>COMPOSITION.context.health_care_facility</code>),
+      and wildcards (<code>*.language</code> lights every language slot; <code>*.encoding</code>, <code>*.subject</code>, <code>*.time</code> / <code>*.start_time</code> / <code>*.origin</code>).
+      A more specific key wins when several match the same slot. Extra keys you add stay available for Map lookups even if they do not light a slot.<br>
       Why design-time? So you can change site language, facility, or encoding once and re-run the same mapping against many source instances without regenerating the script. Map lookups on the canvas read this binding by name; hardcoding inlines one key when you want a fixed literal instead.<br>
       The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
     </span>

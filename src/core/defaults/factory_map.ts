@@ -19,13 +19,13 @@ function patchFactoryMapLanguage(state: Record<string, unknown>, language: strin
   const inputs = state.inputs as Record<string, unknown> | undefined;
   if (!fields || !inputs) return;
   for (const [name, key] of Object.entries(fields)) {
-    if (!/^KEY\d+$/.test(name) || key !== "language") continue;
+    if (!/^KEY\d+$/.test(name) || defaultsKeyAttribute(key) !== "language") continue;
     const index = name.slice(3);
     const val = inputs[`VAL${index}`] as
       | { block?: Record<string, unknown>; shadow?: Record<string, unknown> }
       | undefined;
     if (!val) return;
-    const setId = termSetIdForDefaultsKey("language");
+    const setId = termSetIdForDefaultsKey(String(key));
     if (val.block?.type === "term_pick" && setId) {
       const blockFields = (val.block.fields ?? {}) as Record<string, unknown>;
       blockFields.CODE = language;
@@ -44,4 +44,8 @@ function patchFactoryMapLanguage(state: Record<string, unknown>, language: strin
     }
     return;
   }
+}
+
+function defaultsKeyAttribute(key: unknown): string {
+  return String(key).split(".").filter(Boolean).at(-1) ?? "";
 }

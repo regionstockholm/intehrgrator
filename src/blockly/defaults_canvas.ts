@@ -3,7 +3,6 @@ import type { SkeletonNode, TargetFormatId } from "../types/mod.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
   bindDefaultPoints,
-  OPENEHR_DEFAULT_POINTS,
   DEFAULTS_BLOCK_TYPE,
   DEFAULTS_MAP_NAME,
   factoryDefaultsMapBlockState,
@@ -300,9 +299,8 @@ export type OptionalInsertFn = (
  * Scaffold Default points: optional RM insert when needed, then Map lookup.
  * Object-valued Defaults Map keys (`term_pick`, `PARTY_IDENTIFIED`) plug into
  * the RM attribute mouth (COMPOSITION.language, EVENT_CONTEXT.health_care_facility, …).
- * Scalar keys (`time`) still plug into the typed-shell leaf.
+ * Scalar keys (`*.time`, `*.start_time`, `*.origin`) still plug into the typed-shell leaf.
  * Skips slots that already have a non-shadow, non-literal mapping.
- * `subject` only wires when the Defaults Map currently has a `subject` key.
  */
 export function attachDefaultPointLookups(
   workspace: WorkspaceSvg | Blockly.Workspace,
@@ -311,10 +309,9 @@ export function attachDefaultPointLookups(
 ): void {
   registerMapBlocks();
   const mapKeys = defaultsMapKeys(workspace as Blockly.Workspace);
-  const bound = bindDefaultPoints(skeleton, OPENEHR_DEFAULT_POINTS, mapKeys);
+  const bound = bindDefaultPoints(skeleton, mapKeys);
   for (const { point, node, parent, mapKey } of bound) {
     const key = mapKey || point.mapKey;
-    if (point.requireMapKey && !mapKeys.has(key) && !mapKeys.has(point.mapKey)) continue;
     let targets = findBlocksBySlotId(workspace, node.slotId);
     if (!targets.length && point.optionalInsert) {
       const parentBlock = findBlocksBySlotId(workspace, parent.slotId)[0] ?? null;

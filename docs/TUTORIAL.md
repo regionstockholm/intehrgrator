@@ -39,7 +39,7 @@ When an openEHR template loads, the Mapping Editor shows a **Template Skeleton**
 
 ## 4. Set defaults before mapping
 
-A **Default context mapping** block is already on the canvas. Edit the plugged-in map (language, territory, composer, facility, time, encoding, …) or **Save as** a named snapshot.
+A **Default context mapping** block is already on the canvas. Edit the plugged-in map. Scaffolding keys are RM paths (`*.language`, `COMPOSITION.composer`, `EVENT_CONTEXT.health_care_facility`, `*.time` / `*.start_time` / `*.origin`, …), not simplified-format `ctx` names. **Save as** a named snapshot if you want to reuse the table.
 
 When you load a template, scaffolding fills **default points** with map lookups — change the map once instead of every slot.
 

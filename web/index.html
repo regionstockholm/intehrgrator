@@ -121,11 +121,13 @@
     data-split-preferred="1"
   >
     <section class="pane source-pane" id="source-pane">
-      <button type="button" class="pane-slide-rail" id="rail-source" hidden title="Show Source">Source</button>
+      <div class="pane-slide-rail pane-slide-rail--source" id="rail-source" hidden>
+        <button type="button" title="Show Source">Source</button>
+      </div>
       <div class="pane-slide-main">
-      <h2>
-        Source
-        <span class="pane-header-end">
+      <div class="pane-header">
+        <h2>Source</h2>
+        <div class="pane-header-actions">
         <span class="info-tip">
           <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-source-click-to-map" aria-label="Click-to-Map into Handlebars">i</button>
           <span id="tip-source-click-to-map" class="info-tip-balloon" role="tooltip">
@@ -142,8 +144,8 @@
           title="Slide Source away"
           aria-label="Slide Source away"
         >⟨</button>
-        </span>
-      </h2>
+        </div>
+      </div>
       <p id="handlebars-click-hint" class="source-handlebars-hint" hidden>
         Handlebars insert ready — click a source node for {{path}}; Shift+click for nested #with/#each.
       </p>
@@ -473,6 +475,8 @@
     <span id="status-save" class="status-save"></span>
     <span id="status-build" class="status-build"></span>
   </footer>
+
+  <div id="task-progress-overlay" class="task-progress-overlay" hidden></div>
 
   <dialog id="dialog-functions" class="app-dialog app-dialog--wide">
     <form method="dialog" class="dialog-form">

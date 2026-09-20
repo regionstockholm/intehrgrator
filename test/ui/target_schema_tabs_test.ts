@@ -59,6 +59,19 @@ Deno.test({
 
       await page.click("#btn-slide-source");
       await page.waitForSelector("#source-pane.pane--slid-away", { timeout: 5_000 });
+      const railTop = await page.evaluate(() => {
+        const pane = document.getElementById("source-pane");
+        const btn = document.querySelector("#rail-source button");
+        if (!pane || !btn) return null;
+        const paneBox = pane.getBoundingClientRect();
+        const btnBox = btn.getBoundingClientRect();
+        return { paneTop: paneBox.top, btnTop: btnBox.top, paneHeight: paneBox.height };
+      });
+      assert(railTop, "expected source rail button metrics");
+      assert(
+        railTop.btnTop - railTop.paneTop < railTop.paneHeight * 0.25,
+        `source rail button should sit near the top, got ${JSON.stringify(railTop)}`,
+      );
       await page.click("#rail-source");
       await page.waitForFunction(() =>
         !document.getElementById("source-pane")?.classList.contains("pane--slid-away")

@@ -234,6 +234,30 @@ Deno.test("collapsed map shows keys and the root of each value", () => {
   workspace.dispose();
 });
 
+Deno.test("collapsed ELEMENT keeps its ontology name and nested quantity units", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const element = workspace.newBlock("element");
+  element.setFieldValue("Systolic", "NAME");
+  element.setFieldValue("at0004", "ARCHETYPE_NODE_ID");
+  element.setFieldValue("pulse_oximetry", "ARCHETYPE_CTX");
+  element.setFieldValue("DV_QUANTITY", "RM_TYPE");
+
+  const quantity = workspace.newBlock("dv_quantity");
+  connectValue(element, "VALUE", quantity);
+  const units = workspace.newBlock("text");
+  units.setFieldValue("mm[Hg]", "TEXT");
+  connectValue(quantity, dvFieldInputName("units"), units);
+
+  const html = collapsedHtmlForBlock(element);
+  const visible = html.replace(/<[^>]+>/g, " ");
+  assert(html.includes("data-rm-type=\"ELEMENT\""), html);
+  assert(visible.includes("Systolic"), html);
+  assert(visible.includes("mm[Hg]"), html);
+  assert(!visible.toLowerCase().includes("pulse"), visible);
+  workspace.dispose();
+});
+
 Deno.test("collapsed term_pick shows the pick-list label", () => {
   ensure();
   const workspace = new Blockly.Workspace();

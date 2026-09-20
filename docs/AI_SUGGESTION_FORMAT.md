@@ -374,7 +374,7 @@ For a **small inline table** without a named Sheet, nest `maps_create_with` insi
         "type": "maps_get",
         "fields": { "NAME": "defaults" },
         "inputs": {
-          "KEY": { "block": { "type": "text", "fields": { "TEXT": "language" } } }
+          "KEY": { "block": { "type": "text", "fields": { "TEXT": "*.language" } } }
         }
       },
       "note": "Only when source has no language and user did not specify otherwise"

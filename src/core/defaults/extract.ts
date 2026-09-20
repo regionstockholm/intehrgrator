@@ -159,8 +159,81 @@ function literalFromInput(
     return { rmType: "PARTY_SELF" };
   }
   if (block.type === "party_identified" || block.type === "party_related" || block.type === "party_proxy") {
-    const rmType = String(block.fields?.RM_TYPE ?? block.type.replace(/^party_/, "PARTY_").toUpperCase());
-    return { rmType };
+    return partyLiteral(block);
+  }
+  if (block.type === "dv_identifier") {
+    return identifierLiteralFromBlock(block);
+  }
+  if (block.type === "lists_create_with") {
+    return listFromCreateWith(block);
   }
   return null;
+}
+
+function partyLiteral(block: BlocklyBlockJson): Record<string, unknown> {
+  const rmType = String(
+    block.fields?.RM_TYPE ??
+      block.type?.replace(/^party_/, "PARTY_").toUpperCase() ??
+      "PARTY_IDENTIFIED",
+  );
+  const out: Record<string, unknown> = { rmType };
+  const name = literalFromInput(block.inputs?.ATTR_name);
+  if (name != null && name !== "") out.name = name;
+  const identifiersRaw = block.inputs?.ATTR_identifiers?.block ??
+    block.inputs?.ATTR_identifiers?.shadow;
+  const identifiers = listFromCreateWith(identifiersRaw);
+  if (identifiers.length) {
+    out.identifiers = identifiers
+      .map(identifierFromUnknown)
+      .filter((row): row is Record<string, unknown> => row != null);
+  }
+  return out;
+}
+
+function listFromCreateWith(block: BlocklyBlockJson | undefined): unknown[] {
+  if (!block) return [];
+  if (block.type !== "lists_create_with") {
+    const one = literalFromInput({ block });
+    return one == null || one === "" ? [] : [one];
+  }
+  const addKeys = Object.keys(block.inputs ?? {}).filter((name) => /^ADD\d+$/.test(name));
+  const count = Math.max(
+    Number(block.extraState?.itemCount ?? 0),
+    addKeys.length ? Math.max(...addKeys.map((name) => Number(name.slice(3)))) + 1 : 0,
+  );
+  const items: unknown[] = [];
+  for (let i = 0; i < count; i++) {
+    const value = literalFromInput(block.inputs?.[`ADD${i}`]);
+    if (value == null || value === "") continue;
+    items.push(value);
+  }
+  return items;
+}
+
+function identifierLiteralFromBlock(block: BlocklyBlockJson): Record<string, unknown> | null {
+  const id = literalFromInput(block.inputs?.FLD_id ?? block.inputs?.ATTR_id);
+  if (id == null || id === "") return null;
+  const row: Record<string, unknown> = { id: String(id) };
+  const type = literalFromInput(block.inputs?.OPTFLD_type ?? block.inputs?.FLD_type);
+  const issuer = literalFromInput(block.inputs?.OPTFLD_issuer ?? block.inputs?.FLD_issuer);
+  const assigner = literalFromInput(block.inputs?.OPTFLD_assigner ?? block.inputs?.FLD_assigner);
+  if (type != null && type !== "") row.type = String(type);
+  if (issuer != null && issuer !== "") row.issuer = String(issuer);
+  if (assigner != null && assigner !== "") row.assigner = String(assigner);
+  return row;
+}
+
+function identifierFromUnknown(value: unknown): Record<string, unknown> | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const rec = value as Record<string, unknown>;
+    const id = rec.id ?? rec.value;
+    if (id == null || id === "") return null;
+    const row: Record<string, unknown> = { id: String(id) };
+    if (rec.type != null && rec.type !== "") row.type = String(rec.type);
+    if (rec.issuer != null && rec.issuer !== "") row.issuer = String(rec.issuer);
+    if (rec.assigner != null && rec.assigner !== "") row.assigner = String(rec.assigner);
+    return row;
+  }
+  return { id: String(value) };
 }

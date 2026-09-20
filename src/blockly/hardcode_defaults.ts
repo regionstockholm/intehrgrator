@@ -93,14 +93,18 @@ function inlineValueAt(
       structuredClone(valueState) as Record<string, unknown>,
       workspace,
     ) as Blockly.Block | undefined;
+    if (clone?.isShadow?.()) clone.setShadow(false);
     if (clone?.outputConnection && tryConnect(parentConnection, clone.outputConnection)) {
+      if (clone.isShadow?.()) clone.setShadow(false);
       finalizeBlock(clone);
       return true;
     }
     clone?.dispose(false);
   }
   const literal = literalFallbackBlock(workspace, valueBlock);
+  if (literal?.isShadow?.()) literal.setShadow(false);
   if (literal?.outputConnection && tryConnect(parentConnection, literal.outputConnection)) {
+    if (literal.isShadow?.()) literal.setShadow(false);
     finalizeBlock(literal);
     return true;
   }

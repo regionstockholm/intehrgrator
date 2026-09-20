@@ -732,7 +732,7 @@ function assignPartyIdentityFields(output: Record<string, unknown>, value: unkno
       .filter((row): row is Record<string, unknown> => row != null);
     if (rows.length) output.identifiers = rows;
   } else if (id != null && String(id) !== "") {
-    output.identifiers = [dvIdentifierFromParts(id, type)];
+    output.identifiers = [dvIdentifierFromParts(id, type, record)];
   }
 }
 
@@ -742,12 +742,20 @@ function dvIdentifierFromUnknown(value: unknown): Record<string, unknown> | null
   if (!record) return dvIdentifierFromParts(value, undefined);
   const id = record.id ?? record.value;
   if (id == null) return null;
-  return dvIdentifierFromParts(id, record.type);
+  return dvIdentifierFromParts(id, record.type, record);
 }
 
-function dvIdentifierFromParts(id: unknown, type: unknown): Record<string, unknown> {
+function dvIdentifierFromParts(
+  id: unknown,
+  type: unknown,
+  extra?: Record<string, unknown>,
+): Record<string, unknown> {
   const identifier: Record<string, unknown> = { _type: "DV_IDENTIFIER", id: String(id) };
   if (type != null && String(type) !== "") identifier.type = String(type);
+  const issuer = extra?.issuer;
+  const assigner = extra?.assigner;
+  if (issuer != null && String(issuer) !== "") identifier.issuer = String(issuer);
+  if (assigner != null && String(assigner) !== "") identifier.assigner = String(assigner);
   return identifier;
 }
 

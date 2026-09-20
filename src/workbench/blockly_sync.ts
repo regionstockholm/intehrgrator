@@ -57,14 +57,9 @@ export function scaffoldBlocklyFromSkeleton(
   const workspace = new Blockly.Workspace();
   const uiLanguage = options?.uiLanguage ?? "en";
   try {
-    loadSkeletonIntoWorkspace(
-      workspace as unknown as WorkspaceSvg,
-      skeleton,
-      model,
-      null,
-      uiLanguage,
-      options?.targetFormat,
-    );
+    // Hydrate the pending Defaults Map *before* scaffolding so Default points
+    // (including optional RM such as EVENT_CONTEXT.health_care_facility) bind
+    // to the map that will actually sit on the canvas.
     if (options?.defaultsMap) {
       hydrateDefaultsMapArgument(
         workspace,
@@ -73,6 +68,14 @@ export function scaffoldBlocklyFromSkeleton(
         options.targetFormat,
       );
     }
+    loadSkeletonIntoWorkspace(
+      workspace as unknown as WorkspaceSvg,
+      skeleton,
+      model,
+      null,
+      uiLanguage,
+      options?.targetFormat,
+    );
     return {
       blocklyState: Blockly.serialization.workspaces.save(workspace),
       extract: workspaceToModelJson(workspace),

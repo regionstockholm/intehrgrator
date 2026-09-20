@@ -272,6 +272,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font-family: ui-monospace, monospace;
 }
 .pane-section { padding: 8px; min-height: 0; display: flex; flex-direction: column; flex: 1; }
+.pane-section--tab { height: 100%; }
 .pane-target-label {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.9);
@@ -281,6 +282,127 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   margin: -8px -8px 0;
   padding: 6px 8px;
   justify-content: flex-end;
+}
+
+.source-pane h2 .pane-header-end {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+}
+
+.pane-slide-btn {
+  min-width: 22px; padding: 2px 6px; font-size: 14px; line-height: 1;
+}
+.pane-slide-main {
+  display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0;
+}
+.pane-slide-rail {
+  display: none;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  align-items: center; justify-content: center;
+  gap: 8px;
+  width: 100%; height: 100%;
+  padding: 8px 0;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.pane-slide-rail--output {
+  writing-mode: horizontal-tb;
+  transform: none;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 6px 2px;
+  gap: 4px;
+}
+.pane-slide-rail--output button {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+  border-radius: 4px;
+  padding: 8px 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pane-slide-rail--output button:hover,
+.pane-slide-rail:hover {
+  background: #00786b;
+}
+.pane--slid-away {
+  flex: 0 0 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+}
+.pane--slid-away .pane-slide-main { display: none; }
+.pane--slid-away .pane-slide-rail { display: flex; }
+.panes.source-slid-away > .source-pane + .split-handle { display: none; }
+.panes.output-slid-away > .mapping-pane + .split-handle { display: none; }
+/* Split panes use flex-grow:0; grow Mapping Editors into the freed width. */
+.panes.source-slid-away > .mapping-pane,
+.panes.output-slid-away > .mapping-pane {
+  flex-grow: 1 !important;
+}
+
+.output-pane { display: flex; flex-direction: column; }
+.output-tabs {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  --sl-color-primary-600: var(--primary);
+  --sl-color-primary-500: #00786b;
+  --sl-color-primary-700: var(--primary-dark);
+}
+.output-tabs::part(base) {
+  height: 100%; display: flex; flex-direction: column; min-height: 0;
+}
+.output-tabs::part(nav) {
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+.output-tabs::part(tabs) { padding: 0 6px; }
+.output-tabs::part(body) {
+  flex: 1; min-height: 0; overflow: hidden;
+  background: var(--surface);
+}
+.output-tabs sl-tab-panel {
+  height: 100%;
+  padding: 0;
+}
+/* Do not set display on inactive hosts — Shoelace uses :host { display: none }. */
+.output-tabs sl-tab-panel[active] {
+  display: flex;
+  flex-direction: column;
+}
+.output-tabs sl-tab-panel::part(base) {
+  height: 100%;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.output-tabs sl-tab::part(base) {
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.pane-section--tab .pane-select-label { color: var(--text-secondary); }
+.tree-pane.target-schema-tree { border-left: 3px solid var(--accent); }
+
+/* Shoelace Karolinska tokens (new chrome). */
+:root {
+  --sl-color-primary-50: #e8f5f2;
+  --sl-color-primary-100: #d9f0d3;
+  --sl-color-primary-200: #a6dba0;
+  --sl-color-primary-300: #5aae61;
+  --sl-color-primary-400: #2e7d32;
+  --sl-color-primary-500: #00786b;
+  --sl-color-primary-600: #005c53;
+  --sl-color-primary-700: #003b49;
+  --sl-color-primary-800: #003b49;
+  --sl-color-primary-900: #002830;
+  --sl-focus-ring-color: #005c53;
 }
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
 .tree-pane--drop-target { border-style: dashed; }
@@ -1398,6 +1520,13 @@ body.sheets-fullscreen::before {
   .panes > .output-pane {
     flex: 0.7 1 18% !important;
     min-height: 140px !important;
+  }
+  .panes > .source-pane.pane--slid-away,
+  .panes > .output-pane.pane--slid-away {
+    flex: 0 0 36px !important;
+    min-height: 36px !important;
+    max-width: none !important;
+    min-width: 0 !important;
   }
   .panes > .mapping-pane {
     flex: 2.6 1 50% !important;

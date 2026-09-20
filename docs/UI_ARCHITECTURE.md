@@ -13,12 +13,13 @@ This document details the split-screen mapping interface and its architectural c
 ├───────────────┬──────────────────────────────────────────┬─────────────────────────────┤
 │ LEFT PANE     │ CENTER PANE                              │ RIGHT PANE                  │
 │ Source        │ Mapping Editor                           │ Target & Previews           │
+│ (slide-away)  │                                          │ (tabbed, slide-away)        │
 │               │                                          │                             │
-│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Open target + format badge  │
-│ [Load Schema] │ │ nested RM blocks                     │ │ Generated conversion        │
-│               │ │ toolbox: Source/Literals/            │ │ script(s) [Export]          │
-│ Examples      │ │ Logic/Variables                      │ │ Conversion Test             │
-│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──────────────┤ │ Run(s) [Run][Autoplay]      │
+│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Open + Output mode          │
+│ [Load Schema] │ │ nested RM blocks                     │ │ tabs: Target schema |       │
+│               │ │ toolbox: Source/Literals/            │ │ Generated conversion        │
+│ Examples      │ │ Logic/Variables                      │ │ script(s) | Conversion      │
+│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──────────────┤ │ Test Run(s)                 │
 │ [ex-a][ex-b]  │ │ widgets + expressions                │ │                             │
 │ instance tree │ └──────────────────────────────────────┘ │                             │
 ├───────────────┴──────────────────────────────────────────┴─────────────────────────────┤
@@ -83,12 +84,17 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 - **Technology:** [Blockly](https://developers.google.com/blockly) + [CodeMirror 6](https://codemirror.net/)
 
 ### Right Pane: Target & Previews
-- **Purpose:** Load the target, preview generated conversion-script code, and run conversion tests
-- **Header:** pane title **Target & Previews**; conversion script language + Download
-- **Target load strip** (top of Generated conversion script(s)): **Open target Schema/Template**, model language, format badge
-- **Upper section:** **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)
-- **Lower section:** **Conversion Test Run(s)** — runs mapping against the **active example tab**; displays the produced instance. Section header includes **Run Test** and **Autoplay / Pause**.
+- **Purpose:** Load the target, browse its schema, preview generated conversion-script code, and run conversion tests
+- **Header:** pane title **Target & Previews**; **Open**; **Output mode**; slide-away toggle
+- **Tabs** (Shoelace `sl-tab-group`; usually not needed at the same time):
+  1. **Target schema** — tree of the loaded target. Pull a leaf or subtree onto empty canvas → corresponding Blockly, scaffolded from the current **Defaults Map**
+  2. **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)
+  3. **Conversion Test Run(s)** — runs mapping against the **active example tab**; displays the produced instance. Section header includes **Run Test** and **Autoplay / Pause**.
 - Unmapped mandatory slots and unmet cardinality show as **Constraint warning** triangles on Blockly and on the matching Mapping Spec Widgets. Click a spec widget or Blockly block to **Select** (yellow border + pan); placeholder Source query blocks also enter **Listening Mode**.
+
+### Web components (Shoelace)
+
+When changing chrome (tabs, dialogs, drawers, menus), prefer [Shoelace](https://shoelace.style/) components already used in the Web Shell (`sl-tab-group` for **Target & Previews**). Keep the Karolinska colour tokens (`--sl-color-primary-*` in `web/styles.css`). Do not rewrite working custom widgets (split panes, tree, Blockly) just to swap libraries.
 
 ## Toolbar & Pane Actions
 
@@ -113,7 +119,8 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 |--------|----------|--------|-----|
 | Load Schema | Source → Schema section | Split control: main click loads a schema file; chevron offers **From file**, **From URL**, and recent URLs | ✓ |
 | + Add Example | Source → Examples section | Split control: main click opens a JSON/XML instance; chevron offers file, URL, and recent URLs | ✓ |
-| Open target Schema/Template | Target & Previews → Generated conversion script(s) strip | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
+| Open target Schema/Template | Target & Previews header | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
+| Slide-away | Source / Target & Previews headers | Hide the pane so the Mapping Editor takes the width; rail tabs restore it | ✓ |
 | Export TS | Target & Previews pane header | Download the generated TypeScript mapping script | ✓ |
 | Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
 | Autoplay / Pause | Output → Conversion Test Run(s) | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |

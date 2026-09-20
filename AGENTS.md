@@ -91,6 +91,9 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 - Playwright UI tests (`deno task test:ui`) need Chromium
   (`npx playwright@1.51.0 install chromium`). CI runs them on pull requests and
   releases; see [docs/TESTING.md](docs/TESTING.md).
+- New chrome (tabs, dialogs, drawers) should use [Shoelace](https://shoelace.style/)
+  where it fits; keep Karolinska `--sl-color-primary-*` tokens. See
+  [docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md).
 
 ## Agent skills
 

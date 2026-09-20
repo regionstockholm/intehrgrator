@@ -106,7 +106,23 @@ export async function clickExamplePath(page: Page, path: string): Promise<void> 
   await page.click(`#example-tree .tree-row[data-path="${path}"] .tree-label`);
 }
 
+export async function showOutputTab(
+  page: Page,
+  tab: "target-schema" | "script" | "test",
+): Promise<void> {
+  const id = tab === "target-schema"
+    ? "#tab-target-schema"
+    : tab === "script"
+    ? "#tab-generated-script"
+    : "#tab-test-run";
+  await page.locator(id).click();
+  if (tab === "test") {
+    await page.locator("#btn-run-test").waitFor({ state: "visible", timeout: 8_000 });
+  }
+}
+
 export async function runTestAndWait(page: Page): Promise<void> {
+  await showOutputTab(page, "test");
   await page.click("#btn-run-test");
   await page.waitForFunction(() => {
     const api = (globalThis as unknown as {

@@ -9,6 +9,13 @@ import {
   parseSourceDragPayload,
   getActiveSourceDrag,
 } from "../src/workbench/tree_views.ts";
+import {
+  findSkeletonNodeIn,
+  getActiveTargetDrag,
+  parseTargetDragPayload,
+  renderTargetSchemaTree,
+  targetSchemaTreeFromSkeleton,
+} from "../src/workbench/target_schema_tree.ts";
 import type { TreeHighlightState } from "../src/workbench/tree_views.ts";
 import type { BlockSvg } from "blockly/core";
 import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
@@ -38,6 +45,7 @@ import {
 import {
   initBlocklyGenerators,
   loadSkeletonIntoWorkspace,
+  placeSkeletonSubtreeOnWorkspace,
   lockWorkspaceRootsExpanded,
   setAllBlocksCollapsed,
   applyModelExpressions,
@@ -137,6 +145,17 @@ import {
 } from "../src/blockly/i18n/locale.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
+import "../src/ui/shoelace.ts";
+import {
+  OUTPUT_SLIDE_STORAGE,
+  SOURCE_SLIDE_STORAGE,
+  isOutputTabId,
+  readStoredFlag,
+  readStoredOutputTab,
+  writeStoredFlag,
+  writeStoredOutputTab,
+  type OutputTabId,
+} from "../src/ui/slide_away.ts";
 import { installInfoTips, openInfoTipAt } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import {
@@ -178,6 +197,10 @@ const workbenchReady = new Promise<void>((resolve) => {
 });
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
+const targetSchemaTreeEl = document.getElementById("target-schema-tree")!;
+const sourcePaneEl = document.getElementById("source-pane")!;
+const outputPaneEl = document.getElementById("output-pane")!;
+const mainPanesEl = document.querySelector("main.panes") as HTMLElement;
 const exampleTabsEl = document.getElementById("example-tabs")!;
 const exampleValidationEl = document.getElementById("example-validation")!;
 const testOutputTabsEl = document.getElementById("test-output-tabs")!;
@@ -614,6 +637,8 @@ async function bootBlockly(): Promise<void> {
   initSplitPanes(document, () => Blockly.svgResize(workspace));
   controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
   initBlocklySourceDrop();
+  initOutputTabs();
+  initSlideAway();
 
   workspace.addChangeListener((event) => {
     refreshUndoButtons();
@@ -1560,10 +1585,92 @@ void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) =>
 
 initFileDropTargets();
 
+interface SlTabGroupElement extends HTMLElement {
+  show: (name: string) => void;
+}
+
+function outputTabGroup(): SlTabGroupElement | null {
+  return document.getElementById("output-tabs") as SlTabGroupElement | null;
+}
+
+function showOutputTab(tab: OutputTabId): void {
+  const group = outputTabGroup();
+  group?.show(tab);
+  writeStoredOutputTab(tab);
+}
+
+function initOutputTabs(): void {
+  const group = outputTabGroup();
+  if (!group) return;
+  const initial = readStoredOutputTab();
+  const apply = () => {
+    try {
+      group.show(initial);
+    } catch {
+      // Custom element not upgraded yet.
+    }
+  };
+  if (customElements.get("sl-tab-group")) apply();
+  else void customElements.whenDefined("sl-tab-group").then(apply);
+  group.addEventListener("sl-tab-show", (event) => {
+    const name = (event as CustomEvent<{ name?: string }>).detail?.name;
+    if (isOutputTabId(name)) writeStoredOutputTab(name);
+    if (name === "script") exportEditor.requestMeasure();
+    if (name === "test") testOutputEditor.requestMeasure();
+  });
+}
+
+function resizeAfterSlide(): void {
+  requestAnimationFrame(() => {
+    if (typeof Blockly.svgResize === "function" && workspace) {
+      Blockly.svgResize(workspace);
+    }
+  });
+}
+
+function setSourceSlidAway(slid: boolean): void {
+  sourcePaneEl.classList.toggle("pane--slid-away", slid);
+  mainPanesEl.classList.toggle("source-slid-away", slid);
+  const rail = document.getElementById("rail-source") as HTMLButtonElement | null;
+  if (rail) rail.hidden = !slid;
+  writeStoredFlag(SOURCE_SLIDE_STORAGE, slid);
+  resizeAfterSlide();
+}
+
+function setOutputSlidAway(slid: boolean): void {
+  outputPaneEl.classList.toggle("pane--slid-away", slid);
+  mainPanesEl.classList.toggle("output-slid-away", slid);
+  const rail = document.getElementById("rail-output");
+  if (rail) rail.hidden = !slid;
+  writeStoredFlag(OUTPUT_SLIDE_STORAGE, slid);
+  resizeAfterSlide();
+}
+
+function initSlideAway(): void {
+  document.getElementById("btn-slide-source")?.addEventListener("click", () => {
+    setSourceSlidAway(true);
+  });
+  document.getElementById("rail-source")?.addEventListener("click", () => {
+    setSourceSlidAway(false);
+  });
+  document.getElementById("btn-slide-output")?.addEventListener("click", () => {
+    setOutputSlidAway(true);
+  });
+  document.getElementById("rail-output")?.addEventListener("click", (event) => {
+    const btn = (event.target as HTMLElement | null)?.closest("[data-output-tab]");
+    const tab = btn?.getAttribute("data-output-tab");
+    setOutputSlidAway(false);
+    if (isOutputTabId(tab)) showOutputTab(tab);
+  });
+  setSourceSlidAway(readStoredFlag(SOURCE_SLIDE_STORAGE));
+  setOutputSlidAway(readStoredFlag(OUTPUT_SLIDE_STORAGE));
+}
+
 /** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
 function initBlocklySourceDrop(): void {
   let lastAppliedAt = 0;
   let lastAppliedPath = "";
+  let lastTargetSlot = "";
   let lastOverX = 0;
   let lastOverY = 0;
   const applyPayloadAtPoint = (
@@ -1596,17 +1703,65 @@ function initBlocklySourceDrop(): void {
     }
   };
 
+  const applyTargetAtPoint = (
+    payload: { slotId: string },
+    clientX: number,
+    clientY: number,
+  ): boolean => {
+    const mountRect = blocklyMount.getBoundingClientRect();
+    const inMount = clientX >= mountRect.left && clientX <= mountRect.right &&
+      clientY >= mountRect.top && clientY <= mountRect.bottom;
+    if (!inMount) return false;
+    const now = Date.now();
+    if (payload.slotId === lastTargetSlot && now - lastAppliedAt < 250) return true;
+    lastTargetSlot = payload.slotId;
+    lastAppliedAt = now;
+    if (findSlotIdAtPoint(clientX, clientY)) {
+      controller.setStatusMessage(
+        "Drop onto empty canvas to add a Target schema subtree.",
+      );
+      return true;
+    }
+    const skeleton = controller.getState().skeleton;
+    const node = findSkeletonNodeIn(skeleton, payload.slotId) ??
+      findSkeletonNode(payload.slotId);
+    if (!node) {
+      controller.setStatusMessage("That Target schema node is not in the loaded target.");
+      return true;
+    }
+    const { x, y } = workspacePositionFromClient(workspace, clientX, clientY);
+    const placed = placeSkeletonSubtreeOnWorkspace(workspace, node, {
+      x,
+      y,
+      skeleton,
+      targetFormat: controller.getState().target?.format,
+    });
+    if (!placed) return false;
+    persistBlocklyCanvas({ summary: "Pull Target schema subtree onto canvas" });
+    controller.setStatusMessage(`Added ${node.label || node.rmType} from Target schema`);
+    return true;
+  };
+
   const rememberOver = (event: DragEvent) => {
     lastOverX = event.clientX;
     lastOverY = event.clientY;
   };
   const onDragOver = (event: DragEvent) => {
-    if (!parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag()) return;
+    if (
+      !parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag() &&
+      !parseTargetDragPayload(event.dataTransfer) && !getActiveTargetDrag()
+    ) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     rememberOver(event);
   };
   const onDrop = (event: DragEvent) => {
+    const target = parseTargetDragPayload(event.dataTransfer);
+    if (target) {
+      event.preventDefault();
+      applyTargetAtPoint(target, event.clientX, event.clientY);
+      return;
+    }
     const payload = parseSourceDragPayload(event.dataTransfer);
     if (!payload) return;
     event.preventDefault();
@@ -1615,14 +1770,15 @@ function initBlocklySourceDrop(): void {
   // Blockly's SVG does not reliably receive HTML5 drop. dragend still has
   // client coordinates, so finish the gesture from the pointer position.
   document.addEventListener("dragover", (event) => {
-    if (!getActiveSourceDrag()) return;
+    if (!getActiveSourceDrag() && !getActiveTargetDrag()) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     rememberOver(event);
   }, true);
   document.addEventListener("dragend", (event) => {
+    const target = getActiveTargetDrag();
     const payload = getActiveSourceDrag();
-    if (!payload) return;
+    if (!target && !payload) return;
     const mountRect = blocklyMount.getBoundingClientRect();
     let x = event.clientX;
     let y = event.clientY;
@@ -1630,7 +1786,8 @@ function initBlocklySourceDrop(): void {
       x = lastOverX;
       y = lastOverY;
     }
-    applyPayloadAtPoint(payload, x, y);
+    if (target) applyTargetAtPoint(target, x, y);
+    else if (payload) applyPayloadAtPoint(payload, x, y);
   }, true);
 
   const opts = { capture: true };
@@ -2057,6 +2214,16 @@ function render(): void {
     schemaTreeEl.append(err);
   } else {
     schemaTreeEl.textContent = "Load a schema file.";
+  }
+
+  if (s.skeleton.length) {
+    renderTargetSchemaTree(
+      targetSchemaTreeEl,
+      targetSchemaTreeFromSkeleton(s.skeleton),
+    );
+  } else {
+    targetSchemaTreeEl.classList.add("target-schema-tree");
+    targetSchemaTreeEl.textContent = "Load a target schema or template.";
   }
 
   renderExampleTabs(s);

@@ -180,6 +180,8 @@ import {
   loadAiCredentials,
   saveAiCredentials,
 } from "../src/core/ai/credentials.ts";
+import { AI_PROVIDER_PRESETS, applyAiProviderPreset, findAiProviderPreset } from "../src/core/ai/providers.ts";
+import { runMappingAgentOnController } from "../src/core/ai/mapping_agent.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
 import {
@@ -2492,23 +2494,131 @@ function updateCopyAiButtonLabel(): void {
   if (!main) return;
   if (hasAiCredentials(localStorage)) {
     main.textContent = "Call AI";
-    main.title = "Call the configured AI endpoint with the mapping prompt";
+    main.title = "Call the configured AI with mapping tools (MCP / Agent API names)";
   } else {
     main.textContent = "Copy prompt";
     main.title = "Copy AI prompt with files embedded";
   }
 }
 
+function callAiAbortSignal(): AbortSignal | undefined {
+  return typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+    ? AbortSignal.timeout(180_000)
+    : undefined;
+}
+
+async function desktopAiProxyUrl(): Promise<string | undefined> {
+  try {
+    const res = await fetch("/api/v1/health");
+    if (!res.ok) return undefined;
+    const body = await res.json() as { ok?: boolean };
+    return body.ok ? "/api/v1/ai-chat-completions" : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatCallAiError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return `${message} Browser CORS often blocks cloud providers from GitHub Pages. Use the desktop app (it forwards Call AI), enable CORS on a local server (Ollama / LM Studio), or use Copy prompt.`;
+  }
+  return message;
+}
+
+function isToolsUnsupportedError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /400/.test(message) && /tool/i.test(message);
+}
+
+function applyCallAiImport(imported: { applied: number; errors: string[] }, extra = ""): void {
+  persistBlocklyCanvas({ summary: "Call AI" });
+  render();
+  controller.setStatusMessage(
+    `Call AI: ${imported.applied} applied · ${imported.errors.length} errors${extra}`,
+  );
+  if (imported.errors.length && !imported.applied) {
+    alert(imported.errors.slice(0, 8).join("\n"));
+  }
+}
+
+function selectedMappingMode(): "tools" | "suggestions" {
+  const suggestions = document.getElementById("ai-mapping-mode-suggestions") as HTMLInputElement | null;
+  return suggestions?.checked ? "suggestions" : "tools";
+}
+
+function setSelectedMappingMode(mode: "tools" | "suggestions"): void {
+  const tools = document.getElementById("ai-mapping-mode-tools") as HTMLInputElement | null;
+  const suggestions = document.getElementById("ai-mapping-mode-suggestions") as HTMLInputElement | null;
+  if (tools) tools.checked = mode !== "suggestions";
+  if (suggestions) suggestions.checked = mode === "suggestions";
+}
+
+function showAiProviderHelp(providerId: string): void {
+  const help = document.getElementById("ai-provider-help");
+  const keyLink = document.getElementById("ai-key-docs") as HTMLAnchorElement | null;
+  const docsLink = document.getElementById("ai-provider-docs") as HTMLAnchorElement | null;
+  const preset = findAiProviderPreset(providerId);
+  if (help) {
+    help.textContent = preset?.help ??
+      "Paste any OpenAI-compatible chat completions URL, Bearer API key, and model id.";
+  }
+  if (keyLink) {
+    keyLink.href = preset?.keyUrl ?? "https://platform.openai.com/api-keys";
+    keyLink.textContent = preset
+      ? `Get ${/^[aeiou]/i.test(preset.label) ? "an" : "a"} ${preset.label} key`
+      : "Get an API key";
+  }
+  if (docsLink) {
+    docsLink.href = preset?.docsUrl ?? "https://platform.openai.com/docs/api-reference/chat";
+  }
+}
+
+function fillProviderSelect(): void {
+  const select = document.getElementById("ai-provider") as HTMLSelectElement | null;
+  if (!select || select.dataset.filled === "1") return;
+  for (const preset of AI_PROVIDER_PRESETS) {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    select.append(option);
+  }
+  select.dataset.filled = "1";
+  select.addEventListener("change", () => {
+    const id = select.value;
+    showAiProviderHelp(id);
+    if (id === "custom") return;
+    const applied = applyAiProviderPreset(id);
+    const endpoint = document.getElementById("ai-endpoint") as HTMLInputElement | null;
+    const apiKey = document.getElementById("ai-api-key") as HTMLInputElement | null;
+    const model = document.getElementById("ai-model") as HTMLInputElement | null;
+    if (!applied.endpoint) return;
+    if (endpoint) endpoint.value = applied.endpoint;
+    if (model) model.value = applied.model;
+    if (apiKey) {
+      if (applied.apiKey) apiKey.value = applied.apiKey;
+      else if (apiKey.value === "ollama" || apiKey.value === "lm-studio") apiKey.value = "";
+    }
+  });
+}
+
 function openAiCredentialsDialog(): void {
   const dialog = document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null;
   if (!dialog) return;
+  fillProviderSelect();
   const creds = loadAiCredentials(localStorage);
+  const select = document.getElementById("ai-provider") as HTMLSelectElement | null;
   const endpoint = document.getElementById("ai-endpoint") as HTMLInputElement | null;
   const apiKey = document.getElementById("ai-api-key") as HTMLInputElement | null;
   const model = document.getElementById("ai-model") as HTMLInputElement | null;
+  if (select) select.value = creds?.providerId && findAiProviderPreset(creds.providerId)
+    ? creds.providerId
+    : "custom";
+  showAiProviderHelp(select?.value ?? "custom");
   if (endpoint) endpoint.value = creds?.endpoint ?? "";
   if (apiKey) apiKey.value = creds?.apiKey ?? "";
   if (model) model.value = creds?.model ?? "";
+  setSelectedMappingMode(creds?.mappingMode === "suggestions" ? "suggestions" : "tools");
   dialog.showModal();
 }
 
@@ -2520,23 +2630,43 @@ async function callAiWithPrompt(prompt: string): Promise<void> {
     return;
   }
   controller.setStatusMessage("Calling AI…");
+  const proxyUrl = await desktopAiProxyUrl();
+  const signal = callAiAbortSignal();
+  const runSuggestions = async () => {
+    const result = await callChatCompletions(creds, prompt, { signal, proxyUrl });
+    applyCallAiImport(controller.importAiSuggestions(result.text));
+  };
   try {
-    const result = await callChatCompletions(creds, prompt, {
-      signal: typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
-        ? AbortSignal.timeout(120_000)
-        : undefined,
-    });
-    const imported = controller.importAiSuggestions(result.text);
-    persistBlocklyCanvas({ summary: "Call AI" });
-    render();
-    controller.setStatusMessage(
-      `Call AI: ${imported.applied} applied · ${imported.errors.length} errors`,
-    );
-    if (imported.errors.length && !imported.applied) {
-      alert(imported.errors.slice(0, 8).join("\n"));
+    if (creds.mappingMode === "suggestions") {
+      await runSuggestions();
+      return;
+    }
+    try {
+      const result = await runMappingAgentOnController(controller, {
+        credentials: creds,
+        prompt,
+        proxyUrl,
+        signal,
+        onAfterMutation: () => persistBlocklyCanvas({ summary: "Call AI" }),
+      });
+      persistBlocklyCanvas({ summary: "Call AI" });
+      render();
+      const applied = result.imported?.applied ?? 0;
+      const mapped = result.toolNames.filter((name) => name === "map_slot").length;
+      const errors = result.imported?.errors.length ?? 0;
+      controller.setStatusMessage(
+        `Call AI: ${mapped} map_slot · ${applied} suggestions · ${result.toolNames.length} tools · ${errors} errors`,
+      );
+      if (errors && !applied && !mapped) {
+        alert(result.imported?.errors.slice(0, 8).join("\n") ?? result.text.slice(0, 400));
+      }
+    } catch (err) {
+      if (!isToolsUnsupportedError(err)) throw err;
+      controller.setStatusMessage("Provider rejected mapping tools; retrying suggestions JSON…");
+      await runSuggestions();
     }
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = formatCallAiError(err);
     controller.setStatusMessage(`Call AI failed: ${message}`);
     alert(message);
   }
@@ -2556,8 +2686,15 @@ document.getElementById("dialog-ai-credentials")?.querySelector("form")?.addEven
   const endpoint = (document.getElementById("ai-endpoint") as HTMLInputElement | null)?.value ?? "";
   const apiKey = (document.getElementById("ai-api-key") as HTMLInputElement | null)?.value ?? "";
   const model = (document.getElementById("ai-model") as HTMLInputElement | null)?.value ?? "";
+  const providerId = (document.getElementById("ai-provider") as HTMLSelectElement | null)?.value ?? "custom";
   try {
-    saveAiCredentials(localStorage, { endpoint, apiKey, model });
+    saveAiCredentials(localStorage, {
+      endpoint,
+      apiKey,
+      model,
+      providerId,
+      mappingMode: selectedMappingMode(),
+    });
     updateCopyAiButtonLabel();
     (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
     controller.setStatusMessage("AI credentials saved in this browser");

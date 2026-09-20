@@ -1,13 +1,23 @@
 # In-app and copy-paste AI assist
 
-**Status:** Web Shell has optional **Call AI** (OpenAI-compatible chat completions, credentials in localStorage). Copy-paste and IDE/MCP remain first-class. Richer native assist (VS Code Language Model API) is still deferred.
+**Status:** Web Shell has optional **Call AI** (OpenAI-compatible chat completions, credentials in localStorage). Copy-paste and IDE/MCP remain first-class. Call AI can drive the same mapping tools as MCP / the HTTP Agent API. Richer native assist (VS Code Language Model API) is still deferred.
+
+## Three mapping-assist paths
+
+| Path | Where it runs | How the model writes mappings |
+|------|----------------|-------------------------------|
+| **IDE + MCP** | Cursor / Claude Desktop / similar, stdio MCP (`deno task mcp`) usually proxying the desktop Agent API | The IDE agent calls `map_slot` / `import_suggestions` / `run_test` itself |
+| **Call AI (in-app)** | Web Shell or desktop toolbar, after **AI credentials…** | intEHRgrator POSTs the mapping prompt to your provider and **executes the same tool names on the live workbench** (or one-shot suggestions JSON) |
+| **Remote Agent API** | OpenCode `serve` / cloud runner, Hugging Face jobs, or any HTTP agent that can reach the desktop | Same HTTP Agent API as MCP (`/api/v1/*`). Bind + token when not loopback |
+
+All three apply through the same Mapping Model / Blockly path. Copy prompt + **Import Suggestions** remains the fallback when no key or MCP is available.
 
 ## Web Shell
 
 - **Copy prompt** — markdown prompt with target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`
-- **Call AI** — POST that prompt; default toolbar action when credentials exist
-- **AI credentials…** — endpoint, API key, model. Never stored in the Project Bundle. CORS-friendly proxies may be required.
-- **Import Suggestions** — parses `intehrgrator-suggestions` JSON version 2 (same path as Call AI)
+- **Call AI** — POST that prompt; default toolbar action when credentials exist. Default mapping mode uses OpenAI function tools named like MCP (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) against the open project. **Suggestions JSON only** is the one-shot import used before tools existed.
+- **AI credentials…** — provider preset (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner), endpoint, API key, model, mapping mode. Never stored in the Project Bundle. GitHub Pages browsers often hit CORS on cloud APIs; the **desktop app** forwards Call AI through `POST /api/v1/ai-chat-completions`. Key walkthrough: [AI_CREDENTIALS.md](../AI_CREDENTIALS.md).
+- **Import Suggestions** — parses `intehrgrator-suggestions` JSON version 2 (same path as Call AI suggestions mode)
 - Target/source **refresh** reports offer Copy merge prompt / Call AI; detached Blockly stays
 
 ## When to integrate more natively
@@ -15,13 +25,15 @@
 | Host | Mechanism |
 |------|-----------|
 | VS Code extension | `vscode.lm` Language Model API; suggest for selected slot or full unmapped manifest |
-| Web | Already: user-configured endpoint + key; same suggestion format internally |
+| Web / desktop | User-configured endpoint + key; tools or suggestion format internally |
 
 ## Migration path
 
-Integrated AI should emit the same `intehrgrator-suggestions` JSON internally before applying — one import/application code path for copy-paste and native modes.
+Integrated AI should emit the same `intehrgrator-suggestions` JSON internally when it is not using `map_slot` — one import/application code path for copy-paste and native modes.
 
 ## Related
 
+- [AI_CREDENTIALS.md](../AI_CREDENTIALS.md)
 - [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md)
+- [AGENT_WORKFLOW.md](../AGENT_WORKFLOW.md)
 - [UI_ARCHITECTURE.md](../UI_ARCHITECTURE.md)

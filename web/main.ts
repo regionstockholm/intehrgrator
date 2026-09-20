@@ -2565,7 +2565,9 @@ function showAiProviderHelp(providerId: string): void {
   }
   if (keyLink) {
     keyLink.href = preset?.keyUrl ?? "https://platform.openai.com/api-keys";
-    keyLink.textContent = preset ? `Get a ${preset.label} key` : "Get an API key";
+    keyLink.textContent = preset
+      ? `Get ${/^[aeiou]/i.test(preset.label) ? "an" : "a"} ${preset.label} key`
+      : "Get an API key";
   }
   if (docsLink) {
     docsLink.href = preset?.docsUrl ?? "https://platform.openai.com/docs/api-reference/chat";
@@ -2590,6 +2592,7 @@ function fillProviderSelect(): void {
     const endpoint = document.getElementById("ai-endpoint") as HTMLInputElement | null;
     const apiKey = document.getElementById("ai-api-key") as HTMLInputElement | null;
     const model = document.getElementById("ai-model") as HTMLInputElement | null;
+    if (!applied.endpoint) return;
     if (endpoint) endpoint.value = applied.endpoint;
     if (model) model.value = applied.model;
     if (apiKey) {

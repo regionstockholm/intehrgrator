@@ -43,6 +43,7 @@ Deno.test({
       );
       await page.selectOption("#ai-provider", "openai");
       assertEquals(await page.locator("#ai-endpoint").inputValue(), "https://api.openai.com/v1/chat/completions");
+      assertEquals((await page.locator("#ai-key-docs").innerText()).trim(), "Get an OpenAI key");
       await page.selectOption("#ai-provider", "huggingface");
       assertEquals(
         await page.locator("#ai-key-docs").getAttribute("href"),

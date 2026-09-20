@@ -180,7 +180,7 @@ const CALL_AI_OPENAI_TOOLS: OpenAiTool[] = [
     type: "function",
     function: {
       name: "run_test",
-      description: "Run Conversion Test against the Active Example. Returns full TestResult.",
+      description: "Run Test against the Active Example. Returns full TestResult.",
       parameters: { type: "object", properties: {} },
     },
   },

@@ -20,7 +20,7 @@
     <strong class="brand">intEHRgrator</strong>
     <span class="toolbar-spacer"></span>
     <div class="split-btn toolbar-split-btn">
-      <button id="btn-copy-ai" class="split-btn-main" type="button" title="Copy AI prompt with files embedded">Copy AI Prompt</button>
+      <button id="btn-copy-ai" class="split-btn-main" type="button" title="Copy AI prompt with files embedded">Copy prompt</button>
       <button
         id="btn-copy-ai-menu"
         class="split-btn-chevron"
@@ -30,7 +30,16 @@
         aria-controls="menu-copy-ai"
         aria-label="AI prompt delivery options"
       >▾</button>
-      <div id="menu-copy-ai" class="split-btn-menu" hidden role="menu">
+        <div id="menu-copy-ai" class="split-btn-menu" hidden role="menu">
+        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="copy">
+          Copy prompt
+        </button>
+        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="call">
+          Call AI
+        </button>
+        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="credentials">
+          AI credentials…
+        </button>
         <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="inline">
           Embed files in prompt
         </button>
@@ -325,16 +334,15 @@
       <div class="pane-header">
         <h2>Target &amp; Previews</h2>
         <div class="pane-header-actions">
-          <span class="pane-target-label">Target:</span>
           <span class="info-tip info-tip--end">
             <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats">i</button>
             <span id="tip-open-target" class="info-tip-balloon" role="tooltip">
               Supported: openEHR OPT/OPT2, Web Template, JSON Schema, XML Schema (XSD), ADL, free-form templates, or a GitHub .t.json (archetypes fetched from the same repo).<br>
-              Load from a local file, a URL, or ▾ → From GitHub template….
+              Choose a target and a default context map together. ▾ also offers file, URL, GitHub, and non-destructive refresh.
             </span>
           </span>
           <div class="split-btn">
-            <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Open target schema or template">Open</button>
+            <button id="btn-open-template" class="pane-btn pane-btn-on-dark split-btn-main" type="button" title="Load a target and pick a default context map">Load target &amp; default context map</button>
             <button
               id="btn-open-template-menu"
               class="pane-btn pane-btn-on-dark split-btn-chevron"
@@ -573,10 +581,103 @@
       </div>
     </form>
   </dialog>
+  <dialog id="dialog-joint-load" class="app-dialog app-dialog--wide">
+    <form method="dialog" class="dialog-form">
+      <h2>Load target &amp; default context map</h2>
+      <p>
+        Pick a target and a default context map together. Confirm scaffolds the
+        <strong>Template Skeleton</strong> and <strong>Default point</strong>s.
+        <strong>New</strong> loads the target into the Target schema tab only so you can
+        pull chips and values, then Apply on the canvas block.
+      </p>
+      <fieldset class="joint-load-fieldset">
+        <legend>Target</legend>
+        <p id="joint-target-summary" class="joint-load-summary">No target selected yet.</p>
+        <div class="dialog-actions">
+          <button type="button" id="joint-target-file">From file…</button>
+          <button type="button" id="joint-target-current" hidden>Use loaded target</button>
+        </div>
+        <label class="dialog-label">
+          Target URL
+          <input id="joint-target-url" type="url" inputmode="url" autocomplete="url" placeholder="https://…" />
+        </label>
+        <div class="dialog-actions">
+          <button type="button" id="joint-target-url-load">Fetch URL</button>
+        </div>
+      </fieldset>
+      <fieldset class="joint-load-fieldset">
+        <legend>Default context map</legend>
+        <label class="joint-load-option">
+          <input type="radio" name="joint-map" value="factory" checked />
+          openEHR factory (<code>defaults_openEHR_1</code>)
+        </label>
+        <label class="joint-load-option">
+          <input type="radio" name="joint-map" value="current" />
+          Keep the map already on the canvas
+        </label>
+        <label class="joint-load-option">
+          <input type="radio" name="joint-map" value="new" />
+          New (empty) — Target schema first, then Apply
+        </label>
+        <label class="joint-load-option" id="joint-map-file-option" hidden>
+          <input type="radio" name="joint-map" value="file" />
+          <span id="joint-map-file-label">Browsed file</span>
+        </label>
+        <div id="joint-map-catalog" class="load-project-list"></div>
+        <div class="dialog-actions">
+          <button type="button" id="joint-map-browse">Browse map file…</button>
+        </div>
+      </fieldset>
+      <div class="dialog-actions">
+        <span class="dialog-actions-spacer"></span>
+        <button type="button" id="joint-load-cancel" value="cancel">Cancel</button>
+        <button type="submit" id="joint-load-confirm" value="confirm" disabled>Load &amp; scaffold</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-refresh-report" class="app-dialog app-dialog--wide">
+    <form method="dialog" class="dialog-form">
+      <h2>Refresh report</h2>
+      <pre id="refresh-report-body" class="refresh-report-body"></pre>
+      <div class="dialog-actions">
+        <button type="button" id="refresh-copy-prompt">Copy merge prompt</button>
+        <button type="button" id="refresh-call-ai">Call AI</button>
+        <span class="dialog-actions-spacer"></span>
+        <button type="submit" value="confirm">Close</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="dialog-ai-credentials" class="app-dialog">
+    <form method="dialog" class="dialog-form">
+      <h2>AI credentials</h2>
+      <p>
+        Optional OpenAI-compatible chat endpoint so <strong>Call AI</strong> can run in the Web Shell.
+        Credentials stay in this browser only — not in the Project Bundle. IDE / MCP mapping remains valid without this.
+      </p>
+      <label class="dialog-label">
+        Endpoint
+        <input id="ai-endpoint" type="url" placeholder="https://api.openai.com/v1/chat/completions" />
+      </label>
+      <label class="dialog-label">
+        API key
+        <input id="ai-api-key" type="password" autocomplete="off" />
+      </label>
+      <label class="dialog-label">
+        Model
+        <input id="ai-model" type="text" placeholder="gpt-4.1" />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="ai-credentials-clear">Clear</button>
+        <span class="dialog-actions-spacer"></span>
+        <button type="button" id="ai-credentials-cancel" value="cancel">Cancel</button>
+        <button type="submit" id="ai-credentials-save" value="confirm">Save</button>
+      </div>
+    </form>
+  </dialog>
   <dialog id="dialog-defaults-map" class="app-dialog app-dialog--wide">
     <form method="dialog" class="dialog-form">
-      <h2>Default context mapping</h2>
-      <p>Load a saved map, browse a file or URL, download the current map, or save the map plugged into the Default context mapping block.</p>
+      <h2>Default context map</h2>
+      <p>Load a saved map, browse a file or URL, download the unique default context map, or save the current canvas map under a name.</p>
       <div id="defaults-map-list" class="load-project-list"></div>
       <label class="dialog-label">
         URL
@@ -678,15 +779,11 @@
     </form>
   </dialog>
   <span id="defaults-map-block-info" class="info-tip info-tip--anchor-host">
-    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About default context mapping">i</button>
+    <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-defaults-map-block" aria-label="About the default context map">i</button>
     <span id="tip-defaults-map-block" class="info-tip-balloon" role="tooltip">
-      <strong>Default context mapping</strong> is the design-time table you author on the canvas. At <em>convert time</em>, generated Conversion Scripts receive it as a <code>defaults</code> argument. Runtime code can merge that bag with per-message values, other named maps, and Sheet grids — the canvas map is the reusable baseline, not literals baked into every slot.<br>
-      <strong>Keys are RM paths</strong>, not simplified-format <code>ctx</code> names. Scaffolding fills matching skeleton slots from those keys:
-      <code>Class.attribute</code> (e.g. <code>COMPOSITION.composer</code>, <code>EVENT_CONTEXT.health_care_facility</code>),
-      ancestor paths (<code>COMPOSITION.context.health_care_facility</code>),
-      and wildcards (<code>*.language</code> lights every language slot; <code>*.encoding</code>, <code>*.subject</code>, <code>*.time</code> / <code>*.start_time</code> / <code>*.origin</code>).
-      A more specific key wins when several match the same slot. Extra keys you add stay available for Map lookups even if they do not light a slot.<br>
-      Why design-time? So you can change site language, facility, or encoding once and re-run the same mapping against many source instances without regenerating the script. Map lookups on the canvas read this binding by name; hardcoding inlines one key when you want a fixed literal instead.<br>
+      <strong>Default context map</strong> is the unique canvas table you author here. At <em>convert time</em>, generated Conversion Scripts receive it as a <code>defaults</code> argument keyed by <strong>runtime key</strong> (<code>language</code>, <code>facility</code>, …). <code>maps_get("defaults", runtimeKey)</code> looks those up. Runtime code can merge that bag with per-message values, other named maps, and Sheet grids — the canvas map is the reusable baseline, not literals baked into every slot.<br>
+      <strong>Scaffold targets</strong> (chips) are authoring-only RM paths, not convert-time keys: <code>Class.attribute</code> (e.g. <code>COMPOSITION.composer</code>, <code>EVENT_CONTEXT.health_care_facility</code>), ancestor paths, and wildcards (<code>*.language</code> lights every language slot). A more specific chip wins when several match the same slot. Empty chips → a runtime-only key that lights nothing. Extra keys stay available for Map lookups even if they do not light a slot.<br>
+      Confirm, <strong>Apply default context map</strong>, or a later target refresh join <strong>Default point</strong>s. Value edits are live in Test Run. A slot already mapped from source is not replaced.<br>
       The folder opens load/save: pick a map saved in this browser, browse a JSON file, load a URL, save a named copy, or download the current map as JSON you can upload again later.
     </span>
   </span>

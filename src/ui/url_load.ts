@@ -23,6 +23,11 @@ export interface SplitLoadKindConfig {
   hint: string;
   placeholder: string;
   historyHeading: string;
+  /** Optional non-destructive refresh (keeps canvas mappings). */
+  refresh?: {
+    fromFile: () => void | Promise<void>;
+    fromUrl: (url: string) => Promise<void>;
+  };
   /** Extra first-class menu action, e.g. GitHub .t.json closure load. */
   github?: {
     label: string;
@@ -60,7 +65,7 @@ export interface UrlLoadUiOptions {
 export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   const { dialog, title, hint, input, error, history, historyHeading, cancel, storage, kinds } = options;
   let activeKind: UrlHistoryKind = "schema";
-  let activePreset: "url" | "github" | "githubDir" = "url";
+  let activePreset: "url" | "github" | "githubDir" | "refresh" = "url";
 
   const closeMenus = () => closeAllAnchoredMenus();
 
@@ -93,6 +98,16 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
       closeMenus();
       openDialog(kind, "url");
     });
+    if (config.refresh) {
+      appendMenuItem(config.menu, "Refresh from file…", () => {
+        closeMenus();
+        void config.refresh!.fromFile();
+      });
+      appendMenuItem(config.menu, "Refresh from URL…", () => {
+        closeMenus();
+        openDialog(kind, "refresh");
+      });
+    }
     const urls = listUrlHistory(kind, storage);
     if (!urls.length) return;
     const heading = document.createElement("div");
@@ -153,7 +168,7 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
     }
   };
 
-  const openDialog = (kind: UrlHistoryKind, preset: "url" | "github" | "githubDir" = "url") => {
+  const openDialog = (kind: UrlHistoryKind, preset: "url" | "github" | "githubDir" | "refresh" = "url") => {
     activeKind = kind;
     activePreset = preset;
     const config = kinds[kind];
@@ -162,8 +177,12 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
       : preset === "githubDir"
       ? config.bulkGitHubDir
       : undefined;
-    title.textContent = github?.title ?? config.title;
-    hint.textContent = github?.hint ?? config.hint;
+    title.textContent = preset === "refresh"
+      ? `Refresh ${kind} from URL`
+      : github?.title ?? config.title;
+    hint.textContent = preset === "refresh"
+      ? "Reload this file from a URL without wiping canvas mappings. Warnings list slots or paths that may no longer fit."
+      : github?.hint ?? config.hint;
     historyHeading.textContent = config.historyHeading;
     input.placeholder = github?.placeholder ?? config.placeholder;
     input.value = listUrlHistory(kind, storage)[0] ?? github?.placeholder ?? "";
@@ -218,8 +237,11 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
 function resolveUrlLoader(
   config: SplitLoadKindConfig,
   url: string,
-  preset: "url" | "github" | "githubDir",
+  preset: "url" | "github" | "githubDir" | "refresh",
 ): (url: string) => Promise<void> {
+  if (preset === "refresh" && config.refresh) {
+    return config.refresh.fromUrl;
+  }
   if (preset === "githubDir" && config.fromGitHubDirectory) {
     return config.fromGitHubDirectory;
   }

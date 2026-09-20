@@ -329,7 +329,7 @@ Deno.test("controller loads optional Blockly mapping from the catalog", async ()
   assertEquals(state.blocklyState && typeof state.blocklyState, "object");
   const queued = controller.consumePendingDefaultsMap();
   assertEquals(queued && typeof queued, "object");
-  assertEquals((queued as { type?: string }).type, "maps_create_with");
+  assertEquals((queued as { type?: string }).type, "default_context_map");
 });
 
 Deno.test("controller loads chemo FLAT example set with TakeCare XSD target", async () => {

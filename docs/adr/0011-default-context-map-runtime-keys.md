@@ -1,6 +1,6 @@
 # Default context map: runtime keys vs scaffold targets
 
-- Status: accepted (not implemented; [design spec](../design/default-context-map.md), #158 blocked by #159)
+**Status:** implemented (#158 / #140 remainder). Root `CONTEXT.md` uses **default context map** / **runtime key** / **scaffold target**. Spec: [default-context-map.md](../design/default-context-map.md).
 - Date: 2026-09-20
 - Extends: [ADR 0002](0002-convert-time-defaults.md)
 
@@ -10,4 +10,4 @@ Scaffolding **joins** **Default point**s by matching **scaffold targets** with t
 
 **Considered:** keeping path/wildcard strings as the convert-time keys (#157 factory); a Decision table or Sheet for the wiring; a sidecar table plus a plugged `maps_create_with`; dual-read of old map JSON. Rejected: pipelines cannot be asked for `*.language`; Decision tables hold cell text, not nested RM values; two artefacts drift; there are no external users, so in-repo examples convert in the same change.
 
-Root `CONTEXT.md` still describes the shipped plugged-Map model until #158 lands. Replacement glossary text: [CONTEXT-default-context-map-proposed.md](../design/CONTEXT-default-context-map-proposed.md).
+Root `CONTEXT.md` describes the unique **default context map** (runtime keys vs scaffold targets). Grilling glossary draft: [CONTEXT-default-context-map-proposed.md](../design/CONTEXT-default-context-map-proposed.md).

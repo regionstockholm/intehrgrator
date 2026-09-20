@@ -21,6 +21,7 @@ Enabled only when the shell is opened with `?testMode=1`.
 |--------|------|
 | `ready()` | Resolves after Blockly inject + first render |
 | `loadTemplate` / `loadSchema` / `addExample` | Fixture setup (no Host file picker) |
+| `refreshTarget` / `refreshSchema` | Non-destructive refresh; `getSnapshot().lastRefreshReport` |
 | `armSlot` / `bindFromNode` | Programmatic equivalents of Click-to-Map (available; UI test prefers DOM clicks) |
 | `mapNodeToSlot` | Programmatic equivalent of drag-and-drop (skips Listening Mode) |
 | `runTest` / `setAutoplay` | Drive Conversion Test Run(s) |

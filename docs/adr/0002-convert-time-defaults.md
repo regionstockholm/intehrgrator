@@ -4,4 +4,4 @@ Generated Conversion Scripts take a `defaults` map argument and resolve **Map lo
 
 **Considered:** inlining current default values at codegen time — simpler scripts, but a language/territory change would require regenerating the mapping, which is the opposite of a convert-time defaults argument.
 
-**See also:** [ADR 0011](0011-default-context-map-runtime-keys.md) — accepted, not yet implemented: the canvas artefact becomes a **default context map** whose convert-time bag is keyed only by simple **runtime keys**; RM paths and wildcards move to **scaffold targets**.
+**See also:** [ADR 0011](0011-default-context-map-runtime-keys.md) — the canvas artefact is a **default context map** whose convert-time bag is keyed only by simple **runtime keys**; RM paths and wildcards are **scaffold targets**.

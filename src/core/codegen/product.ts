@@ -7,6 +7,7 @@ import type { MappingModel, SkeletonNode } from "../../types/mod.ts";
 import { hasRmType } from "../rm_meta.ts";
 
 const SKIP_TOP_TYPES = new Set([
+  "default_context_map",
   "defaults_block",
   "maps_create_with",
   "conversion_start",

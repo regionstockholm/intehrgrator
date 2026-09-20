@@ -19,6 +19,8 @@ export {
 export { factoryDefaultsMapBlockState } from "./factory_map.ts";
 export {
   DEFAULTS_BLOCK_TYPE,
+  DEFAULT_CONTEXT_MAP_TYPE,
+  LEGACY_DEFAULTS_BLOCK_TYPE,
   MAPS_CREATE_WITH,
   MAPS_GET,
   mapBlockFromDefaultsJson,
@@ -26,6 +28,24 @@ export {
   namedMapsFromBlocklyState,
   type NamedMaps,
 } from "./extract.ts";
+export {
+  classAttributeScaffoldTarget,
+  contextMapFromDefaultsJson,
+  entriesFromContextMapBlock,
+  entriesFromScaffoldTargetList,
+  mapsCreateWithToContextMap,
+  migrateDefaultContextMapState,
+  isEmptyContextMapState,
+  canonicalScaffoldTargets,
+  parseTargetsField,
+  runtimeKeyFromLegacyKey,
+  runtimeKeyWarnings,
+  scaffoldTargetsFromLegacyKey,
+  toggleScaffoldTargetWildcard,
+  wildcardScaffoldTarget,
+  type DefaultContextMapEntry,
+  type DefaultContextMapEntryInfo,
+} from "./context_map.ts";
 export {
   createMemoryDefaultsCatalog,
   type DefaultsCatalog,

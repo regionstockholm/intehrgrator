@@ -27,7 +27,7 @@ Click **+ Add Example** to load one or more JSON/XML instance files (or a GitHub
 
 ## 3. Load a target
 
-In **Target & Previews** (right pane), click **Open** (header). After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure.
+In **Target & Previews** (right pane), click **Load target & default context map**. Pick a target (file, URL, or the one already loaded) and a **default context map** (openEHR factory, a saved snapshot, a file, or **New**). Confirm scaffolds the **Template Skeleton** and **Default point**s. **New** loads the target into the **Target schema** tab only so you can pull chips and values, then Apply. After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure. Drag a leaf onto **scaffold target** chips, or a subtree onto a map value socket, to author the map.
 
 Supported targets:
 
@@ -39,9 +39,11 @@ When an openEHR template loads, the Mapping Editor shows a **Template Skeleton**
 
 ## 4. Set defaults before mapping
 
-A **Default context mapping** block is already on the canvas. Edit the plugged-in map. Scaffolding keys are RM paths (`*.language`, `COMPOSITION.composer`, `EVENT_CONTEXT.health_care_facility`, `*.time` / `*.start_time` / `*.origin`, …), not simplified-format `ctx` names. **Save as** a named snapshot if you want to reuse the table.
+A blank project has **no** factory **default context map** rows. **Load target & default context map** and pick the openEHR factory (or a clinic snapshot). Each **entry** has a **runtime key** (`language`, `facility`, …) for convert-time `maps_get("defaults", …)`, plus **scaffold targets** (chips such as `*.language`) that light **Default point**s when you confirm or click **Apply**.
 
-When you load a template, scaffolding fills **default points** with map lookups — change the map once instead of every slot.
+**New** loads the target into the **Target schema** tab only: pull PARTY / term pieces onto value sockets, chip paths, **Save as**, then Apply. ▾ **Refresh from file/URL** updates a target or source without wiping canvas mappings.
+
+When you confirm a joint load, scaffolding fills **Default point**s with map lookups — change the map once instead of every slot. Value edits are live in Test Run; new chips wait for Apply.
 
 ## 5. Map source to target (click-to-map)
 
@@ -71,21 +73,21 @@ Open the Blockly toolbox drawers:
 
 | Drawer | Use for |
 |--------|---------|
-| **Lists & maps** | Defaults Map, terminology lookups (`get map key …`), list operations |
+| **Lists & maps** | Generic Maps, terminology lookups (`get map key …`), list operations. The unique **default context map** is on the canvas, not in this drawer. |
 | **Sheets** | 2D grids (paste from Excel/CSV); `sheet_get_*` / `sheet_lookup` accessors |
 | **Logic** | Conditions, list restrictions, set operations |
 
 The **Sheets** tab in the Mapping Editor embeds a spreadsheet for editing project-owned grids.
 
-## 8. AI-assisted mapping (copy-paste)
+## 8. AI-assisted mapping
 
-No in-app AI API — you bring your own chat tool:
-
-1. **Copy AI Prompt** (▾ to choose embed / attach / URI delivery).
-2. Paste into ChatGPT, Claude, Cursor, or similar.
-3. Copy the `intehrgrator-suggestions` JSON from the response.
-4. **Import AI suggestions** → paste → **Import**.
+1. **Copy prompt** (toolbar) builds a markdown prompt (▾: embed / attach / URI delivery).
+2. Paste into ChatGPT, Claude, Cursor, or similar — **or** save **AI credentials** and use **Call AI** (default when credentials exist).
+3. Copy the `intehrgrator-suggestions` JSON from the response, or let Call AI import it.
+4. **Import AI suggestions** still accepts a pasted block if you used Copy prompt.
 5. **Run Test** to verify.
+
+Refreshing a target or source opens a report with **Copy merge prompt** / **Call AI** for slots that no longer fit. Detached Blockly stays on the canvas.
 
 ## 9. Save and share projects
 

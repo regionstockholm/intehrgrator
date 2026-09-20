@@ -1,6 +1,5 @@
 import { Blockly } from "../blockly_core.ts";
 import {
-  DEFAULTS_BLOCK_TYPE,
   DEFAULTS_MAP_NAME,
   MAPS_CREATE_WITH,
   MAPS_GET,
@@ -13,57 +12,18 @@ import {
 } from "../dynamic_mutator.ts";
 import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
 import { enforceMouthCaptionLayout, initMutatorStackMouth } from "../mouth_layout.ts";
+import { registerDefaultContextMapBlock } from "./default_context_map.ts";
+
+export {
+  setDefaultContextMapApplyHandler,
+  setDefaultsMapHardcodeHandler,
+  setDefaultsMapInfoHandler,
+  setDefaultsMapPickHandler,
+} from "./default_context_map.ts";
 
 const MAP_COLOUR = "#7E57C2";
-const DEFAULTS_COLOUR = "#5C6BC0";
-
 export const MAPS_CREATE_WITH_ITEM = "maps_create_with_item";
 export const MAPS_CREATE_WITH_CONTAINER = "maps_create_with_container";
-
-const FOLDER_SVG = "data:image/svg+xml," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><path d="M2 5h5l1 1.5H16v8.5H2z" fill="#fff" stroke="#5f6368"/><path d="M2 6.5h14" stroke="#5f6368"/></svg>',
-  );
-const INFO_SVG = "data:image/svg+xml," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><circle cx="9" cy="9" r="7.5" fill="#fff" stroke="#005c53"/><text x="9" y="13" text-anchor="middle" font-family="Georgia, serif" font-style="italic" font-weight="700" font-size="12" fill="#005c53">i</text></svg>',
-  );
-/** Pin / hardcode: inline a Defaults Map entry into canvas lookups. */
-const HARDCODE_SVG = "data:image/svg+xml," +
-  encodeURIComponent(
-    '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18"><rect x="3.5" y="7" width="11" height="8" rx="1.5" fill="#fff" stroke="#5f6368"/><path d="M6 7V5.5a3 3 0 0 1 6 0V7" fill="none" stroke="#5f6368" stroke-width="1.4"/><circle cx="9" cy="11.5" r="1.2" fill="#5f6368"/></svg>',
-  );
-
-let defaultsMapPickHandler: (() => void) | null = null;
-let defaultsMapInfoHandler: ((anchor: Element | null) => void) | null = null;
-let defaultsMapHardcodeHandler: (() => void) | null = null;
-
-type ClickableField = {
-  getClickTarget_?: () => Element | null;
-  getSvgRoot?: () => SVGElement | null;
-  fieldGroup_?: Element | null;
-};
-
-function fieldClickAnchor(field: ClickableField): Element | null {
-  return field.getClickTarget_?.() ?? field.getSvgRoot?.() ?? field.fieldGroup_ ?? null;
-}
-
-/** Workbench registers the Defaults Map catalog / file picker. */
-export function setDefaultsMapPickHandler(handler: (() => void) | null): void {
-  defaultsMapPickHandler = handler;
-}
-
-/** Workbench registers the Defaults Map (i) balloon. */
-export function setDefaultsMapInfoHandler(
-  handler: ((anchor: Element | null) => void) | null,
-): void {
-  defaultsMapInfoHandler = handler;
-}
-
-/** Workbench registers the hardcode / inline Defaults Map entry dialog. */
-export function setDefaultsMapHardcodeHandler(handler: (() => void) | null): void {
-  defaultsMapHardcodeHandler = handler;
-}
 
 type MapCreateBlock = Blockly.Block & {
   itemCount_: number;
@@ -249,6 +209,7 @@ const mapsCreateMutator = {
 };
 
 export function registerMapBlocks(): void {
+  registerDefaultContextMapBlock();
   defineMapsMutatorQuarks();
 
   Blockly.Blocks[MAPS_CREATE_WITH] = {
@@ -342,49 +303,6 @@ export function registerMapBlocks(): void {
       this.setOutput(true, "Boolean");
       this.setColour(MAP_COLOUR);
       this.setInputsInline(true);
-    },
-  };
-
-  Blockly.Blocks[DEFAULTS_BLOCK_TYPE] = {
-    init: function (this: Blockly.Block) {
-      let infoField: Blockly.FieldImage;
-      infoField = new Blockly.FieldImage(
-        INFO_SVG,
-        18,
-        18,
-        "Default context mapping: design-time table keyed by RM paths (Class.attribute, wildcards such as *.language). Folder: load, save, or download.",
-        () => {
-          defaultsMapInfoHandler?.(fieldClickAnchor(infoField as ClickableField));
-        },
-      );
-      this.appendDummyInput("HEADER")
-        .appendField("Default context mapping")
-        .appendField(
-          new Blockly.FieldImage(FOLDER_SVG, 18, 18, "Load/save", () => {
-            defaultsMapPickHandler?.();
-          }),
-        )
-        .appendField(
-          new Blockly.FieldImage(
-            HARDCODE_SVG,
-            18,
-            18,
-            "Hardcode: inline a map entry into canvas lookups",
-            () => {
-              defaultsMapHardcodeHandler?.();
-            },
-          ),
-        )
-        .appendField(infoField);
-      this.appendValueInput("MAP")
-        .setCheck("Map")
-        .appendField("map");
-      this.setColour(DEFAULTS_COLOUR);
-      this.setTooltip(
-        "Binds a Map as the named defaults table. Lookups use maps_get by name, not a wire.",
-      );
-      this.setDeletable(false);
-      this.setMovable(true);
     },
   };
 }

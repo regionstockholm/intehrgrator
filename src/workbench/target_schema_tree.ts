@@ -1,8 +1,8 @@
 /**
  * Target schema tree: SkeletonNode → Source-pane-shaped rows, plus canvas drag MIME.
  *
- * Drag onto empty canvas is this precursor (#159). Leaf → scaffold-target chip and
- * subtree → default-context-map value socket wait for #158.
+ * Drag onto empty canvas is product recovery. Leaf → scaffold-target chip and
+ * subtree → default-context-map value socket are handled by the Web Shell drop path.
  */
 
 import type { SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
@@ -40,6 +40,21 @@ function parseTargetDragPayloadFromTransfer(dt: DataTransfer | null): TargetDrag
   }
   if (raw.includes("/") || raw.includes("::") || raw.startsWith("#")) {
     return { slotId: raw };
+  }
+  return null;
+}
+
+export function findParentSkeletonNode(
+  nodes: SkeletonNode[],
+  slotId: string,
+  parent: SkeletonNode | null = null,
+): SkeletonNode | null {
+  for (const node of nodes) {
+    if (node.slotId === slotId) return parent;
+    const inner = findParentSkeletonNode(node.children, slotId, node);
+    if (inner || node.children.some((child) => child.slotId === slotId)) {
+      return inner ?? node;
+    }
   }
   return null;
 }

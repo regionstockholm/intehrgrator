@@ -338,21 +338,13 @@ Deno.test("projectBlocklyState uses map KEY fields as row attributes", () => {
     blocks: {
       languageVersion: 0,
       blocks: [{
-        type: "defaults_block",
+        type: "default_context_map",
         id: "def",
+        extraState: { itemCount: 2, targets: [[], []] },
+        fields: { KEY0: "language", KEY1: "territory" },
         inputs: {
-          MAP: {
-            block: {
-              type: "maps_create_with",
-              id: "map1",
-              extraState: { itemCount: 2 },
-              fields: { KEY0: "language", KEY1: "territory" },
-              inputs: {
-                VAL0: { block: { type: "text", id: "v0", fields: { TEXT: "sv" } } },
-                VAL1: { block: { type: "text", id: "v1", fields: { TEXT: "SE" } } },
-              },
-            },
-          },
+          VAL0: { block: { type: "text", id: "v0", fields: { TEXT: "sv" } } },
+          VAL1: { block: { type: "text", id: "v1", fields: { TEXT: "SE" } } },
         },
       }],
     },
@@ -362,7 +354,7 @@ Deno.test("projectBlocklyState uses map KEY fields as row attributes", () => {
   assertEquals(projection.lines.find((l) => l.blockId === "v1")?.attribute, "territory");
   assertEquals(
     projection.lines.find((l) => l.blockId === "v0")?.attributeEdit,
-    { field: "KEY0", value: "language", targetBlockId: "map1" },
+    { field: "KEY0", value: "language", targetBlockId: "def" },
   );
 });
 

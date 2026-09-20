@@ -7,8 +7,10 @@ const LEGACY_TYPE = "for_each_source";
 const LIST_TYPE = "for_each_list";
 const SOURCE_NODE_TYPE = "source_query_node";
 
+import { migrateDefaultContextMapState } from "../core/defaults/context_map.ts";
+
 export function migrateForEachSourceState<T>(state: T): T {
-  return walk(state) as T;
+  return walk(migrateDefaultContextMapState(state)) as T;
 }
 
 function walk(node: unknown): unknown {

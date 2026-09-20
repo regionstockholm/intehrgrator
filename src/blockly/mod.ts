@@ -124,6 +124,7 @@ export { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 export { buildDemoToolbox, toolboxBlockTypes, type ToolboxContext } from "./toolbox_demo.ts";
 export {
   attachDefaultPointLookups,
+  applyDefaultContextMap,
   captureDefaultsBlockState,
   ensureDefaultsBlock,
   findDefaultsBlock,
@@ -148,7 +149,13 @@ export {
   applyInstanceRootCap,
   productStackBlocks,
 } from "./instance_root.ts";
-export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler } from "./blocks/map_blocks.ts";
+export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler, setDefaultContextMapApplyHandler } from "./blocks/map_blocks.ts";
+export {
+  appendContextMapEntry,
+  scaffoldTargetFieldAtClientPoint,
+  defaultContextMapAtClientPoint,
+  contextMapValueInputAtClientPoint,
+} from "./blocks/default_context_map.ts";
 export {
   defaultsMapKeys,
   hardcodeDefaultsMapKey,
@@ -288,6 +295,8 @@ function registerGenerators(): void {
     }
     return [`({ ${parts.join(", ")} })`, Order.ATOMIC] as [string, number];
   };
+
+  javascriptGenerator.forBlock["default_context_map"] = () => "";
 
   javascriptGenerator.forBlock["sheet_get_cell"] = (block) => {
     const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");

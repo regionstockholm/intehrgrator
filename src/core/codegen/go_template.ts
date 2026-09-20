@@ -183,6 +183,7 @@ export function emitBlock(block: BlockNode, ctx: GoEmitContext = createGoEmitCon
       break;
     }
     case "defaults_block":
+    case "default_context_map":
     case "maps_create_with":
     case "variables_set": {
       break;

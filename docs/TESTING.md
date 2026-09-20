@@ -17,9 +17,9 @@ Tests observe behavior at a **seam** (a public boundary). Pick the highest seam 
 
 A filename twin (`test/foo_test.ts` and `test/ui/foo_test.ts`) is **complementary** when one asserts a function and the other asserts chrome. Clone an assertion onto a second seam only when that seam can miss a real bug the first cannot see.
 
-The **UI green-path** (`test/ui/green_path_test.ts`) is the one Playwright test that must keep covering the major authoring steps: load Source Schema + Example Instance + target, Click-to-Map a `source_query`, RM COMPOSITION (Defaults Map + Optional RM Insertion), Test Run, Generated Export. Extend it when you add a major process step; do not replace it with another single-control test.
+The **UI green-path** (`test/ui/green_path_test.ts`) is the one Playwright test that must keep covering the major authoring steps: load Source Schema + Example Instance + target, Click-to-Map a `source_query`, RM COMPOSITION (**default context map** + Optional RM Insertion), Test Run, Generated Export. Extend it when you add a major process step; do not replace it with another single-control test.
 
-Tabbed **Target & Previews** plus pull-from-**Target schema** live in `test/ui/target_schema_tabs_test.ts` (chrome that can miss a bug the unit `placeSkeletonSubtreeOnWorkspace` tests cannot see).
+Tabbed **Target & Previews** plus pull-from-**Target schema** live in `test/ui/target_schema_tabs_test.ts` (chrome that can miss a bug the unit `placeSkeletonSubtreeOnWorkspace` tests cannot see). Joint load / **Call AI** chrome lives in `test/ui/joint_load_ai_test.ts`.
 
 ## How to run
 
@@ -67,7 +67,7 @@ Retired Blockly types (`for_each_source`) keep a **migration pin** (`migrate_for
 
 1. Name the test as observable behavior, using terms from [CONTEXT.md](../CONTEXT.md).
 2. Assert a known literal or fixture (systolic `120`, a COMPOSITION `_type`), not a value recomputed the way the code computes it.
-3. Drive UI tests through the DOM and `window.intehrgratorTestApi` (`?testMode=1`). Do not automate the OS file picker; load fixtures via the Test API. Assert Test Run on **Mapping preview**; TypeScript output mode executes the generated script and needs complete Defaults `CODE_PHRASE` values.
+3. Drive UI tests through the DOM and `window.intehrgratorTestApi` (`?testMode=1`). Do not automate the OS file picker; load fixtures via the Test API. Assert Test Run on **Mapping preview**; TypeScript output mode executes the generated script and needs complete default context map `CODE_PHRASE` values.
 4. Headless Agent/MCP already covers most authoring. Add Playwright when the bug would be “the button/dialog/toolbox didn’t do it.”
 5. After a new Mapping Editor process step ships, extend `test/ui/green_path_test.ts` so the green-path still walks every major step.
 6. Optional goldens `return` (with a warning) when the engine is missing; they do not `ignore: true` the whole file in a way that hides a broken install in CI that *does* have the engine.

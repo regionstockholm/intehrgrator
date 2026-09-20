@@ -1960,22 +1960,16 @@
         }
       },
       {
-        "type": "defaults_block",
+        "type": "default_context_map",
+        "extraState": {
+          "itemCount": 0,
+          "targets": []
+        },
+        "fields": {},
+        "inputs": {},
         "id": "5!NEFQBt},Tq/Ti[QP|=",
         "x": 20,
-        "y": 20,
-        "deletable": false,
-        "inputs": {
-          "MAP": {
-            "block": {
-              "type": "maps_create_with",
-              "id": "kM`Z%M;Dco{LE2HpRoOP",
-              "extraState": {
-                "itemCount": 0
-              }
-            }
-          }
-        }
+        "y": 20
       }
     ]
   }

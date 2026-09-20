@@ -8,7 +8,7 @@ A brief guide for medical informaticians mapping source data to openEHR (or othe
 - **Desktop:** download from [GitHub Releases](https://github.com/regionstockholm/intehrgrator/releases) and run the binary for your platform.
 - **Stable web version:** check [versions.json](https://regionstockholm.github.io/intehrgrator/versions.json) for pinned URLs (`/v0.7/`, etc.). The site root is the bleeding-edge build.
 
-The layout has three panes: **Source** (left), **Mapping Editor** (centre), **Target & Previews** (right).
+The layout has three panes: **Source** (left, slide-away), **Mapping Editor** (centre), **Target & Previews** (right, tabbed and slide-away).
 
 ## 2. Load source data
 
@@ -27,7 +27,7 @@ Click **+ Add Example** to load one or more JSON/XML instance files (or a GitHub
 
 ## 3. Load a target
 
-In **Target & Previews** (right pane), click **Open target Schema/Template**.
+In **Target & Previews** (right pane), click **Open** (header). After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure.
 
 Supported targets:
 
@@ -60,7 +60,7 @@ When you load a template, scaffolding fills **default points** with map lookups 
 ## 6. Test your mapping
 
 1. Make sure at least one example tab is open.
-2. In **Target & Previews**, leave **Output mode** on **Mapping preview**.
+2. In **Target & Previews**, open the **Conversion Test Run(s)** tab and leave **Output mode** on **Mapping preview**.
 3. Click **Run Test** (or enable **Autoplay** for automatic re-runs after edits).
 
 **Conversion Test Run(s)** shows the produced instance. For openEHR targets, a ✅ or ⚠ indicates template validation via ehrtslib.

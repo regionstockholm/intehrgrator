@@ -93,6 +93,13 @@ await esbuild.build({
 
 await copy(join(root, "web", "index.html"), join(outDir, "index.html"), { overwrite: true });
 await copy(join(root, "web", "styles.css"), join(outDir, "styles.css"), { overwrite: true });
+const shoelaceThemeDir = join(outDir, "vendor", "shoelace", "themes");
+await ensureDir(shoelaceThemeDir);
+await copy(
+  join(root, "node_modules", "@shoelace-style", "shoelace", "dist", "themes", "light.css"),
+  join(shoelaceThemeDir, "light.css"),
+  { overwrite: true },
+);
 await copy(join(root, "web", "manifest.webmanifest"), join(outDir, "manifest.webmanifest"), {
   overwrite: true,
 });

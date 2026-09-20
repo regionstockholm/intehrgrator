@@ -10,6 +10,7 @@
   <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans:400,500" />
+  <link rel="stylesheet" href="vendor/shoelace/themes/light.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="vendor/jspreadsheet/jsuites.css" />
   <link rel="stylesheet" href="vendor/jspreadsheet/jspreadsheet.css" />
@@ -110,9 +111,12 @@
     data-split-sizes="1,2.6,1"
     data-split-preferred="1"
   >
-    <section class="pane source-pane">
+    <section class="pane source-pane" id="source-pane">
+      <button type="button" class="pane-slide-rail" id="rail-source" hidden title="Show Source">Source</button>
+      <div class="pane-slide-main">
       <h2>
         Source
+        <span class="pane-header-end">
         <span class="info-tip">
           <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-source-click-to-map" aria-label="Click-to-Map into Handlebars">i</button>
           <span id="tip-source-click-to-map" class="info-tip-balloon" role="tooltip">
@@ -121,6 +125,14 @@
             the click inserts a VMS-Hbs {{path}} at the caret. Hold Shift for nested
             {{#with}} / {{#each}}. Otherwise Listening Mode fills the waiting Source query block.
           </span>
+        </span>
+        <button
+          type="button"
+          id="btn-slide-source"
+          class="pane-btn pane-btn-on-dark pane-slide-btn"
+          title="Slide Source away"
+          aria-label="Slide Source away"
+        >⟨</button>
         </span>
       </h2>
       <p id="handlebars-click-hint" class="source-handlebars-hint" hidden>
@@ -190,6 +202,7 @@
           <div id="example-tabs" class="example-tabs"></div>
           <div id="example-tree" class="tree-pane"></div>
         </div>
+      </div>
       </div>
     </section>
 
@@ -302,7 +315,13 @@
       </div>
     </section>
 
-    <section class="pane output-pane">
+    <section class="pane output-pane" id="output-pane">
+      <div class="pane-slide-rail pane-slide-rail--output" id="rail-output" hidden>
+        <button type="button" data-output-tab="target-schema" title="Target schema">Target schema</button>
+        <button type="button" data-output-tab="script" title="Generated conversion script(s)">Scripts</button>
+        <button type="button" data-output-tab="test" title="Conversion Test Run(s)">Test</button>
+      </div>
+      <div class="pane-slide-main">
       <div class="pane-header">
         <h2>Target &amp; Previews</h2>
         <div class="pane-header-actions">
@@ -331,99 +350,112 @@
             <span id="model-language-label">Model</span>
             <select id="model-language-dropdown" aria-label="Target model ontology language"></select>
           </label>
+          <span class="info-tip info-tip--end">
+            <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
+            <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
+              Mapping preview interprets the mapping without generating a script.
+              Conversion scripts (so far): TypeScript, Java, Handlebars, XQuery, and Go Template.
+              TypeScript, Handlebars, Go Template, and XQuery also run in Conversion Test Run.
+              Java generates an Archie class but does not execute in the Web Shell.
+              For openEHR targets, JSON vs XML instance chooses how XQuery serializes the composition.<br>
+              Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.
+            </span>
+          </span>
+          <label class="pane-select-label" for="export-target">
+            <select id="export-target">
+              <option value="preview">Mapping preview</option>
+              <option value="typescript">TypeScript</option>
+              <option value="java">Java</option>
+              <option value="handlebars">Handlebars</option>
+              <option value="xquery">XQuery</option>
+              <option value="go-template">Go Template</option>
+            </select>
+          </label>
+          <label class="pane-select-label" id="openehr-instance-shape-wrap" hidden for="openehr-instance-shape">
+            Instance
+            <select id="openehr-instance-shape" title="Desired openEHR instance shape. XQuery export and Test Run use this serialization.">
+              <option value="json">JSON instance</option>
+              <option value="xml">XML instance</option>
+            </select>
+          </label>
+          <button
+            type="button"
+            id="btn-slide-output"
+            class="pane-btn pane-btn-on-dark pane-slide-btn"
+            title="Slide Target &amp; Previews away"
+            aria-label="Slide Target &amp; Previews away"
+          >⟩</button>
         </div>
       </div>
-      <div
-        class="pane-body"
-        data-split="column"
-        data-split-storage="layout-output-sections"
-      >
-        <div class="pane-section">
-          <div class="pane-header script-format-header">
-            <div class="pane-header-actions">
-              <span class="info-tip info-tip--end">
-                <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats">i</button>
-                <span id="tip-output-script" class="info-tip-balloon" role="tooltip">
-                  Mapping preview interprets the mapping without generating a script.
-                  Conversion scripts (so far): TypeScript, Java, Handlebars, XQuery, and Go Template.
-                  TypeScript, Handlebars, Go Template, and XQuery also run in Conversion Test Run.
-                  Java generates an Archie class but does not execute in the Web Shell.
-                  For openEHR targets, JSON vs XML instance chooses how XQuery serializes the composition.<br>
-                  Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.
-                </span>
-              </span>
-              <label class="pane-select-label" for="export-target">
-                <select id="export-target">
-                  <option value="preview">Mapping preview</option>
-                  <option value="typescript">TypeScript</option>
-                  <option value="java">Java</option>
-                  <option value="handlebars">Handlebars</option>
-                  <option value="xquery">XQuery</option>
-                  <option value="go-template">Go Template</option>
-                </select>
-              </label>
-              <label class="pane-select-label" id="openehr-instance-shape-wrap" hidden for="openehr-instance-shape">
-                Instance
-                <select id="openehr-instance-shape" title="Desired openEHR instance shape. XQuery export and Test Run use this serialization.">
-                  <option value="json">JSON instance</option>
-                  <option value="xml">XML instance</option>
-                </select>
-              </label>
+      <sl-tab-group id="output-tabs" class="output-tabs">
+        <sl-tab slot="nav" panel="target-schema" id="tab-target-schema">Target schema</sl-tab>
+        <sl-tab slot="nav" panel="script" id="tab-generated-script">Generated conversion script(s)</sl-tab>
+        <sl-tab slot="nav" panel="test" id="tab-test-run">Conversion Test Run(s)</sl-tab>
+
+        <sl-tab-panel name="target-schema">
+          <div id="target-schema-tree" class="tree-pane"></div>
+        </sl-tab-panel>
+
+        <sl-tab-panel name="script">
+          <div class="pane-section pane-section--tab">
+            <h3>Generated conversion script(s)</h3>
+            <div class="export-editor-host">
+              <button
+                id="btn-export-ts"
+                class="pane-btn pane-btn-icon export-download"
+                type="button"
+                title="Download conversion script"
+              >
+                <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
+                </svg>
+                Download
+              </button>
+              <div id="export-editor" class="editor-host"></div>
             </div>
           </div>
-          <h3>Generated conversion script(s)</h3>
-          <div class="export-editor-host">
-            <button
-              id="btn-export-ts"
-              class="pane-btn pane-btn-icon export-download"
-              type="button"
-              title="Download conversion script"
-            >
-              <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
-              </svg>
-              Download
-            </button>
-            <div id="export-editor" class="editor-host"></div>
-          </div>
-        </div>
-        <div class="pane-section">
-          <div class="section-header">
-            <h3>Conversion Test Run(s)</h3>
-            <div class="section-header-actions">
-              <label class="pane-select-label validation-mode-label" id="validation-mode-wrap" hidden for="validation-deserialize-mode">
-                Validate as
-                <select id="validation-deserialize-mode" title="ehrtslib JSON deserializer preset for template validation">
-                  <option value="hybrid">Hybrid (lenient)</option>
-                  <option value="default">Default</option>
-                  <option value="compact">Compact</option>
-                  <option value="canonical-strict">Canonical strict</option>
-                  <option value="terse">Terse</option>
-                </select>
-              </label>
-              <div class="pane-btn-group">
-                <button id="btn-run-test" class="pane-btn" type="button">Run Test</button>
-                <button id="btn-autoplay" class="pane-btn" type="button" disabled>▶ Autoplay</button>
+        </sl-tab-panel>
+
+        <sl-tab-panel name="test">
+          <div class="pane-section pane-section--tab">
+            <div class="section-header">
+              <h3>Conversion Test Run(s)</h3>
+              <div class="section-header-actions">
+                <label class="pane-select-label validation-mode-label" id="validation-mode-wrap" hidden for="validation-deserialize-mode">
+                  Validate as
+                  <select id="validation-deserialize-mode" title="ehrtslib JSON deserializer preset for template validation">
+                    <option value="hybrid">Hybrid (lenient)</option>
+                    <option value="default">Default</option>
+                    <option value="compact">Compact</option>
+                    <option value="canonical-strict">Canonical strict</option>
+                    <option value="terse">Terse</option>
+                  </select>
+                </label>
+                <div class="pane-btn-group">
+                  <button id="btn-run-test" class="pane-btn" type="button">Run Test</button>
+                  <button id="btn-autoplay" class="pane-btn" type="button" disabled>▶ Autoplay</button>
+                </div>
               </div>
             </div>
+            <div id="test-output-tabs" class="example-tabs test-output-tabs"></div>
+            <div id="test-output-validation" class="example-validation" hidden></div>
+            <div class="test-output-host">
+              <button
+                id="btn-download-test-output"
+                class="pane-btn pane-btn-icon test-output-download"
+                type="button"
+                title="Download Conversion Test Run output"
+              >
+                <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
+                </svg>
+                Download
+              </button>
+              <div id="test-output" class="editor-host"></div>
+            </div>
           </div>
-          <div id="test-output-tabs" class="example-tabs test-output-tabs"></div>
-          <div id="test-output-validation" class="example-validation" hidden></div>
-          <div class="test-output-host">
-            <button
-              id="btn-download-test-output"
-              class="pane-btn pane-btn-icon test-output-download"
-              type="button"
-              title="Download Conversion Test Run output"
-            >
-              <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
-              </svg>
-              Download
-            </button>
-            <div id="test-output" class="editor-host"></div>
-          </div>
-        </div>
+        </sl-tab-panel>
+      </sl-tab-group>
       </div>
     </section>
   </main>

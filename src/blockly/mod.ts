@@ -51,6 +51,7 @@ export {
   attachOptionalSchemaChild,
   highlightListeningSlot,
   loadSkeletonIntoWorkspace,
+  placeSkeletonSubtreeOnWorkspace,
   lockWorkspaceRootsExpanded,
   setAllBlocksCollapsed,
   slotIdFromBlock,

@@ -1,0 +1,136 @@
+/**
+ * Target schema tree: SkeletonNode → Source-pane-shaped rows, plus canvas drag MIME.
+ *
+ * Drag onto empty canvas is this precursor (#159). Leaf → scaffold-target chip and
+ * subtree → default-context-map value socket wait for #158.
+ */
+
+import type { SchemaTreeNode, SkeletonNode } from "../types/mod.ts";
+
+/** Custom MIME for Target schema → Blockly canvas drag. */
+export const TARGET_DRAG_MIME = "application/x-intehrgrator-target";
+
+export interface TargetDragPayload {
+  slotId: string;
+}
+
+export function parseTargetDragPayload(dt: DataTransfer | null): TargetDragPayload | null {
+  const fromTransfer = parseTargetDragPayloadFromTransfer(dt);
+  if (fromTransfer) return fromTransfer;
+  return activeTargetDrag;
+}
+
+let activeTargetDrag: TargetDragPayload | null = null;
+
+export function getActiveTargetDrag(): TargetDragPayload | null {
+  return activeTargetDrag;
+}
+
+function parseTargetDragPayloadFromTransfer(dt: DataTransfer | null): TargetDragPayload | null {
+  if (!dt) return null;
+  const raw = dt.getData(TARGET_DRAG_MIME) || dt.getData("text/plain");
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw) as Partial<TargetDragPayload>;
+    if (parsed.slotId && typeof parsed.slotId === "string") {
+      return { slotId: parsed.slotId };
+    }
+  } catch {
+    // slotId as plain text (Playwright text-only drops)
+  }
+  if (raw.includes("/") || raw.includes("::") || raw.startsWith("#")) {
+    return { slotId: raw };
+  }
+  return null;
+}
+
+export function findSkeletonNodeIn(
+  nodes: SkeletonNode[],
+  slotId: string,
+): SkeletonNode | undefined {
+  for (const node of nodes) {
+    if (node.slotId === slotId) return node;
+    const nested = findSkeletonNodeIn(node.children, slotId);
+    if (nested) return nested;
+  }
+  return undefined;
+}
+
+/** Full target (including optional template nodes) for the Target schema tab. */
+export function targetSchemaTreeFromSkeleton(nodes: SkeletonNode[]): SchemaTreeNode[] {
+  return nodes.map(skeletonNodeToTree);
+}
+
+function skeletonNodeToTree(node: SkeletonNode): SchemaTreeNode {
+  return {
+    path: node.slotId,
+    name: node.label || node.rmType || node.blockType,
+    type: node.rmType || node.blockType,
+    multiplicity: node.multiplicity ?? node.effectiveCardinality,
+    description: node.documentation,
+    children: node.children.map(skeletonNodeToTree),
+  };
+}
+
+export type TargetTreeSelectHandler = (slotId: string, event?: MouseEvent) => void;
+
+export function renderTargetSchemaTree(
+  container: HTMLElement,
+  nodes: SchemaTreeNode[],
+  onSelect: TargetTreeSelectHandler = () => {},
+): void {
+  container.classList.add("target-schema-tree");
+  container.innerHTML = "";
+  if (!nodes.length) {
+    container.textContent = "Load a target schema or template.";
+    return;
+  }
+  for (const node of nodes) {
+    container.appendChild(buildTargetNode(node, onSelect, 0));
+  }
+}
+
+function buildTargetNode(
+  node: SchemaTreeNode,
+  onSelect: TargetTreeSelectHandler,
+  depth: number,
+): HTMLElement {
+  const row = document.createElement("div");
+  row.className = "tree-row";
+  row.style.paddingLeft = `${depth * 12}px`;
+  row.dataset.path = node.path;
+  row.dataset.slotId = node.path;
+
+  const label = document.createElement("span");
+  label.className = "tree-label tree-label-schema";
+  const meta = document.createElement("span");
+  meta.className = "tree-meta";
+  const metaParts = [node.type];
+  if (node.multiplicity) metaParts.push(`[${node.multiplicity}]`);
+  meta.textContent = `  ${metaParts.join(" ")}`;
+  label.append(document.createTextNode(node.name), meta);
+  label.draggable = true;
+  label.title = node.description ?? node.path;
+  label.addEventListener("click", (event) => onSelect(node.path, event));
+  label.addEventListener("dragstart", (e) => {
+    const payload: TargetDragPayload = { slotId: node.path };
+    activeTargetDrag = payload;
+    const json = JSON.stringify(payload);
+    e.dataTransfer?.setData(TARGET_DRAG_MIME, json);
+    e.dataTransfer?.setData("text/plain", json);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "copy";
+  });
+  label.addEventListener("dragend", () => {
+    queueMicrotask(() => {
+      activeTargetDrag = null;
+    });
+  });
+  row.appendChild(label);
+
+  const wrap = document.createElement("div");
+  wrap.appendChild(row);
+  for (const child of node.children) {
+    wrap.appendChild(buildTargetNode(child, onSelect, depth + 1));
+  }
+  return wrap;
+}

@@ -302,30 +302,42 @@ export type OptionalInsertFn = (
  * Scalar keys (`*.time`, `*.start_time`, `*.origin`) still plug into the typed-shell leaf.
  * Skips slots that already have a non-shadow, non-literal mapping.
  */
+function isUnderRoot(block: Blockly.Block | null, root: Blockly.Block): boolean {
+  let current: Blockly.Block | null = block;
+  while (current) {
+    if (current.id === root.id) return true;
+    current = current.getParent();
+  }
+  return false;
+}
+
 export function attachDefaultPointLookups(
   workspace: WorkspaceSvg | Blockly.Workspace,
   skeleton: SkeletonNode[],
   insertOptional?: OptionalInsertFn,
+  scope?: { root: Blockly.Block },
 ): void {
   registerMapBlocks();
   const mapKeys = defaultsMapKeys(workspace as Blockly.Workspace);
   const bound = bindDefaultPoints(skeleton, mapKeys);
+  const inScope = (block: Blockly.Block | null): boolean =>
+    Boolean(block) && (!scope?.root || isUnderRoot(block, scope.root));
   for (const { point, node, parent, mapKey } of bound) {
     const key = mapKey || point.mapKey;
-    let targets = findBlocksBySlotId(workspace, node.slotId);
+    let targets = findBlocksBySlotId(workspace, node.slotId).filter(inScope);
     if (!targets.length && point.optionalInsert) {
-      const parentBlock = findBlocksBySlotId(workspace, parent.slotId)[0] ?? null;
+      const parentBlock = findBlocksBySlotId(workspace, parent.slotId).find(inScope) ?? null;
       if (parentBlock && insertOptional) {
         insertOptional(parentBlock, {
           rmType: point.optionalInsert.rmType,
           attributeName: point.rmAttribute,
         });
       }
-      targets = findBlocksBySlotId(workspace, node.slotId);
+      targets = findBlocksBySlotId(workspace, node.slotId).filter(inScope);
       const fallback = parentBlock?.getInputTargetBlock(rmAttributeInputName(point.rmAttribute)) ??
         parentBlock?.getInputTargetBlock(optionalRmInputName(point.rmAttribute)) ??
         null;
-      if (!targets.length && fallback) targets = [fallback];
+      if (!targets.length && fallback && inScope(fallback)) targets = [fallback];
     }
     for (const target of targets) {
       attachLookup(workspace, target, key, point.leaf);

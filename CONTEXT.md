@@ -5,7 +5,7 @@ A visual mapping tool for healthcare informaticians to author conversion logic f
 ## Language
 
 **Source Pane**:
-The left pane with two sections: **Source Schema** (upper, structural tree for mapping) and **Example Instances** (lower, optional tabbed instance files). Source queries use `fontoxpath` behind the Source Format Handler.
+The left pane with two sections: **Source Schema** (upper, structural tree for mapping) and **Example Instances** (lower, optional tabbed instance files). Source queries use `fontoxpath` behind the Source Format Handler. Slide-away (manual toggle) so the Mapping Editor can take the full width.
 _Avoid_: Left panel, input pane
 
 **Source Schema**:
@@ -109,9 +109,13 @@ _Avoid_: `defaults_get` as a separate block type, connecting a Map constructor i
 The center pane where the user authors mapping logic. Default layout is a vertical split: nested Blockly blocks on top; the bottom slice (adjustable) holds **Mapping Specification** and **Sheets** tabs. **Sheets** embeds a spreadsheet widget (Excel/Sheets paste, CSV import/export, optional fullscreen) bound to project-owned Sheet JSON. A minimap appears when the Blockly canvas exceeds the visible area at the current zoom level.
 _Avoid_: Target pane, center panel, BlockMirror (that is a third-party sync pattern reference, not our editor library), Target value slots rail / Slots Pane (removed)
 
+**Target schema**:
+Tree of the loaded **Target instance format** in the **Target schema** tab of **Target & Previews**. Pull a leaf or subtree onto empty canvas to create corresponding Blockly (recover a deleted scaffold or add optional structure). Scaffolding still joins **Default point**s from the current **Defaults Map**.
+_Avoid_: OPT tree, target pane tree, treating this drag as **Open** (that still loads a whole target)
+
 **Target & Previews**:
-The right pane: **Output mode** in the header, **Generated conversion script(s)** above, **Conversion Test Run(s)** below. Collapsible. Both sections are views of the **Mapping Specification**, not saved artifacts.
-_UI labels:_ pane title **Target & Previews**; sections **Generated conversion script(s)** and **Conversion Test Run(s)**.
+The right pane, tabbed and slide-away: **Target schema**, **Generated conversion script(s)**, and **Conversion Test Run(s)**. Header includes **Output mode** and **Open**. Script and test tabs are views of the **Mapping Specification**, not saved artifacts.
+_UI labels:_ pane title **Target & Previews**; tabs **Target schema**, **Generated conversion script(s)**, **Conversion Test Run(s)**.
 _Avoid_: Output Previews (old pane title), Right pane (ambiguous — could mean mapping), test pane alone, Slots Pane / slot rail (removed; Target value slots live on the Blockly canvas)
 
 **Output mode**:

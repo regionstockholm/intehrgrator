@@ -50,17 +50,20 @@ export function bindDefaultPoints(
       if (seen.has(id)) return;
       if (isProhibited(parent, parsed.attribute)) return;
       const existing = parent.children.find((child) => child.rmAttribute === parsed.attribute);
-      const slotType = slotRmType(parent.rmType, parsed.attribute);
-      if (!slotType) return;
+      const slot = slotMeta(parent.rmType, parsed.attribute);
+      if (!slot) return;
+      // Missing mandatory RM (language, subject, …) is a skeleton gap, not an insert.
+      // Only optional RM (health_care_facility, …) is created so the lookup has a mouth.
+      if (!existing && slot.mandatory) return;
       seen.add(id);
-      const node = existing ?? skeletonNodeForOptionalRm(parent, slotType, parsed.attribute);
+      const node = existing ?? skeletonNodeForOptionalRm(parent, slot.rmType, parsed.attribute);
       bound.push({
         point: {
           mapKey: key,
           parentRmType: parent.rmType,
           rmAttribute: parsed.attribute,
-          leaf: leafForRmType(slotType),
-          optionalInsert: existing ? undefined : { rmType: slotType },
+          leaf: leafForRmType(slot.rmType),
+          optionalInsert: existing ? undefined : { rmType: slot.rmType },
         },
         node,
         parent,
@@ -138,10 +141,13 @@ function pathKeyMatches(key: string, trail: readonly SkeletonNode[], attribute: 
   return true;
 }
 
-function slotRmType(parentRmType: string, attribute: string): string | undefined {
+function slotMeta(
+  parentRmType: string,
+  attribute: string,
+): { rmType: string; mandatory: boolean } | undefined {
   const meta = attributesFor(parentRmType).find((attr) => attr.name === attribute);
   if (!meta) return undefined;
-  return baseRmTypeName(meta.typeName);
+  return { rmType: baseRmTypeName(meta.typeName), mandatory: meta.mandatory };
 }
 
 function leafForRmType(rmType: string): DefaultPointLeaf {

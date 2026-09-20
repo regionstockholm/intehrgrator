@@ -280,6 +280,32 @@ Deno.test("bindDefaultPoints wildcard *.territory binds COMPOSITION.territory", 
   assertEquals(territory.mapKey, "*.territory");
 });
 
+Deno.test("bindDefaultPoints does not invent missing mandatory language on a bare OBSERVATION", () => {
+  const skeleton = [{
+    slotId: "t",
+    blockType: "composition",
+    rmType: "COMPOSITION",
+    label: "Encounter",
+    kind: "container" as const,
+    mandatory: true,
+    children: [{
+      slotId: "t/content/bp",
+      blockType: "observation",
+      rmType: "OBSERVATION",
+      label: "Blood pressure",
+      rmAttribute: "content",
+      kind: "container" as const,
+      mandatory: false,
+      children: [],
+    }],
+  }];
+  const bound = bindDefaultPoints(skeleton, new Set(["*.language"]));
+  assertEquals(
+    bound.filter((item) => item.parent.rmType === "OBSERVATION").length,
+    0,
+  );
+});
+
 Deno.test("bindDefaultPoints prefers Class.attribute over a wildcard", () => {
   const { skeleton } = generateSkeleton(opt);
   const bound = bindDefaultPoints(

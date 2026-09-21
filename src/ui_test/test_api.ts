@@ -78,6 +78,16 @@ export interface IntehrgratorTestApi {
     width: number;
     height: number;
   } | null;
+  /** Client rect of a named Blockly field (header cogwheel, type glyph). */
+  getFieldClientRect(
+    blockId: string,
+    fieldName: string,
+  ): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
   /** Select a Blockly block (same path as a canvas click). */
   clickBlock(blockId: string): void;
   /** Pan the Blockly canvas so this block is in view. */
@@ -122,6 +132,8 @@ export interface IntehrgratorTestApi {
   canConnectStatement(parentId: string, inputName: string, childId: string): boolean;
   /** Connect `child` previous onto `parent`'s named statement input. */
   connectStatement(parentId: string, inputName: string, childId: string): boolean;
+  /** Connect `child` output onto `parent`'s named value input. */
+  connectValue(parentId: string, inputName: string, childId: string): boolean;
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
   /** Set a Blockly field on a canvas block (Instance encoding, etc.). */

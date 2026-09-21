@@ -3215,6 +3215,15 @@ function installWorkbenchTestApi(): void {
       const rect = blockOwnClientRect(full, blockOwnWorkspaceSize(block), scale);
       return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     },
+    getFieldClientRect(blockId, fieldName) {
+      const block = workspace.getBlockById(blockId);
+      const field = block?.getField(fieldName) as { getSvgRoot?: () => SVGElement | null } | null;
+      const root = field?.getSvgRoot?.();
+      if (!root) return null;
+      const box = root.getBoundingClientRect();
+      if (!box.width && !box.height) return null;
+      return { x: box.left, y: box.top, width: box.width, height: box.height };
+    },
     clickBlock(blockId) {
       applyBlockSelection(blockId, "blockly");
     },
@@ -3262,6 +3271,19 @@ function installWorkbenchTestApi(): void {
       const child = workspace.getBlockById(childId);
       const a = parent?.getInput(inputName)?.connection;
       const b = child?.previousConnection;
+      if (!a || !b) return false;
+      try {
+        a.connect(b);
+        return a.isConnected();
+      } catch {
+        return false;
+      }
+    },
+    connectValue(parentId, inputName, childId) {
+      const parent = workspace.getBlockById(parentId);
+      const child = workspace.getBlockById(childId);
+      const a = parent?.getInput(inputName)?.connection;
+      const b = child?.outputConnection;
       if (!a || !b) return false;
       try {
         a.connect(b);

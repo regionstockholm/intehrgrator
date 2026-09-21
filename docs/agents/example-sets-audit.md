@@ -2,6 +2,8 @@
 
 Audit of catalogued Example Instances under `test/fixtures/` (see `examples/example-sets.json`).
 
+The instance-validation table below is from an earlier catalog pass (for example it still lists lung-MDT as having zero instances). After [#165](https://github.com/regionstockholm/intehrgrator/pull/165) merges, regenerate it. Title wording (unmapped / mapped in the same trailing position) is [#166](https://github.com/regionstockholm/intehrgrator/issues/166); leftover Conversion Test Run work is [#167](https://github.com/regionstockholm/intehrgrator/issues/167)–[#171](https://github.com/regionstockholm/intehrgrator/issues/171), sequenced from [#172](https://github.com/regionstockholm/intehrgrator/issues/172).
+
 **Regenerate the instance-validation table:**
 
 ```bash

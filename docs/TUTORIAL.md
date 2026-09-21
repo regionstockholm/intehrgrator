@@ -187,7 +187,7 @@ Simple-vitals / series **valid** instances still show ⚠ (`outputValidation`) f
 Work sequenced in [#172](https://github.com/regionstockholm/intehrgrator/issues/172):
 
 - Karda TypeScript is often composition **ctx** only; XQuery may throw `XPTY0004` ([#167](https://github.com/regionstockholm/intehrgrator/issues/167)). Agent API Sheets/`list_slots` leftovers: [#170](https://github.com/regionstockholm/intehrgrator/issues/170).
-- Lung-MDT **Handlebars** Output mode executes nested Note `text_code` LANG=handlebars (TermIds + evaluated Notes). Mapping preview still fills from slots (Notes may still show VMS-Hbs). `@first` / `@last` is [#135](https://github.com/regionstockholm/intehrgrator/issues/135).
+- Lung-MDT **Handlebars** Output mode executes nested **Code text** LANG=handlebars in TakeCare Note fields (TermIds + evaluated Notes). Mapping preview still fills from slots (Notes may still show VMS-Hbs). `@first` / `@last` is [#135](https://github.com/regionstockholm/intehrgrator/issues/135).
 
 - **Language** (toolbar) switches Blockly UI messages (`en`, `sv`, `de`, `es`, `ca`, `fr`). Model/ontology language in the target pane is separate.
 

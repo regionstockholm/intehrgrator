@@ -19,7 +19,7 @@
     {
       "id": "dummy-json-vitals-mapped",
       "title": "Dummy vitals (JSON Schema → JSON Schema) — mapped",
-      "description": "Same dummy files plus a Blockly mapping (source paths into the JSON Schema target, including unit) and a Defaults Map.",
+      "description": "Same dummy files plus a Blockly mapping (source paths into the JSON Schema target, including unit) and a default context map.",
       "source": {
         "schema": "../test/fixtures/dummy-json-vitals/source.schema.json",
         "instances": [
@@ -197,7 +197,7 @@
     {
       "id": "lung-mdt-form-to-tc-xml",
       "title": "Lung MDT form (→ TakeCare XML) — mapped",
-      "description": "Rebuilds the production lung-MDT Handlebars mapping as Blockly using schema-generated TakeCare ProfdocHISMessage blocks (TakeCare-CasenoteWrite-edit01.xsd), not generic XML blocks. Header fields come from the Defaults Map. Notes keep the original Handlebars; Handlebars Output mode executes nested Notes, while Mapping preview still fills from slots. Set TemplateId/TemplateType to the casenote used in the target environment.",
+      "description": "Rebuilds the production lung-MDT Handlebars mapping as Blockly using schema-generated TakeCare ProfdocHISMessage blocks (TakeCare-CasenoteWrite-edit01.xsd), not generic XML blocks. Header fields come from the default context map. Notes keep the original Handlebars; Handlebars Output mode executes nested Code text LANG=handlebars, while Mapping preview still fills from slots. Set TemplateId/TemplateType to the casenote used in the target environment.",
       "source": {
         "instances": [
           "../test/fixtures/lung-MDT-form/source-instance/1-mdt-review-never-smoked-mr.json",

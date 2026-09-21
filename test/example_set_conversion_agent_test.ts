@@ -431,6 +431,9 @@ Deno.test("Handlebars Output mode executes nested Notes on lung-MDT mapped sets"
         failures.push(`${setId} preview ${ex.filename}: ${preview.error}`);
         continue;
       }
+      // Mapping preview still fills the XML skeleton from slots (#70 gold-vs-sibling).
+      // Handlebars Output mode evaluates nested Code text; do not require Note-text
+      // equality with preview (preview may still contain VMS-Hbs).
       const previewIds = new Set(keywordPairs(outputText(preview.output)).map((row) => row.termId));
       const hbsIds = new Set(keywordPairs(text).map((row) => row.termId));
       if (!hbsIds.has("6300") || !previewIds.has("6300")) {

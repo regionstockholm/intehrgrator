@@ -122,12 +122,12 @@ export function generateGoTemplateFromWorkspace(
   const defines = emitGoFunctionDefines(model, ctx);
   if (defines) lines.push(defines);
 
-  const hatches = workspace.getTopBlocks(true).filter((block) =>
+  const rawGoSnippets = workspace.getTopBlocks(true).filter((block) =>
     (block.type === "text" || block.type === "text_code") &&
     block !== instanceRoot
   );
-  for (const hatch of hatches) {
-    lines.push(...emitBlock(hatch, ctx, 0));
+  for (const snippet of rawGoSnippets) {
+    lines.push(...emitBlock(snippet, ctx, 0));
   }
 
   let body: string[] | null = null;
@@ -153,7 +153,7 @@ export function generateGoTemplateFromWorkspace(
     }
   }
 
-  if (!body?.length && !hatches.length) return null;
+  if (!body?.length && !rawGoSnippets.length) return null;
   if (body?.length) lines.push(...body);
   return lines.join("\n");
 }

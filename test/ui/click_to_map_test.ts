@@ -12,6 +12,7 @@ import {
   findSystolicSlotId,
   getSnapshot,
   loadBpFixtures,
+  runTestAndWait,
   waitForMappedSlot,
   waitForTestApi,
   clickBlocklyBlock,
@@ -52,13 +53,7 @@ Deno.test({
         }`,
       );
 
-      await page.click("#btn-run-test");
-      await page.waitForFunction(() => {
-        const api = (globalThis as unknown as {
-          intehrgratorTestApi: { getSnapshot: () => { testResult: unknown } };
-        }).intehrgratorTestApi;
-        return api.getSnapshot().testResult != null;
-      }, { timeout: 10_000 });
+      await runTestAndWait(page);
 
       const snap = await getSnapshot(page);
       const output = snap.testResult?.output as Record<string, unknown> | undefined;

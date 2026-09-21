@@ -3,28 +3,31 @@ import type { SkeletonNode, TargetFormatId } from "../types/mod.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
   bindDefaultPoints,
-  DEFAULTS_BLOCK_TYPE,
+  contextMapFromDefaultsJson,
+  DEFAULT_CONTEXT_MAP_TYPE,
   DEFAULTS_MAP_NAME,
   factoryDefaultsMapBlockState,
-  MAPS_CREATE_WITH,
+  isEmptyContextMapState,
   MAPS_GET,
   mapsGetExpression,
 } from "../core/defaults/mod.ts";
 import { createMapsGetBlock, registerMapBlocks } from "./blocks/map_blocks.ts";
+import { registerDefaultContextMapBlock } from "./blocks/default_context_map.ts";
 import {
   connectExpressionToDataValueShell,
   expressionBlockFromDataValueShell,
   isDataValueBlock,
   registerRmBlocks,
+  optionalRmInputName,
   RM_SPECIALIZATION_INPUT,
   rmAttributeInputName,
 } from "./blocks/rm_blocks.ts";
 import { isTermPickBlock, registerTermPickBlock } from "./blocks/term_pick.ts";
-import { defaultsMapKeys, defaultsMapValueBlock } from "./hardcode_defaults.ts";
+import { defaultsMapValueBlock, listDefaultContextMapEntries } from "./hardcode_defaults.ts";
+import { isSourceQueryBlockType } from "./source_query.ts";
 
 const DEFAULTS_X = 20;
 const DEFAULTS_Y = 20;
-/** Gap between the bottom of Defaults and the top of Conversion start / skeleton. */
 const SKELETON_GAP = 16;
 
 function finalize(block: Blockly.Block): Blockly.Block {
@@ -36,25 +39,30 @@ function finalize(block: Blockly.Block): Blockly.Block {
   return block;
 }
 
-export function createEmptyMapBlock(workspace: Blockly.Workspace): Blockly.Block {
+function registerDefaultsBlocks(): void {
   registerMapBlocks();
-  const map = workspace.newBlock(MAPS_CREATE_WITH) as Blockly.Block & {
+  registerDefaultContextMapBlock();
+  registerTermPickBlock();
+  registerRmBlocks();
+}
+
+export function createEmptyMapBlock(workspace: Blockly.Workspace): Blockly.Block {
+  registerDefaultsBlocks();
+  const block = workspace.newBlock(DEFAULT_CONTEXT_MAP_TYPE) as Blockly.Block & {
     itemCount_: number;
     updateShape_: () => void;
   };
-  map.itemCount_ = 0;
-  map.updateShape_();
-  return finalize(map);
+  block.itemCount_ = 0;
+  block.updateShape_();
+  return finalize(block);
 }
 
-/** Factory Defaults Map from bundled `defaults-with-subject.map.json` (language ← UI). */
+/** Factory default context map from bundled `defaults_openEHR_1.map.json` (language ← UI). */
 export function createFactoryMapBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
 ): Blockly.Block {
-  registerMapBlocks();
-  registerTermPickBlock();
-  registerRmBlocks();
+  registerDefaultsBlocks();
   if (typeof Blockly.serialization?.blocks?.append !== "function") {
     return createEmptyMapBlock(workspace);
   }
@@ -64,52 +72,56 @@ export function createFactoryMapBlock(
     workspace,
   ) as Blockly.Block | undefined;
   if (!appended) return createEmptyMapBlock(workspace);
+  appended.setDeletable(false);
   return finalize(appended);
 }
 
-/** Ensure the singleton Defaults block exists, with a factory Map if none is plugged in. */
+export interface EnsureDefaultsOptions {
+  /** When false, never dump the openEHR factory (blank project / New map). */
+  factory?: boolean;
+}
+
+/**
+ * Ensure the singleton default context map exists.
+ * Blank-project callers should pass `{ factory: false }` so no openEHR-shaped rows appear
+ * before a target is jointly loaded.
+ */
 export function ensureDefaultsBlock(
   workspace: Blockly.Workspace,
   uiLanguage: string,
   targetFormat?: TargetFormatId,
+  options?: EnsureDefaultsOptions,
 ): Blockly.Block {
-  registerMapBlocks();
-  const useEmptyMap = targetFormat === "json-schema" || targetFormat === "xml-schema";
+  registerDefaultsBlocks();
   const existing = findDefaultsBlock(workspace);
   if (existing) {
-    if (!existing.getInputTargetBlock("MAP")) {
-      const map = useEmptyMap
-        ? createEmptyMapBlock(workspace)
-        : createFactoryMapBlock(workspace, uiLanguage);
-      existing.getInput("MAP")?.connection?.connect(map.outputConnection!);
-    }
     existing.setDeletable(false);
     return existing;
   }
-  const block = workspace.newBlock(DEFAULTS_BLOCK_TYPE);
-  const map = useEmptyMap
-    ? createEmptyMapBlock(workspace)
-    : createFactoryMapBlock(workspace, uiLanguage);
-  block.getInput("MAP")?.connection?.connect(map.outputConnection!);
+  const allowFactory = options?.factory !== false &&
+    targetFormat !== "json-schema" &&
+    targetFormat !== "xml-schema";
+  const block = allowFactory
+    ? createFactoryMapBlock(workspace, uiLanguage)
+    : createEmptyMapBlock(workspace);
   if (typeof (block as BlockSvg).moveBy === "function") {
     (block as BlockSvg).moveBy(DEFAULTS_X, DEFAULTS_Y);
   }
   block.setDeletable(false);
-  finalize(block);
   dropDuplicateDefaults(workspace, block);
   return block;
 }
 
 export function findDefaultsBlock(workspace: Blockly.Workspace): Blockly.Block | null {
   for (const block of workspace.getTopBlocks(false)) {
-    if (block.type === DEFAULTS_BLOCK_TYPE) return block;
+    if (block.type === DEFAULT_CONTEXT_MAP_TYPE) return block;
   }
   return null;
 }
 
 function dropDuplicateDefaults(workspace: Blockly.Workspace, keep: Blockly.Block): void {
   for (const block of workspace.getTopBlocks(false)) {
-    if (block.type === DEFAULTS_BLOCK_TYPE && block.id !== keep.id) {
+    if (block.type === DEFAULT_CONTEXT_MAP_TYPE && block.id !== keep.id) {
       block.dispose(false);
     }
   }
@@ -126,27 +138,35 @@ export function restoreDefaultsBlockState(
   state: unknown,
   uiLanguage: string,
   targetFormat?: TargetFormatId,
+  options?: EnsureDefaultsOptions,
 ): void {
-  if (state && typeof Blockly.serialization?.blocks?.append === "function") {
+  const converted = state ? contextMapFromDefaultsJson(state) ?? state : null;
+  const allowFactory = options?.factory !== false &&
+    targetFormat !== "json-schema" &&
+    targetFormat !== "xml-schema";
+  // New map (`factory: false`) keeps an empty block. The blank-canvas
+  // placeholder is also empty — first target load / Test API pass
+  // `{ factory: true }` so we dump the openEHR factory instead of restoring it.
+  const restoreSaved = converted &&
+    !(allowFactory && isEmptyContextMapState(converted));
+  if (restoreSaved && typeof Blockly.serialization?.blocks?.append === "function") {
     try {
-      Blockly.serialization.blocks.append(state, workspace);
+      Blockly.serialization.blocks.append(converted as Record<string, unknown>, workspace);
       const block = findDefaultsBlock(workspace);
       block?.setDeletable(false);
-      dropDuplicateDefaults(workspace, block ?? findDefaultsBlock(workspace)!);
+      if (block) dropDuplicateDefaults(workspace, block);
       if (findDefaultsBlock(workspace)) return;
     } catch {
-      // fall through to factory
+      // fall through
     }
   }
-  ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
+  ensureDefaultsBlock(workspace, uiLanguage, targetFormat, options);
 }
 
-/** Y for the top of the scaffold stack so it sits close under Defaults. */
 export function yJustBelowDefaults(defaultsHeight: number, gap = SKELETON_GAP): number {
   return DEFAULTS_Y + defaultsHeight + gap;
 }
 
-/** Place the Defaults stack at top-left; put Template Skeleton underneath it. */
 export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void {
   const defaults = findDefaultsBlock(workspace);
   if (!defaults || typeof (defaults as BlockSvg).moveBy !== "function") return;
@@ -161,7 +181,7 @@ export function placeDefaultsBesideSkeleton(workspace: Blockly.Workspace): void 
     : { width: 280, height: 160 };
   const skeletonY = yJustBelowDefaults(size.height);
   for (const block of workspace.getTopBlocks(false)) {
-    if (block.type === DEFAULTS_BLOCK_TYPE) continue;
+    if (block.type === DEFAULT_CONTEXT_MAP_TYPE) continue;
     if (typeof (block as BlockSvg).moveBy !== "function") continue;
     const xy = block.getRelativeToSurfaceXY?.() ?? { x: 0, y: 0 };
     const dx = DEFAULTS_X - xy.x;
@@ -180,9 +200,17 @@ function slotAlreadyMapped(block: Blockly.Block): boolean {
   return true;
 }
 
-/** Replace abstract party shells with a Defaults Map lookup of the whole party. */
+function isPartyValueBlock(block: Blockly.Block | null): boolean {
+  return Boolean(
+    block &&
+      (block.type === "party_identified" ||
+        block.type === "party_related" ||
+        block.type === "party_self" ||
+        block.type === "party_proxy"),
+  );
+}
+
 function attachPartyLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: string): void {
-  // Prefer plugging into PARTY_PROXY.KIND so the shell (and its SLOT_ID) stay.
   if (target.type === "party_proxy") {
     const kind = target.getInput(RM_SPECIALIZATION_INPUT);
     if (kind?.connection) {
@@ -197,23 +225,26 @@ function attachPartyLookup(workspace: Blockly.Workspace, target: Blockly.Block, 
       return;
     }
   }
+  attachPartyObjectLookup(workspace, target, key);
+}
+
+function attachPartyObjectLookup(
+  workspace: Blockly.Workspace,
+  target: Blockly.Block,
+  key: string,
+): void {
+  if (target.type === MAPS_GET) return;
   const parentConnection = target.outputConnection?.targetConnection;
   if (!parentConnection) return;
-  if (target.type !== "party_proxy" && target.type !== MAPS_GET) {
-    if (!target.isShadow()) return;
-  }
   const slotId = target.getFieldValue("SLOT_ID");
+  const rmType = target.getFieldValue("RM_TYPE") || "PARTY_IDENTIFIED";
   target.dispose(false);
-  const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key);
+  const lookup = createMapsGetBlock(workspace, DEFAULTS_MAP_NAME, key, { slotId, rmType });
   finalize(lookup);
-  if (lookup.outputConnection) {
-    parentConnection.connect(lookup.outputConnection);
-  }
-  if (slotId && lookup.getField("SLOT_ID")) lookup.setFieldValue(slotId, "SLOT_ID");
+  if (lookup.outputConnection) parentConnection.connect(lookup.outputConnection);
   finalize(lookup);
 }
 
-/** Replace a CODE_PHRASE / term_pick shell with a Defaults Map lookup of the whole object. */
 function attachPhraseLookup(workspace: Blockly.Workspace, target: Blockly.Block, key: string): void {
   if (target.type === MAPS_GET) return;
   const parentConnection = target.outputConnection?.targetConnection;
@@ -227,12 +258,20 @@ function attachPhraseLookup(workspace: Blockly.Workspace, target: Blockly.Block,
   finalize(lookup);
 }
 
+function blockHoldsSourceQuery(block: Blockly.Block): boolean {
+  if (isSourceQueryBlockType(block.type)) return true;
+  const nested = typeof block.getDescendants === "function" ? block.getDescendants(false) : [];
+  return nested.some((child) => isSourceQueryBlockType(child.type));
+}
+
 function attachLookup(
   workspace: Blockly.Workspace,
   target: Blockly.Block,
   key: string,
   leaf: string,
 ): void {
+  if (target.type === MAPS_GET) return;
+  if (blockHoldsSourceQuery(target)) return;
   if (leaf === "party") {
     attachPartyLookup(workspace, target, key);
     return;
@@ -240,6 +279,10 @@ function attachLookup(
   const mapValue = defaultsMapValueBlock(workspace, key);
   if (isTermPickBlock(mapValue) || isTermPickBlock(target)) {
     attachPhraseLookup(workspace, target, key);
+    return;
+  }
+  if (isPartyValueBlock(mapValue) && target.type !== "party_proxy") {
+    attachPartyObjectLookup(workspace, target, key);
     return;
   }
   if (slotAlreadyMapped(target)) return;
@@ -275,77 +318,110 @@ export type OptionalInsertFn = (
   insertion: { rmType: string; attributeName: string },
 ) => Blockly.Block | null;
 
+function isUnderRoot(block: Blockly.Block | null, root: Blockly.Block): boolean {
+  let current: Blockly.Block | null = block;
+  while (current) {
+    if (current.id === root.id) return true;
+    current = current.getParent();
+  }
+  return false;
+}
+
 /**
- * Scaffold Default points: optional RM insert when needed, then Map lookup.
- * Object-valued Defaults Map keys (`term_pick`) plug into the RM attribute mouth
- * (COMPOSITION.language, ENTRY.encoding, …). Scalar keys still plug into the
- * typed-shell leaf (time, composer name, facility).
- * Skips slots that already have a non-shadow, non-literal mapping.
- * `subject` only wires when the Defaults Map currently has a `subject` key.
+ * Scaffold Default points from **scaffold targets**; `maps_get` uses **runtime keys**.
+ * Skips slots already replaced with a Source query (source-over-defaults).
  */
 export function attachDefaultPointLookups(
   workspace: WorkspaceSvg | Blockly.Workspace,
   skeleton: SkeletonNode[],
   insertOptional?: OptionalInsertFn,
+  scope?: { root: Blockly.Block },
 ): void {
-  registerMapBlocks();
-  const mapKeys = defaultsMapKeys(workspace as Blockly.Workspace);
-  const bound = bindDefaultPoints(skeleton);
-  for (const { point, node, parent } of bound) {
-    if (point.requireMapKey && !mapKeys.has(point.mapKey)) continue;
-    let targets = findBlocksBySlotId(workspace, node.slotId);
+  registerDefaultsBlocks();
+  const entries = listDefaultContextMapEntries(workspace as Blockly.Workspace);
+  const bound = bindDefaultPoints(skeleton, entries);
+  const inScope = (block: Blockly.Block | null): boolean =>
+    Boolean(block) && (!scope?.root || isUnderRoot(block, scope.root));
+  for (const { point, node, parent, mapKey } of bound) {
+    const key = mapKey || point.mapKey;
+    let targets = findBlocksBySlotId(workspace, node.slotId).filter(inScope);
     if (!targets.length && point.optionalInsert) {
-      const parentBlock = findBlocksBySlotId(workspace, parent.slotId)[0] ?? null;
+      const parentBlock = findBlocksBySlotId(workspace, parent.slotId).find(inScope) ?? null;
       if (parentBlock && insertOptional) {
         insertOptional(parentBlock, {
           rmType: point.optionalInsert.rmType,
           attributeName: point.rmAttribute,
         });
       }
-      targets = findBlocksBySlotId(workspace, node.slotId);
+      targets = findBlocksBySlotId(workspace, node.slotId).filter(inScope);
       const fallback = parentBlock?.getInputTargetBlock(rmAttributeInputName(point.rmAttribute)) ??
+        parentBlock?.getInputTargetBlock(optionalRmInputName(point.rmAttribute)) ??
         null;
-      if (!targets.length && fallback) targets = [fallback];
+      if (!targets.length && fallback && inScope(fallback)) targets = [fallback];
     }
     for (const target of targets) {
-      attachLookup(workspace, target, point.mapKey, point.leaf);
+      attachLookup(workspace, target, key, point.leaf);
     }
   }
+}
+
+/** Discrete structure apply (joint confirm / Apply icon / later target refresh). */
+export function applyDefaultContextMap(
+  workspace: WorkspaceSvg | Blockly.Workspace,
+  skeleton: SkeletonNode[],
+  insertOptional?: OptionalInsertFn,
+): void {
+  attachDefaultPointLookups(workspace, skeleton, insertOptional);
 }
 
 export { mapsGetExpression };
 
 export function serializeDefaultsMapArgument(workspace: Blockly.Workspace): unknown | null {
-  const defaults = findDefaultsBlock(workspace);
-  const map = defaults?.getInputTargetBlock("MAP");
-  if (!map || typeof Blockly.serialization?.blocks?.save !== "function") return null;
-  return Blockly.serialization.blocks.save(map);
+  return captureDefaultsBlockState(workspace);
 }
 
-/** Replace the Map plugged into the Defaults block (Save as / Example Set / Browse). */
+/** Replace the unique default context map (Save as / Example Set / Browse / joint load). */
 export function hydrateDefaultsMapArgument(
   workspace: Blockly.Workspace,
   mapBlockState: unknown,
   uiLanguage: string,
   targetFormat?: TargetFormatId,
 ): void {
-  const defaults = ensureDefaultsBlock(workspace, uiLanguage, targetFormat);
-  const input = defaults.getInput("MAP");
-  const existing = input?.connection?.targetBlock();
-  if (existing) existing.dispose(false);
-  if (!mapBlockState || typeof Blockly.serialization?.blocks?.append !== "function") {
-    const useEmptyMap = targetFormat === "json-schema" || targetFormat === "xml-schema";
-    const map = useEmptyMap
-      ? createEmptyMapBlock(workspace)
-      : createFactoryMapBlock(workspace, uiLanguage);
-    input?.connection?.connect(map.outputConnection!);
+  registerDefaultsBlocks();
+  const existing = findDefaultsBlock(workspace);
+  const xy = existing && typeof existing.getRelativeToSurfaceXY === "function"
+    ? existing.getRelativeToSurfaceXY()
+    : { x: DEFAULTS_X, y: DEFAULTS_Y };
+  existing?.dispose(false);
+  const converted = mapBlockState ? contextMapFromDefaultsJson(mapBlockState) : null;
+  const allowFactory = targetFormat !== "json-schema" &&
+    targetFormat !== "xml-schema" &&
+    !isEmptyContextMapState(converted);
+  if (!converted || typeof Blockly.serialization?.blocks?.append !== "function") {
+    const block = ensureDefaultsBlock(workspace, uiLanguage, targetFormat, {
+      factory: allowFactory,
+    });
+    moveTo(block, xy.x, xy.y);
     return;
   }
   const appended = Blockly.serialization.blocks.append(
-    mapBlockState as Record<string, unknown>,
+    converted,
     workspace,
   ) as Blockly.Block | undefined;
-  if (appended?.outputConnection && input?.connection) {
-    input.connection.connect(appended.outputConnection);
+  if (!appended) {
+    ensureDefaultsBlock(workspace, uiLanguage, targetFormat, { factory: allowFactory });
+    return;
   }
+  appended.setDeletable(false);
+  moveTo(appended, xy.x, xy.y);
+  dropDuplicateDefaults(workspace, appended);
+  finalize(appended);
+}
+
+function moveTo(block: Blockly.Block, x: number, y: number): void {
+  if (typeof (block as BlockSvg).moveBy !== "function") return;
+  const cur = typeof block.getRelativeToSurfaceXY === "function"
+    ? block.getRelativeToSurfaceXY()
+    : { x: 0, y: 0 };
+  (block as BlockSvg).moveBy(x - cur.x, y - cur.y);
 }

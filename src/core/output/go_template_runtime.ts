@@ -4,21 +4,28 @@
  * Rebuild with `deno task wasm:go-template` when `go/texttemplate` changes.
  * FuncMap (curated Sprig subset): replace, regexReplaceAll, trim, quote,
  * lower, upper, substr, int — plus Go stdlib builtins (index, eq, ne, and,
- * or, not, len) and host-bound `handlebars` / `dict` for VMS-Hbs embedding.
+ * or, not, len) and host-bound `handlebars` / `dict` / `decisionTable` /
+ * `sheetLookup` (ADR 0005 / 0009).
+ *
+ * `regexReplaceAll` is Sprig/Helm `regexReplaceAll REGEX SRC REPLACEMENT`
+ * (chemo `cleanAndQuoteFreeTextInput`), not `src | regexReplaceAll REGEX REPL`.
  */
 import { fromFileUrl } from "@std/path";
 import { renderHandlebars } from "./handlebars_dialect.ts";
+import { evaluateDecisionTable } from "../sheets/decision_table.ts";
+import { normalizeSheet, sheetLookup, sheetsToBag } from "../sheets/model.ts";
+import type { SheetBag, SheetDocument } from "../sheets/types.ts";
 
 interface GoRuntime {
   importObject: WebAssembly.Imports;
   run(instance: WebAssembly.Instance): Promise<void>;
 }
 
-let wasmExecutor: ((template: string, dataJson: string) => string) | null = null;
+let wasmExecutor: ((template: string, dataJson: string, sheetsJson?: string) => string) | null = null;
 let loading: Promise<void> | null = null;
 
 export function registerGoTemplateWasm(
-  executor: (template: string, dataJson: string) => string,
+  executor: (template: string, dataJson: string, sheetsJson?: string) => string,
 ): void {
   wasmExecutor = executor;
 }
@@ -43,6 +50,7 @@ export function isGoTemplateWasmLoaded(): boolean {
 /** Load the vendored WASM module (idempotent). */
 export function ensureGoTemplateWasm(): Promise<void> {
   installHandlebarsHost();
+  installSheetHosts();
   if (wasmExecutor) return Promise.resolve();
   if (!loading) loading = instantiateGoTemplateWasm();
   return loading;
@@ -51,9 +59,12 @@ export function ensureGoTemplateWasm(): Promise<void> {
 export function executeGoTemplate(
   templateSource: string,
   data: unknown,
+  options?: { sheets?: SheetDocument[] | SheetBag },
 ): string {
   installHandlebarsHost();
+  installSheetHosts();
   const dataJson = JSON.stringify(data);
+  const sheetsJson = JSON.stringify(sheetBagFrom(options?.sheets));
   if (!wasmExecutor) {
     throw new Error(
       "Go template WASM runtime is not loaded. " +
@@ -61,7 +72,7 @@ export function executeGoTemplate(
         "or rebuild with `deno task wasm:go-template`.",
     );
   }
-  const raw = wasmExecutor(templateSource, dataJson);
+  const raw = wasmExecutor(templateSource, dataJson, sheetsJson);
   const parsed = parseWasmResult(raw);
   if (!parsed.ok) {
     throw new Error(parsed.error || "Go template execution failed");
@@ -95,8 +106,95 @@ function installHandlebarsHost(): void {
   };
 }
 
+function installSheetHosts(): void {
+  const global = globalThis as {
+    goTextTemplateDecisionTable?: (sheetJson: string, inputsJson: string, outputColJson: string) => string;
+    goTextTemplateSheetLookup?: (
+      sheetJson: string,
+      matchColJson: string,
+      matchValJson: string,
+      returnColJson: string,
+    ) => string;
+  };
+  global.goTextTemplateDecisionTable = (sheetJson, inputsJson, outputColJson) => {
+    try {
+      const sheet = parseSheet(sheetJson);
+      if (!sheet) return hostOk("");
+      const inputs = parseObject(inputsJson);
+      const outputCol = parseJson(outputColJson);
+      const column = outputCol == null || outputCol === "" ? undefined : String(outputCol);
+      const value = evaluateDecisionTable(sheet, inputs, column);
+      return hostOk(value ?? "");
+    } catch (err) {
+      return hostErr(err);
+    }
+  };
+  global.goTextTemplateSheetLookup = (sheetJson, matchColJson, matchValJson, returnColJson) => {
+    try {
+      const sheet = parseSheet(sheetJson);
+      if (!sheet) return hostOk("");
+      const matchCol = parseJson(matchColJson);
+      const matchVal = parseJson(matchValJson);
+      const returnCol = parseJson(returnColJson);
+      const value = sheetLookup(
+        sheet,
+        matchCol as string | number,
+        matchVal,
+        returnCol == null || returnCol === "" ? undefined : returnCol as string | number,
+      );
+      return hostOk(value ?? "");
+    } catch (err) {
+      return hostErr(err);
+    }
+  };
+}
+
+function sheetBagFrom(sheets: SheetDocument[] | SheetBag | undefined): SheetBag {
+  if (!sheets) return {};
+  if (Array.isArray(sheets)) return sheetsToBag(sheets);
+  return sheets;
+}
+
+function parseSheet(sheetJson: string): SheetDocument | null {
+  const raw = parseJson(sheetJson);
+  if (!raw || typeof raw !== "object") return null;
+  try {
+    return normalizeSheet(raw);
+  } catch {
+    return null;
+  }
+}
+
+function parseObject(json: string): Record<string, unknown> {
+  const value = parseJson(json);
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return {};
+}
+
+function parseJson(json: string): unknown {
+  try {
+    return JSON.parse(json || "null");
+  } catch {
+    return json;
+  }
+}
+
+function hostOk(value: unknown): string {
+  return JSON.stringify({ ok: true, value });
+}
+
+function hostErr(err: unknown): string {
+  return JSON.stringify({
+    ok: false,
+    error: err instanceof Error ? err.message : String(err),
+  });
+}
+
 async function instantiateGoTemplateWasm(): Promise<void> {
   installHandlebarsHost();
+  installSheetHosts();
   await ensureWasmExec();
   const GoCtor = (globalThis as unknown as { Go?: new () => GoRuntime }).Go;
   if (!GoCtor) {
@@ -107,7 +205,7 @@ async function instantiateGoTemplateWasm(): Promise<void> {
   const result = await WebAssembly.instantiate(bytes, go.importObject);
   void go.run(result.instance);
   await waitUntil(() => Boolean((globalThis as { goTextTemplateReady?: boolean }).goTextTemplateReady));
-  const execute = (globalThis as { goTextTemplateExecute?: (t: string, d: string) => string })
+  const execute = (globalThis as { goTextTemplateExecute?: (t: string, d: string, s?: string) => string })
     .goTextTemplateExecute;
   if (typeof execute !== "function") {
     throw new Error("Go WASM module did not export goTextTemplateExecute");

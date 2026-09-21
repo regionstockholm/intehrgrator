@@ -2,6 +2,7 @@ import type {
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  MappingFunction,
   MappingSlotHatch,
   MappingUnsupportedBlock,
   TargetSignatureNode,
@@ -111,6 +112,14 @@ import {
 } from "../blockly/mod.ts";
 import { mapBlockFromDefaultsJson } from "../core/defaults/mod.ts";
 import {
+  buildRefreshMergePrompt,
+  diffSourceRefresh,
+  diffTargetRefresh,
+  formatRefreshReport,
+  mappedSourcePathsFromExpressions,
+  type RefreshDiffReport,
+} from "../core/target/refresh_diff.ts";
+import {
   cloneSheets,
   normalizeSheets,
   sheetsFromCatalogJson,
@@ -124,6 +133,9 @@ import {
   type UrlHistoryKind,
 } from "../host/url_history.ts";
 import { seedHandlebarsProductOnCanvas } from "../core/output/canvas_handlebars_seed.ts";
+import type { TaskProgress, TaskStepState } from "./task_progress.ts";
+
+export type { TaskProgress, TaskProgressStep, TaskStepState } from "./task_progress.ts";
 
 export type WorkbenchListener = () => void;
 
@@ -177,6 +189,7 @@ export class WorkbenchController {
   private blocklyState: unknown = null;
   private blocklyReloadToken = 0;
   private pendingDefaultsMap: unknown | null = null;
+  private lastRefreshReport: RefreshDiffReport | null = null;
   private getBlocklyState: (() => unknown) | null = null;
   private debounceTimer: number | null = null;
   private postLoadTimer: number | null = null;
@@ -184,6 +197,8 @@ export class WorkbenchController {
   private dirty = false;
   private lastAutosaveAt: string | null = null;
   private statusMessage = "Ready";
+  private taskProgress: TaskProgress | null = null;
+  private taskDepth = 0;
 
   constructor(
     private host: HostAdapter,
@@ -208,11 +223,16 @@ export class WorkbenchController {
     this.refreshDerived();
   }
 
-  /** Take a queued Defaults Map (`maps_create_with` JSON) for the canvas to hydrate. */
+  /** Take a queued default context map (unique block JSON) for the canvas to hydrate. */
   consumePendingDefaultsMap(): unknown | null {
     const value = this.pendingDefaultsMap;
     this.pendingDefaultsMap = null;
     return value;
+  }
+
+  /** Queue a default context map to hydrate before the next Template Skeleton. */
+  queuePendingDefaultsMap(mapBlock: unknown | null): void {
+    this.pendingDefaultsMap = mapBlock;
   }
 
   getSheets(): SheetDocument[] {
@@ -275,12 +295,14 @@ export class WorkbenchController {
       listeningSourceBlockId: this.listeningSourceBlockId,
       treeHighlight: this.treeHighlight,
       statusMessage: this.statusMessage,
+      taskProgress: this.taskProgress,
       saveStatus: this.getSaveStatus(),
       validationIssues: validateModel(this.model, this.skeleton),
       unmappedMandatory: countUnmappedMandatory(this.model, this.skeleton),
       urlHistory: this.captureUrlHistory(),
       modelLanguage: this.target?.language ?? this.settings.modelLanguage ?? null,
       modelLanguages: this.target?.languages ?? [],
+      lastRefreshReport: this.lastRefreshReport,
     };
   }
 
@@ -299,18 +321,36 @@ export class WorkbenchController {
   }
 
   async openTemplateFromUrl(url: string): Promise<void> {
+    const github = isGitHubClinicalModelUrl(url);
+    const title = github ? "Load GitHub clinical model" : "Load target";
+    const steps = github
+      ? [
+        { id: "parse-url", label: "Parse GitHub URL" },
+        { id: "index-tree", label: "List repository files" },
+        { id: "fetch", label: "Fetch clinical model files" },
+        { id: "parse", label: "Parse templates and archetypes" },
+        { id: "resolve", label: "Resolve operational template" },
+        { id: "scaffold", label: "Scaffold Template Skeleton" },
+        { id: "generate", label: "Generate conversion script" },
+      ]
+      : [{ id: "load", label: "Load and scaffold target" }];
     try {
-      if (isGitHubClinicalModelUrl(url)) {
-        const loaded = await this.loadGitHubModel(url);
-        this.applyGitHubTarget(loaded);
+      await this.withTask(title, steps, async () => {
+        if (github) {
+          const loaded = await this.loadGitHubModel(url);
+          await this.runTaskStep("scaffold", () => {
+            this.applyGitHubTarget(loaded);
+          });
+          this.setTaskStep("generate", "finished");
+        } else {
+          await this.runTaskStep("load", async () => {
+            const file = await this.host.fetchTextUrl(url);
+            this.loadTargetContent(file.name, file.text);
+          });
+        }
         this.targetOriginUrl = url;
         this.rememberLoadUrl("target", url);
-        return;
-      }
-      const file = await this.host.fetchTextUrl(url);
-      this.loadTargetContent(file.name, file.text);
-      this.targetOriginUrl = url;
-      this.rememberLoadUrl("target", url);
+      });
     } catch (err) {
       this.statusMessage = `Target load failed: ${err instanceof Error ? err.message : String(err)}`;
       this.notifyChange();
@@ -328,7 +368,8 @@ export class WorkbenchController {
     filename: string,
     content: string,
     format: TargetFormatId = detectTargetFormat(filename, stripBom(content)),
-  ): void {
+    mode: "replace" | "browse" | "refresh" = "replace",
+  ): RefreshDiffReport | null {
     content = stripBom(content);
     if (isTemplateJson(content)) {
       throw new Error(
@@ -339,7 +380,31 @@ export class WorkbenchController {
     const target = getTargetFormatHandler(format).load(filename, content, {
       language: preferredLanguage,
     });
-    this.applyLoadedTarget(target);
+    return this.applyLoadedTarget(target, mode);
+  }
+
+  refreshTargetContent(filename: string, content: string): RefreshDiffReport {
+    const report = this.loadTargetContent(
+      filename,
+      content,
+      detectTargetFormat(filename, stripBom(content)),
+      "refresh",
+    );
+    return report ?? {
+      kind: "target",
+      previousFilename: filename,
+      nextFilename: filename,
+      warnings: [],
+    };
+  }
+
+  loadTargetForBrowse(filename: string, content: string): void {
+    this.loadTargetContent(
+      filename,
+      content,
+      detectTargetFormat(filename, stripBom(content)),
+      "browse",
+    );
   }
 
   /**
@@ -363,18 +428,59 @@ export class WorkbenchController {
     this.markDirty();
   }
 
-  private applyLoadedTarget(target: TargetDefinition): void {
+  private applyLoadedTarget(
+    target: TargetDefinition,
+    mode: "replace" | "browse" | "refresh" = "replace",
+  ): RefreshDiffReport | null {
+    const previousSkeleton = this.skeleton;
+    const previousFilename = this.templateFilename;
+    const previousContent = this.templateContent;
     this.target = target;
     this.templateContent = target.content;
     this.templateFilename = target.filename;
     this.templateId = target.targetId;
-    this.skeleton = target.skeleton;
     this.targetOriginUrl = null;
-    this.model = createEmptyModel(this.templateId);
-    this.model.targetFormat = target.format;
     if (target.language) {
       this.settings = { ...this.settings, modelLanguage: target.language };
     }
+    if (mode === "refresh") {
+      this.skeleton = applyOptionalRmToSkeleton(target.skeleton, this.model.optionalRm);
+      this.model = { ...this.model, templateId: this.templateId, targetFormat: target.format };
+      this.syncSlotLabelsFromSkeleton();
+      this.blocklyState = this.getBlocklyState?.() ?? this.blocklyState;
+      this.blocklyReloadToken += 1;
+      const mappedSlotIds = this.model.slots
+        .filter((slot) => slot.expression?.trim())
+        .map((slot) => slot.slotId);
+      const report = diffTargetRefresh({
+        previousSkeleton,
+        nextSkeleton: this.skeleton,
+        mappedSlotIds,
+        previousFilename,
+        nextFilename: target.filename,
+        previousContent,
+        nextContent: target.content,
+      });
+      this.lastRefreshReport = report;
+      this.refreshDerived();
+      this.statusMessage = formatRefreshReport(report);
+      this.markDirty();
+      return report;
+    }
+    if (mode === "browse") {
+      this.skeleton = target.skeleton;
+      if (!this.model.templateId) this.model = createEmptyModel(this.templateId);
+      this.model.targetFormat = target.format;
+      this.blocklyState = this.getBlocklyState?.() ?? this.blocklyState;
+      this.blocklyReloadToken += 1;
+      this.refreshDerived();
+      this.statusMessage = `Loaded ${target.format} target ${this.templateId} into Target schema (no product scaffold yet)`;
+      this.markDirty();
+      return null;
+    }
+    this.skeleton = target.skeleton;
+    this.model = createEmptyModel(this.templateId);
+    this.model.targetFormat = target.format;
     if (target.format === "free-form" && target.content.trim()) {
       this.blocklyState = seedHandlebarsProductOnCanvas(null, target.content);
     } else {
@@ -385,6 +491,7 @@ export class WorkbenchController {
     this.refreshDerived();
     this.statusMessage = `Loaded ${target.format} target ${this.templateId}`;
     this.markDirty();
+    return null;
   }
 
   private syncSlotLabelsFromSkeleton(): void {
@@ -439,8 +546,17 @@ export class WorkbenchController {
   }
 
   /** Load Source Schema from in-memory content — used by Workbench Test API and hosts. */
-  loadSchemaContent(filename: string, content: string): void {
-    this.tryApplySchemaFile(filename, content);
+  loadSchemaContent(filename: string, content: string, refresh = false): RefreshDiffReport | null {
+    return this.tryApplySchemaFile(filename, content, refresh);
+  }
+
+  refreshSchemaContent(filename: string, content: string): RefreshDiffReport {
+    return this.tryApplySchemaFile(filename, content, true) ?? {
+      kind: "source",
+      previousFilename: filename,
+      nextFilename: filename,
+      warnings: [],
+    };
   }
 
   async loadSchemaFromDrop(file: PickedTextFile): Promise<void> {
@@ -567,45 +683,70 @@ export class WorkbenchController {
 
   /** Replace the workspace with a catalog example set (source, target, optional mapping). */
   async loadExampleSet(set: ExampleSet): Promise<void> {
-    this.resetWorkspaceState();
+    const steps: Array<{ id: string; label: string }> = [];
+    if (set.target) steps.push({ id: "target", label: "Load target" });
+    if (set.source.schema) steps.push({ id: "schema", label: "Load source schema" });
+    set.source.instances.forEach((_, i) => {
+      steps.push({ id: `example-${i}`, label: `Load example ${i + 1}` });
+    });
+    if (set.mapping) steps.push({ id: "mapping", label: "Load mapping" });
+    if (set.sheets) steps.push({ id: "sheets", label: "Load sheets" });
+    if (set.defaults) steps.push({ id: "defaults", label: "Load defaults map" });
+    steps.push({ id: "generate", label: "Generate conversion script" });
     try {
-      if (set.target) await this.openTemplateFromUrl(set.target);
-      if (set.source.schema) await this.loadSchemaFromUrl(set.source.schema);
-      for (const instanceUrl of set.source.instances) {
-        await this.addExampleFromUrl(instanceUrl);
-      }
-      if (set.mapping) {
-        const file = await this.host.fetchTextUrl(set.mapping);
-        this.loadBlocklyDefinition(file.name, file.text);
-      }
-      if (set.sheets) {
-        const file = await this.host.fetchTextUrl(set.sheets);
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(file.text);
-        } catch (err) {
-          throw new Error(
-            `Sheets JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
+      await this.withTask(`Load example set "${set.title}"`, steps, async () => {
+        this.resetWorkspaceState();
+        if (set.target) {
+          await this.runTaskStep("target", () => this.openTemplateFromUrl(set.target!));
         }
-        this.replaceSheets(sheetsFromCatalogJson(parsed), { silent: true });
-      }
-      if (set.defaults) {
-        const file = await this.host.fetchTextUrl(set.defaults);
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(file.text);
-        } catch (err) {
-          throw new Error(
-            `Defaults JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
+        if (set.source.schema) {
+          await this.runTaskStep("schema", () => this.loadSchemaFromUrl(set.source.schema!));
         }
-        const mapBlock = mapBlockFromDefaultsJson(parsed);
-        if (!mapBlock) {
-          throw new Error("Defaults JSON must be a maps_create_with block or workspace");
+        for (const [i, instanceUrl] of set.source.instances.entries()) {
+          await this.runTaskStep(`example-${i}`, () => this.addExampleFromUrl(instanceUrl));
         }
-        this.pendingDefaultsMap = mapBlock;
-      }
+        if (set.mapping) {
+          await this.runTaskStep("mapping", async () => {
+            const file = await this.host.fetchTextUrl(set.mapping!);
+            this.loadBlocklyDefinition(file.name, file.text);
+          });
+        }
+        if (set.sheets) {
+          await this.runTaskStep("sheets", async () => {
+            const file = await this.host.fetchTextUrl(set.sheets!);
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(file.text);
+            } catch (err) {
+              throw new Error(
+                `Sheets JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+            this.replaceSheets(sheetsFromCatalogJson(parsed), { silent: true });
+          });
+        }
+        if (set.defaults) {
+          await this.runTaskStep("defaults", async () => {
+            const file = await this.host.fetchTextUrl(set.defaults!);
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(file.text);
+            } catch (err) {
+              throw new Error(
+                `Defaults JSON parse failed: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+            const mapBlock = mapBlockFromDefaultsJson(parsed);
+            if (!mapBlock) {
+              throw new Error("Defaults JSON must be a default context map, maps_create_with block, or workspace");
+            }
+            this.pendingDefaultsMap = mapBlock;
+          });
+        }
+        await this.runTaskStep("generate", () => {
+          this.refreshDerived();
+        });
+      });
       this.statusMessage = `Loaded example set "${set.title}"`;
       this.schedulePostLoadOutput();
       this.notifyChange();
@@ -784,6 +925,108 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
+  private async yieldUi(): Promise<void> {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
+
+  private async withTask<T>(
+    title: string,
+    steps: Array<{ id: string; label: string }>,
+    run: () => Promise<T>,
+  ): Promise<T> {
+    const nested = this.taskDepth > 0;
+    this.taskDepth += 1;
+    if (!nested && steps.length) {
+      this.taskProgress = {
+        title,
+        steps: steps.map((step) => ({ ...step, state: "waiting" as const })),
+      };
+      this.statusMessage = title;
+      this.notifyChange();
+      await this.yieldUi();
+    }
+    try {
+      return await run();
+    } catch (err) {
+      if (!nested && this.taskProgress) {
+        const running = this.taskProgress.steps.find((s) => s.state === "running") ??
+          this.taskProgress.steps.find((s) => s.state === "waiting");
+        if (running) {
+          this.setTaskStep(
+            running.id,
+            "failed",
+            err instanceof Error ? err.message : String(err),
+          );
+          this.notifyChange();
+        }
+      }
+      throw err;
+    } finally {
+      this.taskDepth -= 1;
+      if (!nested) {
+        this.taskProgress = null;
+        this.notifyChange();
+      }
+    }
+  }
+
+  private setTaskStep(id: string, state: TaskStepState, detail?: string): void {
+    if (!this.taskProgress) return;
+    const idx = this.taskProgress.steps.findIndex((s) => s.id === id);
+    if (idx < 0) {
+      if (state === "running" && detail) this.noteTaskDetail(detail);
+      return;
+    }
+    this.taskProgress = {
+      ...this.taskProgress,
+      steps: this.taskProgress.steps.map((step, i) => {
+        if (step.id === id) {
+          return { ...step, state, ...(detail !== undefined ? { detail } : {}) };
+        }
+        if (
+          state === "running" &&
+          i < idx &&
+          step.state !== "finished" &&
+          step.state !== "failed"
+        ) {
+          return { ...step, state: "finished" as const };
+        }
+        if (state === "running" && i > idx && step.state === "running") {
+          return { ...step, state: "waiting" as const };
+        }
+        return step;
+      }),
+    };
+    const step = this.taskProgress.steps[idx];
+    if (step && state === "running") {
+      this.statusMessage = `${this.taskProgress.title}: ${step.label}`;
+    }
+  }
+
+  private noteTaskDetail(detail: string): void {
+    if (!this.taskProgress) return;
+    const running = this.taskProgress.steps.find((s) => s.state === "running");
+    if (!running) return;
+    this.setTaskStep(running.id, "running", detail);
+  }
+
+  private async runTaskStep<T>(id: string, fn: () => Promise<T> | T): Promise<T> {
+    this.setTaskStep(id, "running");
+    this.notifyChange();
+    await this.yieldUi();
+    try {
+      const result = await fn();
+      this.setTaskStep(id, "finished");
+      this.notifyChange();
+      await this.yieldUi();
+      return result;
+    } catch (err) {
+      this.setTaskStep(id, "failed", err instanceof Error ? err.message : String(err));
+      this.notifyChange();
+      throw err;
+    }
+  }
+
   /** Patch a Mapping Model slot expression (AI import / derived-index edits). */
   applySlotExpression(slotId: string, expression: string): void {
     const slot = collectValueSlots(this.skeleton).find((s) => s.slotId === slotId);
@@ -812,9 +1055,19 @@ export class WorkbenchController {
       unsupported?: MappingUnsupportedBlock[];
       sheetNames?: string[];
       instanceEncodings?: InstanceEncoding[];
+      functions?: MappingFunction[];
     },
   ): void {
-    if (!this.templateId) return;
+    if (!this.templateId) {
+      this.blocklyState = blocklyState;
+      if (options?.functions) {
+        this.model = { ...this.model, functions: [...options.functions] };
+      }
+      this.dirty = true;
+      this.scheduleAutosave();
+      if (options?.notify !== false) this.notifyChange();
+      return;
+    }
     let next = createEmptyModel(this.templateId);
     next.targetFormat = this.target?.format;
     next.optionalRm = optionalRm ? [...optionalRm] : [...this.model.optionalRm];
@@ -824,6 +1077,7 @@ export class WorkbenchController {
     next.unsupported = options?.unsupported ? [...options.unsupported] : [];
     next.sheetNames = options?.sheetNames ? [...options.sheetNames] : [];
     next.instanceEncodings = options?.instanceEncodings ? [...options.instanceEncodings] : [];
+    next.functions = options?.functions ? [...options.functions] : [];
     const skeleton = applyOptionalRmToSkeleton(
       this.target?.skeleton ?? this.skeleton,
       next.optionalRm,
@@ -1048,6 +1302,13 @@ export class WorkbenchController {
     this.markDirty();
     this.statusMessage = "Project imported";
     this.notifyChange();
+  }
+
+  buildRefreshMergePrompt(): string {
+    if (!this.lastRefreshReport) {
+      return "No target or source refresh to merge yet.";
+    }
+    return buildRefreshMergePrompt(this.lastRefreshReport);
   }
 
   async copyAiPrompt(
@@ -1401,13 +1662,18 @@ export class WorkbenchController {
     }`;
   }
 
-  private tryApplySchemaFile(filename: string, content: string): void {
+  private tryApplySchemaFile(
+    filename: string,
+    content: string,
+    refresh = false,
+  ): RefreshDiffReport | null {
     try {
-      this.applySchemaFile(filename, content);
+      return this.applySchemaFile(filename, content, refresh);
     } catch (err) {
       this.schemaTree = null;
       const detail = err instanceof Error ? err.message : String(err);
       this.setSchemaError(`Could not load ${filename}: ${detail}`);
+      return null;
     }
   }
 
@@ -1418,7 +1684,14 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
-  private applySchemaFile(filename: string, content: string): void {
+  private applySchemaFile(
+    filename: string,
+    content: string,
+    refresh = false,
+  ): RefreshDiffReport | null {
+    const previousTree = this.schemaTree;
+    const previousFilename = this.schemaFilename;
+    const previousContent = this.schemaContent;
     this.schemaError = null;
     this.schemaFilename = filename;
     this.schemaContent = content;
@@ -1429,8 +1702,27 @@ export class WorkbenchController {
       content,
       filename.replace(/\.[^.]+$/, ""),
     );
+    if (refresh) {
+      const mappedPaths = mappedSourcePathsFromExpressions(
+        this.model.slots.map((slot) => slot.expression ?? ""),
+      );
+      const report = diffSourceRefresh({
+        previousTree,
+        nextTree: this.schemaTree,
+        mappedPaths,
+        previousFilename,
+        nextFilename: filename,
+        previousContent,
+        nextContent: content,
+      });
+      this.lastRefreshReport = report;
+      this.statusMessage = formatRefreshReport(report);
+      this.markDirty();
+      return report;
+    }
     this.statusMessage = `Loaded schema ${filename}`;
     this.markDirty();
+    return null;
   }
 
   private applyExampleFile(filename: string, content: string): string {
@@ -1577,7 +1869,7 @@ export class WorkbenchController {
     return runTest(this.model, example.content, example.format, {
       target: this.target,
       outputMode: mode,
-      generatedCode: mode === "typescript" || mode === "go-template" || mode === "xquery"
+      generatedCode: mode === "typescript" || mode === "xquery"
         ? this.generatedCode
         : undefined,
       handlebarsTemplate: this.handlebarsTemplate,
@@ -1719,6 +2011,11 @@ export class WorkbenchController {
     return await loadGitHubClinicalModel(url, {
       fetch: this.githubFetch,
       language: this.settings.modelLanguage,
+      onProgress: (event) => {
+        if (event.phase === "complete") return;
+        this.setTaskStep(event.phase, "running", event.message);
+        this.notifyChange();
+      },
     });
   }
 

@@ -12,6 +12,7 @@ import * as enMsg from "blockly/msg/en";
 import {
   applyFixedFieldsToDataValueShell,
   applyOrdinalFieldsToDataValueShell,
+  collapseEntryBoilerplateChildren,
   configureElementValueSlot,
   connectExpressionToDataValueShell,
   dvFieldInputName,
@@ -68,6 +69,7 @@ export function loadSkeletonIntoWorkspace(
   listeningSlotId: string | null = null,
   uiLanguage = "en",
   targetFormat?: TargetFormatId,
+  options?: { factory?: boolean },
 ): void {
   setSchemaCatalog(skeleton);
   if (targetFormat === "json-schema" || targetFormat === "xml-schema") {
@@ -88,9 +90,10 @@ export function loadSkeletonIntoWorkspace(
       y += height + 24;
     }
     applyModelExpressions(workspace, model);
-    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat);
+    restoreDefaultsBlockState(workspace, savedDefaults, uiLanguage, targetFormat, options);
     const scaffoldRoot = workspace.getTopBlocks(false).find((b) =>
-      b.type !== "defaults_block" && b.type !== "maps_create_with" && b.type !== "conversion_start"
+      b.type !== "default_context_map" && b.type !== "defaults_block" &&
+      b.type !== "maps_create_with" && b.type !== "conversion_start"
     );
     if (scaffoldRoot) attachStartToInstanceRoot(workspace, scaffoldRoot);
     placeDefaultsBesideSkeleton(workspace);
@@ -102,12 +105,78 @@ export function loadSkeletonIntoWorkspace(
     applyModelOptionalSchemaFields(workspace, model);
     setAllBlocksCollapsed(workspace, false);
     for (const block of workspace.getAllBlocks(false)) {
+      collapseEntryBoilerplateChildren(block);
       enforceMouthCaptionLayout(block);
     }
     highlightListeningSlot(workspace, listeningSlotId);
     refreshWorkspaceLayout(workspace);
     refreshWorkspaceConstraints(workspace);
   });
+}
+
+/**
+ * Place one Template Skeleton leaf/subtree as a detached Blockly stack.
+ * Does not clear the workspace or attach Conversion start (product recovery / optional structure).
+ */
+export function placeSkeletonSubtreeOnWorkspace(
+  workspace: WorkspaceSvg,
+  node: SkeletonNode,
+  options: {
+    x?: number;
+    y?: number;
+    skeleton?: SkeletonNode[];
+    targetFormat?: TargetFormatId;
+  } = {},
+): BlockSvg | null {
+  const catalog = options.skeleton ?? [node];
+  const targetFormat = options.targetFormat;
+  if (targetFormat === "json-schema" || targetFormat === "xml-schema") {
+    registerSchemaBlocksFromSkeleton(catalog);
+  } else {
+    setSchemaCatalog(catalog);
+  }
+  const isRoot = catalog.some((root) => root.slotId === node.slotId);
+  const grouped = typeof Blockly.Events.setGroup === "function";
+  if (grouped) Blockly.Events.setGroup(true);
+  try {
+    const block = buildBlockFromNode(workspace, node, isRoot, isRoot ? 0 : 1);
+    if (!block) return null;
+    moveBlockTo(block, options.x ?? 40, options.y ?? 40);
+    const schemaTarget = targetFormat === "json-schema" || targetFormat === "xml-schema";
+    if (!schemaTarget) {
+      attachDefaultPointLookups(
+        workspace,
+        [node],
+        (parent, insertion) => attachOptionalRmChild(workspace, parent, insertion),
+        { root: block },
+      );
+    }
+    for (const child of [block, ...block.getDescendants(false)]) {
+      collapseEntryBoilerplateChildren(child);
+      enforceMouthCaptionLayout(child);
+    }
+    refreshWorkspaceLayout(workspace);
+    refreshWorkspaceConstraints(workspace);
+    return block;
+  } finally {
+    if (grouped) Blockly.Events.setGroup(false);
+  }
+}
+
+function moveBlockTo(block: BlockSvg, x: number, y: number): void {
+  try {
+    const Coord = Blockly.utils?.Coordinate;
+    if (typeof block.moveTo === "function" && typeof Coord === "function") {
+      block.moveTo(new Coord(x, y));
+      return;
+    }
+    const cur = typeof block.getRelativeToSurfaceXY === "function"
+      ? block.getRelativeToSurfaceXY()
+      : { x: 0, y: 0 };
+    block.moveBy(x - cur.x, y - cur.y);
+  } catch {
+    // Headless workspace without SVG metrics.
+  }
 }
 
 const lockedRoots = new WeakSet<Blockly.Block>();

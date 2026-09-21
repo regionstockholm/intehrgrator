@@ -1,5 +1,7 @@
+import { join } from "@std/path";
 import { assert, assertEquals } from "@std/assert";
 import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
+import { generateSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerRmBlocks } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
@@ -15,6 +17,8 @@ import { specWarningMarkers } from "@intehrgrator/workbench/mapping_spec/overvie
 import {
   blocksEligibleForBulkMark,
   deleteMarkedSpecBlocks,
+  isWithinOptionalUnmappedScaffold,
+  optionalUnmappedScaffoldRootIds,
   pruneCheckedBlockIds,
   specRowBlockIdsEligibleForBulkMark,
   topLevelBlockIds,
@@ -167,5 +171,95 @@ Deno.test("pruneCheckedBlockIds drops ids that no longer exist", () => {
   const block = workspace.newBlock("text");
   const pruned = pruneCheckedBlockIds(workspace, new Set([block.id, "missing"]));
   assertEquals([...pruned], [block.id]);
+  workspace.dispose();
+});
+
+Deno.test("specRowBlockIdsEligibleForBulkMark includes nested rows in optional scaffold subtrees", async () => {
+  ensureBlocks();
+  const opt = await Deno.readTextFile(join(import.meta.dirname!, "fixtures/blood_pressure.opt"));
+  const { skeleton } = generateSkeleton(opt);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  refreshWorkspaceConstraints(workspace);
+
+  const warnings = warningsForWorkspace(workspace);
+  const doc = blocklyJsonDocument(Blockly.serialization.workspaces.save(workspace));
+  const eligible = specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings);
+  const eligibleLabels = eligible.map((id) => {
+    const line = doc.widgets.find((w) => w.line.blockId === id)?.line;
+    return `${line?.indent}:${line?.label}`;
+  });
+
+  assert(
+    eligible.some((id) =>
+      doc.widgets.find((w) => w.line.blockId === id)?.line.label === "Admin detail"
+    ),
+    "expected optional cluster root row",
+  );
+  assert(
+    eligible.some((id) =>
+      doc.widgets.find((w) => w.line.blockId === id)?.line.label === "Name"
+    ),
+    "expected nested mandatory element under optional cluster",
+  );
+  assert(
+    !eligible.some((id) =>
+      doc.widgets.find((w) => w.line.blockId === id)?.line.label === "Systolic"
+    ),
+    "mandatory observation elements outside optional scaffold should not be marked",
+  );
+  assert(eligible.length >= 12, `expected deep subtree coverage, got ${eligibleLabels.join(", ")}`);
+  workspace.dispose();
+});
+
+Deno.test("mark after delete finds remaining optional scaffold rows", async () => {
+  ensureBlocks();
+  const opt = await Deno.readTextFile(join(import.meta.dirname!, "fixtures/blood_pressure.opt"));
+  const { skeleton } = generateSkeleton(opt);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  refreshWorkspaceConstraints(workspace);
+
+  const warnings = () => warningsForWorkspace(workspace);
+  const doc = () => blocklyJsonDocument(Blockly.serialization.workspaces.save(workspace));
+  const roots = optionalUnmappedScaffoldRootIds(workspace);
+  const adminRoot = [...roots].find((id) =>
+    workspace.getBlockById(id)?.getFieldValue("NAME") === "Admin detail"
+  );
+  assert(adminRoot, "expected Admin detail optional scaffold root");
+
+  deleteMarkedSpecBlocks(workspace, new Set([adminRoot]));
+  refreshWorkspaceConstraints(workspace);
+
+  const afterDelete = specRowBlockIdsEligibleForBulkMark(workspace, doc(), warnings());
+  assertEquals(afterDelete.includes(adminRoot), false);
+  assert(
+    afterDelete.length > 0,
+    "remaining optional scaffold rows should still be eligible after delete",
+  );
+  workspace.dispose();
+});
+
+Deno.test("optionalUnmappedScaffoldRootIds excludes nested eligible blocks under a root", () => {
+  ensureBlocks();
+  const skeleton: SkeletonNode[] = [{
+    slotId: "t",
+    blockType: "composition",
+    rmType: "COMPOSITION",
+    label: "Encounter",
+    kind: "container",
+    mandatory: true,
+    children: [optionalObservation("Blood pressure", "t/content/bp")],
+  }];
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+  refreshWorkspaceConstraints(workspace);
+  const roots = optionalUnmappedScaffoldRootIds(workspace);
+  const eligible = blocksEligibleForBulkMark(workspace);
+  assertEquals(roots.size, 1);
+  assertEquals([...roots], topLevelBlockIds(workspace, eligible));
+  for (const id of eligible) {
+    assert(isWithinOptionalUnmappedScaffold(workspace, id, roots));
+  }
   workspace.dispose();
 });

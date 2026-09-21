@@ -41,7 +41,7 @@ Deno.test({
       await waitForTestApi(page);
 
       await page.click("#btn-load-schema-menu");
-      await page.getByRole("menuitem", { name: "From URL…" }).click();
+      await page.getByRole("menuitem", { name: "From URL…", exact: true }).click();
       await page.waitForSelector("#dialog-load-url[open]");
       await page.fill("#load-url-input", "https://fixtures.test/bp-schema.json");
       await page.click("#load-url-confirm");

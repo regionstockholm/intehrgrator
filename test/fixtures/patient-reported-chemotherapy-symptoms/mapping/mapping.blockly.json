@@ -3330,22 +3330,16 @@
         }
       },
       {
-        "type": "defaults_block",
+        "type": "default_context_map",
+        "extraState": {
+          "itemCount": 0,
+          "targets": []
+        },
+        "fields": {},
+        "inputs": {},
         "id": "Z?E)COF+7zTd}b}5Qbim",
         "x": 20,
-        "y": 20,
-        "deletable": false,
-        "inputs": {
-          "MAP": {
-            "block": {
-              "type": "maps_create_with",
-              "id": "T{PFA#ULlx%gXf6ETS17",
-              "extraState": {
-                "itemCount": 0
-              }
-            }
-          }
-        }
+        "y": 20
       }
     ]
   }

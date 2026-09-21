@@ -132,8 +132,10 @@ export const DEFAULTS_KEY_TERM_SET: Record<string, string> = {
   encoding: "IANA_character-sets",
 };
 
+/** Last path segment (`*.language` → `language`); used for built-in code sets. */
 export function termSetIdForDefaultsKey(key: string): string | undefined {
-  return DEFAULTS_KEY_TERM_SET[key];
+  const attribute = key.split(".").filter(Boolean).at(-1);
+  return attribute ? DEFAULTS_KEY_TERM_SET[attribute] : undefined;
 }
 
 export function termPickDropdownOptions(setId: string): Array<[string, string]> {

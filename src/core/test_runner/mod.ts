@@ -102,6 +102,7 @@ export function runTest(
     };
     const defaults = ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {};
     ctx.sheets = { ...ctx.sheets, ...sheetsToBag(options.sheets ?? []) };
+    ctx.functions = model.functions ?? [];
     const target = options.target
       ? {
         ...options.target,
@@ -227,7 +228,7 @@ export function runTest(
         Data: ctx.data,
       };
       try {
-        const output = executeGoTemplate(code, envelope);
+        const output = executeGoTemplate(code, envelope, { sheets: options.sheets ?? [] });
         return { ok: true, output, warnings };
       } catch (e) {
         const output = `// Go template execution error: ${e instanceof Error ? e.message : String(e)}\n` +

@@ -8,13 +8,18 @@
  * this script in the Web Shell; run it on a JVM with Archie on the classpath.
  */
 
-import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
+import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { isListAttribute } from "./typescript.ts";
 import { usesOpenEhrProduct } from "./product.ts";
 import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
+import {
+  functionIdentMap,
+  jsFunctionIdent,
+  valueFunctions,
+} from "./user_functions.ts";
 
 const GENERIC_RM = new Set(["HISTORY", "POINT_EVENT", "INTERVAL_EVENT", "EVENT"]);
 
@@ -116,10 +121,16 @@ export interface JavaEmitContext {
   types: Set<string>;
   helpers: Set<JavaHelper>;
   idents: Map<string, number>;
+  mappingFunctions?: MappingFunction[];
+  fnParams?: Set<string>;
+  fnIdents?: Map<string, string>;
 }
 
-export function createJavaEmitContext(sourceVar = "sourceRoot"): JavaEmitContext {
-  return { sourceVar, types: new Set(), helpers: new Set(), idents: new Map() };
+export function createJavaEmitContext(
+  sourceVar = "sourceRoot",
+  mappingFunctions?: MappingFunction[],
+): JavaEmitContext {
+  return { sourceVar, types: new Set(), helpers: new Set(), idents: new Map(), mappingFunctions };
 }
 
 export function javaClassName(rmType: string): string {
@@ -180,9 +191,17 @@ export function emitJavaExpression(ast: ExprAst, ctx: JavaEmitContext): string {
           return `(asBoolean(${args[0]}) ? ${args[1]} : ${args[2]})`;
         case "switch":
           return emitSwitchJava(args);
-        case "var":
+        case "var": {
+          const name = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+          if (name && ctx.fnParams?.has(name)) return jsFunctionIdent(name);
           ctx.helpers.add("logic");
           return `vars.get(${args[0]})`;
+        }
+        case "call": {
+          const fname = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+          const ident = ensureJavaFnIdents(ctx).get(fname) ?? `fn_${jsFunctionIdent(fname)}`;
+          return `${ident}(${args.slice(1).join(", ")})`;
+        }
         case "eq":
           return `java.util.Objects.equals(${args[0]}, ${args[1]})`;
         case "ne":
@@ -252,6 +271,44 @@ export function emitJavaExpression(ast: ExprAst, ctx: JavaEmitContext): string {
       }
     }
   }
+}
+
+function ensureJavaFnIdents(ctx: JavaEmitContext): Map<string, string> {
+  if (!ctx.fnIdents) {
+    ctx.fnIdents = functionIdentMap(valueFunctions(ctx.mappingFunctions), (name) =>
+      `fn_${jsFunctionIdent(name)}`
+    );
+  }
+  return ctx.fnIdents;
+}
+
+function emitJavaUserFunctions(ctx: JavaEmitContext): string {
+  const fns = valueFunctions(ctx.mappingFunctions);
+  if (!fns.length) return "";
+  const idents = ensureJavaFnIdents(ctx);
+  const lines: string[] = [];
+  for (const fn of fns) {
+    const ident = idents.get(fn.name) ?? `fn_${jsFunctionIdent(fn.name)}`;
+    const params = fn.params.map((p) => `Object ${jsFunctionIdent(p)}`).join(", ");
+    const inner: JavaEmitContext = {
+      ...ctx,
+      fnParams: new Set(fn.params),
+      fnIdents: idents,
+    };
+    const body = emitJavaExpressionSource(fn.body!, inner) ?? "null";
+    lines.push(`  private Object ${ident}(${params}) {`);
+    lines.push(`    return ${body};`);
+    lines.push("  }");
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+function wrapJavaFromCtx(
+  parts: Omit<JavaModuleParts, "extraMethods">,
+  ctx: JavaEmitContext,
+): string {
+  return wrapJavaModule({ ...parts, extraMethods: emitJavaUserFunctions(ctx) });
 }
 
 function emitMapsGet(ast: Extract<ExprAst, { kind: "call" }>, args: string[]): string {
@@ -472,20 +529,20 @@ export function generateJava(
 }
 
 function generateJavaFromExpression(model: MappingModel, expression: string): string {
-  const ctx = createJavaEmitContext();
+  const ctx = createJavaEmitContext("sourceRoot", model.functions);
   const javaExpr = emitJavaExpressionSource(expression, ctx) ?? '""';
-  return wrapJavaModule({
+  return wrapJavaFromCtx({
     templateId: model.templateId,
     body: `return ${javaExpr};`,
     types: ctx.types,
     helpers: ctx.helpers,
     source: "blockly",
     archie: false,
-  });
+  }, ctx);
 }
 
 function generateJavaGeneric(model: MappingModel): string {
-  const ctx = createJavaEmitContext();
+  const ctx = createJavaEmitContext("sourceRoot", model.functions);
   const lines: string[] = [
     "Map<String, Object> values = new LinkedHashMap<>();",
   ];
@@ -496,21 +553,21 @@ function generateJavaGeneric(model: MappingModel): string {
     lines.push(`values.put(${JSON.stringify(slot.slotId)}, ${expr});`);
   }
   lines.push("return values;");
-  return wrapJavaModule({
+  return wrapJavaFromCtx({
     templateId: model.templateId,
     body: lines.join("\n"),
     types: ctx.types,
     helpers: ctx.helpers,
     source: "slots",
     archie: false,
-  });
+  }, ctx);
 }
 
 export function generateJavaFromSkeleton(
   model: MappingModel,
   skeleton: SkeletonNode[],
 ): string {
-  const ctx = createJavaEmitContext();
+  const ctx = createJavaEmitContext("sourceRoot", model.functions);
   const slotMap = new Map(model.slots.map((s) => [s.slotId, s]));
   const loops = model.loops ?? [];
   const roots = skeleton
@@ -556,18 +613,18 @@ export function generateJavaFromSkeleton(
     ].join("\n");
   }
 
-  return wrapJavaModule({
+  return wrapJavaFromCtx({
     templateId: model.templateId,
     body,
     types: ctx.types,
     helpers: ctx.helpers,
     source: "skeleton",
     archie: true,
-  });
+  }, ctx);
 }
 
 export function generateJavaFromSlots(model: MappingModel): string {
-  const ctx = createJavaEmitContext();
+  const ctx = createJavaEmitContext("sourceRoot", model.functions);
   ctx.types.add("COMPOSITION");
   const lines: string[] = [
     "java.util.Map<String, Object> values = new java.util.LinkedHashMap<>();",
@@ -581,14 +638,14 @@ export function generateJavaFromSlots(model: MappingModel): string {
   lines.push("Composition result = new Composition();");
   lines.push("validate(result);");
   lines.push("return result;");
-  return wrapJavaModule({
+  return wrapJavaFromCtx({
     templateId: model.templateId,
     body: lines.join("\n"),
     types: ctx.types,
     helpers: ctx.helpers,
     source: "slots",
     archie: true,
-  });
+  }, ctx);
 }
 
 function emitSkeletonNode(
@@ -818,6 +875,7 @@ interface JavaModuleParts {
   source: "skeleton" | "slots" | "blockly";
   /** When false, omit Archie RM / OPT validator imports (non-openEHR product). */
   archie: boolean;
+  extraMethods?: string;
 }
 
 function wrapJavaModule(parts: JavaModuleParts): string {
@@ -933,6 +991,10 @@ function wrapJavaModule(parts: JavaModuleParts): string {
     lines.push(line.length ? `    ${line}` : "");
   }
   lines.push("  }", "");
+
+  if (parts.extraMethods) {
+    lines.push(parts.extraMethods);
+  }
 
   if (parts.archie) {
     lines.push(...indentLines(validationHook(), 1));

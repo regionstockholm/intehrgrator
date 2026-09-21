@@ -4,7 +4,17 @@ Golden path: **IDE + intEHRgrator desktop side-by-side**. An AI agent calls the 
 
 **Headless:** the same API/MCP tools complete **load → inspect → map → Test Run → export** with no UI (`--headless`, or `deno task mcp` without `INTEHR_AGENT_URL`).
 
-Fallback when MCP/API is unavailable: read **mapping spec** (Blockly JSON) or **generated conversion script** from export — downstream only, not round-trip authoring. Copy-paste: **Copy AI Prompt** → external chat → **Import Suggestions**.
+Fallback when MCP/API is unavailable: read **mapping spec** (Blockly JSON) or **generated conversion script** from export — downstream only, not round-trip authoring. Copy-paste: **Copy prompt** → external chat → **Import Suggestions**. Web Shell **Call AI** is the in-app variant: saved credentials + the same mapping tool names as this API, executed on the open workbench (desktop forwards the provider HTTP call so browser CORS does not block it).
+
+## Call AI vs IDE MCP vs remote Agent API
+
+| Variant | Who holds the model | Who calls intEHRgrator tools |
+|---------|---------------------|------------------------------|
+| IDE + stdio MCP | The IDE (Cursor, Claude Desktop, …) | The IDE agent, via `deno task mcp` |
+| **Call AI** (toolbar) | Your configured provider (Gemini, OpenAI, Anthropic, Ollama, LM Studio, Hugging Face, OpenCode Zen, …) | intEHRgrator, looping OpenAI-compatible `tools` named like MCP |
+| Remote HTTP agent | OpenCode `serve` / cloud runner, HF jobs, etc. | That runner, against a reachable Agent API (`--bind` + `--token` when not loopback) |
+
+Call AI credentials and provider key links live in **AI credentials…** ([AI_CREDENTIALS.md](AI_CREDENTIALS.md)). They are never in the Project Bundle. `POST /api/v1/ai-chat-completions` is a desktop-only CORS forwarder (not an MCP tool).
 
 ## Desktop Agent API
 
@@ -28,6 +38,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | Method | Path | MCP tool | Purpose |
 |--------|------|----------|---------|
 | GET | `/health` | — | Liveness (unauthenticated) |
+| POST | `/ai-chat-completions` | — | Desktop Call AI forwarder (provider URL + key in JSON body; not MCP) |
 | GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status |
 | GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, unitsFixed / allowedUnits, codeFixed / allowedValues, expression) plus `repeatable` containers for `loops[]` |
 | GET | `/source-tree` | `get_source_tree` | Compact Source Schema + Active Example trees |

@@ -8,17 +8,18 @@ This document details the split-screen mapping interface and its architectural c
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ intEHRgrator  … [Copy AI Prompt] [Import Suggestions] [New Project] [Load Project]     │
+│               [Copy prompt / Call AI] [Import Suggestions] [New Project] [Load Project]     │
 │               [Save as] [Export Project] [Import Project]                              │
 ├───────────────┬──────────────────────────────────────────┬─────────────────────────────┤
 │ LEFT PANE     │ CENTER PANE                              │ RIGHT PANE                  │
 │ Source        │ Mapping Editor                           │ Target & Previews           │
+│ (slide-away)  │                                          │ (tabbed, slide-away)        │
 │               │                                          │                             │
-│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Open target + format badge  │
-│ [Load Schema] │ │ nested RM blocks                     │ │ Generated conversion        │
-│               │ │ toolbox: Source/Literals/            │ │ script(s) [Export]          │
-│ Examples      │ │ Logic/Variables                      │ │ Conversion Test             │
-│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──────────────┤ │ Run(s) [Run][Autoplay]      │
+│ Schema        │ ┌─ Blockly (top) ──────────────────────┐ │ Load target & map           │
+│ [Load Schema] │ │ nested RM blocks                     │ │ tabs: Target schema |       │
+│               │ │ toolbox: Source/Literals/            │ │ Generated conversion        │
+│ Examples      │ │ Logic/Variables                      │ │ script(s) | Conversion      │
+│ [+ Add Ex.]   │ ├─ Mapping Spec (bottom) ──────────────┤ │ Test Run(s)                 │
 │ [ex-a][ex-b]  │ │ widgets + expressions                │ │                             │
 │ instance tree │ └──────────────────────────────────────┘ │                             │
 ├───────────────┴──────────────────────────────────────────┴─────────────────────────────┤
@@ -83,12 +84,17 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 - **Technology:** [Blockly](https://developers.google.com/blockly) + [CodeMirror 6](https://codemirror.net/)
 
 ### Right Pane: Target & Previews
-- **Purpose:** Load the target, preview generated conversion-script code, and run conversion tests
-- **Header:** pane title **Target & Previews**; conversion script language + Download
-- **Target load strip** (top of Generated conversion script(s)): **Open target Schema/Template**, model language, format badge
-- **Upper section:** **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)
-- **Lower section:** **Conversion Test Run(s)** — runs mapping against the **active example tab**; displays the produced instance. Section header includes **Run Test** and **Autoplay / Pause**.
+- **Purpose:** Load the target, browse its schema, preview generated conversion-script code, and run conversion tests
+- **Header:** pane title **Target & Previews**; **Load target & default context map**; **Output mode**; slide-away toggle
+- **Tabs** (Shoelace `sl-tab-group`; usually not needed at the same time):
+  1. **Target schema** — tree of the loaded target. Pull a leaf or subtree onto empty canvas → corresponding Blockly, scaffolded from the current **default context map**. Leaf → **scaffold target** chips; subtree → map value socket.
+  2. **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)
+  3. **Conversion Test Run(s)** — runs mapping against the **active example tab**; displays the produced instance. Section header includes **Run Test** and **Autoplay / Pause**.
 - Unmapped mandatory slots and unmet cardinality show as **Constraint warning** triangles on Blockly and on the matching Mapping Spec Widgets. Click a spec widget or Blockly block to **Select** (yellow border + pan); placeholder Source query blocks also enter **Listening Mode**.
+
+### Web components (Shoelace)
+
+When changing chrome (tabs, dialogs, drawers, menus), prefer [Shoelace](https://shoelace.style/) components already used in the Web Shell (`sl-tab-group` for **Target & Previews**). Keep the Karolinska colour tokens (`--sl-color-primary-*` in `web/styles.css`). Do not rewrite working custom widgets (split panes, tree, Blockly) just to swap libraries.
 
 ## Toolbar & Pane Actions
 
@@ -98,7 +104,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| Copy AI Prompt | Generate markdown prompt to clipboard (▾: embed / attach / browse URIs) | ✓ |
+| Copy prompt / Call AI | Copy markdown prompt, or Call AI with mapping tools / suggestions JSON when credentials are saved (▾: Copy prompt, Call AI, credentials, embed / attach / URI) | ✓ |
 | Import Suggestions | Parse pasted `intehrgrator-suggestions` JSON and apply mappings | ✓ |
 | Example Sets | Load a complete example set (source schema + instances, target, optional mapping) from a URI catalog | ✓ |
 | New Project | Reset workspace to empty project (confirm if content present) | ✓ |
@@ -113,7 +119,8 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 |--------|----------|--------|-----|
 | Load Schema | Source → Schema section | Split control: main click loads a schema file; chevron offers **From file**, **From URL**, and recent URLs | ✓ |
 | + Add Example | Source → Examples section | Split control: main click opens a JSON/XML instance; chevron offers file, URL, and recent URLs | ✓ |
-| Open target Schema/Template | Target & Previews → Generated conversion script(s) strip | Split control: main click loads an OPT/schema file; chevron offers file, URL, and recent URLs | ✓ |
+| Load target & default context map | Target & Previews header | Split control: main click opens the joint target + default context map dialog; chevron offers file, URL, GitHub, and non-destructive refresh | ✓ |
+| Slide-away | Source / Target & Previews headers | Hide the pane so the Mapping Editor takes the width; rail tabs restore it | ✓ |
 | Export TS | Target & Previews pane header | Download the generated TypeScript mapping script | ✓ |
 | Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
 | Autoplay / Pause | Output → Conversion Test Run(s) | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |
@@ -153,15 +160,16 @@ The test runner is a core informatician workflow, not a nice-to-have.
 
 **Out of scope v1:** Java test execution, uploading results to a CDR.
 
-## AI Assist — Copy-Paste (v1)
+## AI Assist
 
-No in-app AI API in the web shell. Integrated AI is deferred to VS Code; see [docs/future/integrated-ai-assist.md](future/integrated-ai-assist.md).
+**Copy prompt** builds markdown for an external chat. **Call AI** POSTs that prompt when optional OpenAI-compatible credentials are saved (localStorage, never the Project Bundle). Default Call AI mode sends OpenAI function tools named like MCP / the HTTP Agent API and runs them on the live workbench. See [docs/future/integrated-ai-assist.md](future/integrated-ai-assist.md).
 
-### Copy AI Prompt
+### Copy prompt / Call AI
 
 1. User optionally selects a single value slot (scopes prompt to that `slotId`) or leaves unselected (all unmapped slots)
-2. Clicks **Copy AI Prompt** (main button uses last delivery mode; ▾ chooses mode)
-3. App copies markdown to clipboard containing:
+2. Clicks **Copy prompt** or **Call AI** (main button is Call AI when credentials exist; ▾ chooses Copy prompt, Call AI, credentials, and delivery)
+3. **AI credentials…** — pick a provider (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner). Each preset fills the OpenAI-compatible endpoint and links to that vendor’s key page. Mapping mode: **Mapping tools** (default) or **Suggestions JSON only**. Walkthrough: [AI_CREDENTIALS.md](AI_CREDENTIALS.md).
+4. App copies markdown to clipboard, or POSTs it. Call AI with tools inspects `list_slots` / `get_source_tree` and writes via `map_slot` or `import_suggestions`. One-shot mode still imports `intehrgrator-suggestions` JSON.
    - Task description (map source → loaded **Target instance format**) and scope (`slot` | `full`)
    - Target: format, `targetId`, filename, origin (file or URI), structure summary
    - Source schema and example instance(s): format, filename, origin
@@ -261,6 +269,10 @@ The footer status bar has three regions:
 | Build stamp | `#status-build` | `{BUILD_ID} · {BUILD_TIMESTAMP}` |
 
 **Autosave:** After any workspace edit, a **10 s debounced** timer writes the current Project Bundle to IndexedDB under storage key `__autosave__`. Successful autosave clears the dirty flag and updates `#status-save`. Autosave does not replace named manual saves.
+
+### Task progress overlay
+
+Long-running, multi-step loads (Example Sets, GitHub clinical models) show `#task-progress-overlay`: a dimmed card with a spinner and one row per substep in **waiting / running / finished / failed**. The controller exposes `getState().taskProgress`; `render()` paints the overlay and yields between steps so the UI can update. The footer `#status-main` still shows the current step as a short message. The overlay hides when the task settles.
 
 **Manual save (Save as):** User names the project; bundle is stored under `manual:{uuid}`. Only the **last 5** manual saves are retained (older entries pruned). Clears dirty state and shows a transient confirmation in `#status-main`.
 

@@ -21,6 +21,7 @@ Enabled only when the shell is opened with `?testMode=1`.
 |--------|------|
 | `ready()` | Resolves after Blockly inject + first render |
 | `loadTemplate` / `loadSchema` / `addExample` | Fixture setup (no Host file picker) |
+| `refreshTarget` / `refreshSchema` | Non-destructive refresh; `getSnapshot().lastRefreshReport` |
 | `armSlot` / `bindFromNode` | Programmatic equivalents of Click-to-Map (available; UI test prefers DOM clicks) |
 | `mapNodeToSlot` | Programmatic equivalent of drag-and-drop (skips Listening Mode) |
 | `runTest` / `setAutoplay` | Drive Conversion Test Run(s) |
@@ -62,6 +63,7 @@ Primary scenarios map systolic (`…/items/at0004/value/value/value`) → `$.sys
 | Test | Interaction |
 |------|-------------|
 | `test/ui/green_path_test.ts` | Load → Click-to-Map (systolic + diastolic) → Optional RM Insertion → toolbox Loops → Test Run → Generated Export |
+| `test/ui/target_schema_tabs_test.ts` | Target & Previews tabs + slide-away; drag Target schema subtree onto canvas |
 | `test/ui/click_to_map_test.ts` | Listening Mode → click Example Instance node |
 | `test/ui/drag_drop_map_test.ts` | Drag Example Instance node onto Blockly Target value slot (no Listening Mode) |
 

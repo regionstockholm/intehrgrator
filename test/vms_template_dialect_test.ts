@@ -74,3 +74,11 @@ Deno.test("VMS-Go: {{call}} and {{with}} warn", async () => {
   assertEquals(withResult.ok, false);
   assert(withResult.diagnostics.some((d) => /with/i.test(d.message)));
 });
+
+Deno.test("VMS-Go allows decisionTable and sheetLookup", async () => {
+  await ensureGoTemplateWasm();
+  const result = await checkVmsGo(
+    `{{ decisionTable "t" (dict "a" "b") "out" }}{{ sheetLookup "s" "code" "I10" "snomed" }}`,
+  );
+  assertEquals(result.ok, true, JSON.stringify(result.diagnostics));
+});

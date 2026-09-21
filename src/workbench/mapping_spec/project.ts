@@ -196,7 +196,9 @@ function rootDividerLine(block: BlocklyBlockJson, rootId: string): SpecLine {
 
 function rootLabel(block: BlocklyBlockJson): string {
   const type = block.type ?? "block";
-  if (type === "defaults_block") return "Default context mapping";
+  if (type === "defaults_block" || type === "default_context_map") {
+    return "Default context map";
+  }
   if (type === "composition") return "COMPOSITION";
   if (type.startsWith("procedures_def")) {
     return stringField(block, "NAME") || "Function";
@@ -408,7 +410,7 @@ function walkInputs(
   attributeEdit?: SpecEditableField,
 ): void {
   if (!block.inputs) return;
-  if (block.type === MAPS_CREATE_WITH) {
+  if (block.type === MAPS_CREATE_WITH || block.type === "default_context_map") {
     walkMapEntries(block, indent, lines, extraAliases);
     return;
   }
@@ -982,6 +984,7 @@ function classify(type: string): SpecLineKind {
     type === "xml_element" ||
     type === "xml_document" ||
     type === "defaults_block" ||
+    type === "default_context_map" ||
     type === "for_each_list" ||
     type === "controls_if" ||
     type === MAPS_CREATE_WITH ||

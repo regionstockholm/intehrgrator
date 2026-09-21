@@ -407,3 +407,65 @@ Deno.test("controller switches multilingual target ontology language without dro
     expression,
   );
 });
+
+Deno.test("non-destructive target refresh keeps mapped expressions and records a report", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("blood_pressure.opt", opt);
+  const slotId = collectValueSlots(controller.getState().skeleton).find((s) =>
+    s.slotId.endsWith("items/at0004/value/value/value")
+  )?.slotId;
+  assert(slotId, "systolic slot");
+  controller.mapNodeToSlot(slotId, "$.systolic", "json");
+  const expression = controller.getState().model.slots.find((s) => s.slotId === slotId)?.expression;
+  const report = controller.refreshTargetContent("blood_pressure-refresh.opt", opt);
+  assertEquals(report.kind, "target");
+  assertEquals(controller.getState().model.slots.find((s) => s.slotId === slotId)?.expression, expression);
+  assertEquals(controller.getState().lastRefreshReport?.nextFilename, "blood_pressure-refresh.opt");
+});
+
+Deno.test("non-destructive source refresh keeps mappings and warns on missing paths", async () => {
+  const schema = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadSchemaContent("bp_source_schema.json", schema);
+  controller.loadTemplateContent(
+    "summary.json",
+    JSON.stringify({
+      $id: "patient-summary",
+      type: "object",
+      properties: { name: { type: "string" } },
+      required: ["name"],
+    }),
+  );
+  const nameSlot = collectValueSlots(controller.getState().skeleton).find((s) => s.label === "name");
+  assert(nameSlot);
+  controller.mapNodeToSlot(nameSlot.slotId, "$.systolic", "json");
+  const nextSchema = JSON.stringify({
+    type: "object",
+    properties: { pulse: { type: "number" } },
+  });
+  const report = controller.refreshSchemaContent("bp_source_schema.json", nextSchema);
+  assertEquals(report.kind, "source");
+  assert(
+    report.warnings.some((w) => w.kind === "removed-path" && w.path.includes("systolic")),
+    JSON.stringify(report.warnings),
+  );
+  assertEquals(
+    controller.getState().model.slots.find((s) => s.slotId === nameSlot.slotId)?.expression?.includes("systolic"),
+    true,
+  );
+});
+
+Deno.test("syncFromBlockly records Blockly Functions before a target is loaded", () => {
+  const controller = new WorkbenchController(stubHost());
+  assertEquals(controller.getState().templateId, "");
+  controller.syncFromBlockly({ blocks: { languageVersion: 0 } }, [], [], undefined, {
+    notify: false,
+    functions: [{ name: "join_swedish", kind: "return", params: ["items"], body: '""' }],
+  });
+  assertEquals(controller.getState().model.functions?.[0]?.name, "join_swedish");
+});

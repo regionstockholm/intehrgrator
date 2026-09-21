@@ -23,3 +23,17 @@ Deno.test("agentApiUnauthorized allows health and matching token", () => {
   assertEquals(denied?.status, 401);
   assertEquals(agentApiUnauthorized(new Request("http://127.0.0.1/api/v1/snapshot"), undefined), null);
 });
+
+Deno.test("Agent API ai-chat-completions rejects a body without endpoint", async () => {
+  const { createAgentApiHandler } = await import("@intehrgrator/agent/http.ts");
+  const { WorkbenchService } = await import("@intehrgrator/workbench/service.ts");
+  const handler = createAgentApiHandler(new WorkbenchService());
+  const res = await handler(
+    new Request("http://127.0.0.1/api/v1/ai-chat-completions", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{}",
+    }),
+  );
+  assertEquals(res.status, 400);
+});

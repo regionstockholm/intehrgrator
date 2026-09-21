@@ -1,0 +1,418 @@
+[
+  {
+    "name": "imaging_term",
+    "kind": "decision-table",
+    "headers": [
+      "modality",
+      "term_id"
+    ],
+    "values": [
+      [
+        "MR",
+        "12683"
+      ],
+      [
+        "Ultraljud",
+        "4829"
+      ],
+      [
+        "—",
+        "59"
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "value",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      false,
+      true
+    ]
+  },
+  {
+    "name": "smoking_note",
+    "kind": "decision-table",
+    "headers": [
+      "status",
+      "snippet"
+    ],
+    "values": [
+      [
+        "Har aldrig rökt",
+        "{{status}}"
+      ],
+      [
+        "—",
+        "{{status}} ({{typ}})\n{{#paketår}}Paketår: {{paketår}}\n{{/paketår}}{{#slutdatum}}Slutade: {{slutdatum}}\n{{/slutdatum}}{{#kommentar}}Kommentar: {{kommentar}}\n{{/kommentar}}"
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "snippet",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      true
+    ]
+  },
+  {
+    "name": "treatment_connector",
+    "kind": "decision-table",
+    "headers": [
+      "relation",
+      "has_huvud",
+      "snippet"
+    ],
+    "values": [
+      [
+        "Adjuvant",
+        "true",
+        "Följt av"
+      ],
+      [
+        "Neoadjuvant",
+        "true",
+        "Föregått av"
+      ],
+      [
+        "Perioperativ",
+        "true",
+        "Rekommenderas också tilläggsbehandling i form av"
+      ],
+      [
+        "—",
+        "true",
+        "Patienten rekommenderas"
+      ],
+      [
+        "Adjuvant",
+        "false",
+        "Följt av adjuvant behandling."
+      ],
+      [
+        "—",
+        "—",
+        ""
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "snippet",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  {
+    "name": "regimen_phrase",
+    "kind": "decision-table",
+    "headers": [
+      "has_regim",
+      "has_antal",
+      "has_annan",
+      "snippet"
+    ],
+    "values": [
+      [
+        "true",
+        "true",
+        "—",
+        " enligt regim {{regim}}, {{antal_kurer}} kurer."
+      ],
+      [
+        "true",
+        "—",
+        "—",
+        " enligt regim {{regim}}."
+      ],
+      [
+        "—",
+        "true",
+        "—",
+        ", {{antal_kurer}} kurer."
+      ],
+      [
+        "—",
+        "—",
+        "true",
+        " enligt regim {{annan_regim}}."
+      ],
+      [
+        "—",
+        "—",
+        "—",
+        "."
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text",
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "snippet",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  {
+    "name": "dose_phrase",
+    "kind": "decision-table",
+    "headers": [
+      "has_fraktion",
+      "has_total",
+      "snippet"
+    ],
+    "values": [
+      [
+        "true",
+        "true",
+        "Fraktionsdos: {{fraktion}} {{fraktion_unit}}, Totaldos: {{total}} {{total_unit}}."
+      ],
+      [
+        "true",
+        "—",
+        "Fraktionsdos: {{fraktion}} {{fraktion_unit}}."
+      ],
+      [
+        "—",
+        "true",
+        "Totaldos: {{total}} {{total_unit}}."
+      ],
+      [
+        "—",
+        "—",
+        ""
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "snippet",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  {
+    "name": "chemoradiation_form",
+    "kind": "decision-table",
+    "headers": [
+      "typ",
+      "has_form",
+      "snippet"
+    ],
+    "values": [
+      [
+        "Kemoradioterapi",
+        "true",
+        "{{form}} "
+      ],
+      [
+        "—",
+        "—",
+        ""
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "snippet",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      true
+    ]
+  },
+  {
+    "name": "treatment_frame",
+    "kind": "decision-table",
+    "headers": [
+      "has_intention",
+      "has_huvud",
+      "has_relation",
+      "has_tillägg",
+      "snippet"
+    ],
+    "values": [
+      [
+        "true",
+        "true",
+        "true",
+        "true",
+        "Patienten rekommenderas {{intention}} {{form}}{{huvud}}{{regimen}} {{connector}} {{relation}} {{tillägg}}"
+      ],
+      [
+        "true",
+        "true",
+        "—",
+        "—",
+        "Patienten rekommenderas {{intention}} {{form}}{{huvud}}{{regimen}}"
+      ],
+      [
+        "—",
+        "true",
+        "—",
+        "—",
+        "Patienten rekommenderas {{form}}{{huvud}}{{regimen}}"
+      ],
+      [
+        "true",
+        "—",
+        "—",
+        "—",
+        "Patienten rekommenderas {{intention}}."
+      ],
+      [
+        "—",
+        "—",
+        "true",
+        "true",
+        "{{connector}} {{relation}} {{tillägg}}"
+      ],
+      [
+        "—",
+        "—",
+        "—",
+        "—",
+        ""
+      ]
+    ],
+    "columnTypes": [
+      "text",
+      "text",
+      "text",
+      "text",
+      "text"
+    ],
+    "hitPolicy": "FIRST",
+    "collectJoin": "; ",
+    "decisionColumns": [
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "condition"
+      },
+      {
+        "role": "output",
+        "outputKind": "snippet",
+        "valueType": "string"
+      }
+    ],
+    "rowCatchAll": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  }
+]

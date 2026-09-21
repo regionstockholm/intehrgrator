@@ -2,8 +2,16 @@
  * Blockly mutator with a per-option flyout (no attribute dropdown) and a
  * header cogwheel field to the right of the skeleton title.
  */
-import type { BlockSvg } from "blockly/core";
+import type { Block, BlockSvg, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
+import {
+  enforceMouthCaptionLayout,
+  ensureClassChromeHeader,
+  MUTATOR_COG_FIELD,
+  mutatorChromeHost,
+  orderHeaderTrailingChrome,
+  relocateTrailingChromeToHost,
+} from "./mouth_layout.ts";
 
 const MutatorIcon = Blockly.icons.MutatorIcon;
 
@@ -38,8 +46,25 @@ export function appendMutatorCogwheel(
         if (block) openBlockMutator(block);
       },
     ),
-    "MUTATOR_COG",
+    MUTATOR_COG_FIELD,
   );
+}
+
+/** Dummy row that receives the header cog: HEADER, else the NAME row (Functions). */
+export function mutatorCogHost(block: Block): Input {
+  return mutatorChromeHost(block);
+}
+
+/**
+ * Header cogwheel used by RM / maps / stock MutatorIcon blocks.
+ * Keeps the MutatorIcon for the bubble, but hides Blockly's default top-left badge.
+ */
+export function ensureHeaderMutatorCog(block: Block): void {
+  const host = mutatorCogHost(block);
+  relocateTrailingChromeToHost(block, host);
+  if (!block.getField(MUTATOR_COG_FIELD)) appendMutatorCogwheel(host);
+  hideDefaultMutatorIcon(block);
+  orderHeaderTrailingChrome(block);
 }
 
 /** Hide Blockly's default top-left mutator icon; the header cogwheel replaces it. */
@@ -47,9 +72,14 @@ export function hideDefaultMutatorIcon(block: Blockly.Block): void {
   const svg = block as BlockSvg;
   const apply = () => {
     const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
-    if (!MutatorIconType) return;
-    const icon = svg.getIcon?.(MutatorIconType);
-    if (icon?.svgRoot) icon.svgRoot.style.display = "none";
+    const hide = (icon: { svgRoot?: SVGElement } | null | undefined) => {
+      if (icon?.svgRoot) icon.svgRoot.style.display = "none";
+    };
+    if (MutatorIconType) hide(svg.getIcon?.(MutatorIconType));
+    for (const icon of svg.getIcons?.() ?? []) {
+      const type = String(icon.getType?.() ?? "");
+      if (type.includes("mutator")) hide(icon);
+    }
   };
   if (svg.rendered) {
     apply();
@@ -86,29 +116,75 @@ export function openBlockMutator(block: Blockly.Block): void {
 
 export function getCogwheelAnchorLocation(sourceBlock: BlockSvg): Blockly.utils.Coordinate {
   const blockOrigin = sourceBlock.getRelativeToSurfaceXY();
-  const cogField = sourceBlock.getField("MUTATOR_COG") as Blockly.FieldImage | null;
-  if (cogField) {
-    const svgRoot = cogField.getSvgRoot();
-    if (svgRoot && Blockly.utils?.svgMath?.getRelativeXY) {
-      try {
-        const fieldRel = Blockly.utils.svgMath.getRelativeXY(svgRoot);
-        return new Blockly.utils.Coordinate(
-          blockOrigin.x + fieldRel.x + 8,
-          blockOrigin.y + fieldRel.y + 8,
-        );
-      } catch {
-        // fallback if getRelativeXY throws
-      }
-    }
-    const dimensions = sourceBlock.getHeightWidth?.();
-    if (dimensions) {
+  const cogField = sourceBlock.getField(MUTATOR_COG_FIELD) as Blockly.FieldImage | null;
+  if (!cogField) return blockOrigin;
+
+  const fieldSvg = cogField.getSvgRoot?.();
+  const blockSvg = sourceBlock.getSvgRoot?.();
+  if (fieldSvg && blockSvg) {
+    const fromScreen = offsetFromBlockSvg(fieldSvg, blockSvg, sourceBlock);
+    if (fromScreen) {
+      const size = cogField.getSize?.() ?? { width: 16, height: 16 };
       return new Blockly.utils.Coordinate(
-        blockOrigin.x + dimensions.width - 24,
-        blockOrigin.y + 12,
+        blockOrigin.x + fromScreen.x + Number(size.width ?? 16) / 2,
+        blockOrigin.y + fromScreen.y + Number(size.height ?? 16) / 2,
       );
     }
   }
+  const dimensions = sourceBlock.getHeightWidth?.();
+  if (dimensions) {
+    return new Blockly.utils.Coordinate(
+      blockOrigin.x + Math.max(16, dimensions.width - 18),
+      blockOrigin.y + 12,
+    );
+  }
   return blockOrigin;
+}
+
+/** Field offset inside the block SVG (accumulates parent transforms). */
+function offsetFromBlockSvg(
+  fieldSvg: SVGElement,
+  blockSvg: SVGElement,
+  sourceBlock: BlockSvg,
+): { x: number; y: number } | null {
+  if (typeof fieldSvg.getBoundingClientRect === "function" &&
+    typeof blockSvg.getBoundingClientRect === "function"
+  ) {
+    const fieldBox = fieldSvg.getBoundingClientRect();
+    const blockBox = blockSvg.getBoundingClientRect();
+    if (fieldBox.width > 0 && blockBox.width > 0) {
+      const scale = (sourceBlock.workspace as { scale?: number } | undefined)?.scale ?? 1;
+      return {
+        x: (fieldBox.left - blockBox.left) / scale,
+        y: (fieldBox.top - blockBox.top) / scale,
+      };
+    }
+  }
+  const getRel = Blockly.utils?.svgMath?.getRelativeXY;
+  if (!getRel) return null;
+  try {
+    let x = 0;
+    let y = 0;
+    let node: Element | null = fieldSvg;
+    while (node && node !== blockSvg) {
+      const rel = getRel(node);
+      x += Number(rel?.x ?? 0);
+      y += Number(rel?.y ?? 0);
+      node = node.parentElement;
+    }
+    return { x, y };
+  } catch {
+    return null;
+  }
+}
+
+function pinMutatorIconToHeaderCog(block: Block): void {
+  const svg = block as BlockSvg;
+  const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
+  const icon = MutatorIconType ? svg.getIcon?.(MutatorIconType) : null;
+  if (!icon) return;
+  (icon as { getAnchorLocation?: () => Blockly.utils.Coordinate }).getAnchorLocation = () =>
+    getCogwheelAnchorLocation(svg);
 }
 
 type FlyoutProvider = (
@@ -438,7 +514,7 @@ export class DynamicFlyoutMutatorIcon extends MutatorIcon {
       const bubbleSvg = bubble.getSvgRoot?.() ?? bubble.svgRoot;
       if (bubbleSvg && bubbleSvg.contains(target)) return;
 
-      const cogField = block.getField("MUTATOR_COG") as Blockly.FieldImage | null;
+      const cogField = block.getField(MUTATOR_COG_FIELD) as Blockly.FieldImage | null;
       const cogSvg = cogField?.getSvgRoot?.();
       if (cogSvg && cogSvg.contains(target)) return;
 
@@ -489,5 +565,148 @@ export function registerDynamicFlyoutMutator(
       ),
     );
     hideDefaultMutatorIcon(this);
+    orderHeaderTrailingChrome(this);
   });
 }
+
+const STOCK_MUTATOR_TITLE_TYPES = new Set(["text_join", "lists_create_with"]);
+/** type → current wrapped `init` (re-wrap when register* replaces the definition). */
+const chromeWrappedInit = new Map<string, (this: Block) => void>();
+const chromeWrappedMethods = new Map<string, unknown>();
+let mutatorIconPatched = false;
+let setMutatorFlagPatched = false;
+
+/** Canvas blocks that own a MutatorIcon / decompose (not flyout quark items). */
+export function blockHasMutator(block: Block): boolean {
+  if ((block as { hasMutatorIcon_?: boolean }).hasMutatorIcon_) return true;
+  const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
+  const svg = block as BlockSvg;
+  if (MutatorIconType && svg.getIcon?.(MutatorIconType)) return true;
+  return typeof (block as { decompose?: unknown }).decompose === "function";
+}
+
+/**
+ * Stock `text_join` / `lists_create_with` put the title on EMPTY or ADD0.
+ * Move those labels onto HEADER so the cog and type glyph can sit far right
+ * on the same row instead of on a leftover icon-only dummy above the title.
+ */
+export function promoteStockMutatorTitle(block: Block): void {
+  if (!STOCK_MUTATOR_TITLE_TYPES.has(block.type)) return;
+  const header = ensureClassChromeHeader(block);
+  const steal = (inputName: string): void => {
+    const input = block.getInput(inputName);
+    if (!input) return;
+    const keep = new Set([MUTATOR_COG_FIELD, "RM_OUT_EMOJI"]);
+    const movable = input.fieldRow.filter((field) => {
+      const name = field.name ?? "";
+      if (keep.has(name)) return false;
+      if (name.startsWith("SLOT_EMOJI")) return false;
+      return true;
+    });
+    for (const field of movable) {
+      const idx = input.fieldRow.indexOf(field);
+      if (idx < 0) continue;
+      input.fieldRow.splice(idx, 1);
+      const cogAt = header.fieldRow.findIndex((item) => item.name === MUTATOR_COG_FIELD);
+      if (cogAt >= 0) header.fieldRow.splice(cogAt, 0, field);
+      else header.fieldRow.push(field);
+    }
+    if (inputName === "EMPTY" && input.fieldRow.length === 0 && !input.connection) {
+      block.removeInput("EMPTY", true);
+    }
+  };
+  steal("EMPTY");
+  steal("ADD0");
+}
+
+/** Patch stock MutatorIcon so the bubble anchors on MUTATOR_COG and takes no top-left slot. */
+export function patchMutatorIconAnchor(): void {
+  patchSetMutatorFlag();
+  const Icon = Blockly.icons?.MutatorIcon;
+  if (!Icon?.prototype || mutatorIconPatched) return;
+  mutatorIconPatched = true;
+  const originalGetSize = Icon.prototype.getSize;
+  Icon.prototype.getSize = function (this: { sourceBlock?: Block }) {
+    if (this.sourceBlock?.getField?.(MUTATOR_COG_FIELD)) {
+      const Size = Blockly.utils?.Size;
+      return Size ? new Size(0, 0) : { width: 0, height: 0 };
+    }
+    return originalGetSize.call(this);
+  };
+  const originalAnchor = Icon.prototype.getAnchorLocation;
+  Icon.prototype.getAnchorLocation = function (this: { sourceBlock?: BlockSvg }) {
+    if (this.sourceBlock?.getField?.(MUTATOR_COG_FIELD)) {
+      return getCogwheelAnchorLocation(this.sourceBlock);
+    }
+    return originalAnchor.call(this);
+  };
+}
+
+function patchSetMutatorFlag(): void {
+  const proto = Blockly.Block?.prototype;
+  if (!proto?.setMutator || setMutatorFlagPatched) return;
+  setMutatorFlagPatched = true;
+  const original = proto.setMutator;
+  proto.setMutator = function (this: Block, mutator: unknown) {
+    (this as { hasMutatorIcon_?: boolean }).hasMutatorIcon_ = true;
+    const result = original.call(this, mutator);
+    pinMutatorIconToHeaderCog(this);
+    return result;
+  };
+}
+
+function afterMutatorBlockInit(block: Block): void {
+  if (blockHasMutator(block)) {
+    ensureHeaderMutatorCog(block);
+    promoteStockMutatorTitle(block);
+    enforceMouthCaptionLayout(block);
+  }
+  orderHeaderTrailingChrome(block);
+  hideDefaultMutatorIcon(block);
+  pinMutatorIconToHeaderCog(block);
+}
+
+/**
+ * After every block type is registered: output glyph on the left, header cog
+ * far right, bubble anchored on the cog, default top-left MutatorIcon hidden.
+ * Safe to call again when a register* function replaces `Blockly.Blocks[type]`.
+ */
+export function installHeaderMutatorChrome(): void {
+  patchMutatorIconAnchor();
+  for (const type of Object.keys(Blockly.Blocks)) {
+    const def = Blockly.Blocks[type] as {
+      init?: (this: Block) => void;
+      updateShape_?: (this: Block) => void;
+      updateParams_?: (this: Block) => void;
+    } | undefined;
+    if (!def?.init) continue;
+    if (chromeWrappedInit.get(type) !== def.init) {
+      const originalInit = def.init;
+      def.init = function (this: Block) {
+        originalInit.call(this);
+        afterMutatorBlockInit(this);
+      };
+      chromeWrappedInit.set(type, def.init);
+    }
+    wrapAfterInit(type, def as { [key: string]: unknown }, "updateShape_");
+    wrapAfterInit(type, def as { [key: string]: unknown }, "updateParams_");
+    wrapAfterInit(type, def as { [key: string]: unknown }, "updateAt_");
+  }
+}
+
+function wrapAfterInit(
+  type: string,
+  def: { [key: string]: unknown },
+  method: "updateShape_" | "updateParams_" | "updateAt_",
+): void {
+  const original = def[method];
+  if (typeof original !== "function") return;
+  const key = `${type}.${method}`;
+  if (chromeWrappedMethods.get(key) === original) return;
+  def[method] = function (this: Block, ...args: unknown[]) {
+    (original as (this: Block, ...args: unknown[]) => void).apply(this, args);
+    afterMutatorBlockInit(this);
+  };
+  chromeWrappedMethods.set(key, def[method]);
+}
+

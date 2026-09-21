@@ -47,12 +47,15 @@ Deno.test("pass-2 envelope maps TESTFALL-A towards the golden FLAT instance", as
     row.parentSlotId.endsWith("//context/EVENT_CONTEXT") &&
     row.attachments.some((a) => a.attributeName === "health_care_facility")
   );
-  if (!context) throw new Error("missing EVENT_CONTEXT health_care_facility catalog row");
-  await callAgentTool(service, "optional_rm_add", {
-    parentSlotId: context.parentSlotId,
-    rmType: "PARTY_IDENTIFIED",
-    attributeName: "health_care_facility",
-  });
+  // Factory Defaults Map already scaffolds EVENT_CONTEXT.health_care_facility;
+  // only add when the catalog still offers it (empty / custom map).
+  if (context) {
+    await callAgentTool(service, "optional_rm_add", {
+      parentSlotId: context.parentSlotId,
+      rmType: "PARTY_IDENTIFIED",
+      attributeName: "health_care_facility",
+    });
+  }
   const sheets = JSON.parse(
     await Deno.readTextFile(join(fixtures, "mapping", "pass-2-ai.sheets.json")),
   ) as { sheets: unknown[] };

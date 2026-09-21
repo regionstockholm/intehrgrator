@@ -7,7 +7,6 @@ import {
   HATCH_JSON_XML,
   HATCH_OUT_OF_DIALECT_GO,
   HATCH_OUT_OF_DIALECT_HBS,
-  HATCH_PROCEDURES,
   HATCH_REMOVED,
   isLiteralSourcePath,
 } from "@intehrgrator/blockly/vms_linter.ts";
@@ -28,14 +27,14 @@ Deno.test("isLiteralSourcePath accepts FLAT / JSONPath and rejects concat", () =
   assertEquals(isLiteralSourcePath("concat('/a/', $x)"), false);
 });
 
-Deno.test("workspace hatch: removed types, procedures, json/xml get distinct warnings", () => {
+Deno.test("workspace hatch: removed types and json/xml get distinct warnings", () => {
   ensure();
   const workspace = new Blockly.Workspace();
   const removed = workspace.newBlock("controls_whileUntil");
   assertEquals(blockHatchMessages(removed), [HATCH_REMOVED]);
 
   const proc = workspace.newBlock("procedures_defreturn");
-  assertEquals(blockHatchMessages(proc), [HATCH_PROCEDURES]);
+  assertEquals(blockHatchMessages(proc), []);
 
   const json = workspace.newBlock("json_object");
   assertEquals(blockHatchMessages(json), [HATCH_JSON_XML]);

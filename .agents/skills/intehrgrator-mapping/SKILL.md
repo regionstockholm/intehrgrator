@@ -25,6 +25,10 @@ Read [docs/AI_SUGGESTION_FORMAT.md](../../../docs/AI_SUGGESTION_FORMAT.md) for t
 
 **Headless / server:** `deno task mcp` with **no** `INTEHR_AGENT_URL` (embedded `WorkbenchService`), **or** `intEHRgrator --headless [--port n] [--bind addr] [--load file.intehrgrator] [--token secret]`. Non-loopback `--bind` requires `--token`. Target load **scaffolds** Conversion start + Template Skeleton (same as the GUI). Done when load/inspect tools answer.
 
+**Call AI (in-app):** Web Shell / desktop toolbar with saved AI credentials. intEHRgrator calls the provider and executes the same tool names (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) on the open project. Provider key walkthrough: [docs/AI_CREDENTIALS.md](../../../docs/AI_CREDENTIALS.md). A remote OpenCode server / cloud runner uses the **Headless / server** path (HTTP Agent API), not the in-app key dialog.
+
+**Copy prompt:** no API. User pastes the markdown; apply the envelope with `import_suggestions` / Import Suggestions.
+
 ## Golden path
 
 1. **`register_agent`** — note `agentId`, `displayName`, `color`. Pass those headers / `_agent*` args on writes. Done when register returns an id.
@@ -62,8 +66,8 @@ HTTP table: [docs/AGENT_WORKFLOW.md](../../../docs/AGENT_WORKFLOW.md). HTTP and 
 - **Function library** — reusable Blockly Functions (value `procedures_defreturn` or statement `procedures_defnoreturn`, plus Decision tables they call; `procedures_ifreturn` is inside a body) in `function-library/`. Index: [`function-library/index.md`](../../../function-library/index.md). `list_function_library` then `load_function`. Starters `join_swedish` / `join_oxford` are FIRST Decision-table joins, not a `join_list` builtin. Call a value Function from a slot.
 - **Quantities** — unconstrained `DV_QUANTITY.units` is a shell field. When `list_slots` has no `unitsFixed`, map the quantity slot with `maps_create_with` keys `magnitude` + `units`.
 - **Coded text** — copy `allowedValues` from inspect when present; otherwise `maps_create_with` keys `value`, `code_string` / `defining_code`, `terminology_id`.
-- **Party identity** — `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`, and `health_care_facility` after `optional_rm_add`). Map with `source_query` (name only) or `maps_create_with` keys `name`, `id`, `type`. Not a `/name/value` DV_TEXT leaf.
-- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` (`health_care_facility` on EVENT_CONTEXT).
+- **Party identity** — `list_slots` includes `PARTY_IDENTIFIED` containers (`composer`, and `health_care_facility` when already scaffolded from the Defaults Map or after `optional_rm_add`). Map with `source_query` (name only) or `maps_create_with` keys `name`, `id`, `type`. Not a `/name/value` DV_TEXT leaf.
+- Value slots only in the envelope — no RM containers / `DV_*` shells. Optional RM Insertion is `optional_rm_add` when `list_optional_rm` still lists the attribute (factory Defaults often already insert `health_care_facility` on EVENT_CONTEXT).
 - Copy `slotId` / `attachSlotId` verbatim from inspect / the prompt manifest.
 - Copy `slotId` / `attachSlotId` from inspect. Sibling `C_ARCHETYPE_ROOT` nodes that share `at0000` use openEHR locator predicates (`…//content[openEHR-EHR-ACTION.medication.v1]`). Reused ELEMENT ids use a name predicate (`…/items[at0003, 'Organisationsnummer']`). Unique OPTs stay on `content/at0000` with no brackets. `repeatable` / `attachSlotId` still prefer the `0..*` container when ids collide.
 - Existing mapping in another formalism (`.tmpl`, Handlebars, generated TypeScript, …): use `convert-mappings`, then this skill's golden path to apply and Test Run.

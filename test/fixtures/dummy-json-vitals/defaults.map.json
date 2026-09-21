@@ -1,16 +1,41 @@
 {
-  "type": "maps_create_with",
-  "id": ")QS07%I/y;_CUV,`TYRJ",
+  "type": "default_context_map",
   "extraState": {
-    "itemCount": 6
+    "itemCount": 6,
+    "targets": [
+      [
+        "*.language"
+      ],
+      [
+        "COMPOSITION.territory"
+      ],
+      [
+        "*.encoding"
+      ],
+      [
+        "*.time"
+      ],
+      [
+        "COMPOSITION.composer"
+      ],
+      [
+        "EVENT_CONTEXT.health_care_facility"
+      ]
+    ]
   },
   "fields": {
     "KEY0": "language",
+    "TARGETS0": "[\"*.language\"]",
     "KEY1": "territory",
+    "TARGETS1": "[\"COMPOSITION.territory\"]",
     "KEY2": "encoding",
+    "TARGETS2": "[\"*.encoding\"]",
     "KEY3": "time",
-    "KEY4": "composer_name",
-    "KEY5": "health_care_facility"
+    "TARGETS3": "[\"*.time\"]",
+    "KEY4": "composer",
+    "TARGETS4": "[\"COMPOSITION.composer\"]",
+    "KEY5": "facility",
+    "TARGETS5": "[\"EVENT_CONTEXT.health_care_facility\"]"
   },
   "inputs": {
     "VAL0": {
@@ -96,5 +121,6 @@
         }
       }
     }
-  }
+  },
+  "id": ")QS07%I/y;_CUV,`TYRJ"
 }

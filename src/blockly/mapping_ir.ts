@@ -6,12 +6,14 @@
 import type { Workspace } from "blockly/core";
 import type { Block } from "blockly/core";
 import type {
+  MappingFunction,
   MappingLoop,
   MappingSlotHatch,
   MappingUnsupportedBlock,
   OptionalRmInsertion,
   TargetSignatureNode,
 } from "../types/mod.ts";
+import { procedureParamNames } from "../core/function_library/blockly_json.ts";
 import {
   expressionBlockFromDataValueShell,
   isDataValueBlock,
@@ -47,6 +49,7 @@ export interface MappingModelExtract {
   unsupported: MappingUnsupportedBlock[];
   sheetNames: string[];
   instanceEncodings: InstanceEncoding[];
+  functions: MappingFunction[];
 }
 
 const LOOP_TYPES = new Set(["for_each_list", "for_each_source"]); // legacy type still appears mid-migration
@@ -61,6 +64,7 @@ export function extractMappingIr(workspace: Workspace): MappingModelExtract {
     unsupported: unsupportedFromWorkspace(workspace, slots),
     sheetNames: sheetNamesFromWorkspace(workspace),
     instanceEncodings: instanceEncodingsFromWorkspace(workspace),
+    functions: functionsFromWorkspace(workspace),
   };
 }
 
@@ -353,6 +357,42 @@ function unsupportedFromWorkspace(
   return out;
 }
 
+function functionsFromWorkspace(workspace: Workspace): MappingFunction[] {
+  const out: MappingFunction[] = [];
+  for (const block of workspace.getTopBlocks(false)) {
+    if (block.type !== "procedures_defreturn" && block.type !== "procedures_defnoreturn") {
+      continue;
+    }
+    const name = String(block.getFieldValue("NAME") || "").trim();
+    if (!name) continue;
+    const params = liveProcedureParams(block);
+    if (block.type === "procedures_defnoreturn") {
+      out.push({ name, kind: "statement", params });
+      continue;
+    }
+    const bodyBlock = block.getInputTargetBlock("RETURN") ??
+      block.getInputTargetBlock("VALUE");
+    const body = blockToExpression(bodyBlock) ?? undefined;
+    out.push({ name, kind: "return", params, ...(body ? { body } : {}) });
+  }
+  return out;
+}
+
+function liveProcedureParams(block: Block): string[] {
+  const save = (block as { saveExtraState?: () => unknown }).saveExtraState?.();
+  if (save && typeof save === "object") {
+    return procedureParamNames({
+      type: block.type,
+      extraState: save as Record<string, unknown>,
+    });
+  }
+  const vars = (block as { getVars?: () => string[] }).getVars?.();
+  if (Array.isArray(vars)) {
+    return vars.filter((item) => typeof item === "string" && item.trim());
+  }
+  return [];
+}
+
 function enclosingSlotId(block: Block): string | undefined {
   let current: Block | null = block;
   while (current) {
@@ -379,7 +419,6 @@ function hatchFromExprTree(block: Block | null): MappingSlotHatch | undefined {
     if (!isTemplateEscapeHatch("text_handlebars", undefined, text)) return undefined;
     return { kind: "text_handlebars" };
   }
-  if (block.type === "procedures_callreturn") return { kind: "procedures_callreturn" };
   for (const input of block.inputList) {
     const child = block.getInputTargetBlock(input.name);
     const found = hatchFromExprTree(child);

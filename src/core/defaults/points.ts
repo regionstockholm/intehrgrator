@@ -1,80 +1,182 @@
 import type { SkeletonNode } from "../../types/mod.ts";
-import { isSubtypeOf } from "../rm_meta.ts";
+import { attributesFor, baseRmTypeName, isSubtypeOf } from "../rm_meta.ts";
+import { skeletonNodeForOptionalRm } from "../skeleton/generate_skeleton.ts";
+import type { DefaultContextMapEntry } from "./context_map.ts";
 
 /** Leaf on the typed shell / party block that a Map lookup plugs into. */
-export type DefaultPointLeaf = "code_string" | "value" | "name" | "party";
+export type DefaultPointLeaf = "code_string" | "value" | "party";
 
 export interface DefaultPoint {
-  /** Defaults Map key (simplified-format ctx field, no `ctx/` prefix). */
+  /** Runtime key for `maps_get("defaults", …)` (`language`, `facility`, …). */
   mapKey: string;
-  /** RM type of the parent that owns `rmAttribute` (ENTRY matches subtypes). */
+  /** RM type of the parent that owns `rmAttribute`. */
   parentRmType: string;
   rmAttribute: string;
   leaf: DefaultPointLeaf;
   /** Insert this optional RM attribute when scaffolding if it is missing. */
   optionalInsert?: { rmType: string };
-  /**
-   * When true, scaffolding only wires the lookup if the Defaults Map currently
-   * has this key (used for `subject` → PARTY_SELF).
-   */
-  requireMapKey?: boolean;
 }
-
-/**
- * v1 openEHR default-point table: one Defaults Map key may bind many slots.
- */
-export const OPENEHR_DEFAULT_POINTS: DefaultPoint[] = [
-  { mapKey: "language", parentRmType: "COMPOSITION", rmAttribute: "language", leaf: "code_string" },
-  { mapKey: "language", parentRmType: "ENTRY", rmAttribute: "language", leaf: "code_string" },
-  { mapKey: "territory", parentRmType: "COMPOSITION", rmAttribute: "territory", leaf: "code_string" },
-  { mapKey: "encoding", parentRmType: "ENTRY", rmAttribute: "encoding", leaf: "code_string" },
-  { mapKey: "time", parentRmType: "EVENT_CONTEXT", rmAttribute: "start_time", leaf: "value" },
-  { mapKey: "time", parentRmType: "HISTORY", rmAttribute: "origin", leaf: "value" },
-  { mapKey: "time", parentRmType: "EVENT", rmAttribute: "time", leaf: "value" },
-  { mapKey: "time", parentRmType: "ACTION", rmAttribute: "time", leaf: "value" },
-  { mapKey: "composer_name", parentRmType: "COMPOSITION", rmAttribute: "composer", leaf: "name" },
-  {
-    mapKey: "health_care_facility",
-    parentRmType: "EVENT_CONTEXT",
-    rmAttribute: "health_care_facility",
-    leaf: "name",
-    optionalInsert: { rmType: "PARTY_IDENTIFIED" },
-  },
-  {
-    mapKey: "subject",
-    parentRmType: "ENTRY",
-    rmAttribute: "subject",
-    leaf: "party",
-    requireMapKey: true,
-  },
-];
 
 export interface BoundDefaultPoint {
   point: DefaultPoint;
   /** Skeleton node for the attribute (language CODE_PHRASE, composer PARTY_IDENTIFIED, …). */
   node: SkeletonNode;
   parent: SkeletonNode;
+  /** Runtime key for `maps_get`. */
+  mapKey: string;
 }
 
+/**
+ * Bind Default points from **scaffold targets** on default context map entries.
+ * Convert-time lookups use each entry's **runtime key**, not the path string.
+ * Bare simplified-format `ctx` names are ignored as targets.
+ */
 export function bindDefaultPoints(
   skeleton: SkeletonNode[],
-  points: readonly DefaultPoint[] = OPENEHR_DEFAULT_POINTS,
+  entries?: readonly DefaultContextMapEntry[],
 ): BoundDefaultPoint[] {
+  const expanded = expandScaffoldTargets(entries);
+  if (!expanded.length) return [];
   const bound: BoundDefaultPoint[] = [];
-  const walk = (nodes: SkeletonNode[], parent: SkeletonNode | null) => {
-    for (const node of nodes) {
-      if (parent) {
-        for (const point of points) {
-          if (node.rmAttribute !== point.rmAttribute) continue;
-          if (!parentTypeMatches(parent.rmType, point.parentRmType)) continue;
-          bound.push({ point, node, parent });
-        }
-      }
-      if (node.children.length) walk(node.children, node);
-    }
-  };
-  walk(skeleton, null);
+  const seen = new Set<string>();
+  const keys = [...expanded].sort((a, b) =>
+    pathKeySpecificity(b.target) - pathKeySpecificity(a.target)
+  );
+  for (const { runtimeKey, target } of keys) {
+    const parsed = parseDefaultsPathKey(target);
+    if (!parsed) continue;
+    walkContainers(skeleton, [], (parent, trail) => {
+      if (!pathKeyMatches(target, trail, parsed.attribute)) return;
+      const id = `${parent.slotId}::${parsed.attribute}`;
+      if (seen.has(id)) return;
+      if (isProhibited(parent, parsed.attribute)) return;
+      const existing = parent.children.find((child) => child.rmAttribute === parsed.attribute);
+      const slot = slotMeta(parent.rmType, parsed.attribute);
+      if (!slot) return;
+      // Missing mandatory RM (language, subject, …) is a skeleton gap, not an insert.
+      // Only optional RM (health_care_facility, …) is created so the lookup has a mouth.
+      if (!existing && slot.mandatory) return;
+      seen.add(id);
+      const node = existing ?? skeletonNodeForOptionalRm(parent, slot.rmType, parsed.attribute);
+      bound.push({
+        point: {
+          mapKey: runtimeKey,
+          parentRmType: parent.rmType,
+          rmAttribute: parsed.attribute,
+          leaf: leafForRmType(slot.rmType),
+          optionalInsert: existing ? undefined : { rmType: slot.rmType },
+        },
+        node,
+        parent,
+        mapKey: runtimeKey,
+      });
+    });
+  }
   return bound;
+}
+
+function expandScaffoldTargets(
+  entries?: readonly DefaultContextMapEntry[],
+): Array<{ runtimeKey: string; target: string }> {
+  if (!entries?.length) return [];
+  const out: Array<{ runtimeKey: string; target: string }> = [];
+  for (const entry of entries) {
+    const runtimeKey = entry.runtimeKey.trim();
+    if (!runtimeKey) continue;
+    for (const target of entry.scaffoldTargets) {
+      if (parseDefaultsPathKey(target)) out.push({ runtimeKey, target });
+    }
+  }
+  return out;
+}
+
+/** Last path segment of a Class.attribute / wildcard key; `undefined` for bare names. */
+export function parseDefaultsPathKey(
+  key: string,
+): { attribute: string; parts: string[] } | undefined {
+  const parts = key.split(".").filter(Boolean);
+  if (parts.length < 2) return undefined;
+  const attribute = parts[parts.length - 1]!;
+  if (!attribute || attribute === "*") return undefined;
+  return { attribute, parts };
+}
+
+/**
+ * Choose the most specific **scaffold target** that lights `attribute` on `trail`.
+ * Returns that entry's **runtime key** for `maps_get`.
+ */
+export function resolveDefaultsMapKey(
+  entries: readonly DefaultContextMapEntry[] | undefined,
+  trail: readonly SkeletonNode[],
+  attribute: string,
+): string | undefined {
+  const expanded = expandScaffoldTargets(entries);
+  if (!expanded.length) return undefined;
+  let best: { runtimeKey: string; score: number } | undefined;
+  for (const { runtimeKey, target } of expanded) {
+    if (!pathKeyMatches(target, trail, attribute)) continue;
+    const score = pathKeySpecificity(target);
+    if (!best || score > best.score) best = { runtimeKey, score };
+  }
+  return best?.runtimeKey;
+}
+
+function pathKeySpecificity(key: string): number {
+  return key.split(".").filter(Boolean).reduce(
+    (score, part) => score + (part === "*" ? 1 : 11),
+    0,
+  );
+}
+
+function walkContainers(
+  nodes: SkeletonNode[],
+  trail: SkeletonNode[],
+  visit: (node: SkeletonNode, trail: readonly SkeletonNode[]) => void,
+): void {
+  for (const node of nodes) {
+    const next = [...trail, node];
+    if (node.kind === "container") visit(node, next);
+    if (node.children.length) walkContainers(node.children, next, visit);
+  }
+}
+
+function pathKeyMatches(key: string, trail: readonly SkeletonNode[], attribute: string): boolean {
+  const parsed = parseDefaultsPathKey(key);
+  if (!parsed || parsed.attribute !== attribute) return false;
+  const prefix = parsed.parts.slice(0, -1);
+  if (prefix.length === 1 && prefix[0] === "*") return true;
+  if (prefix.length > trail.length) return false;
+  const start = trail.length - prefix.length;
+  for (let i = 0; i < prefix.length; i++) {
+    const part = prefix[i]!;
+    const node = trail[start + i]!;
+    if (part === "*") continue;
+    if (parentTypeMatches(node.rmType, part)) continue;
+    if (node.rmAttribute === part) continue;
+    return false;
+  }
+  return true;
+}
+
+function slotMeta(
+  parentRmType: string,
+  attribute: string,
+): { rmType: string; mandatory: boolean } | undefined {
+  const meta = attributesFor(parentRmType).find((attr) => attr.name === attribute);
+  if (!meta) return undefined;
+  return { rmType: baseRmTypeName(meta.typeName), mandatory: meta.mandatory };
+}
+
+function leafForRmType(rmType: string): DefaultPointLeaf {
+  if (rmType.startsWith("PARTY_")) return "party";
+  if (rmType === "CODE_PHRASE") return "code_string";
+  return "value";
+}
+
+function isProhibited(parent: SkeletonNode, attribute: string): boolean {
+  return Boolean(
+    parent.attributeConstraints?.some((row) => row.name === attribute && row.prohibited),
+  );
 }
 
 function parentTypeMatches(actual: string, expected: string): boolean {

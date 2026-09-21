@@ -1,8 +1,20 @@
 import { DEFAULTS_MAP_NAME } from "./factory.ts";
 import { TERM_PICK_NONE } from "../openehr_term_catalog.ts";
+import {
+  contextMapFromDefaultsJson,
+  DEFAULT_CONTEXT_MAP_TYPE,
+  DEFAULTS_BLOCK_TYPE,
+  entriesFromContextMapBlock,
+  LEGACY_DEFAULTS_BLOCK_TYPE,
+  mapsCreateWithToContextMap,
+} from "./context_map.ts";
 export { DEFAULTS_MAP_NAME };
+export {
+  DEFAULT_CONTEXT_MAP_TYPE,
+  DEFAULTS_BLOCK_TYPE,
+  LEGACY_DEFAULTS_BLOCK_TYPE,
+};
 
-export const DEFAULTS_BLOCK_TYPE = "defaults_block";
 export const MAPS_CREATE_WITH = "maps_create_with";
 export const MAPS_GET = "maps_get";
 
@@ -11,7 +23,7 @@ export type NamedMaps = Record<string, Record<string, unknown>>;
 interface BlocklyBlockJson {
   type?: string;
   fields?: Record<string, unknown>;
-  extraState?: { itemCount?: number };
+  extraState?: { itemCount?: number; targets?: string[][] };
   inputs?: Record<string, { block?: BlocklyBlockJson; shadow?: BlocklyBlockJson }>;
   next?: { block?: BlocklyBlockJson };
 }
@@ -29,9 +41,15 @@ export function namedMapsFromBlocklyState(state: unknown): NamedMaps {
   const maps: NamedMaps = {};
   const blocks = topBlocks(state);
   for (const block of blocks) {
-    if (block.type === DEFAULTS_BLOCK_TYPE) {
-      const mapBlock = block.inputs?.MAP?.block ?? block.inputs?.MAP?.shadow;
-      maps[DEFAULTS_MAP_NAME] = mapFromCreateWith(mapBlock);
+    if (block.type === DEFAULT_CONTEXT_MAP_TYPE) {
+      maps[DEFAULTS_MAP_NAME] = mapFromContextMap(block);
+    } else if (block.type === LEGACY_DEFAULTS_BLOCK_TYPE) {
+      const converted = mapsCreateWithToContextMap(
+        block.inputs?.MAP?.block ?? block.inputs?.MAP?.shadow,
+      );
+      maps[DEFAULTS_MAP_NAME] = converted
+        ? mapFromContextMap(converted as BlocklyBlockJson)
+        : mapFromCreateWith(block.inputs?.MAP?.block ?? block.inputs?.MAP?.shadow);
     }
     if (block.type === MAPS_CREATE_WITH) {
       const name = String(block.fields?.NAME ?? "").trim();
@@ -48,70 +66,32 @@ export function mapsGetExpression(mapName: string, key: string): string {
 }
 
 /**
- * Accept a `maps_create_with` block JSON, or a workspace / Defaults block that wraps one.
+ * Accept a unique default context map, a legacy `maps_create_with` / Defaults
+ * block (converted on ingest), or a workspace that wraps one.
  */
 export function mapBlockFromDefaultsJson(parsed: unknown): unknown | null {
-  if (!parsed || typeof parsed !== "object") return null;
-  const rec = parsed as BlocklyBlockJson & BlocklyWorkspaceJson;
-  if (rec.type === MAPS_CREATE_WITH) return parsed;
-  if (rec.type === DEFAULTS_BLOCK_TYPE) {
-    return rec.inputs?.MAP?.block ?? rec.inputs?.MAP?.shadow ?? null;
-  }
-  const blocks = rec.blocks?.blocks;
-  if (Array.isArray(blocks)) {
-    const defaults = blocks.find((block) => block.type === DEFAULTS_BLOCK_TYPE);
-    const fromDefaults = defaults?.inputs?.MAP?.block ?? defaults?.inputs?.MAP?.shadow;
-    if (fromDefaults) return fromDefaults;
-    const map = blocks.find((block) => block.type === MAPS_CREATE_WITH);
-    if (map) return map;
-  }
-  return mapsCreateWithFromPlainRecord(parsed);
-}
-
-function mapsCreateWithFromPlainRecord(parsed: unknown): BlocklyBlockJson | null {
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
-  const rec = parsed as Record<string, unknown>;
-  if ("type" in rec || "blocks" in rec) return null;
-  const entries = Object.entries(rec);
-  if (!entries.length) return null;
-  if (
-    !entries.every(([, value]) =>
-      value == null ||
-      typeof value === "string" ||
-      typeof value === "number" ||
-      typeof value === "boolean"
-    )
-  ) {
-    return null;
-  }
-  const fields: Record<string, unknown> = {};
-  const inputs: NonNullable<BlocklyBlockJson["inputs"]> = {};
-  entries.forEach(([key, value], i) => {
-    fields[`KEY${i}`] = key;
-    inputs[`VAL${i}`] = { block: literalBlock(value) };
-  });
-  return {
-    type: MAPS_CREATE_WITH,
-    extraState: { itemCount: entries.length },
-    fields,
-    inputs,
-  };
-}
-
-function literalBlock(value: unknown): BlocklyBlockJson {
-  if (typeof value === "number") {
-    return { type: "math_number", fields: { NUM: value } };
-  }
-  if (typeof value === "boolean") {
-    return { type: "logic_boolean", fields: { BOOL: value ? "TRUE" : "FALSE" } };
-  }
-  return { type: "text", fields: { TEXT: String(value ?? "") } };
+  return contextMapFromDefaultsJson(parsed);
 }
 
 function topBlocks(state: unknown): BlocklyBlockJson[] {
   if (!state || typeof state !== "object") return [];
   const blocks = (state as BlocklyWorkspaceJson).blocks?.blocks;
   return Array.isArray(blocks) ? blocks : [];
+}
+
+function mapFromContextMap(block: BlocklyBlockJson | Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const rec = block as BlocklyBlockJson;
+  const json = rec.type === DEFAULT_CONTEXT_MAP_TYPE
+    ? rec
+    : (mapsCreateWithToContextMap(rec) as BlocklyBlockJson | null);
+  if (!json) return out;
+  const entries = entriesFromContextMapBlock(json);
+  for (const entry of entries) {
+    if (!entry.runtimeKey) continue;
+    out[entry.runtimeKey] = literalFromInput(json.inputs?.[`VAL${entry.index}`]) ?? "";
+  }
+  return out;
 }
 
 function mapFromCreateWith(block: BlocklyBlockJson | undefined): Record<string, unknown> {
@@ -159,8 +139,81 @@ function literalFromInput(
     return { rmType: "PARTY_SELF" };
   }
   if (block.type === "party_identified" || block.type === "party_related" || block.type === "party_proxy") {
-    const rmType = String(block.fields?.RM_TYPE ?? block.type.replace(/^party_/, "PARTY_").toUpperCase());
-    return { rmType };
+    return partyLiteral(block);
+  }
+  if (block.type === "dv_identifier") {
+    return identifierLiteralFromBlock(block);
+  }
+  if (block.type === "lists_create_with") {
+    return listFromCreateWith(block);
   }
   return null;
+}
+
+function partyLiteral(block: BlocklyBlockJson): Record<string, unknown> {
+  const rmType = String(
+    block.fields?.RM_TYPE ??
+      block.type?.replace(/^party_/, "PARTY_").toUpperCase() ??
+      "PARTY_IDENTIFIED",
+  );
+  const out: Record<string, unknown> = { rmType };
+  const name = literalFromInput(block.inputs?.ATTR_name);
+  if (name != null && name !== "") out.name = name;
+  const identifiersRaw = block.inputs?.ATTR_identifiers?.block ??
+    block.inputs?.ATTR_identifiers?.shadow;
+  const identifiers = listFromCreateWith(identifiersRaw);
+  if (identifiers.length) {
+    out.identifiers = identifiers
+      .map(identifierFromUnknown)
+      .filter((row): row is Record<string, unknown> => row != null);
+  }
+  return out;
+}
+
+function listFromCreateWith(block: BlocklyBlockJson | undefined): unknown[] {
+  if (!block) return [];
+  if (block.type !== "lists_create_with") {
+    const one = literalFromInput({ block });
+    return one == null || one === "" ? [] : [one];
+  }
+  const addKeys = Object.keys(block.inputs ?? {}).filter((name) => /^ADD\d+$/.test(name));
+  const count = Math.max(
+    Number(block.extraState?.itemCount ?? 0),
+    addKeys.length ? Math.max(...addKeys.map((name) => Number(name.slice(3)))) + 1 : 0,
+  );
+  const items: unknown[] = [];
+  for (let i = 0; i < count; i++) {
+    const value = literalFromInput(block.inputs?.[`ADD${i}`]);
+    if (value == null || value === "") continue;
+    items.push(value);
+  }
+  return items;
+}
+
+function identifierLiteralFromBlock(block: BlocklyBlockJson): Record<string, unknown> | null {
+  const id = literalFromInput(block.inputs?.FLD_id ?? block.inputs?.ATTR_id);
+  if (id == null || id === "") return null;
+  const row: Record<string, unknown> = { id: String(id) };
+  const type = literalFromInput(block.inputs?.OPTFLD_type ?? block.inputs?.FLD_type);
+  const issuer = literalFromInput(block.inputs?.OPTFLD_issuer ?? block.inputs?.FLD_issuer);
+  const assigner = literalFromInput(block.inputs?.OPTFLD_assigner ?? block.inputs?.FLD_assigner);
+  if (type != null && type !== "") row.type = String(type);
+  if (issuer != null && issuer !== "") row.issuer = String(issuer);
+  if (assigner != null && assigner !== "") row.assigner = String(assigner);
+  return row;
+}
+
+function identifierFromUnknown(value: unknown): Record<string, unknown> | null {
+  if (value == null || value === "") return null;
+  if (typeof value === "object" && !Array.isArray(value)) {
+    const rec = value as Record<string, unknown>;
+    const id = rec.id ?? rec.value;
+    if (id == null || id === "") return null;
+    const row: Record<string, unknown> = { id: String(id) };
+    if (rec.type != null && rec.type !== "") row.type = String(rec.type);
+    if (rec.issuer != null && rec.issuer !== "") row.issuer = String(rec.issuer);
+    if (rec.assigner != null && rec.assigner !== "") row.assigner = String(rec.assigner);
+    return row;
+  }
+  return { id: String(value) };
 }

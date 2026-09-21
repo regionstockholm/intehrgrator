@@ -17,7 +17,9 @@ Tests observe behavior at a **seam** (a public boundary). Pick the highest seam 
 
 A filename twin (`test/foo_test.ts` and `test/ui/foo_test.ts`) is **complementary** when one asserts a function and the other asserts chrome. Clone an assertion onto a second seam only when that seam can miss a real bug the first cannot see.
 
-The **UI green-path** (`test/ui/green_path_test.ts`) is the one Playwright test that must keep covering the major authoring steps: load Source Schema + Example Instance + target, Click-to-Map a `source_query`, RM COMPOSITION (Defaults Map + Optional RM Insertion), Test Run, Generated Export. Extend it when you add a major process step; do not replace it with another single-control test.
+The **UI green-path** (`test/ui/green_path_test.ts`) is the one Playwright test that must keep covering the major authoring steps: load Source Schema + Example Instance + target, Click-to-Map a `source_query`, RM COMPOSITION (**default context map** + Optional RM Insertion), Test Run, Generated Export. Extend it when you add a major process step; do not replace it with another single-control test.
+
+Tabbed **Target & Previews** plus pull-from-**Target schema** live in `test/ui/target_schema_tabs_test.ts` (chrome that can miss a bug the unit `placeSkeletonSubtreeOnWorkspace` tests cannot see). Joint load / **Call AI** chrome lives in `test/ui/joint_load_ai_test.ts`.
 
 ## How to run
 
@@ -51,7 +53,7 @@ Coarse index of `test/*_test.ts`. The filename is the lookup; do not copy this t
 | Mapping model / spec / IR | `mapping_model_test.ts`, `mapping_ir_test.ts`, `mapping_spec_project_test.ts`, `expression_test.ts` | Slot expressions, loops, spec projection |
 | Blockly / VMS / RM / generators | `blockly_rm_blocks_test.ts`, `source_query_blocks_test.ts`, `loop_blocks_test.ts`, `logic_blocks_test.ts`, `vms_toolbox_test.ts`, `join_list_test.ts` | Canvas blocks, toolbox, codegen from blocks |
 | Source formats / XPath / XQuery | `source_format_handler_test.ts`, `source_query_test.ts`, `json_schema_refs_test.ts`, `xquery_runtime_test.ts` | Load/evaluate source; JSON Schema `$ref`/`$defs`; in-app XQuery Test Run |
-| Target / encoding / scaffolding | `target_format_handler_test.ts`, `instance_encoding_test.ts`, `skeleton_test.ts`, `conversion_start_test.ts` | Template Skeleton, Product stack, Instance encoding |
+| Target / encoding / scaffolding | `target_format_handler_test.ts`, `instance_encoding_test.ts`, `skeleton_test.ts`, `conversion_start_test.ts`, `target_schema_tree_test.ts` | Template Skeleton, Product stack, Instance encoding, Target schema pull-to-canvas |
 | Codegen | `codegen_test.ts`, `go_template_codegen_test.ts`, `decision_table_test.ts` | TS / Java / Handlebars / XQuery / Go emit |
 | Persistence / example sets / sheets | `project_persistence_test.ts`, `example_sets_test.ts`, `sheets_test.ts`, `function_library_test.ts` | Project bundle, catalogs, grids, Function bundles |
 | Workbench (headless) | `workbench_load_test.ts`, `workbench_service_test.ts` | Controller load/map/import without a browser |
@@ -65,7 +67,7 @@ Retired Blockly types (`for_each_source`) keep a **migration pin** (`migrate_for
 
 1. Name the test as observable behavior, using terms from [CONTEXT.md](../CONTEXT.md).
 2. Assert a known literal or fixture (systolic `120`, a COMPOSITION `_type`), not a value recomputed the way the code computes it.
-3. Drive UI tests through the DOM and `window.intehrgratorTestApi` (`?testMode=1`). Do not automate the OS file picker; load fixtures via the Test API. Assert Test Run on **Mapping preview**; TypeScript output mode executes the generated script and needs complete Defaults `CODE_PHRASE` values.
+3. Drive UI tests through the DOM and `window.intehrgratorTestApi` (`?testMode=1`). Do not automate the OS file picker; load fixtures via the Test API. Assert Test Run on **Mapping preview**; TypeScript output mode executes the generated script and needs complete default context map `CODE_PHRASE` values.
 4. Headless Agent/MCP already covers most authoring. Add Playwright when the bug would be “the button/dialog/toolbox didn’t do it.”
 5. After a new Mapping Editor process step ships, extend `test/ui/green_path_test.ts` so the green-path still walks every major step.
 6. Optional goldens `return` (with a warning) when the engine is missing; they do not `ignore: true` the whole file in a way that hides a broken install in CI that *does* have the engine.

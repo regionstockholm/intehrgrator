@@ -6,6 +6,7 @@ import { assert, assertEquals } from "@std/assert";
 import {
   ABSTRACT_SLOT_GLYPH,
   connectionPointGlyph,
+  connectionPointHoverTip,
   rmTypeConnectionTooltip,
 } from "@intehrgrator/blockly/rm_type_emoji.ts";
 import { slotLabelOverlayForEditor } from "@intehrgrator/blockly/slot_label.ts";
@@ -42,4 +43,43 @@ Deno.test("slotLabelOverlayForEditor prefers abstract ⁇ tip over attribute hel
     slotLabelOverlayForEditor({ isAbstractSlot: false, hasAttrHelp: false }),
     null,
   );
+});
+
+Deno.test("hover tips stay on the ⁇ glyph and overlay cardinality, not the whole caption", () => {
+  const types = rmTypeConnectionTooltip("CONTENT_ITEM");
+  const overlay = "RM [0..*] narrowed to [1..*] by the operational template.";
+
+  const attr = {
+    closest(selector: string) {
+      if (selector.includes("data-constraint-overlay-tip")) return null;
+      if (selector.includes("blockly-slot-abstract-glyph")) return null;
+      return null;
+    },
+    getAttribute() {
+      return null;
+    },
+  } as unknown as Element;
+  assertEquals(connectionPointHoverTip(attr), "");
+
+  const glyph = {
+    closest(selector: string) {
+      if (selector.includes("blockly-slot-abstract-glyph")) return glyph;
+      return null;
+    },
+    getAttribute(name: string) {
+      return name === "data-rm-type-tip" ? types : null;
+    },
+  } as unknown as Element;
+  assertEquals(connectionPointHoverTip(glyph).includes("Allowed:"), true);
+
+  const delta = {
+    closest(selector: string) {
+      if (selector.includes("data-constraint-overlay-tip")) return delta;
+      return null;
+    },
+    getAttribute(name: string) {
+      return name === "data-constraint-overlay-tip" ? overlay : null;
+    },
+  } as unknown as Element;
+  assertEquals(connectionPointHoverTip(delta), overlay);
 });

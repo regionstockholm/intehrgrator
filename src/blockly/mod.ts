@@ -51,6 +51,7 @@ export {
   attachOptionalSchemaChild,
   highlightListeningSlot,
   loadSkeletonIntoWorkspace,
+  placeSkeletonSubtreeOnWorkspace,
   lockWorkspaceRootsExpanded,
   setAllBlocksCollapsed,
   slotIdFromBlock,
@@ -70,7 +71,6 @@ export {
   blockHatchMessages,
   isLiteralSourcePath,
   HATCH_REMOVED,
-  HATCH_PROCEDURES,
   HATCH_JSON_XML,
   HATCH_DYNAMIC_PATH,
   HATCH_OUT_OF_DIALECT_HBS,
@@ -123,6 +123,7 @@ export { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 export { buildDemoToolbox, toolboxBlockTypes, type ToolboxContext } from "./toolbox_demo.ts";
 export {
   attachDefaultPointLookups,
+  applyDefaultContextMap,
   captureDefaultsBlockState,
   ensureDefaultsBlock,
   findDefaultsBlock,
@@ -147,7 +148,13 @@ export {
   applyInstanceRootCap,
   productStackBlocks,
 } from "./instance_root.ts";
-export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler } from "./blocks/map_blocks.ts";
+export { setDefaultsMapPickHandler, setDefaultsMapInfoHandler, setDefaultsMapHardcodeHandler, setDefaultContextMapApplyHandler } from "./blocks/map_blocks.ts";
+export {
+  appendContextMapEntry,
+  scaffoldTargetFieldAtClientPoint,
+  defaultContextMapAtClientPoint,
+  contextMapValueInputAtClientPoint,
+} from "./blocks/default_context_map.ts";
 export {
   defaultsMapKeys,
   hardcodeDefaultsMapKey,
@@ -184,6 +191,8 @@ export {
 } from "./grammatical_join.ts";
 export { installFunctionLibraryMenus, registerFunctionLibraryMenus } from "./function_library_menu.ts";
 export { installBlocklyFloatingOverlays } from "./floating_overlays.ts";
+export { installCollapsedPreview } from "./field_collapsed_preview.ts";
+export { collapsedHtmlForBlock, shortArchetypeLabel } from "./collapsed_preview.ts";
 export {
   generateTypeScriptFromBlocklyState,
   generateTypeScriptFromWorkspace,
@@ -196,21 +205,30 @@ export {
 } from "./go_template_codegen.ts";
 
 import { registerConversionStartBlock } from "./instance_root.ts";
+import { installCollapsedPreview } from "./field_collapsed_preview.ts";
+import { installHeaderMutatorChrome } from "./dynamic_mutator.ts";
+
+let generatorsReady = false;
 
 export function initBlocklyGenerators(): void {
-  registerRmBlocks();
-  registerTargetBlocks();
-  registerExpressionBlocks();
-  registerMapBlocks();
-  registerSheetBlocks();
-  registerDecisionTableBlocks();
-  registerTextBlocks();
-  registerConversionStartBlock();
-  registerLogicBlocks();
-  registerExtractToFunctionMenu();
-  registerGenerators();
-  registerTypeScriptExportAdapter();
-  registerGoTemplateExportAdapter();
+  if (!generatorsReady) {
+    registerRmBlocks();
+    registerTargetBlocks();
+    registerExpressionBlocks();
+    registerMapBlocks();
+    registerSheetBlocks();
+    registerDecisionTableBlocks();
+    registerTextBlocks();
+    registerConversionStartBlock();
+    registerLogicBlocks();
+    registerExtractToFunctionMenu();
+    registerGenerators();
+    registerTypeScriptExportAdapter();
+    registerGoTemplateExportAdapter();
+    installCollapsedPreview();
+    generatorsReady = true;
+  }
+  installHeaderMutatorChrome();
 }
 
 function registerGenerators(): void {
@@ -283,6 +301,8 @@ function registerGenerators(): void {
     }
     return [`({ ${parts.join(", ")} })`, Order.ATOMIC] as [string, number];
   };
+
+  javascriptGenerator.forBlock["default_context_map"] = () => "";
 
   javascriptGenerator.forBlock["sheet_get_cell"] = (block) => {
     const name = JSON.stringify(block.getFieldValue("NAME") || "Sheet1");

@@ -398,3 +398,17 @@ Deno.test("map and decision_table expressions hydrate to Blockly blocks, not sou
   assertEquals(blockToExpression(dtBlock), dtExpr);
   workspace.dispose();
 });
+
+Deno.test("this item, index, and length share the for_each colour", () => {
+  ensure();
+  const workspace = new Blockly.Workspace();
+  const loop = workspace.newBlock("for_each_list");
+  const item = workspace.newBlock(LOGIC_CURRENT_ITEM_BLOCK);
+  const index = workspace.newBlock(LOGIC_LOOP_INDEX_BLOCK);
+  const length = workspace.newBlock(LOGIC_LOOP_LENGTH_BLOCK);
+  const colour = String(loop.getColour()).toLowerCase();
+  assertEquals(String(item.getColour()).toLowerCase(), colour);
+  assertEquals(String(index.getColour()).toLowerCase(), colour);
+  assertEquals(String(length.getColour()).toLowerCase(), colour);
+  workspace.dispose();
+});

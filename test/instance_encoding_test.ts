@@ -131,6 +131,17 @@ Deno.test("COMPOSITION exposes Instance encoding dropdown and a next notch", () 
   assertEquals(composition.getFieldValue(INSTANCE_ENCODING_FIELD), "canonical-json");
   composition.setFieldValue("canonical-xml", INSTANCE_ENCODING_FIELD);
   assertEquals(composition.getFieldValue(INSTANCE_ENCODING_FIELD), "canonical-xml");
+  assertEquals(
+    composition.getInput("HEADER")?.fieldRow.some((field) => field.name === INSTANCE_ENCODING_FIELD),
+    false,
+    "encoding dropdown is not on HEADER",
+  );
+  assertEquals(composition.inputList[0]?.name, "HEADER");
+  assertEquals(composition.inputList[1]?.name, "ENCODING");
+  assert(
+    composition.getInput("ENCODING")?.fieldRow.some((field) => field.name === INSTANCE_ENCODING_FIELD),
+    "encoding dropdown sits on the ENCODING row under the title",
+  );
   assert(composition.nextConnection, "COMPOSITION stacks with sibling instance roots");
   const nextCheck = composition.nextConnection?.getCheck();
   assertEquals(

@@ -2,6 +2,7 @@
  * Mapping Spec root layout chrome: list vs tabbed view, root tab bar.
  */
 import { projectBlocklyState } from "../workbench/mapping_spec/project.ts";
+import { installAnchoredMenu, type AnchoredMenuHandle } from "./anchored_menu.ts";
 
 export type SpecRootLayout = "list" | "tabs";
 
@@ -91,4 +92,30 @@ export function mountMappingSpecChrome(
       refresh();
     },
   };
+}
+
+/** Mapping Spec ▾ uses the same anchored split-button menu as Example Sets. */
+export function installSpecLayoutMenu(options: {
+  chevron: HTMLElement;
+  main: HTMLElement;
+  menu: HTMLElement;
+  onLayout: (layout: SpecRootLayout) => void;
+}): AnchoredMenuHandle {
+  const handle = installAnchoredMenu({
+    menu: options.menu,
+    trigger: options.chevron,
+    roots: [options.main],
+    referenceEls: [options.main, options.chevron],
+    minWidth: options.main.parentElement ?? options.chevron,
+  });
+  for (const item of options.menu.querySelectorAll<HTMLButtonElement>("[data-spec-layout]")) {
+    item.classList.add("split-btn-menu-item");
+    item.addEventListener("click", () => {
+      const layout = item.dataset.specLayout;
+      if (layout !== "list" && layout !== "tabs") return;
+      handle.close();
+      options.onLayout(layout);
+    });
+  }
+  return handle;
 }

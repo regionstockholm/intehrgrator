@@ -272,6 +272,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   font-family: ui-monospace, monospace;
 }
 .pane-section { padding: 8px; min-height: 0; display: flex; flex-direction: column; flex: 1; }
+.pane-section--tab { height: 100%; }
 .pane-target-label {
   font-size: 11px;
   color: rgba(255, 255, 255, 0.9);
@@ -281,6 +282,130 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   margin: -8px -8px 0;
   padding: 6px 8px;
   justify-content: flex-end;
+}
+
+.source-pane h2 .pane-header-end {
+  display: inline-flex; align-items: center; gap: 6px; margin-left: auto;
+}
+
+.pane-slide-btn {
+  min-width: 22px; padding: 2px 6px; font-size: 14px; line-height: 1;
+}
+.pane-slide-main {
+  display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0;
+}
+.pane-slide-rail {
+  display: none;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  align-items: center; justify-content: flex-start;
+  gap: 8px;
+  width: 100%; height: 100%;
+  padding: 8px 0;
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.pane-slide-rail--source,
+.pane-slide-rail--output {
+  writing-mode: horizontal-tb;
+  transform: none;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 6px 2px;
+  gap: 4px;
+  cursor: default;
+}
+.pane-slide-rail--source button,
+.pane-slide-rail--output button {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: transparent;
+  color: #fff;
+  border-radius: 4px;
+  padding: 8px 4px;
+  font-size: 11px;
+  cursor: pointer;
+}
+.pane-slide-rail--source button:hover,
+.pane-slide-rail--output button:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+.pane--slid-away {
+  flex: 0 0 36px !important;
+  min-width: 36px !important;
+  max-width: 36px !important;
+}
+.pane--slid-away .pane-slide-main { display: none; }
+.pane--slid-away .pane-slide-rail { display: flex; }
+.panes.source-slid-away > .source-pane + .split-handle { display: none; }
+.panes.output-slid-away > .mapping-pane + .split-handle { display: none; }
+/* Split panes use flex-grow:0; grow Mapping Editors into the freed width. */
+.panes.source-slid-away > .mapping-pane,
+.panes.output-slid-away > .mapping-pane {
+  flex-grow: 1 !important;
+}
+
+.output-pane { display: flex; flex-direction: column; }
+.output-tabs {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  --sl-color-primary-600: var(--primary);
+  --sl-color-primary-500: #00786b;
+  --sl-color-primary-700: var(--primary-dark);
+}
+.output-tabs::part(base) {
+  height: 100%; display: flex; flex-direction: column; min-height: 0;
+}
+.output-tabs::part(nav) {
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--border);
+}
+.output-tabs::part(tabs) { padding: 0 6px; }
+.output-tabs::part(body) {
+  flex: 1; min-height: 0; overflow: hidden;
+  background: var(--surface);
+}
+.output-tabs sl-tab-panel {
+  height: 100%;
+  padding: 0;
+}
+/* Do not set display on inactive hosts — Shoelace uses :host { display: none }. */
+.output-tabs sl-tab-panel[active] {
+  display: flex;
+  flex-direction: column;
+}
+.output-tabs sl-tab-panel::part(base) {
+  height: 100%;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.output-tabs sl-tab::part(base) {
+  font-size: 12px;
+  padding: 8px 10px;
+}
+.pane-section--tab .pane-select-label { color: var(--text-secondary); }
+.tree-pane.target-schema-tree { border-left: 3px solid var(--accent); }
+
+/* Shoelace Karolinska tokens (new chrome). */
+:root {
+  --sl-color-primary-50: #e8f5f2;
+  --sl-color-primary-100: #d9f0d3;
+  --sl-color-primary-200: #a6dba0;
+  --sl-color-primary-300: #5aae61;
+  --sl-color-primary-400: #2e7d32;
+  --sl-color-primary-500: #00786b;
+  --sl-color-primary-600: #005c53;
+  --sl-color-primary-700: #003b49;
+  --sl-color-primary-800: #003b49;
+  --sl-color-primary-900: #002830;
+  --sl-focus-ring-color: #005c53;
 }
 .tree-pane, .editor-host { flex: 1; min-height: 0; overflow: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-alt); font-size: 12px; }
 .tree-pane--drop-target { border-style: dashed; }
@@ -308,10 +433,26 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   color: var(--warning); font-size: 13px; line-height: 1; flex-shrink: 0;
 }
 
-.example-tabs { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.example-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 4px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+.example-tabs .example-tab,
+.example-tabs .example-tab--with-close {
+  flex: 0 0 auto;
+}
 .example-tab {
   border: 1px solid var(--border); background: #fff; border-radius: 4px;
   padding: 4px 8px; font-size: 12px; cursor: pointer;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 .example-tab.active { border-color: var(--accent); background: #fff4ea; }
 .example-tab--with-close {
@@ -901,12 +1042,19 @@ body.sheets-fullscreen::before {
 }
 .blockly-mount .blocklyText .blockly-slot-overlay-delta,
 .blockly-mount .blocklyText .blockly-slot-overlay-effective {
-  fill: #0f766e;
+  fill: #FDE68A;
   font-weight: 600;
 }
 .blockly-mount .blocklyText .blockly-slot-overlay-rm {
-  fill: #64748b;
+  fill: #E2E8F0;
   text-decoration: line-through;
+}
+
+/* Native Blockly collapsed labels (ZipEHR HTML uses .collapsed-hover). */
+.blockly-mount .blocklyCollapsed > .blocklyText:hover,
+.blockly-mount .blocklyCollapsed > .blocklyText:focus {
+  outline: 2px solid #FDE68A;
+  outline-offset: 2px;
 }
 .blockly-mount .blocklyText.blockly-slot-label--abstract,
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract .blocklyText,
@@ -928,9 +1076,11 @@ body.sheets-fullscreen::before {
   opacity: 1;
 }
 
-/* Default Blockly mutator icon is replaced by header cogwheel on RM blocks */
-.blockly-mount .blocklyDraggable:has(img[alt="Optional attributes…"]) > .blocklyIconGroup.blockly-icon-mutator {
+/* Default Blockly mutator icon is replaced by the header cogwheel.
+   Icons live in a nested `blocklyIcons` group, so this is a descendant match. */
+.blockly-mount .blocklyDraggable .blocklyIconGroup.blockly-icon-mutator {
   display: none !important;
+  pointer-events: none;
 }
 
 .intehrgrator-bubble-close-btn circle {
@@ -1089,6 +1239,101 @@ body.sheets-fullscreen::before {
 .status-save.saved { color: var(--success); }
 .status-build { flex-shrink: 0; font-size: 11px; color: #8a8a8a; font-variant-numeric: tabular-nums; }
 
+.task-progress-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.28);
+  pointer-events: auto;
+}
+.task-progress-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 280px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 16px 18px 14px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+.task-progress-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.task-progress-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+.task-progress-spinner {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border: 2px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: task-progress-spin 0.8s linear infinite;
+}
+.task-progress-overlay:not(:has(.task-progress-step--running)) .task-progress-spinner {
+  border-top-color: var(--success);
+  animation: none;
+}
+@keyframes task-progress-spin {
+  to { transform: rotate(360deg); }
+}
+.task-progress-steps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.task-progress-step {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  column-gap: 8px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.task-progress-step--running { color: var(--text); font-weight: 600; }
+.task-progress-step--finished { color: var(--success); }
+.task-progress-step--failed { color: var(--error); }
+.task-progress-marker {
+  width: 10px;
+  height: 10px;
+  margin-top: 4px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+}
+.task-progress-step--waiting .task-progress-marker { background: transparent; }
+.task-progress-step--running .task-progress-marker {
+  border-color: var(--primary);
+  background: var(--primary);
+}
+.task-progress-step--finished .task-progress-marker {
+  border-color: var(--success);
+  background: var(--success);
+}
+.task-progress-step--failed .task-progress-marker {
+  border-color: var(--error);
+  background: var(--error);
+}
+.task-progress-detail {
+  grid-column: 2;
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .function-library-list {
   display: flex;
   flex-direction: column;
@@ -1202,6 +1447,28 @@ body.sheets-fullscreen::before {
 .dialog-label textarea.import-ai-text--invalid {
   border-color: var(--error);
 }
+.ai-provider-help {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+.ai-provider-links {
+  margin: 0;
+  font-size: 12px;
+}
+.ai-provider-links a { color: var(--primary-dark); }
+.ai-mapping-mode {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0;
+}
+.ai-mapping-mode legend {
+  font-size: 12px;
+  color: var(--text-secondary);
+  padding: 0 4px;
+}
 .import-ai-report {
   margin: 0;
   padding: 8px 10px;
@@ -1290,6 +1557,80 @@ body.sheets-fullscreen::before {
 .load-project-item-kind { font-size: 11px; color: var(--text-secondary); text-transform: uppercase; }
 .load-project-empty { font-size: 13px; color: var(--text-secondary); padding: 8px 0; }
 
+/* Collapsed Blockly ZipEHR / generic HTML preview (#101 / #150). */
+.blockly-collapsed-preview-host {
+  display: inline-block;
+  width: max-content;
+  max-width: 36rem;
+  overflow: hidden;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  color: #202124;
+  white-space: normal;
+  pointer-events: all;
+}
+.collapsed-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.12em;
+  max-width: 36rem;
+}
+.collapsed-preview .collapsed-node,
+.collapsed-preview .collapsed-leaf {
+  display: inline-block;
+  padding: 0 0.18em;
+  margin: 0 0.04em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--collapsed-colour, #c5c8ce) 42%, white);
+  vertical-align: middle;
+}
+.collapsed-preview .collapsed-node::before,
+.collapsed-preview .collapsed-leaf::before {
+  content: attr(data-glyph) " ";
+}
+.collapsed-preview .collapsed-node.collapsed-hover,
+.collapsed-preview .collapsed-leaf.collapsed-hover {
+  outline: 2px solid #FDE68A;
+  outline-offset: 1px;
+}
+.collapsed-preview .collapsed-mapping {
+  display: inline;
+  padding: 0 0.22em;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--collapsed-colour, #e87722) 48%, white);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 11px;
+}
+.collapsed-preview .collapsed-warning {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.05em;
+  height: 0.9em;
+  margin-inline-end: 0.12em;
+  border-radius: 1px;
+  background: #ffeb3b;
+  clip-path: polygon(50% 6%, 100% 94%, 0 94%);
+  font-size: 8px;
+  font-weight: 700;
+  color: #3e2723;
+  vertical-align: middle;
+}
+.blockly-collapsed-tip {
+  position: fixed;
+  z-index: 10001;
+  max-width: min(22rem, calc(100vw - 16px));
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: #202124;
+  color: #fff;
+  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
+  white-space: pre-line;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+  pointer-events: none;
+  display: none;
+}
+
 @media (max-width: 1100px) {
   .panes {
     height: calc(100vh - 88px);
@@ -1302,6 +1643,13 @@ body.sheets-fullscreen::before {
     flex: 0.7 1 18% !important;
     min-height: 140px !important;
   }
+  .panes > .source-pane.pane--slid-away,
+  .panes > .output-pane.pane--slid-away {
+    flex: 0 0 36px !important;
+    min-height: 36px !important;
+    max-width: none !important;
+    min-width: 0 !important;
+  }
   .panes > .mapping-pane {
     flex: 2.6 1 50% !important;
     min-height: 50vh !important;
@@ -1309,4 +1657,93 @@ body.sheets-fullscreen::before {
   .mapping-pane .blockly-mount {
     min-height: 220px;
   }
+}
+
+#btn-open-template {
+  white-space: normal;
+  line-height: 1.2;
+  max-width: 16rem;
+  text-align: left;
+  font-size: 11px;
+}
+
+.joint-load-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+}
+.joint-load-fieldset legend {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 4px;
+}
+.joint-load-summary {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.joint-load-option {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 13px;
+  margin: 4px 0;
+}
+.refresh-report-body {
+  max-height: 40vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 12px;
+  background: var(--surface-alt);
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.scaffold-target-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+  min-width: 72px;
+  min-height: 22px;
+  padding: 1px 2px;
+  font: 11px/1.2 "Google Sans", system-ui, sans-serif;
+  color: #003b49;
+}
+.scaffold-target-chips__empty {
+  color: #5f6368;
+  font-style: italic;
+  padding: 0 4px;
+}
+.scaffold-target-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: #e8f5f2;
+  border: 1px solid #005c53;
+  border-radius: 999px;
+  padding: 0 2px 0 6px;
+  max-width: 220px;
+}
+.scaffold-target-chip__label,
+.scaffold-target-chip__remove {
+  border: none;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  padding: 2px;
+}
+.scaffold-target-chip__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 180px;
+}
+.scaffold-target-chip__remove {
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 4px;
+  color: #005c53;
 }

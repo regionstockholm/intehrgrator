@@ -1,6 +1,7 @@
 import * as Blockly from "blockly/core";
 import { createHostAdapter } from "../src/host/create_host.ts";
 import { WorkbenchController } from "../src/workbench/controller.ts";
+import { TASK_PROGRESS_OVERLAY_ID, taskProgressInnerHtml } from "../src/workbench/task_progress.ts";
 import { ensureGoTemplateWasm } from "../src/core/output/go_template_runtime.ts";
 import {
   renderSchemaTree,
@@ -9,6 +10,14 @@ import {
   parseSourceDragPayload,
   getActiveSourceDrag,
 } from "../src/workbench/tree_views.ts";
+import {
+  findSkeletonNodeIn,
+  findParentSkeletonNode,
+  getActiveTargetDrag,
+  parseTargetDragPayload,
+  renderTargetSchemaTree,
+  targetSchemaTreeFromSkeleton,
+} from "../src/workbench/target_schema_tree.ts";
 import type { TreeHighlightState } from "../src/workbench/tree_views.ts";
 import type { BlockSvg } from "blockly/core";
 import { canonicalSyncPath } from "../src/core/source/schema_loader.ts";
@@ -38,6 +47,7 @@ import {
 import {
   initBlocklyGenerators,
   loadSkeletonIntoWorkspace,
+  placeSkeletonSubtreeOnWorkspace,
   lockWorkspaceRootsExpanded,
   setAllBlocksCollapsed,
   applyModelExpressions,
@@ -77,9 +87,15 @@ import {
   CONVERSION_START_TYPE,
   hydrateDefaultsMapArgument,
   serializeDefaultsMapArgument,
+  applyDefaultContextMap,
   setDefaultsMapPickHandler,
   setDefaultsMapInfoHandler,
   setDefaultsMapHardcodeHandler,
+  setDefaultContextMapApplyHandler,
+  appendContextMapEntry,
+  scaffoldTargetFieldAtClientPoint,
+  defaultContextMapAtClientPoint,
+  contextMapValueInputAtClientPoint,
   hardcodeDefaultsMapKey,
   listDefaultsMapEntries,
   setSheetFocusHandler,
@@ -100,7 +116,7 @@ import {
   pointInRect,
 } from "../src/blockly/source_drop.ts";
 import { registerServiceWorker } from "./pwa.ts";
-import { mountMappingSpecChrome, type SpecRootLayout } from "../src/ui/mapping_spec_chrome.ts";
+import { mountMappingSpecChrome, installSpecLayoutMenu } from "../src/ui/mapping_spec_chrome.ts";
 import { attachWorkspaceMinimap } from "../src/blockly/minimap.ts";
 import { installBlocklyFloatingOverlays } from "../src/blockly/floating_overlays.ts";
 import { installToolboxSearchInputFix } from "../src/blockly/toolbox_search.ts";
@@ -137,6 +153,17 @@ import {
 } from "../src/blockly/i18n/locale.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
+import "../src/ui/shoelace.ts";
+import {
+  OUTPUT_SLIDE_STORAGE,
+  SOURCE_SLIDE_STORAGE,
+  isOutputTabId,
+  readStoredFlag,
+  readStoredOutputTab,
+  writeStoredFlag,
+  writeStoredOutputTab,
+  type OutputTabId,
+} from "../src/ui/slide_away.ts";
 import { installInfoTips, openInfoTipAt } from "../src/ui/info_tip.ts";
 import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import {
@@ -147,6 +174,15 @@ import {
 import { openAgentObserver, updateAgentObserverActivity } from "../src/web/agent_observer.ts";
 import { isSemanticBlocklyEvent, summarizeBlocklyEvent } from "../src/workbench/semantic_events.ts";
 import { installImportAiDialog } from "../src/ui/import_ai.ts";
+import {
+  callChatCompletions,
+  clearAiCredentials,
+  hasAiCredentials,
+  loadAiCredentials,
+  saveAiCredentials,
+} from "../src/core/ai/credentials.ts";
+import { AI_PROVIDER_PRESETS, applyAiProviderPreset, findAiProviderPreset } from "../src/core/ai/providers.ts";
+import { runMappingAgentOnController } from "../src/core/ai/mapping_agent.ts";
 import { DEFAULT_GITHUB_TEMPLATE_URL } from "../src/core/clinical_model/github_template.ts";
 import { DEFAULT_GITHUB_EXAMPLES_URL } from "../src/core/source/github_examples.ts";
 import {
@@ -156,7 +192,7 @@ import {
 } from "../src/core/example_sets/mod.ts";
 import { formatSaveTime } from "../src/core/persistence/mod.ts";
 import { collectValueSlots } from "../src/core/skeleton/generate_skeleton.ts";
-import { createIndexedDbDefaultsCatalog, mapBlockFromDefaultsJson } from "../src/core/defaults/mod.ts";
+import { createIndexedDbDefaultsCatalog, factoryDefaultsMapBlockState, mapBlockFromDefaultsJson, classAttributeScaffoldTarget } from "../src/core/defaults/mod.ts";
 import {
   createBetterFormBridge,
   probeBetterRenderer,
@@ -178,6 +214,10 @@ const workbenchReady = new Promise<void>((resolve) => {
 });
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
+const targetSchemaTreeEl = document.getElementById("target-schema-tree")!;
+const sourcePaneEl = document.getElementById("source-pane")!;
+const outputPaneEl = document.getElementById("output-pane")!;
+const mainPanesEl = document.querySelector("main.panes") as HTMLElement;
 const exampleTabsEl = document.getElementById("example-tabs")!;
 const exampleValidationEl = document.getElementById("example-validation")!;
 const testOutputTabsEl = document.getElementById("test-output-tabs")!;
@@ -187,6 +227,7 @@ const blocklyMount = document.getElementById("blockly-mount")!;
 const statusMain = document.getElementById("status-main")!;
 const statusSave = document.getElementById("status-save")!;
 const statusBuild = document.getElementById("status-build")!;
+const taskProgressOverlay = document.getElementById(TASK_PROGRESS_OVERLAY_ID)!;
 const exportTargetSelect = document.getElementById("export-target") as HTMLSelectElement;
 const instanceShapeSelect = document.getElementById("openehr-instance-shape") as HTMLSelectElement;
 const instanceShapeWrap = document.getElementById("openehr-instance-shape-wrap") as HTMLLabelElement;
@@ -251,6 +292,7 @@ function toggleSpecBlockCheck(blockId: string, checked: boolean): void {
 
 function markAllWarnedOptionalUnmapped(): void {
   if (!workspace) return;
+  refreshWorkspaceConstraints(workspace);
   const warnings = collectConstraintWarnings();
   const state = Blockly.serialization.workspaces.save(workspace);
   const layout = specChromeUi?.getLayout() ?? "list";
@@ -258,9 +300,9 @@ function markAllWarnedOptionalUnmapped(): void {
   const doc = rootId
     ? blocklyJsonDocumentForRoot(state, rootId)
     : blocklyJsonDocument(state);
-  for (const id of specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings)) {
-    specCheckedBlockIds.add(id);
-  }
+  specCheckedBlockIds = new Set(
+    specRowBlockIdsEligibleForBulkMark(workspace, doc, warnings),
+  );
   refreshMappingSpecView();
 }
 
@@ -268,10 +310,11 @@ function deleteMarkedSpecBlocksFromCanvas(): void {
   if (!workspace) return;
   const deleted = deleteMarkedSpecBlocks(workspace, specCheckedBlockIds);
   if (!deleted.length) return;
-  for (const id of deleted) specCheckedBlockIds.delete(id);
+  specCheckedBlockIds = new Set();
   if (selectedBlockId && deleted.includes(selectedBlockId)) {
     selectedBlockId = null;
   }
+  refreshWorkspaceConstraints(workspace);
   persistBlocklyCanvas({ summary: "Delete marked mapping spec nodes" });
   refreshMappingSpecView();
 }
@@ -282,28 +325,21 @@ function updateSpecBulkButtons(): void {
 
 function wireMappingSpecLayoutMenu(): void {
   const chevron = document.getElementById("tab-mapping-json-menu");
+  const main = document.getElementById("tab-mapping-json");
   const menu = document.getElementById("menu-mapping-spec-layout");
-  if (!chevron || !menu) return;
-  const close = () => {
-    menu.hidden = true;
-    chevron.setAttribute("aria-expanded", "false");
-  };
-  chevron.addEventListener("click", (event) => {
-    event.stopPropagation();
-    const open = menu.hidden;
-    menu.hidden = !open;
-    chevron.setAttribute("aria-expanded", open ? "true" : "false");
-  });
-  document.addEventListener("click", (event) => {
-    if (!menu.contains(event.target as Node) && event.target !== chevron) close();
-  });
-  for (const item of menu.querySelectorAll<HTMLButtonElement>("[data-spec-layout]")) {
-    item.addEventListener("click", () => {
-      const layout = item.dataset.specLayout as SpecRootLayout;
-      specChromeUi?.setLayout(layout);
-      close();
-    });
+  if (
+    !(chevron instanceof HTMLButtonElement) ||
+    !(main instanceof HTMLButtonElement) ||
+    !menu
+  ) {
+    return;
   }
+  installSpecLayoutMenu({
+    chevron,
+    main,
+    menu,
+    onLayout: (layout) => specChromeUi?.setLayout(layout),
+  });
 }
 const exportEditor = createReadonlyEditor(
   document.getElementById("export-editor")!,
@@ -488,7 +524,7 @@ async function bootBlockly(): Promise<void> {
     lockWorkspaceRootsExpanded(workspace);
   }
   runWithoutBlocklyEvents(() => {
-    ensureDefaultsBlock(workspace, blocklyLocale);
+    ensureDefaultsBlock(workspace, blocklyLocale, undefined, { factory: false });
     ensureConversionStartOnScaffold(workspace);
   });
 
@@ -508,6 +544,9 @@ async function bootBlockly(): Promise<void> {
   });
   setDefaultsMapHardcodeHandler(() => {
     openHardcodeDefaultsDialog();
+  });
+  setDefaultContextMapApplyHandler(() => {
+    applyDefaultContextMapFromCanvas();
   });
   setSheetFocusHandler((name, opts) => {
     showTextView("sheets");
@@ -618,7 +657,9 @@ async function bootBlockly(): Promise<void> {
 
   initSplitPanes(document, () => Blockly.svgResize(workspace));
   controller.setBlocklyStateGetter(() => Blockly.serialization.workspaces.save(workspace));
-  initBlocklySourceDrop();
+  initBlocklyCanvasDrop();
+  initOutputTabs();
+  initSlideAway();
 
   workspace.addChangeListener((event) => {
     refreshUndoButtons();
@@ -639,6 +680,7 @@ async function bootBlockly(): Promise<void> {
     }
     if (event.type === CANVAS_SWAP_EVENT_TYPE) {
       refreshUndoButtons();
+      refreshWorkspaceConstraints(workspace);
       return;
     }
     if (event.type === Blockly.Events.CLICK) {
@@ -784,6 +826,7 @@ function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }):
       unsupported: derived.unsupported,
       sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
     },
   );
   const s = controller.getState();
@@ -994,13 +1037,61 @@ function fillListeningSourceQuery(blockId: string, path: string, format: string)
   controller.setStatusMessage(`Mapped source query ${xpath}`);
 }
 
-function applyPendingDefaultsMap(): void {
+function applyPendingDefaultsMap(): boolean {
   const pending = controller.consumePendingDefaultsMap();
-  if (!pending) return;
+  if (!pending) return false;
   runWithoutBlocklyEvents(() => {
     hydrateDefaultsMapArgument(workspace, pending, blocklyLocale, targetFormatOf(controller.getState()));
   });
   persistBlocklyCanvas();
+  return true;
+}
+
+function applyDefaultContextMapFromCanvas(): void {
+  const s = controller.getState();
+  if (!s.skeleton.length) {
+    controller.setStatusMessage("Load a target into Target schema first, then Apply default context map.");
+    return;
+  }
+  const hasProduct = workspace.getTopBlocks(false).some((block) =>
+    block.type !== "default_context_map" &&
+    block.type !== "conversion_start" &&
+    block.type !== "maps_create_with"
+  );
+  if (!hasProduct) {
+    loadSkeletonIntoWorkspace(
+      workspace,
+      s.skeleton,
+      s.model,
+      null,
+      blocklyLocale,
+      targetFormatOf(s),
+      { factory: false },
+    );
+  } else {
+    applyDefaultContextMap(workspace, s.skeleton, (parent, insertion) =>
+      attachOptionalRmChild(workspace, parent, insertion)
+    );
+  }
+  persistBlocklyCanvas({ summary: "Apply default context map" });
+  controller.setStatusMessage("Applied default context map");
+  render();
+}
+
+/** Target refresh is a scaffold act: join new Default points, keep source-over-defaults. */
+function applyDefaultContextMapAfterRefresh(): void {
+  const s = controller.getState();
+  if (!s.skeleton.length) return;
+  const hasProduct = workspace.getTopBlocks(false).some((block) =>
+    block.type !== "default_context_map" &&
+    block.type !== "conversion_start" &&
+    block.type !== "maps_create_with"
+  );
+  if (!hasProduct) return;
+  applyDefaultContextMap(workspace, s.skeleton, (parent, insertion) =>
+    attachOptionalRmChild(workspace, parent, insertion)
+  );
+  persistBlocklyCanvas({ summary: "Refresh target — apply default context map" });
 }
 
 function syncToolbox(s: ReturnType<WorkbenchController["getState"]>): void {
@@ -1027,7 +1118,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
     blocklyLabelLanguage = "";
     blocklySlotSignature = "";
     runWithoutBlocklyEvents(() => {
-      ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+      ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s), { factory: false });
       ensureConversionStartOnScaffold(workspace);
     });
     applyPendingDefaultsMap();
@@ -1039,7 +1130,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
       blocklyLabelLanguage = "";
       blocklySlotSignature = "";
       runWithoutBlocklyEvents(() => {
-        ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+        ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s), { factory: false });
         ensureConversionStartOnScaffold(workspace);
       });
       applyPendingDefaultsMap();
@@ -1062,7 +1153,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
           workspace,
         );
         if (!findDefaultsBlock(workspace)) {
-          ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s));
+          ensureDefaultsBlock(workspace, blocklyLocale, targetFormatOf(s), { factory: false });
         }
         ensureConversionStartOnScaffold(workspace);
         applyModelLoops(workspace, s.model);
@@ -1085,12 +1176,14 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
           },
         );
       }
       applyPendingDefaultsMap();
       return;
     } else {
+      const hadPending = applyPendingDefaultsMap();
       loadSkeletonIntoWorkspace(
         workspace,
         s.skeleton,
@@ -1098,6 +1191,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
         s.listeningSlotId,
         blocklyLocale,
         targetFormatOf(s),
+        { factory: !hadPending },
       );
       const derived = workspaceToModelJson(workspace);
       if (s.blocklyReloadToken > 0) {
@@ -1111,6 +1205,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
           },
         );
       }
@@ -1176,6 +1271,10 @@ installUrlLoadUi({
       menu: requireEl("menu-load-schema"),
       fromFile: () => controller.loadSchema(),
       fromUrl: (url) => controller.loadSchemaFromUrl(url),
+      refresh: {
+        fromFile: () => void refreshSchemaFromFile(),
+        fromUrl: (url) => refreshSchemaFromUrl(url),
+      },
       title: "Load schema from URL",
       hint: "JSON, XML, XSD, or a GitHub .t.json template (archetypes are fetched from the same repo). GitHub file pages are converted to raw content.",
       placeholder: "https://raw.githubusercontent.com/…/schema.json",
@@ -1213,12 +1312,16 @@ installUrlLoadUi({
       main: requireEl<HTMLButtonElement>("btn-open-template"),
       chevron: requireEl<HTMLButtonElement>("btn-open-template-menu"),
       menu: requireEl("menu-open-template"),
-      fromFile: () => withUndoableDocumentReplace(() => controller.openTemplate()),
+      fromFile: () => openJointLoadDialog(),
       fromUrl: (url) => withUndoableDocumentReplace(() => controller.openTemplateFromUrl(url)),
-      title: "Open target from URL",
+      title: "Load target from URL",
       hint: "OPT, Web Template, JSON Schema, or a GitHub .t.json. GitHub file pages are converted to raw content.",
       placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
       historyHeading: "Recent target URLs",
+      refresh: {
+        fromFile: () => void refreshTargetFromFile(),
+        fromUrl: (url) => refreshTargetFromUrl(url),
+      },
       github: {
         label: "From GitHub template…",
         title: "Open openEHR template from GitHub",
@@ -1294,7 +1397,6 @@ bind("btn-load-project", () => void openLoadProjectDialog());
 bind("btn-save-project", () => openSaveAsDialog());
 bind("btn-export-project", () => controller.exportProject());
 bind("btn-import-project", () => void withUndoableDocumentReplace(() => controller.importProject()));
-bind("btn-copy-ai", () => controller.copyAiPrompt(lastAiDelivery()));
 installImportAiDialog({
   dialog: requireEl<HTMLDialogElement>("dialog-import-ai"),
   textarea: requireEl<HTMLTextAreaElement>("import-ai-text"),
@@ -1390,6 +1492,28 @@ function installCopyAiMenu(): void {
     minWidth: main.parentElement ?? chevron,
   });
 
+  main.addEventListener("click", () => {
+    if (hasAiCredentials(localStorage)) {
+      void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
+    } else {
+      void controller.copyAiPrompt(lastAiDelivery());
+    }
+  });
+
+  menu.querySelectorAll<HTMLButtonElement>("[data-ai-action]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.aiAction;
+      handle.close();
+      if (action === "copy") {
+        void controller.copyAiPrompt(lastAiDelivery());
+      } else if (action === "call") {
+        void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
+      } else if (action === "credentials") {
+        openAiCredentialsDialog();
+      }
+    });
+  });
+
   menu.querySelectorAll<HTMLButtonElement>("[data-ai-delivery]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const delivery = btn.dataset.aiDelivery;
@@ -1399,6 +1523,8 @@ function installCopyAiMenu(): void {
       void controller.copyAiPrompt(delivery);
     });
   });
+
+  updateCopyAiButtonLabel();
 }
 
 function installFunctionLibraryUi(): void {
@@ -1563,10 +1689,93 @@ void probeBetterRenderer((path) => host.resolveAppUrl(path)).then((available) =>
 
 initFileDropTargets();
 
-/** Drop Source Pane paths onto Blockly: value-slot mapping, or a free source block. */
-function initBlocklySourceDrop(): void {
-  let lastAppliedAt = 0;
+interface SlTabGroupElement extends HTMLElement {
+  show: (name: string) => void;
+}
+
+function outputTabGroup(): SlTabGroupElement | null {
+  return document.getElementById("output-tabs") as SlTabGroupElement | null;
+}
+
+function showOutputTab(tab: OutputTabId): void {
+  const group = outputTabGroup();
+  group?.show(tab);
+  writeStoredOutputTab(tab);
+}
+
+function initOutputTabs(): void {
+  const group = outputTabGroup();
+  if (!group) return;
+  const initial = readStoredOutputTab();
+  const apply = () => {
+    try {
+      group.show(initial);
+    } catch {
+      // Custom element not upgraded yet.
+    }
+  };
+  if (customElements.get("sl-tab-group")) apply();
+  else void customElements.whenDefined("sl-tab-group").then(apply);
+  group.addEventListener("sl-tab-show", (event) => {
+    const name = (event as CustomEvent<{ name?: string }>).detail?.name;
+    if (isOutputTabId(name)) writeStoredOutputTab(name);
+    if (name === "script") exportEditor.requestMeasure();
+    if (name === "test") testOutputEditor.requestMeasure();
+  });
+}
+
+function resizeAfterSlide(): void {
+  requestAnimationFrame(() => {
+    if (typeof Blockly.svgResize === "function" && workspace) {
+      Blockly.svgResize(workspace);
+    }
+  });
+}
+
+function setSourceSlidAway(slid: boolean): void {
+  sourcePaneEl.classList.toggle("pane--slid-away", slid);
+  mainPanesEl.classList.toggle("source-slid-away", slid);
+  const rail = document.getElementById("rail-source");
+  if (rail) (rail as HTMLElement).hidden = !slid;
+  writeStoredFlag(SOURCE_SLIDE_STORAGE, slid);
+  resizeAfterSlide();
+}
+
+function setOutputSlidAway(slid: boolean): void {
+  outputPaneEl.classList.toggle("pane--slid-away", slid);
+  mainPanesEl.classList.toggle("output-slid-away", slid);
+  const rail = document.getElementById("rail-output");
+  if (rail) rail.hidden = !slid;
+  writeStoredFlag(OUTPUT_SLIDE_STORAGE, slid);
+  resizeAfterSlide();
+}
+
+function initSlideAway(): void {
+  document.getElementById("btn-slide-source")?.addEventListener("click", () => {
+    setSourceSlidAway(true);
+  });
+  document.getElementById("rail-source")?.addEventListener("click", () => {
+    setSourceSlidAway(false);
+  });
+  document.getElementById("btn-slide-output")?.addEventListener("click", () => {
+    setOutputSlidAway(true);
+  });
+  document.getElementById("rail-output")?.addEventListener("click", (event) => {
+    const btn = (event.target as HTMLElement | null)?.closest("[data-output-tab]");
+    const tab = btn?.getAttribute("data-output-tab");
+    setOutputSlidAway(false);
+    if (isOutputTabId(tab)) showOutputTab(tab);
+  });
+  setSourceSlidAway(readStoredFlag(SOURCE_SLIDE_STORAGE));
+  setOutputSlidAway(readStoredFlag(OUTPUT_SLIDE_STORAGE));
+}
+
+/** Drop Source paths or Target schema nodes onto Blockly. */
+function initBlocklyCanvasDrop(): void {
+  let lastSourceAt = 0;
   let lastAppliedPath = "";
+  let lastTargetAt = 0;
+  let lastTargetSlot = "";
   let lastOverX = 0;
   let lastOverY = 0;
   const applyPayloadAtPoint = (
@@ -1582,9 +1791,9 @@ function initBlocklySourceDrop(): void {
       clientY >= mountRect.top && clientY <= mountRect.bottom;
     if (!inMount) return false;
     const now = Date.now();
-    if (payload.path === lastAppliedPath && now - lastAppliedAt < 250) return true;
+    if (payload.path === lastAppliedPath && now - lastSourceAt < 250) return true;
     lastAppliedPath = payload.path;
-    lastAppliedAt = now;
+    lastSourceAt = now;
     try {
       const slotId = findSlotIdAtPoint(clientX, clientY);
       if (slotId) {
@@ -1599,17 +1808,103 @@ function initBlocklySourceDrop(): void {
     }
   };
 
+  const applyTargetAtPoint = (
+    payload: { slotId: string },
+    clientX: number,
+    clientY: number,
+  ): boolean => {
+    const mountRect = blocklyMount.getBoundingClientRect();
+    const inMount = clientX >= mountRect.left && clientX <= mountRect.right &&
+      clientY >= mountRect.top && clientY <= mountRect.bottom;
+    if (!inMount) return false;
+    const now = Date.now();
+    if (payload.slotId === lastTargetSlot && now - lastTargetAt < 250) return true;
+    lastTargetSlot = payload.slotId;
+    lastTargetAt = now;
+    const skeleton = controller.getState().skeleton;
+    const node = findSkeletonNodeIn(skeleton, payload.slotId) ??
+      findSkeletonNode(payload.slotId);
+    if (!node) {
+      controller.setStatusMessage("That Target schema node is not in the loaded target.");
+      return true;
+    }
+    const parent = findParentSkeletonNode(skeleton, payload.slotId);
+    const leaf = !node.children.length || node.kind === "value";
+    const chipPath = node.rmAttribute
+      ? classAttributeScaffoldTarget(parent?.rmType || node.rmType, node.rmAttribute)
+      : "";
+    const chipField = scaffoldTargetFieldAtClientPoint(workspace, clientX, clientY);
+    if (leaf && chipField && chipPath) {
+      chipField.addTarget(chipPath);
+      persistBlocklyCanvas({ summary: "Add scaffold target chip" });
+      controller.setStatusMessage(`Scaffold target ${chipPath} (click the chip to toggle *.)`);
+      return true;
+    }
+    const valueHit = contextMapValueInputAtClientPoint(workspace, clientX, clientY);
+    if (valueHit) {
+      const placed = placeSkeletonSubtreeOnWorkspace(workspace, node, {
+        x: 40,
+        y: 40,
+        skeleton,
+        targetFormat: controller.getState().target?.format,
+      });
+      const input = valueHit.block.getInput(`VAL${valueHit.index}`);
+      if (placed?.outputConnection && input?.connection) {
+        const existing = input.connection.targetBlock();
+        if (existing && !existing.isShadow()) existing.dispose(false);
+        input.connection.connect(placed.outputConnection);
+      }
+      persistBlocklyCanvas({ summary: "Drop Target schema onto default context map value" });
+      controller.setStatusMessage(`Nested ${node.label || node.rmType} on the default context map`);
+      return true;
+    }
+    const mapHit = defaultContextMapAtClientPoint(workspace, clientX, clientY);
+    if (mapHit && leaf && chipPath) {
+      const runtimeKey = chipPath.split(".").filter(Boolean).at(-1) ?? node.rmAttribute ?? "";
+      const index = appendContextMapEntry(mapHit, runtimeKey, [chipPath]);
+      persistBlocklyCanvas({ summary: "Add default context map entry from Target schema" });
+      controller.setStatusMessage(`Added entry ${runtimeKey} (${chipPath}) at row ${index + 1}`);
+      return true;
+    }
+    if (findSlotIdAtPoint(clientX, clientY)) {
+      controller.setStatusMessage(
+        "Drop a leaf onto scaffold-target chips, a subtree onto a value socket, or onto empty canvas.",
+      );
+      return true;
+    }
+    const { x, y } = workspacePositionFromClient(workspace, clientX, clientY);
+    const placed = placeSkeletonSubtreeOnWorkspace(workspace, node, {
+      x,
+      y,
+      skeleton,
+      targetFormat: controller.getState().target?.format,
+    });
+    if (!placed) return false;
+    persistBlocklyCanvas({ summary: "Pull Target schema subtree onto canvas" });
+    controller.setStatusMessage(`Added ${node.label || node.rmType} from Target schema`);
+    return true;
+  };
+
   const rememberOver = (event: DragEvent) => {
     lastOverX = event.clientX;
     lastOverY = event.clientY;
   };
   const onDragOver = (event: DragEvent) => {
-    if (!parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag()) return;
+    if (
+      !parseSourceDragPayload(event.dataTransfer) && !getActiveSourceDrag() &&
+      !parseTargetDragPayload(event.dataTransfer) && !getActiveTargetDrag()
+    ) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     rememberOver(event);
   };
   const onDrop = (event: DragEvent) => {
+    const target = parseTargetDragPayload(event.dataTransfer);
+    if (target) {
+      event.preventDefault();
+      applyTargetAtPoint(target, event.clientX, event.clientY);
+      return;
+    }
     const payload = parseSourceDragPayload(event.dataTransfer);
     if (!payload) return;
     event.preventDefault();
@@ -1618,14 +1913,15 @@ function initBlocklySourceDrop(): void {
   // Blockly's SVG does not reliably receive HTML5 drop. dragend still has
   // client coordinates, so finish the gesture from the pointer position.
   document.addEventListener("dragover", (event) => {
-    if (!getActiveSourceDrag()) return;
+    if (!getActiveSourceDrag() && !getActiveTargetDrag()) return;
     event.preventDefault();
     if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
     rememberOver(event);
   }, true);
   document.addEventListener("dragend", (event) => {
+    const target = getActiveTargetDrag();
     const payload = getActiveSourceDrag();
-    if (!payload) return;
+    if (!target && !payload) return;
     const mountRect = blocklyMount.getBoundingClientRect();
     let x = event.clientX;
     let y = event.clientY;
@@ -1633,7 +1929,8 @@ function initBlocklySourceDrop(): void {
       x = lastOverX;
       y = lastOverY;
     }
-    applyPayloadAtPoint(payload, x, y);
+    if (target) applyTargetAtPoint(target, x, y);
+    else if (payload) applyPayloadAtPoint(payload, x, y);
   }, true);
 
   const opts = { capture: true };
@@ -1878,7 +2175,7 @@ function openHardcodeDefaultsDialog(): void {
 function applyDefaultsMapJson(text: string): void {
   const parsed = JSON.parse(text) as unknown;
   const mapBlock = mapBlockFromDefaultsJson(parsed);
-  if (!mapBlock) throw new Error("JSON must be a maps_create_with block or workspace");
+  if (!mapBlock) throw new Error("JSON must be a default context map, maps_create_with block, or workspace");
   hydrateDefaultsMapArgument(workspace, mapBlock, blocklyLocale, targetFormatOf(controller.getState()));
   persistBlocklyCanvas();
 }
@@ -1947,6 +2244,468 @@ dialogDefaultsSaveAs.addEventListener("close", () => {
       alert(err instanceof Error ? err.message : String(err));
     }
   })();
+});
+
+let jointPendingTarget: { name: string; text: string } | null = null;
+let jointPendingMapFile: unknown | null = null;
+
+function emptyContextMapJson(): Record<string, unknown> {
+  return { type: "default_context_map", extraState: { itemCount: 0, targets: [] }, fields: {} };
+}
+
+function jointHasTarget(): boolean {
+  return Boolean(jointPendingTarget || controller.getState().templateId);
+}
+
+function syncJointConfirmButton(): void {
+  const confirm = document.getElementById("joint-load-confirm") as HTMLButtonElement | null;
+  if (!confirm) return;
+  confirm.disabled = !jointHasTarget();
+  confirm.textContent = selectedJointMapChoice() === "new"
+    ? "Load into Target schema"
+    : "Load & scaffold";
+}
+
+async function openJointLoadDialog(): Promise<void> {
+  const dialog = document.getElementById("dialog-joint-load") as HTMLDialogElement | null;
+  const summary = document.getElementById("joint-target-summary");
+  const catalogEl = document.getElementById("joint-map-catalog");
+  const useCurrent = document.getElementById("joint-target-current") as HTMLButtonElement | null;
+  const urlInput = document.getElementById("joint-target-url") as HTMLInputElement | null;
+  if (!dialog || !summary || !catalogEl) return;
+  jointPendingTarget = null;
+  jointPendingMapFile = null;
+  if (urlInput) urlInput.value = "";
+  const fileOption = document.getElementById("joint-map-file-option");
+  if (fileOption) fileOption.hidden = true;
+  const state = controller.getState();
+  summary.textContent = state.templateId
+    ? `Loaded: ${state.templateFilename || state.templateId}`
+    : "No target selected yet.";
+  if (useCurrent) useCurrent.hidden = !state.templateId;
+  catalogEl.replaceChildren();
+  try {
+    const entries = await defaultsCatalog.list();
+    for (const entry of entries) {
+      const label = document.createElement("label");
+      label.className = "joint-load-option";
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "joint-map";
+      input.value = `catalog:${entry.id}`;
+      label.append(input, document.createTextNode(` Saved: ${entry.displayName}`));
+      catalogEl.append(label);
+    }
+  } catch {
+    // catalog optional
+  }
+  const factoryRadio = dialog.querySelector<HTMLInputElement>('input[name="joint-map"][value="factory"]');
+  if (factoryRadio) factoryRadio.checked = true;
+  syncJointConfirmButton();
+  dialog.showModal();
+}
+
+function selectedJointMapChoice(): string {
+  const dialog = document.getElementById("dialog-joint-load");
+  const checked = dialog?.querySelector<HTMLInputElement>('input[name="joint-map"]:checked');
+  return checked?.value ?? "factory";
+}
+
+async function confirmJointLoad(): Promise<void> {
+  const dialog = document.getElementById("dialog-joint-load") as HTMLDialogElement | null;
+  if (!jointHasTarget()) {
+    controller.setStatusMessage("Pick a target file or URL first.");
+    return;
+  }
+  const choice = selectedJointMapChoice();
+  const isNew = choice === "new";
+  let mapBlock: unknown | null = null;
+  if (choice === "factory") {
+    mapBlock = factoryDefaultsMapBlockState(blocklyLocale);
+  } else if (choice === "current") {
+    mapBlock = serializeDefaultsMapArgument(workspace);
+  } else if (choice === "new") {
+    mapBlock = emptyContextMapJson();
+  } else if (choice === "file") {
+    mapBlock = jointPendingMapFile;
+  } else if (choice.startsWith("catalog:")) {
+    mapBlock = await defaultsCatalog.load(choice.slice("catalog:".length));
+  }
+  if (jointPendingTarget) {
+    controller.queuePendingDefaultsMap(mapBlock);
+    if (isNew) {
+      await withUndoableDocumentReplace(() => {
+        controller.loadTargetForBrowse(jointPendingTarget!.name, jointPendingTarget!.text);
+      });
+    } else {
+      await withUndoableDocumentReplace(() => {
+        controller.loadTargetContent(jointPendingTarget!.name, jointPendingTarget!.text);
+      });
+    }
+  } else if (controller.getState().templateId) {
+    controller.queuePendingDefaultsMap(mapBlock);
+    if (isNew) {
+      hydrateDefaultsMapArgument(
+        workspace,
+        mapBlock,
+        blocklyLocale,
+        targetFormatOf(controller.getState()),
+      );
+      persistBlocklyCanvas({ summary: "New default context map" });
+      controller.setStatusMessage("Empty default context map ready — pull from Target schema, then Apply.");
+    } else if (mapBlock) {
+      hydrateDefaultsMapArgument(
+        workspace,
+        mapBlock,
+        blocklyLocale,
+        targetFormatOf(controller.getState()),
+      );
+      applyDefaultContextMapFromCanvas();
+    }
+  } else {
+    controller.setStatusMessage("Pick a target file or URL first.");
+    return;
+  }
+  dialog?.close();
+  render();
+}
+
+document.getElementById("joint-target-file")?.addEventListener("click", () => {
+  void (async () => {
+    const file = await host.pickTextFile(
+      ".opt,.opt2,.json,.xsd,.xml,.adl,.adls,.hbs,.handlebars,.txt,.md,.html,.csv",
+      "target",
+    );
+    if (!file) return;
+    jointPendingTarget = { name: file.name, text: file.text };
+    const summary = document.getElementById("joint-target-summary");
+    if (summary) summary.textContent = `Selected: ${file.name}`;
+    syncJointConfirmButton();
+  })();
+});
+document.getElementById("joint-target-current")?.addEventListener("click", () => {
+  jointPendingTarget = null;
+  const state = controller.getState();
+  const summary = document.getElementById("joint-target-summary");
+  if (summary) summary.textContent = `Using loaded: ${state.templateFilename || state.templateId}`;
+  syncJointConfirmButton();
+});
+document.getElementById("joint-target-url-load")?.addEventListener("click", () => {
+  void (async () => {
+    const urlInput = document.getElementById("joint-target-url") as HTMLInputElement | null;
+    const url = urlInput?.value.trim() ?? "";
+    if (!url) {
+      alert("Paste a target URL first.");
+      return;
+    }
+    try {
+      const file = await host.fetchTextUrl(url);
+      jointPendingTarget = { name: file.name, text: file.text };
+      const summary = document.getElementById("joint-target-summary");
+      if (summary) summary.textContent = `Fetched: ${file.name}`;
+      syncJointConfirmButton();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
+document.getElementById("joint-map-browse")?.addEventListener("click", () => {
+  void (async () => {
+    const file = await host.pickTextFile(".json", "defaults");
+    if (!file) return;
+    try {
+      jointPendingMapFile = mapBlockFromDefaultsJson(JSON.parse(file.text));
+      const dialog = document.getElementById("dialog-joint-load");
+      const fileOption = document.getElementById("joint-map-file-option");
+      const fileRadio = dialog?.querySelector<HTMLInputElement>('input[name="joint-map"][value="file"]');
+      const fileLabel = document.getElementById("joint-map-file-label");
+      if (fileOption) fileOption.hidden = !jointPendingMapFile;
+      if (fileLabel) fileLabel.textContent = `Browsed file: ${file.name}`;
+      if (jointPendingMapFile && fileRadio) fileRadio.checked = true;
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    }
+  })();
+});
+document.getElementById("joint-load-cancel")?.addEventListener("click", () => {
+  (document.getElementById("dialog-joint-load") as HTMLDialogElement | null)?.close();
+});
+document.getElementById("dialog-joint-load")?.addEventListener("change", (event) => {
+  const target = event.target;
+  if (target instanceof HTMLInputElement && target.name === "joint-map") {
+    syncJointConfirmButton();
+  }
+});
+document.getElementById("dialog-joint-load")?.querySelector("form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void confirmJointLoad();
+});
+
+function showRefreshReport(): void {
+  const dialog = document.getElementById("dialog-refresh-report") as HTMLDialogElement | null;
+  const body = document.getElementById("refresh-report-body");
+  const report = controller.getState().lastRefreshReport;
+  if (!dialog || !body || !report) return;
+  body.textContent = [
+    `${report.kind} ${report.previousFilename} → ${report.nextFilename}`,
+    report.warnings.length ? `${report.warnings.length} warning(s):` : "No mapping conflicts.",
+    ...report.warnings.map((warning) => `• ${warning.message}`),
+  ].join("\n");
+  dialog.showModal();
+}
+
+async function refreshTargetFromFile(): Promise<void> {
+  const file = await host.pickTextFile(
+    ".opt,.opt2,.json,.xsd,.xml,.adl,.adls,.hbs,.handlebars,.txt,.md,.html,.csv",
+    "target",
+  );
+  if (!file) return;
+  controller.refreshTargetContent(file.name, file.text);
+  applyDefaultContextMapAfterRefresh();
+  showRefreshReport();
+}
+
+async function refreshTargetFromUrl(url: string): Promise<void> {
+  const file = await host.fetchTextUrl(url);
+  controller.refreshTargetContent(file.name, file.text);
+  applyDefaultContextMapAfterRefresh();
+  showRefreshReport();
+}
+
+async function refreshSchemaFromFile(): Promise<void> {
+  const file = await host.pickTextFile(".json,.xml,.xsd,application/json,application/xml", "schema");
+  if (!file) return;
+  controller.refreshSchemaContent(file.name, file.text);
+  showRefreshReport();
+}
+
+async function refreshSchemaFromUrl(url: string): Promise<void> {
+  const file = await host.fetchTextUrl(url);
+  controller.refreshSchemaContent(file.name, file.text);
+  showRefreshReport();
+}
+
+document.getElementById("refresh-copy-prompt")?.addEventListener("click", () => {
+  void host.copyToClipboard(controller.buildRefreshMergePrompt()).then(() => {
+    controller.setStatusMessage("Refresh merge prompt copied");
+  });
+});
+document.getElementById("refresh-call-ai")?.addEventListener("click", () => {
+  void callAiWithPrompt(controller.buildRefreshMergePrompt());
+});
+
+function updateCopyAiButtonLabel(): void {
+  const main = document.getElementById("btn-copy-ai") as HTMLButtonElement | null;
+  if (!main) return;
+  if (hasAiCredentials(localStorage)) {
+    main.textContent = "Call AI";
+    main.title = "Call the configured AI with mapping tools (MCP / Agent API names)";
+  } else {
+    main.textContent = "Copy prompt";
+    main.title = "Copy AI prompt with files embedded";
+  }
+}
+
+function callAiAbortSignal(): AbortSignal | undefined {
+  return typeof AbortSignal !== "undefined" && "timeout" in AbortSignal
+    ? AbortSignal.timeout(180_000)
+    : undefined;
+}
+
+async function desktopAiProxyUrl(): Promise<string | undefined> {
+  try {
+    const res = await fetch("/api/v1/health");
+    if (!res.ok) return undefined;
+    const body = await res.json() as { ok?: boolean };
+    return body.ok ? "/api/v1/ai-chat-completions" : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function formatCallAiError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
+    return `${message} Browser CORS often blocks cloud providers from GitHub Pages. Use the desktop app (it forwards Call AI), enable CORS on a local server (Ollama / LM Studio), or use Copy prompt.`;
+  }
+  return message;
+}
+
+function isToolsUnsupportedError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /400/.test(message) && /tool/i.test(message);
+}
+
+function applyCallAiImport(imported: { applied: number; errors: string[] }, extra = ""): void {
+  persistBlocklyCanvas({ summary: "Call AI" });
+  render();
+  controller.setStatusMessage(
+    `Call AI: ${imported.applied} applied · ${imported.errors.length} errors${extra}`,
+  );
+  if (imported.errors.length && !imported.applied) {
+    alert(imported.errors.slice(0, 8).join("\n"));
+  }
+}
+
+function selectedMappingMode(): "tools" | "suggestions" {
+  const suggestions = document.getElementById("ai-mapping-mode-suggestions") as HTMLInputElement | null;
+  return suggestions?.checked ? "suggestions" : "tools";
+}
+
+function setSelectedMappingMode(mode: "tools" | "suggestions"): void {
+  const tools = document.getElementById("ai-mapping-mode-tools") as HTMLInputElement | null;
+  const suggestions = document.getElementById("ai-mapping-mode-suggestions") as HTMLInputElement | null;
+  if (tools) tools.checked = mode !== "suggestions";
+  if (suggestions) suggestions.checked = mode === "suggestions";
+}
+
+function showAiProviderHelp(providerId: string): void {
+  const help = document.getElementById("ai-provider-help");
+  const keyLink = document.getElementById("ai-key-docs") as HTMLAnchorElement | null;
+  const docsLink = document.getElementById("ai-provider-docs") as HTMLAnchorElement | null;
+  const preset = findAiProviderPreset(providerId);
+  if (help) {
+    help.textContent = preset?.help ??
+      "Paste any OpenAI-compatible chat completions URL, Bearer API key, and model id.";
+  }
+  if (keyLink) {
+    keyLink.href = preset?.keyUrl ?? "https://platform.openai.com/api-keys";
+    keyLink.textContent = preset
+      ? `Get ${/^[aeiou]/i.test(preset.label) ? "an" : "a"} ${preset.label} key`
+      : "Get an API key";
+  }
+  if (docsLink) {
+    docsLink.href = preset?.docsUrl ?? "https://platform.openai.com/docs/api-reference/chat";
+  }
+}
+
+function fillProviderSelect(): void {
+  const select = document.getElementById("ai-provider") as HTMLSelectElement | null;
+  if (!select || select.dataset.filled === "1") return;
+  for (const preset of AI_PROVIDER_PRESETS) {
+    const option = document.createElement("option");
+    option.value = preset.id;
+    option.textContent = preset.label;
+    select.append(option);
+  }
+  select.dataset.filled = "1";
+  select.addEventListener("change", () => {
+    const id = select.value;
+    showAiProviderHelp(id);
+    if (id === "custom") return;
+    const applied = applyAiProviderPreset(id);
+    const endpoint = document.getElementById("ai-endpoint") as HTMLInputElement | null;
+    const apiKey = document.getElementById("ai-api-key") as HTMLInputElement | null;
+    const model = document.getElementById("ai-model") as HTMLInputElement | null;
+    if (!applied.endpoint) return;
+    if (endpoint) endpoint.value = applied.endpoint;
+    if (model) model.value = applied.model;
+    if (apiKey) {
+      if (applied.apiKey) apiKey.value = applied.apiKey;
+      else if (apiKey.value === "ollama" || apiKey.value === "lm-studio") apiKey.value = "";
+    }
+  });
+}
+
+function openAiCredentialsDialog(): void {
+  const dialog = document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null;
+  if (!dialog) return;
+  fillProviderSelect();
+  const creds = loadAiCredentials(localStorage);
+  const select = document.getElementById("ai-provider") as HTMLSelectElement | null;
+  const endpoint = document.getElementById("ai-endpoint") as HTMLInputElement | null;
+  const apiKey = document.getElementById("ai-api-key") as HTMLInputElement | null;
+  const model = document.getElementById("ai-model") as HTMLInputElement | null;
+  if (select) select.value = creds?.providerId && findAiProviderPreset(creds.providerId)
+    ? creds.providerId
+    : "custom";
+  showAiProviderHelp(select?.value ?? "custom");
+  if (endpoint) endpoint.value = creds?.endpoint ?? "";
+  if (apiKey) apiKey.value = creds?.apiKey ?? "";
+  if (model) model.value = creds?.model ?? "";
+  setSelectedMappingMode(creds?.mappingMode === "suggestions" ? "suggestions" : "tools");
+  dialog.showModal();
+}
+
+async function callAiWithPrompt(prompt: string): Promise<void> {
+  const creds = loadAiCredentials(localStorage);
+  if (!creds) {
+    openAiCredentialsDialog();
+    controller.setStatusMessage("Save AI credentials to Call AI, or use Copy prompt.");
+    return;
+  }
+  controller.setStatusMessage("Calling AI…");
+  const proxyUrl = await desktopAiProxyUrl();
+  const signal = callAiAbortSignal();
+  const runSuggestions = async () => {
+    const result = await callChatCompletions(creds, prompt, { signal, proxyUrl });
+    applyCallAiImport(controller.importAiSuggestions(result.text));
+  };
+  try {
+    if (creds.mappingMode === "suggestions") {
+      await runSuggestions();
+      return;
+    }
+    try {
+      const result = await runMappingAgentOnController(controller, {
+        credentials: creds,
+        prompt,
+        proxyUrl,
+        signal,
+        onAfterMutation: () => persistBlocklyCanvas({ summary: "Call AI" }),
+      });
+      persistBlocklyCanvas({ summary: "Call AI" });
+      render();
+      const applied = result.imported?.applied ?? 0;
+      const mapped = result.toolNames.filter((name) => name === "map_slot").length;
+      const errors = result.imported?.errors.length ?? 0;
+      controller.setStatusMessage(
+        `Call AI: ${mapped} map_slot · ${applied} suggestions · ${result.toolNames.length} tools · ${errors} errors`,
+      );
+      if (errors && !applied && !mapped) {
+        alert(result.imported?.errors.slice(0, 8).join("\n") ?? result.text.slice(0, 400));
+      }
+    } catch (err) {
+      if (!isToolsUnsupportedError(err)) throw err;
+      controller.setStatusMessage("Provider rejected mapping tools; retrying suggestions JSON…");
+      await runSuggestions();
+    }
+  } catch (err) {
+    const message = formatCallAiError(err);
+    controller.setStatusMessage(`Call AI failed: ${message}`);
+    alert(message);
+  }
+}
+
+document.getElementById("ai-credentials-cancel")?.addEventListener("click", () => {
+  (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
+});
+document.getElementById("ai-credentials-clear")?.addEventListener("click", () => {
+  clearAiCredentials(localStorage);
+  updateCopyAiButtonLabel();
+  (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
+  controller.setStatusMessage("AI credentials cleared");
+});
+document.getElementById("dialog-ai-credentials")?.querySelector("form")?.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const endpoint = (document.getElementById("ai-endpoint") as HTMLInputElement | null)?.value ?? "";
+  const apiKey = (document.getElementById("ai-api-key") as HTMLInputElement | null)?.value ?? "";
+  const model = (document.getElementById("ai-model") as HTMLInputElement | null)?.value ?? "";
+  const providerId = (document.getElementById("ai-provider") as HTMLSelectElement | null)?.value ?? "custom";
+  try {
+    saveAiCredentials(localStorage, {
+      endpoint,
+      apiKey,
+      model,
+      providerId,
+      mappingMode: selectedMappingMode(),
+    });
+    updateCopyAiButtonLabel();
+    (document.getElementById("dialog-ai-credentials") as HTMLDialogElement | null)?.close();
+    controller.setStatusMessage("AI credentials saved in this browser");
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err));
+  }
 });
 
 function handleNewProject(): void {
@@ -2039,6 +2798,14 @@ function render(): void {
 
   statusBuild.textContent = `v${APP_VERSION} · ${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
+  if (s.taskProgress) {
+    taskProgressOverlay.innerHTML = taskProgressInnerHtml(s.taskProgress);
+    taskProgressOverlay.hidden = false;
+  } else {
+    taskProgressOverlay.innerHTML = "";
+    taskProgressOverlay.hidden = true;
+  }
+
   syncModelLanguageMenu(s);
 
   if (s.schemaTree) {
@@ -2061,6 +2828,11 @@ function render(): void {
   } else {
     schemaTreeEl.textContent = "Load a schema file.";
   }
+
+  renderTargetSchemaTree(
+    targetSchemaTreeEl,
+    s.skeleton.length ? targetSchemaTreeFromSkeleton(s.skeleton) : [],
+  );
 
   renderExampleTabs(s);
   renderTestOutputTabs(s);
@@ -2338,6 +3110,13 @@ function installWorkbenchTestApi(): void {
     addExample(filename, content) {
       controller.addExampleContent(filename, content);
     },
+    refreshTarget(filename, content) {
+      controller.refreshTargetContent(filename, content);
+      applyDefaultContextMapAfterRefresh();
+    },
+    refreshSchema(filename, content) {
+      controller.refreshSchemaContent(filename, content);
+    },
     armSlot(slotId) {
       controller.armSlot(slotId);
     },
@@ -2392,11 +3171,24 @@ function installWorkbenchTestApi(): void {
         testResult: s.testResult,
         generatedCode: s.generatedCode,
         statusMessage: s.statusMessage,
+        taskProgress: s.taskProgress,
         schemaError: s.schemaError,
         exampleIssueCount: s.activeExampleValidation.length,
         autoplay: s.settings.autoplay,
         unmappedMandatory: s.unmappedMandatory,
         blocklyBlocks,
+        lastRefreshReport: s.lastRefreshReport
+          ? {
+            kind: s.lastRefreshReport.kind,
+            previousFilename: s.lastRefreshReport.previousFilename,
+            nextFilename: s.lastRefreshReport.nextFilename,
+            warnings: s.lastRefreshReport.warnings.map((warning) => ({
+              kind: warning.kind,
+              path: warning.path,
+              message: warning.message,
+            })),
+          }
+          : null,
       };
     },
     findSlotIdBySuffix(suffix) {
@@ -2423,6 +3215,15 @@ function installWorkbenchTestApi(): void {
       const rect = blockOwnClientRect(full, blockOwnWorkspaceSize(block), scale);
       return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     },
+    getFieldClientRect(blockId, fieldName) {
+      const block = workspace.getBlockById(blockId);
+      const field = block?.getField(fieldName) as { getSvgRoot?: () => SVGElement | null } | null;
+      const root = field?.getSvgRoot?.();
+      if (!root) return null;
+      const box = root.getBoundingClientRect();
+      if (!box.width && !box.height) return null;
+      return { x: box.left, y: box.top, width: box.width, height: box.height };
+    },
     clickBlock(blockId) {
       applyBlockSelection(blockId, "blockly");
     },
@@ -2433,6 +3234,14 @@ function installWorkbenchTestApi(): void {
     listBlockInputs(blockId) {
       const block = workspace.getBlockById(blockId);
       return block ? block.inputList.map((input) => input.name) : [];
+    },
+    listBlockFields(blockId) {
+      const block = workspace.getBlockById(blockId);
+      if (!block) return [];
+      return block.inputList.map((input) => ({
+        input: input.name,
+        fields: input.fieldRow.map((field) => String(field.name ?? "")),
+      }));
     },
     getStatementInputMetrics(blockId, inputName) {
       const block = workspace.getBlockById(blockId);
@@ -2470,6 +3279,19 @@ function installWorkbenchTestApi(): void {
       const child = workspace.getBlockById(childId);
       const a = parent?.getInput(inputName)?.connection;
       const b = child?.previousConnection;
+      if (!a || !b) return false;
+      try {
+        a.connect(b);
+        return a.isConnected();
+      } catch {
+        return false;
+      }
+    },
+    connectValue(parentId, inputName, childId) {
+      const parent = workspace.getBlockById(parentId);
+      const child = workspace.getBlockById(childId);
+      const a = parent?.getInput(inputName)?.connection;
+      const b = child?.outputConnection;
       if (!a || !b) return false;
       try {
         a.connect(b);

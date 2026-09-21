@@ -8,7 +8,7 @@ A brief guide for medical informaticians mapping source data to openEHR (or othe
 - **Desktop:** download from [GitHub Releases](https://github.com/regionstockholm/intehrgrator/releases) and run the binary for your platform.
 - **Stable web version:** check [versions.json](https://regionstockholm.github.io/intehrgrator/versions.json) for pinned URLs (`/v0.7/`, etc.). The site root is the bleeding-edge build.
 
-The layout has three panes: **Source** (left), **Mapping Editor** (centre), **Target & Previews** (right).
+The layout has three panes: **Source** (left, slide-away), **Mapping Editor** (centre), **Target & Previews** (right, tabbed and slide-away).
 
 ## 2. Load source data
 
@@ -27,7 +27,7 @@ Click **+ Add Example** to load one or more JSON/XML instance files (or a GitHub
 
 ## 3. Load a target
 
-In **Target & Previews** (right pane), click **Open target Schema/Template**.
+In **Target & Previews** (right pane), click **Load target & default context map**. Pick a target (file, URL, or the one already loaded) and a **default context map** (openEHR factory, a saved snapshot, a file, or **New**). Confirm scaffolds the **Template Skeleton** and **Default point**s. **New** loads the target into the **Target schema** tab only so you can pull chips and values, then Apply. After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure. Drag a leaf onto **scaffold target** chips, or a subtree onto a map value socket, to author the map.
 
 Supported targets:
 
@@ -39,9 +39,11 @@ When an openEHR template loads, the Mapping Editor shows a **Template Skeleton**
 
 ## 4. Set defaults before mapping
 
-A **Default context mapping** block is already on the canvas. Edit the plugged-in map (language, territory, composer, facility, time, encoding, …) or **Save as** a named snapshot.
+A blank project has **no** factory **default context map** rows. **Load target & default context map** and pick the openEHR factory (or a clinic snapshot). Each **entry** has a **runtime key** (`language`, `facility`, …) for convert-time `maps_get("defaults", …)`, plus **scaffold targets** (chips such as `*.language`) that light **Default point**s when you confirm or click **Apply**.
 
-When you load a template, scaffolding fills **default points** with map lookups — change the map once instead of every slot.
+**New** loads the target into the **Target schema** tab only: pull PARTY / term pieces onto value sockets, chip paths, **Save as**, then Apply. ▾ **Refresh from file/URL** updates a target or source without wiping canvas mappings.
+
+When you confirm a joint load, scaffolding fills **Default point**s with map lookups — change the map once instead of every slot. Value edits are live in Test Run; new chips wait for Apply.
 
 ## 5. Map source to target (click-to-map)
 
@@ -60,7 +62,7 @@ When you load a template, scaffolding fills **default points** with map lookups 
 ## 6. Test your mapping
 
 1. Make sure at least one example tab is open.
-2. In **Target & Previews**, leave **Output mode** on **Mapping preview**.
+2. In **Target & Previews**, open the **Conversion Test Run(s)** tab and leave **Output mode** on **Mapping preview**.
 3. Click **Run Test** (or enable **Autoplay** for automatic re-runs after edits).
 
 **Conversion Test Run(s)** shows the produced instance. For openEHR targets, a ✅ or ⚠ indicates template validation via ehrtslib.
@@ -71,21 +73,37 @@ Open the Blockly toolbox drawers:
 
 | Drawer | Use for |
 |--------|---------|
-| **Lists & maps** | Defaults Map, terminology lookups (`get map key …`), list operations |
+| **Lists & maps** | Generic Maps, terminology lookups (`get map key …`), list operations. The unique **default context map** is on the canvas, not in this drawer. |
 | **Sheets** | 2D grids (paste from Excel/CSV); `sheet_get_*` / `sheet_lookup` accessors |
 | **Logic** | Conditions, list restrictions, set operations |
 
 The **Sheets** tab in the Mapping Editor embeds a spreadsheet for editing project-owned grids.
 
-## 8. AI-assisted mapping (copy-paste)
+## 8. AI-assisted mapping
 
-No in-app AI API — you bring your own chat tool:
+Three ways to bring a model onto the mapping:
 
-1. **Copy AI Prompt** (▾ to choose embed / attach / URI delivery).
-2. Paste into ChatGPT, Claude, Cursor, or similar.
-3. Copy the `intehrgrator-suggestions` JSON from the response.
-4. **Import AI suggestions** → paste → **Import**.
-5. **Run Test** to verify.
+1. **Copy prompt** (toolbar ▾: embed / attach / URI) → paste into ChatGPT, Claude, Cursor, … → **Import AI suggestions**.
+2. **Call AI** — save **AI credentials…** (provider presets + key links). Default mode sends mapping **tools** named like MCP (`map_slot`, `import_suggestions`, `run_test`, …) and applies them on the live canvas. **Suggestions JSON only** is the older one-shot import. Desktop forwards the provider call so browser CORS does not block Gemini/OpenAI/Anthropic/HF/Zen.
+3. **IDE + MCP** (desktop) — see Appendix A. OpenCode’s cloud runner / `opencode serve` can use the same HTTP Agent API when it can reach the desktop.
+
+Provider key pages (also linked from the credentials dialog). Longer walkthrough: [Call AI credentials](AI_CREDENTIALS.md).
+
+| Provider | Create credentials |
+|----------|-------------------|
+| Google Gemini | [AI Studio API keys](https://aistudio.google.com/app/apikey) · [OpenAI-compat docs](https://ai.google.dev/gemini-api/docs/openai) |
+| OpenAI | [API keys](https://platform.openai.com/api-keys) · [Chat completions](https://platform.openai.com/docs/api-reference/chat) |
+| Anthropic Claude | [Console keys](https://console.anthropic.com/settings/keys) · [OpenAI SDK compat](https://platform.claude.com/docs/en/api/openai-sdk) |
+| Ollama local | [OpenAI compatibility](https://docs.ollama.com/openai) (dummy key `ollama`) |
+| Ollama Cloud | [API keys](https://ollama.com/settings/keys) · [Cloud](https://docs.ollama.com/cloud) |
+| LM Studio local | [OpenAI compat](https://lmstudio.ai/docs/developer/openai-compat) · [Auth tokens](https://lmstudio.ai/docs/developer/core/authentication) |
+| LM Studio cloud / remote | [LM Link](https://lmstudio.ai/docs/lmlink/basics) · [Bionic models](https://lmstudio.ai/docs/bionic/models) (LAN `:1234`; Bionic Cloud is in-app credits) |
+| Hugging Face | [Access tokens](https://huggingface.co/settings/tokens) · [Inference Providers](https://huggingface.co/docs/inference-providers/en/index) |
+| OpenCode Zen | [Auth / API key](https://opencode.ai/auth) · [Zen](https://opencode.ai/docs/zen/) |
+| OpenCode cloud runner | [Server](https://opencode.ai/docs/server/) · [Railway `railway ca desktop --opencode`](https://docs.railway.com/cloud-agents/opencode) — point the runner at MCP / Agent API; Zen key is still what Call AI uses |
+
+Refreshing a target or source opens a report with **Copy merge prompt** / **Call AI**. Detached Blockly stays on the canvas.
+**Run Test** after any AI pass.
 
 ## 9. Save and share projects
 
@@ -95,7 +113,7 @@ No in-app AI API — you bring your own chat tool:
 | **Load Project** | Reopen a saved snapshot |
 | **Export Project** | Download a `.intehrgrator` bundle (portable, self-contained) |
 | **Import Project** | Load a `.intehrgrator` file |
-| **Example Sets** (▾) | Load a bundled demo (source + target + optional mapping) from a catalog |
+| **Example Sets** (▾) | Open a catalogued demo. Each family has an **unmapped** row (schema + instances + target) and a **mapped** row (the same files plus a saved mapping). See [§11](#11-example-sets-and-languages) |
 | **Functions** | Save/load a Blockly Function (definition + Decision tables), browse the Function library, or Contribute via a GitHub issue |
 
 ## 10. Export conversion scripts
@@ -112,7 +130,78 @@ Generated scripts accept a **defaults** map and **sheets** bag at convert time �
 
 ## 11. Example Sets and languages
 
-- **Example Sets** loads complete demo projects from URIs (toolbar ▾).
+### Open an Example Set
+
+1. In the toolbar, click **Example Sets** (or the ▾ beside it) and pick a catalog row.
+2. Confirm if the canvas already has work — loading a set **replaces** the current Source Schema, Example Instances, target, and mapping.
+3. Wait for the progress overlay; the status bar then names the loaded set.
+4. Inspect the left pane (schema + instance tabs) and the Mapping Editor.
+
+- **Unmapped** rows leave Template Skeleton mouths empty (yellow constraint triangles on mandatory slots).
+- **Mapped** rows restore saved Blockly, and often Sheets and a **default context map**.
+- Switch instance tabs, then **Run Test** in **Conversion Test Run(s)** against the **Active Example**.
+
+Catalog ids (`dummy-json-vitals`, `Simple-vitals`, …) stay stable for Agent API `load_example_set`. What you read in the menu is the **title**.
+
+### Unmapped vs mapped
+
+Each **family** (same source + target) has at least two catalog rows. That is the difference that matters, not whether the word “example” appears in the title.
+
+| Kind | What loads | Use it to |
+|------|------------|-----------|
+| **Unmapped** | Schema, instances, target only (no mouths filled) | Practise Click-to-Map, or let an agent `map_slot` / **Import AI suggestions** on a blank Template Skeleton |
+| **Mapped** | The same files plus a saved mapping (and often Sheets / Defaults) | Inspect a known-good canvas and run **Conversion Test Run(s)** |
+| **Mapped, decision tables** | Sibling of a mapped gold (lung-MDT and chemo only) | Same instances and target; Notes/TermIds authored as Decision tables with interpolating snippets instead of nested `if`/`eq`. Gold directories stay untouched ([#70](https://github.com/regionstockholm/intehrgrator/issues/70)) |
+
+### Titles: current menu vs intended marker position
+
+Today the menu mixes *with mapping*, *unmapped* in the middle of the parentheses, *(mapped)* at the end, and several mapped rows with **no** marker at all. Until [#166](https://github.com/regionstockholm/intehrgrator/issues/166), use this table (or the status bar after load).
+
+**Intended convention** (not applied to `examples/example-sets.json` yet): family and route first; mapping state always **last**, same punctuation:
+
+`{family} ({route}) — unmapped` · `{family} ({route}) — mapped` · `{family} ({route}) — mapped, decision tables`
+
+| Family (route) | Kind | Current title | Intended title ([#166](https://github.com/regionstockholm/intehrgrator/issues/166)) |
+|----------------|------|---------------|----------------|
+| Dummy vitals (JSON Schema → JSON Schema) | unmapped | Dummy vitals example (Source: JSON Schema, Target: JSON Schema) | Dummy vitals (JSON Schema → JSON Schema) — unmapped |
+| Dummy vitals (JSON Schema → JSON Schema) | mapped | Dummy vitals with mapping | Dummy vitals (JSON Schema → JSON Schema) — mapped |
+| Dummy vitals (JSON Schema → openEHR Template) | unmapped | Dummy vitals unmapped (JSON Schema → openEHR Template) | Dummy vitals (JSON Schema → openEHR Template) — unmapped |
+| Dummy vitals (JSON Schema → openEHR Template) | mapped | Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template) | Dummy vitals (JSON Schema → openEHR Template) — mapped |
+| Dummy vitals series (JSON Schema with repeating measurements → openEHR) | unmapped | Dummy vitals series unmapped (JSON Schema with repeating measurements → openEHR) | Dummy vitals series (JSON Schema with repeating measurements → openEHR) — unmapped |
+| Dummy vitals series (JSON Schema with repeating measurements → openEHR) | mapped | Dummy vitals series (JSON Schema with repeating measurements → openEHR) | Dummy vitals series (JSON Schema with repeating measurements → openEHR) — mapped |
+| OBX MHV1 (JSON → openEHR) | unmapped | OBX MHV1, JSON --> openEHR (unmapped) | OBX MHV1 (JSON → openEHR) — unmapped |
+| OBX MHV1 (JSON → openEHR) | mapped | OBX MHV1, JSON --> openEHR (mapped) | OBX MHV1 (JSON → openEHR) — mapped |
+| Chemo symptoms (FLAT → TakeCare XML) | unmapped | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML, unmapped) | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — unmapped |
+| Chemo symptoms (FLAT → TakeCare XML) | mapped | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — mapped |
+| Chemo symptoms (FLAT → TakeCare XML) | mapped, decision tables | Patient-reported chemotherapy symptoms (decision tables, FLAT → TakeCare XML) | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — mapped, decision tables |
+| Lung MDT form (→ TakeCare XML) | unmapped | Lung MDT form (unmapped → TakeCare XML) | Lung MDT form (→ TakeCare XML) — unmapped |
+| Lung MDT form (→ TakeCare XML) | mapped | Lung MDT form (Handlebars Notes → TakeCare XML) | Lung MDT form (→ TakeCare XML) — mapped |
+| Lung MDT form (→ TakeCare XML) | mapped, decision tables | Lung MDT form (decision tables → TakeCare XML) | Lung MDT form (→ TakeCare XML) — mapped, decision tables |
+| Karda ordination (JSON → openEHR FLAT) | unmapped | Medication order data from Cytodos and TC via Karda to openEHR FLAT (unmapped) | Medication order data from Cytodos and TC via Karda (JSON → openEHR FLAT) — unmapped |
+| Karda ordination (JSON → openEHR FLAT) | mapped | Medication order data from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT) | Medication order data from Cytodos and TC via Karda (JSON → openEHR FLAT) — mapped |
+| Karda administration (JSON → openEHR FLAT) | unmapped | Medication treatment data from Cytodos and TC via Karda to openEHR FLAT (unmapped) | Medication treatment data from Cytodos and TC via Karda (JSON → openEHR FLAT) — unmapped |
+| Karda administration (JSON → openEHR FLAT) | mapped | Medication treatment data from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT) | Medication treatment data from Cytodos and TC via Karda (JSON → openEHR FLAT) — mapped |
+
+Dialect hints (Handlebars Notes, Go Template) belong in the set **description** and in Output mode, not in a different title position for mapped vs unmapped.
+
+### Suggested first loads
+
+1. **Dummy vitals (JSON Schema → JSON Schema) — unmapped** (current title: *Dummy vitals example (Source: JSON Schema, Target: JSON Schema)*) — Click-to-Map systolic/diastolic; **Conversion Test Run(s)** on Mapping preview or TypeScript.
+2. **Dummy vitals (JSON Schema → JSON Schema) — mapped** (current title: *Dummy vitals with mapping*) — three instances; Test Run should show `120` / `80` on `instance-1`.
+3. A clinical **mapped** set: Dummy vitals → openEHR (*Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template)*), chemo with Output mode **Go Template**, or lung-MDT with **Mapping preview**.
+
+Named-invalid vitals instances (filename contains `invalid` / `broken`) are negative tests; they should not produce a fully valid template instance.
+
+### Known gaps (do not treat as blockers while testing [#165](https://github.com/regionstockholm/intehrgrator/pull/165))
+
+Work left after this catalog lands is sequenced in [#172](https://github.com/regionstockholm/intehrgrator/issues/172). While you try the sets:
+
+- Dummy mapped TypeScript may omit `mm[Hg]` ([#171](https://github.com/regionstockholm/intehrgrator/issues/171)).
+- Simple-vitals Test Run may show ⚠ (`outputValidation`) even when `120` / `80` / `72` are present ([#171](https://github.com/regionstockholm/intehrgrator/issues/171)).
+- Lung-MDT: keep Output mode on **Mapping preview**; Handlebars Output mode is [#168](https://github.com/regionstockholm/intehrgrator/issues/168) and blocks [#135](https://github.com/regionstockholm/intehrgrator/issues/135).
+- Chemo Go Template **Test Run** is the convert path; Generated Export may still double-escape `\\` ([#169](https://github.com/regionstockholm/intehrgrator/issues/169)).
+- Karda TypeScript is often composition **ctx** only; XQuery may throw `XPTY0004` ([#167](https://github.com/regionstockholm/intehrgrator/issues/167)). Agent API Sheets/`list_slots` leftovers: [#170](https://github.com/regionstockholm/intehrgrator/issues/170).
+
 - **Language** (toolbar) switches Blockly UI messages (`en`, `sv`, `de`, `es`, `ca`, `fr`). Model/ontology language in the target pane is separate.
 
 ## 12. Get help and report problems
@@ -184,4 +273,4 @@ Full API reference: [docs/AGENT_WORKFLOW.md](AGENT_WORKFLOW.md).
 | **openEHR assistant** | Archetype/template lookup, terminology, spec guidance |
 | **DeepWiki** | ehrtslib and openEHR library questions |
 
-The web app (GitHub Pages) does not expose the Agent API — use copy-paste AI assist or the desktop build for IDE integration.
+The web app (GitHub Pages) does not expose the Agent API to IDEs. Use **Call AI** (in-app tools against the open project), copy-paste, or the desktop build for MCP / remote Agent API.

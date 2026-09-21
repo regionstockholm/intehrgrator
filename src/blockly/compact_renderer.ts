@@ -3,6 +3,7 @@ import { isSkeletonTitleField } from "./field_skeleton_title.ts";
 import { BLOCK_OUT_EMOJI_FIELD, isRmTypeEmojiField } from "./rm_type_emoji.ts";
 import { isSlotCardinalityField } from "./slot_cardinality.ts";
 import { isSlotLabelField } from "./slot_label.ts";
+import { isTrailingChromeFieldName, MUTATOR_COG_FIELD } from "./mouth_layout.ts";
 
 export const COMPACT_RENDERER_NAME = "thrasos-compact";
 
@@ -21,8 +22,9 @@ export const COMPACT_RENDERER_NAME = "thrasos-compact";
  * Row alignment: class chrome (emoji / skeleton title / cog) stays LEFT on
  * the block; slot captions hug their mouths (RIGHT). Prevents HEADER fields
  * from riding a right-aligned value/statement row after inline merges.
- * After packing a compact statement C on the right, pin `statementEdge` to
- * that C so snap/highlight sit on the bump (issue #105).
+ * After packing a compact statement C, pin `statementEdge` to that C so
+ * snap/highlight sit on the bump (issue #105). Statement captions hug that
+ * C (RIGHT); leftover in the statement column sits left of the caption.
  *
  * Vertical: Thrasos pins statement-row fields to the notch, but still
  * centers fields on tall *value* rows (`row.height / 2`). Schema single-
@@ -70,40 +72,20 @@ export function registerCompactThrasosRenderer(): string {
     // deno-lint-ignore no-explicit-any
     addAlignmentPadding_(row: any, missingSpace: number) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
+      if (padBeforeTrailingChrome_(row, missingSpace)) return;
       return super.addAlignmentPadding_(row, missingSpace);
     }
 
     /**
-     * Thrasos stretches the statement C to the full block width, which leaves a
-     * large empty mouth to the right of a right-aligned caption. For RIGHT rows,
-     * keep a compact C and put the leftover width on the left so
-     * `[caption][mouth]` sits as a pack on the right (openEHR slot look).
+     * Statement captions hug the C (RIGHT): leftover in the statement column
+     * sits left of the caption. Stock `alignStatementRow_` then stretches the
+     * C to the right — do not pad that remainder onto the first spacer or the
+     * C slides to the far right tooth (issue #105).
      */
     // deno-lint-ignore no-explicit-any
     alignStatementRow_(row: any) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
-      if (row?.align !== AlignRight) {
-        return super.alignStatementRow_(row);
-      }
-      // deno-lint-ignore no-explicit-any
-      const input = row.getLastInput?.() as any;
-      if (!input) return super.alignStatementRow_(row);
-
-      const beforeStmt = row.width - input.width;
-      const edgePad = Number(this.statementEdge ?? 0) - beforeStmt;
-      if (edgePad > 0) this.addAlignmentPadding_(row, edgePad);
-
-      input.height = Math.max(Number(input.height ?? 0), Number(row.height ?? 0));
-
-      const desired = Number(
-        this.getDesiredRowWidth_?.(row) ?? row.width,
-      );
-      const remaining = desired - Number(row.width ?? 0);
-      if (remaining > 0) {
-        // RIGHT → first spacer (see Blockly addAlignmentPadding_).
-        this.addAlignmentPadding_(row, remaining);
-      }
-
+      super.alignStatementRow_(row);
       const notchX = pinStatementRowNotch_(row);
       const connected = Number(row.connectedBlockWidths ?? 0);
       row.widthWithConnectedBlocks = Math.max(
@@ -251,13 +233,16 @@ export function isMouthRow_(row: any): boolean {
 }
 
 /**
- * Mouth rows always hug the socket. Class chrome lives on a dummy HEADER (see
- * `ensureClassChromeHeader`) so stock lists/maps icons stay left of the puzzle
- * tab instead of riding a right-packed mouth row. Exported for unit tests.
+ * Statement and value captions hug their mouths (RIGHT). Class chrome lives
+ * on a dummy HEADER (see `ensureClassChromeHeader`). Exported for unit tests.
  */
 // deno-lint-ignore no-explicit-any
 export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: number): void {
   if (!row?.elements) return;
+  if (row?.hasStatement) {
+    row.align = alignRight;
+    return;
+  }
   if (isMouthRow_(row)) {
     row.align = alignRight;
     return;
@@ -273,10 +258,41 @@ export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: n
       hasClassChrome = true;
     }
     if (field.name === BLOCK_OUT_EMOJI_FIELD) hasClassChrome = true;
-    if (field.name === "MUTATOR_COG") hasClassChrome = true;
+    if (field.name === MUTATOR_COG_FIELD) hasClassChrome = true;
   }
   if (hasClassChrome) row.align = alignLeft;
   else if (hasSlotCaption) row.align = alignRight;
+}
+
+/**
+ * Dummy HEADER leftover goes *before* the cog so the cog sits on the far
+ * right. The output-type glyph stays on the left with the title.
+ */
+export function padBeforeTrailingChrome_(row: {
+  elements?: Array<{ field?: { name?: string }; width?: number }>;
+}, missingSpace: number): boolean {
+  if (!row?.elements || missingSpace <= 0) return false;
+  const chromeAt = firstTrailingChromeElementIndex_(row.elements);
+  if (chromeAt < 0) return false;
+  for (let i = chromeAt - 1; i >= 0; i--) {
+    const el = row.elements[i];
+    if (el?.field) continue;
+    if (typeof el?.width === "number") {
+      el.width += missingSpace;
+      return true;
+    }
+  }
+  row.elements.splice(chromeAt, 0, { width: missingSpace });
+  return true;
+}
+
+export function firstTrailingChromeElementIndex_(
+  elements: Array<{ field?: { name?: string } }>,
+): number {
+  for (let i = 0; i < elements.length; i++) {
+    if (isTrailingChromeFieldName(elements[i]?.field?.name)) return i;
+  }
+  return -1;
 }
 
 /**
@@ -301,6 +317,10 @@ export function pinnedSlotCaptionCenterline_(row: any, elem: any, constants: any
         constants?.MIN_BLOCK_HEIGHT ??
         24,
     );
+    const fieldH = Number(elem?.height ?? 0);
+    // A 90°-stood caption is taller than the empty C: grow downward from the
+    // row top so the glyph stays at the mouth instead of centering mid-child.
+    if (fieldH > emptyH) return y + fieldH / 2;
     return y + emptyH / 2;
   }
   // Value socket (inline or external): offset from the top of the row.

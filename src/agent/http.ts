@@ -17,6 +17,7 @@ import {
   findAgentToolForHttp,
   AGENT_TOOL_HTTP,
 } from "./tools.ts";
+import { forwardChatCompletionsProxy } from "../core/ai/credentials.ts";
 
 export function createAgentApiHandler(
   service: WorkbenchService,
@@ -44,6 +45,11 @@ export function createAgentApiHandler(
         const preview = service.history.previewAt(seq);
         if (!preview) return json({ error: "Unknown seq" }, 404);
         return json({ seq, bundle: preview });
+      }
+
+      if (req.method === "POST" && path === "/ai-chat-completions") {
+        const body = await req.json().catch(() => null);
+        return await forwardChatCompletionsProxy(body);
       }
 
       if (req.method === "POST" && path === "/ui-commit") {

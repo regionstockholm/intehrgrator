@@ -7,6 +7,7 @@
  */
 
 import type { MappingModel, SourceFormatId, TestResult } from "../types/mod.ts";
+import type { TaskProgress } from "../workbench/task_progress.ts";
 
 export interface BlocklyBlockSummary {
   id: string;
@@ -30,11 +31,18 @@ export interface WorkbenchTestSnapshot {
   /** Current Generated conversion script(s) preview. */
   generatedCode: string;
   statusMessage: string;
+  taskProgress: TaskProgress | null;
   schemaError: string | null;
   exampleIssueCount: number;
   autoplay: boolean;
   unmappedMandatory: number;
   blocklyBlocks: BlocklyBlockSummary[];
+  lastRefreshReport: {
+    kind: "target" | "source";
+    previousFilename: string;
+    nextFilename: string;
+    warnings: Array<{ kind: string; path: string; message: string }>;
+  } | null;
 }
 
 export interface IntehrgratorTestApi {
@@ -43,6 +51,9 @@ export interface IntehrgratorTestApi {
   loadTemplate(filename: string, content: string): void;
   loadSchema(filename: string, content: string): void;
   addExample(filename: string, content: string): void;
+  /** Non-destructive refresh — keeps canvas mappings and records lastRefreshReport. */
+  refreshTarget(filename: string, content: string): void;
+  refreshSchema(filename: string, content: string): void;
   armSlot(slotId: string): void;
   /** Programmatic bind (same path as Click-to-Map after Listening Mode). */
   bindFromNode(path: string, format: SourceFormatId): void;
@@ -67,17 +78,30 @@ export interface IntehrgratorTestApi {
     width: number;
     height: number;
   } | null;
+  /** Client rect of a named Blockly field (header cogwheel, type glyph). */
+  getFieldClientRect(
+    blockId: string,
+    fieldName: string,
+  ): {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null;
   /** Select a Blockly block (same path as a canvas click). */
   clickBlock(blockId: string): void;
   /** Pan the Blockly canvas so this block is in view. */
   scrollBlockIntoView(blockId: string): void;
   /** Input names currently on a Blockly block (empty when the id is unknown). */
   listBlockInputs(blockId: string): string[];
+  /** Field names per input, for header chrome assertions. */
+  listBlockFields(blockId: string): Array<{ input: string; fields: string[] }>;
   /** Open the native mutator bubble (cogwheel) on a block. */
   openMutator(blockId: string): void;
   /**
-   * Rendered statement-input connection offset on a canvas block.
-   * `ownWidth` is the block outline without nested children (issue #105).
+   * Statement mouths: captions hug the C (RIGHT). `ownWidth` is the block
+   * outline without nested children (issue #105). offsetX sits on the C after
+   * the caption, which may be far left of ownWidth on a wide block.
    */
   getStatementInputMetrics(
     blockId: string,
@@ -110,6 +134,8 @@ export interface IntehrgratorTestApi {
   canConnectStatement(parentId: string, inputName: string, childId: string): boolean;
   /** Connect `child` previous onto `parent`'s named statement input. */
   connectStatement(parentId: string, inputName: string, childId: string): boolean;
+  /** Connect `child` output onto `parent`'s named value input. */
+  connectValue(parentId: string, inputName: string, childId: string): boolean;
   /** Set optional RM extras on a container via the mutator compose path. */
   setOptionalRmExtras(blockId: string, names: string[]): void;
   /** Set a Blockly field on a canvas block (Instance encoding, etc.). */

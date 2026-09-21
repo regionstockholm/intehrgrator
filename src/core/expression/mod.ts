@@ -38,6 +38,7 @@ export type ExprAst =
       | "map"
       | "list"
       | "lists_getIndex"
+      | "call"
       | LogicCompareName
       | LogicBoolName
       | LogicQuantifyName
@@ -67,6 +68,7 @@ const BUILTIN_NAMES = new Set([
   "map",
   "list",
   "lists_getIndex",
+  "call",
   ...LOGIC_COMPARE_NAMES,
   ...LOGIC_BOOL_NAMES,
   ...LOGIC_QUANTIFY_NAMES,

@@ -1,7 +1,8 @@
 /**
  * ZipEHR RM-type emojis on Blockly connection points.
  *
- * Block output (left/top puzzle): first field of HEADER, next to the tab.
+ * Block output type glyph: first field of HEADER, left of the title (next to
+ * the output tab). Mutator cogwheel is last on that row (far right).
  * Value/statement slots: combined into FieldSlotLabel with the attr name
  * (see slot_label.ts). Abstract slots use ⁇ (underlined link), not a ring.
  * Specialization puzzles (PARTY_PROXY.KIND) still use this field alone.
@@ -84,6 +85,23 @@ export function isAbstractPlaceholderType(rmType: string): boolean {
   if (isAbstractType(rmType)) return true;
   if (zipehrEmojiForRmType(rmType)) return false;
   return subtypesOf(rmType, { concreteOnly: true }).length > 0;
+}
+
+/**
+ * Hover text for connection-point glyphs and constraint-overlay tspans.
+ * Overlay markers win so Δ/[n..m] do not show the abstract-type list.
+ * Slot ⁇ / type glyphs win over the whole field group (the list used to
+ * "move" onto the attribute name when data-rm-type-tip sat on fieldGroup).
+ */
+export function connectionPointHoverTip(host: Element | null | undefined): string {
+  if (!host || typeof host.closest !== "function") return "";
+  const overlay = host.closest("[data-constraint-overlay-tip]");
+  if (overlay) return overlay.getAttribute("data-constraint-overlay-tip") ?? "";
+  const glyph = host.closest(
+    ".blockly-slot-abstract-glyph, .blockly-slot-type-glyph, .blockly-rm-emoji-field",
+  );
+  if (glyph) return glyph.getAttribute("data-rm-type-tip") ?? "";
+  return host.getAttribute("data-rm-type-tip") ?? "";
 }
 
 /** Hover/click text: class name, or abstract type plus allowed concrete subclasses. */
@@ -354,9 +372,8 @@ function installRmTypeEmojiTooltips(): void {
   }
   Tooltip.setCustomTooltip?.((div, el) => {
     const host = el as Element;
-    const full = host.closest?.(".blockly-rm-emoji-field")?.getAttribute("data-rm-type-tip") ??
-      host.getAttribute("data-rm-type-tip") ??
-      Tooltip.getTooltipOfObject?.(el) ??
+    const full = connectionPointHoverTip(host) ||
+      Tooltip.getTooltipOfObject?.(el) ||
       "";
     const box = div as HTMLElement;
     box.style.whiteSpace = full.includes("\n") ? "pre-line" : "";

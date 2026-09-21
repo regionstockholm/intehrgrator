@@ -7,6 +7,7 @@
  */
 
 import type { MappingModel, SourceFormatId, TestResult } from "../types/mod.ts";
+import type { TaskProgress } from "../workbench/task_progress.ts";
 
 export interface BlocklyBlockSummary {
   id: string;
@@ -30,6 +31,7 @@ export interface WorkbenchTestSnapshot {
   /** Current Generated conversion script(s) preview. */
   generatedCode: string;
   statusMessage: string;
+  taskProgress: TaskProgress | null;
   schemaError: string | null;
   exampleIssueCount: number;
   autoplay: boolean;

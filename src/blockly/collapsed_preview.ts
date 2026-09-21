@@ -14,6 +14,7 @@ import {
   isRmContainerBlockType,
   rmTypeOfBlock,
 } from "./blocks/rm_blocks.ts";
+import { humanizeRmType } from "./field_skeleton_title.ts";
 import {
   isGenericValueBlockType,
   isSchemaStructureBlock,
@@ -80,7 +81,40 @@ function renderBlock(block: Block): string {
 }
 
 function isOpenEhrBlock(block: Block): boolean {
-  return isRmContainerBlockType(block.type) || isDataValueBlock(block);
+  return isRmContainerBlockType(block.type) || isCollapsedDataValue(block);
+}
+
+/**
+ * ELEMENT stores the DV_* of its value slot in `RM_TYPE` for Click-to-Map.
+ * Collapsed preview must still treat it as an ELEMENT container (#162).
+ */
+function isCollapsedDataValue(block: Block): boolean {
+  if (block.type === "element" || isRmContainerBlockType(block.type)) return false;
+  return isDataValueBlock(block);
+}
+
+function collapsedRmType(block: Block): string {
+  if (block.type === "element") return "ELEMENT";
+  if (isRmContainerBlockType(block.type)) {
+    const fromField = String(block.getFieldValue("RM_TYPE") || "").toUpperCase();
+    if (fromField && !fromField.startsWith("DV_")) return fromField;
+    return block.type.toUpperCase();
+  }
+  return rmTypeOfBlock(block) || block.type.toUpperCase();
+}
+
+/** Ontology NAME when present; archetype short id only on C_ARCHETYPE_ROOT. */
+function rmVisibleTitle(block: Block, rmType: string): string {
+  const nameField = block.getField("NAME");
+  const name = (nameField?.getText?.() ?? String(block.getFieldValue("NAME") || "")).trim();
+  const generic = new Set(
+    [rmType, humanizeRmType(rmType), block.type, block.type.replace(/_/g, " ")]
+      .map((item) => item.toLowerCase()),
+  );
+  if (name && !generic.has(name.toLowerCase())) return name;
+  const nodeId = String(block.getFieldValue("ARCHETYPE_NODE_ID") || "").trim();
+  if (/^openEHR-EHR-[A-Z0-9_]+\./i.test(nodeId)) return shortArchetypeLabel(block);
+  return "";
 }
 
 function isValueExpression(block: Block): boolean {
@@ -102,7 +136,7 @@ function isStructuralGeneric(block: Block): boolean {
 }
 
 function renderRmBlock(block: Block): string {
-  const rmType = rmTypeOfBlock(block) || block.type.toUpperCase();
+  const rmType = collapsedRmType(block);
   const glyph = zipehrEmojiForRmType(rmType) ?? rmType;
   const tag = rmCustomTag(rmType);
   const atCode = locatableId(block);
@@ -119,11 +153,9 @@ function renderRmBlock(block: Block): string {
 
   const inner: string[] = [];
   inner.push(warningBadge(block));
-  const shortArch = shortArchetypeLabel(block);
-  if (shortArch && !/^at\d+/i.test(shortArch)) {
-    inner.push(escapeHtml(shortArch));
-  }
-  if (isDataValueBlock(block)) {
+  const title = rmVisibleTitle(block, rmType);
+  if (title) inner.push(escapeHtml(title));
+  if (isCollapsedDataValue(block)) {
     inner.push(renderDvContents(block, rmType));
   } else {
     inner.push(renderChildInputs(block));

@@ -52,7 +52,12 @@ import { INSTANCE_ENCODING_FIELD } from "../core/output/instance_encoding.ts";
 import { productStackBlocks } from "../blockly/instance_root.ts";
 import type { SheetDocument } from "../core/sheets/mod.ts";
 import { WorkbenchController } from "./controller.ts";
-import { scaffoldBlocklyFromSkeleton, syncModelToBlocklyState } from "./blockly_sync.ts";
+import {
+  adoptBlocklyState,
+  ensureSchemaBlocksForSkeleton,
+  scaffoldBlocklyFromSkeleton,
+  syncModelToBlocklyState,
+} from "./blockly_sync.ts";
 import {
   HistoryLog,
   type HistoryEntry,
@@ -583,8 +588,27 @@ export class WorkbenchService {
 
   private hydrateSkeletonCanvas(): void {
     const s = this.controller.getState();
+    ensureSchemaBlocksForSkeleton(s.skeleton);
     if (s.blocklyState) {
-      this.syncBlocklyFromModel();
+      const pending = this.controller.consumePendingDefaultsMap();
+      const { extract, blocklyState } = adoptBlocklyState(s.blocklyState, s.skeleton, {
+        defaultsMap: pending ?? undefined,
+        uiLanguage: s.modelLanguage ?? s.settings.modelLanguage ?? "en",
+        targetFormat: s.target?.format,
+      });
+      this.controller.syncFromBlockly(
+        blocklyState,
+        extract.slots,
+        extract.loops,
+        extract.optionalRm,
+        {
+          notify: false,
+          targetSignature: extract.targetSignature,
+          unsupported: extract.unsupported,
+          sheetNames: extract.sheetNames,
+          instanceEncodings: extract.instanceEncodings,
+        },
+      );
       return;
     }
     if (!s.skeleton.length) return;
@@ -633,7 +657,7 @@ export class WorkbenchService {
   private syncBlocklyFromModel(): void {
     const s = this.controller.getState();
     if (!s.blocklyState) return;
-    const next = syncModelToBlocklyState(s.blocklyState, s.model);
+    const next = syncModelToBlocklyState(s.blocklyState, s.model, s.skeleton);
     this.controller.syncCanvasSnapshot(next);
   }
 

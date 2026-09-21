@@ -25,13 +25,28 @@ Deno.test({
 
       await page.waitForFunction(() => {
         const api = (globalThis as unknown as {
-          intehrgratorTestApi?: { getSnapshot: () => { exampleCount: number } };
+          intehrgratorTestApi?: {
+            getSnapshot: () => {
+              exampleCount: number;
+              taskProgress: unknown;
+              statusMessage: string;
+            };
+          };
         }).intehrgratorTestApi;
-        return (api?.getSnapshot().exampleCount ?? 0) >= 2;
-      }, undefined, { timeout: 15_000 });
+        const snap = api?.getSnapshot();
+        // Dummy JSON vitals has three instances. Do not settle at >= 2: the
+        // overlay still shows "Load example 3" while the third fetch is in
+        // flight (PR CI runners often snapshot that window).
+        return Boolean(
+          snap &&
+            snap.exampleCount >= 3 &&
+            snap.taskProgress == null &&
+            snap.statusMessage.startsWith("Loaded example set"),
+        );
+      }, undefined, { timeout: 20_000 });
 
       const snap = await getSnapshot(page);
-      assertEquals(snap.exampleCount, 2, snap.statusMessage);
+      assertEquals(snap.exampleCount, 3, snap.statusMessage);
       assertStringIncludes(snap.statusMessage, "Dummy vitals");
     } finally {
       await browser.close();

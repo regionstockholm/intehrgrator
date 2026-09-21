@@ -227,7 +227,7 @@ export function runTest(
         Data: ctx.data,
       };
       try {
-        const output = executeGoTemplate(code, envelope);
+        const output = executeGoTemplate(code, envelope, { sheets: options.sheets ?? [] });
         return { ok: true, output, warnings };
       } catch (e) {
         const output = `// Go template execution error: ${e instanceof Error ? e.message : String(e)}\n` +

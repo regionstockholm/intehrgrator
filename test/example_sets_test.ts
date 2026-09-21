@@ -66,74 +66,32 @@ async function readCatalog(): Promise<string> {
   return await Deno.readTextFile(catalogPath);
 }
 
-async function readFixture(rel: string): Promise<string> {
-  return await Deno.readTextFile(join(fixturesDir, rel));
-}
-
-function fixtureUrl(rel: string): string {
-  return resolveCatalogUri(`../test/fixtures/${rel}`, catalogBase);
-}
-
 async function stubbedCatalogFiles(): Promise<Record<string, { name: string; text: string }>> {
+  const text = await readCatalog();
   const files: Record<string, { name: string; text: string }> = {
     [catalogBase]: {
       name: "example-sets.json",
-      text: await readCatalog(),
+      text,
     },
   };
-  const parts = [
-    "dummy-json-vitals/source.schema.json",
-    "dummy-json-vitals/instance-1.json",
-    "dummy-json-vitals/instance-2.json",
-    "dummy-json-vitals/target.schema.json",
-    "dummy-json-vitals/mapping.blockly.json",
-    "dummy-json-vitals/defaults.map.json",
-    "legacy-simulated-json/bp-schema.json",
-    "legacy-simulated-json/instances/bp-inst.json",
-    "legacy-simulated-json/instances/bp-inst-2.json",
-    "legacy-simulated-json/instances/bp-inst-3-invalid.json",
-    "legacy-simulated-json/mapping/simple-vitals.blockly.json",
-    "legacy-simulated-json/mapping/simple-vitals.sheets.json",
-    "legacy-simulated-json/bp-series-schema.json",
-    "legacy-simulated-json/instances-series/bp-series-inst.json",
-    "legacy-simulated-json/instances-series/bp-series-inst-2.json",
-    "legacy-simulated-json/instances-series/bp-series-inst-3-invalid.json",
-    "legacy-simulated-json/mapping/bp-series.blockly.json",
-    "legacy-simulated-json/mapping/bp-series.sheets.json",
-    "Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
-    "Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json",
-    "Obstetrix-MHV1/source-instance/2-ivf-multipara.json",
-    "Obstetrix-MHV1/source-instance/3-komplex-mhv3.json",
-    "Obstetrix-MHV1/mapping/mapping.blockly.json",
-    "Obstetrix-MHV1/mapping/mapping.sheets.json",
-    "patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json",
-    "patient-reported-chemotherapy-symptoms/defaults.map.json",
-    "patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
-    "patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
-    "patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
-    "patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
-    "patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt",
-    "TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
-    "lung-MDT-form/mapping/mapping.blockly.json",
-    "lung-MDT-form/defaults.map.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-schema/OrdinationRCCV1_source_schema.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-example_source_used_for_mapping.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-A-source-example.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-B-source-example.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-C-source-example.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-D-source-example.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-E-source-example.json",
-    "ordinerad-medicinsk-onkologisk-behandling/source-instance/ordination-TESTFALL-PRÖV-läkemedel-source-example.json",
-    "ordinerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json",
-    "ordinerad-medicinsk-onkologisk-behandling/mapping/mapping.sheets.json",
-    "administrerad-medicinsk-onkologisk-behandling/source-schema/AdministrationRCCV1_source_schema.avsc",
-    "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-example_source_used_for_mapping.json",
-    "administrerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json",
-    "administrerad-medicinsk-onkologisk-behandling/mapping/mapping.sheets.json",
-  ];
-  for (const part of parts) {
-    const url = fixtureUrl(part);
-    files[url] = { name: part.split("/").pop()!, text: await readFixture(part) };
+  const raw = JSON.parse(text) as {
+    sets: Array<{
+      id: string;
+      source?: { schema?: string; instances?: string[] };
+      target?: string;
+      mapping?: string;
+      sheets?: string;
+      defaults?: string;
+    }>;
+  };
+  for (const set of raw.sets) {
+    for (const { ref } of relativeAssetRefs(set)) {
+      if (isHttpUrl(ref)) continue;
+      const url = resolveCatalogUri(ref, catalogBase);
+      if (files[url]) continue;
+      const path = normalize(join(catalogDir, ref));
+      files[url] = { name: path.split("/").pop()!, text: await Deno.readTextFile(path) };
+    }
   }
   return files;
 }
@@ -169,7 +127,7 @@ Deno.test("example-sets.json relative asset URIs resolve to existing repo files"
 Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the catalog URL", async () => {
   const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);
-  assertEquals(catalog.sets.length, 9);
+  assertEquals(catalog.sets.length >= 18, true, String(catalog.sets.length));
   const vitals = catalog.sets[0]!;
   assertEquals(vitals.id, "dummy-json-vitals");
   assertEquals(vitals.mapping, undefined);
@@ -178,7 +136,7 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
     vitals.source.schema,
     `${localFixtures}dummy-json-vitals/source.schema.json`,
   );
-  assertEquals(vitals.source.instances.length, 2);
+  assertEquals(vitals.source.instances.length, 3);
   const mapped = catalog.sets[1]!;
   assertEquals(
     mapped.mapping,
@@ -200,7 +158,7 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
   );
   const series = catalog.sets.find((set) => set.id === "Simple-vitals-series");
   if (!series) throw new Error("expected Simple-vitals-series example set");
-  assertEquals(series.source.instances.length, 3);
+  assertEquals(series.source.instances.length, 4);
   assertEquals(
     series.mapping,
     `${localFixtures}legacy-simulated-json/mapping/bp-series.blockly.json`,
@@ -210,24 +168,31 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
     `${localFixtures}legacy-simulated-json/mapping/bp-series.sheets.json`,
   );
   const obx = catalog.sets.find((set) => set.id === "obx-mhv1-unmapped-json-to-openehr");
-  if (!obx) throw new Error("expected OBX MHV1 example set");
-  assertEquals(obx.title, "OBX MHV1, JSON --> openEHR");
+  if (!obx) throw new Error("expected OBX MHV1 unmapped example set");
+  assertEquals(obx.mapping, undefined);
+  assertEquals(obx.sheets, undefined);
+  const obxMapped = catalog.sets.find((set) => set.id === "obx-mhv1-mapped-json-to-openehr");
+  if (!obxMapped) throw new Error("expected OBX MHV1 mapped example set");
   assertEquals(
-    obx.mapping,
+    obxMapped.mapping,
     `${localFixtures}Obstetrix-MHV1/mapping/mapping.blockly.json`,
   );
   assertEquals(
-    obx.sheets,
+    obxMapped.sheets,
     `${localFixtures}Obstetrix-MHV1/mapping/mapping.sheets.json`,
   );
   assertEquals(
     obx.source.schema,
     `${localFixtures}Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json`,
   );
-  assertEquals(obx.source.instances.length, 3);
+  assertEquals(obx.source.instances.length, 4);
   assertEquals(
     obx.source.instances[0],
     `${localFixtures}Obstetrix-MHV1/source-instance/1-primigravida-basprogram.json`,
+  );
+  assertEquals(
+    obx.source.instances[3],
+    `${localFixtures}Obstetrix-MHV1/source-instance/4-nightly-primigravida.json`,
   );
   assertEquals(
     obx.target,
@@ -252,7 +217,7 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
     chemo.target,
     `${localFixtures}TakeCare/TakeCare-CasenoteWrite-edit01.xsd`,
   );
-  assertEquals(chemo.source.instances.length, 5);
+  assertEquals(chemo.source.instances.length, 6);
   assertEquals(
     chemo.mapping,
     `${localFixtures}patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json`,
@@ -267,6 +232,56 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
     lung.mapping,
     `${localFixtures}lung-MDT-form/mapping/mapping.blockly.json`,
   );
+  assertEquals(lung.source.instances.length, 2);
+  const lungDt = catalog.sets.find((set) => set.id === "lung-mdt-form-to-tc-xml-decision-tables");
+  if (!lungDt) throw new Error("expected lung-MDT decision-table sibling");
+  assertEquals(
+    lungDt.mapping,
+    `${localFixtures}lung-MDT-form-decision-tables/mapping/mapping.blockly.json`,
+  );
+  assertEquals(
+    lungDt.sheets,
+    `${localFixtures}lung-MDT-form-decision-tables/mapping/mapping.sheets.json`,
+  );
+  const chemoDt = catalog.sets.find((set) =>
+    set.id === "chemo-symptoms-flat-to-tc-xml-decision-tables"
+  );
+  if (!chemoDt) throw new Error("expected chemo decision-table sibling");
+  assertEquals(
+    chemoDt.mapping,
+    `${localFixtures}patient-reported-chemotherapy-symptoms-decision-tables/mapping/mapping.blockly.json`,
+  );
+});
+
+Deno.test("catalog has an unmapped and a mapped Example Set for each source schema", async () => {
+  const text = await readCatalog();
+  const catalog = parseExampleSetCatalog(text, catalogBase);
+  const pairs: Array<[string, string]> = [
+    ["dummy-json-vitals", "dummy-json-vitals-mapped"],
+    ["Simple-vitals-unmapped", "Simple-vitals"],
+    ["Simple-vitals-series-unmapped", "Simple-vitals-series"],
+    ["obx-mhv1-unmapped-json-to-openehr", "obx-mhv1-mapped-json-to-openehr"],
+    ["chemo-symptoms-flat-to-tc-xml-unmapped", "chemo-symptoms-flat-to-tc-xml"],
+    ["lung-mdt-form-to-tc-xml-unmapped", "lung-mdt-form-to-tc-xml"],
+    ["karda-ordinationsdata-to-openehr-flat-unmapped", "karda-ordinationsdata-to-openehr-flat"],
+    ["karda-administreringsdata-to-openehr-flat-unmapped", "karda-administreringsdata-to-openehr-flat"],
+  ];
+  for (const [unmappedId, mappedId] of pairs) {
+    const unmapped = catalog.sets.find((set) => set.id === unmappedId);
+    const mapped = catalog.sets.find((set) => set.id === mappedId);
+    if (!unmapped) throw new Error(`missing unmapped Example Set ${unmappedId}`);
+    if (!mapped) throw new Error(`missing mapped Example Set ${mappedId}`);
+    assertEquals(unmapped.mapping, undefined, unmappedId);
+    assertEquals(typeof mapped.mapping, "string", mappedId);
+    assertEquals(unmapped.target, mapped.target, `${unmappedId} vs ${mappedId} target`);
+    assertEquals(unmapped.source.schema, mapped.source.schema, `${unmappedId} schema`);
+    assertEquals(
+      unmapped.source.instances.length >= 1,
+      true,
+      `${unmappedId} needs at least one Example Instance`,
+    );
+    assertEquals(unmapped.source.instances, mapped.source.instances, `${mappedId} instances`);
+  }
 });
 
 Deno.test("parseExampleSetCatalog rejects a missing sets array", () => {
@@ -304,7 +319,7 @@ Deno.test("controller loads a dummy example set from catalog URIs", async () => 
   const state = controller.getState();
   assertEquals(state.schemaError, null);
   assertEquals(state.schemaFilename, "source.schema.json");
-  assertEquals(state.examples.length, 2);
+  assertEquals(state.examples.length, 3);
   assertEquals(state.activeExample?.filename, "instance-1.json");
   assertStringIncludes(state.statusMessage, "Dummy vitals");
   assertEquals(requested[0], catalogBase);
@@ -325,7 +340,7 @@ Deno.test("controller loads optional Blockly mapping from the catalog", async ()
   if (!mapped) throw new Error("expected mapped dummy set");
   await controller.loadExampleSet(mapped);
   const state = controller.getState();
-  assertEquals(state.examples.length, 1);
+  assertEquals(state.examples.length, 3);
   assertEquals(state.blocklyState && typeof state.blocklyState, "object");
   const queued = controller.consumePendingDefaultsMap();
   assertEquals(queued && typeof queued, "object");
@@ -347,13 +362,34 @@ Deno.test("controller loads chemo FLAT example set with TakeCare XSD target", as
   if (!chemo) throw new Error("expected chemo example set");
   await controller.loadExampleSet(chemo);
   const state = controller.getState();
-  assertEquals(state.examples.length, 5);
+  assertEquals(state.examples.length, 6);
   assertEquals(state.templateFilename, "TakeCare-CasenoteWrite-edit01.xsd");
   assertEquals(state.target?.format, "xml-schema");
   assertEquals(state.skeleton[0]?.blockType, "schema_ProfdocHISMessage");
   assertEquals(state.blocklyState && typeof state.blocklyState, "object");
   const queued = controller.consumePendingDefaultsMap();
   assertEquals(queued && typeof queued, "object");
+});
+
+Deno.test("controller loads lung-MDT Example Set with catalogued instances", async () => {
+  const files = await stubbedCatalogFiles();
+  const controller = new WorkbenchController(stubHost({
+    fetchTextUrl: (url) => {
+      const file = files[url];
+      if (!file) return Promise.reject(new Error(`unexpected url ${url}`));
+      return Promise.resolve(file);
+    },
+  }));
+
+  const catalog = await controller.loadExampleSetCatalog(catalogBase);
+  const lung = catalog.sets.find((set) => set.id === "lung-mdt-form-to-tc-xml");
+  if (!lung) throw new Error("expected lung-MDT example set");
+  await controller.loadExampleSet(lung);
+  const state = controller.getState();
+  assertEquals(state.examples.length, 2);
+  assertEquals(state.templateFilename, "TakeCare-CasenoteWrite-edit01.xsd");
+  assertEquals(state.skeleton[0]?.blockType, "schema_ProfdocHISMessage");
+  assertEquals(state.blocklyState && typeof state.blocklyState, "object");
 });
 
 Deno.test("controller surfaces catalog fetch failure", async () => {

@@ -1000,6 +1000,45 @@ Deno.test("skeleton canvas fills DV_QUANTITY units from the template", () => {
   workspace.dispose();
 });
 
+Deno.test("simple-diagnose-and-vitals OPT scaffolds unique and alternative quantity units", () => {
+  ensureBlocks();
+  const diagnose = Deno.readTextFileSync(
+    join(import.meta.dirname!, "fixtures", "simple-diagnose-and-vitals.opt"),
+  );
+  const { skeleton } = generateSkeleton(diagnose);
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null);
+
+  const systolic = workspace.getAllBlocks(false).find(
+    (b) => b.type === "element" && b.getFieldValue("NAME") === "Systolic",
+  );
+  assert(systolic, "expected Systolic ELEMENT");
+  const sysShell = systolic.getInputTargetBlock("VALUE");
+  assert(sysShell && isDataValueBlock(sysShell), "expected DV_QUANTITY on Systolic");
+  assertEquals(
+    sysShell.getInputTargetBlock(dvFieldInputName("units"))?.getFieldValue("TEXT"),
+    "mm[Hg]",
+  );
+
+  const temperature = workspace.getAllBlocks(false).find(
+    (b) => b.type === "element" && b.getFieldValue("NAME") === "Temperature",
+  );
+  assert(temperature, "expected Temperature ELEMENT");
+  const tempShell = temperature.getInputTargetBlock("VALUE");
+  assert(tempShell, "expected DV_QUANTITY on Temperature");
+  const tempUnits = tempShell.getInputTargetBlock(dvFieldInputName("units"));
+  assert(tempUnits, "Temperature units mouth must be scaffolded");
+  const unitList = tempUnits.getInputTargetBlock("VALUE");
+  const listed = [
+    unitList?.getInputTargetBlock("ADD0")?.getFieldValue("TEXT"),
+    unitList?.getInputTargetBlock("ADD1")?.getFieldValue("TEXT"),
+  ];
+  assertEquals(listed.includes("Cel"), true, String(listed));
+  assertEquals(listed.includes("[degF]"), true, String(listed));
+
+  workspace.dispose();
+});
+
 Deno.test("skeleton header stacks RM class and at-code under the node name", () => {
   ensureBlocks();
   const { skeleton } = generateSkeleton(fixture);

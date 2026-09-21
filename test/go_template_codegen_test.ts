@@ -1,6 +1,7 @@
 import { assertEquals, assert, assertStringIncludes } from "@std/assert";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { generate, generateGoTemplate } from "@intehrgrator/core/codegen/mod.ts";
+import { jsonPathToGoIndex } from "@intehrgrator/core/codegen/go_template.ts";
 import { initBlocklyGenerators, generateGoTemplateFromBlocklyState } from "@intehrgrator/blockly/mod.ts";
 import { createEmptyModel, applyExpressionEdit } from "@intehrgrator/core/mapping_model/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
@@ -13,6 +14,7 @@ import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerSchemaBlocksFromSkeleton } from "@intehrgrator/blockly/schema_blocks.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
+import { chemoDecisionSheets } from "../scripts/decision_table_example_sheets.ts";
 import {
   HANDLEBARS_GREETING_OUTPUT,
   HANDLEBARS_GREETING_SOURCE,
@@ -519,4 +521,101 @@ Deno.test("Go template Test Run uses instance Parameters when no defaults overla
   });
   assertEquals(result.ok, true, String(result.error ?? result.output));
   assertEquals(String(result.output).trim(), "194002287086");
+});
+
+Deno.test("jsonPathToGoIndex unwraps quoted FLAT keys", () => {
+  assertEquals(
+    jsonPathToGoIndex("$.['path/to/value|value']"),
+    `index .Data "path/to/value|value"`,
+  );
+  assert(jsonPathToGoIndex("$.vitals.systolic").includes(`index .Data "vitals"`));
+});
+
+Deno.test("go-template JSON walker emits decisionTable for Note values", () => {
+  const model = createEmptyModel("test");
+  const output = generateGoTemplate(model, {
+    blocklyState: {
+      blocks: {
+        blocks: [
+          {
+            type: "xml_element",
+            fields: { NAME: "Note" },
+            extraState: { childGroups: ["attributes", "children"] },
+            inputs: {
+              VALUE: {
+                block: {
+                  type: "decision_table",
+                  fields: { NAME: "itch_note", OUTPUT: "snippet" },
+                  inputs: {
+                    INPUTS: {
+                      block: {
+                        type: "maps_create_with",
+                        extraState: { itemCount: 1 },
+                        fields: { KEY0: "treated" },
+                        inputs: {
+                          VAL0: {
+                            block: {
+                              type: "source_query",
+                              fields: { EXPRESSION: "$.['flat/itch|value']" },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
+  });
+  assert(output.includes("decisionTable"), output);
+  assert(output.includes('"itch_note"'), output);
+  assert(output.includes('index .Data "flat/itch|value"'), output);
+  assert(!output.includes("value: decision_table"), output);
+});
+
+Deno.test("Go template Test Run evaluates decisionTable snippets", async () => {
+  await ensureGoTemplateWasm();
+  const output = executeGoTemplate(
+    `{{ decisionTable "itch_note" (dict "treated" (index .Data "treated") "severity" (index .Data "severity") "treatment" (index .Data "treatment")) "snippet" }}`,
+    { Data: { treated: "Ja", severity: "Måttliga besvär", treatment: "kräm" } },
+    { sheets: chemoDecisionSheets() },
+  );
+  assertStringIncludes(output, "Måttliga besvär");
+  assertStringIncludes(output, "kräm");
+});
+
+Deno.test("regexReplaceAll matches Sprig/Helm (pattern, src, replacement)", async () => {
+  await ensureGoTemplateWasm();
+  assertEquals(
+    executeGoTemplate(`{{ regexReplaceAll "a(x*)b" "-ab-axxb-" "\${1}W" }}`, {}),
+    "-W-xxW-",
+  );
+  assertEquals(
+    executeGoTemplate(`{{ regexReplaceAll "[^ -~]" "Tårna" "" }}`, {}),
+    "Trna",
+  );
+});
+
+Deno.test("PROD cleanAndQuoteFreeTextInput quotes allowed free text", async () => {
+  await ensureGoTemplateWasm();
+  const prod = Deno.readTextFileSync(
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt"),
+  );
+  const defineEnd = prod.indexOf("{{- end -}}");
+  assert(defineEnd > 0, "expected sanitizer define");
+  const define = prod.slice(0, defineEnd + "{{- end -}}".length);
+  const quoted = executeGoTemplate(
+    `${define}{{ template "cleanAndQuoteFreeTextInput" . }}`,
+    "Tårna",
+  );
+  assertEquals(quoted, `"Tårna"`);
+  const spaced = executeGoTemplate(
+    `${define}{{ template "cleanAndQuoteFreeTextInput" . }}`,
+    "foo\tbar",
+  );
+  assertEquals(spaced, `"foo bar"`);
 });

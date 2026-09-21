@@ -71,7 +71,6 @@ export {
   blockHatchMessages,
   isLiteralSourcePath,
   HATCH_REMOVED,
-  HATCH_PROCEDURES,
   HATCH_JSON_XML,
   HATCH_DYNAMIC_PATH,
   HATCH_OUT_OF_DIALECT_HBS,
@@ -207,6 +206,7 @@ export {
 
 import { registerConversionStartBlock } from "./instance_root.ts";
 import { installCollapsedPreview } from "./field_collapsed_preview.ts";
+import { installHeaderMutatorChrome } from "./dynamic_mutator.ts";
 
 export function initBlocklyGenerators(): void {
   registerRmBlocks();
@@ -223,6 +223,7 @@ export function initBlocklyGenerators(): void {
   registerTypeScriptExportAdapter();
   registerGoTemplateExportAdapter();
   installCollapsedPreview();
+  installHeaderMutatorChrome();
 }
 
 function registerGenerators(): void {

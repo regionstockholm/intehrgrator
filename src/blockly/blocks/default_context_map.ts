@@ -6,7 +6,7 @@ import {
   DEFAULT_CONTEXT_MAP_TYPE,
 } from "../../core/defaults/extract.ts";
 import { parseTargetsField } from "../../core/defaults/context_map.ts";
-import { appendMutatorCogwheel, hideDefaultMutatorIcon, openBlockMutator } from "../dynamic_mutator.ts";
+import { appendMutatorCogwheel, hideDefaultMutatorIcon } from "../dynamic_mutator.ts";
 import { enforceMouthCaptionLayout, initMutatorStackMouth } from "../mouth_layout.ts";
 import { FieldScaffoldTargets, registerFieldScaffoldTargets } from "../field_scaffold_targets.ts";
 
@@ -320,14 +320,6 @@ export function registerDefaultContextMapBlock(): void {
         ),
       );
       hideDefaultMutatorIcon(this);
-      const cog = this.getField("MUTATOR_COG") as Blockly.FieldImage | null;
-      if (cog) {
-        const prev = cog.onClick;
-        cog.onClick = function (this: Blockly.FieldImage) {
-          openBlockMutator(this.getSourceBlock() as Blockly.Block);
-          prev?.call(this);
-        };
-      }
     },
     updateShape_: function (this: ContextMapBlock) {
       updateContextMapShape(this);

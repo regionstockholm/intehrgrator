@@ -20,10 +20,12 @@ import {
 } from "./rm_type_emoji.ts";
 import {
   blockTypeUsesMouthLayout,
+  chromeHostInput,
   enforceMouthCaptionLayout,
   ensureClassChromeHeader,
   inputAlignLeft,
   inputAlignRight,
+  orderHeaderTrailingChrome,
 } from "./mouth_layout.ts";
 import { ensureHeaderMutatorCog } from "./dynamic_mutator.ts";
 
@@ -155,12 +157,12 @@ export function ensureBlockOutputHeaderGlyph(block: Block): void {
       // Already removed.
     }
   }
-  const header = ensureClassChromeHeader(block);
-  if (block.getField(BLOCK_OUT_EMOJI_FIELD)) {
-    header.setAlign(inputAlignLeft());
-    return;
+  const header = chromeHostInput(block) ?? ensureClassChromeHeader(block);
+  header.setAlign(inputAlignLeft());
+  if (!block.getField(BLOCK_OUT_EMOJI_FIELD)) {
+    appendBlockOutputGlyph(header, check);
   }
-  appendBlockOutputGlyph(header, check);
+  orderHeaderTrailingChrome(block);
 }
 
 /** Appends socket glyphs as the last field on each value input. */
@@ -189,9 +191,16 @@ const STOCK_GLYPH_BLOCK_TYPES = [
   "lists_split",
   "lists_sort",
   "lists_reverse",
+  "procedures_callreturn",
 ] as const;
 
-const STOCK_MUTATOR_COG_TYPES = new Set(["text_join", "lists_create_with"]);
+const STOCK_MUTATOR_COG_TYPES = new Set([
+  "text_join",
+  "lists_create_with",
+  "lists_getIndex",
+  "lists_getSublist",
+  "lists_split",
+]);
 
 const stockGlyphPatches = new Set<string>();
 

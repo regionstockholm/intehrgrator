@@ -1,7 +1,7 @@
 /**
  * ZipEHR RM-type emojis on Blockly connection points.
  *
- * Block output (left/top puzzle): first field of HEADER, next to the tab.
+ * Block output type glyph: last field of HEADER, far right with the cogwheel.
  * Value/statement slots: combined into FieldSlotLabel with the attr name
  * (see slot_label.ts). Abstract slots use ⁇ (underlined link), not a ring.
  * Specialization puzzles (PARTY_PROXY.KIND) still use this field alone.

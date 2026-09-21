@@ -6,6 +6,17 @@
 import type { Block, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 
+/** Header field that opens the mutator bubble (replaces Blockly's top-left icon). */
+export const MUTATOR_COG_FIELD = "MUTATOR_COG";
+
+/** Output-type glyph field name (must match `BLOCK_OUT_EMOJI_FIELD` in rm_type_emoji). */
+const OUTPUT_GLYPH_FIELD = "RM_OUT_EMOJI";
+
+/** Fields that belong on the far right of the class-chrome row. */
+export function isTrailingChromeFieldName(name: string | null | undefined): boolean {
+  return name === MUTATOR_COG_FIELD || name === OUTPUT_GLYPH_FIELD;
+}
+
 /** Blockly Align.LEFT — header chrome hugs the left edge. */
 export function inputAlignLeft(): number {
   return (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? -1) as number;
@@ -74,4 +85,43 @@ export function ensureClassChromeHeader(block: Block): Input {
 /** Stock list constructors whose captions should hug mouths like RM slots. */
 export function blockTypeUsesMouthLayout(type: string): boolean {
   return type.startsWith("lists_") || type === "for_each_list" || type === "text_join";
+}
+
+/**
+ * Dummy row that carries title + trailing cog/type-glyph. HEADER when present;
+ * otherwise the NAME dummy (stock Functions).
+ */
+export function chromeHostInput(block: Block): Input | undefined {
+  const header = block.getInput("HEADER");
+  if (header) return header;
+  const named = block.inputList.find((input) =>
+    !input.connection && input.fieldRow.some((field) => field.name === "NAME")
+  );
+  if (named) return named;
+  return block.inputList.find((input) => !input.connection && input.fieldRow.length > 0);
+}
+
+/**
+ * Put MUTATOR_COG then the output type glyph at the end of the chrome row so
+ * the compact renderer can pack leftover width in front of them (far right).
+ */
+export function orderHeaderTrailingChrome(block: Block): void {
+  const host = chromeHostInput(block);
+  if (!host) return;
+  const trailing: Array<{ field: (typeof host.fieldRow)[number]; name: string }> = [];
+  for (const name of [MUTATOR_COG_FIELD, OUTPUT_GLYPH_FIELD]) {
+    const field = host.fieldRow.find((item) => item.name === name);
+    if (field) trailing.push({ field, name });
+  }
+  if (!trailing.length) return;
+  for (const { name } of trailing) {
+    try {
+      host.removeField(name);
+    } catch {
+      // Already detached.
+    }
+  }
+  for (const { field, name } of trailing) {
+    host.appendField(field, name);
+  }
 }

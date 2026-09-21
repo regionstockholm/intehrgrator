@@ -8,7 +8,6 @@ import { appendHiddenSerializable } from "../hidden_serializable_field.ts";
 import {
   appendMutatorCogwheel,
   hideDefaultMutatorIcon,
-  openBlockMutator,
 } from "../dynamic_mutator.ts";
 import { appendBlockOutputGlyph, appendInputTypeGlyph } from "../block_type_glyph.ts";
 import { enforceMouthCaptionLayout, initMutatorStackMouth } from "../mouth_layout.ts";
@@ -231,14 +230,6 @@ export function registerMapBlocks(): void {
         new Blockly.icons.MutatorIcon([MAPS_CREATE_WITH_ITEM], this as unknown as import("blockly/core").BlockSvg),
       );
       hideDefaultMutatorIcon(this);
-      const cog = this.getField("MUTATOR_COG") as Blockly.FieldImage | null;
-      if (cog) {
-        const prev = cog.onClick;
-        cog.onClick = function (this: Blockly.FieldImage) {
-          openBlockMutator(this.getSourceBlock() as Blockly.Block);
-          prev?.call(this);
-        };
-      }
     },
     updateShape_: function (this: MapCreateBlock) {
       updateMapCreateShape(this);

@@ -1076,9 +1076,11 @@ body.sheets-fullscreen::before {
   opacity: 1;
 }
 
-/* Default Blockly mutator icon is replaced by header cogwheel on RM blocks */
-.blockly-mount .blocklyDraggable:has(img[alt="Optional attributes…"]) > .blocklyIconGroup.blockly-icon-mutator {
+/* Default Blockly mutator icon is replaced by the header cogwheel.
+   Icons live in a nested `blocklyIcons` group, so this is a descendant match. */
+.blockly-mount .blocklyDraggable .blocklyIconGroup.blockly-icon-mutator {
   display: none !important;
+  pointer-events: none;
 }
 
 .intehrgrator-bubble-close-btn circle {

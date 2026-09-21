@@ -10,41 +10,7 @@ The instance-validation table below is from an earlier catalog pass (for example
 deno run -A --no-check scripts/audit-example-instances.ts
 ```
 
-That updates the section between `<!-- BEGIN:instance-validation -->
-| Set | Instance | Catalog | Named-broken | Schema-valid | Notes |
-| --- | --- | --- | --- | --- | --- |
-| dummy-json-vitals | `instance-1.json` | yes | no | valid | — |
-| dummy-json-vitals | `instance-2.json` | yes | no | valid | — |
-| dummy-json-vitals-mapped | `instance-1.json` | yes | no | valid | — |
-| Simple-vitals | `bp-inst.json` | yes | no | valid | — |
-| Simple-vitals | `bp-inst-2.json` | yes | no | valid | — |
-| Simple-vitals | `bp-inst-3-invalid.json` | yes | yes | invalid (expected) | $.diastolic: 2 is less than 30.; $.bodyPosition: Instance does not match any of ["sitting","lying","standing"].; $: Property "diastolic" does not match additional properties schema. |
-| Simple-vitals-series | `bp-series-inst.json` | yes | no | valid | — |
-| Simple-vitals-series | `bp-series-inst-2.json` | yes | no | valid | — |
-| Simple-vitals-series | `bp-series-inst-3-invalid.json` | yes | yes | invalid (expected) | $.measurements: Items did not match schema.; $.measurements[2].diastolic: 2 is less than 30.; $.measurements[2].bodyPosition: Instance does not match any of ["sitting","lying","standing"]. |
-| obx-mhv1-unmapped-json-to-openehr | `1-primigravida-basprogram.json` | yes | no | valid | — |
-| obx-mhv1-unmapped-json-to-openehr | `2-ivf-multipara.json` | yes | no | valid | — |
-| obx-mhv1-unmapped-json-to-openehr | `3-komplex-mhv3.json` | yes | no | valid | — |
-| chemo-symptoms-flat-to-tc-xml | `1. Ex.composition.txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `2. Ex.composition (Empty).txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `3. Ex.composition (Full).txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `4. Ex.composition.txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `5. Ex.composition.txt` | yes | no | valid | no source schema; parsed as JSON |
-| lung-mdt-form-to-tc-xml | `(none)` | yes | no | INVALID | catalog lists zero Example Instances |
-| karda-ordinationsdata-to-openehr-flat | `ordination-example_source_used_for_mapping.json` | yes | no | valid | — |
-| karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-A-source-example.json` | yes | no | valid | — |
-| karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-B-source-example.json` | yes | no | valid | — |
-| karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-C-source-example.json` | yes | no | valid | — |
-| karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-D-source-example.json` | yes | no | valid | — |
-| karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-E-source-example.json` | yes | no | valid | — |
-| karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-PRÖV-läkemedel-source-example.json` | yes | no | valid | — |
-| karda-administreringsdata-to-openehr-flat | `administration-example_source_used_for_mapping.json` | yes | no | valid | — |
-| sheets/icd10-snomed (uncatalogued) | `ai-created-icd10-snomed.source.json` | no | no | valid | no source schema; parsed as JSON |
-
-### Schema flags
-
-(none)
-<!-- END:instance-validation -->` in this file, and writes JSON to `/opt/cursor/artifacts/example-instance-audit.json`.
+That updates the section between `<!-- BEGIN:instance-validation -->` and `<!-- END:instance-validation -->` in this file, and writes JSON to `/opt/cursor/artifacts/example-instance-audit.json`.
 
 **Re-run TypeScript Conversion Script Test Run** (per set, after mapping changes):
 
@@ -90,6 +56,10 @@ Named-broken instances (`invalid`, `broken`, `fail`, `bad` in the filename) are 
 | karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-E-source-example.json` | yes | no | valid | — |
 | karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-PRÖV-läkemedel-source-example.json` | yes | no | valid | — |
 | karda-administreringsdata-to-openehr-flat | `administration-example_source_used_for_mapping.json` | yes | no | valid | — |
+| karda-administreringsdata-to-openehr-flat | `administration-TESTFALL-A-source-example.json` | yes | no | valid | — |
+| karda-administreringsdata-to-openehr-flat | `administration-TESTFALL-B-source-example.json` | yes | no | valid | — |
+| karda-administreringsdata-to-openehr-flat | `administration-TESTFALL-C-source-example.json` | yes | no | valid | — |
+| karda-administreringsdata-to-openehr-flat | `administration-TESTFALL-PRÖV-läkemedel-source-example.json` | yes | no | valid | — |
 | sheets/icd10-snomed (uncatalogued) | `ai-created-icd10-snomed.source.json` | no | no | valid | no source schema; parsed as JSON |
 
 ### Schema flags

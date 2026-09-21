@@ -397,27 +397,23 @@ Deno.test("in-dialect text_handlebars is not an escape hatch", () => {
   workspace.dispose();
 });
 
-Deno.test("procedures_callreturn is recorded as an escape hatch, not a silent drop", () => {
+Deno.test("procedures_callreturn is a first-class call(), not an escape hatch", () => {
   ensure();
   assert(Blockly.Blocks["procedures_callreturn"], "procedures_callreturn stays registered");
   const workspace = new Blockly.Workspace();
   const slot = workspace.newBlock("target_value");
   slot.setFieldValue("slot/fn", "SLOT_ID");
   const call = workspace.newBlock("procedures_callreturn");
+  call.setFieldValue("greet", "NAME");
   slot.getInput("VALUE")!.connection!.connect(call.outputConnection!);
 
   const ir = workspaceToModelJson(workspace);
-  assert(
-    ir.unsupported.some((u) =>
-      u.blockType === "procedures_callreturn" && u.reason === "escape" && u.slotId === "slot/fn"
-    ),
-    `expected procedures_callreturn escape, got ${JSON.stringify(ir.unsupported)}`,
-  );
   assertEquals(
-    ir.slots.some((s) => s.slotId === "slot/fn"),
+    ir.unsupported.some((u) => u.blockType === "procedures_callreturn"),
     false,
-    "opaque procedure call is not a first-class slot expression",
+    `expected no procedures hatch, got ${JSON.stringify(ir.unsupported)}`,
   );
+  assertEquals(ir.slots.find((s) => s.slotId === "slot/fn")?.expression, 'call("greet")');
   workspace.dispose();
 });
 

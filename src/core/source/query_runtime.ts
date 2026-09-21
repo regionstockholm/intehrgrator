@@ -1,5 +1,6 @@
 import fontoxpath from "fontoxpath";
 import type { SourceFormatId } from "../../types/mod.ts";
+import type { MappingFunction } from "../../types/mod.ts";
 import type { ExprAst } from "../expression/mod.ts";
 import {
   isQuantifyCall,
@@ -34,6 +35,10 @@ export interface SourceContext {
   namedMaps?: Record<string, Record<string, unknown>>;
   /** Named Sheets for `sheet_*` accessors (ADR 0005). */
   sheets?: SheetBag;
+  /** Blockly Functions for Mapping Expression `call("name", …)`. */
+  functions?: MappingFunction[];
+  /** Internal recursion guard for `call`. */
+  callDepth?: number;
 }
 
 export function createSourceContext(
@@ -101,11 +106,17 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
         case "concat":
           return args.map(String).join("");
         case "round":
-          return `Math.round(Number(${args[0]} ?? 0))`;
-        case "modulo":
-          return `(Number(${args[0]} ?? 0) % Number(${args[1]} ?? 1))`;
-        case "constrain":
-          return `(Math.min(Number(${args[2]} ?? 0), Math.max(Number(${args[1]} ?? 0), Number(${args[0]} ?? 0))))`;
+          return Math.round(Number(args[0] ?? 0));
+        case "modulo": {
+          const divisor = Number(args[1] ?? 1);
+          return divisor === 0 ? null : Number(args[0] ?? 0) % divisor;
+        }
+        case "constrain": {
+          const value = Number(args[0] ?? 0);
+          const low = Number(args[1] ?? 0);
+          const high = Number(args[2] ?? 0);
+          return Math.min(high, Math.max(low, value));
+        }
         case "if":
           return args[0] ? args[1] : args[2];
         case "eq":
@@ -164,6 +175,22 @@ function evalAst(ast: ExprAst, ctx: SourceContext): unknown {
           const map = ctx.namedMaps?.[mapName];
           if (!map || typeof map !== "object") return null;
           return (map as Record<string, unknown>)[key] ?? null;
+        }
+        case "call": {
+          const name = String(args[0] ?? "");
+          const fn = ctx.functions?.find((item) => item.name === name);
+          if (!fn?.body) return null;
+          const depth = (ctx.callDepth ?? 0) + 1;
+          if (depth > 32) return null;
+          const paramVars: Record<string, unknown> = { ...(ctx.vars ?? {}) };
+          for (let i = 0; i < fn.params.length; i++) {
+            paramVars[fn.params[i]!] = args[i + 1];
+          }
+          return evalAst(parseExpression(fn.body), {
+            ...ctx,
+            vars: paramVars,
+            callDepth: depth,
+          });
         }
       }
       if (isSheetAccessor(ast.name)) {

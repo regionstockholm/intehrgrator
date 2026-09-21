@@ -283,6 +283,17 @@ export function blockToExpression(block: Block | null): string | null {
       const b = blockToExpression(block.getInputTargetBlock("B")) ?? "list()";
       return `${setOpToCall(String(block.getFieldValue("OP") ?? "BOTH"))}(${a}, ${b})`;
     }
+    case "procedures_callreturn": {
+      const name = String(block.getFieldValue("NAME") || "").trim();
+      if (!name) return null;
+      const args: string[] = [];
+      for (let i = 0; ; i++) {
+        const input = block.getInput(`ARG${i}`);
+        if (!input) break;
+        args.push(blockToExpression(block.getInputTargetBlock(`ARG${i}`)) ?? "null");
+      }
+      return `call(${JSON.stringify(name)}${args.length ? `, ${args.join(", ")}` : ""})`;
+    }
     default:
       return null;
   }
@@ -445,6 +456,23 @@ export function astToExpressionBlock(
       const block = workspace.newBlock("variables_get") as BlockSvg;
       if (variable) {
         block.setFieldValue(variable.getId(), "VAR");
+      }
+      return finalize(block);
+    }
+    if (ast.name === "call") {
+      const name = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+      const block = workspace.newBlock("procedures_callreturn") as BlockSvg & {
+        loadExtraState?: (state: unknown) => void;
+      };
+      if (name) block.setFieldValue(name, "NAME");
+      const argAsts = ast.args.slice(1);
+      block.loadExtraState?.({
+        name,
+        params: argAsts.map((_, i) => `arg${i}`),
+      });
+      for (let i = 0; i < argAsts.length; i++) {
+        const child = astToExpressionBlock(workspace, argAsts[i]!, returnType, finalize);
+        block.getInput(`ARG${i}`)?.connection?.connect(child.outputConnection!);
       }
       return finalize(block);
     }

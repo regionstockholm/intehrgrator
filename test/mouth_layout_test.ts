@@ -18,6 +18,7 @@ import {
 } from "@intehrgrator/blockly/blocks/rm_blocks.ts";
 import {
   applyOpenEhrRowAlign_,
+  padBeforeTrailingChrome_,
   pinStatementRowNotch_,
   shouldPinSlotCaptionToMouth_,
 } from "@intehrgrator/blockly/compact_renderer.ts";
@@ -120,6 +121,45 @@ Deno.test("renderer: statement-row captions RIGHT-align so they hug the C", () =
   };
   applyOpenEhrRowAlign_(header, AlignL, AlignR);
   assertEquals(header.align, AlignL);
+});
+
+Deno.test("renderer leftover on HEADER sits before the cog (glyph stays left)", () => {
+  const spacer = { width: 4 };
+  const row = {
+    elements: [
+      { field: { name: "RM_OUT_EMOJI" } },
+      { field: { name: "NAME" } },
+      spacer,
+      { field: { name: "MUTATOR_COG" } },
+    ],
+  };
+  assertEquals(padBeforeTrailingChrome_(row, 40), true);
+  assertEquals(spacer.width, 44);
+});
+
+Deno.test("renderer leftover splices a spacer when chrome has no leftover element", () => {
+  const row = {
+    elements: [
+      { field: { name: "RM_OUT_EMOJI" } },
+      { field: { name: "NAME" } },
+      { field: { name: "MUTATOR_COG" } },
+    ],
+  };
+  assertEquals(padBeforeTrailingChrome_(row, 32), true);
+  assertEquals(row.elements[2], { width: 32 });
+  assertEquals(row.elements[3]?.field?.name, "MUTATOR_COG");
+  assertEquals(row.elements[0]?.field?.name, "RM_OUT_EMOJI");
+});
+
+Deno.test("renderer leftover still pushes the cog right when it is the first field", () => {
+  const row = {
+    elements: [
+      { field: { name: "MUTATOR_COG" } },
+    ],
+  };
+  assertEquals(padBeforeTrailingChrome_(row, 48), true);
+  assertEquals(row.elements[0], { width: 48 });
+  assertEquals(row.elements[1]?.field?.name, "MUTATOR_COG");
 });
 
 Deno.test("renderer pins ordinary mouth captions, not only FieldSlotLabel", () => {

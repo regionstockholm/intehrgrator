@@ -826,6 +826,7 @@ function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }):
       unsupported: derived.unsupported,
       sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
     },
   );
   const s = controller.getState();
@@ -1175,6 +1176,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
           },
         );
       }
@@ -1203,6 +1205,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
           },
         );
       }
@@ -3212,6 +3215,15 @@ function installWorkbenchTestApi(): void {
       const rect = blockOwnClientRect(full, blockOwnWorkspaceSize(block), scale);
       return { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
     },
+    getFieldClientRect(blockId, fieldName) {
+      const block = workspace.getBlockById(blockId);
+      const field = block?.getField(fieldName) as { getSvgRoot?: () => SVGElement | null } | null;
+      const root = field?.getSvgRoot?.();
+      if (!root) return null;
+      const box = root.getBoundingClientRect();
+      if (!box.width && !box.height) return null;
+      return { x: box.left, y: box.top, width: box.width, height: box.height };
+    },
     clickBlock(blockId) {
       applyBlockSelection(blockId, "blockly");
     },
@@ -3222,6 +3234,14 @@ function installWorkbenchTestApi(): void {
     listBlockInputs(blockId) {
       const block = workspace.getBlockById(blockId);
       return block ? block.inputList.map((input) => input.name) : [];
+    },
+    listBlockFields(blockId) {
+      const block = workspace.getBlockById(blockId);
+      if (!block) return [];
+      return block.inputList.map((input) => ({
+        input: input.name,
+        fields: input.fieldRow.map((field) => String(field.name ?? "")),
+      }));
     },
     getStatementInputMetrics(blockId, inputName) {
       const block = workspace.getBlockById(blockId);
@@ -3259,6 +3279,19 @@ function installWorkbenchTestApi(): void {
       const child = workspace.getBlockById(childId);
       const a = parent?.getInput(inputName)?.connection;
       const b = child?.previousConnection;
+      if (!a || !b) return false;
+      try {
+        a.connect(b);
+        return a.isConnected();
+      } catch {
+        return false;
+      }
+    },
+    connectValue(parentId, inputName, childId) {
+      const parent = workspace.getBlockById(parentId);
+      const child = workspace.getBlockById(childId);
+      const a = parent?.getInput(inputName)?.connection;
+      const b = child?.outputConnection;
       if (!a || !b) return false;
       try {
         a.connect(b);

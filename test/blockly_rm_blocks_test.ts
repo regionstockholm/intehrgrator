@@ -224,7 +224,14 @@ Deno.test("hidden metadata is not extra dummy rows under HEADER", () => {
     `observation extra dummy rows after sync, inputs=${inputNames(obs)}`,
   );
   const header = obs.getInput("HEADER");
-  assertEquals(header?.fieldRow[0]?.name, BLOCK_OUT_EMOJI_FIELD);
+  const headerNames = header?.fieldRow.map((f) => f.name) ?? [];
+  assertEquals(headerNames[0], BLOCK_OUT_EMOJI_FIELD);
+  assertEquals(headerNames.at(-1), "MUTATOR_COG");
+  assert(headerNames.includes("MUTATOR_COG"), "observation header cog");
+  assert(
+    headerNames.indexOf(BLOCK_OUT_EMOJI_FIELD) < headerNames.indexOf("MUTATOR_COG"),
+    "output glyph sits left of the cog",
+  );
 
   const element = workspace.newBlock("element");
   assertEquals(

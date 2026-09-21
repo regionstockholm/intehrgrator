@@ -71,7 +71,6 @@ export {
   blockHatchMessages,
   isLiteralSourcePath,
   HATCH_REMOVED,
-  HATCH_PROCEDURES,
   HATCH_JSON_XML,
   HATCH_DYNAMIC_PATH,
   HATCH_OUT_OF_DIALECT_HBS,
@@ -207,22 +206,29 @@ export {
 
 import { registerConversionStartBlock } from "./instance_root.ts";
 import { installCollapsedPreview } from "./field_collapsed_preview.ts";
+import { installHeaderMutatorChrome } from "./dynamic_mutator.ts";
+
+let generatorsReady = false;
 
 export function initBlocklyGenerators(): void {
-  registerRmBlocks();
-  registerTargetBlocks();
-  registerExpressionBlocks();
-  registerMapBlocks();
-  registerSheetBlocks();
-  registerDecisionTableBlocks();
-  registerTextBlocks();
-  registerConversionStartBlock();
-  registerLogicBlocks();
-  registerExtractToFunctionMenu();
-  registerGenerators();
-  registerTypeScriptExportAdapter();
-  registerGoTemplateExportAdapter();
-  installCollapsedPreview();
+  if (!generatorsReady) {
+    registerRmBlocks();
+    registerTargetBlocks();
+    registerExpressionBlocks();
+    registerMapBlocks();
+    registerSheetBlocks();
+    registerDecisionTableBlocks();
+    registerTextBlocks();
+    registerConversionStartBlock();
+    registerLogicBlocks();
+    registerExtractToFunctionMenu();
+    registerGenerators();
+    registerTypeScriptExportAdapter();
+    registerGoTemplateExportAdapter();
+    installCollapsedPreview();
+    generatorsReady = true;
+  }
+  installHeaderMutatorChrome();
 }
 
 function registerGenerators(): void {

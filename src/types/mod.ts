@@ -92,9 +92,26 @@ export type TargetFormatId =
   | "xml-schema"
   | "free-form";
 
-export type MappingEscapeKind = "text_code" | "text_handlebars" | "procedures_callreturn";
+export type MappingEscapeKind = "text_code" | "text_handlebars";
 
-/** Escape-hatch metadata on a value slot (`text_code` LANG, Handlebars, procedure call). */
+/** Kind of Blockly Function in the derived Mapping Model. */
+export type MappingFunctionKind = "return" | "statement";
+
+/**
+ * Derived index of a canvas Blockly Function (`procedures_defreturn` /
+ * `procedures_defnoreturn`). Value Functions serialize as Mapping Expression
+ * `call("name", …)` and codegen emits a reusable named function where the
+ * Conversion script language allows it.
+ */
+export interface MappingFunction {
+  name: string;
+  kind: MappingFunctionKind;
+  params: string[];
+  /** Mapping Expression body for value Functions. */
+  body?: string;
+}
+
+/** Escape-hatch metadata on a value slot (`text_code` LANG or Handlebars). */
 export interface MappingSlotHatch {
   kind: MappingEscapeKind;
   /** `text_code` LANG dropdown (plain, handlebars, go-template, …). */
@@ -169,6 +186,8 @@ export interface MappingModel {
    * Product stack, in stack order. Text document roots are omitted.
    */
   instanceEncodings?: InstanceEncoding[];
+  /** Blockly Functions derived from `procedures_def*` on the canvas. */
+  functions?: MappingFunction[];
 }
 
 export type SkeletonNodeKind = "container" | "value";

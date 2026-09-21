@@ -2,6 +2,7 @@ import type {
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  MappingFunction,
   MappingSlotHatch,
   MappingUnsupportedBlock,
   TargetSignatureNode,
@@ -1054,9 +1055,19 @@ export class WorkbenchController {
       unsupported?: MappingUnsupportedBlock[];
       sheetNames?: string[];
       instanceEncodings?: InstanceEncoding[];
+      functions?: MappingFunction[];
     },
   ): void {
-    if (!this.templateId) return;
+    if (!this.templateId) {
+      this.blocklyState = blocklyState;
+      if (options?.functions) {
+        this.model = { ...this.model, functions: [...options.functions] };
+      }
+      this.dirty = true;
+      this.scheduleAutosave();
+      if (options?.notify !== false) this.notifyChange();
+      return;
+    }
     let next = createEmptyModel(this.templateId);
     next.targetFormat = this.target?.format;
     next.optionalRm = optionalRm ? [...optionalRm] : [...this.model.optionalRm];
@@ -1066,6 +1077,7 @@ export class WorkbenchController {
     next.unsupported = options?.unsupported ? [...options.unsupported] : [];
     next.sheetNames = options?.sheetNames ? [...options.sheetNames] : [];
     next.instanceEncodings = options?.instanceEncodings ? [...options.instanceEncodings] : [];
+    next.functions = options?.functions ? [...options.functions] : [];
     const skeleton = applyOptionalRmToSkeleton(
       this.target?.skeleton ?? this.skeleton,
       next.optionalRm,

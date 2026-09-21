@@ -3,6 +3,7 @@ import { isSkeletonTitleField } from "./field_skeleton_title.ts";
 import { BLOCK_OUT_EMOJI_FIELD, isRmTypeEmojiField } from "./rm_type_emoji.ts";
 import { isSlotCardinalityField } from "./slot_cardinality.ts";
 import { isSlotLabelField } from "./slot_label.ts";
+import { isTrailingChromeFieldName, MUTATOR_COG_FIELD } from "./mouth_layout.ts";
 
 export const COMPACT_RENDERER_NAME = "thrasos-compact";
 
@@ -71,6 +72,7 @@ export function registerCompactThrasosRenderer(): string {
     // deno-lint-ignore no-explicit-any
     addAlignmentPadding_(row: any, missingSpace: number) {
       applyOpenEhrRowAlign_(row, AlignLeft, AlignRight);
+      if (padBeforeTrailingChrome_(row, missingSpace)) return;
       return super.addAlignmentPadding_(row, missingSpace);
     }
 
@@ -256,10 +258,41 @@ export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: n
       hasClassChrome = true;
     }
     if (field.name === BLOCK_OUT_EMOJI_FIELD) hasClassChrome = true;
-    if (field.name === "MUTATOR_COG") hasClassChrome = true;
+    if (field.name === MUTATOR_COG_FIELD) hasClassChrome = true;
   }
   if (hasClassChrome) row.align = alignLeft;
   else if (hasSlotCaption) row.align = alignRight;
+}
+
+/**
+ * Dummy HEADER leftover goes *before* the cog so the cog sits on the far
+ * right. The output-type glyph stays on the left with the title.
+ */
+export function padBeforeTrailingChrome_(row: {
+  elements?: Array<{ field?: { name?: string }; width?: number }>;
+}, missingSpace: number): boolean {
+  if (!row?.elements || missingSpace <= 0) return false;
+  const chromeAt = firstTrailingChromeElementIndex_(row.elements);
+  if (chromeAt < 0) return false;
+  for (let i = chromeAt - 1; i >= 0; i--) {
+    const el = row.elements[i];
+    if (el?.field) continue;
+    if (typeof el?.width === "number") {
+      el.width += missingSpace;
+      return true;
+    }
+  }
+  row.elements.splice(chromeAt, 0, { width: missingSpace });
+  return true;
+}
+
+export function firstTrailingChromeElementIndex_(
+  elements: Array<{ field?: { name?: string } }>,
+): number {
+  for (let i = 0; i < elements.length; i++) {
+    if (isTrailingChromeFieldName(elements[i]?.field?.name)) return i;
+  }
+  return -1;
 }
 
 /**

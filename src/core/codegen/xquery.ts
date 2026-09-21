@@ -17,6 +17,11 @@ import type {
 } from "../../types/mod.ts";
 import { expressionUsesRelativeSourcePath } from "../mapping_model/loops.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
+import {
+  functionIdentMap,
+  valueFunctions,
+  xqueryLocalName,
+} from "./user_functions.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { isListAttribute } from "./typescript.ts";
@@ -40,6 +45,33 @@ export interface XQueryEmitEnv {
   bind?: Record<string, string>;
   /** Context node for xpath* — defaults to `$source`; loop bodies use the loop var. */
   sourceVar?: string;
+  fnIdents?: Map<string, string>;
+}
+
+function userFunctionXqEnv(model: MappingModel, base: XQueryEmitEnv = {}): XQueryEmitEnv {
+  return {
+    ...base,
+    fnIdents: functionIdentMap(valueFunctions(model.functions), xqueryLocalName),
+  };
+}
+
+function emitXQueryUserFunctions(model: MappingModel, env: XQueryEmitEnv): string[] {
+  const fns = valueFunctions(model.functions);
+  if (!fns.length) return [];
+  const idents = env.fnIdents ?? functionIdentMap(fns, xqueryLocalName);
+  const lines: string[] = [];
+  for (const fn of fns) {
+    const ident = idents.get(fn.name) ?? xqueryLocalName(fn.name);
+    const params = fn.params.map((p) => `$${xqueryLocalName(p)} as item()*`).join(", ");
+    const bind = Object.fromEntries(fn.params.map((p) => [p, xqueryLocalName(p)]));
+    const inner: XQueryEmitEnv = { ...env, bind: { ...env.bind, ...bind }, fnIdents: idents };
+    const body = emitXQueryExpr(parseExpression(fn.body!), inner);
+    lines.push(`declare function local:${ident}(${params}) as item()* {`);
+    lines.push(`  ${body}`);
+    lines.push("};");
+    lines.push("");
+  }
+  return lines;
 }
 
 export interface XQueryGenerationOptions {
@@ -54,6 +86,7 @@ export function generateXQuery(
   model: MappingModel,
   options: XQueryGenerationOptions = {},
 ): string {
+  const env = userFunctionXqEnv(model);
   validateExportModel(model);
 
   const skeleton = options.skeleton ?? [];
@@ -76,7 +109,7 @@ export function generateXQuery(
         ? "Output: COMPOSITION RM XML (Model A/C). Validate with Archie / a CDR."
         : "Output: COMPOSITION as XPath 3.1 maps (JSON instance shape).",
       convertType: shape === "xml" ? "element()" : "item()*",
-      body: emitCompositionProduct(model, skeleton, shape),
+      body: emitCompositionProduct(model, skeleton, shape, env),
     });
   }
 
@@ -90,7 +123,7 @@ export function generateXQuery(
       productComment:
         "Output: VMS-Hbs string via intehrgrator:handlebars (Test Run host). BaseX/Saxon need the same external function.",
       convertType: "xs:string",
-      body: `  ${emitXQueryExpr(parseExpression(canvas))}`,
+      body: `  ${emitXQueryExpr(parseExpression(canvas), env)}`,
     });
   }
 
@@ -98,10 +131,10 @@ export function generateXQuery(
   const { loopSlots, topLevelSlots } = partitionSlots(model.slots, loops, model.targetSignature);
 
   const loopBlocks = loops.map((loop) =>
-    emitLoop(loop, loopSlots.get(loop.attachSlotId) ?? [], openEhr).map((line) => `    ${line}`).join("\n")
+    emitLoop(loop, loopSlots.get(loop.attachSlotId) ?? [], openEhr, env).map((line) => `    ${line}`).join("\n")
   );
   const slotBlocks = topLevelSlots.map((slot) =>
-    emitSlot(slot, {}, openEhr).map((line) => `    ${line}`).join("\n")
+    emitSlot(slot, env, openEhr).map((line) => `    ${line}`).join("\n")
   );
 
   const inner: string[] = [
@@ -197,6 +230,7 @@ function wrapXQueryModule(args: {
     "",
     ...emitHelpers(args.needsRm),
     "",
+    ...emitXQueryUserFunctions(args.model, userFunctionXqEnv(args.model)),
     `declare function local:convert($source as item()*) as ${args.convertType} {`,
     args.body,
     "};",
@@ -306,12 +340,19 @@ function collectSignatureSlotIds(node: TargetSignatureNode): string[] {
   return ids;
 }
 
-function emitLoop(loop: MappingLoop, slots: MappingSlot[], needsRm = true): string[] {
+function emitLoop(
+  loop: MappingLoop,
+  slots: MappingSlot[],
+  needsRm = true,
+  baseEnv: XQueryEmitEnv = {},
+): string[] {
   const ident = loopVarIdent(loop.varName);
   const sequence = compileLoopSequence(loop);
   const env: XQueryEmitEnv = {
+    ...baseEnv,
     sourceVar: `$${ident}`,
     bind: {
+      ...baseEnv.bind,
       [loop.varName]: ident,
       [loopIndexBinderName(loop.varName)]: `${ident}_index`,
       [loopLengthBinderName(loop.varName)]: `${ident}_length`,
@@ -650,6 +691,11 @@ export function emitXQueryExpr(ast: ExprAst, env: XQueryEmitEnv = {}): string {
           return sourceVar;
         case "handlebars":
           return `intehrgrator:handlebars(${args[0] ?? '""'}, ${args[1] ?? "map {}"})`;
+        case "call": {
+          const fname = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+          const ident = env.fnIdents?.get(fname) ?? xqueryLocalName(fname);
+          return `local:${ident}(${args.slice(1).join(", ")})`;
+        }
         default:
           return emitXPathCall("string-at", ast.args[0], env);
       }
@@ -864,11 +910,12 @@ function emitCompositionProduct(
   model: MappingModel,
   skeleton: SkeletonNode[],
   shape: OpenEhrInstanceShape,
+  env: XQueryEmitEnv = {},
 ): string {
   const ctx: XqSkelCtx = {
     slots: new Map(model.slots.map((slot) => [slot.slotId, slot])),
     loops: model.loops ?? [],
-    env: {},
+    env,
     shape,
   };
   const roots = skeleton

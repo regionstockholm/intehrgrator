@@ -459,3 +459,13 @@ Deno.test("non-destructive source refresh keeps mappings and warns on missing pa
     true,
   );
 });
+
+Deno.test("syncFromBlockly records Blockly Functions before a target is loaded", () => {
+  const controller = new WorkbenchController(stubHost());
+  assertEquals(controller.getState().templateId, "");
+  controller.syncFromBlockly({ blocks: { languageVersion: 0 } }, [], [], undefined, {
+    notify: false,
+    functions: [{ name: "join_swedish", kind: "return", params: ["items"], body: '""' }],
+  });
+  assertEquals(controller.getState().model.functions?.[0]?.name, "join_swedish");
+});

@@ -19,6 +19,7 @@ import {
   TARGET_CHILD_PREFIX,
 } from "./blocks/target_blocks.ts";
 import { applyInstanceRootCap } from "./instance_root.ts";
+import { installHeaderMutatorChrome } from "./dynamic_mutator.ts";
 
 export type { SchemaInputSpec };
 export { specForChild, schemaInputSpecs } from "../core/target/schema_block_ids.ts";
@@ -43,6 +44,7 @@ export function registerSchemaBlocksFromSkeleton(skeleton: SkeletonNode[]): void
     for (const child of node.children) walk(child);
   };
   for (const root of skeleton) walk(root);
+  installHeaderMutatorChrome();
 }
 
 export function configureSchemaStructureBlock(

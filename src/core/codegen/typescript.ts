@@ -12,13 +12,18 @@
  * Output mode executes this script.
  */
 
-import type { MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
+import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { loopIndexBinderName, loopLengthBinderName } from "../loop_binders.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { attributesFor } from "../rm_meta.ts";
 import { usesOpenEhrProduct } from "./product.ts";
+import {
+  functionIdentMap,
+  jsFunctionIdent,
+  valueFunctions,
+} from "./user_functions.ts";
 
 /** RM classes whose constructors actually apply an init bag. */
 const NATIVE_INIT_TYPES = new Set([
@@ -44,10 +49,16 @@ export interface TsEmitContext {
   loopVar?: string;
   types: Set<string>;
   helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets" | "logic">;
+  mappingFunctions?: MappingFunction[];
+  fnParams?: Set<string>;
+  fnIdents?: Map<string, string>;
 }
 
-export function createTsEmitContext(sourceVar = "sourceCtx.data"): TsEmitContext {
-  return { sourceVar, types: new Set(), helpers: new Set() };
+export function createTsEmitContext(
+  sourceVar = "sourceCtx.data",
+  mappingFunctions?: MappingFunction[],
+): TsEmitContext {
+  return { sourceVar, types: new Set(), helpers: new Set(), mappingFunctions };
 }
 
 export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
@@ -75,9 +86,17 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
           return `(${args[0]} ? ${args[1]} : ${args[2]})`;
         case "switch":
           return emitSwitchTs(args);
-        case "var":
+        case "var": {
+          const name = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+          if (name && ctx.fnParams?.has(name)) return jsFunctionIdent(name);
           ctx.helpers.add("logic");
           return `__vars[${args[0]}]`;
+        }
+        case "call": {
+          const fname = ast.args[0]?.kind === "literal" ? String(ast.args[0].value) : "";
+          const ident = ensureTsFnIdents(ctx).get(fname) ?? `fn_${jsFunctionIdent(fname)}`;
+          return `${ident}(${args.slice(1).join(", ")})`;
+        }
         case "eq":
           ctx.helpers.add("logic");
           return `sameItem(${args[0]}, ${args[1]})`;
@@ -148,6 +167,45 @@ export function emitTsExpression(ast: ExprAst, ctx: TsEmitContext): string {
       }
     }
   }
+}
+
+function ensureTsFnIdents(ctx: TsEmitContext): Map<string, string> {
+  if (!ctx.fnIdents) {
+    ctx.fnIdents = functionIdentMap(valueFunctions(ctx.mappingFunctions), (name) =>
+      `fn_${jsFunctionIdent(name)}`
+    );
+  }
+  return ctx.fnIdents;
+}
+
+export function emitTsUserFunctions(ctx: TsEmitContext): string {
+  const fns = valueFunctions(ctx.mappingFunctions);
+  if (!fns.length) return "";
+  const idents = ensureTsFnIdents(ctx);
+  const lines: string[] = [];
+  for (const fn of fns) {
+    const ident = idents.get(fn.name) ?? `fn_${jsFunctionIdent(fn.name)}`;
+    const params = fn.params.map((p) => `${jsFunctionIdent(p)}: unknown`).join(", ");
+    const inner: TsEmitContext = {
+      ...ctx,
+      fnParams: new Set(fn.params),
+      fnIdents: idents,
+    };
+    const body = emitTsExpressionSource(fn.body!, inner) ?? "null";
+    lines.push(`function ${ident}(${params}): unknown {`);
+    lines.push(`  return ${body};`);
+    lines.push(`}`);
+    lines.push("");
+  }
+  return lines.join("\n");
+}
+
+function wrapTsWithFunctions(parts: TypeScriptModuleParts, ctx: TsEmitContext): string {
+  const fns = emitTsUserFunctions(ctx);
+  return wrapTypeScriptModule({
+    ...parts,
+    body: fns ? `${fns}${parts.body}` : parts.body,
+  });
 }
 
 function emitMapsGet(ast: Extract<ExprAst, { kind: "call" }>, args: string[]): string {
@@ -806,7 +864,7 @@ export function generateTypeScriptFromSkeleton(
   if (!usesOpenEhrProduct(model, { skeleton })) {
     return generateTypeScriptFromSlots(model);
   }
-  const ctx = createTsEmitContext();
+  const ctx = createTsEmitContext("sourceCtx.data", model.functions);
   const slotMap = new Map(model.slots.map((s) => [s.slotId, s]));
   const loops = model.loops ?? [];
   const roots = skeleton
@@ -827,14 +885,14 @@ export function generateTypeScriptFromSkeleton(
     body = "const composition = new COMPOSITION({});\nreturn composition;";
   }
 
-  return wrapTypeScriptModule({
+  return wrapTsWithFunctions({
     templateId: model.templateId,
     body,
     types: ctx.types,
     helpers: ctx.helpers,
     rootType,
     source: "skeleton",
-  });
+  }, ctx);
 }
 
 function emitSkeletonNode(
@@ -1061,21 +1119,21 @@ export function generateTypeScriptFromCanvasExpression(
   model: MappingModel,
   expression: string,
 ): string {
-  const ctx = createTsEmitContext();
+  const ctx = createTsEmitContext("sourceCtx.data", model.functions);
   const tsExpr = emitTsExpressionSource(expression, ctx) ?? '""';
-  return wrapTypeScriptModule({
+  return wrapTsWithFunctions({
     templateId: model.templateId,
     body: `return ${tsExpr};`,
     types: ctx.types,
     helpers: ctx.helpers,
     rootType: "string",
     source: "blockly",
-  });
+  }, ctx);
 }
 
 /** Fallback when no skeleton is available (slot list only). */
 export function generateTypeScriptFromSlots(model: MappingModel): string {
-  const ctx = createTsEmitContext();
+  const ctx = createTsEmitContext("sourceCtx.data", model.functions);
   const openEhr = usesOpenEhrProduct(model);
   if (openEhr) ctx.types.add("COMPOSITION");
   const lines: string[] = [];
@@ -1096,13 +1154,13 @@ export function generateTypeScriptFromSlots(model: MappingModel): string {
   } else {
     lines.push("return values;");
   }
-  return wrapTypeScriptModule({
+  return wrapTsWithFunctions({
     templateId: model.templateId,
     body: lines.join("\n"),
     types: ctx.types,
     helpers: ctx.helpers,
     rootType: openEhr ? "COMPOSITION" : undefined,
     source: "slots",
-  });
+  }, ctx);
 }
 

@@ -3,6 +3,7 @@
  * the default top-left MutatorIcon is not the visible control.
  */
 import { assert, assertEquals } from "@std/assert";
+import * as enMsg from "blockly/msg/en";
 import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { initBlocklyGenerators } from "@intehrgrator/blockly/mod.ts";
 import { BLOCK_OUT_EMOJI_FIELD } from "@intehrgrator/blockly/rm_type_emoji.ts";
@@ -16,6 +17,9 @@ import { MAPS_CREATE_WITH } from "@intehrgrator/core/defaults/extract.ts";
 let ready = false;
 function ensure(): void {
   if (ready) return;
+  const anyMod = enMsg as { default?: Record<string, string> } & Record<string, string>;
+  const table = anyMod.default && typeof anyMod.default === "object" ? anyMod.default : anyMod;
+  Blockly.setLocale(table);
   initBlocklyGenerators();
   ready = true;
 }
@@ -102,6 +106,17 @@ Deno.test("procedures_callreturn has no mutator cog (call sites are not mutators
   const call = ws.newBlock("procedures_callreturn");
   assertEquals(blockHasMutator(call), false);
   assertEquals(call.getField(MUTATOR_COG_FIELD), null);
+  ws.dispose();
+});
+
+Deno.test("dropdown-only list blocks do not get a fake mutator cogwheel", () => {
+  ensure();
+  const ws = new Blockly.Workspace();
+  for (const type of ["lists_getIndex", "lists_getSublist", "lists_split", "text_charAt", "math_number_property"]) {
+    const block = ws.newBlock(type);
+    assertEquals(blockHasMutator(block), false, `${type} is not a MutatorIcon block`);
+    assertEquals(block.getField(MUTATOR_COG_FIELD), null, `${type} has no header cog`);
+  }
   ws.dispose();
 });
 

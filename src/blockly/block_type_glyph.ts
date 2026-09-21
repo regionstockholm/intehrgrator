@@ -191,15 +191,16 @@ const STOCK_GLYPH_BLOCK_TYPES = [
   "lists_split",
   "lists_sort",
   "lists_reverse",
+  "text_charAt",
+  "math_number_property",
+  "math_on_list",
   "procedures_callreturn",
 ] as const;
 
+/** Stock blocks whose JSON/init installs a MutatorIcon (compose/decompose dialog). */
 const STOCK_MUTATOR_COG_TYPES = new Set([
   "text_join",
   "lists_create_with",
-  "lists_getIndex",
-  "lists_getSublist",
-  "lists_split",
 ]);
 
 const stockGlyphPatches = new Set<string>();
@@ -213,26 +214,27 @@ export function registerStockBlocklyGlyphs(): void {
     const originalInit = def.init as (this: Block) => void;
     def.init = function (this: Block) {
       originalInit.call(this);
+      if (STOCK_MUTATOR_COG_TYPES.has(type)) ensureHeaderMutatorCog(this);
       ensureBlockOutputHeaderGlyph(this);
       decorateValueInputGlyphs(this);
       if (blockTypeUsesMouthLayout(type)) enforceMouthCaptionLayout(this);
-      if (STOCK_MUTATOR_COG_TYPES.has(type)) ensureHeaderMutatorCog(this);
     };
-    const originalUpdate = def.updateShape_ as ((this: Block) => void) | undefined;
-    if (typeof originalUpdate === "function" && blockTypeUsesMouthLayout(type)) {
-      def.updateShape_ = function (this: Block) {
-        originalUpdate.call(this);
-        ensureBlockOutputHeaderGlyph(this);
-        enforceMouthCaptionLayout(this);
+    const originalUpdate = def.updateShape_ as ((this: Block, ...args: unknown[]) => void) | undefined;
+    if (typeof originalUpdate === "function") {
+      def.updateShape_ = function (this: Block, ...args: unknown[]) {
+        originalUpdate.apply(this, args);
         if (STOCK_MUTATOR_COG_TYPES.has(type)) ensureHeaderMutatorCog(this);
+        ensureBlockOutputHeaderGlyph(this);
+        if (blockTypeUsesMouthLayout(type)) enforceMouthCaptionLayout(this);
       };
     }
-    const originalUpdateAt = def.updateAt_ as ((this: Block, hasAt: boolean) => void) | undefined;
-    if (typeof originalUpdateAt === "function" && blockTypeUsesMouthLayout(type)) {
-      def.updateAt_ = function (this: Block, hasAt: boolean) {
-        originalUpdateAt.call(this, hasAt);
+    const originalUpdateAt = def.updateAt_ as ((this: Block, ...args: unknown[]) => void) | undefined;
+    if (typeof originalUpdateAt === "function") {
+      def.updateAt_ = function (this: Block, ...args: unknown[]) {
+        originalUpdateAt.apply(this, args);
+        if (STOCK_MUTATOR_COG_TYPES.has(type)) ensureHeaderMutatorCog(this);
         ensureBlockOutputHeaderGlyph(this);
-        enforceMouthCaptionLayout(this);
+        if (blockTypeUsesMouthLayout(type)) enforceMouthCaptionLayout(this);
       };
     }
     stockGlyphPatches.add(type);

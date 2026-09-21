@@ -273,7 +273,7 @@ export function padBeforeTrailingChrome_(row: {
 }, missingSpace: number): boolean {
   if (!row?.elements || missingSpace <= 0) return false;
   const chromeAt = firstTrailingChromeElementIndex_(row.elements);
-  if (chromeAt <= 0) return false;
+  if (chromeAt < 0) return false;
   for (let i = chromeAt - 1; i >= 0; i--) {
     const el = row.elements[i];
     if (el?.field) continue;

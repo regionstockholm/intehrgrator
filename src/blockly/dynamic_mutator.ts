@@ -5,10 +5,12 @@
 import type { Block, BlockSvg, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 import {
-  chromeHostInput,
+  enforceMouthCaptionLayout,
   ensureClassChromeHeader,
   MUTATOR_COG_FIELD,
+  mutatorChromeHost,
   orderHeaderTrailingChrome,
+  relocateTrailingChromeToHost,
 } from "./mouth_layout.ts";
 
 const MutatorIcon = Blockly.icons.MutatorIcon;
@@ -50,15 +52,16 @@ export function appendMutatorCogwheel(
 
 /** Dummy row that receives the header cog: HEADER, else the NAME row (Functions). */
 export function mutatorCogHost(block: Block): Input {
-  return chromeHostInput(block) ?? ensureClassChromeHeader(block);
+  return mutatorChromeHost(block);
 }
 
 /**
- * Header cogwheel used by RM / maps / stock `text_join` and `lists_create_with`.
+ * Header cogwheel used by RM / maps / stock MutatorIcon blocks.
  * Keeps the MutatorIcon for the bubble, but hides Blockly's default top-left badge.
  */
 export function ensureHeaderMutatorCog(block: Block): void {
   const host = mutatorCogHost(block);
+  relocateTrailingChromeToHost(block, host);
   if (!block.getField(MUTATOR_COG_FIELD)) appendMutatorCogwheel(host);
   hideDefaultMutatorIcon(block);
   orderHeaderTrailingChrome(block);
@@ -524,9 +527,11 @@ export function registerDynamicFlyoutMutator(
 const STOCK_MUTATOR_TITLE_TYPES = new Set(["text_join", "lists_create_with"]);
 const chromeWrapped = new Set<string>();
 let mutatorIconPatched = false;
+let setMutatorFlagPatched = false;
 
 /** Canvas blocks that own a MutatorIcon / decompose (not flyout quark items). */
 export function blockHasMutator(block: Block): boolean {
+  if ((block as { hasMutatorIcon_?: boolean }).hasMutatorIcon_) return true;
   const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
   const svg = block as BlockSvg;
   if (MutatorIconType && svg.getIcon?.(MutatorIconType)) return true;
@@ -552,12 +557,10 @@ export function promoteStockMutatorTitle(block: Block): void {
       return true;
     });
     for (const field of movable) {
-      try {
-        input.removeField(field.name);
-      } catch {
-        continue;
-      }
-      header.appendField(field, field.name);
+      const idx = input.fieldRow.indexOf(field);
+      if (idx < 0) continue;
+      input.fieldRow.splice(idx, 1);
+      header.fieldRow.push(field);
     }
     if (inputName === "EMPTY" && input.fieldRow.length === 0 && !input.connection) {
       block.removeInput("EMPTY", true);
@@ -569,6 +572,7 @@ export function promoteStockMutatorTitle(block: Block): void {
 
 /** Patch stock MutatorIcon so the bubble anchors on MUTATOR_COG and takes no top-left slot. */
 export function patchMutatorIconAnchor(): void {
+  patchSetMutatorFlag();
   const Icon = Blockly.icons?.MutatorIcon;
   if (!Icon?.prototype || mutatorIconPatched) return;
   mutatorIconPatched = true;
@@ -589,10 +593,22 @@ export function patchMutatorIconAnchor(): void {
   };
 }
 
+function patchSetMutatorFlag(): void {
+  const proto = Blockly.Block?.prototype;
+  if (!proto?.setMutator || setMutatorFlagPatched) return;
+  setMutatorFlagPatched = true;
+  const original = proto.setMutator;
+  proto.setMutator = function (this: Block, mutator: unknown) {
+    (this as { hasMutatorIcon_?: boolean }).hasMutatorIcon_ = true;
+    return original.call(this, mutator);
+  };
+}
+
 function afterMutatorBlockInit(block: Block): void {
   if (blockHasMutator(block)) {
     ensureHeaderMutatorCog(block);
     promoteStockMutatorTitle(block);
+    enforceMouthCaptionLayout(block);
   }
   orderHeaderTrailingChrome(block);
   hideDefaultMutatorIcon(block);
@@ -620,17 +636,18 @@ export function installHeaderMutatorChrome(): void {
     };
     wrapAfterInit(def as { [key: string]: unknown }, "updateShape_");
     wrapAfterInit(def as { [key: string]: unknown }, "updateParams_");
+    wrapAfterInit(def as { [key: string]: unknown }, "updateAt_");
   }
 }
 
 function wrapAfterInit(
   def: { [key: string]: unknown },
-  method: "updateShape_" | "updateParams_",
+  method: "updateShape_" | "updateParams_" | "updateAt_",
 ): void {
   const original = def[method];
   if (typeof original !== "function") return;
-  def[method] = function (this: Block) {
-    (original as (this: Block) => void).call(this);
+  def[method] = function (this: Block, ...args: unknown[]) {
+    (original as (this: Block, ...args: unknown[]) => void).apply(this, args);
     afterMutatorBlockInit(this);
   };
 }

@@ -89,7 +89,9 @@ export function blockTypeUsesMouthLayout(type: string): boolean {
 
 /**
  * Dummy row that carries title + trailing cog/type-glyph. HEADER when present;
- * otherwise the NAME dummy (stock Functions).
+ * otherwise the NAME dummy (stock Functions). Falls back to the first dummy so
+ * non-mutator stock blocks (logic_compare, lists_getIndex) can still host a
+ * type glyph without inventing a HEADER bar.
  */
 export function chromeHostInput(block: Block): Input | undefined {
   const header = block.getInput("HEADER");
@@ -102,26 +104,51 @@ export function chromeHostInput(block: Block): Input | undefined {
 }
 
 /**
+ * Mutator cog belongs on HEADER (or the Functions NAME row), never on a random
+ * dummy such as lists_getIndex MODE. Creates HEADER when needed.
+ */
+export function mutatorChromeHost(block: Block): Input {
+  const header = block.getInput("HEADER");
+  if (header) return header;
+  const named = block.inputList.find((input) =>
+    !input.connection && input.fieldRow.some((field) => field.name === "NAME")
+  );
+  if (named) return named;
+  return ensureClassChromeHeader(block);
+}
+
+/** Move cog / type-glyph onto `host` without Input.removeField (that disposes). */
+export function relocateTrailingChromeToHost(block: Block, host: Input): void {
+  for (const name of [MUTATOR_COG_FIELD, OUTPUT_GLYPH_FIELD]) {
+    const field = block.getField(name);
+    if (!field || host.fieldRow.includes(field)) continue;
+    for (const input of block.inputList) {
+      const idx = input.fieldRow.indexOf(field);
+      if (idx < 0) continue;
+      input.fieldRow.splice(idx, 1);
+      host.fieldRow.push(field);
+      break;
+    }
+  }
+}
+
+/**
  * Put MUTATOR_COG then the output type glyph at the end of the chrome row so
  * the compact renderer can pack leftover width in front of them (far right).
  */
 export function orderHeaderTrailingChrome(block: Block): void {
   const host = chromeHostInput(block);
   if (!host) return;
-  const trailing: Array<{ field: (typeof host.fieldRow)[number]; name: string }> = [];
-  for (const name of [MUTATOR_COG_FIELD, OUTPUT_GLYPH_FIELD]) {
-    const field = host.fieldRow.find((item) => item.name === name);
-    if (field) trailing.push({ field, name });
-  }
+  const trailing = [MUTATOR_COG_FIELD, OUTPUT_GLYPH_FIELD]
+    .map((name) => host.fieldRow.find((item) => item.name === name))
+    .filter((field): field is (typeof host.fieldRow)[number] => Boolean(field));
   if (!trailing.length) return;
-  for (const { name } of trailing) {
-    try {
-      host.removeField(name);
-    } catch {
-      // Already detached.
-    }
+  const rest = host.fieldRow.filter((field) => !isTrailingChromeFieldName(field.name));
+  const ordered = [...rest, ...trailing];
+  if (ordered.length === host.fieldRow.length && ordered.every((field, i) => field === host.fieldRow[i])) {
+    return;
   }
-  for (const { field, name } of trailing) {
-    host.appendField(field, name);
-  }
+  // Reorder in place. Input.removeField disposes the field, so it cannot be re-appended.
+  host.fieldRow.length = 0;
+  host.fieldRow.push(...ordered);
 }

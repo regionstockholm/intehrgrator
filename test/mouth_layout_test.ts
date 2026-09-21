@@ -150,6 +150,18 @@ Deno.test("renderer leftover splices a spacer when chrome has no leftover elemen
   assertEquals(row.elements[2]?.field?.name, "MUTATOR_COG");
 });
 
+Deno.test("renderer leftover still pushes chrome right when the cog is the first field", () => {
+  const row = {
+    elements: [
+      { field: { name: "MUTATOR_COG" } },
+      { field: { name: "RM_OUT_EMOJI" } },
+    ],
+  };
+  assertEquals(padBeforeTrailingChrome_(row, 48), true);
+  assertEquals(row.elements[0], { width: 48 });
+  assertEquals(row.elements[1]?.field?.name, "MUTATOR_COG");
+});
+
 Deno.test("renderer pins ordinary mouth captions, not only FieldSlotLabel", () => {
   const plain = { field: { name: "TEXT" } };
   assertEquals(

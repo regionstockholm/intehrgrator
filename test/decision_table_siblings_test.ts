@@ -11,8 +11,13 @@ import {
   chemoDecisionSheets,
   lungMdtDecisionSheets,
 } from "../scripts/decision_table_example_sheets.ts";
-import { ensureGoTemplateWasm } from "@intehrgrator/core/output/go_template_runtime.ts";
-import type { TestResult } from "@intehrgrator/types/mod.ts";
+import { ensureGoTemplateWasm, executeGoTemplate } from "@intehrgrator/core/output/go_template_runtime.ts";
+import {
+  executeEnvelopeParameters,
+  parseJsonDocument,
+  unwrapExecuteEnvelope,
+} from "@intehrgrator/core/source/json_document.ts";
+import type { OutputMode, TestResult } from "@intehrgrator/types/mod.ts";
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 const catalogPath = join(root, "examples", "example-sets.json");
@@ -24,8 +29,9 @@ function normalizeWs(text: string): string {
 
 function keywordPairs(xml: string): Array<{ termId: string; note: string }> {
   const pairs: Array<{ termId: string; note: string }> = [];
+  // PROD inserts `<!-- … -->` between <TextKeyWord> and <TermId>.
   const re =
-    /<TextKeyWord>\s*<TermId>\s*([^<]*?)\s*<\/TermId>\s*<Note>([\s\S]*?)<\/Note>\s*<\/TextKeyWord>/gi;
+    /<TextKeyWord>(?:[\s\S]*?)<TermId>\s*([^<]*?)\s*<\/TermId>(?:[\s\S]*?)<Note>([\s\S]*?)<\/Note>[\s\S]*?<\/TextKeyWord>/gi;
   for (const match of xml.matchAll(re)) {
     pairs.push({ termId: match[1]!.trim(), note: normalizeWs(match[2] ?? "") });
   }
@@ -43,7 +49,7 @@ function outputText(output: unknown): string {
 
 async function runMapped(
   setId: string,
-  outputMode: "handlebars" | "go-template" | "typescript",
+  outputMode: OutputMode,
   filename?: string,
 ): Promise<TestResult> {
   const service = new WorkbenchService();
@@ -119,10 +125,10 @@ Deno.test("#70 lung-MDT sibling TermIds and Notes match gold (whitespace-normali
     "2-mdt-review-smoker-ultrasound.json",
   ];
   for (const filename of files) {
-    const gold = await runMapped("lung-mdt-form-to-tc-xml", "handlebars", filename);
+    const gold = await runMapped("lung-mdt-form-to-tc-xml", "preview", filename);
     const sibling = await runMapped(
       "lung-mdt-form-to-tc-xml-decision-tables",
-      "handlebars",
+      "preview",
       filename,
     );
     assertEquals(gold.error, undefined, `${filename} gold: ${gold.error}`);
@@ -139,30 +145,38 @@ Deno.test("#70 lung-MDT sibling TermIds and Notes match gold (whitespace-normali
   }
 });
 
-Deno.test("#70 chemo sibling TermIds and Notes match gold (whitespace-normalized)", async () => {
+Deno.test("#70 chemo sibling TermIds and Notes match PROD script (whitespace-normalized)", async () => {
   await ensureGoTemplateWasm();
+  const prodScript = Deno.readTextFileSync(
+    join(fixtures, "patient-reported-chemotherapy-symptoms", "mapping", "Mappningsscript 1.9.1 - PROD.txt"),
+  );
   const files = [
     "1. Ex.composition.txt",
     "3. Ex.composition (Full).txt",
     "6. Ex.composition (Nightly).txt",
   ];
   for (const filename of files) {
-    const gold = await runMapped("chemo-symptoms-flat-to-tc-xml", "go-template", filename);
+    const source = Deno.readTextFileSync(
+      join(fixtures, "patient-reported-chemotherapy-symptoms", "source-instance", filename),
+    );
+    const parsed = parseJsonDocument(source);
+    const prodXml = executeGoTemplate(prodScript, {
+      Parameters: executeEnvelopeParameters(parsed) ?? {},
+      Data: unwrapExecuteEnvelope(parsed),
+    });
     const sibling = await runMapped(
       "chemo-symptoms-flat-to-tc-xml-decision-tables",
       "go-template",
       filename,
     );
-    assertEquals(gold.error, undefined, `${filename} gold: ${gold.error}`);
     assertEquals(sibling.error, undefined, `${filename} sibling: ${sibling.error}`);
-    assertEquals(gold.ok, true, `${filename} gold not ok`);
     assertEquals(sibling.ok, true, `${filename} sibling not ok`);
-    const goldPairs = keywordPairs(outputText(gold.output));
+    const prodPairs = keywordPairs(prodXml);
     const siblingPairs = keywordPairs(outputText(sibling.output));
     assertEquals(
       siblingPairs,
-      goldPairs,
-      `${filename}\ngold=${JSON.stringify(goldPairs, null, 2)}\nsibling=${JSON.stringify(siblingPairs, null, 2)}`,
+      prodPairs,
+      `${filename}\nprod=${JSON.stringify(prodPairs, null, 2)}\nsibling=${JSON.stringify(siblingPairs, null, 2)}`,
     );
   }
 });

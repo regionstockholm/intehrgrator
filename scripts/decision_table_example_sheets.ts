@@ -118,11 +118,11 @@ export function chemoDecisionSheets(): SheetDocument[] {
       ["—", ""],
     ], 1, 1),
     firstValue("swelling_note", ["code", "snippet"], [
-      ["at0.3", "Svåra besvär, svårt att röra sig. Patientens kommentar angående lokalisation: {{location}}."],
-      ["—", "{{severity}}. Patientens kommentar angående lokalisation: {{location}}."],
+      ["at0.3", "Svåra besvär, svårt att röra sig. Patientens kommentar angående lokalisation: \"{{location}}\"."],
+      ["—", "{{severity}}. Patientens kommentar angående lokalisation: \"{{location}}\"."],
     ], 1, 1),
     firstValue("itch_note", ["treated", "snippet"], [
-      ["Ja", "{{severity}}. Patientens kommentar angående egen behandling: {{treatment}}."],
+      ["Ja", "{{severity}}. Patientens kommentar angående egen behandling: \"{{treatment}}\"."],
       ["—", "{{severity}}."],
     ], 1, 1),
   ];

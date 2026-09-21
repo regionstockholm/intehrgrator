@@ -47,11 +47,11 @@
     "values": [
       [
         "at0.3",
-        "Svåra besvär, svårt att röra sig. Patientens kommentar angående lokalisation: {{location}}."
+        "Svåra besvär, svårt att röra sig. Patientens kommentar angående lokalisation: \"{{location}}\"."
       ],
       [
         "—",
-        "{{severity}}. Patientens kommentar angående lokalisation: {{location}}."
+        "{{severity}}. Patientens kommentar angående lokalisation: \"{{location}}\"."
       ]
     ],
     "columnTypes": [
@@ -85,7 +85,7 @@
     "values": [
       [
         "Ja",
-        "{{severity}}. Patientens kommentar angående egen behandling: {{treatment}}."
+        "{{severity}}. Patientens kommentar angående egen behandling: \"{{treatment}}\"."
       ],
       [
         "—",

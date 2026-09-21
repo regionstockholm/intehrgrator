@@ -10,6 +10,7 @@ import {
   initBlocklyGenerators,
   loadSkeletonIntoWorkspace,
   migrateForEachSourceState,
+  registerSchemaBlocksFromSkeleton,
   workspaceToModelJson,
 } from "../blockly/mod.ts";
 import type { MappingModelExtract } from "../blockly/mapping_ir.ts";
@@ -23,13 +24,20 @@ function ensureGenerators(): void {
   generatorsReady = true;
 }
 
+/** Register schema-generated block types (TakeCare XSD, JSON Schema, …) before load. */
+export function ensureSchemaBlocksForSkeleton(skeleton: SkeletonNode[]): void {
+  ensureGenerators();
+  if (skeleton.length) registerSchemaBlocksFromSkeleton(skeleton);
+}
+
 /** Apply Mapping Model expressions and loops onto a Blockly workspace snapshot. */
 export function syncModelToBlocklyState(
   blocklyState: unknown,
   model: MappingModel,
+  skeleton: SkeletonNode[] = [],
 ): unknown {
   if (!blocklyState || typeof blocklyState !== "object") return blocklyState;
-  ensureGenerators();
+  ensureSchemaBlocksForSkeleton(skeleton);
   const workspace = new Blockly.Workspace();
   try {
     Blockly.serialization.workspaces.load(
@@ -77,6 +85,47 @@ export function scaffoldBlocklyFromSkeleton(
       options?.targetFormat,
       { factory: !options?.defaultsMap },
     );
+    return {
+      blocklyState: Blockly.serialization.workspaces.save(workspace),
+      extract: workspaceToModelJson(workspace),
+    };
+  } finally {
+    workspace.dispose();
+  }
+}
+
+/**
+ * Keep a catalog / imported Blockly mapping and extract the Mapping Model from
+ * it. Do not apply an empty model back onto the canvas (that wipes mouths).
+ */
+export function adoptBlocklyState(
+  blocklyState: unknown,
+  skeleton: SkeletonNode[],
+  options?: {
+    defaultsMap?: unknown;
+    uiLanguage?: string;
+    targetFormat?: TargetFormatId;
+  },
+): { blocklyState: unknown; extract: MappingModelExtract } {
+  if (!blocklyState || typeof blocklyState !== "object") {
+    throw new Error("adoptBlocklyState requires Blockly workspace JSON");
+  }
+  ensureSchemaBlocksForSkeleton(skeleton);
+  const workspace = new Blockly.Workspace();
+  const uiLanguage = options?.uiLanguage ?? "en";
+  try {
+    Blockly.serialization.workspaces.load(
+      migrateForEachSourceState(JSON.parse(JSON.stringify(blocklyState))) as Record<string, unknown>,
+      workspace,
+    );
+    if (options?.defaultsMap) {
+      hydrateDefaultsMapArgument(
+        workspace,
+        options.defaultsMap,
+        uiLanguage,
+        options.targetFormat,
+      );
+    }
     return {
       blocklyState: Blockly.serialization.workspaces.save(workspace),
       extract: workspaceToModelJson(workspace),

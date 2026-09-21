@@ -342,45 +342,37 @@ Deno.test("Agent API Conversion Test Run on local mapped catalog Example Sets", 
       assert(generated.code.length > 80, `${spec.setId} empty TypeScript Conversion Script`);
 
       const runnable = tree.examples.filter((ex) => !NAME_BROKEN.test(ex.filename));
-      await callAgentTool(service, "set_active_example", { id: runnable[0]!.id });
-      if (spec.ts) {
-        const ts = await runMode(service, "typescript");
-        if (ts.error || !ts.ok) {
-          failures.push(`${spec.setId} typescript ${runnable[0]!.filename}: ${ts.error ?? outputText(ts.output).slice(0, 400)}`);
-        } else {
-          const text = outputText(ts.output);
-          for (const needle of spec.expect) {
-            if (!text.includes(needle)) {
-              failures.push(`${spec.setId} typescript missing ${needle}`);
+      for (let i = 0; i < runnable.length; i++) {
+        const ex = runnable[i]!;
+        await callAgentTool(service, "set_active_example", { id: ex.id });
+        if (spec.ts) {
+          const ts = await runMode(service, "typescript");
+          if (ts.error || !ts.ok) {
+            failures.push(`${spec.setId} typescript ${ex.filename}: ${ts.error ?? outputText(ts.output).slice(0, 400)}`);
+          } else if (i === 0) {
+            const text = outputText(ts.output);
+            for (const needle of spec.expect) {
+              if (!text.includes(needle)) {
+                failures.push(`${spec.setId} typescript missing ${needle}`);
+              }
             }
           }
         }
-      }
-      if (spec.extra) {
-        const extra = await runMode(service, spec.extra);
-        if (extra.error || !extra.ok) {
-          failures.push(
-            `${spec.setId} ${spec.extra} ${runnable[0]!.filename}: ${extra.error ?? outputText(extra.output).slice(0, 400)}`,
-          );
-        } else {
-          const text = outputText(extra.output);
-          const needles = spec.extraExpect ?? spec.expect;
-          for (const needle of needles) {
-            if (!text.includes(needle)) {
-              failures.push(`${spec.setId} ${spec.extra} missing ${needle}`);
+        if (spec.extra && i === 0) {
+          const extra = await runMode(service, spec.extra);
+          if (extra.error || !extra.ok) {
+            failures.push(
+              `${spec.setId} ${spec.extra} ${ex.filename}: ${extra.error ?? outputText(extra.output).slice(0, 400)}`,
+            );
+          } else {
+            const text = outputText(extra.output);
+            const needles = spec.extraExpect ?? spec.expect;
+            for (const needle of needles) {
+              if (!text.includes(needle)) {
+                failures.push(`${spec.setId} ${spec.extra} missing ${needle}`);
+              }
             }
           }
-        }
-      }
-
-      const nightly = runnable.find((ex) => /nightly|inst-4|epoch-millis|instance-3/i.test(ex.filename)) ??
-        runnable[runnable.length - 1];
-      if (nightly && nightly.id !== runnable[0]!.id) {
-        await callAgentTool(service, "set_active_example", { id: nightly.id });
-        const mode: OutputMode = spec.extra ?? "typescript";
-        const extra = await runMode(service, mode);
-        if (extra.error || !extra.ok) {
-          failures.push(`${spec.setId} extra instance ${nightly.filename} ${mode}: ${extra.error}`);
         }
       }
     } catch (err) {

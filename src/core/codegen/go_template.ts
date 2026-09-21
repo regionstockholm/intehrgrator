@@ -3,10 +3,12 @@
  *
  * Emits Go text/template syntax with a curated Sprig-subset FuncMap:
  * replace, regexReplaceAll, trim, quote, lower, substr, int, plus host-bound
- * `handlebars` / `dict` for canvas VMS-Hbs.
+ * `handlebars` / `dict` for canvas VMS-Hbs and `decisionTable` / `sheetLookup`
+ * for convert-time Sheets (ADR 0005 / #70).
  *
  * Execute context shape: { Parameters: defaults, Data: sourceInstance }.
  * Source queries become {{ index .Data "flat/path|value" }}.
+ * JSONPath `$.['flat/key|value']` unwraps to a single Data index.
  * Defaults Map lookups become {{ .Parameters.Key }}.
  *
  * Full Blockly canvas walking (loops, expressions, JSON/XML/schema trees) lives
@@ -143,6 +145,21 @@ function serializeBlockNodeExpression(block: BlockNode | undefined): string | nu
       const script = serializeBlockNodeExpression(inputChild(block.inputs?.SCRIPT)) ?? '""';
       const context = serializeBlockNodeExpression(inputChild(block.inputs?.CONTEXT)) ?? "map()";
       return `handlebars(${script}, ${context})`;
+    }
+    case "decision_table": {
+      const name = String(block.fields?.NAME ?? "Decision1");
+      const inputs = serializeBlockNodeExpression(inputChild(block.inputs?.INPUTS)) ?? "map()";
+      const output = String(block.fields?.OUTPUT ?? "out");
+      return `decision_table(${JSON.stringify(name)}, ${inputs}, ${JSON.stringify(output)})`;
+    }
+    case "sheet_lookup": {
+      const name = String(block.fields?.NAME ?? "Sheet1");
+      const col = serializeBlockNodeExpression(inputChild(block.inputs?.MATCH_COL)) ?? '""';
+      const val = serializeBlockNodeExpression(inputChild(block.inputs?.MATCH_VAL)) ?? '""';
+      const ret = serializeBlockNodeExpression(inputChild(block.inputs?.RETURN_COL));
+      return ret
+        ? `sheet_lookup(${JSON.stringify(name)}, ${col}, ${val}, ${ret})`
+        : `sheet_lookup(${JSON.stringify(name)}, ${col}, ${val})`;
     }
     default:
       return null;
@@ -341,7 +358,7 @@ export function emitValueExpression(
 }
 
 function emitValueFromSerialized(block: BlockNode, ctx: GoEmitContext): string[] | null {
-  const serialized = blockNodeToExpression(block);
+  const serialized = serializeBlockNodeExpression(block) ?? blockNodeToExpression(block);
   if (!serialized) return null;
   return [emitGoExpressionTemplate(parseExpression(serialized), ctx)];
 }
@@ -826,23 +843,23 @@ export function emitGoExpr(ast: ExprAst, ctx: GoEmitContext = createGoEmitContex
         case "var":
           return `.`;
         case "eq":
-          return `eq (${args[0]}) (${args[1]})`;
+          return `(eq (${args[0]}) (${args[1]}))`;
         case "ne":
-          return `ne (${args[0]}) (${args[1]})`;
+          return `(ne (${args[0]}) (${args[1]}))`;
         case "lt":
-          return `lt (${args[0]}) (${args[1]})`;
+          return `(lt (${args[0]}) (${args[1]}))`;
         case "le":
-          return `le (${args[0]}) (${args[1]})`;
+          return `(le (${args[0]}) (${args[1]}))`;
         case "gt":
-          return `gt (${args[0]}) (${args[1]})`;
+          return `(gt (${args[0]}) (${args[1]}))`;
         case "ge":
-          return `ge (${args[0]}) (${args[1]})`;
+          return `(ge (${args[0]}) (${args[1]}))`;
         case "and":
-          return `and (${args[0]}) (${args[1]})`;
+          return `(and (${args[0]}) (${args[1]}))`;
         case "or":
-          return `or (${args[0]}) (${args[1]})`;
+          return `(or (${args[0]}) (${args[1]}))`;
         case "not":
-          return `not (${args[0]})`;
+          return `(not (${args[0]}))`;
         case "add":
           return `(${args[0]} + ${args[1]})`;
         case "subtract":
@@ -863,9 +880,20 @@ export function emitGoExpr(ast: ExprAst, ctx: GoEmitContext = createGoEmitContex
         case "sheet_get_column":
         case "sheet_get_header":
         case "sheet_get_data":
-        case "sheet_lookup":
-        case "decision_table":
-          return `index .Sheets ${goQuote(ast.name)}`;
+          return `/* ${ast.name} not available in Go template */`;
+        case "sheet_lookup": {
+          const name = args[0] ?? `""`;
+          const col = args[1] ?? `""`;
+          const val = args[2] ?? `""`;
+          const ret = args[3] ?? `""`;
+          return `sheetLookup ${name} ${col} ${val} ${ret}`;
+        }
+        case "decision_table": {
+          const name = args[0] ?? `""`;
+          const inputs = args[1] ?? "(dict)";
+          const output = args[2] ?? `""`;
+          return `decisionTable ${name} ${inputs} ${output}`;
+        }
         case "handlebars":
           return `handlebars ${args[0] ?? '""'} ${args[1] ?? "(dict)"}`;
         case "map":
@@ -889,15 +917,51 @@ function emitXPathGo(pathArg: ExprAst | undefined, ctx: GoEmitContext): string {
   return `(index .Data ${goQuote(path)})`;
 }
 
-function jsonPathToGoIndex(path: string): string {
-  const body = path.replace(/^\$\.?/, "").replace(/\[(\d+|\*)\]/g, ".$1");
-  const segments = body.split(".").filter(Boolean);
+/** JSONPath `$.a.b[0]['flat/key|value']` → chained `index .Data …`. */
+export function jsonPathToGoIndex(path: string): string {
+  const segments = jsonPathSegments(path);
   if (!segments.length) return `index .Data ""`;
   let expr = ".Data";
   for (const seg of segments) {
     expr = `index ${expr} ${goQuote(seg)}`;
   }
   return expr;
+}
+
+function jsonPathSegments(path: string): string[] {
+  const body = path.replace(/^\$\.?/, "");
+  const segments: string[] = [];
+  let i = 0;
+  while (i < body.length) {
+    const ch = body[i];
+    if (ch === ".") {
+      i++;
+      continue;
+    }
+    if (ch === "[") {
+      const close = body.indexOf("]", i);
+      if (close < 0) {
+        segments.push(body.slice(i));
+        break;
+      }
+      const inner = body.slice(i + 1, close).trim();
+      if (
+        (inner.startsWith("'") && inner.endsWith("'")) ||
+        (inner.startsWith('"') && inner.endsWith('"'))
+      ) {
+        segments.push(inner.slice(1, -1).replace(/\\(['"\\])/g, "$1"));
+      } else {
+        segments.push(inner);
+      }
+      i = close + 1;
+      continue;
+    }
+    let j = i;
+    while (j < body.length && body[j] !== "." && body[j] !== "[") j++;
+    if (j > i) segments.push(body.slice(i, j));
+    i = j;
+  }
+  return segments.filter((seg) => seg.length > 0);
 }
 
 function emitQuantifierGo(ast: Extract<ExprAst, { kind: "call" }>, ctx: GoEmitContext): string {

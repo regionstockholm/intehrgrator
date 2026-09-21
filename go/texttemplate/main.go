@@ -28,14 +28,18 @@ func main() {
 
 func execute(_ js.Value, args []js.Value) any {
 	if len(args) < 2 {
-		return marshalResult(false, "", "goTextTemplateExecute(template, dataJson) requires 2 arguments")
+		return marshalResult(false, "", "goTextTemplateExecute(template, dataJson[, sheetsJson]) requires 2 arguments")
 	}
 	source := args[0].String()
 	dataJSON := args[1].String()
+	sheetsJSON := "{}"
+	if len(args) >= 3 && args[2].Type() == js.TypeString && args[2].String() != "" {
+		sheetsJSON = args[2].String()
+	}
 	if diags := checkSource(source); len(diags) > 0 {
 		return marshalResult(false, "", diags[0].Message)
 	}
-	output, err := render(source, dataJSON)
+	output, err := render(source, dataJSON, sheetsJSON)
 	if err != nil {
 		return marshalResult(false, "", err.Error())
 	}
@@ -106,6 +110,7 @@ var vmsGoAllowedIdents = map[string]bool{
 	"replace": true, "regexReplaceAll": true, "trim": true, "quote": true,
 	"lower": true, "upper": true, "substr": true, "int": true,
 	"handlebars": true, "dict": true,
+	"decisionTable": true, "sheetLookup": true,
 }
 
 var vmsGoForbiddenIdents = map[string]bool{
@@ -258,12 +263,21 @@ func findTemplateCycle(calls map[string][]string) string {
 	return ""
 }
 
-func render(source, dataJSON string) (string, error) {
+func render(source, dataJSON, sheetsJSON string) (string, error) {
 	var data any
 	if err := json.Unmarshal([]byte(dataJSON), &data); err != nil {
 		return "", fmt.Errorf("data JSON: %w", err)
 	}
-	tmpl, err := template.New("mapping").Option("missingkey=zero").Funcs(funcMap()).Parse(source)
+	sheets := map[string]any{}
+	if strings.TrimSpace(sheetsJSON) != "" && sheetsJSON != "null" {
+		if err := json.Unmarshal([]byte(sheetsJSON), &sheets); err != nil {
+			return "", fmt.Errorf("sheets JSON: %w", err)
+		}
+		if sheets == nil {
+			sheets = map[string]any{}
+		}
+	}
+	tmpl, err := template.New("mapping").Option("missingkey=zero").Funcs(funcMapWithSheets(sheets)).Parse(source)
 	if err != nil {
 		return "", fmt.Errorf("parse: %w", err)
 	}
@@ -275,11 +289,17 @@ func render(source, dataJSON string) (string, error) {
 }
 
 func funcMap() template.FuncMap {
+	return funcMapWithSheets(nil)
+}
+
+func funcMapWithSheets(sheets map[string]any) template.FuncMap {
 	return template.FuncMap{
 		"replace": func(old, new, src string) string {
 			return strings.ReplaceAll(src, old, new)
 		},
-		"regexReplaceAll": func(pattern, repl, src string) string {
+		// Sprig/Helm: regexReplaceAll REGEX SRC REPLACEMENT (not pipeline-last).
+		// Chemo PROD `cleanAndQuoteFreeTextInput` calls it this way.
+		"regexReplaceAll": func(pattern, src, repl string) string {
 			re, err := regexp.Compile(pattern)
 			if err != nil {
 				return src
@@ -337,7 +357,66 @@ func funcMap() template.FuncMap {
 			}
 			return result.String(), nil
 		},
+		"decisionTable": func(name any, inputs any, outputCol any) (any, error) {
+			return hostSheetCall("goTextTemplateDecisionTable", sheets, name, inputs, outputCol)
+		},
+		"sheetLookup": func(name any, matchCol any, matchVal any, returnCol any) (any, error) {
+			return hostSheetCall("goTextTemplateSheetLookup", sheets, name, matchCol, matchVal, returnCol)
+		},
 	}
+}
+
+func hostSheetCall(fnName string, sheets map[string]any, name any, args ...any) (any, error) {
+	fn := js.Global().Get(fnName)
+	if fn.Type() != js.TypeFunction {
+		return "", fmt.Errorf("%s host callback is not registered", fnName)
+	}
+	key := fmt.Sprint(name)
+	var sheet any
+	if sheets != nil {
+		sheet = sheets[key]
+	}
+	sheetJSON, err := json.Marshal(sheet)
+	if err != nil {
+		return "", err
+	}
+	payload := make([]any, 0, 1+len(args))
+	payload = append(payload, string(sheetJSON))
+	for _, arg := range args {
+		raw, marshalErr := json.Marshal(arg)
+		if marshalErr != nil {
+			return "", marshalErr
+		}
+		payload = append(payload, string(raw))
+	}
+	jsArgs := make([]any, len(payload))
+	copy(jsArgs, payload)
+	result := fn.Invoke(jsArgs...)
+	return parseHostValue(result)
+}
+
+func parseHostValue(result js.Value) (any, error) {
+	if result.Type() != js.TypeString {
+		return nil, fmt.Errorf("sheet host callback must return a JSON string")
+	}
+	var payload struct {
+		Ok    bool   `json:"ok"`
+		Value any    `json:"value"`
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal([]byte(result.String()), &payload); err != nil {
+		return nil, err
+	}
+	if !payload.Ok {
+		if payload.Error == "" {
+			return nil, fmt.Errorf("sheet host callback failed")
+		}
+		return nil, fmt.Errorf("%s", payload.Error)
+	}
+	if payload.Value == nil {
+		return "", nil
+	}
+	return payload.Value, nil
 }
 
 func toInt(v any) int {

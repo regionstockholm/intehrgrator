@@ -30,6 +30,7 @@ import {
   emitGoExpressionTemplate,
   emitGoExpr,
   goQuote,
+  jsonPathToGoIndex,
   type GoEmitContext,
 } from "../core/codegen/go_template.ts";
 import { parseExpression } from "../core/expression/mod.ts";
@@ -224,16 +225,7 @@ function emitForEachList(block: Block, ctx: GoEmitContext): string[] {
 
 function loopRangeExpr(path: string): string {
   const trimmed = path.trim();
-  if (trimmed.startsWith("$.")) {
-    const body = trimmed.replace(/^\$\.?/, "").replace(/\[(\d+|\*)\]/g, ".$1");
-    const segments = body.split(".").filter(Boolean);
-    if (!segments.length) return `index .Data ""`;
-    let expr = ".Data";
-    for (const seg of segments) {
-      expr = `index ${expr} ${goQuote(seg)}`;
-    }
-    return expr;
-  }
+  if (trimmed.startsWith("$.")) return jsonPathToGoIndex(trimmed);
   return `index .Data ${goQuote(trimmed)}`;
 }
 

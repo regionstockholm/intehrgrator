@@ -28,7 +28,7 @@ Forbidden: `lookup`, `#with`, `#log`, partials, `{{{…}}}` / `{{&}}`, `json` of
 
 ### VMS-Go whitelist
 
-Allowed: `{{.Path}}`, `{{index .Data "literal"}}`, `{{.Parameters.Key}}`, pipelines `|`, `if`/`else`/`else if`/`end`, `range` (bounded), builtins `and` `or` `not` `eq` `ne` `lt` `le` `gt` `ge` `index` `len`, FuncMap `replace` `regexReplaceAll` `trim` `quote` `lower` `upper` `substr` `int` `dict` `handlebars` (host-bound VMS-Hbs for canvas `handlebars()`), trim-markers `-`, comments, `$` root. **Static** `define`/`template` with literal names and an **acyclic** call graph (the chemo sanitizer). `$name :=` locals inside a `define` (no `$name =` reassignment).
+Allowed: `{{.Path}}`, `{{index .Data "literal"}}`, `{{.Parameters.Key}}`, pipelines `|`, `if`/`else`/`else if`/`end`, `range` (bounded), builtins `and` `or` `not` `eq` `ne` `lt` `le` `gt` `ge` `index` `len`, FuncMap `replace` `regexReplaceAll` `trim` `quote` `lower` `upper` `substr` `int` `dict` `handlebars` (host-bound VMS-Hbs for canvas `handlebars()`), `decisionTable` / `sheetLookup` (host-bound convert-time Sheets, ADR 0005), trim-markers `-`, comments, `$` root. **Static** `define`/`template` with literal names and an **acyclic** call graph (the chemo sanitizer). `$name :=` locals inside a `define` (no `$name =` reassignment). `regexReplaceAll` matches Sprig/Helm `regexReplaceAll REGEX SRC REPLACEMENT` (the sanitizer’s `$step3 := regexReplaceAll "…" $step2 ""`), not pipeline-last `src | regexReplaceAll REGEX REPL`.
 
 Forbidden: `call`, `with`, `block`, `break`/`continue`, `html`/`js`/`urlquery`/`print`/`printf`/`println`, `slice`, Helm `include`, dynamic template names, method calls on context, extra Sprig, `$x =` reassignment.
 

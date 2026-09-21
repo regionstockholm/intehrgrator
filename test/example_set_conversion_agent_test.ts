@@ -305,14 +305,14 @@ const LOCAL_MAPPED_SETS: Array<{
   {
     setId: "lung-mdt-form-to-tc-xml",
     ts: true,
-    extra: "preview",
+    extra: "handlebars",
     expect: ["6300"],
     extraExpect: ["ProfdocHISMessage", "6300"],
   },
   {
     setId: "lung-mdt-form-to-tc-xml-decision-tables",
     ts: true,
-    extra: "preview",
+    extra: "handlebars",
     expect: ["6300"],
     extraExpect: ["ProfdocHISMessage", "6300"],
   },
@@ -379,6 +379,63 @@ Deno.test("Agent API Conversion Test Run on local mapped catalog Example Sets", 
       }
     } catch (err) {
       failures.push(`${spec.setId}: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  assertEquals(failures, [], failures.join("\n"));
+});
+
+function keywordPairs(xml: string): Array<{ termId: string; note: string }> {
+  const pairs: Array<{ termId: string; note: string }> = [];
+  const re =
+    /<TextKeyWord>(?:[\s\S]*?)<TermId>\s*([^<]*?)\s*<\/TermId>(?:[\s\S]*?)<Note>([\s\S]*?)<\/Note>[\s\S]*?<\/TextKeyWord>/gi;
+  for (const match of xml.matchAll(re)) {
+    pairs.push({
+      termId: match[1]!.trim(),
+      note: (match[2] ?? "").replace(/\s+/g, " ").trim(),
+    });
+  }
+  return pairs.sort((a, b) => a.termId.localeCompare(b.termId) || a.note.localeCompare(b.note));
+}
+
+Deno.test("Handlebars Output mode executes nested Notes on lung-MDT mapped sets", async () => {
+  const failures: string[] = [];
+  for (const setId of ["lung-mdt-form-to-tc-xml", "lung-mdt-form-to-tc-xml-decision-tables"]) {
+    const service = await agent(`${setId}-hbs`);
+    await loadSet(service, setId, true);
+    const tree = await callAgentTool(service, "get_source_tree", {}) as {
+      examples: Array<{ id: string; filename: string }>;
+    };
+    for (const ex of tree.examples) {
+      await callAgentTool(service, "set_active_example", { id: ex.id });
+      const handlebars = await runMode(service, "handlebars");
+      if (handlebars.error || !handlebars.ok) {
+        failures.push(
+          `${setId} handlebars ${ex.filename}: ${handlebars.error ?? outputText(handlebars.output).slice(0, 400)}`,
+        );
+        continue;
+      }
+      const text = outputText(handlebars.output);
+      if (!text.includes("ProfdocHISMessage") || !text.includes("6300")) {
+        failures.push(`${setId} ${ex.filename} missing ProfdocHISMessage/6300`);
+      }
+      if (text.includes("{{#each") || text.includes("{{#if")) {
+        failures.push(`${setId} ${ex.filename} left nested Handlebars unevaluated`);
+      }
+      if (setId === "lung-mdt-form-to-tc-xml" && ex.filename.includes("never-smoked")) {
+        if (!text.includes("Har aldrig rökt") || !text.includes("Anna Lungläkare")) {
+          failures.push(`${setId} ${ex.filename} missing evaluated Note literals`);
+        }
+      }
+      const preview = await runMode(service, "preview");
+      if (preview.error || !preview.ok) {
+        failures.push(`${setId} preview ${ex.filename}: ${preview.error}`);
+        continue;
+      }
+      const previewIds = new Set(keywordPairs(outputText(preview.output)).map((row) => row.termId));
+      const hbsIds = new Set(keywordPairs(text).map((row) => row.termId));
+      if (!hbsIds.has("6300") || !previewIds.has("6300")) {
+        failures.push(`${setId} ${ex.filename} TermId 6300 missing preview=${[...previewIds]} hbs=${[...hbsIds]}`);
+      }
     }
   }
   assertEquals(failures, [], failures.join("\n"));

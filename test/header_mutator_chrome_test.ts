@@ -156,6 +156,15 @@ Deno.test("maps_create_with header ends with cog then Map glyph", () => {
   ws.dispose();
 });
 
+Deno.test("re-running initBlocklyGenerators keeps maps trailing chrome", () => {
+  ensure();
+  initBlocklyGenerators();
+  const ws = new Blockly.Workspace();
+  const map = ws.newBlock(MAPS_CREATE_WITH);
+  assertTrailingChrome(map, MAPS_CREATE_WITH);
+  ws.dispose();
+});
+
 Deno.test("mutator bubble anchors on the header cog, not the block origin", () => {
   ensure();
   const ws = new Blockly.Workspace();

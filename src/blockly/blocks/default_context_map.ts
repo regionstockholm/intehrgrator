@@ -259,6 +259,7 @@ const contextMapMutator = {
 export function registerDefaultContextMapBlock(): void {
   registerFieldScaffoldTargets();
   defineMutatorQuarks();
+  if (Blockly.Blocks[DEFAULT_CONTEXT_MAP_TYPE]) return;
 
   Blockly.Blocks[DEFAULT_CONTEXT_MAP_TYPE] = {
     ...contextMapMutator,

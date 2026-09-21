@@ -208,21 +208,26 @@ import { registerConversionStartBlock } from "./instance_root.ts";
 import { installCollapsedPreview } from "./field_collapsed_preview.ts";
 import { installHeaderMutatorChrome } from "./dynamic_mutator.ts";
 
+let generatorsReady = false;
+
 export function initBlocklyGenerators(): void {
-  registerRmBlocks();
-  registerTargetBlocks();
-  registerExpressionBlocks();
-  registerMapBlocks();
-  registerSheetBlocks();
-  registerDecisionTableBlocks();
-  registerTextBlocks();
-  registerConversionStartBlock();
-  registerLogicBlocks();
-  registerExtractToFunctionMenu();
-  registerGenerators();
-  registerTypeScriptExportAdapter();
-  registerGoTemplateExportAdapter();
-  installCollapsedPreview();
+  if (!generatorsReady) {
+    registerRmBlocks();
+    registerTargetBlocks();
+    registerExpressionBlocks();
+    registerMapBlocks();
+    registerSheetBlocks();
+    registerDecisionTableBlocks();
+    registerTextBlocks();
+    registerConversionStartBlock();
+    registerLogicBlocks();
+    registerExtractToFunctionMenu();
+    registerGenerators();
+    registerTypeScriptExportAdapter();
+    registerGoTemplateExportAdapter();
+    installCollapsedPreview();
+    generatorsReady = true;
+  }
   installHeaderMutatorChrome();
 }
 

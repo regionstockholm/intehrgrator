@@ -1058,7 +1058,16 @@ export class WorkbenchController {
       functions?: MappingFunction[];
     },
   ): void {
-    if (!this.templateId) return;
+    if (!this.templateId) {
+      this.blocklyState = blocklyState;
+      if (options?.functions) {
+        this.model = { ...this.model, functions: [...options.functions] };
+      }
+      this.dirty = true;
+      this.scheduleAutosave();
+      if (options?.notify !== false) this.notifyChange();
+      return;
+    }
     let next = createEmptyModel(this.templateId);
     next.targetFormat = this.target?.format;
     next.optionalRm = optionalRm ? [...optionalRm] : [...this.model.optionalRm];

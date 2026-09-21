@@ -56,6 +56,7 @@ Deno.test({
             block: api.getBlockClientRect(blockId),
             cog: api.getFieldClientRect(blockId, "MUTATOR_COG"),
             glyph: api.getFieldClientRect(blockId, "RM_OUT_EMOJI"),
+            fields: api.listBlockFields(blockId),
           };
         }, id);
         assert(block.block, `${type} has a rendered outline`);
@@ -77,7 +78,8 @@ Deno.test({
         if (block.glyph) {
           assert(
             block.glyph.x > block.cog.x,
-            `${type} type glyph stays to the right of the cog`,
+            `${type} type glyph stays to the right of the cog ` +
+              `(fields=${JSON.stringify(block.fields)} glyphX=${block.glyph.x.toFixed(1)} cogX=${block.cog.x.toFixed(1)})`,
           );
         }
       }

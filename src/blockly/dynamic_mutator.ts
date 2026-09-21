@@ -525,7 +525,9 @@ export function registerDynamicFlyoutMutator(
 }
 
 const STOCK_MUTATOR_TITLE_TYPES = new Set(["text_join", "lists_create_with"]);
-const chromeWrapped = new Set<string>();
+/** type → current wrapped `init` (re-wrap when register* replaces the definition). */
+const chromeWrappedInit = new Map<string, (this: Block) => void>();
+const chromeWrappedMethods = new Map<string, unknown>();
 let mutatorIconPatched = false;
 let setMutatorFlagPatched = false;
 
@@ -617,38 +619,44 @@ function afterMutatorBlockInit(block: Block): void {
 /**
  * After every block type is registered: header cog far right, type glyph after
  * the cog, bubble anchored on the cog, default top-left MutatorIcon hidden.
+ * Safe to call again when a register* function replaces `Blockly.Blocks[type]`.
  */
 export function installHeaderMutatorChrome(): void {
   patchMutatorIconAnchor();
   for (const type of Object.keys(Blockly.Blocks)) {
-    if (chromeWrapped.has(type)) continue;
     const def = Blockly.Blocks[type] as {
       init?: (this: Block) => void;
       updateShape_?: (this: Block) => void;
       updateParams_?: (this: Block) => void;
     } | undefined;
     if (!def?.init) continue;
-    chromeWrapped.add(type);
-    const originalInit = def.init;
-    def.init = function (this: Block) {
-      originalInit.call(this);
-      afterMutatorBlockInit(this);
-    };
-    wrapAfterInit(def as { [key: string]: unknown }, "updateShape_");
-    wrapAfterInit(def as { [key: string]: unknown }, "updateParams_");
-    wrapAfterInit(def as { [key: string]: unknown }, "updateAt_");
+    if (chromeWrappedInit.get(type) !== def.init) {
+      const originalInit = def.init;
+      def.init = function (this: Block) {
+        originalInit.call(this);
+        afterMutatorBlockInit(this);
+      };
+      chromeWrappedInit.set(type, def.init);
+    }
+    wrapAfterInit(type, def as { [key: string]: unknown }, "updateShape_");
+    wrapAfterInit(type, def as { [key: string]: unknown }, "updateParams_");
+    wrapAfterInit(type, def as { [key: string]: unknown }, "updateAt_");
   }
 }
 
 function wrapAfterInit(
+  type: string,
   def: { [key: string]: unknown },
   method: "updateShape_" | "updateParams_" | "updateAt_",
 ): void {
   const original = def[method];
   if (typeof original !== "function") return;
+  const key = `${type}.${method}`;
+  if (chromeWrappedMethods.get(key) === original) return;
   def[method] = function (this: Block, ...args: unknown[]) {
     (original as (this: Block, ...args: unknown[]) => void).apply(this, args);
     afterMutatorBlockInit(this);
   };
+  chromeWrappedMethods.set(key, def[method]);
 }
 

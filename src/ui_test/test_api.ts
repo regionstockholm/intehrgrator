@@ -94,6 +94,8 @@ export interface IntehrgratorTestApi {
   scrollBlockIntoView(blockId: string): void;
   /** Input names currently on a Blockly block (empty when the id is unknown). */
   listBlockInputs(blockId: string): string[];
+  /** Field names per input, for header chrome assertions. */
+  listBlockFields(blockId: string): Array<{ input: string; fields: string[] }>;
   /** Open the native mutator bubble (cogwheel) on a block. */
   openMutator(blockId: string): void;
   /**

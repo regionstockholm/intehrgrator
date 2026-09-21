@@ -3235,6 +3235,14 @@ function installWorkbenchTestApi(): void {
       const block = workspace.getBlockById(blockId);
       return block ? block.inputList.map((input) => input.name) : [];
     },
+    listBlockFields(blockId) {
+      const block = workspace.getBlockById(blockId);
+      if (!block) return [];
+      return block.inputList.map((input) => ({
+        input: input.name,
+        fields: input.fieldRow.map((field) => String(field.name ?? "")),
+      }));
+    },
     getStatementInputMetrics(blockId, inputName) {
       const block = workspace.getBlockById(blockId);
       return statementInputMetricsOf(block, inputName);

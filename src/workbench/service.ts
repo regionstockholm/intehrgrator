@@ -607,6 +607,7 @@ export class WorkbenchService {
           unsupported: extract.unsupported,
           sheetNames: extract.sheetNames,
           instanceEncodings: extract.instanceEncodings,
+          functions: extract.functions,
         },
       );
       return;
@@ -633,6 +634,7 @@ export class WorkbenchService {
         unsupported: extract.unsupported,
         sheetNames: extract.sheetNames,
         instanceEncodings: extract.instanceEncodings,
+        functions: extract.functions,
       },
     );
   }
@@ -650,6 +652,7 @@ export class WorkbenchService {
         unsupported: extract.unsupported,
         sheetNames: extract.sheetNames,
         instanceEncodings: extract.instanceEncodings,
+        functions: extract.functions,
       },
     );
   }

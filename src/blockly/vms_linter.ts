@@ -1,7 +1,7 @@
 /**
  * Workspace VMS hatch warnings (#40 / ADR 0009).
- * Distinct messages for removed types, ad-hoc trees, procedures,
- * non-literal source paths, and out-of-dialect templates.
+ * Distinct messages for removed types, ad-hoc trees, non-literal source
+ * paths, and out-of-dialect templates.
  */
 import type { Block } from "blockly/core";
 import { isVmsRemovedBlockType } from "./vms.ts";
@@ -13,8 +13,6 @@ import { compileLiteralPath, jsonDollarPathToLookup } from "../core/codegen/xque
 
 export const HATCH_REMOVED =
   "Removed from Verifiable Mapping Subset — unverified / not in declarative export";
-export const HATCH_PROCEDURES =
-  "Procedures are an escape hatch — unverified / not in declarative export";
 export const HATCH_JSON_XML =
   "Ad-hoc JSON/XML tree — unverified / not in declarative export";
 export const HATCH_DYNAMIC_PATH =
@@ -25,13 +23,6 @@ export const HATCH_OUT_OF_DIALECT_GO =
   "Go template outside VMS-Go — unverified / not in declarative export";
 export const HATCH_EXECUTABLE_LANG =
   "Executable Code text language — unverified / not in declarative export";
-
-const PROCEDURE_TYPES = new Set([
-  "procedures_defnoreturn",
-  "procedures_defreturn",
-  "procedures_callnoreturn",
-  "procedures_callreturn",
-]);
 
 const AD_HOC_TREE_TYPES = new Set(["json_object", "xml_element", "xml_document"]);
 
@@ -64,11 +55,6 @@ export function blockHatchMessages(block: Block): string[] {
 
   if (isVmsRemovedBlockType(block.type)) {
     messages.push(HATCH_REMOVED);
-    return messages;
-  }
-
-  if (PROCEDURE_TYPES.has(block.type)) {
-    messages.push(HATCH_PROCEDURES);
     return messages;
   }
 

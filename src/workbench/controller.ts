@@ -2,6 +2,7 @@ import type {
   ImportSuggestionsReport,
   MappingLoop,
   MappingModel,
+  MappingFunction,
   MappingSlotHatch,
   MappingUnsupportedBlock,
   TargetSignatureNode,
@@ -1054,6 +1055,7 @@ export class WorkbenchController {
       unsupported?: MappingUnsupportedBlock[];
       sheetNames?: string[];
       instanceEncodings?: InstanceEncoding[];
+      functions?: MappingFunction[];
     },
   ): void {
     if (!this.templateId) return;
@@ -1066,6 +1068,7 @@ export class WorkbenchController {
     next.unsupported = options?.unsupported ? [...options.unsupported] : [];
     next.sheetNames = options?.sheetNames ? [...options.sheetNames] : [];
     next.instanceEncodings = options?.instanceEncodings ? [...options.instanceEncodings] : [];
+    next.functions = options?.functions ? [...options.functions] : [];
     const skeleton = applyOptionalRmToSkeleton(
       this.target?.skeleton ?? this.skeleton,
       next.optionalRm,

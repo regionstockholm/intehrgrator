@@ -102,6 +102,7 @@ export function runTest(
     };
     const defaults = ctx.namedMaps[DEFAULTS_MAP_NAME] ?? {};
     ctx.sheets = { ...ctx.sheets, ...sheetsToBag(options.sheets ?? []) };
+    ctx.functions = model.functions ?? [];
     const target = options.target
       ? {
         ...options.target,

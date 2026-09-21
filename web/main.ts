@@ -826,6 +826,7 @@ function persistBlocklyCanvas(options?: { notify?: boolean; summary?: string }):
       unsupported: derived.unsupported,
       sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
     },
   );
   const s = controller.getState();
@@ -1175,6 +1176,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
           },
         );
       }
@@ -1203,6 +1205,7 @@ function syncBlocklyWorkspace(s: ReturnType<WorkbenchController["getState"]>): v
             unsupported: derived.unsupported,
             sheetNames: derived.sheetNames,
       instanceEncodings: derived.instanceEncodings,
+      functions: derived.functions,
           },
         );
       }

@@ -40,6 +40,7 @@ import {
   emitCodePhraseLiteral,
   codePhraseTerseSafe,
   emitTsExpressionSource,
+  emitTsUserFunctions,
   formatObjectLiteral,
   formatRmConstruct,
   generateTypeScriptFromSkeleton,
@@ -116,13 +117,15 @@ export function generateTypeScriptFromWorkspace(
   model: MappingModel,
   webTemplateJson?: string,
 ): string | null {
-  const ctx = createTsEmitContext();
+  const ctx = createTsEmitContext("sourceCtx.data", model.functions);
   const instanceRoot = findInstanceRootUnderStart(workspace);
   const roots = workspace.getTopBlocks(true).filter((block) =>
     block.type !== DEFAULTS_BLOCK_TYPE &&
     block.type !== "default_context_map" &&
     block.type !== "maps_create_with" &&
-    block.type !== CONVERSION_START_TYPE
+    block.type !== CONVERSION_START_TYPE &&
+    block.type !== "procedures_defreturn" &&
+    block.type !== "procedures_defnoreturn"
   );
   const stack = productStackBlocks(workspace);
   const composition = instanceRoot?.type === "composition" ? instanceRoot
@@ -182,7 +185,7 @@ export function generateTypeScriptFromWorkspace(
 
   return wrapTypeScriptModule({
     templateId: model.templateId,
-    body,
+    body: `${emitTsUserFunctions(ctx)}${body}`,
     types: ctx.types,
     helpers: ctx.helpers,
     rootType,

@@ -29,8 +29,6 @@ export const VMS_REMOVED_BLOCK_TYPES = [
 export const VMS_ESCAPE_BLOCK_TYPES = [
   "text_code",
   "text_handlebars",
-  "procedures_callreturn",
-  "procedures_defreturn",
   "json_object",
   "xml_element",
   "xml_document",
@@ -85,6 +83,7 @@ export const VMS_EXPRESSION_BLOCK_TYPES = [
   "decision_table",
   "lists_getIndex",
   "lists_create_with",
+  "procedures_callreturn",
 ] as const;
 
 /** Blocks handled by dedicated canvas emitters instead of `blockToExpression`. */

@@ -310,6 +310,9 @@ function prepareMinimalExpressionBlock(
     const variable = block.workspace.createVariable("item");
     block.setFieldValue(variable.getId(), "VAR");
   }
+  if (type === "procedures_callreturn") {
+    block.setFieldValue("greet", "NAME");
+  }
 }
 
 function emitExpressionBlockForTest(

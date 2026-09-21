@@ -14,6 +14,11 @@ import { Blockly } from "@intehrgrator/blockly/blockly_core.ts";
 import { registerSchemaBlocksFromSkeleton } from "@intehrgrator/blockly/schema_blocks.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import type { MappingModel } from "@intehrgrator/types/mod.ts";
+import {
+  executeEnvelopeParameters,
+  parseJsonDocument,
+  unwrapExecuteEnvelope,
+} from "@intehrgrator/core/source/json_document.ts";
 import { chemoDecisionSheets } from "../scripts/decision_table_example_sheets.ts";
 import {
   HANDLEBARS_GREETING_OUTPUT,
@@ -619,3 +624,112 @@ Deno.test("PROD cleanAndQuoteFreeTextInput quotes allowed free text", async () =
   );
   assertEquals(spaced, `"foo bar"`);
 });
+
+function takeCareSkeleton() {
+  const xsd = Deno.readTextFileSync(
+    join(root, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
+  );
+  return getTargetFormatHandler("xml-schema").load(
+    "TakeCare-CasenoteWrite-edit01.xsd",
+    xsd,
+  );
+}
+
+function keywordPairs(xml: string): Array<{ termId: string; note: string }> {
+  const pairs: Array<{ termId: string; note: string }> = [];
+  const re =
+    /<TextKeyWord>(?:[\s\S]*?)<TermId>\s*([^<]*?)\s*<\/TermId>(?:[\s\S]*?)<Note>([\s\S]*?)<\/Note>[\s\S]*?<\/TextKeyWord>/gi;
+  for (const match of xml.matchAll(re)) {
+    pairs.push({
+      termId: match[1]!.trim(),
+      note: (match[2] ?? "").replace(/\s+/g, " ").trim(),
+    });
+  }
+  return pairs.sort((a, b) => a.termId.localeCompare(b.termId) || a.note.localeCompare(b.note));
+}
+
+Deno.test("Blockly live walker emits raw Go hatch text without double-escaping", () => {
+  initBlocklyGenerators();
+  const snippet = `{{- define "cleanAndQuoteFreeTextInput" -}}{{ regexReplaceAll "[^ -~]" . "" }}{{- end -}}`;
+  const blocklyState = {
+    blocks: {
+      languageVersion: 0,
+      blocks: [
+        {
+          type: "text_code",
+          fields: { LANG: "go-template", TEXT: snippet },
+        },
+        {
+          type: "schema_ProfdocHISMessage",
+          fields: {
+            NAME: "ProfdocHISMessage",
+            SLOT_ID: "ProfdocHISMessage:/ProfdocHISMessage",
+          },
+          extraState: {
+            xmlAttributes: ["MsgType"],
+            fields: [
+              { name: "MsgType", kind: "value", xmlKind: "attribute" },
+            ],
+          },
+          inputs: {
+            TARGET_MsgType: {
+              block: { type: "text", fields: { TEXT: "Request" } },
+            },
+          },
+        },
+      ],
+    },
+  };
+  const model = createEmptyModel("ProfdocHISMessage");
+  const live = generateGoTemplateFromBlocklyState(blocklyState, model, takeCareSkeleton().skeleton);
+  assert(live, "live walker should emit");
+  assertStringIncludes(live!, snippet);
+  assert(!live!.includes('\\\\"'), live);
+  assertStringIncludes(live!, '<ProfdocHISMessage MsgType="Request">');
+  assert(!live!.includes('MsgType="\\"Request\\""'), live);
+});
+
+Deno.test("chemo generate_script go-template from live walker parses and matches JSON walker", async () => {
+  initBlocklyGenerators();
+  await ensureGoTemplateWasm();
+  const blocklyState = JSON.parse(
+    Deno.readTextFileSync(
+      join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json"),
+    ),
+  );
+  const defaults = JSON.parse(
+    Deno.readTextFileSync(
+      join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/defaults.map.json"),
+    ),
+  ) as Record<string, unknown>;
+  const source = Deno.readTextFileSync(
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+  );
+  const model = createEmptyModel("chemo-symptoms");
+  const skeleton = takeCareSkeleton().skeleton;
+  const live = generateGoTemplateFromBlocklyState(blocklyState, model, skeleton);
+  assert(live, "live walker should emit a Go template");
+  assertStringIncludes(live!, '{{- define "cleanAndQuoteFreeTextInput"');
+  assert(!/unexpected "\\\\"/.test(live!), live!.slice(0, 400));
+  const json = generateGoTemplate(model, { blocklyState });
+  const parsed = parseJsonDocument(source);
+  const envelope = {
+    Parameters: { ...defaults, ...(executeEnvelopeParameters(parsed) ?? {}) },
+    Data: unwrapExecuteEnvelope(parsed),
+  };
+  const liveXml = executeGoTemplate(live!, envelope);
+  const jsonXml = executeGoTemplate(json, envelope);
+  assertStringIncludes(liveXml, "<ProfdocHISMessage");
+  assertStringIncludes(liveXml, "Tårna");
+  assertEquals(keywordPairs(liveXml), keywordPairs(jsonXml));
+  const wired = runTest(model, source, "json", {
+    outputMode: "go-template",
+    generatedCode: live!,
+    blocklyState,
+    defaults,
+  });
+  assertEquals(wired.error, undefined, wired.error);
+  assertEquals(wired.ok, true, String(wired.output).slice(0, 400));
+  assertStringIncludes(String(wired.output), "Tårna");
+});
+

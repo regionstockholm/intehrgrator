@@ -77,9 +77,14 @@ Deno.test({
         );
         if (block.glyph) {
           assert(
-            block.glyph.x > block.cog.x,
-            `${type} type glyph stays to the right of the cog ` +
+            block.glyph.x < block.cog.x,
+            `${type} output glyph sits left of the cog ` +
               `(fields=${JSON.stringify(block.fields)} glyphX=${block.glyph.x.toFixed(1)} cogX=${block.cog.x.toFixed(1)})`,
+          );
+          const glyphFromLeft = (block.glyph.x - block.block.x) / block.block.width;
+          assert(
+            glyphFromLeft < 0.4,
+            `${type} output glyph should sit in the left part (ratio=${glyphFromLeft.toFixed(3)})`,
           );
         }
       }
@@ -112,13 +117,16 @@ Deno.test({
       }, joinId);
       assert(layout.block && layout.cog && layout.bubble, "mutator popup is visible");
       const cogCenterX = layout.cog.x + layout.cog.width / 2;
-      const bubbleCenterX = layout.bubble.x + layout.bubble.width / 2;
-      const distCog = Math.abs(bubbleCenterX - cogCenterX);
-      const distLeft = Math.abs(bubbleCenterX - layout.block.x);
+      const bubbleLeft = layout.bubble.x;
+      const bubbleRight = layout.bubble.x + layout.bubble.width;
+      const nearestEdge = Math.min(
+        Math.abs(bubbleLeft - cogCenterX),
+        Math.abs(bubbleRight - cogCenterX),
+      );
       assert(
-        distCog < distLeft,
-        `popup should sit nearer the header cog than the block origin ` +
-          `(cogDist=${distCog.toFixed(1)} leftDist=${distLeft.toFixed(1)})`,
+        nearestEdge < 96,
+        `popup should attach near the header cog (nearestEdge=${nearestEdge.toFixed(1)}, ` +
+          `cog=${cogCenterX.toFixed(1)} bubble=${bubbleLeft.toFixed(1)}..${bubbleRight.toFixed(1)})`,
       );
     } finally {
       await browser.close();

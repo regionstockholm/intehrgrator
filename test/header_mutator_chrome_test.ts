@@ -1,6 +1,6 @@
 /**
- * Header cogwheel + type glyph sit on the far right of mutator blocks;
- * the default top-left MutatorIcon is not the visible control.
+ * Header cogwheel sits on the far right; output-type glyphs sit on the left.
+ * The default top-left MutatorIcon is not the visible control.
  */
 import { assert, assertEquals } from "@std/assert";
 import * as enMsg from "blockly/msg/en";
@@ -37,18 +37,14 @@ function assertTrailingChrome(block: Blockly.Block, label: string): void {
   const names = headerFieldNames(block);
   const cog = names.lastIndexOf(MUTATOR_COG_FIELD);
   assert(cog >= 0, `${label} has a header cogwheel, names=${names.join(",")}`);
-  const glyph = names.lastIndexOf(BLOCK_OUT_EMOJI_FIELD);
+  assertEquals(names.at(-1), MUTATOR_COG_FIELD, `${label} cog is last (far right), names=${names.join(",")}`);
+  const glyph = names.indexOf(BLOCK_OUT_EMOJI_FIELD);
   if (glyph >= 0) {
-    assertEquals(names.at(-1), BLOCK_OUT_EMOJI_FIELD, `${label} type glyph is last`);
-    assert(cog < glyph, `${label} cog sits left of the type glyph`);
-  } else {
-    assertEquals(names.at(-1), MUTATOR_COG_FIELD, `${label} cog is last without a glyph`);
+    assert(glyph < cog, `${label} output glyph sits left of the cog, names=${names.join(",")}`);
   }
-  const firstChrome = names.findIndex((n) => n === MUTATOR_COG_FIELD || n === BLOCK_OUT_EMOJI_FIELD);
-  assert(firstChrome > 0, `${label} title stays left of trailing chrome, names=${names.join(",")}`);
 }
 
-Deno.test("known mutator blocks put cogwheel and type glyph after the title", () => {
+Deno.test("known mutator blocks put the cogwheel after the title (glyph on the left)", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const types = [
@@ -89,10 +85,10 @@ Deno.test("every canvas mutator block gets a far-right header cogwheel", () => {
     if (!names.includes(MUTATOR_COG_FIELD)) missing.push(`${type} names=${names.join(",")}`);
     else {
       const cog = names.lastIndexOf(MUTATOR_COG_FIELD);
-      const glyph = names.lastIndexOf(BLOCK_OUT_EMOJI_FIELD);
-      if (glyph >= 0 && cog > glyph) missing.push(`${type} cog after glyph`);
-      if (names.at(-1) !== MUTATOR_COG_FIELD && names.at(-1) !== BLOCK_OUT_EMOJI_FIELD) {
-        missing.push(`${type} chrome not last names=${names.join(",")}`);
+      const glyph = names.indexOf(BLOCK_OUT_EMOJI_FIELD);
+      if (glyph >= 0 && cog < glyph) missing.push(`${type} cog left of output glyph`);
+      if (names.at(-1) !== MUTATOR_COG_FIELD) {
+        missing.push(`${type} cog not last names=${names.join(",")}`);
       }
     }
   }
@@ -146,13 +142,13 @@ Deno.test("lists_create_with title lives on HEADER, not a second dummy row of ic
   ws.dispose();
 });
 
-Deno.test("maps_create_with header ends with cog then Map glyph", () => {
+Deno.test("maps_create_with header starts with Map glyph and ends with cog", () => {
   ensure();
   const ws = new Blockly.Workspace();
   const map = ws.newBlock(MAPS_CREATE_WITH);
   const names = headerFieldNames(map);
-  assertEquals(names.at(-2), MUTATOR_COG_FIELD);
-  assertEquals(names.at(-1), BLOCK_OUT_EMOJI_FIELD);
+  assertEquals(names[0], BLOCK_OUT_EMOJI_FIELD);
+  assertEquals(names.at(-1), MUTATOR_COG_FIELD);
   ws.dispose();
 });
 

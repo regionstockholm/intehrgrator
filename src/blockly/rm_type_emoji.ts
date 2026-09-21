@@ -1,7 +1,8 @@
 /**
  * ZipEHR RM-type emojis on Blockly connection points.
  *
- * Block output type glyph: last field of HEADER, far right with the cogwheel.
+ * Block output type glyph: first field of HEADER, left of the title (next to
+ * the output tab). Mutator cogwheel is last on that row (far right).
  * Value/statement slots: combined into FieldSlotLabel with the attr name
  * (see slot_label.ts). Abstract slots use ⁇ (underlined link), not a ring.
  * Specialization puzzles (PARTY_PROXY.KIND) still use this field alone.

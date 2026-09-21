@@ -12,9 +12,14 @@ export const MUTATOR_COG_FIELD = "MUTATOR_COG";
 /** Output-type glyph field name (must match `BLOCK_OUT_EMOJI_FIELD` in rm_type_emoji). */
 const OUTPUT_GLYPH_FIELD = "RM_OUT_EMOJI";
 
-/** Fields that belong on the far right of the class-chrome row. */
+/** Fields that belong on the far right of the class-chrome row (mutator cog only). */
 export function isTrailingChromeFieldName(name: string | null | undefined): boolean {
-  return name === MUTATOR_COG_FIELD || name === OUTPUT_GLYPH_FIELD;
+  return name === MUTATOR_COG_FIELD;
+}
+
+/** Output-type glyph sits on the left of HEADER, next to the output tab. */
+export function isLeadingChromeFieldName(name: string | null | undefined): boolean {
+  return name === OUTPUT_GLYPH_FIELD;
 }
 
 /** Blockly Align.LEFT — header chrome hugs the left edge. */
@@ -88,10 +93,10 @@ export function blockTypeUsesMouthLayout(type: string): boolean {
 }
 
 /**
- * Dummy row that carries title + trailing cog/type-glyph. HEADER when present;
- * otherwise the NAME dummy (stock Functions). Falls back to the first dummy so
- * non-mutator stock blocks (logic_compare, lists_getIndex) can still host a
- * type glyph without inventing a HEADER bar.
+ * Dummy row that carries output-type glyph (left), title, trailing cog (right).
+ * HEADER when present; otherwise the NAME dummy (stock Functions). Falls back
+ * to the first dummy so non-mutator stock blocks can still host a type glyph
+ * without inventing a HEADER bar.
  */
 export function chromeHostInput(block: Block): Input | undefined {
   const header = block.getInput("HEADER");
@@ -117,7 +122,7 @@ export function mutatorChromeHost(block: Block): Input {
   return ensureClassChromeHeader(block);
 }
 
-/** Move cog / type-glyph onto `host` without Input.removeField (that disposes). */
+/** Move cog (end) / output glyph (start) onto `host` without Input.removeField. */
 export function relocateTrailingChromeToHost(block: Block, host: Input): void {
   for (const name of [MUTATOR_COG_FIELD, OUTPUT_GLYPH_FIELD]) {
     const field = block.getField(name);
@@ -126,25 +131,27 @@ export function relocateTrailingChromeToHost(block: Block, host: Input): void {
       const idx = input.fieldRow.indexOf(field);
       if (idx < 0) continue;
       input.fieldRow.splice(idx, 1);
-      host.fieldRow.push(field);
+      if (name === OUTPUT_GLYPH_FIELD) host.fieldRow.unshift(field);
+      else host.fieldRow.push(field);
       break;
     }
   }
 }
 
 /**
- * Put MUTATOR_COG then the output type glyph at the end of the chrome row so
- * the compact renderer can pack leftover width in front of them (far right).
+ * Output-type glyph first (left, next to the output tab), then title / actions,
+ * then MUTATOR_COG last so leftover HEADER width packs the cog to the far right.
  */
 export function orderHeaderTrailingChrome(block: Block): void {
   const host = chromeHostInput(block);
   if (!host) return;
-  const trailing = [MUTATOR_COG_FIELD, OUTPUT_GLYPH_FIELD]
-    .map((name) => host.fieldRow.find((item) => item.name === name))
-    .filter((field): field is (typeof host.fieldRow)[number] => Boolean(field));
-  if (!trailing.length) return;
-  const rest = host.fieldRow.filter((field) => !isTrailingChromeFieldName(field.name));
-  const ordered = [...rest, ...trailing];
+  const glyph = host.fieldRow.find((item) => isLeadingChromeFieldName(item.name));
+  const cog = host.fieldRow.find((item) => isTrailingChromeFieldName(item.name));
+  if (!glyph && !cog) return;
+  const rest = host.fieldRow.filter((field) =>
+    !isLeadingChromeFieldName(field.name) && !isTrailingChromeFieldName(field.name)
+  );
+  const ordered = [...(glyph ? [glyph] : []), ...rest, ...(cog ? [cog] : [])];
   if (ordered.length === host.fieldRow.length && ordered.every((field, i) => field === host.fieldRow[i])) {
     return;
   }

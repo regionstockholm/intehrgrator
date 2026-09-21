@@ -265,8 +265,8 @@ export function applyOpenEhrRowAlign_(row: any, alignLeft: number, alignRight: n
 }
 
 /**
- * Dummy HEADER leftover goes *before* the cog / type glyph so those sit on
- * the far right instead of packing next to the title.
+ * Dummy HEADER leftover goes *before* the cog so the cog sits on the far
+ * right. The output-type glyph stays on the left with the title.
  */
 export function padBeforeTrailingChrome_(row: {
   elements?: Array<{ field?: { name?: string }; width?: number }>;

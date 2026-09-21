@@ -219,9 +219,9 @@ export function registerMapBlocks(): void {
       const header = this.appendDummyInput("HEADER").setAlign(
         (Blockly.inputs?.Align?.LEFT ?? Blockly.ALIGN_LEFT ?? 0) as number,
       );
+      appendBlockOutputGlyph(header, "Map");
       header.appendField("map");
       appendMutatorCogwheel(header);
-      appendBlockOutputGlyph(header, "Map");
       this.setOutput(true, "Map");
       this.setColour(MAP_COLOUR);
       this.setTooltip("Create a Map of key/value pairs");

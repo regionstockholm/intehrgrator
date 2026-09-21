@@ -119,17 +119,16 @@ export function getCogwheelAnchorLocation(sourceBlock: BlockSvg): Blockly.utils.
   const cogField = sourceBlock.getField(MUTATOR_COG_FIELD) as Blockly.FieldImage | null;
   if (!cogField) return blockOrigin;
 
-  const svgRoot = cogField.getSvgRoot?.();
-  if (svgRoot && Blockly.utils?.svgMath?.getRelativeXY) {
-    try {
-      const fieldRel = Blockly.utils.svgMath.getRelativeXY(svgRoot);
+  const fieldSvg = cogField.getSvgRoot?.();
+  const blockSvg = sourceBlock.getSvgRoot?.();
+  if (fieldSvg && blockSvg) {
+    const fromScreen = offsetFromBlockSvg(fieldSvg, blockSvg, sourceBlock);
+    if (fromScreen) {
       const size = cogField.getSize?.() ?? { width: 16, height: 16 };
       return new Blockly.utils.Coordinate(
-        blockOrigin.x + fieldRel.x + Number(size.width ?? 16) / 2,
-        blockOrigin.y + fieldRel.y + Number(size.height ?? 16) / 2,
+        blockOrigin.x + fromScreen.x + Number(size.width ?? 16) / 2,
+        blockOrigin.y + fromScreen.y + Number(size.height ?? 16) / 2,
       );
-    } catch {
-      // Fall through to block-edge fallback.
     }
   }
   const dimensions = sourceBlock.getHeightWidth?.();
@@ -140,6 +139,52 @@ export function getCogwheelAnchorLocation(sourceBlock: BlockSvg): Blockly.utils.
     );
   }
   return blockOrigin;
+}
+
+/** Field offset inside the block SVG (accumulates parent transforms). */
+function offsetFromBlockSvg(
+  fieldSvg: SVGElement,
+  blockSvg: SVGElement,
+  sourceBlock: BlockSvg,
+): { x: number; y: number } | null {
+  if (typeof fieldSvg.getBoundingClientRect === "function" &&
+    typeof blockSvg.getBoundingClientRect === "function"
+  ) {
+    const fieldBox = fieldSvg.getBoundingClientRect();
+    const blockBox = blockSvg.getBoundingClientRect();
+    if (fieldBox.width > 0 && blockBox.width > 0) {
+      const scale = (sourceBlock.workspace as { scale?: number } | undefined)?.scale ?? 1;
+      return {
+        x: (fieldBox.left - blockBox.left) / scale,
+        y: (fieldBox.top - blockBox.top) / scale,
+      };
+    }
+  }
+  const getRel = Blockly.utils?.svgMath?.getRelativeXY;
+  if (!getRel) return null;
+  try {
+    let x = 0;
+    let y = 0;
+    let node: Element | null = fieldSvg;
+    while (node && node !== blockSvg) {
+      const rel = getRel(node);
+      x += Number(rel?.x ?? 0);
+      y += Number(rel?.y ?? 0);
+      node = node.parentElement;
+    }
+    return { x, y };
+  } catch {
+    return null;
+  }
+}
+
+function pinMutatorIconToHeaderCog(block: Block): void {
+  const svg = block as BlockSvg;
+  const MutatorIconType = Blockly.icons?.MutatorIcon?.TYPE;
+  const icon = MutatorIconType ? svg.getIcon?.(MutatorIconType) : null;
+  if (!icon) return;
+  (icon as { getAnchorLocation?: () => Blockly.utils.Coordinate }).getAnchorLocation = () =>
+    getCogwheelAnchorLocation(svg);
 }
 
 type FlyoutProvider = (
@@ -562,7 +607,9 @@ export function promoteStockMutatorTitle(block: Block): void {
       const idx = input.fieldRow.indexOf(field);
       if (idx < 0) continue;
       input.fieldRow.splice(idx, 1);
-      header.fieldRow.push(field);
+      const cogAt = header.fieldRow.findIndex((item) => item.name === MUTATOR_COG_FIELD);
+      if (cogAt >= 0) header.fieldRow.splice(cogAt, 0, field);
+      else header.fieldRow.push(field);
     }
     if (inputName === "EMPTY" && input.fieldRow.length === 0 && !input.connection) {
       block.removeInput("EMPTY", true);
@@ -602,7 +649,9 @@ function patchSetMutatorFlag(): void {
   const original = proto.setMutator;
   proto.setMutator = function (this: Block, mutator: unknown) {
     (this as { hasMutatorIcon_?: boolean }).hasMutatorIcon_ = true;
-    return original.call(this, mutator);
+    const result = original.call(this, mutator);
+    pinMutatorIconToHeaderCog(this);
+    return result;
   };
 }
 
@@ -614,11 +663,12 @@ function afterMutatorBlockInit(block: Block): void {
   }
   orderHeaderTrailingChrome(block);
   hideDefaultMutatorIcon(block);
+  pinMutatorIconToHeaderCog(block);
 }
 
 /**
- * After every block type is registered: header cog far right, type glyph after
- * the cog, bubble anchored on the cog, default top-left MutatorIcon hidden.
+ * After every block type is registered: output glyph on the left, header cog
+ * far right, bubble anchored on the cog, default top-left MutatorIcon hidden.
  * Safe to call again when a register* function replaces `Blockly.Blocks[type]`.
  */
 export function installHeaderMutatorChrome(): void {

@@ -144,7 +144,8 @@
               "extras": [],
               "attrs": [
                 "systolic",
-                "diastolic"
+                "diastolic",
+                "unit"
               ],
               "fields": [
                 {
@@ -166,6 +167,16 @@
                     "max": 1
                   },
                   "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.diastolic"
+                },
+                {
+                  "name": "unit",
+                  "kind": "value",
+                  "check": "String",
+                  "card": {
+                    "min": 0,
+                    "max": 1
+                  },
+                  "slotId": "https://example.invalid/dummy-json-vitals/target.schema.json:$.unit"
                 }
               ],
               "connection": "statement",
@@ -193,6 +204,15 @@
                   "id": "!uZwUx2I]A2x2lnF@ZD6",
                   "fields": {
                     "EXPRESSION": "$.diastolic"
+                  }
+                }
+              },
+              "TARGET_unit": {
+                "block": {
+                  "type": "source_query",
+                  "id": "unitSrcQryDummyVitals01",
+                  "fields": {
+                    "EXPRESSION": "$.unit"
                   }
                 }
               }

@@ -162,3 +162,42 @@ function looksLikeRmInstance(value: unknown): boolean {
   const ctor = (value as { constructor?: { name?: string } }).constructor?.name;
   return typeof ctor === "string" && ctor !== "Object" && ctor !== "Array";
 }
+
+/** Kinds used to split Simple-vitals ⚠ from a real mapping miss (#171). */
+export type OpenEhrValidationKind =
+  | "required-missing"
+  | "unit-list"
+  | "type-mismatch"
+  | "code-phrase"
+  | "other";
+
+export function classifyOpenEhrValidationMessage(message: string): OpenEhrValidationKind {
+  const m = message.toLowerCase();
+  if (
+    m.includes("required attribute missing") ||
+    /\(min:\s*1\)/.test(m) ||
+    (m.includes("mandatory") && m.includes("missing"))
+  ) {
+    return "required-missing";
+  }
+  if (
+    m.includes("c_dv_quantity") ||
+    (m.includes("unit") &&
+      (m.includes("list") || m.includes("not in") || m.includes("not allowed") ||
+        m.includes("constraint")))
+  ) {
+    return "unit-list";
+  }
+  if (m.includes("type mismatch") || (m.includes("cluster") && m.includes("element"))) {
+    return "type-mismatch";
+  }
+  if (
+    m.includes("code_phrase") ||
+    m.includes("code phrase") ||
+    m.includes("terminology") ||
+    m.includes("defining_code")
+  ) {
+    return "code-phrase";
+  }
+  return "other";
+}

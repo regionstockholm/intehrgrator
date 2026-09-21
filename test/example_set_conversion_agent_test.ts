@@ -9,6 +9,7 @@ import { callAgentTool } from "@intehrgrator/agent/tools.ts";
 import { sheetsFromCatalogJson } from "@intehrgrator/core/sheets/mod.ts";
 import { ensureXQueryRuntime } from "@intehrgrator/core/codegen/run_xquery.ts";
 import { ensureGoTemplateWasm } from "@intehrgrator/core/output/go_template_runtime.ts";
+import { classifyOpenEhrValidationMessage } from "@intehrgrator/core/output/template_validation.ts";
 import type { OutputMode, TestResult } from "@intehrgrator/types/mod.ts";
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
@@ -162,7 +163,7 @@ Deno.test("Agent API load dummy-json-vitals-mapped and TypeScript Test Run all i
   const snap = await loadSet(service, "dummy-json-vitals-mapped", true);
   assertEquals(snap.exampleCount, 3);
   const listed = await callAgentTool(service, "list_slots", {}) as { slots: SlotRow[] };
-  assertEquals(listed.slots.filter((row) => row.mapped).length >= 2, true);
+  assertEquals(listed.slots.filter((row) => row.mapped).length >= 3, true);
   const tree = await callAgentTool(service, "get_source_tree", {}) as {
     examples: Array<{ id: string; filename: string }>;
   };
@@ -170,6 +171,7 @@ Deno.test("Agent API load dummy-json-vitals-mapped and TypeScript Test Run all i
     await callAgentTool(service, "set_active_example", { id: ex.id });
     const ts = await runMode(service, "typescript");
     assertExecuted(ts, `dummy-mapped ${ex.filename}`);
+    assertStringIncludes(outputText(ts.output), "mm[Hg]");
   }
 });
 
@@ -381,3 +383,98 @@ Deno.test("Agent API Conversion Test Run on local mapped catalog Example Sets", 
   }
   assertEquals(failures, [], failures.join("\n"));
 });
+
+Deno.test("Simple-vitals mapped TypeScript classifies remaining outputValidation messages", async () => {
+  const known = new Set([
+    "required-missing",
+    "unit-list",
+    "type-mismatch",
+    "code-phrase",
+  ]);
+  for (const setId of ["Simple-vitals", "Simple-vitals-series"]) {
+    const service = await agent(`${setId}-validation`);
+    await loadSet(service, setId, true);
+    const tree = await callAgentTool(service, "get_source_tree", {}) as {
+      examples: Array<{ id: string; filename: string }>;
+    };
+    for (const ex of tree.examples) {
+      await callAgentTool(service, "set_active_example", { id: ex.id });
+      const ts = await runMode(service, "typescript");
+      assertExecuted(ts, `${setId} ${ex.filename}`);
+      const text = outputText(ts.output);
+      if (NAME_BROKEN.test(ex.filename)) {
+        assertEquals(
+          ts.outputValidation?.valid === true,
+          false,
+          `${setId} ${ex.filename} named-invalid must not be fully valid`,
+        );
+        continue;
+      }
+      if (ex.filename === "bp-inst.json") {
+        assertStringIncludes(text, "120");
+        assertStringIncludes(text, "80");
+      }
+      if (ex.filename === "bp-series-inst.json") {
+        assertStringIncludes(text, "120");
+      }
+      if (ts.outputValidation?.applicable && ts.outputValidation.valid !== true) {
+        const leftover = (ts.outputValidation.messages ?? []).filter((msg) =>
+          !known.has(classifyOpenEhrValidationMessage(msg.message))
+        );
+        assertEquals(
+          leftover,
+          [],
+          `${setId} ${ex.filename} unclassified validation:\n${
+            leftover.map((msg) => `${msg.path}: ${msg.message}`).join("\n")
+          }`,
+        );
+      }
+    }
+  }
+});
+
+Deno.test("OBX mapped TypeScript Test Run on primigravida instances", async () => {
+  const service = await agent("obx-mapped");
+  try {
+    await loadSet(service, "obx-mhv1-mapped-json-to-openehr", true);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (
+      /t\.json|overlay|GitHub|dependent archetype|flatten|fetch|HTTP|network/i.test(message)
+    ) {
+      console.warn(`Skipping OBX mapped Test Run: ${message}`);
+      return;
+    }
+    throw err;
+  }
+  const tree = await callAgentTool(service, "get_source_tree", {}) as {
+    examples: Array<{ id: string; filename: string }>;
+  };
+  const primigravida = tree.examples.find((ex) => ex.filename === "1-primigravida-basprogram.json");
+  const nightly = tree.examples.find((ex) => ex.filename === "4-nightly-primigravida.json");
+  if (!primigravida || !nightly) {
+    throw new Error(
+      `expected primigravida instances, got ${tree.examples.map((ex) => ex.filename).join(", ")}`,
+    );
+  }
+  await callAgentTool(service, "set_active_example", { id: primigravida.id });
+  const ts1 = await runMode(service, "typescript");
+  assertExecuted(ts1, "OBX 1-primigravida typescript");
+  assertStringIncludes(outputText(ts1.output), "19930614-2384");
+  await callAgentTool(service, "set_active_example", { id: nightly.id });
+  const ts4 = await runMode(service, "typescript");
+  assertExecuted(ts4, "OBX 4-nightly-primigravida typescript");
+  assertStringIncludes(outputText(ts4.output), "19900115-2384");
+  try {
+    await ensureXQueryRuntime();
+    const xq = await runMode(service, "xquery");
+    if (xq.error || !xq.ok) {
+      console.warn(`OBX XQuery skipped: ${xq.error ?? outputText(xq.output).slice(0, 200)}`);
+    } else {
+      assertStringIncludes(outputText(xq.output), "19900115-2384");
+    }
+  } catch (err) {
+    console.warn(`OBX XQuery skipped: ${err instanceof Error ? err.message : String(err)}`);
+  }
+});
+

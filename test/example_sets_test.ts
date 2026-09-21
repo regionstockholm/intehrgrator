@@ -128,6 +128,10 @@ async function stubbedCatalogFiles(): Promise<Record<string, { name: string; tex
     "ordinerad-medicinsk-onkologisk-behandling/mapping/mapping.sheets.json",
     "administrerad-medicinsk-onkologisk-behandling/source-schema/AdministrationRCCV1_source_schema.avsc",
     "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-example_source_used_for_mapping.json",
+    "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-A-source-example.json",
+    "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-B-source-example.json",
+    "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-C-source-example.json",
+    "administrerad-medicinsk-onkologisk-behandling/source-instance/administration-TESTFALL-PRÖV-läkemedel-source-example.json",
     "administrerad-medicinsk-onkologisk-behandling/mapping/mapping.blockly.json",
     "administrerad-medicinsk-onkologisk-behandling/mapping/mapping.sheets.json",
   ];

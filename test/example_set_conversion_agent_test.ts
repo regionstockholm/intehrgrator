@@ -449,15 +449,19 @@ Deno.test("Handlebars Output mode executes nested Notes on lung-MDT mapped sets"
   assertEquals(failures, [], failures.join("\n"));
 });
 
-/** Documented OPT/RM leftovers on Karda mapped sets (#167). Not a silent fallback. */
-function kardaValidationIsDocumented(message: string): boolean {
-  const kind = classifyOpenEhrValidationMessage(message);
-  if (kind !== "other") return true;
+/**
+ * OPT/RM leftovers recorded in docs/design/karda-admin-mapping-benchmark.md.
+ * A new kind (unit list, an unexpected invariant) is not in this set.
+ */
+function kardaValidationLimit(message: string): string | null {
   const text = message.toLowerCase();
-  return text.includes("cardinality") ||
-    text.includes("minimum") ||
-    text.includes("not in allowed list") ||
-    text.includes("code_string");
+  if (text.includes("required attribute missing") || /\(min:\s*1\)/.test(text)) return "required-missing";
+  if (text.includes("cardinality") || text.includes("below minimum")) return "cardinality";
+  if (text.includes("not in allowed list")) return "name-constraint";
+  if (text.includes("code_string") || text.includes("defining_code")) return "code-string";
+  if (text.includes("does not match template archetype")) return "archetype-sibling";
+  if (text.includes("type mismatch")) return "type-mismatch";
+  return null;
 }
 
 Deno.test("Karda mapped sets document remaining outputValidation messages", async () => {
@@ -481,11 +485,11 @@ Deno.test("Karda mapped sets document remaining outputValidation messages", asyn
       const validation = result.outputValidation;
       assertEquals(validation?.applicable, true, `${setId} ${mode} validation not applicable`);
       if (validation && validation.valid !== true) {
-        const leftover = validation.messages.filter((msg) => !kardaValidationIsDocumented(msg.message));
+        const leftover = validation.messages.filter((msg) => kardaValidationLimit(msg.message) == null);
         assertEquals(
           leftover,
           [],
-          `${setId} ${mode} unclassified validation:\n${
+          `${setId} ${mode} undocumented validation:\n${
             leftover.map((msg) => `${msg.path}: ${msg.message}`).join("\n")
           }`,
         );

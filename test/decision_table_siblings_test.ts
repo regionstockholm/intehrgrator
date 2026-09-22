@@ -147,9 +147,16 @@ Deno.test("#70 lung-MDT sibling TermIds and Notes match gold on evaluated Handle
       assert(noteFor("8754").includes("Har aldrig rökt"), `8754 note=${noteFor("8754")}`);
     }
     if (filename.includes("smoker")) {
-      for (const termId of ["4502", "5074", "8754"]) {
-        assert(noteFor(termId).length > 0, `${filename} gold missing evaluated Note for ${termId}`);
-      }
+      assert(
+        noteFor("5074").includes("Bo Onkolog, lungonkologi"),
+        `5074 note=${noteFor("5074")}`,
+      );
+      assert(
+        noteFor("4502").includes("Hosta och viktnedgång sedan tre månader."),
+        `4502 note=${noteFor("4502")}`,
+      );
+      assert(noteFor("8754").includes("Cigaretter"), `8754 note=${noteFor("8754")}`);
+      assert(noteFor("8754").includes("35"), `8754 note=${noteFor("8754")}`);
     }
   }
 });

@@ -319,12 +319,16 @@ const LOCAL_MAPPED_SETS: Array<{
   {
     setId: "karda-ordinationsdata-to-openehr-flat",
     ts: true,
-    expect: ["ctx/language"],
+    extra: "xquery",
+    expect: ["Epirubicin"],
+    extraExpect: ["Epirubicin"],
   },
   {
     setId: "karda-administreringsdata-to-openehr-flat",
     ts: true,
-    expect: ["ctx/language"],
+    extra: "xquery",
+    expect: ["Epirubicin"],
+    extraExpect: ["Epirubicin"],
   },
 ];
 
@@ -431,13 +435,14 @@ Deno.test("Handlebars Output mode executes nested Notes on lung-MDT mapped sets"
         failures.push(`${setId} preview ${ex.filename}: ${preview.error}`);
         continue;
       }
-      // Mapping preview still fills the XML skeleton from slots (#70 gold-vs-sibling).
-      // Handlebars Output mode evaluates nested Code text; do not require Note-text
-      // equality with preview (preview may still contain VMS-Hbs).
-      const previewIds = new Set(keywordPairs(outputText(preview.output)).map((row) => row.termId));
-      const hbsIds = new Set(keywordPairs(text).map((row) => row.termId));
-      if (!hbsIds.has("6300") || !previewIds.has("6300")) {
-        failures.push(`${setId} ${ex.filename} TermId 6300 missing preview=${[...previewIds]} hbs=${[...hbsIds]}`);
+      const previewPairs = keywordPairs(outputText(preview.output));
+      const hbsPairs = keywordPairs(text);
+      if (JSON.stringify(previewPairs) !== JSON.stringify(hbsPairs)) {
+        failures.push(
+          `${setId} ${ex.filename} preview/handlebars TermId+Note mismatch\npreview=${
+            JSON.stringify(previewPairs)
+          }\nhandlebars=${JSON.stringify(hbsPairs)}`,
+        );
       }
     }
   }
@@ -450,6 +455,7 @@ Deno.test("Simple-vitals mapped TypeScript classifies remaining outputValidation
     "unit-list",
     "type-mismatch",
     "code-phrase",
+    "archetype-sibling",
   ]);
   for (const setId of ["Simple-vitals", "Simple-vitals-series"]) {
     const service = await agent(`${setId}-validation`);

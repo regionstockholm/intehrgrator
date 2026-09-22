@@ -7,6 +7,7 @@ import {
   collectRepeatableContainers,
   collectValueSlots,
   findSkeletonTrail,
+  nearestContentAncestor,
   nearestRepeatingContainer,
   pathLabelFromTrail,
 } from "../core/skeleton/generate_skeleton.ts";
@@ -24,6 +25,8 @@ export interface SlotInspectRow {
   multiplicity?: string;
   /** Repeating ancestor `attachSlotId` for `loops[]` (`for_each_list`). */
   attachSlotId?: string;
+  /** Nearest COMPOSITION / SECTION / ENTRY ancestor (`ACTION` vs `EVALUATION`). */
+  parentRmType?: string;
   mapped: boolean;
   expression?: string;
   mandatory?: boolean;
@@ -94,6 +97,7 @@ export function listSlotsInspect(skeleton: SkeletonNode[], model: MappingModel):
     const expression = mapped?.expression;
     const trail = findSkeletonTrail(skeleton, slot.slotId);
     const repeating = nearestRepeatingContainer(trail);
+    const parent = nearestContentAncestor(trail);
     const pathLabel = pathLabelFromTrail(trail);
     rows.push({
       slotId: slot.slotId,
@@ -102,6 +106,7 @@ export function listSlotsInspect(skeleton: SkeletonNode[], model: MappingModel):
       ...(pathLabel ? { pathLabel } : {}),
       ...(slot.multiplicity ? { multiplicity: slot.multiplicity } : {}),
       ...(repeating ? { attachSlotId: repeating.slotId } : {}),
+      ...(parent ? { parentRmType: parent.rmType } : {}),
       mapped: Boolean(expression),
       ...(expression ? { expression } : {}),
       ...(slot.mandatory ? { mandatory: true } : {}),

@@ -252,6 +252,17 @@ Deno.test("load_example_set from local catalogPath hydrates dummy-json-vitals", 
   assertEquals(loaded.snapshot.exampleCount >= 1, true);
 });
 
+Deno.test("load_example_set adopts a mapped catalog set (appliedSlots > 0)", async () => {
+  const service = new WorkbenchService();
+  await callAgentTool(service, "load_example_set", {
+    catalogPath: join(import.meta.dirname!, "..", "examples", "example-sets.json"),
+    setId: "dummy-json-vitals-mapped",
+    includeMapping: true,
+  });
+  const snap = await callAgentTool(service, "get_snapshot", {}) as { appliedSlots: number };
+  assertEquals(snap.appliedSlots > 0, true, `appliedSlots=${snap.appliedSlots}`);
+});
+
 Deno.test("list_optional_rm catalog includes container RM attachments", async () => {
   const service = new WorkbenchService();
   await callAgentTool(service, "load_target", {
@@ -371,6 +382,7 @@ Deno.test("list_slots includes attachSlotId for repeating administration ACTION"
       slotId: string;
       attachSlotId?: string;
       pathLabel?: string;
+      parentRmType?: string;
       allowedValues?: Array<{ code: string }>;
       codeFixed?: string;
     }>;
@@ -385,6 +397,11 @@ Deno.test("list_slots includes attachSlotId for repeating administration ACTION"
     dose.attachSlotId,
   );
   assertEquals(dose.pathLabel?.includes("Administrerad dos"), true, dose.pathLabel);
+  assertEquals(dose.parentRmType, "ACTION", JSON.stringify(dose));
+  const diagnosis = listed.slots.find((s) =>
+    s.slotId.includes("//content[openEHR-EHR-EVALUATION.reason_for_encounter.v1]/")
+  );
+  assertEquals(diagnosis?.parentRmType, "EVALUATION", diagnosis?.slotId);
   assertEquals(
     listed.repeatable.some((row) =>
       row.slotId.endsWith("//content[openEHR-EHR-ACTION.medication.v1]") && row.rmType === "ACTION"

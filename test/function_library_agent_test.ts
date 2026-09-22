@@ -28,12 +28,12 @@ Deno.test("load_function merges join_swedish without replacing unrelated Blockly
     catalogPath,
     clash: "rename",
   }) as { name: string; sheetNames: string[] };
-  assertEquals(loaded.name, "join_swedish");
-  assertEquals(loaded.sheetNames.includes("JoinNames"), true);
+  assertEquals(loaded.name, "join_swedish_words");
+  assertEquals(loaded.sheetNames.includes("SweJoinWords"), true);
   const bundle = service.exportBundle();
   const json = JSON.stringify(bundle.mapping.blocklyState);
   assert(json.includes("join_swedish"));
   assert(json.includes("keep-me"));
   assertEquals(new RegExp('"type"\\s*:\\s*"join_list"').test(json), false);
-  assertEquals(bundle.mapping.sheets?.some((sheet) => sheet.name === "JoinNames"), true);
+  assertEquals(bundle.mapping.sheets?.some((sheet) => sheet.name === "SweJoinWords"), true);
 });

@@ -95,8 +95,8 @@ Deno.test("Contribute refuses an empty description and prefills a GitHub issue U
   assertThrows(() => functionContributionIssue(bundle, "  "), Error, "description");
   const issue = functionContributionIssue(bundle, "Swedish grammatical list join");
   assert(issue.body.includes("Swedish grammatical list join"));
-  assert(issue.body.includes("join_swedish"));
-  assert(issue.body.includes("JoinNames"));
+  assert(issue.body.includes("join_swedish_words"));
+  assert(issue.body.includes("SweJoinWords"));
   if (!issue.truncated) assert(issue.body.includes("intehrgrator-function"));
   const url = functionContributionWebUrl(bundle, "Swedish grammatical list join");
   assert(url.startsWith("https://github.com/regionstockholm/intehrgrator/issues/new?"));
@@ -156,8 +156,8 @@ Deno.test("GitHub Function library catalog loads entry JSON", async () => {
   const loaded = await loadFunctionLibraryEntry(catalog, "join_swedish", {
     fetch: mockGithubFetch(files),
   });
-  assertEquals(loaded.name, "join_swedish");
-  assertEquals(loaded.sheets[0]?.name, "JoinNames");
+  assertEquals(loaded.name, "join_swedish_words");
+  assertEquals(loaded.sheets[0]?.name, "SweJoinWords");
 });
 
 Deno.test("extract + merge round-trip keeps argument slots and JoinNames", () => {
@@ -165,18 +165,18 @@ Deno.test("extract + merge round-trip keeps argument slots and JoinNames", () =>
   const source = new Blockly.Workspace();
   const bundle = buildGrammaticalJoinBundle(JOIN_SWEDISH_SPEC);
   source.dispose();
-  assertEquals(bundle.parameters, ["names"]);
-  assertEquals(bundle.decisionTables, ["JoinNames"]);
-  assertEquals(bundle.sheets[0]?.name, "JoinNames");
+  assertEquals(bundle.parameters, ["list_of_words"]);
+  assertEquals(bundle.decisionTables, ["SweJoinWords"]);
+  assertEquals(bundle.sheets[0]?.name, "SweJoinWords");
 
   const target = new Blockly.Workspace();
   const other = target.newBlock("text");
   other.setFieldValue("keep-me", "TEXT");
   const merged = mergeFunctionBundle(target, bundle, { clash: "rename", sheets: [] });
-  assertEquals(merged.name, "join_swedish");
+  assertEquals(merged.name, "join_swedish_words");
   const defs = target.getTopBlocks(false).filter((b) => b.type === "procedures_defreturn");
   assertEquals(defs.length, 1);
-  assertEquals(defs[0]?.getFieldValue("NAME"), "join_swedish");
+  assertEquals(defs[0]?.getFieldValue("NAME"), "join_swedish_words");
   const keep = target.getAllBlocks(false).find((b) =>
     b.type === "text" && b.getFieldValue("TEXT") === "keep-me"
   );
@@ -184,10 +184,10 @@ Deno.test("extract + merge round-trip keeps argument slots and JoinNames", () =>
 
   const call = Blockly.serialization.blocks.append({
     type: "procedures_callreturn",
-    extraState: { name: "join_swedish", params: ["names"] },
+    extraState: { name: "join_swedish_words", params: ["list_of_words"] },
   }, target) as Blockly.Block;
   assert(call.getInput("ARG0"), "call site keeps the names argument slot");
-  assertEquals(merged.sheets[0]?.values[2]?.[2], " och {{name}}");
+  assertEquals(merged.sheets[0]?.values[2]?.[2], " och {{word}}");
   target.dispose();
 });
 
@@ -201,25 +201,25 @@ Deno.test("name-clash rename keeps the existing Function and Decision table", ()
     first.sheets,
     first,
   );
-  assertEquals(clash.functions, ["join_swedish"]);
-  assertEquals(clash.sheets, ["JoinNames"]);
+  assertEquals(clash.functions, ["join_swedish_words"]);
+  assertEquals(clash.sheets, ["SweJoinWords"]);
   const renamed = applyClashPolicy(
     Blockly.serialization.workspaces.save(workspace),
     first.sheets,
     first,
     "rename",
   );
-  assertEquals(renamed.bundle.name, "join_swedish2");
-  assertEquals(renamed.bundle.sheets[0]?.name, "JoinNames2");
+  assertEquals(renamed.bundle.name, "join_swedish_words2");
+  assertEquals(renamed.bundle.sheets[0]?.name, "SweJoinWords2");
   const merged = mergeFunctionBundle(workspace, first, {
     clash: "rename",
     sheets: first.sheets,
   });
-  assertEquals(merged.name, "join_swedish2");
+  assertEquals(merged.name, "join_swedish_words2");
   const names = workspace.getTopBlocks(false)
     .filter((b) => b.type === "procedures_defreturn")
     .map((b) => String(b.getFieldValue("NAME")));
-  assertEquals(names.sort(), ["join_swedish", "join_swedish2"]);
+  assertEquals(names.sort(), ["join_swedish_words", "join_swedish_words2"]);
   workspace.dispose();
 });
 
@@ -259,7 +259,7 @@ Deno.test("every grammatical-join spec has a description and Decision table", ()
   for (const spec of GRAMMATICAL_JOIN_SPECS) {
     const bundle = buildGrammaticalJoinBundle(spec);
     assert(bundle.description.length > 20, spec.id);
-    assertEquals(bundle.parameters, ["names"]);
+    assertEquals(bundle.parameters, [spec.paramName ?? "names"]);
     assertEquals(bundle.sheets.length, 1);
     assertEquals(bundle.sheets[0]?.kind, "decision-table");
     assertEquals(bundle.sheets[0]?.hitPolicy, "FIRST");
@@ -298,11 +298,11 @@ Deno.test("name-clash replace overwrites the existing Function and Decision tabl
     clash: "replace",
     sheets: first.sheets,
   });
-  assertEquals(merged.name, "join_swedish");
+  assertEquals(merged.name, "join_swedish_words");
   const names = workspace.getTopBlocks(false)
     .filter((b) => b.type === "procedures_defreturn")
     .map((b) => String(b.getFieldValue("NAME")));
-  assertEquals(names, ["join_swedish"]);
+  assertEquals(names, ["join_swedish_words"]);
   workspace.dispose();
 });
 

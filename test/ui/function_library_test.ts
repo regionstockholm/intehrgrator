@@ -32,19 +32,19 @@ Deno.test({
           };
         }).intehrgratorTestApi;
         return api?.getSnapshot().blocklyBlocks.some((block) =>
-          block.type === "procedures_defreturn" && block.fields.NAME === "join_swedish"
+          block.type === "procedures_defreturn" && block.fields.NAME === "join_swedish_words"
         ) ?? false;
       }, undefined, { timeout: 15_000 });
 
       const snap = await getSnapshot(page);
       assert(
         snap.blocklyBlocks.some((block) =>
-          block.type === "procedures_defreturn" && block.fields.NAME === "join_swedish"
+          block.type === "procedures_defreturn" && block.fields.NAME === "join_swedish_words"
         ),
         snap.statusMessage,
       );
       assert(
-        (snap.model.functions ?? []).some((fn) => fn.name === "join_swedish"),
+        (snap.model.functions ?? []).some((fn) => fn.name === "join_swedish_words"),
         `expected Mapping Model functions[] to include join_swedish, got ${
           JSON.stringify(snap.model.functions)
         }`,
@@ -53,7 +53,7 @@ Deno.test({
       assertEquals(hatchHits, 0, "Function blocks must not show the old VMS hatch warning");
 
       const joinId = snap.blocklyBlocks.find((block) =>
-        block.type === "procedures_defreturn" && block.fields.NAME === "join_swedish"
+        block.type === "procedures_defreturn" && block.fields.NAME === "join_swedish_words"
       )?.id;
       assert(joinId, "join_swedish block id");
       await page.evaluate((blockId) => {

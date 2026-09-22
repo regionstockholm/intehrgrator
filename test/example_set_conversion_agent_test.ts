@@ -449,6 +449,56 @@ Deno.test("Handlebars Output mode executes nested Notes on lung-MDT mapped sets"
   assertEquals(failures, [], failures.join("\n"));
 });
 
+/**
+ * OPT/RM leftovers recorded in docs/design/karda-admin-mapping-benchmark.md.
+ * A new kind (unit list, an unexpected invariant) is not in this set.
+ */
+function kardaValidationLimit(message: string): string | null {
+  const text = message.toLowerCase();
+  if (text.includes("required attribute missing") || /\(min:\s*1\)/.test(text)) return "required-missing";
+  if (text.includes("cardinality") || text.includes("below minimum")) return "cardinality";
+  if (text.includes("not in allowed list")) return "name-constraint";
+  if (text.includes("code_string") || text.includes("defining_code")) return "code-string";
+  if (text.includes("does not match template archetype")) return "archetype-sibling";
+  if (text.includes("type mismatch")) return "type-mismatch";
+  return null;
+}
+
+Deno.test("Karda mapped sets document remaining outputValidation messages", async () => {
+  for (const setId of [
+    "karda-ordinationsdata-to-openehr-flat",
+    "karda-administreringsdata-to-openehr-flat",
+  ]) {
+    const service = await agent(`${setId}-validation`);
+    await loadSet(service, setId, true);
+    const tree = await callAgentTool(service, "get_source_tree", {}) as {
+      examples: Array<{ id: string; filename: string }>;
+    };
+    const first = tree.examples.find((ex) => !NAME_BROKEN.test(ex.filename));
+    assert(first, `${setId} has no runnable Example Instance`);
+    await callAgentTool(service, "set_active_example", { id: first.id });
+    for (const mode of ["typescript", "xquery"] as const) {
+      const result = await runMode(service, mode);
+      assertEquals(result.error, undefined, `${setId} ${mode}: ${result.error}`);
+      assertEquals(result.ok, true, `${setId} ${mode} not ok`);
+      assertStringIncludes(outputText(result.output), "Epirubicin");
+      const validation = result.outputValidation;
+      assertEquals(validation?.applicable, true, `${setId} ${mode} validation not applicable`);
+      if (validation && validation.valid !== true) {
+        const leftover = validation.messages.filter((msg) => kardaValidationLimit(msg.message) == null);
+        assertEquals(
+          leftover,
+          [],
+          `${setId} ${mode} undocumented validation:\n${
+            leftover.map((msg) => `${msg.path}: ${msg.message}`).join("\n")
+          }`,
+        );
+        assert(validation.messages.length > 0, `${setId} ${mode} invalid with no messages`);
+      }
+    }
+  }
+});
+
 Deno.test("Simple-vitals mapped TypeScript classifies remaining outputValidation messages", async () => {
   const known = new Set([
     "required-missing",

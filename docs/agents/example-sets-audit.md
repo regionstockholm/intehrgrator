@@ -2,7 +2,7 @@
 
 Audit of catalogued Example Instances under `test/fixtures/` (see `examples/example-sets.json`).
 
-The instance-validation table below is from an earlier catalog pass (for example it still lists lung-MDT as having zero instances). After [#165](https://github.com/regionstockholm/intehrgrator/pull/165) merges, regenerate it. Catalog titles now put unmapped / mapped / mapped-decision-tables last ([#166](https://github.com/regionstockholm/intehrgrator/issues/166)); leftover Conversion Test Run work is [#167](https://github.com/regionstockholm/intehrgrator/issues/167) and [#170](https://github.com/regionstockholm/intehrgrator/issues/170), sequenced from [#172](https://github.com/regionstockholm/intehrgrator/issues/172).
+The instance-validation table below is from an earlier catalog pass (for example it still lists lung-MDT as having zero instances). Regenerate it when catalog instances change. Catalog titles put unmapped / mapped / mapped-decision-tables last ([#166](https://github.com/regionstockholm/intehrgrator/issues/166)). Karda clinical FLAT and XQuery, Agent API sheet revision and `list_slots`, and lung-MDT preview/Handlebars Note parity are covered by `test/example_set_conversion_agent_test.ts` and `test/agent_headless_loop_test.ts`.
 
 **Regenerate the instance-validation table:**
 

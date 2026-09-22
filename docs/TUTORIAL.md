@@ -182,14 +182,13 @@ Named-invalid vitals instances (filename contains `invalid` / `broken`) are nega
 
 Simple-vitals / series **valid** instances still show ⚠ (`outputValidation`) for remaining OPT messages (required attributes, unit list, CLUSTER vs ELEMENT, default-context `CODE_PHRASE`). Clinical magnitudes `120` / `80` / `72` (series `138`) are present; named-invalid instances stay negative tests.
 
+Lung-MDT **Mapping preview** and **Handlebars** agree on evaluated TermId and Note pairs. Karda mapped sets emit Simplified FLAT with clinical content in TypeScript, and XQuery executes the same instances. Remaining Karda `outputValidation` messages (category, minimum cardinality, XQuery skeleton noise) are recorded in [karda-admin-mapping-benchmark.md](design/karda-admin-mapping-benchmark.md).
+
 ### Known gaps
 
-Work sequenced in [#172](https://github.com/regionstockholm/intehrgrator/issues/172):
+- Lung-MDT VMS-Hbs `@first` / `@last` stays later ([#135](https://github.com/regionstockholm/intehrgrator/issues/135)).
 
-- Karda TypeScript is often composition **ctx** only; XQuery may throw `XPTY0004` ([#167](https://github.com/regionstockholm/intehrgrator/issues/167)). Agent API Sheets/`list_slots` leftovers: [#170](https://github.com/regionstockholm/intehrgrator/issues/170).
-- Lung-MDT **Handlebars** Output mode executes nested **Code text** LANG=handlebars in TakeCare Note fields (TermIds + evaluated Notes). Mapping preview still fills from slots (Notes may still show VMS-Hbs). `@first` / `@last` is [#135](https://github.com/regionstockholm/intehrgrator/issues/135).
-
-- **Language** (toolbar) switches Blockly UI messages (`en`, `sv`, `de`, `es`, `ca`, `fr`). Model/ontology language in the target pane is separate.
+**Language** (toolbar) switches Blockly UI messages (`en`, `sv`, `de`, `es`, `ca`, `fr`). Model/ontology language in the target pane is separate.
 
 ## 12. Get help and report problems
 

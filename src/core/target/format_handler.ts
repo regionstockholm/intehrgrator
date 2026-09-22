@@ -18,6 +18,7 @@ import {
   isRepeatingMultiplicity,
   isPartyIdentityRmType,
 } from "../skeleton/generate_skeleton.ts";
+import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
 import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
@@ -488,6 +489,7 @@ function renderGenericNode(
 function renderOpenEhrNode(
   node: SkeletonNode,
   values: Readonly<Record<string, unknown>>,
+  parentArchetypeRef?: string,
 ): unknown {
   if (
     node.kind === "container" &&
@@ -497,18 +499,23 @@ function renderOpenEhrNode(
     if (count > 1) {
       const copies: unknown[] = [];
       for (let i = 0; i < count; i++) {
-        const one = renderOpenEhrNodeOnce(node, indexSlotValues(values, i, node));
+        const one = renderOpenEhrNodeOnce(
+          node,
+          indexSlotValues(values, i, node),
+          parentArchetypeRef,
+        );
         if (one !== undefined) copies.push(one);
       }
       return copies;
     }
   }
-  return renderOpenEhrNodeOnce(node, values);
+  return renderOpenEhrNodeOnce(node, values, parentArchetypeRef);
 }
 
 function renderOpenEhrNodeOnce(
   node: SkeletonNode,
   values: Readonly<Record<string, unknown>>,
+  parentArchetypeRef?: string,
 ): unknown {
   if (node.kind === "value") {
     let value = Object.hasOwn(values, node.slotId) ? values[node.slotId] : fixedValue(node);
@@ -524,7 +531,9 @@ function renderOpenEhrNodeOnce(
   }
 
   const output: Record<string, unknown> = { _type: node.rmType };
-  if (node.archetypeNodeId) output.archetype_node_id = node.archetypeNodeId;
+  const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);
+  if (nodeId) output.archetype_node_id = nodeId;
+  const childArchetypeRef = node.archetypeRef ?? parentArchetypeRef;
   if (node.label && node.rmType !== "COMPOSITION" && !isPartyIdentityRmType(node.rmType)) {
     output.name = { _type: "DV_TEXT", value: node.label };
   }
@@ -538,7 +547,7 @@ function renderOpenEhrNodeOnce(
     if (isPartyIdentityRmType(node.rmType) && (child.rmAttribute === "name" || child.rmAttribute === "identifiers")) {
       continue;
     }
-    const value = renderOpenEhrNode(child, values);
+    const value = renderOpenEhrNode(child, values, childArchetypeRef);
     if (value === undefined) continue;
     const attribute = child.rmAttribute ?? child.label;
     const list = grouped.get(attribute) ?? [];

@@ -49,7 +49,7 @@ const CALL_AI_OPENAI_TOOLS: OpenAiTool[] = [
     function: {
       name: "list_slots",
       description:
-        "Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, units/codes, expression) plus repeatable containers.",
+        "Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, parentRmType, units/codes, expression) plus repeatable containers.",
       parameters: { type: "object", properties: {} },
     },
   },

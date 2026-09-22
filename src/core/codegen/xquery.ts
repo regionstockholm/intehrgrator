@@ -24,6 +24,7 @@ import {
 } from "./user_functions.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
+import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
 import { isListAttribute } from "./typescript.ts";
 import { emitSheetHelpers } from "./xquery_sheets.ts";
 import {
@@ -474,14 +475,18 @@ function emitHelpers(needsRm: boolean): string[] {
     "};",
     "",
     "declare function local:json-lookup($ctx as item()*, $path as xs:string) as item()* {",
-    "  let $body := replace(replace($path, \"^\\\\$\\\\.?\", \"\"), \"\\\\[(\\\\d+)\\\\]\", \".$1\")",
+    "  let $body := replace(replace(replace($path, \"^\\\\$\\\\.?\", \"\"), \"\\\\[(\\\\d+)\\\\]\", \".$1\"), \"\\\\[\\\\*\\\\]\", \".*\")",
     "  let $segments := tokenize($body, \"\\\\.\")[. ne \"\"]",
     "  return fold-left(",
     "    $segments,",
     "    $ctx,",
     "    function($acc as item()*, $seg as xs:string) as item()* {",
     "      if (empty($acc)) then ()",
-    "      else if ($seg castable as xs:integer) then $acc[xs:integer($seg)]",
+    "      else if ($seg eq \"*\") then",
+    "        if ($acc instance of array(*)) then $acc?* else $acc",
+    "      else if ($seg castable as xs:integer) then",
+    "        if ($acc instance of array(*)) then $acc?(xs:integer($seg)) else ($acc)[xs:integer($seg)]",
+    "      else if ($acc instance of array(*)) then $acc?*?($seg)",
     "      else $acc?($seg)",
     "    }",
     "  )",
@@ -872,7 +877,8 @@ export function jsonDollarPathToLookup(path: string, root = "$source"): string |
 
   let expr = root;
   for (const seg of segments) {
-    if (/^\d+$/.test(seg)) expr += `?${seg}`;
+    if (seg === "*") expr += "?*";
+    else if (/^\d+$/.test(seg)) expr += `?${seg}`;
     else if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(seg)) expr += `?${seg}`;
     else expr += `?(${xqString(seg)})`;
   }
@@ -936,14 +942,15 @@ function emitSkelNode(
   node: SkeletonNode,
   ctx: XqSkelCtx,
   isRoot = false,
+  parentArchetypeRef?: string,
 ): string | null {
   if (node.kind === "value") return emitSkelValue(node, ctx);
   if (isAutoFixedValueSlot(node)) return null;
 
   const loop = ctx.loops.find((item) => item.attachSlotId === node.slotId);
-  if (loop) return emitSkelLoop(node, loop, ctx);
+  if (loop) return emitSkelLoop(node, loop, ctx, parentArchetypeRef);
 
-  const props = skelProps(node, ctx);
+  const props = skelProps(node, ctx, parentArchetypeRef);
   if (!props.length && !node.mandatory && node.rmType !== "COMPOSITION") return null;
   return formatSkelConstruct(node, props, ctx, isRoot);
 }
@@ -952,6 +959,7 @@ function emitSkelLoop(
   node: SkeletonNode,
   loop: MappingLoop,
   ctx: XqSkelCtx,
+  parentArchetypeRef?: string,
 ): string {
   const ident = /^[A-Za-z_][A-Za-z0-9_]*$/.test(loop.varName) ? loop.varName : "item";
   const inner: XqSkelCtx = {
@@ -968,7 +976,7 @@ function emitSkelLoop(
       },
     },
   };
-  const props = skelProps(node, inner);
+  const props = skelProps(node, inner, parentArchetypeRef);
   const constructed = formatSkelConstruct(node, props, inner, false);
   const sequence = compileLoopSequence(loop);
   const flwor =
@@ -986,6 +994,7 @@ function emitSkelLoop(
 function skelProps(
   node: SkeletonNode,
   ctx: XqSkelCtx,
+  parentArchetypeRef?: string,
 ): Array<[string, string]> {
   const props: Array<[string, string]> = [];
   if (node.label && shouldEmitSkelName(node)) {
@@ -996,9 +1005,11 @@ function skelProps(
         : `map { "_type": "DV_TEXT", "value": ${xqString(node.label)} }`,
     ]);
   }
-  if (node.archetypeNodeId) {
-    props.push(["archetype_node_id", xqString(node.archetypeNodeId)]);
+  const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);
+  if (nodeId) {
+    props.push(["archetype_node_id", xqString(nodeId)]);
   }
+  const childArchetypeRef = node.archetypeRef ?? parentArchetypeRef;
 
   const grouped = new Map<string, SkeletonNode[]>();
   for (const child of node.children) {
@@ -1012,7 +1023,7 @@ function skelProps(
   for (const [attr, children] of grouped) {
     const listAttr = isListAttribute(node.rmType, attr);
     const codes = children
-      .map((child) => emitSkelNode(child, ctx, false))
+      .map((child) => emitSkelNode(child, ctx, false, childArchetypeRef))
       .filter((code): code is string => Boolean(code));
     if (!codes.length) continue;
     const asList = listAttr || codes.some((c) => c.includes("for $"));

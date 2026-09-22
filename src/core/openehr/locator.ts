@@ -93,7 +93,7 @@ export function parseLocator(input: string): OpenEhrLocator {
     while (end < source.length && !".[/".includes(source[end]!)) end++;
     const name = source.slice(i, end);
     i = end;
-    const step: LocatorStep = {
+    let step: LocatorStep = {
       axis: pendingDescendant ? "descendant" : "child",
       name,
     };
@@ -101,7 +101,15 @@ export function parseLocator(input: string): OpenEhrLocator {
     while (source[i] === "[") {
       const close = findMatchingBracket(source, i);
       if (close < 0) throw new Error(`Unclosed predicate in locator: ${input}`);
-      applyBracket(step, source.slice(i + 1, close).trim());
+      const body = source.slice(i + 1, close).trim();
+      // `foo[1]['|value']` is an index plus a child key, not one step.
+      // OpenEHR predicates (`[at0003, 'Name']`) stay on the current step.
+      if (step.name && isQuotedKey(body)) {
+        steps.push(step);
+        step = { axis: "child", name: unquote(body) };
+      } else {
+        applyBracket(step, body);
+      }
       i = close + 1;
     }
     if (step.name || step.predicate || step.index !== undefined) steps.push(step);
@@ -268,6 +276,13 @@ function findMatchingBracket(source: string, open: number): number {
     }
   }
   return -1;
+}
+
+function isQuotedKey(body: string): boolean {
+  const t = body.trim();
+  if (t.length < 2) return false;
+  const quote = t[0];
+  return (quote === "'" || quote === '"') && t.endsWith(quote);
 }
 
 function applyBracket(step: LocatorStep, body: string): void {

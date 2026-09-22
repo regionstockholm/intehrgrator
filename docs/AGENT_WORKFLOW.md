@@ -40,7 +40,7 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | GET | `/health` | — | Liveness (unauthenticated) |
 | POST | `/ai-chat-completions` | — | Desktop Call AI forwarder (provider URL + key in JSON body; not MCP) |
 | GET | `/snapshot` | `get_snapshot` | Revision, mapped counts, unmapped mandatory slot ids, sheets, product stack, leases, Constraint warning count, test status |
-| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, unitsFixed / allowedUnits, codeFixed / allowedValues, expression) plus `repeatable` containers for `loops[]` |
+| GET | `/slots` | `list_slots` | Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId, parentRmType, unitsFixed / allowedUnits, codeFixed / allowedValues, expression) plus `repeatable` containers for `loops[]` |
 | GET | `/source-tree` | `get_source_tree` | Compact Source Schema + Active Example trees |
 | GET | `/sheets` | `get_sheets` | Sheet / Decision table summaries + documents |
 | GET | `/product-stack` | `get_product_stack` | Conversion start chain (Instance roots, encodings, loops) |
@@ -80,7 +80,23 @@ HTTP paths and MCP tool names are **1:1** for agent operations (shared `callAgen
 | POST | `/restore-at` | `restore_at` | `{ seq, mode?: view \| destructive }` |
 | POST | `/export-discarded` | — | `{ entries: [{ afterBundle }] }` → `.intehrgrator` zip |
 
-Mutating requests accept **`If-Match: <revision>`** from the last snapshot. On conflict the API returns **409** with current revision. Foreign slot leases also return **409** (`holder`).
+Mutating requests accept **`If-Match: <revision>`** from the last snapshot. On conflict the API returns **409** with current revision. Foreign slot leases also return **409** (`holder`). `replace_sheets` / PUT `/sheets` changes `revision` (the hash includes Sheets). Use the new snapshot revision on the next write.
+
+### Example Set load
+
+`load_example_set` **`includeMapping` defaults to true**: a mapped catalog set **adopts** its Blockly canvas, Sheets, and loops. `get_snapshot.appliedSlots` is the mapped slot count and is greater than 0 after that adopt. **`includeMapping: false`** loads the target, schema, and examples and **scaffolds** an empty Mapping Model from the Template Skeleton (no saved expressions).
+
+`list_slots` `parentRmType` is the nearest COMPOSITION, SECTION, or ENTRY ancestor (`ACTION` vs `EVALUATION` when sibling content shares `at0000`). Pair it with `pathLabel` and `attachSlotId`; do not parse raw Blockly to tell those slots apart.
+
+Output modes that execute for catalogued families:
+
+| Family | Modes |
+|--------|--------|
+| openEHR FLAT (Karda mapped sets) | TypeScript emits Simplified FLAT. XQuery executes the same instances (canonical JSON maps). |
+| Lung-MDT TakeCare XML | Mapping preview and Handlebars both evaluate the XML canvas (TermId + Note). |
+| Chemo symptoms TakeCare XML | TypeScript and Go template. |
+
+Go template Test Run uses the live Blockly walker (the same script as Generated Export). Cloud or laptop agents without a desktop MCP server should call the HTTP Agent API (`intEHRgrator --headless`, or `callAgentTool`). stdio MCP with `INTEHR_AGENT_URL` is for watching a GUI session. `deno task mcp` with no `INTEHR_AGENT_URL` embeds a headless workbench. Call AI runs these tool names in-process and does not need stdio MCP.
 
 Pass agent identity on mutations: headers **`X-Agent-Id`**, **`X-Agent-Name`**, optional **`X-Agent-Color`** (after `register-agent`).
 

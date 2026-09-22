@@ -42,7 +42,7 @@ export function lungMdtDecisionSheets(): SheetDocument[] {
       ["Har aldrig rökt", "{{status}}"],
       [
         "—",
-        "{{status}} ({{typ}})\n{{#paketår}}Paketår: {{paketår}}\n{{/paketår}}{{#slutdatum}}Slutade: {{slutdatum}}\n{{/slutdatum}}{{#kommentar}}Kommentar: {{kommentar}}\n{{/kommentar}}",
+        "{{status}} ({{typ}})\n{{#paketår}}Paketår: {{.}}\n{{/paketår}}{{#slutdatum}}Slutade: {{.}}\n{{/slutdatum}}{{#kommentar}}Kommentar: {{.}}\n{{/kommentar}}",
       ],
     ], 1, 1),
     firstValue("treatment_connector", ["relation", "has_huvud", "snippet"], [

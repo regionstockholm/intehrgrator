@@ -1,9 +1,9 @@
 /**
  * Evaluate a Blockly XML / XSD schema canvas to an instance string.
  *
- * Used by Handlebars Output mode so nested `text_code` LANG=handlebars Notes
- * and `controls_if` evaluate (issue #168). Mapping preview still fills the
- * XML skeleton from slots so gold-vs-sibling comparisons stay slot-based.
+ * Used by Handlebars Output mode and Mapping preview so nested `text_code`
+ * LANG=handlebars Notes and `controls_if` evaluate (issues #168 / #176).
+ * Free-form Handlebars (no XML/schema root) does not use this walker.
  * Walks workspace JSON (no live Blockly).
  */
 

@@ -50,7 +50,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
   {
     name: "list_slots",
     description:
-      "Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId for loops, unitsFixed/allowedUnits, codeFixed/allowedValues, expression) plus repeatable containers.",
+      "Target value slots (id, mapped, valueType, pathLabel, multiplicity, attachSlotId for loops, parentRmType of the nearest COMPOSITION/SECTION/ENTRY, unitsFixed/allowedUnits, codeFixed/allowedValues, expression) plus repeatable containers.",
     inputSchema: { type: "object", properties: {} },
   },
   {

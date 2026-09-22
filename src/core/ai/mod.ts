@@ -14,7 +14,7 @@ import type {
   TargetFormatId,
 } from "../../types/mod.ts";
 import { applyExpressionEdit } from "../mapping_model/mod.ts";
-import { collectValueSlots, collectRepeatableContainers, findSkeletonTrail, nearestRepeatingContainer, pathLabelFromTrail } from "../skeleton/generate_skeleton.ts";
+import { collectValueSlots, collectRepeatableContainers, findSkeletonTrail, nearestContentAncestor, nearestRepeatingContainer, pathLabelFromTrail } from "../skeleton/generate_skeleton.ts";
 import { validateExpressionSource } from "../expression/mod.ts";
 import { Validator, type Schema } from "@cfworker/json-schema";
 import { SUGGESTION_FORMAT_SCHEMA } from "./suggestion_schema.ts";
@@ -138,6 +138,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
   const manifest = inScope.map((s) => {
     const trail = findSkeletonTrail(options.skeleton, s.slotId);
     const repeating = nearestRepeatingContainer(trail);
+    const parent = nearestContentAncestor(trail);
     const pathLabel = pathLabelFromTrail(trail);
     return {
       slotId: s.slotId,
@@ -147,6 +148,7 @@ export function buildPrompt(options: BuildPromptOptions): string {
       ...(s.targetPath ? { targetPath: s.targetPath } : {}),
       ...(s.multiplicity ? { multiplicity: s.multiplicity } : {}),
       ...(repeating ? { attachSlotId: repeating.slotId } : {}),
+      ...(parent ? { parentRmType: parent.rmType } : {}),
       ...(s.archetypeNodeId ? { archetypeNodeId: s.archetypeNodeId } : {}),
       ...(s.fixedFields?.units ? { unitsFixed: s.fixedFields.units } : {}),
       ...(s.fixedFields?.code_string || s.fixedFields?.defining_code

@@ -12,7 +12,7 @@ Load with MCP / Agent API `list_function_library` then `load_function` (`clash`:
 
 | id | name | locale | params | returns | Decision tables | what |
 |----|------|--------|--------|---------|-----------------|------|
-| `join_swedish` | `join_swedish` | sv | `names` | String | JoinNames | `A, B och C` (FIRST snippets; not `join_list`) |
+| `join_swedish` | `join_swedish_words` | sv | `list_of_words` | String (`joined_words`) | SweJoinWords | `A, B och C` (FIRST snippets `{{word}}`; not `join_list`) |
 | `join_oxford` | `join_oxford` | en | `names` | String | JoinOxford | `A, B, and C` Oxford comma (FIRST snippets; not `join_list`) |
 
 Catalog: `function-library/catalog.json`. Files: `*.intehr-function.json` (`hasReturn` true for value Functions). When a contribution issue is accepted, follow [`AGENTS.md`](AGENTS.md).

@@ -22,16 +22,28 @@ export interface GrammaticalJoinSpec {
   locale: string;
   lastSnippet: string;
   description: string;
+  /** Blockly parameter name. Default `names`. */
+  paramName?: string;
+  /** Accumulator / return variable. Default `result`. */
+  resultName?: string;
+  /** `for each` variable. Default `item`. */
+  itemName?: string;
+  /** Decision-table input key interpolated by the snippet. Default `name`. */
+  snippetKey?: string;
 }
 
 export const JOIN_SWEDISH_SPEC: GrammaticalJoinSpec = {
   id: "join_swedish",
-  functionName: "join_swedish",
-  tableName: "JoinNames",
+  functionName: "join_swedish_words",
+  tableName: "SweJoinWords",
   locale: "sv",
-  lastSnippet: " och {{name}}",
+  paramName: "list_of_words",
+  resultName: "joined_words",
+  itemName: "word",
+  snippetKey: "word",
+  lastSnippet: " och {{word}}",
   description:
-    "Joins a list of strings as Swedish A, B och C. Parameter `names` (list). Returns a string. Decision table JoinNames (FIRST): first → {{name}}, middle → `, {{name}}`, last → ` och {{name}}`. Not a join_list builtin.",
+    'Joins a list of words to a comma separated text string in the way words are enumerated in Swedish with "och" (and) before last word. A decision table is used to select output pattern first → `{{word}}`, middle → `, {{word}}`, last → ` och {{word}}`. Parameter `list_of_words`. Returns `joined_words`.',
 };
 
 export const JOIN_OXFORD_SPEC: GrammaticalJoinSpec = {
@@ -117,7 +129,12 @@ function minus(workspace: Blockly.Workspace, a: Blockly.Block, b: Blockly.Block)
   return op;
 }
 
+function snippetKeyOf(spec: GrammaticalJoinSpec): string {
+  return spec.snippetKey ?? "name";
+}
+
 export function grammaticalJoinTable(spec: GrammaticalJoinSpec): SheetDocument {
+  const key = snippetKeyOf(spec);
   return normalizeSheet({
     name: spec.tableName,
     kind: "decision-table",
@@ -129,20 +146,20 @@ export function grammaticalJoinTable(spec: GrammaticalJoinSpec): SheetDocument {
       { role: "output", outputKind: "snippet" },
     ],
     values: [
-      [true, "—", "{{name}}"],
-      [false, false, ", {{name}}"],
+      [true, "—", `{{${key}}}`],
+      [false, false, `, {{${key}}}`],
       [false, true, spec.lastSnippet],
     ],
   });
 }
 
-function joinLocals(workspace: Blockly.Workspace): Blockly.Block {
+function joinLocals(workspace: Blockly.Workspace, snippetKey: string): Blockly.Block {
   const map = workspace.newBlock(MAPS_CREATE_WITH) as MapCreateBlock;
   map.itemCount_ = 3;
   map.updateShape_();
   map.setFieldValue("first", "KEY0");
   map.setFieldValue("last", "KEY1");
-  map.setFieldValue("name", "KEY2");
+  map.setFieldValue(snippetKey, "KEY2");
   plug(map, "VAL0", eq(workspace, workspace.newBlock(LOGIC_LOOP_INDEX_BLOCK), number(workspace, 0)));
   plug(
     map,
@@ -157,11 +174,11 @@ function joinLocals(workspace: Blockly.Workspace): Blockly.Block {
   return map;
 }
 
-function joinEval(workspace: Blockly.Workspace, tableName: string): Blockly.Block {
+function joinEval(workspace: Blockly.Workspace, spec: GrammaticalJoinSpec): Blockly.Block {
   const table = workspace.newBlock("decision_table");
-  table.setFieldValue(tableName, "NAME");
+  table.setFieldValue(spec.tableName, "NAME");
   table.setFieldValue("snippet", "OUTPUT");
-  plug(table, "INPUTS", joinLocals(workspace));
+  plug(table, "INPUTS", joinLocals(workspace, snippetKeyOf(spec)));
   return table;
 }
 
@@ -170,17 +187,21 @@ export function defineGrammaticalJoin(
   workspace: Blockly.Workspace,
   spec: GrammaticalJoinSpec,
 ): Blockly.Block {
-  const paramId = `${spec.functionName}_names`;
-  const resultId = `${spec.functionName}_result`;
+  const paramName = spec.paramName ?? "names";
+  const resultName = spec.resultName ?? "result";
+  const itemName = spec.itemName ?? "item";
+  const paramId = `${spec.functionName}_${paramName}`;
+  const resultId = `${spec.functionName}_${resultName}`;
   const def = Blockly.serialization.blocks.append({
     type: "procedures_defreturn",
     fields: { NAME: spec.functionName },
     extraState: {
-      params: [{ name: "names", id: paramId }],
+      params: [{ name: paramName, id: paramId }],
       hasStatements: true,
     },
   }, workspace) as Blockly.Block;
   (def as { setStatements_?: (v: boolean) => void }).setStatements_?.(true);
+  def.setCommentText(spec.description);
 
   const decl = workspace.newBlock("decision_table_decl");
   decl.setFieldValue(spec.tableName, "NAME");
@@ -188,11 +209,11 @@ export function defineGrammaticalJoin(
 
   const empty = workspace.newBlock("text");
   empty.setFieldValue("", "TEXT");
-  const init = varSet(workspace, "result", empty, resultId);
+  const init = varSet(workspace, resultName, empty, resultId);
   const loop = workspace.newBlock("for_each_list");
-  loop.setFieldValue("item", "VAR");
-  plug(loop, "LIST", varGet(workspace, "names", paramId));
-  const append = textAppend(workspace, "result", joinEval(workspace, spec.tableName), resultId);
+  loop.setFieldValue(itemName, "VAR");
+  plug(loop, "LIST", varGet(workspace, paramName, paramId));
+  const append = textAppend(workspace, resultName, joinEval(workspace, spec), resultId);
   loop.getInput("DO")!.connection!.connect(append.previousConnection!);
   init.nextConnection!.connect(loop.previousConnection!);
   const stack = def.getInput("STACK") ?? def.getInput("STACK0");
@@ -200,7 +221,7 @@ export function defineGrammaticalJoin(
   stack.connection.connect(init.previousConnection!);
   const ret = def.getInput("RETURN") ?? def.getInput("VALUE");
   if (!ret?.connection) throw new Error(`${spec.functionName} needs a return socket`);
-  ret.connection.connect(varGet(workspace, "result", resultId).outputConnection!);
+  ret.connection.connect(varGet(workspace, resultName, resultId).outputConnection!);
   return def;
 }
 

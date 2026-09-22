@@ -56,7 +56,7 @@
       ],
       [
         "—",
-        "{{status}} ({{typ}})\n{{#paketår}}Paketår: {{paketår}}\n{{/paketår}}{{#slutdatum}}Slutade: {{slutdatum}}\n{{/slutdatum}}{{#kommentar}}Kommentar: {{kommentar}}\n{{/kommentar}}"
+        "{{status}} ({{typ}})\n{{#paketår}}Paketår: {{.}}\n{{/paketår}}{{#slutdatum}}Slutade: {{.}}\n{{/slutdatum}}{{#kommentar}}Kommentar: {{.}}\n{{/kommentar}}"
       ]
     ],
     "columnTypes": [

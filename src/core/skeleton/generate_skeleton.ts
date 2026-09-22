@@ -869,6 +869,26 @@ export function nearestRepeatingContainer(trail: SkeletonNode[]): SkeletonNode |
   return null;
 }
 
+/** COMPOSITION, SECTION, or ENTRY ancestor — distinguishes colliding `at0000` content. */
+const CONTENT_ANCESTOR_RM = new Set([
+  "COMPOSITION",
+  "SECTION",
+  "OBSERVATION",
+  "EVALUATION",
+  "INSTRUCTION",
+  "ACTION",
+  "ADMIN_ENTRY",
+  "GENERIC_ENTRY",
+]);
+
+export function nearestContentAncestor(trail: SkeletonNode[]): SkeletonNode | null {
+  for (let i = trail.length - 2; i >= 0; i--) {
+    const node = trail[i]!;
+    if (CONTENT_ANCESTOR_RM.has(node.rmType)) return node;
+  }
+  return null;
+}
+
 function applyRmConstrainedFields(node: SkeletonNode, parentRmType: string): void {
   if (!node.rmAttribute) return;
   node.fixedFields = withRmConstrainedFields(

@@ -169,6 +169,7 @@ export type OpenEhrValidationKind =
   | "unit-list"
   | "type-mismatch"
   | "code-phrase"
+  | "archetype-sibling"
   | "other";
 
 export function classifyOpenEhrValidationMessage(message: string): OpenEhrValidationKind {
@@ -199,5 +200,8 @@ export function classifyOpenEhrValidationMessage(message: string): OpenEhrValida
   ) {
     return "code-phrase";
   }
+  // ehrtslib matches sibling C_ARCHETYPE_ROOT children by RM type only, so
+  // the first OBSERVATION/CLUSTER constraint is used for every sibling.
+  if (m.includes("does not match template archetype")) return "archetype-sibling";
   return "other";
 }

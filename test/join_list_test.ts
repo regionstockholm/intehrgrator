@@ -35,14 +35,14 @@ function joinSwedish(names: string[]): string {
       evaluateDecisionTable(joinNames, {
         first: index === 0,
         last: index === length - 1,
-        name: names[index],
+        word: names[index],
       }, "snippet") ?? "",
     );
   }
   return result;
 }
 
-Deno.test("JoinNames FIRST snippets enumerate Anna, Bo och Carl", () => {
+Deno.test("SweJoinWords FIRST snippets enumerate Anna, Bo och Carl", () => {
   assertEquals(joinSwedish([]), "");
   assertEquals(joinSwedish(["Only"]), "Only");
   assertEquals(joinSwedish(["Anna", "Bo"]), "Anna och Bo");
@@ -154,23 +154,25 @@ function runJoinSwedish(code: string, names: string[]): string {
     `"use strict";
     const __vars = {};
     ${code}
-    return join_swedish(${JSON.stringify(names)});`,
+    return join_swedish_words(${JSON.stringify(names)});`,
   ) as (
     decisionTable: (name: string, inputs: Record<string, unknown>, output?: string) => unknown,
   ) => unknown;
   return String(run((name, inputs, output) => {
-    if (name !== "JoinNames") throw new Error(`unexpected table ${name}`);
+    if (name !== "SweJoinWords") throw new Error(`unexpected table ${name}`);
     return evaluateDecisionTable(joinNames, inputs, output);
   }) ?? "");
 }
 
-Deno.test("join_swedish Function + JoinNames loop enumerates Anna, Bo och Carl", () => {
+Deno.test("join_swedish_words Function + SweJoinWords loop enumerates Anna, Bo och Carl", () => {
   ensure();
   const workspace = new Blockly.Workspace();
-  defineJoinSwedish(workspace);
+  const def = defineJoinSwedish(workspace);
+  assertEquals(def.getCommentText()?.includes("list_of_words"), true);
+  assertEquals(def.getCommentText()?.includes("joined_words"), true);
   javascriptGenerator.init(workspace);
   const code = javascriptGenerator.workspaceToCode(workspace);
-  assert(code.includes("function join_swedish"), code);
+  assert(code.includes("function join_swedish_words"), code);
   assert(code.includes("for ("), code);
   assertEquals(code.includes("..."), false, code);
   assertEquals(runJoinSwedish(code, []), "");

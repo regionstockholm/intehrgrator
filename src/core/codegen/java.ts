@@ -11,6 +11,7 @@
 import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
+import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { isListAttribute } from "./typescript.ts";
 import { usesOpenEhrProduct } from "./product.ts";
@@ -654,6 +655,7 @@ function emitSkeletonNode(
   loops: MappingLoop[],
   ctx: JavaEmitContext,
   indent: number,
+  parentArchetypeRef?: string,
 ): string | null {
   if (node.kind === "value") {
     return emitSkeletonValue(node, slots.get(node.slotId), ctx, indent);
@@ -662,10 +664,10 @@ function emitSkeletonNode(
 
   const loop = loops.find((item) => item.attachSlotId === node.slotId);
   if (loop) {
-    return emitSkeletonLoop(node, loop, slots, loops, ctx, indent);
+    return emitSkeletonLoop(node, loop, slots, loops, ctx, indent, parentArchetypeRef);
   }
 
-  const props = skeletonContainerProps(node, slots, loops, ctx, indent);
+  const props = skeletonContainerProps(node, slots, loops, ctx, indent, parentArchetypeRef);
   if (!props.length && !node.mandatory && node.rmType !== "COMPOSITION") {
     return null;
   }
@@ -679,6 +681,7 @@ function emitSkeletonLoop(
   loops: MappingLoop[],
   ctx: JavaEmitContext,
   indent: number,
+  parentArchetypeRef?: string,
 ): string {
   ctx.helpers.add("nodes");
   const ident = javaIdent(loop.varName, "item");
@@ -691,7 +694,14 @@ function emitSkeletonLoop(
     idents: ctx.idents,
   };
   const nestedLoops = loops.filter((item) => item !== loop);
-  const props = skeletonContainerProps(node, slots, nestedLoops, innerCtx, indent + 1);
+  const props = skeletonContainerProps(
+    node,
+    slots,
+    nestedLoops,
+    innerCtx,
+    indent + 1,
+    parentArchetypeRef,
+  );
   const constructed = formatRmConstruct(node.rmType, props, indent + 1, innerCtx);
   const mapped = `${ident} -> ${constructed}`;
   if (loop.kind === "list" && loop.collection) {
@@ -708,6 +718,7 @@ function skeletonContainerProps(
   loops: MappingLoop[],
   ctx: JavaEmitContext,
   indent: number,
+  parentArchetypeRef?: string,
 ): Array<[string, string]> {
   const props: Array<[string, string]> = [];
   if (node.label && shouldEmitSkeletonName(node)) {
@@ -717,9 +728,11 @@ function skeletonContainerProps(
       `new DvText(${JSON.stringify(node.label)})`,
     ]);
   }
-  if (node.archetypeNodeId) {
-    props.push(["archetype_node_id", JSON.stringify(node.archetypeNodeId)]);
+  const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);
+  if (nodeId) {
+    props.push(["archetype_node_id", JSON.stringify(nodeId)]);
   }
+  const childArchetypeRef = node.archetypeRef ?? parentArchetypeRef;
 
   const grouped = new Map<string, SkeletonNode[]>();
   for (const child of node.children) {
@@ -734,7 +747,14 @@ function skeletonContainerProps(
     const listAttr = isListAttribute(node.rmType, attr);
     const codes = children
       .map((child) =>
-        emitSkeletonNode(child, slots, loops, ctx, listAttr ? indent + 2 : indent + 1)
+        emitSkeletonNode(
+          child,
+          slots,
+          loops,
+          ctx,
+          listAttr ? indent + 2 : indent + 1,
+          childArchetypeRef,
+        )
       )
       .filter((code): code is string => Boolean(code) && !isBlankGeneratedExpr(code));
     if (!codes.length) continue;

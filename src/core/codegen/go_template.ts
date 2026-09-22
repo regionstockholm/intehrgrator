@@ -36,6 +36,8 @@ export interface GoEmitContext {
   loopVar?: string;
   mappingFunctions?: MappingFunction[];
   fnParams?: Set<string>;
+  /** Slot id → archetype id for archetype-root blocks whose field is still the at-code. */
+  archetypeRootIds?: Map<string, string>;
 }
 
 export function createGoEmitContext(

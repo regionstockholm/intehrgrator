@@ -3,18 +3,18 @@
   "functions": [
     {
       "id": "join_swedish",
-      "name": "join_swedish",
+      "name": "join_swedish_words",
       "title": "Swedish list join",
-      "description": "Joins a list of strings as Swedish A, B och C. Parameter `names` (list). Returns a string. Decision table JoinNames (FIRST): first → {{name}}, middle → `, {{name}}`, last → ` och {{name}}`. Not a join_list builtin.",
+      "description": "Joins a list of words to a comma separated text string in the way words are enumerated in Swedish with \"och\" (and) before last word. A decision table is used to select output pattern first → `{{word}}`, middle → `, {{word}}`, last → ` och {{word}}`. Parameter `list_of_words`. Returns `joined_words`.",
       "file": "join_swedish.intehr-function.json",
       "locale": "sv",
       "parameters": [
-        "names"
+        "list_of_words"
       ],
       "hasReturn": true,
       "returns": "String",
       "decisionTables": [
-        "JoinNames"
+        "SweJoinWords"
       ]
     },
     {

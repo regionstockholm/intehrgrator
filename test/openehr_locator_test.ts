@@ -64,6 +64,26 @@ Deno.test("unique OPT content/at0000 folds to a node-id predicate", () => {
   );
 });
 
+Deno.test("quoted JSON keys after an index are child steps", () => {
+  assertEquals(
+    compileAuthoringPath("$.status[1]['|value']", "json"),
+    '$source?status?1?("|value")',
+  );
+  const source = {
+    granskning: {
+      övergripande_status: [{ "|value": "Har aldrig rökt" }],
+    },
+  };
+  const query = compileAuthoringPath(
+    "$.granskning.övergripande_status[1]['|value']",
+    "json",
+  );
+  assertEquals(
+    fontoxpath.evaluateXPathToString(query, null, null, { source }),
+    "Har aldrig rökt",
+  );
+});
+
 Deno.test("generic JSON index paths are unchanged in spirit", () => {
   assertEquals(
     compileAuthoringPath("$.vitals[1].systolic", "json"),

@@ -168,11 +168,32 @@ Agent compared golden Simplified FLAT instances (and, where they disagree, the G
 - `pathLabel` uses the CLUSTER name constraint (`Vårdenhet` vs `Vårdgivare`).
 - Goldens: regenerate from the tmpl; drop or annotate `_instruction_details`; document Stoppad→completed.
 - **`toLocalDateTime` timezone** (`+02:00` on goldens vs naive source) is encoding, not a slot mapping.
-- **`flat-json` Test Run** still serializes only a handful of `ctx/*` keys for this composition (Web Template flatten vs canonical RM JSON). Pass 2 oracle is canonical JSON; FLAT goldens are compared by field, not by a full flatten round-trip.
+- **`flat-json` Test Run** at Pass 2 serialized only a handful of `ctx/*` keys (Web Template flatten vs canonical RM JSON). That flatten gap is closed; see [Current Conversion Test Run](#current-conversion-test-run). Pass 2 oracle remains canonical JSON; FLAT goldens are compared by field, not by a full flatten round-trip.
 
 ## Pass 3
 
 The existing mapping is Go `text/template` Simplified FLAT (`mapping/AdministrationRCCV1-AdministreradMedicinskOnkologiskBehandlingPerSubstans.tmpl`). Pass 2 already is that conversion onto Blockly. New skill **`convert-mappings`**: inventory artefact → translate FLAT/script paths to `slotId`s → loops / Decision tables / party maps → `optional_rm_add` + envelope + Test Run; treat goldens as fallible.
 
 Artefacts: `.cursor/skills/convert-mappings/SKILL.md` (mirrored under `.agents/skills/`). AGENTS.md points at it. Worked example in the skill is this tmpl → `pass-2-ai.intehrgrator-suggestions.json`.
+
+## Current Conversion Test Run
+
+Catalog sets `karda-administreringsdata-to-openehr-flat` and `karda-ordinationsdata-to-openehr-flat` (mapped Blockly, Web Template already attached). Measured on the first runnable Example Instance of each set.
+
+**TypeScript `flat-json`.** Simplified FLAT now includes clinical content (`Epirubicin` on both sets), not only `ctx/language`. Content items used to emit `archetype_node_id` `at0000` while the Web Template AQL paths predicate the archetype id (`/content[openEHR-EHR-EVALUATION.reason_for_encounter.v1]`, `/content[openEHR-EHR-ACTION.medication.v1]`, and nested `items[openEHR-EHR-CLUSTER.medication.v2]`), so flatten skipped the content tree. Emit-time `rmArchetypeNodeId` writes the archetype id when a node opens a new archetype scope. The skeleton and gold Blockly still store the at-code. Sibling slots of the same RM type can then be reported against the first OPT alternative (`does not match template archetype`); that message is classified as `archetype-sibling` and is not a missing substance mapping.
+
+`outputValidation.valid` is still false. The same three messages remain on both sets:
+
+- Required attribute missing: category
+- Required attribute missing (min: 1)
+- Cardinality 0 below minimum: 1
+
+**XQuery.** Second Output mode. Both sets execute (no XPTY0004) and the JSON includes `Epirubicin`. Lookup paths such as `$.KurDagar[*].Substanser` compile to `?*` array unwraps, and Decision-table cell compare always returns a boolean.
+
+XQuery `outputValidation` is noisier because that mode emits the Template Skeleton, including unmapped optional clusters. Leftover messages (first instance):
+
+- Administration: type mismatches (`DV_TEXT` vs `DV_IDENTIFIER`, `DV_CODED_TEXT` vs `DV_QUANTITY`), missing `code_string` / `defining_code`, name constraints outside the template list (`Vårdgivare`, `Administrerad dos`, `items`, `Kvantitet`, `Ytterligare detaljer`), plus required-attribute min 1.
+- Ordination: the same kinds of mismatches, plus `archetype_node_id` values that do not match the template node they landed on (`medication_regimen.v0` / `medication_trial_details.v0` vs `CLUSTER.organisation.v1`), and name constraints such as `Epirubicin` / `dummy-substance-tablett` against `[Ordination per substans]`.
+
+Those XQuery messages are mapping and skeleton leftovers. They are not an execution failure.
 

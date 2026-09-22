@@ -1869,7 +1869,7 @@ export class WorkbenchController {
     return runTest(this.model, example.content, example.format, {
       target: this.target,
       outputMode: mode,
-      generatedCode: mode === "typescript" || mode === "xquery"
+      generatedCode: mode === "typescript" || mode === "xquery" || mode === "go-template"
         ? this.generatedCode
         : undefined,
       handlebarsTemplate: this.handlebarsTemplate,

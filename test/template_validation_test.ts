@@ -2,7 +2,7 @@ import { assert, assertEquals } from "@std/assert";
 import { join } from "@std/path";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
-import { validateConvertedOutput } from "@intehrgrator/core/output/template_validation.ts";
+import { validateConvertedOutput, classifyOpenEhrValidationMessage } from "@intehrgrator/core/output/template_validation.ts";
 import { getTargetFormatHandler } from "@intehrgrator/core/target/mod.ts";
 import { generateSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { WorkbenchController } from "@intehrgrator/workbench/controller.ts";
@@ -132,4 +132,24 @@ Deno.test("runAllTests validates every loaded example for autoplay", async () =>
       `expected validation messages for ${ex.filename}`,
     );
   }
+});
+
+Deno.test("classifyOpenEhrValidationMessage splits Simple-vitals leftover kinds", () => {
+  assertEquals(
+    classifyOpenEhrValidationMessage("Required attribute missing (min:1) on /content[openEHR-EHR-OBSERVATION]/data/events"),
+    "required-missing",
+  );
+  assertEquals(
+    classifyOpenEhrValidationMessage("units value mm[Hg] is not in C_DV_QUANTITY.list"),
+    "unit-list",
+  );
+  assertEquals(
+    classifyOpenEhrValidationMessage("Type mismatch: expected ELEMENT, found CLUSTER"),
+    "type-mismatch",
+  );
+  assertEquals(
+    classifyOpenEhrValidationMessage("CODE_PHRASE completeness: encoding defining_code missing"),
+    "code-phrase",
+  );
+  assertEquals(classifyOpenEhrValidationMessage("unexpected RM invariant"), "other");
 });

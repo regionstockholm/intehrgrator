@@ -35,6 +35,7 @@ import {
 } from "../target/mod.ts";
 import { renderHandlebars } from "../output/handlebars_dialect.ts";
 import { canvasHandlebarsExpression } from "../output/canvas_handlebars.ts";
+import { renderXmlCanvasFromBlockly } from "../output/canvas_xml_runtime.ts";
 import { executeGoTemplate, isGoTemplateWasmLoaded } from "../output/go_template_runtime.ts";
 import { generateGoTemplate } from "../codegen/go_template.ts";
 import { DEFAULTS_MAP_NAME, namedMapsFromBlocklyState } from "../defaults/mod.ts";
@@ -169,6 +170,18 @@ export function runTest(
     }
 
     if (mode === "handlebars") {
+      const xmlCanvas = renderXmlCanvasFromBlockly(options.blocklyState, ctx);
+      if (xmlCanvas != null) {
+        const outputValidation = validateConvertedOutput(xmlCanvas, target, {
+          deserializeMode: options.openEhrJsonDeserializeMode,
+        });
+        return {
+          ok: warnings.length === 0,
+          output: xmlCanvas,
+          warnings,
+          outputValidation,
+        };
+      }
       const canvasOutput = tryRunCanvasConversionScript(model, options, ctx, defaults);
       if (canvasOutput) {
         const outputValidation = validateConvertedOutput(canvasOutput, target, {

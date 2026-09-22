@@ -122,42 +122,49 @@ export function generateGoTemplateFromWorkspace(
   const defines = emitGoFunctionDefines(model, ctx);
   if (defines) lines.push(defines);
 
+  const rawGoSnippets = workspace.getTopBlocks(true).filter((block) =>
+    (block.type === "text" || block.type === "text_code") &&
+    block !== instanceRoot
+  );
+  for (const snippet of rawGoSnippets) {
+    lines.push(...emitBlock(snippet, ctx, 0));
+  }
+
   let body: string[] | null = null;
   if (instanceRoot?.type === TEXT_DOCUMENT_BLOCK_TYPE) {
     const value = instanceRoot.getInputTargetBlock("VALUE");
     body = value ? emitBlock(value, ctx, 0) : ['""'];
-  } else if (instanceRoot && (
-    isSchemaStructureBlock(instanceRoot) ||
-    instanceRoot.type === "json_object" ||
-    instanceRoot.type === XML_ELEMENT_TYPE ||
-    instanceRoot.type === XML_DOCUMENT_TYPE
-  )) {
-    body = emitGeneric(instanceRoot, ctx, 0);
-  } else if (instanceRoot?.type === "composition" || isRmContainerBlockType(instanceRoot?.type ?? "")) {
-    body = emitRmAsJson(instanceRoot, ctx, 0);
+  } else if (instanceRoot) {
+    body = emitBlock(instanceRoot, ctx, 0);
   } else {
-    const generic = instanceRoot ?? roots.find((block) =>
+    const generic = roots.find((block) =>
       isSchemaStructureBlock(block) || block.type === "json_object" ||
-      block.type === XML_ELEMENT_TYPE || block.type === XML_DOCUMENT_TYPE
+      block.type === XML_ELEMENT_TYPE || block.type === XML_DOCUMENT_TYPE ||
+      block.type === "composition" || isRmContainerBlockType(block.type)
     );
     if (generic) {
-      body = emitGeneric(generic, ctx, 0);
+      body = emitBlock(generic, ctx, 0);
     } else if (roots.length) {
       body = [];
       for (const root of roots) {
+        if (root.type === "text" || root.type === "text_code") continue;
         body.push(...emitBlock(root, ctx, 0));
       }
     }
   }
 
-  if (!body?.length) return null;
-  lines.push(...body);
+  if (!body?.length && !rawGoSnippets.length) return null;
+  if (body?.length) lines.push(...body);
   return lines.join("\n");
 }
 
+const RAW_TEXT_BLOCK_TYPES = new Set(["text", "text_code"]);
+
 function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
-  const fromExpr = emitExpressionBlock(block, ctx);
-  if (fromExpr !== null) return fromExpr;
+  if (!RAW_TEXT_BLOCK_TYPES.has(block.type)) {
+    const fromExpr = emitExpressionBlock(block, ctx);
+    if (fromExpr !== null) return fromExpr;
+  }
 
   if (block.type === "for_each_list") return emitForEachList(block, ctx);
   if (block.type === "controls_if") return emitControlsIf(block, ctx);
@@ -191,17 +198,35 @@ function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
   if (isDataValueBlock(block)) {
     return emitDvAsJson(block, ctx, indent);
   }
-  if (isGenericValueBlockType(block.type) || isSchemaStructureBlock(block)) {
-    return emitGeneric(block, ctx, indent);
-  }
-  if (block.type === "xml_element" || block.type.startsWith("schema_")) {
+  if (
+    block.type === XML_ELEMENT_TYPE ||
+    block.type === XML_DOCUMENT_TYPE ||
+    block.type.startsWith("schema_")
+  ) {
     return emitXmlOrSchema(block, ctx);
+  }
+  if (isGenericValueBlockType(block.type) || block.type === "target_structure") {
+    return emitGeneric(block, ctx, indent);
   }
   if (block.type === "json_object" || block.type === "json_array") {
     return emitJson(block, ctx, indent);
   }
 
   return [`{{- /* unsupported block: ${block.type} */ -}}`];
+}
+
+/** Literal hatch text (Go snippets) must not go through JSON.stringify + goQuote. */
+function emitLiveValue(block: Block, ctx: GoEmitContext, indent: number): string {
+  if (RAW_TEXT_BLOCK_TYPES.has(block.type)) {
+    return String(block.getFieldValue("TEXT") ?? "");
+  }
+  if (block.type === "math_number") {
+    return String(block.getFieldValue("NUM") ?? "0");
+  }
+  if (block.type === "logic_boolean") {
+    return block.getFieldValue("BOOL") === "TRUE" ? "true" : "false";
+  }
+  return (emitExpressionBlock(block, ctx) ?? emitBlock(block, ctx, indent)).join("");
 }
 
 function emitExpressionBlock(block: Block, ctx: GoEmitContext): string[] | null {
@@ -223,7 +248,7 @@ function emitForEachList(block: Block, ctx: GoEmitContext): string[] {
   const body = block.getInputTargetBlock("DO");
   const lines = [`{{- range ${rangeExpr} }}`];
   const innerCtx: GoEmitContext = { ...ctx, loopVar: varName };
-  if (body) lines.push(...emitBlock(body, innerCtx, 0));
+  if (body) lines.push(...emitStatementChain(body, innerCtx, 0));
   lines.push(`{{- end }}`);
   return lines;
 }
@@ -236,9 +261,7 @@ function loopRangeExpr(path: string): string {
 
 function emitControlsIf(block: Block, ctx: GoEmitContext): string[] {
   const lines: string[] = [];
-  const extra = (block as Block & { extraState_?: { elseIfCount?: number; hasElse?: boolean } }).extraState_;
-  const ifCount = (extra?.elseIfCount ?? 0) + 1;
-  const hasElse = extra?.hasElse ?? false;
+  const { ifCount, hasElse } = ifBranchCount(block);
 
   for (let i = 0; i < ifCount; i++) {
     const cond = block.getInputTargetBlock(`IF${i}`);
@@ -257,6 +280,22 @@ function emitControlsIf(block: Block, ctx: GoEmitContext): string[] {
 
   lines.push(`{{- end }}`);
   return lines;
+}
+
+function ifBranchCount(block: Block): { ifCount: number; hasElse: boolean } {
+  const saved = extraStateOf(block);
+  if (saved.elseIfCount != null || saved.hasElse != null) {
+    return {
+      ifCount: (saved.elseIfCount ?? 0) + 1,
+      hasElse: saved.hasElse ?? false,
+    };
+  }
+  let ifCount = 0;
+  while (block.getInput(`IF${ifCount}`) || block.getInput(`DO${ifCount}`)) ifCount++;
+  return {
+    ifCount: Math.max(ifCount, 1),
+    hasElse: Boolean(block.getInput("ELSE")),
+  };
 }
 
 function emitCondition(block: Block, ctx: GoEmitContext): string {
@@ -408,7 +447,7 @@ function emitDvAsJson(block: Block, ctx: GoEmitContext, indent: number): string[
 function emitXmlTextishLive(block: Block, ctx: GoEmitContext, indent: number): string[] {
   const value = block.getInputTargetBlock(XML_TEXT_INPUT) ?? block.getInputTargetBlock("VALUE");
   const rendered = value
-    ? (emitExpressionBlock(value, ctx) ?? emitBlock(value, ctx, indent)).join("")
+    ? emitLiveValue(value, ctx, indent)
     : String(block.getFieldValue("TEXT") ?? "");
   if (block.type === "xml_cdata") return [wrapXmlCdata(rendered)];
   return rendered ? [rendered] : [];
@@ -448,8 +487,30 @@ function extraStateOf(block: Block): {
   standalone?: string;
   namespaces?: XmlNamespaceDecl[];
   extras?: string[];
+  elseIfCount?: number;
+  hasElse?: boolean;
 } {
-  return (block as Block & { extraState_?: {
+  const live = block as Block & {
+    extraState_?: {
+      xmlAttributes?: string[];
+      fields?: Array<{ name: string; xmlKind?: string }>;
+      declaration?: boolean;
+      version?: string;
+      encoding?: string;
+      standalone?: string;
+      namespaces?: XmlNamespaceDecl[];
+      extras?: string[];
+      elseIfCount?: number;
+      hasElse?: boolean;
+    };
+    schemaXmlAttributes_?: string[];
+    schemaFields_?: Array<{ name: string; xmlKind?: string }>;
+    saveExtraState?: () => unknown;
+    elseifCount_?: number;
+    elseCount_?: number;
+  };
+  const saved = live.saveExtraState?.();
+  const fromSave = saved && typeof saved === "object" ? saved as {
     xmlAttributes?: string[];
     fields?: Array<{ name: string; xmlKind?: string }>;
     declaration?: boolean;
@@ -458,7 +519,20 @@ function extraStateOf(block: Block): {
     standalone?: string;
     namespaces?: XmlNamespaceDecl[];
     extras?: string[];
-  } }).extraState_ ?? {};
+    elseIfCount?: number;
+    hasElse?: boolean;
+  } : {};
+  return {
+    ...live.extraState_,
+    ...fromSave,
+    xmlAttributes: fromSave.xmlAttributes ??
+      live.schemaXmlAttributes_ ??
+      live.extraState_?.xmlAttributes,
+    fields: fromSave.fields ?? live.schemaFields_ ?? live.extraState_?.fields,
+    elseIfCount: fromSave.elseIfCount ?? live.elseifCount_ ?? live.extraState_?.elseIfCount,
+    hasElse: fromSave.hasElse ??
+      (live.elseCount_ != null ? live.elseCount_ > 0 : live.extraState_?.hasElse),
+  };
 }
 
 function namespacesFromLiveDocument(
@@ -483,7 +557,7 @@ function emitXmlAttributeLive(block: Block, ctx: GoEmitContext): string {
   const name = String(block.getFieldValue("NAME") ?? "").trim();
   if (!name) return "";
   const val = block.getInputTargetBlock(XML_TEXT_INPUT) ?? block.getInputTargetBlock("VALUE");
-  const rendered = val ? (emitExpressionBlock(val, ctx) ?? emitBlock(val, ctx, 0)).join("") : "";
+  const rendered = val ? emitLiveValue(val, ctx, 0) : "";
   return ` ${name}="${rendered}"`;
 }
 
@@ -507,7 +581,7 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
       attr = attr.getNextBlock();
     }
     const text = block.getInputTargetBlock(XML_TEXT_INPUT);
-    if (text) inner.push(...(emitExpressionBlock(text, ctx) ?? emitBlock(text, ctx, 0)));
+    if (text) inner.push(emitLiveValue(text, ctx, 0));
     let current: Block | null = block.getInputTargetBlock(XML_CHILDREN_INPUT);
     while (current) {
       inner.push(...emitBlock(current, ctx, 0));
@@ -520,16 +594,14 @@ function emitXmlOrSchema(block: Block, ctx: GoEmitContext): string[] {
       const child = block.getInputTargetBlock(input.name);
       if (!child) continue;
       if (xmlAttributes.has(fieldName) || child.type === "xml_attribute") {
-        const rendered = (emitExpressionBlock(child, ctx) ?? emitBlock(child, ctx, 0)).join("");
-        attrParts.push(` ${fieldName}="${rendered}"`);
+        attrParts.push(` ${fieldName}="${emitLiveValue(child, ctx, 0)}"`);
         continue;
       }
-      if (isStructureBlock(child.type)) {
-        inner.push(...emitBlock(child, ctx, 0));
+      if (input.type === STATEMENT_INPUT_TYPE || isStructureBlock(child.type)) {
+        inner.push(...emitStatementChain(child, ctx, 0));
         continue;
       }
-      const rendered = (emitExpressionBlock(child, ctx) ?? emitBlock(child, ctx, 0)).join("");
-      inner.push(`<${xmlName(fieldName)}>${rendered}</${xmlName(fieldName)}>`);
+      inner.push(`<${xmlName(fieldName)}>${emitLiveValue(child, ctx, 0)}</${xmlName(fieldName)}>`);
     }
   }
 

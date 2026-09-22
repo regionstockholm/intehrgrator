@@ -122,7 +122,7 @@ In **Target & Previews**, change **Output mode** from Mapping preview to a **con
 
 - TypeScript (executable in Test Run)
 - Java (generated; JVM execution planned)
-- Handlebars (canvas `text_handlebars` in Test Run), XQuery, and Go Template (generated and executed in Conversion Test Run)
+- Handlebars (canvas `text_handlebars` or nested Note `text_code` LANG=handlebars in Test Run), XQuery, and Go Template (generated and executed in Conversion Test Run)
 
 **Generated conversion script(s)** shows the code. Download when ready for your integration pipeline.
 
@@ -153,54 +153,41 @@ Each **family** (same source + target) has at least two catalog rows. That is th
 | **Mapped** | The same files plus a saved mapping (and often Sheets / Defaults) | Inspect a known-good canvas and run **Conversion Test Run(s)** |
 | **Mapped, decision tables** | Sibling of a mapped gold (lung-MDT and chemo only) | Same instances and target; Notes/TermIds authored as Decision tables with interpolating snippets instead of nested `if`/`eq`. Gold directories stay untouched ([#70](https://github.com/regionstockholm/intehrgrator/issues/70)) |
 
-### Titles: current menu vs intended marker position
+### Titles
 
-Today the menu mixes *with mapping*, *unmapped* in the middle of the parentheses, *(mapped)* at the end, and several mapped rows with **no** marker at all. Until [#166](https://github.com/regionstockholm/intehrgrator/issues/166), use this table (or the status bar after load).
-
-**Intended convention** (not applied to `examples/example-sets.json` yet): family and route first; mapping state always **last**, same punctuation:
+Family and route first; mapping state always **last**, same punctuation ([#166](https://github.com/regionstockholm/intehrgrator/issues/166)):
 
 `{family} ({route}) — unmapped` · `{family} ({route}) — mapped` · `{family} ({route}) — mapped, decision tables`
 
-| Family (route) | Kind | Current title | Intended title ([#166](https://github.com/regionstockholm/intehrgrator/issues/166)) |
-|----------------|------|---------------|----------------|
-| Dummy vitals (JSON Schema → JSON Schema) | unmapped | Dummy vitals example (Source: JSON Schema, Target: JSON Schema) | Dummy vitals (JSON Schema → JSON Schema) — unmapped |
-| Dummy vitals (JSON Schema → JSON Schema) | mapped | Dummy vitals with mapping | Dummy vitals (JSON Schema → JSON Schema) — mapped |
-| Dummy vitals (JSON Schema → openEHR Template) | unmapped | Dummy vitals unmapped (JSON Schema → openEHR Template) | Dummy vitals (JSON Schema → openEHR Template) — unmapped |
-| Dummy vitals (JSON Schema → openEHR Template) | mapped | Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template) | Dummy vitals (JSON Schema → openEHR Template) — mapped |
-| Dummy vitals series (JSON Schema with repeating measurements → openEHR) | unmapped | Dummy vitals series unmapped (JSON Schema with repeating measurements → openEHR) | Dummy vitals series (JSON Schema with repeating measurements → openEHR) — unmapped |
-| Dummy vitals series (JSON Schema with repeating measurements → openEHR) | mapped | Dummy vitals series (JSON Schema with repeating measurements → openEHR) | Dummy vitals series (JSON Schema with repeating measurements → openEHR) — mapped |
-| OBX MHV1 (JSON → openEHR) | unmapped | OBX MHV1, JSON --> openEHR (unmapped) | OBX MHV1 (JSON → openEHR) — unmapped |
-| OBX MHV1 (JSON → openEHR) | mapped | OBX MHV1, JSON --> openEHR (mapped) | OBX MHV1 (JSON → openEHR) — mapped |
-| Chemo symptoms (FLAT → TakeCare XML) | unmapped | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML, unmapped) | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — unmapped |
-| Chemo symptoms (FLAT → TakeCare XML) | mapped | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — mapped |
-| Chemo symptoms (FLAT → TakeCare XML) | mapped, decision tables | Patient-reported chemotherapy symptoms (decision tables, FLAT → TakeCare XML) | Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — mapped, decision tables |
-| Lung MDT form (→ TakeCare XML) | unmapped | Lung MDT form (unmapped → TakeCare XML) | Lung MDT form (→ TakeCare XML) — unmapped |
-| Lung MDT form (→ TakeCare XML) | mapped | Lung MDT form (Handlebars Notes → TakeCare XML) | Lung MDT form (→ TakeCare XML) — mapped |
-| Lung MDT form (→ TakeCare XML) | mapped, decision tables | Lung MDT form (decision tables → TakeCare XML) | Lung MDT form (→ TakeCare XML) — mapped, decision tables |
-| Karda ordination (JSON → openEHR FLAT) | unmapped | Medication order data from Cytodos and TC via Karda to openEHR FLAT (unmapped) | Medication order data from Cytodos and TC via Karda (JSON → openEHR FLAT) — unmapped |
-| Karda ordination (JSON → openEHR FLAT) | mapped | Medication order data from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT) | Medication order data from Cytodos and TC via Karda (JSON → openEHR FLAT) — mapped |
-| Karda administration (JSON → openEHR FLAT) | unmapped | Medication treatment data from Cytodos and TC via Karda to openEHR FLAT (unmapped) | Medication treatment data from Cytodos and TC via Karda (JSON → openEHR FLAT) — unmapped |
-| Karda administration (JSON → openEHR FLAT) | mapped | Medication treatment data from Cytodos and TC via Karda to openEHR FLAT (Karda JSON -> FLAT) | Medication treatment data from Cytodos and TC via Karda (JSON → openEHR FLAT) — mapped |
+Paired unmapped/mapped rows share the family + route wording; only the trailing state differs. Dialect hints (Handlebars Notes, Go Template) live in the set **description** and in Output mode, not in the title.
 
-Dialect hints (Handlebars Notes, Go Template) belong in the set **description** and in Output mode, not in a different title position for mapped vs unmapped.
+| Family (route) | Unmapped | Mapped | Mapped, decision tables |
+|----------------|----------|--------|-------------------------|
+| Dummy vitals (JSON Schema → JSON Schema) | Dummy vitals (JSON Schema → JSON Schema) — unmapped | Dummy vitals (JSON Schema → JSON Schema) — mapped | — |
+| Dummy vitals (JSON Schema → openEHR Template) | Dummy vitals (JSON Schema → openEHR Template) — unmapped | Dummy vitals (JSON Schema → openEHR Template) — mapped | — |
+| Dummy vitals series (JSON Schema with repeating measurements → openEHR) | Dummy vitals series (JSON Schema with repeating measurements → openEHR) — unmapped | Dummy vitals series (JSON Schema with repeating measurements → openEHR) — mapped | — |
+| OBX MHV1 (JSON → openEHR) | OBX MHV1 (JSON → openEHR) — unmapped | OBX MHV1 (JSON → openEHR) — mapped | — |
+| Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) | … — unmapped | … — mapped | … — mapped, decision tables |
+| Lung MDT form (→ TakeCare XML) | … — unmapped | … — mapped | … — mapped, decision tables |
+| Medication order data from Cytodos and TC via Karda (JSON → openEHR FLAT) | … — unmapped | … — mapped | — |
+| Medication treatment data from Cytodos and TC via Karda (JSON → openEHR FLAT) | … — unmapped | … — mapped | — |
 
 ### Suggested first loads
 
-1. **Dummy vitals (JSON Schema → JSON Schema) — unmapped** (current title: *Dummy vitals example (Source: JSON Schema, Target: JSON Schema)*) — Click-to-Map systolic/diastolic; **Conversion Test Run(s)** on Mapping preview or TypeScript.
-2. **Dummy vitals (JSON Schema → JSON Schema) — mapped** (current title: *Dummy vitals with mapping*) — three instances; Test Run should show `120` / `80` on `instance-1`.
-3. A clinical **mapped** set: Dummy vitals → openEHR (*Dummy vitals example (Source: JSON Schema, Target: OpenEHR Template)*), chemo with Output mode **Go Template**, or lung-MDT with **Mapping preview**.
+1. **Dummy vitals (JSON Schema → JSON Schema) — unmapped** — Click-to-Map systolic/diastolic/unit; **Conversion Test Run(s)** on Mapping preview or TypeScript.
+2. **Dummy vitals (JSON Schema → JSON Schema) — mapped** — three instances; Test Run should show `120` / `80` / `mm[Hg]` on `instance-1`.
+3. A clinical **mapped** set: Dummy vitals → openEHR (*Dummy vitals (JSON Schema → openEHR Template) — mapped*), chemo with Output mode **Go Template**, or lung-MDT with **Mapping preview** or **Handlebars**.
 
 Named-invalid vitals instances (filename contains `invalid` / `broken`) are negative tests; they should not produce a fully valid template instance.
 
-### Known gaps (do not treat as blockers while testing [#165](https://github.com/regionstockholm/intehrgrator/pull/165))
+Simple-vitals / series **valid** instances still show ⚠ (`outputValidation`) for remaining OPT messages (required attributes, unit list, CLUSTER vs ELEMENT, default-context `CODE_PHRASE`). Clinical magnitudes `120` / `80` / `72` (series `138`) are present; named-invalid instances stay negative tests.
 
-Work left after this catalog lands is sequenced in [#172](https://github.com/regionstockholm/intehrgrator/issues/172). While you try the sets:
+### Known gaps
 
-- Dummy mapped TypeScript may omit `mm[Hg]` ([#171](https://github.com/regionstockholm/intehrgrator/issues/171)).
-- Simple-vitals Test Run may show ⚠ (`outputValidation`) even when `120` / `80` / `72` are present ([#171](https://github.com/regionstockholm/intehrgrator/issues/171)).
-- Lung-MDT: keep Output mode on **Mapping preview**; Handlebars Output mode is [#168](https://github.com/regionstockholm/intehrgrator/issues/168) and blocks [#135](https://github.com/regionstockholm/intehrgrator/issues/135).
-- Chemo Go Template **Test Run** is the convert path; Generated Export may still double-escape `\\` ([#169](https://github.com/regionstockholm/intehrgrator/issues/169)).
+Work sequenced in [#172](https://github.com/regionstockholm/intehrgrator/issues/172):
+
 - Karda TypeScript is often composition **ctx** only; XQuery may throw `XPTY0004` ([#167](https://github.com/regionstockholm/intehrgrator/issues/167)). Agent API Sheets/`list_slots` leftovers: [#170](https://github.com/regionstockholm/intehrgrator/issues/170).
+- Lung-MDT **Handlebars** Output mode executes nested **Code text** LANG=handlebars in TakeCare Note fields (TermIds + evaluated Notes). Mapping preview still fills from slots (Notes may still show VMS-Hbs). `@first` / `@last` is [#135](https://github.com/regionstockholm/intehrgrator/issues/135).
 
 - **Language** (toolbar) switches Blockly UI messages (`en`, `sv`, `de`, `es`, `ca`, `fr`). Model/ontology language in the target pane is separate.
 

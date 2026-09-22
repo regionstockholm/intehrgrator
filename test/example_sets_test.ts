@@ -253,6 +253,46 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
   );
 });
 
+const TITLE_STATE = / — (unmapped|mapped|mapped, decision tables)$/;
+
+Deno.test("catalog titles put mapping state last with a shared family+route prefix", async () => {
+  const text = await readCatalog();
+  const catalog = parseExampleSetCatalog(text, catalogBase);
+  const pairs: Array<[string, string, string?]> = [
+    ["dummy-json-vitals", "dummy-json-vitals-mapped"],
+    ["Simple-vitals-unmapped", "Simple-vitals"],
+    ["Simple-vitals-series-unmapped", "Simple-vitals-series"],
+    ["obx-mhv1-unmapped-json-to-openehr", "obx-mhv1-mapped-json-to-openehr"],
+    ["chemo-symptoms-flat-to-tc-xml-unmapped", "chemo-symptoms-flat-to-tc-xml", "chemo-symptoms-flat-to-tc-xml-decision-tables"],
+    ["lung-mdt-form-to-tc-xml-unmapped", "lung-mdt-form-to-tc-xml", "lung-mdt-form-to-tc-xml-decision-tables"],
+    ["karda-ordinationsdata-to-openehr-flat-unmapped", "karda-ordinationsdata-to-openehr-flat"],
+    ["karda-administreringsdata-to-openehr-flat-unmapped", "karda-administreringsdata-to-openehr-flat"],
+  ];
+  for (const set of catalog.sets) {
+    assertEquals(
+      TITLE_STATE.test(set.title),
+      true,
+      `${set.id} title must end with mapping state: ${set.title}`,
+    );
+  }
+  for (const [unmappedId, mappedId, decisionId] of pairs) {
+    const unmapped = catalog.sets.find((set) => set.id === unmappedId);
+    const mapped = catalog.sets.find((set) => set.id === mappedId);
+    if (!unmapped || !mapped) throw new Error(`missing pair ${unmappedId}/${mappedId}`);
+    const unmappedPrefix = unmapped.title.replace(TITLE_STATE, "");
+    const mappedPrefix = mapped.title.replace(TITLE_STATE, "");
+    assertEquals(unmappedPrefix, mappedPrefix, `${unmappedId} vs ${mappedId} family+route`);
+    assertEquals(unmapped.title.endsWith(" — unmapped"), true, unmapped.title);
+    assertEquals(mapped.title.endsWith(" — mapped"), true, mapped.title);
+    if (decisionId) {
+      const decision = catalog.sets.find((set) => set.id === decisionId);
+      if (!decision) throw new Error(`missing decision-table set ${decisionId}`);
+      assertEquals(decision.title.replace(TITLE_STATE, ""), mappedPrefix, decisionId);
+      assertEquals(decision.title.endsWith(" — mapped, decision tables"), true, decision.title);
+    }
+  }
+});
+
 Deno.test("catalog has an unmapped and a mapped Example Set for each source schema", async () => {
   const text = await readCatalog();
   const catalog = parseExampleSetCatalog(text, catalogBase);

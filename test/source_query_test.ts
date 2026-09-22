@@ -88,6 +88,21 @@ Deno.test("legacy-simulated BP series supports indexed iteration paths", async (
   ]);
 });
 
+Deno.test("quoted JSON keys resolve and a missing index stays empty", () => {
+  const ctx = createSourceContext(JSON.stringify({
+    övergripande_status: [{ "|value": "Har aldrig rökt" }],
+    per_typ: [],
+  }), "json");
+  assertEquals(
+    evaluate(`xpathString("$.övergripande_status[1]['|value']")`, ctx, "string"),
+    "Har aldrig rökt",
+  );
+  assertEquals(
+    evaluate(`xpathString("$.per_typ[1].typ[1]['|value']")`, ctx, "string"),
+    undefined,
+  );
+});
+
 Deno.test("pathToFontoxpath json", () => {
   assertEquals(pathToFontoxpath("$.patient.id", "json"), "$.patient.id");
 });

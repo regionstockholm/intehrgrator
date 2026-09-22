@@ -251,16 +251,9 @@ function xpathEval(expr: string, ctx: SourceContext, type: string): unknown {
     if (relative) {
       return walkJsonSegments(walkRoot, parseJsonAuthoringPath(path));
     }
-    const query = toJsonXPath(expr);
-    const variables = { source: ctx.json };
-    switch (type) {
-      case "number":
-        return fontoxpath.evaluateXPathToNumber(query, null, null, variables);
-      case "boolean":
-        return fontoxpath.evaluateXPathToBoolean(query, null, null, variables);
-      default:
-        return fontoxpath.evaluateXPathToString(query, null, null, variables);
-    }
+    // Walk the document so a missing index (empty `per_typ`) is undefined
+    // instead of FOAY0001, which would blank a whole Decision table.
+    return walkJsonSegments(ctx.json, parseJsonAuthoringPath(path));
   }
 
   const compiled = looksLikeOpenEhrLocator(expr)
@@ -305,11 +298,6 @@ function walkJsonSegments(
     return walkJsonSegments(node[index], rest);
   }
   return walkJsonSegments((node as Record<string, unknown>)[head], rest);
-}
-
-/** Convert authoring paths like `$.vitals[1].systolic` to XPath 3.1 map syntax. */
-function toJsonXPath(expr: string): string {
-  return compileAuthoringPath(expr, "json");
 }
 
 function parseJsonAuthoringPath(expr: string): Array<string | number> {

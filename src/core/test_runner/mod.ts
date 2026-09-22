@@ -268,10 +268,18 @@ export function runTest(
         output = renderHandlebars(template, ctx.data, { slots: slotValues });
       }
     } else if (target) {
-      output = getTargetFormatHandler(target.format).render({
-        definition: target,
-        slotValues,
-      });
+      // TakeCare / XSD canvases evaluate nested Code text the same way as
+      // Handlebars Output mode. JSON Schema and openEHR stay on slot-fill.
+      // Free-form Handlebars (no XML root) stays above.
+      const xmlCanvas = target.format === "xml-schema"
+        ? renderXmlCanvasFromBlockly(options.blocklyState, ctx)
+        : null;
+      output = xmlCanvas != null
+        ? xmlCanvas
+        : getTargetFormatHandler(target.format).render({
+          definition: target,
+          slotValues,
+        });
     } else {
       output = {
         templateId: model.templateId,

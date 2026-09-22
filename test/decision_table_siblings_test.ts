@@ -119,16 +119,16 @@ Deno.test("#70 sibling mappings keep gold directories and one free-text helper",
   assertEquals(goldChemo.includes("define \\\"cleanAndQuoteFreeTextInput\\\""), true);
 });
 
-Deno.test("#70 lung-MDT sibling TermIds and Notes match gold (whitespace-normalized)", async () => {
+Deno.test("#70 lung-MDT sibling TermIds and Notes match gold on evaluated Handlebars", async () => {
   const files = [
     "1-mdt-review-never-smoked-mr.json",
     "2-mdt-review-smoker-ultrasound.json",
   ];
   for (const filename of files) {
-    const gold = await runMapped("lung-mdt-form-to-tc-xml", "preview", filename);
+    const gold = await runMapped("lung-mdt-form-to-tc-xml", "handlebars", filename);
     const sibling = await runMapped(
       "lung-mdt-form-to-tc-xml-decision-tables",
-      "preview",
+      "handlebars",
       filename,
     );
     assertEquals(gold.error, undefined, `${filename} gold: ${gold.error}`);
@@ -142,6 +142,15 @@ Deno.test("#70 lung-MDT sibling TermIds and Notes match gold (whitespace-normali
       goldPairs,
       `${filename}\ngold=${JSON.stringify(goldPairs, null, 2)}\nsibling=${JSON.stringify(siblingPairs, null, 2)}`,
     );
+    const noteFor = (termId: string) => goldPairs.find((pair) => pair.termId === termId)?.note ?? "";
+    if (filename.includes("never-smoked")) {
+      assert(noteFor("8754").includes("Har aldrig rökt"), `8754 note=${noteFor("8754")}`);
+    }
+    if (filename.includes("smoker")) {
+      for (const termId of ["4502", "5074", "8754"]) {
+        assert(noteFor(termId).length > 0, `${filename} gold missing evaluated Note for ${termId}`);
+      }
+    }
   }
 });
 

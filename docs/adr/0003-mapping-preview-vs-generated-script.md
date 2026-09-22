@@ -2,7 +2,7 @@
 
 Test Run used to always evaluate Mapping Model slot expressions (ADR 0001). **Output mode** now splits that:
 
-- **Mapping preview** — evaluates slot expressions and renders through the Target instance format handler. For **free-form** targets, evaluates canvas `handlebars(script, context)` (seeded from a loaded `.hbs` as Conversion start → Text document → `text_handlebars` with `xpathNode("$")`).
+- **Mapping preview** — evaluates slot expressions and renders through the Target instance format handler. For **free-form** targets, evaluates canvas `handlebars(script, context)` (seeded from a loaded `.hbs` as Conversion start → Text document → `text_handlebars` with `xpathNode("$")`). On **XML Schema** canvases (TakeCare), Mapping preview walks the same canvas as Handlebars Output mode and evaluates nested Code text LANG=handlebars, so TermId and Note pairs agree. JSON Schema and openEHR stay on slot-fill plus the format handler.
 - **TypeScript** — executes the generated Conversion Script with bundled ehrtslib.
 - **Handlebars** (Output mode) — same canvas `handlebars()` product as Mapping preview when present; otherwise a `handlebarsTemplate` / target-content override. Generated `.hbs` is the canvas SCRIPT literal when a `text_handlebars` product exists.
 - **Go Template** — executes the **generated** Go `text/template` script via vendored WASM (`{ Parameters: defaults, Data: source }`), including host-bound `handlebars` / `dict` so canvas `handlebars()` Test Run matches preview. See ADR 0004.

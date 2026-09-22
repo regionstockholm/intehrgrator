@@ -197,7 +197,7 @@
     {
       "id": "lung-mdt-form-to-tc-xml",
       "title": "Lung MDT form (→ TakeCare XML) — mapped",
-      "description": "Rebuilds the production lung-MDT Handlebars mapping as Blockly using schema-generated TakeCare ProfdocHISMessage blocks (TakeCare-CasenoteWrite-edit01.xsd), not generic XML blocks. Header fields come from the default context map. Notes keep the original Handlebars; Handlebars Output mode executes nested Code text LANG=handlebars, while Mapping preview still fills from slots. Set TemplateId/TemplateType to the casenote used in the target environment.",
+      "description": "Rebuilds the production lung-MDT Handlebars mapping as Blockly using schema-generated TakeCare ProfdocHISMessage blocks (TakeCare-CasenoteWrite-edit01.xsd), not generic XML blocks. Header fields come from the default context map. Notes keep the original Handlebars. Mapping preview and Handlebars Output mode both evaluate nested Code text LANG=handlebars on this XML Schema canvas, so TermId and Note pairs agree. Set TemplateId/TemplateType to the casenote used in the target environment.",
       "source": {
         "instances": [
           "../test/fixtures/lung-MDT-form/source-instance/1-mdt-review-never-smoked-mr.json",

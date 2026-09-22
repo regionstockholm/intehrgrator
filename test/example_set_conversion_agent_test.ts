@@ -449,6 +449,52 @@ Deno.test("Handlebars Output mode executes nested Notes on lung-MDT mapped sets"
   assertEquals(failures, [], failures.join("\n"));
 });
 
+/** Documented OPT/RM leftovers on Karda mapped sets (#167). Not a silent fallback. */
+function kardaValidationIsDocumented(message: string): boolean {
+  const kind = classifyOpenEhrValidationMessage(message);
+  if (kind !== "other") return true;
+  const text = message.toLowerCase();
+  return text.includes("cardinality") ||
+    text.includes("minimum") ||
+    text.includes("not in allowed list") ||
+    text.includes("code_string");
+}
+
+Deno.test("Karda mapped sets document remaining outputValidation messages", async () => {
+  for (const setId of [
+    "karda-ordinationsdata-to-openehr-flat",
+    "karda-administreringsdata-to-openehr-flat",
+  ]) {
+    const service = await agent(`${setId}-validation`);
+    await loadSet(service, setId, true);
+    const tree = await callAgentTool(service, "get_source_tree", {}) as {
+      examples: Array<{ id: string; filename: string }>;
+    };
+    const first = tree.examples.find((ex) => !NAME_BROKEN.test(ex.filename));
+    assert(first, `${setId} has no runnable Example Instance`);
+    await callAgentTool(service, "set_active_example", { id: first.id });
+    for (const mode of ["typescript", "xquery"] as const) {
+      const result = await runMode(service, mode);
+      assertEquals(result.error, undefined, `${setId} ${mode}: ${result.error}`);
+      assertEquals(result.ok, true, `${setId} ${mode} not ok`);
+      assertStringIncludes(outputText(result.output), "Epirubicin");
+      const validation = result.outputValidation;
+      assertEquals(validation?.applicable, true, `${setId} ${mode} validation not applicable`);
+      if (validation && validation.valid !== true) {
+        const leftover = validation.messages.filter((msg) => !kardaValidationIsDocumented(msg.message));
+        assertEquals(
+          leftover,
+          [],
+          `${setId} ${mode} unclassified validation:\n${
+            leftover.map((msg) => `${msg.path}: ${msg.message}`).join("\n")
+          }`,
+        );
+        assert(validation.messages.length > 0, `${setId} ${mode} invalid with no messages`);
+      }
+    }
+  }
+});
+
 Deno.test("Simple-vitals mapped TypeScript classifies remaining outputValidation messages", async () => {
   const known = new Set([
     "required-missing",

@@ -52,6 +52,7 @@ import {
   type TsEmitContext,
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
+import { archetypeRootIdBySlot } from "../core/openehr/rm_archetype_node_id.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 import { isLoopBlockType, loopIndexBinderName, loopLengthBinderName, sourcePathFromLoopList } from "./loop_block.ts";
 import { migrateForEachSourceState } from "./migrate_for_each_source.ts";
@@ -101,7 +102,7 @@ export function generateTypeScriptFromBlocklyState(
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
       Blockly.serialization.workspaces.load(snapshot, workspace);
-      generated = generateTypeScriptFromWorkspace(workspace, model, webTemplateJson);
+      generated = generateTypeScriptFromWorkspace(workspace, model, webTemplateJson, skeleton);
     });
     return generated;
   } catch (err) {
@@ -116,8 +117,10 @@ export function generateTypeScriptFromWorkspace(
   workspace: Workspace,
   model: MappingModel,
   webTemplateJson?: string,
+  skeleton?: import("../types/mod.ts").SkeletonNode[],
 ): string | null {
   const ctx = createTsEmitContext("sourceCtx.data", model.functions);
+  if (skeleton?.length) ctx.archetypeRootIds = archetypeRootIdBySlot(skeleton);
   const instanceRoot = findInstanceRootUnderStart(workspace);
   const roots = workspace.getTopBlocks(true).filter((block) =>
     block.type !== DEFAULTS_BLOCK_TYPE &&
@@ -358,7 +361,9 @@ function collectRmProps(
   const rmType = rmTypeOf(block);
   const props: Array<[string, string]> = [];
   const name = String(block.getFieldValue("NAME") ?? "").trim();
-  const nodeId = String(block.getFieldValue("ARCHETYPE_NODE_ID") ?? "").trim();
+  const slotId = String(block.getFieldValue("SLOT_ID") ?? "").trim();
+  const nodeId = ctx.archetypeRootIds?.get(slotId) ||
+    String(block.getFieldValue("ARCHETYPE_NODE_ID") ?? "").trim();
   if (name && shouldEmitLocatableName(rmType, name)) {
     props.push([
       "name",

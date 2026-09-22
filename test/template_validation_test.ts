@@ -151,5 +151,11 @@ Deno.test("classifyOpenEhrValidationMessage splits Simple-vitals leftover kinds"
     classifyOpenEhrValidationMessage("CODE_PHRASE completeness: encoding defining_code missing"),
     "code-phrase",
   );
+  assertEquals(
+    classifyOpenEhrValidationMessage(
+      'archetype_node_id "openEHR-EHR-OBSERVATION.pulse.v2" does not match template archetype "openEHR-EHR-OBSERVATION.respiration.v2"',
+    ),
+    "archetype-sibling",
+  );
   assertEquals(classifyOpenEhrValidationMessage("unexpected RM invariant"), "other");
 });

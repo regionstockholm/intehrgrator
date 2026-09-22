@@ -343,6 +343,10 @@ Deno.test("xquery expression emit maps builtins and JSON paths", () => {
     "$source?patient?vitals?1?systolic",
   );
   assertEquals(
+    jsonDollarPathToLookup("$.KurDagar[*].Substanser"),
+    "$source?KurDagar?*?Substanser",
+  );
+  assertEquals(
     emitXQueryExpr(parseExpression('xpathString("/patient/name")')),
     'xs:string(($source/patient/name)[1])',
   );

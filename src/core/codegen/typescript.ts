@@ -16,6 +16,7 @@ import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonN
 import { loopIndexBinderName, loopLengthBinderName } from "../loop_binders.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
+import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { attributesFor } from "../rm_meta.ts";
 import { usesOpenEhrProduct } from "./product.ts";
@@ -49,6 +50,8 @@ export interface TsEmitContext {
   loopVar?: string;
   types: Set<string>;
   helpers: Set<"string" | "number" | "boolean" | "nodes" | "rm" | "node" | "handlebars" | "sheets" | "logic">;
+  /** Slot id → archetype id for archetype-root blocks whose field is still the at-code. */
+  archetypeRootIds?: Map<string, string>;
   mappingFunctions?: MappingFunction[];
   fnParams?: Set<string>;
   fnIdents?: Map<string, string>;
@@ -901,6 +904,7 @@ function emitSkeletonNode(
   loops: MappingLoop[],
   ctx: TsEmitContext,
   indent: number,
+  parentArchetypeRef?: string,
 ): string | null {
   if (node.kind === "value") {
     return emitSkeletonValue(node, slots.get(node.slotId), ctx, indent);
@@ -909,10 +913,10 @@ function emitSkeletonNode(
 
   const loop = loops.find((item) => item.attachSlotId === node.slotId);
   if (loop) {
-    return emitSkeletonLoop(node, loop, slots, loops, ctx, indent);
+    return emitSkeletonLoop(node, loop, slots, loops, ctx, indent, parentArchetypeRef);
   }
 
-  const props = skeletonContainerProps(node, slots, loops, ctx, indent);
+  const props = skeletonContainerProps(node, slots, loops, ctx, indent, parentArchetypeRef);
   if (!props.length && !node.mandatory && node.rmType !== "COMPOSITION") {
     return null;
   }
@@ -926,6 +930,7 @@ function emitSkeletonLoop(
   loops: MappingLoop[],
   ctx: TsEmitContext,
   indent: number,
+  parentArchetypeRef?: string,
 ): string {
   ctx.helpers.add("nodes");
   ctx.helpers.add("logic");
@@ -938,7 +943,14 @@ function emitSkeletonLoop(
     helpers: ctx.helpers,
   };
   const nestedLoops = loops.filter((item) => item !== loop);
-  const props = skeletonContainerProps(node, slots, nestedLoops, innerCtx, indent + 1);
+  const props = skeletonContainerProps(
+    node,
+    slots,
+    nestedLoops,
+    innerCtx,
+    indent + 1,
+    parentArchetypeRef,
+  );
   const constructed = formatRmConstruct(node.rmType, props, indent + 1, innerCtx);
   const bound =
     `(__vars[${JSON.stringify(loop.varName)}] = ${ident}, ` +
@@ -956,6 +968,7 @@ function skeletonContainerProps(
   loops: MappingLoop[],
   ctx: TsEmitContext,
   indent: number,
+  parentArchetypeRef?: string,
 ): Array<[string, string]> {
   const props: Array<[string, string]> = [];
   if (node.label && shouldEmitSkeletonName(node)) {
@@ -966,9 +979,11 @@ function skeletonContainerProps(
         : (ctx.types.add("DV_TEXT"), `new DV_TEXT(${JSON.stringify(node.label)})`),
     ]);
   }
-  if (node.archetypeNodeId) {
-    props.push(["archetype_node_id", JSON.stringify(node.archetypeNodeId)]);
+  const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);
+  if (nodeId) {
+    props.push(["archetype_node_id", JSON.stringify(nodeId)]);
   }
+  const childArchetypeRef = node.archetypeRef ?? parentArchetypeRef;
 
   const grouped = new Map<string, SkeletonNode[]>();
   for (const child of node.children) {
@@ -983,7 +998,7 @@ function skeletonContainerProps(
     const listAttr = isListAttribute(node.rmType, attr);
     const codes = children
       .map((child) =>
-        emitSkeletonNode(child, slots, loops, ctx, listAttr ? 0 : indent + 1)
+        emitSkeletonNode(child, slots, loops, ctx, listAttr ? 0 : indent + 1, childArchetypeRef)
       )
       .filter((code): code is string => Boolean(code) && !isBlankGeneratedExpr(code));
     if (!codes.length) continue;

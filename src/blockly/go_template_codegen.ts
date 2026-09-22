@@ -36,6 +36,7 @@ import {
 } from "../core/codegen/go_template.ts";
 import { parseExpression } from "../core/expression/mod.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
+import { archetypeRootIdBySlot } from "../core/openehr/rm_archetype_node_id.ts";
 import { generateGoTemplate } from "../core/codegen/go_template.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 import { sourcePathFromLoopList } from "./loop_block.ts";
@@ -89,7 +90,7 @@ export function generateGoTemplateFromBlocklyState(
     runWithoutBlocklyEvents(() => {
       if (skeleton?.length) registerSchemaBlocksFromSkeleton(skeleton);
       Blockly.serialization.workspaces.load(snapshot, workspace);
-      generated = generateGoTemplateFromWorkspace(workspace, model);
+      generated = generateGoTemplateFromWorkspace(workspace, model, skeleton);
     });
     return generated;
   } catch (err) {
@@ -103,8 +104,10 @@ export function generateGoTemplateFromBlocklyState(
 export function generateGoTemplateFromWorkspace(
   workspace: Workspace,
   model: MappingModel,
+  skeleton?: import("../types/mod.ts").SkeletonNode[],
 ): string | null {
   const ctx = createGoEmitContext(undefined, model.functions);
+  if (skeleton?.length) ctx.archetypeRootIds = archetypeRootIdBySlot(skeleton);
   const instanceRoot = findInstanceRootUnderStart(workspace);
   const roots = workspace.getTopBlocks(true).filter((block) =>
     block.type !== DEFAULTS_BLOCK_TYPE &&
@@ -394,7 +397,9 @@ function emitJson(block: Block, ctx: GoEmitContext, indent: number): string[] {
 function emitRmAsJson(block: Block, ctx: GoEmitContext, indent: number): string[] {
   const props: string[] = [];
   const rmType = rmTypeOf(block);
-  const nodeId = String(block.getFieldValue("ARCHETYPE_NODE_ID") ?? "").trim();
+  const slotId = String(block.getFieldValue("SLOT_ID") ?? "").trim();
+  const nodeId = ctx.archetypeRootIds?.get(slotId) ||
+    String(block.getFieldValue("ARCHETYPE_NODE_ID") ?? "").trim();
   if (nodeId) props.push(`"_type": ${goQuote(rmType)}, "archetype_node_id": ${goQuote(nodeId)}`);
   else props.push(`"_type": ${goQuote(rmType)}`);
 

@@ -460,6 +460,34 @@ Deno.test("non-destructive source refresh keeps mappings and warns on missing pa
   );
 });
 
+Deno.test("UI language reload restore keeps examples, schema, and output mode", async () => {
+  const opt = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
+  );
+  const schema = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "source.schema.json"),
+  );
+  const example = await Deno.readTextFile(
+    join(import.meta.dirname!, "fixtures", "dummy-json-vitals", "instance-1.json"),
+  );
+  const controller = new WorkbenchController(stubHost());
+  controller.loadTemplateContent("blood_pressure.opt", opt);
+  controller.loadSchemaContent("bp_source_schema.json", schema);
+  controller.addExampleContent("bp_example.json", example);
+  controller.setExportTarget("xquery");
+  const bundle = controller.exportDocumentSnapshot();
+
+  const restored = new WorkbenchController(stubHost());
+  restored.restoreAfterLocaleChange(bundle);
+  const state = restored.getState();
+  assertEquals(state.examples.length, 1);
+  assertEquals(state.activeExample?.filename, "bp_example.json");
+  assertEquals(state.schemaFilename, "bp_source_schema.json");
+  assert(state.templateId.includes("blood_pressure"));
+  assertEquals(state.settings.exportTarget, "xquery");
+  assertEquals(state.settings.openEhrInstanceShape, bundle.settings.openEhrInstanceShape);
+});
+
 Deno.test("syncFromBlockly records Blockly Functions before a target is loaded", () => {
   const controller = new WorkbenchController(stubHost());
   assertEquals(controller.getState().templateId, "");

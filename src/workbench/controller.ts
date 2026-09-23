@@ -1124,6 +1124,19 @@ export class WorkbenchController {
     this.notifyChange();
   }
 
+  /**
+   * Put the project back after a UI-language reload.
+   * Unlike a saved-project open, this keeps Output mode and Instance shape.
+   */
+  restoreAfterLocaleChange(bundle: ProjectBundle): void {
+    this.resetWorkspaceState();
+    this.loadBundle(structuredClone(bundle), { preserveRuntimeSettings: true });
+    this.blocklyReloadToken += 1;
+    this.dirty = true;
+    this.statusMessage = "Project loaded";
+    this.notifyChange();
+  }
+
   toggleAutoplay(): void {
     if (!this.examples.hasExamples()) return;
     this.settings.autoplay = !this.settings.autoplay;
@@ -1934,13 +1947,20 @@ export class WorkbenchController {
     };
   }
 
-  private loadBundle(bundle: ProjectBundle): void {
+  private loadBundle(
+    bundle: ProjectBundle,
+    options?: { preserveRuntimeSettings?: boolean },
+  ): void {
     this.projectId = bundle.projectId;
     this.settings = {
       ...DEFAULT_SETTINGS,
       ...bundle.settings,
-      exportTarget: "preview",
-      openEhrInstanceShape: DEFAULT_SETTINGS.openEhrInstanceShape,
+      ...(options?.preserveRuntimeSettings
+        ? {}
+        : {
+          exportTarget: "preview" as const,
+          openEhrInstanceShape: DEFAULT_SETTINGS.openEhrInstanceShape,
+        }),
     };
     this.model = { ...bundle.mapping.model };
     this.blocklyState = migrateForEachSourceState(bundle.mapping.blocklyState);

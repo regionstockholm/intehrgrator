@@ -145,12 +145,19 @@ import { slotRmTypeForAttr } from "../src/blockly/rm_type_emoji.ts";
 import {
   changeLocaleAndReload,
   detectLocale,
+  isStashedProjectBundle,
   loadBlocklyLocale,
+  markLocaleReloadAutosave,
   msg,
+  stashLocaleReloadProject,
   SUPPORTED_LOCALES,
   takeLoadOnceBlocks,
+  takeLoadOnceProject,
+  takeLocaleReloadAutosave,
   type IntehrLocale,
 } from "../src/blockly/i18n/locale.ts";
+import { AUTOSAVE_STORAGE_KEY } from "../src/core/persistence/mod.ts";
+import type { ProjectBundle } from "../src/types/mod.ts";
 import {
   applyChrome,
   chrome,
@@ -447,7 +454,15 @@ function setupUiLanguageMenu(locale: IntehrLocale): void {
   }
   select.addEventListener("change", () => {
     const next = select.value as IntehrLocale;
-    changeLocaleAndReload(next, Blockly.serialization.workspaces.save(workspace));
+    const bundle = controller.exportDocumentSnapshot();
+    if (stashLocaleReloadProject(bundle)) {
+      changeLocaleAndReload(next);
+      return;
+    }
+    void host.saveAutosave(bundle).finally(() => {
+      markLocaleReloadAutosave();
+      changeLocaleAndReload(next, Blockly.serialization.workspaces.save(workspace));
+    });
   });
 }
 
@@ -495,6 +510,14 @@ function displayLanguageName(code: string): string {
   }
 }
 
+async function projectForLocaleReload(): Promise<ProjectBundle | null> {
+  const stashed = takeLoadOnceProject();
+  if (isStashedProjectBundle(stashed)) return stashed as ProjectBundle;
+  if (!takeLocaleReloadAutosave()) return null;
+  const record = await host.loadStoredProjectRecord(AUTOSAVE_STORAGE_KEY);
+  return record?.bundle ?? null;
+}
+
 async function bootBlockly(): Promise<void> {
   const locale = detectLocale();
   blocklyLocale = locale;
@@ -528,7 +551,8 @@ async function bootBlockly(): Promise<void> {
   });
   installBlocklyFloatingOverlays();
 
-  const loadOnce = takeLoadOnceBlocks();
+  const localeProject = await projectForLocaleReload();
+  const loadOnce = localeProject ? null : takeLoadOnceBlocks();
   if (loadOnce) {
     Blockly.serialization.workspaces.load(
       migrateForEachSourceState(loadOnce) as Record<string, unknown>,
@@ -673,6 +697,9 @@ async function bootBlockly(): Promise<void> {
   initBlocklyCanvasDrop();
   initOutputTabs();
   initSlideAway();
+  if (localeProject) {
+    controller.restoreAfterLocaleChange(localeProject);
+  }
 
   workspace.addChangeListener((event) => {
     refreshUndoButtons();

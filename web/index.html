@@ -132,6 +132,20 @@
       </div>
       <div class="pane-slide-main">
       <div class="pane-header">
+        <button
+          type="button"
+          id="btn-slide-source"
+          class="pane-btn pane-btn-on-dark pane-slide-btn"
+          title="Slide Source away"
+          aria-label="Slide Source away"
+          data-i18n-title="slideSourceAway"
+          data-i18n-aria="slideSourceAway"
+        >
+          <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+            <rect x="3.6" y="4.7" width="5.4" height="14.6" rx="1" fill="currentColor"></rect>
+          </svg>
+        </button>
         <h2 data-i18n="source">Source</h2>
         <div class="pane-header-actions">
         <span class="info-tip">
@@ -143,15 +157,6 @@
             {{#with}} / {{#each}}. Otherwise Listening Mode fills the waiting Source query block.
           </span>
         </span>
-        <button
-          type="button"
-          id="btn-slide-source"
-          class="pane-btn pane-btn-on-dark pane-slide-btn"
-          title="Slide Source away"
-          aria-label="Slide Source away"
-          data-i18n-title="slideSourceAway"
-          data-i18n-aria="slideSourceAway"
-        >⟨</button>
         </div>
       </div>
       <p id="handlebars-click-hint" class="source-handlebars-hint" hidden data-i18n="handlebarsHint">
@@ -408,16 +413,21 @@
               <option value="xml" data-i18n="xmlInstance">XML instance</option>
             </select>
           </label>
-          <button
-            type="button"
-            id="btn-slide-output"
-            class="pane-btn pane-btn-on-dark pane-slide-btn"
-            title="Slide Target &amp; Previews away"
-            aria-label="Slide Target &amp; Previews away"
-            data-i18n-title="slideTargetAway"
-            data-i18n-aria="slideTargetAway"
-          >⟩</button>
         </div>
+        <button
+          type="button"
+          id="btn-slide-output"
+          class="pane-btn pane-btn-on-dark pane-slide-btn"
+          title="Slide Target &amp; Previews away"
+          aria-label="Slide Target &amp; Previews away"
+          data-i18n-title="slideTargetAway"
+          data-i18n-aria="slideTargetAway"
+        >
+          <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"></rect>
+            <rect x="15" y="4.7" width="5.4" height="14.6" rx="1" fill="currentColor"></rect>
+          </svg>
+        </button>
       </div>
       <sl-tab-group id="output-tabs" class="output-tabs">
         <sl-tab slot="nav" panel="target-schema" id="tab-target-schema" data-i18n="tabTargetSchema">Target schema</sl-tab>

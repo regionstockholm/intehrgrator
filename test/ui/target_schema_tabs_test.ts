@@ -57,6 +57,37 @@ Deno.test({
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
 
+      const corners = await page.evaluate(() => {
+        const place = (paneId: string, buttonId: string) => {
+          const pane = document.getElementById(paneId);
+          const btn = document.getElementById(buttonId);
+          if (!pane || !btn) return null;
+          const paneBox = pane.getBoundingClientRect();
+          const btnBox = btn.getBoundingClientRect();
+          return {
+            fromTop: btnBox.top - paneBox.top,
+            fromLeft: btnBox.left - paneBox.left,
+            fromRight: paneBox.right - btnBox.right,
+            paneWidth: paneBox.width,
+          };
+        };
+        return {
+          source: place("source-pane", "btn-slide-source"),
+          output: place("output-pane", "btn-slide-output"),
+        };
+      });
+      assert(corners.source && corners.output, "slide toggles should be in the edge panes");
+      assert(
+        corners.source.fromTop < 20 && corners.source.fromLeft < 20,
+        `source toggle should sit in the upper-left corner, got ${JSON.stringify(corners.source)}`,
+      );
+      assert(
+        corners.output.fromTop < 20 && corners.output.fromRight < 20,
+        `target toggle should sit in the upper-right corner, got ${JSON.stringify(corners.output)}`,
+      );
+      assertEquals(await page.locator("#btn-slide-source svg").count(), 1);
+      assertEquals(await page.locator("#btn-slide-output svg").count(), 1);
+
       await page.click("#btn-slide-source");
       await page.waitForSelector("#source-pane.pane--slid-away", { timeout: 5_000 });
       const railTop = await page.evaluate(() => {

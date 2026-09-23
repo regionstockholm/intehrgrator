@@ -14,6 +14,9 @@ import {
 export { SUPPORTED_LOCALES, msg, type IntehrLocale, isIntehrLocale };
 
 const STORAGE_KEY = "intehrgrator.blockly.hl";
+const LOAD_ONCE_BLOCKS_KEY = "intehrgrator.loadOnceBlocks";
+const LOAD_ONCE_PROJECT_KEY = "intehrgrator.loadOnceProject";
+const LOCALE_RELOAD_AUTOSAVE_KEY = "intehrgrator.localeReloadAutosave";
 
 export function detectLocale(): IntehrLocale {
   try {
@@ -74,14 +77,16 @@ async function importBlocklyMsg(locale: IntehrLocale): Promise<Record<string, st
 /** Persist locale and reload (same pattern as Blockly DevSite demo). */
 export function changeLocaleAndReload(
   locale: IntehrLocale,
-  workspaceState: unknown,
+  workspaceState?: unknown,
 ): void {
   try {
     globalThis.localStorage?.setItem(STORAGE_KEY, locale);
-    globalThis.sessionStorage?.setItem(
-      "intehrgrator.loadOnceBlocks",
-      JSON.stringify(workspaceState),
-    );
+    if (workspaceState !== undefined) {
+      globalThis.sessionStorage?.setItem(
+        LOAD_ONCE_BLOCKS_KEY,
+        JSON.stringify(workspaceState),
+      );
+    }
   } catch {
     // storage flaky
   }
@@ -90,10 +95,71 @@ export function changeLocaleAndReload(
   globalThis.location.href = url.toString();
 }
 
-export function takeLoadOnceBlocks(): unknown | null {
+/**
+ * Keep the open project across the UI-language reload.
+ * Returns false when sessionStorage rejects the payload (quota); the caller
+ * should then write an autosave and set the autosave flag.
+ */
+export function stashLocaleReloadProject(bundle: unknown): boolean {
   try {
-    const raw = globalThis.sessionStorage?.getItem("intehrgrator.loadOnceBlocks");
-    globalThis.sessionStorage?.removeItem("intehrgrator.loadOnceBlocks");
+    globalThis.sessionStorage?.setItem(LOAD_ONCE_PROJECT_KEY, JSON.stringify(bundle));
+    globalThis.sessionStorage?.removeItem(LOAD_ONCE_BLOCKS_KEY);
+    globalThis.sessionStorage?.removeItem(LOCALE_RELOAD_AUTOSAVE_KEY);
+    return true;
+  } catch {
+    try {
+      globalThis.sessionStorage?.removeItem(LOAD_ONCE_PROJECT_KEY);
+    } catch {
+      // storage flaky
+    }
+    return false;
+  }
+}
+
+export function markLocaleReloadAutosave(): void {
+  try {
+    globalThis.sessionStorage?.setItem(LOCALE_RELOAD_AUTOSAVE_KEY, "1");
+  } catch {
+    // storage flaky
+  }
+}
+
+export function takeLoadOnceProject(): unknown | null {
+  return takeSessionJson(LOAD_ONCE_PROJECT_KEY);
+}
+
+/** Shape check for a project JSON stashed across a UI-language reload. */
+export function isStashedProjectBundle(value: unknown): value is {
+  version: number;
+  examples: unknown[];
+  mapping: object;
+} {
+  if (!value || typeof value !== "object") return false;
+  const rec = value as { version?: unknown; examples?: unknown; mapping?: unknown };
+  return typeof rec.version === "number" &&
+    Array.isArray(rec.examples) &&
+    rec.mapping != null &&
+    typeof rec.mapping === "object";
+}
+
+export function takeLocaleReloadAutosave(): boolean {
+  try {
+    const flag = globalThis.sessionStorage?.getItem(LOCALE_RELOAD_AUTOSAVE_KEY);
+    globalThis.sessionStorage?.removeItem(LOCALE_RELOAD_AUTOSAVE_KEY);
+    return flag === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function takeLoadOnceBlocks(): unknown | null {
+  return takeSessionJson(LOAD_ONCE_BLOCKS_KEY);
+}
+
+function takeSessionJson(key: string): unknown | null {
+  try {
+    const raw = globalThis.sessionStorage?.getItem(key);
+    globalThis.sessionStorage?.removeItem(key);
     if (!raw) return null;
     return JSON.parse(raw);
   } catch {

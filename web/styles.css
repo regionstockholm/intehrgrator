@@ -115,7 +115,10 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   padding: 8px 12px; background: var(--primary); color: #fff; flex-shrink: 0;
   flex-wrap: wrap;
+  position: relative;
 }
+.source-pane .pane-header { padding-left: 48px; }
+.output-pane .pane-header { padding-right: 48px; }
 .pane-header h2 {
   margin: 0; padding: 0; background: none; font-size: 14px; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -289,7 +292,23 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 
 .pane-slide-btn {
-  min-width: 22px; padding: 2px 6px; font-size: 14px; line-height: 1;
+  position: absolute;
+  top: 6px;
+  z-index: 2;
+  width: 32px;
+  height: 28px;
+  min-width: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#btn-slide-source { left: 8px; }
+#btn-slide-output { right: 8px; }
+.pane-slide-btn svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 .pane-slide-main {
   display: flex; flex-direction: column; flex: 1; min-height: 0; min-width: 0;

@@ -52,7 +52,7 @@ import {
   type TsEmitContext,
 } from "../core/codegen/typescript.ts";
 import { registerExportTargetAdapter } from "../core/codegen/mod.ts";
-import { archetypeRootIdBySlot } from "../core/openehr/rm_archetype_node_id.ts";
+import { archetypeRootIdBySlot, propsLackClinicalContent } from "../core/openehr/rm_archetype_node_id.ts";
 import { runWithoutBlocklyEvents } from "./blockly_events.ts";
 import { isLoopBlockType, loopIndexBinderName, loopLengthBinderName, sourcePathFromLoopList } from "./loop_block.ts";
 import { migrateForEachSourceState } from "./migrate_for_each_source.ts";
@@ -343,7 +343,7 @@ function emitExpressionBlock(block: Block, ctx: TsEmitContext): string | null {
 function emitRmContainer(block: Block, ctx: TsEmitContext, indent: number): string {
   const rmType = rmTypeOf(block);
   const props = collectRmProps(block, ctx, indent);
-  if (!props.length && rmType !== "COMPOSITION") {
+  if (rmType !== "COMPOSITION" && propsLackClinicalContent(props)) {
     if (rmType === "PARTY_SELF") {
       ctx.types.add("PARTY_SELF");
       return "new PARTY_SELF()";
@@ -615,7 +615,9 @@ function emitDvShell(block: Block, ctx: TsEmitContext, indent: number): string {
       props.push(["magnitude", emitBlock(mag, ctx, indent + 1)]);
     }
     const units = block.getFieldValue("UNITS");
-    if (units) props.push(["units", JSON.stringify(units)]);
+    if (units && props.some((prop) => prop[0] === "magnitude")) {
+      props.push(["units", JSON.stringify(units)]);
+    }
   }
   if (rmType === "DV_TEXT" && props.length === 1 && props[0]![0] === "value") {
     ctx.types.add("DV_TEXT");

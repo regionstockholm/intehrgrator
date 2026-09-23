@@ -14,6 +14,7 @@ import {
   applyExpressionEdit,
   createEmptyModel,
 } from "@intehrgrator/core/mapping_model/mod.ts";
+import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 
 Deno.test("target format handlers cover structured and free-form outputs", () => {
@@ -220,4 +221,155 @@ Deno.test("Handlebars Test Run can walk source without a structured target", () 
   );
   assertEquals(result.ok, true);
   assertEquals(result.output, "ADA score=7 ok");
+});
+
+Deno.test("openEHR preview omits scaffold nodes that have no mapped value", () => {
+  const textValue = (slotId: string): SkeletonNode => ({
+    slotId,
+    blockType: "dv_text",
+    rmType: "DV_TEXT",
+    label: "value",
+    kind: "value",
+    mandatory: true,
+    rmAttribute: "value",
+    children: [],
+  });
+  const element = (slotId: string, label: string): SkeletonNode => ({
+    slotId,
+    blockType: "element",
+    rmType: "ELEMENT",
+    label,
+    archetypeNodeId: "at0001",
+    kind: "container",
+    mandatory: false,
+    rmAttribute: "items",
+    children: [textValue(`${slotId}/value`)],
+  });
+  const composition: SkeletonNode = {
+    slotId: "composition",
+    blockType: "composition",
+    rmType: "COMPOSITION",
+    label: "Encounter",
+    kind: "container",
+    mandatory: true,
+    children: [element("empty", "Unmapped optional"), element("filled", "Systolic")],
+  };
+  const output = getTargetFormatHandler("openehr-template").render({
+    definition: {
+      format: "openehr-template",
+      filename: "t.opt",
+      targetId: "t",
+      content: "<opt/>",
+      skeleton: [composition],
+    },
+    slotValues: { "filled/value": "120" },
+  }) as {
+    items?: Array<{ name?: { value?: string }; value?: { value?: string } }>;
+  };
+  assertEquals(output.items?.map((item) => item.name?.value), ["Systolic"]);
+  assertEquals(output.items?.[0]?.value?.value, "120");
+});
+
+Deno.test("openEHR preview keeps language only beside a clinical value", () => {
+  const language = (slotId: string): SkeletonNode => ({
+    slotId,
+    blockType: "code_phrase",
+    rmType: "CODE_PHRASE",
+    label: "language",
+    kind: "value",
+    mandatory: true,
+    rmAttribute: "language",
+    children: [],
+  });
+  const magnitude = (slotId: string): SkeletonNode => ({
+    slotId,
+    blockType: "dv_quantity",
+    rmType: "DV_QUANTITY",
+    label: "magnitude",
+    kind: "value",
+    mandatory: false,
+    rmAttribute: "value",
+    children: [],
+  });
+  const observation = (slotId: string, label: string, valueSlot: string): SkeletonNode => ({
+    slotId,
+    blockType: "observation",
+    rmType: "OBSERVATION",
+    label,
+    kind: "container",
+    mandatory: false,
+    rmAttribute: "items",
+    children: [language(`${slotId}/language`), magnitude(valueSlot)],
+  });
+  const output = getTargetFormatHandler("openehr-template").render({
+    definition: {
+      format: "openehr-template",
+      filename: "t.opt",
+      targetId: "t",
+      content: "<opt/>",
+      skeleton: [{
+        slotId: "composition",
+        blockType: "composition",
+        rmType: "COMPOSITION",
+        label: "Encounter",
+        kind: "container",
+        mandatory: true,
+        children: [
+          observation("empty", "Respiration", "empty/value"),
+          observation("pulse", "Pulse", "pulse/value"),
+        ],
+      }],
+    },
+    slotValues: {
+      "empty/language": "en",
+      "pulse/language": "en",
+      "pulse/value": 72,
+    },
+  }) as {
+    items?: Array<{ name?: { value?: string }; language?: { value?: string }; value?: { magnitude?: number } }>;
+  };
+  assertEquals(output.items?.map((item) => item.name?.value), ["Pulse"]);
+  assertEquals(output.items?.[0]?.language?.value, "en");
+  assertEquals(output.items?.[0]?.value?.magnitude, 72);
+});
+
+Deno.test("openEHR preview uses the template name constraint and coded-text choice", () => {
+  const output = getTargetFormatHandler("openehr-template").render({
+    definition: {
+      format: "openehr-template",
+      filename: "t.opt",
+      targetId: "t",
+      content: "<opt/>",
+      skeleton: [{
+        slotId: "cluster",
+        blockType: "cluster",
+        rmType: "CLUSTER",
+        label: "Vårdgivare",
+        nameConstraint: "Vårdenhet",
+        kind: "container",
+        mandatory: false,
+        children: [{
+          slotId: "position",
+          blockType: "dv_coded_text",
+          rmType: "DV_CODED_TEXT",
+          label: "Position",
+          kind: "value",
+          mandatory: false,
+          rmAttribute: "value",
+          allowedValues: [
+            { code: "at1001", label: "Sitting", terminologyId: "local" },
+            { code: "at1000", label: "Lying", terminologyId: "local" },
+          ],
+          children: [],
+        }],
+      }],
+    },
+    slotValues: { position: "Sitting" },
+  }) as {
+    name?: { value?: string };
+    value?: { value?: string; defining_code?: { code_string?: string } };
+  };
+  assertEquals(output.name?.value, "Vårdenhet");
+  assertEquals(output.value?.value, "Sitting");
+  assertEquals(output.value?.defining_code?.code_string, "at1001");
 });

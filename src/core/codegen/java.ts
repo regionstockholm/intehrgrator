@@ -11,7 +11,11 @@
 import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
-import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
+import {
+  propsLackClinicalContent,
+  rmArchetypeNodeId,
+  rmLocatableName,
+} from "../openehr/rm_archetype_node_id.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { isListAttribute } from "./typescript.ts";
 import { usesOpenEhrProduct } from "./product.ts";
@@ -668,7 +672,7 @@ function emitSkeletonNode(
   }
 
   const props = skeletonContainerProps(node, slots, loops, ctx, indent, parentArchetypeRef);
-  if (!props.length && !node.mandatory && node.rmType !== "COMPOSITION") {
+  if (node.rmType !== "COMPOSITION" && propsLackClinicalContent(props)) {
     return null;
   }
   return formatRmConstruct(node.rmType, props, indent, ctx);
@@ -721,11 +725,12 @@ function skeletonContainerProps(
   parentArchetypeRef?: string,
 ): Array<[string, string]> {
   const props: Array<[string, string]> = [];
-  if (node.label && shouldEmitSkeletonName(node)) {
+  const locatableName = rmLocatableName(node);
+  if (locatableName && shouldEmitSkeletonName(node)) {
     ctx.types.add("DV_TEXT");
     props.push([
       "name",
-      `new DvText(${JSON.stringify(node.label)})`,
+      `new DvText(${JSON.stringify(locatableName)})`,
     ]);
   }
   const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);

@@ -5,6 +5,7 @@
 import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
 import * as rm from "ehrtslib/openehr_rm.ts";
 import {
+  deserializeFromFlatJson,
   parseWebTemplate,
   webTemplateToOpt,
 } from "ehrtslib/serialization/simplified/mod.ts";
@@ -109,7 +110,8 @@ export function validateConvertedOutput(
         }],
       };
     }
-    const rmInstance = asRmInstance(output, jsonText, deserializeMode);
+    const flatRm = rmFromFlatDocument(output, target);
+    const rmInstance = flatRm ?? asRmInstance(output, jsonText, deserializeMode);
     const result = validator.validate(rmInstance, opt);
     const messages = [...result.errors, ...result.warnings].map((msg) => ({
       path: msg.path || "/",
@@ -135,6 +137,40 @@ export function validateConvertedOutput(
       }],
     };
   }
+}
+
+/**
+ * Simplified FLAT documents are path maps (`ctx/category`, `.../value`), not
+ * canonical RM JSON. Rebuild the composition before OPT validation.
+ */
+function rmFromFlatDocument(output: unknown, target: TargetDefinition): unknown | null {
+  const json = flatCompositionJson(output);
+  if (!json || !target.webTemplateJson?.trim()) return null;
+  try {
+    ensureRmTypeRegistry();
+    return deserializeFromFlatJson(json, parseWebTemplate(target.webTemplateJson));
+  } catch {
+    return null;
+  }
+}
+
+function flatCompositionJson(output: unknown): string | null {
+  let value: unknown = output;
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{")) return null;
+    try {
+      value = JSON.parse(trimmed) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if ("_type" in record || "archetype_node_id" in record) return null;
+  const keys = Object.keys(record);
+  if (!keys.some((key) => key.startsWith("ctx/") || key.includes("/"))) return null;
+  return JSON.stringify(record);
 }
 
 function operationalTemplateFromTarget(target: TargetDefinition): unknown {
@@ -200,8 +236,7 @@ export function classifyOpenEhrValidationMessage(message: string): OpenEhrValida
   ) {
     return "code-phrase";
   }
-  // ehrtslib matches sibling C_ARCHETYPE_ROOT children by RM type only, so
-  // the first OBSERVATION/CLUSTER constraint is used for every sibling.
+  // Kept for messages produced before the sibling-constraint patch.
   if (m.includes("does not match template archetype")) return "archetype-sibling";
   return "other";
 }

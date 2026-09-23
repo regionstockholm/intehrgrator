@@ -44,14 +44,19 @@ Deno.test("validateConvertedOutput deserializes preview JSON and reports templat
     definition: target,
     slotValues: {},
   });
-  const validation = validateConvertedOutput(output, target, { deserializeMode: "hybrid" });
+  const empty = validateConvertedOutput(output, target, { deserializeMode: "hybrid" });
+  assert(empty.applicable);
+  assertEquals(empty.valid, true, empty.messages.map((m) => m.message).join("; "));
+  const bad = {
+    ...(output as Record<string, unknown>),
+    category: { _type: "DV_CODED_TEXT", value: "not-a-code" },
+  };
+  const validation = validateConvertedOutput(bad, target, { deserializeMode: "hybrid" });
   assert(validation.applicable);
   assertEquals(validation.valid, false);
   assert(
-    validation.messages.length > 1,
-    `expected multiple validation messages, got: ${
-      validation.messages.map((m) => m.message).join("; ")
-    }`,
+    validation.messages.length > 0,
+    `expected template errors, got: ${validation.messages.map((m) => m.message).join("; ")}`,
   );
   assert(
     !validation.messages.some((m) => m.message.includes("canonical deserializer")),
@@ -73,12 +78,16 @@ Deno.test("canonical strict mode differs from hybrid for preview JSON", async ()
     definition: target,
     slotValues: {},
   });
-  const hybrid = validateConvertedOutput(output, target, { deserializeMode: "hybrid" });
-  const strict = validateConvertedOutput(output, target, { deserializeMode: "canonical-strict" });
+  const bad = {
+    ...(output as Record<string, unknown>),
+    category: { _type: "DV_CODED_TEXT", value: "not-a-code" },
+  };
+  const hybrid = validateConvertedOutput(bad, target, { deserializeMode: "hybrid" });
+  const strict = validateConvertedOutput(bad, target, { deserializeMode: "canonical-strict" });
   assert(hybrid.applicable && strict.applicable);
   assertEquals(hybrid.valid, false);
   assertEquals(strict.valid, false);
-  assert(hybrid.messages.length > 1, "hybrid should reach template validator");
+  assert(hybrid.messages.length > 0, "hybrid should reach template validator");
 });
 
 Deno.test("runTest preview on BP target with legacy JSON instance collects output validation", async () => {
@@ -101,10 +110,10 @@ Deno.test("runTest preview on BP target with legacy JSON instance collects outpu
     openEhrJsonDeserializeMode: "hybrid",
   });
   assert(result.outputValidation?.applicable);
-  assertEquals(result.outputValidation?.valid, false);
-  assert(
-    (result.outputValidation?.messages.length ?? 0) > 1,
-    "expected multiple template constraint messages for an unmapped BP conversion",
+  assertEquals(
+    result.outputValidation?.valid,
+    true,
+    (result.outputValidation?.messages ?? []).map((m) => m.message).join("; "),
   );
 });
 
@@ -126,10 +135,10 @@ Deno.test("runAllTests validates every loaded example for autoplay", async () =>
   for (const ex of state.examples) {
     const validation = state.outputValidations[ex.id];
     assert(validation?.applicable, `expected validation for ${ex.filename}`);
-    assertEquals(validation?.valid, false);
-    assert(
-      (validation?.messages.length ?? 0) > 0,
-      `expected validation messages for ${ex.filename}`,
+    assertEquals(
+      validation?.valid,
+      true,
+      `${ex.filename}: ${(validation?.messages ?? []).map((m) => m.message).join("; ")}`,
     );
   }
 });

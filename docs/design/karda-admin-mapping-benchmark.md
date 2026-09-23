@@ -182,18 +182,18 @@ Catalog sets `karda-administreringsdata-to-openehr-flat` and `karda-ordinationsd
 
 **TypeScript `flat-json`.** Simplified FLAT now includes clinical content (`Epirubicin` on both sets), not only `ctx/language`. Content items used to emit `archetype_node_id` `at0000` while the Web Template AQL paths predicate the archetype id (`/content[openEHR-EHR-EVALUATION.reason_for_encounter.v1]`, `/content[openEHR-EHR-ACTION.medication.v1]`, and nested `items[openEHR-EHR-CLUSTER.medication.v2]`), so flatten skipped the content tree. Emit-time `rmArchetypeNodeId` writes the archetype id when a node opens a new archetype scope. The skeleton and gold Blockly still store the at-code. Sibling slots of the same RM type can then be reported against the first OPT alternative (`does not match template archetype`); that message is classified as `archetype-sibling` and is not a missing substance mapping.
 
-`outputValidation.valid` is still false. The same three messages remain on both sets:
+Simplified FLAT is rebuilt to RM with the Web Template before OPT validation, so the old false trio (missing `category` / `content` / `context` from checking a FLAT map as canonical JSON) is gone. Sibling `C_OBJECT`s match on archetype id or at-code, and a repeated at-code is disambiguated by `LOCATABLE.name`, instead of the first sibling of the same RM type.
 
-- Required attribute missing: category
-- Required attribute missing (min: 1)
-- Cardinality 0 below minimum: 1
+Mapping preview on the first runnable instance is not fully valid yet:
+
+- Ordination: the ACTION `Schemalagd administrering per substans` carries an order id and careflow step, and the template still requires `description`.
+- Administration: two medication values are trial names (`PRÖV-Karboplatin`, `PRÖV-Pemetrexed`) in `DV_CODED_TEXT` with no `defining_code`.
+
+Those are mapping gaps. Guessing a description, a subject, or a code for a trial name would invent clinical content.
+
+TypeScript canvas output still has further RM gaps after the FLAT round-trip (category `defining_code`, missing LOCATABLE names, RM-specification `subject` / `language` / `narrative` / `time`, and the same clinical gaps).
 
 **XQuery.** Second Output mode. Both sets execute (no XPTY0004) and the JSON includes `Epirubicin`. Lookup paths such as `$.KurDagar[*].Substanser` compile to `?*` array unwraps, and Decision-table cell compare always returns a boolean.
 
-XQuery `outputValidation` is noisier because that mode emits the Template Skeleton, including unmapped optional clusters. Leftover messages (first instance):
-
-- Administration: type mismatches (`DV_TEXT` vs `DV_IDENTIFIER`, `DV_CODED_TEXT` vs `DV_QUANTITY`), missing `code_string` / `defining_code`, name constraints outside the template list (`Vårdgivare`, `Administrerad dos`, `items`, `Kvantitet`, `Ytterligare detaljer`), plus required-attribute min 1.
-- Ordination: the same kinds of mismatches, plus `archetype_node_id` values that do not match the template node they landed on (`medication_regimen.v0` / `medication_trial_details.v0` vs `CLUSTER.organisation.v1`), and name constraints such as `Epirubicin` / `dummy-substance-tablett` against `[Ordination per substans]`.
-
-Those XQuery messages are mapping and skeleton leftovers. They are not an execution failure.
+XQuery still emits from the canvas, so a block name that is not the template constraint remains. With the runtime loaded, administration's first instance reported 4 messages (`Vårdgivare` outside `[Vårdenhet]`, plus missing `code_string`s) and ordination's first instance reported 14 (missing `code_string`s, and `Epirubicin` outside `[Ordination per substans]`). Unmapped optional clusters that only received context defaults are no longer emitted.
 

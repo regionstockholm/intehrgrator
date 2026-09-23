@@ -18,7 +18,11 @@ import {
   isRepeatingMultiplicity,
   isPartyIdentityRmType,
 } from "../skeleton/generate_skeleton.ts";
-import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
+import {
+  isRmBoilerplateAttribute,
+  rmArchetypeNodeId,
+  rmLocatableName,
+} from "../openehr/rm_archetype_node_id.ts";
 import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
@@ -499,17 +503,63 @@ function renderOpenEhrNode(
     if (count > 1) {
       const copies: unknown[] = [];
       for (let i = 0; i < count; i++) {
-        const one = renderOpenEhrNodeOnce(
-          node,
-          indexSlotValues(values, i, node),
-          parentArchetypeRef,
-        );
+        const indexed = indexSlotValues(values, i, node);
+        if (!subtreeHasClinicalValue(node, indexed)) continue;
+        const one = renderOpenEhrNodeOnce(node, indexed, parentArchetypeRef);
         if (one !== undefined) copies.push(one);
       }
-      return copies;
+      return copies.length ? copies : undefined;
     }
   }
+  if (node.rmType !== "COMPOSITION" && !subtreeHasClinicalValue(node, values)) {
+    return undefined;
+  }
   return renderOpenEhrNodeOnce(node, values, parentArchetypeRef);
+}
+
+/** Boilerplate (language, event time) is kept once its parent is already included. */
+function renderOpenEhrChild(
+  node: SkeletonNode,
+  values: Readonly<Record<string, unknown>>,
+  parentArchetypeRef?: string,
+): unknown {
+  if (node.rmAttribute && isRmBoilerplateAttribute(node.rmAttribute)) {
+    return renderOpenEhrNodeOnce(node, values, parentArchetypeRef);
+  }
+  return renderOpenEhrNode(node, values, parentArchetypeRef);
+}
+
+/**
+ * A mapped or fixed value anywhere under this node.
+ * LOCATABLE identity and RM boilerplate (language, event time, …) do not count,
+ * so an optional observation that only received context defaults is omitted.
+ */
+function subtreeHasClinicalValue(
+  node: SkeletonNode,
+  values: Readonly<Record<string, unknown>>,
+): boolean {
+  if (node.rmAttribute && isRmBoilerplateAttribute(node.rmAttribute)) {
+    return node.children.some((child) => subtreeHasClinicalValue(child, values));
+  }
+  if (Object.hasOwn(values, node.slotId) && valueIsPresent(values[node.slotId])) return true;
+  if (node.kind === "value") {
+    const value = Object.hasOwn(values, node.slotId) ? values[node.slotId] : fixedValue(node);
+    return valueIsPresent(value);
+  }
+  return node.children.some((child) => subtreeHasClinicalValue(child, values));
+}
+
+function valueIsPresent(value: unknown): boolean {
+  if (Array.isArray(value)) return value.some((item) => valueIsPresent(item));
+  if (typeof value === "string") return value.trim() !== "";
+  if (isAbsentValue(value)) return false;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).filter((key) => key !== "_type");
+    if (!keys.length) return false;
+    return keys.some((key) => valueIsPresent(record[key]));
+  }
+  return true;
 }
 
 function renderOpenEhrNodeOnce(
@@ -527,6 +577,7 @@ function renderOpenEhrNodeOnce(
     const output: Record<string, unknown> = { _type: node.rmType };
     assignDataValueFields(output, node.rmType, value);
     applyFixedDataValueFields(output, node.rmType, node.fixedFields);
+    fillCodedValueFromAllowed(output, node);
     return output;
   }
 
@@ -534,8 +585,9 @@ function renderOpenEhrNodeOnce(
   const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);
   if (nodeId) output.archetype_node_id = nodeId;
   const childArchetypeRef = node.archetypeRef ?? parentArchetypeRef;
-  if (node.label && node.rmType !== "COMPOSITION" && !isPartyIdentityRmType(node.rmType)) {
-    output.name = { _type: "DV_TEXT", value: node.label };
+  const locatableName = rmLocatableName(node);
+  if (locatableName && node.rmType !== "COMPOSITION" && !isPartyIdentityRmType(node.rmType)) {
+    output.name = { _type: "DV_TEXT", value: locatableName };
   }
   if (isPartyIdentityRmType(node.rmType) && Object.hasOwn(values, node.slotId)) {
     assignPartyIdentityFields(output, values[node.slotId]);
@@ -547,7 +599,7 @@ function renderOpenEhrNodeOnce(
     if (isPartyIdentityRmType(node.rmType) && (child.rmAttribute === "name" || child.rmAttribute === "identifiers")) {
       continue;
     }
-    const value = renderOpenEhrNode(child, values, childArchetypeRef);
+    const value = renderOpenEhrChild(child, values, childArchetypeRef);
     if (value === undefined) continue;
     const attribute = child.rmAttribute ?? child.label;
     const list = grouped.get(attribute) ?? [];
@@ -558,13 +610,7 @@ function renderOpenEhrNodeOnce(
     }
     grouped.set(attribute, list);
   }
-  if (
-    grouped.size === 0 &&
-    !node.mandatory &&
-    node.rmType !== "COMPOSITION" &&
-    output.name == null &&
-    output.identifiers == null
-  ) {
+  if (grouped.size === 0 && node.rmType !== "COMPOSITION" && output.identifiers == null) {
     return undefined;
   }
   for (const [attribute, valuesForAttribute] of grouped) {
@@ -692,6 +738,46 @@ function assignDataValueFields(
     return;
   }
   output.value = value;
+}
+
+/** A mapped rubric ("Sitting") fills the template code when exactly one choice matches. */
+function fillCodedValueFromAllowed(
+  output: Record<string, unknown>,
+  node: SkeletonNode,
+): void {
+  const choices = node.allowedValues;
+  if (!choices?.length) return;
+  if (node.rmType !== "DV_CODED_TEXT" && node.rmType !== "CODE_PHRASE") return;
+  const phrase = asStringKeyedRecord(output.defining_code);
+  const existing = node.rmType === "CODE_PHRASE"
+    ? output.code_string
+    : phrase?.code_string;
+  if (existing != null && String(existing).trim() !== "") return;
+  const rubric = String(output.value ?? "").trim().toLowerCase();
+  if (!rubric) return;
+  const matches = choices.filter((choice) => {
+    const label = choice.label.trim().toLowerCase();
+    const code = choice.code.trim().toLowerCase();
+    return label === rubric || code === rubric;
+  });
+  if (matches.length !== 1) return;
+  const chosen = matches[0]!;
+  const terminology = chosen.terminologyId ||
+    (typeof phrase?.terminology_id === "object"
+      ? stringAttr(asStringKeyedRecord(phrase.terminology_id), "value")
+      : "") ||
+    "local";
+  const codePhrase: Record<string, unknown> = {
+    _type: "CODE_PHRASE",
+    terminology_id: { _type: "TERMINOLOGY_ID", value: terminology },
+    code_string: chosen.code,
+  };
+  if (node.rmType === "CODE_PHRASE") {
+    Object.assign(output, codePhrase);
+    return;
+  }
+  if (output.value == null || String(output.value).trim() === "") output.value = chosen.label;
+  output.defining_code = codePhrase;
 }
 
 function applyFixedDataValueFields(

@@ -349,6 +349,80 @@ Deno.test("assembleReleasePagesSite keeps a still-published recommended tag over
   }
 });
 
+Deno.test("assembleMainPagesSite mirrors unlinked catalogs listed in pages-files.txt", async () => {
+  const catalog = '{"version":1,"sets":[]}';
+  const library = '{"version":1,"functions":[]}';
+  const live = await serveLiveSite({
+    "index.html": "<html>root</html>",
+    "versions.json": JSON.stringify({ versions: ["v0.8.7"], recommended: "v0.8.7" }),
+    "v0.8.7/index.html": "<html>frozen</html>",
+    "v0.8.7/examples/example-sets.json": catalog,
+    "v0.8.7/function-library/catalog.json": library,
+    "v0.8.7/pages-files.txt": [
+      "examples/example-sets.json",
+      "function-library/catalog.json",
+      "index.html",
+    ].join("\n") + "\n",
+  });
+
+  const dir = await Deno.makeTempDir();
+  const rootDist = join(dir, "root-dist");
+  const outDir = join(dir, "out");
+  await Deno.mkdir(rootDist, { recursive: true });
+  await Deno.writeTextFile(join(rootDist, "index.html"), "<html>main</html>");
+
+  try {
+    const manifest = await assembleMainPagesSite({
+      baseUrl: live.baseUrl,
+      rootDist,
+      outDir,
+    });
+    assertEquals(manifest.versions, ["v0.8.7"]);
+    assertEquals(
+      await Deno.readTextFile(join(outDir, "v0.8.7", "examples", "example-sets.json")),
+      catalog,
+    );
+    assertEquals(
+      await Deno.readTextFile(join(outDir, "v0.8.7", "function-library", "catalog.json")),
+      library,
+    );
+    assertEquals(await Deno.readTextFile(join(outDir, "v0.8.7", "index.html")), "<html>frozen</html>");
+  } finally {
+    await live.shutdown();
+  }
+});
+
+Deno.test("assembleReleasePagesSite records unlinked catalog files in pages-files.txt", async () => {
+  const live = await serveLiveSite({
+    "index.html": "<html>live</html>",
+    "versions.json": JSON.stringify({ versions: [] }),
+  });
+  const dir = await Deno.makeTempDir();
+  const versionDist = join(dir, "version-dist");
+  const outDir = join(dir, "out");
+  await Deno.mkdir(join(versionDist, "examples"), { recursive: true });
+  await Deno.writeTextFile(join(versionDist, "index.html"), "<html>v0.8.7</html>");
+  await Deno.writeTextFile(join(versionDist, "examples", "example-sets.json"), "{\"sets\":[]}");
+  try {
+    await assembleReleasePagesSite({
+      baseUrl: live.baseUrl,
+      versionTag: "v0.8.7",
+      versionDist,
+      outDir,
+    });
+    const list = await Deno.readTextFile(join(outDir, "v0.8.7", "pages-files.txt"));
+    assertEquals(list.includes("examples/example-sets.json"), true);
+    assertEquals(list.includes("index.html"), true);
+    assertEquals(list.includes("pages-files.txt"), false);
+    assertEquals(
+      await Deno.readTextFile(join(outDir, "v0.8.7", "examples", "example-sets.json")),
+      "{\"sets\":[]}",
+    );
+  } finally {
+    await live.shutdown();
+  }
+});
+
 Deno.test("assembleReleasePagesSite honors a recommendedOverride even over the previous pin", async () => {
   const live = await serveLiveSite({
     "index.html": "<html>live</html>",

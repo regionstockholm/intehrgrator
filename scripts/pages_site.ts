@@ -6,6 +6,13 @@ import { dirname, join } from "@std/path";
 
 export const PAGES_SITE_URL = "https://regionstockholm.github.io/intehrgrator";
 export const VERSIONS_MANIFEST = "versions.json";
+/**
+ * Every Pages tree lists its files here. Later main deploys re-download frozen
+ * version directories from the live site; recursive wget only follows links in
+ * HTML, so unlinked catalogs (`examples/`, `function-library/`, `test/fixtures/`)
+ * would otherwise disappear from `/vX.Y/`.
+ */
+export const PAGES_FILE_LIST = "pages-files.txt";
 
 export interface VersionsManifest {
   versions: string[];
@@ -151,7 +158,31 @@ export async function mirrorVersionSubdir(
   const dest = join(destRoot, tag);
   await emptyDir(dest);
   await ensureDir(dest);
-  // URL path is /<repo>/<tag>/… — cut both so files land directly in dest/.
+  const listUrl = `${baseUrl.replace(/\/$/, "")}/${tag}/${PAGES_FILE_LIST}`;
+  try {
+    const listed = await fetch(listUrl);
+    if (listed.ok) {
+      const listText = await listed.text();
+      if (listText.includes("index.html")) {
+        await mirrorFromFileList(baseUrl, tag, dest, listText);
+        if (!(await versionHasIndex(destRoot, tag))) {
+          throw new Error(
+            `Failed to mirror frozen Pages version /${tag}/ — index.html missing after file list`,
+          );
+        }
+        return;
+      }
+    }
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith("Failed to mirror")) throw error;
+    if (error instanceof Error && error.message.startsWith("Refusing unsafe")) throw error;
+    console.warn(
+      `File list for ${tag} unavailable, falling back to wget: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  // Legacy trees have no file list. wget -r only follows HTML links.
   const cut = pagesRepoPathDepth(baseUrl) + 1;
   const args = ["-q", "-r", "-np", "-nH", `--cut-dirs=${cut}`, "-P", dest, `${baseUrl}/${tag}/`];
   await runWget(args);
@@ -170,6 +201,69 @@ export async function mirrorVersionSubdir(
 async function copyDistContents(src: string, dest: string): Promise<void> {
   await ensureDir(dest);
   await copy(src, dest, { overwrite: true, recursive: true });
+  await writePagesFileList(dest);
+}
+
+/** Relative paths, one per line, of every file currently in a Pages tree. */
+export async function writePagesFileList(root: string): Promise<void> {
+  const files: string[] = [];
+  for await (const entry of walk(root, { includeDirs: false })) {
+    let rel = entry.path.slice(root.length);
+    if (rel.startsWith("/") || rel.startsWith("\\")) rel = rel.slice(1);
+    rel = rel.replaceAll("\\", "/");
+    if (!rel || rel === PAGES_FILE_LIST) continue;
+    files.push(rel);
+  }
+  files.sort();
+  await Deno.writeTextFile(join(root, PAGES_FILE_LIST), `${files.join("\n")}\n`);
+}
+
+function isSafeRelativePath(rel: string): boolean {
+  if (!rel || rel.startsWith("/") || rel.includes("\\") || rel.includes("\0")) return false;
+  return rel.split("/").every((part) => part.length > 0 && part !== "." && part !== "..");
+}
+
+async function mirrorFromFileList(
+  baseUrl: string,
+  tag: string,
+  dest: string,
+  listText: string,
+): Promise<void> {
+  const paths = listText.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  for (const rel of paths) {
+    if (!isSafeRelativePath(rel)) {
+      throw new Error(`Refusing unsafe pages file path in ${tag}: ${rel}`);
+    }
+  }
+  const base = `${baseUrl.replace(/\/$/, "")}/${tag}/`;
+  await Deno.writeTextFile(
+    join(dest, PAGES_FILE_LIST),
+    listText.endsWith("\n") ? listText : `${listText}\n`,
+  );
+  let cursor = 0;
+  const workerCount = Math.min(16, paths.length);
+  const failures: string[] = [];
+  async function worker(): Promise<void> {
+    while (cursor < paths.length) {
+      const rel = paths[cursor++];
+      const target = join(dest, ...rel.split("/"));
+      try {
+        const res = await fetch(new URL(rel, base).href);
+        if (!res.ok) {
+          failures.push(`${rel} (${res.status})`);
+          continue;
+        }
+        await ensureDir(dirname(target));
+        await Deno.writeFile(target, new Uint8Array(await res.arrayBuffer()));
+      } catch (error) {
+        failures.push(`${rel} (${error instanceof Error ? error.message : String(error)})`);
+      }
+    }
+  }
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  if (failures.length) {
+    throw new Error(`Failed to mirror ${tag}: ${failures.slice(0, 5).join("; ")}`);
+  }
 }
 
 /**

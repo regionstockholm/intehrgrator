@@ -1,5 +1,10 @@
 import { assertEquals } from "@std/assert";
 import { msg, isIntehrLocale, SUPPORTED_LOCALES } from "@intehrgrator/blockly/i18n/custom_msg.ts";
+import {
+  isStashedProjectBundle,
+  stashLocaleReloadProject,
+  takeLoadOnceProject,
+} from "@intehrgrator/blockly/i18n/locale.ts";
 
 Deno.test("supported locales include en sv de es ca fr", () => {
   assertEquals(
@@ -8,6 +13,37 @@ Deno.test("supported locales include en sv de es ca fr", () => {
   );
   for (const code of ["en", "sv", "de", "es", "ca", "fr"]) {
     assertEquals(isIntehrLocale(code), true);
+  }
+});
+
+Deno.test("locale reload stashes a project once", () => {
+  const store = new Map<string, string>();
+  const storage = {
+    getItem: (key: string) => store.get(key) ?? null,
+    setItem: (key: string, value: string) => {
+      store.set(key, value);
+    },
+    removeItem: (key: string) => {
+      store.delete(key);
+    },
+  };
+  const previous = globalThis.sessionStorage;
+  Object.defineProperty(globalThis, "sessionStorage", {
+    configurable: true,
+    value: storage,
+  });
+  try {
+    const bundle = { version: 1, examples: [{ id: "ex" }], mapping: { model: {} } };
+    assertEquals(stashLocaleReloadProject(bundle), true);
+    const taken = takeLoadOnceProject();
+    assertEquals(isStashedProjectBundle(taken), true);
+    assertEquals((taken as { examples: Array<{ id: string }> }).examples[0]?.id, "ex");
+    assertEquals(takeLoadOnceProject(), null);
+  } finally {
+    Object.defineProperty(globalThis, "sessionStorage", {
+      configurable: true,
+      value: previous,
+    });
   }
 });
 

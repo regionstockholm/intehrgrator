@@ -33,7 +33,7 @@ Resizable split dividers between all three panes (and within Source / Mapping / 
 
 ### Left Pane: Source Browser
 
-The left pane has two stacked sections: **schema** (upper) and **example instances** (lower, optional but central to testing).
+The left pane has two stacked sections: **schema** (upper) and **example instances** (lower, optional but central to testing). A sidebar icon in the upper-left corner of the pane header slides the pane away; the collapsed rail restores it.
 
 #### Upper — Source Schema
 
@@ -85,7 +85,7 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 
 ### Right Pane: Target & Previews
 - **Purpose:** Load the target, browse its schema, preview generated conversion-script code, and run conversion tests
-- **Header:** pane title **Target & Previews**; **Load target & default context map**; **Output mode**; slide-away toggle
+- **Header:** pane title **Target & Previews**; **Load target & default context map**; **Output mode**; sidebar icon in the upper-right corner slides the pane away
 - **Tabs** (Shoelace `sl-tab-group`; usually not needed at the same time):
   1. **Target schema** — tree of the loaded target. Pull a leaf or subtree onto empty canvas → corresponding Blockly, scaffolded from the current **default context map**. Leaf → **scaffold target** chips; subtree → map value socket.
   2. **Generated conversion script(s)** — executable TypeScript / Java / Handlebars / XQuery from the Mapping Model (read-only CodeMirror)

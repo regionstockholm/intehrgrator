@@ -15,6 +15,9 @@ import {
   collapseEntryBoilerplateChildren,
   configureElementValueSlot,
   connectExpressionToDataValueShell,
+  elementContainerSlotId,
+  elementValueDvType,
+  rmTypeOfBlock,
   dvFieldInputName,
   ensureElementDataValueShell,
   ensureRmBlockType,
@@ -486,8 +489,10 @@ export function attachOptionalRmChild(
   if (typeof parent.addInput_ === "function") {
     parent.addInput_(insertion.attributeName);
   }
-  const parentSlotId = parent.getFieldValue("SLOT_ID") || "";
-  const parentRmType = parent.getFieldValue("RM_TYPE") || parent.type.toUpperCase();
+  const parentSlotId = parent.type === "element"
+    ? elementContainerSlotId(parent)
+    : (parent.getFieldValue("SLOT_ID") || "");
+  const parentRmType = rmTypeOfBlock(parent);
   const slash = parentSlotId.indexOf("/");
   const parentNode: SkeletonNode = {
     slotId: parentSlotId,
@@ -781,7 +786,9 @@ function buildElementBlock(
   const primary = primaryValueChild(node);
   const block = workspace.newBlock("element") as BlockSvg;
   const dvType = primary?.rmType ?? "DATA_VALUE";
-  block.setFieldValue(dvType, "RM_TYPE");
+  block.setFieldValue("ELEMENT", "RM_TYPE");
+  setFieldIfPresent(block, "VALUE_RM_TYPE", dvType);
+  setFieldIfPresent(block, "ELEMENT_SLOT_ID", node.slotId);
   block.setFieldValue(primary?.slotId ?? node.slotId, "SLOT_ID");
   if (node.archetypeNodeId) {
     setFieldIfPresent(block, "ARCHETYPE_NODE_ID", node.archetypeNodeId);
@@ -1297,7 +1304,7 @@ function attachExpressionToElement(
   returnType: string,
   rmTypeHint?: string,
 ): void {
-  const rmType = rmTypeHint || elementBlock.getFieldValue("RM_TYPE") || "DV_TEXT";
+  const rmType = rmTypeHint || elementValueDvType(elementBlock);
   const shell = ensureElementDataValueShell(workspace, elementBlock, rmType);
   if (!shell) return;
 

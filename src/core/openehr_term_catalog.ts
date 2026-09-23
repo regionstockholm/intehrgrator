@@ -57,6 +57,9 @@ const RM_TERM_SET: Record<string, Record<string, string>> = {
     function: "openehr:participation_function",
     mode: "openehr:participation_mode",
   },
+  ELEMENT: {
+    null_flavour: "openehr:null_flavours",
+  },
 };
 
 const PREFERRED_SET_ORDER = [

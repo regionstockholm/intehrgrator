@@ -484,12 +484,31 @@ export function applyOptionalRmToSkeleton(
   if (!insertions.length) return skeleton;
   const roots = structuredClone(skeleton);
   for (const extra of insertions) {
-    const parent = findSkeletonTrail(roots, extra.attachmentSlotId).at(-1);
+    const parent = optionalRmAttachmentParent(roots, extra.attachmentSlotId);
     if (!parent || parent.kind !== "container") continue;
     if (parent.children.some((child) => child.rmAttribute === extra.attributeName)) continue;
     parent.children.push(skeletonNodeForOptionalRm(parent, extra.rmType, extra.attributeName));
   }
   return roots;
+}
+
+/**
+ * Element blocks store the value slot id. Optional RM on that id belongs on
+ * the ELEMENT container (null_flavour, null_reason), not the DV leaf.
+ */
+function optionalRmAttachmentParent(
+  roots: SkeletonNode[],
+  slotId: string,
+): SkeletonNode | undefined {
+  const trail = findSkeletonTrail(roots, slotId);
+  const node = trail.at(-1);
+  if (!node) return undefined;
+  if (node.kind === "container") return node;
+  for (let i = trail.length - 2; i >= 0; i--) {
+    const candidate = trail[i]!;
+    if (candidate.kind === "container" && candidate.rmType === "ELEMENT") return candidate;
+  }
+  return undefined;
 }
 
 function buildNodeForRmType(

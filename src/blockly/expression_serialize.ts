@@ -2,6 +2,7 @@ import type { Block } from "blockly/core";
 import * as enMsg from "blockly/msg/en";
 import type { ExprAst } from "../core/expression/mod.ts";
 import { parseExpression, serialize } from "../core/expression/mod.ts";
+import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { Blockly } from "./blockly_core.ts";
 import {
   loopIndexBinderName,
@@ -141,6 +142,22 @@ export function blockToExpression(block: Block | null): string | null {
       const name = String(block.getFieldValue("NAME") || "defaults");
       const key = blockToExpression(block.getInputTargetBlock("KEY")) ?? '""';
       return `maps_get(${JSON.stringify(name)}, ${key})`;
+    }
+    case "term_pick": {
+      const set = termSetById(block.getFieldValue("SET"));
+      const rawCode = String(block.getFieldValue("CODE") ?? "");
+      if (!rawCode || rawCode === TERM_PICK_NONE) return null;
+      const terminology = set?.terminologyId ?? "openehr";
+      const rubric = set?.codes.find((item) => item.code === rawCode)?.rubric ?? rawCode;
+      const rmType = set?.valueRmType ?? String(block.getFieldValue("RM_TYPE") || "CODE_PHRASE");
+      if (rmType === "DV_CODED_TEXT") {
+        return `map("value", ${JSON.stringify(rubric)}, "defining_code", map("terminology_id", ${
+          JSON.stringify(terminology)
+        }, "code_string", ${JSON.stringify(rawCode)}))`;
+      }
+      return `map("terminology_id", ${JSON.stringify(terminology)}, "code_string", ${
+        JSON.stringify(rawCode)
+      })`;
     }
     case "sheet_get_cell": {
       const name = String(block.getFieldValue("NAME") || "Sheet1");

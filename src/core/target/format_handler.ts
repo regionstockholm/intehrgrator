@@ -501,10 +501,11 @@ function renderOpenEhrNode(
   ) {
     const count = repeatingInstanceCount(node, values);
     if (count > 1) {
+      const perItemSlots = perItemSlotIds(node, values);
       const copies: unknown[] = [];
       for (let i = 0; i < count; i++) {
         const indexed = indexSlotValues(values, i, node);
-        if (!subtreeHasClinicalValue(node, indexed)) continue;
+        if (!subtreeHasClinicalValue(node, indexed, perItemSlots)) continue;
         const one = renderOpenEhrNodeOnce(node, indexed, parentArchetypeRef);
         if (one !== undefined) copies.push(one);
       }
@@ -530,23 +531,58 @@ function renderOpenEhrChild(
 }
 
 /**
+ * Event `time` / HISTORY `origin` count only when that copy's value came from
+ * a per-item array (a source mapping), not a scalar context default.
+ */
+const PER_ITEM_CONTEXT_ATTRS = new Set(["time", "origin"]);
+
+/**
  * A mapped or fixed value anywhere under this node.
  * LOCATABLE identity and RM boilerplate (language, event time, …) do not count,
  * so an optional observation that only received context defaults is omitted.
+ * A repeating copy whose timestamp or origin was mapped per item still counts.
  */
 function subtreeHasClinicalValue(
   node: SkeletonNode,
   values: Readonly<Record<string, unknown>>,
+  perItemSlots?: ReadonlySet<string>,
 ): boolean {
   if (node.rmAttribute && isRmBoilerplateAttribute(node.rmAttribute)) {
-    return node.children.some((child) => subtreeHasClinicalValue(child, values));
+    if (
+      perItemSlots &&
+      PER_ITEM_CONTEXT_ATTRS.has(node.rmAttribute) &&
+      perItemContextIsPresent(node, values, perItemSlots)
+    ) {
+      return true;
+    }
+    return node.children.some((child) => subtreeHasClinicalValue(child, values, perItemSlots));
   }
   if (Object.hasOwn(values, node.slotId) && valueIsPresent(values[node.slotId])) return true;
   if (node.kind === "value") {
     const value = Object.hasOwn(values, node.slotId) ? values[node.slotId] : fixedValue(node);
     return valueIsPresent(value);
   }
-  return node.children.some((child) => subtreeHasClinicalValue(child, values));
+  return node.children.some((child) => subtreeHasClinicalValue(child, values, perItemSlots));
+}
+
+function perItemSlotIds(
+  node: SkeletonNode,
+  values: Readonly<Record<string, unknown>>,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const slotId of collectAllSlotIds([node])) {
+    if (Array.isArray(values[slotId])) ids.add(slotId);
+  }
+  return ids;
+}
+
+function perItemContextIsPresent(
+  node: SkeletonNode,
+  values: Readonly<Record<string, unknown>>,
+  perItemSlots: ReadonlySet<string>,
+): boolean {
+  if (perItemSlots.has(node.slotId) && valueIsPresent(values[node.slotId])) return true;
+  return node.children.some((child) => perItemContextIsPresent(child, values, perItemSlots));
 }
 
 function valueIsPresent(value: unknown): boolean {
@@ -857,7 +893,15 @@ function dvIdentifierFromParts(
 function codedPhraseFromRecord(record: Record<string, unknown>): Record<string, unknown> | null {
   const nested = record.defining_code;
   if (nested && typeof nested === "object" && !Array.isArray(nested)) {
-    return { _type: "CODE_PHRASE", ...(nested as Record<string, unknown>) };
+    const phrase: Record<string, unknown> = {
+      _type: "CODE_PHRASE",
+      ...(nested as Record<string, unknown>),
+    };
+    const term = phrase.terminology_id;
+    if (typeof term === "string" || typeof term === "number") {
+      phrase.terminology_id = { _type: "TERMINOLOGY_ID", value: String(term) };
+    }
+    return phrase;
   }
   const code = record.code_string ?? record.code ??
     (typeof nested === "string" || typeof nested === "number" ? nested : undefined);

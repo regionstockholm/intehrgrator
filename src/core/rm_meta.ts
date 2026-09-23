@@ -138,7 +138,8 @@ export interface AttachmentContext {
 
 /**
  * Optional RM structures for the `+` picker.
- * Policy: non-primitive, non-DATA_VALUE class attributes (feeder_audit, links, …).
+ * Policy: non-primitive class attributes (feeder_audit, links, …).
+ * ELEMENT also offers null_flavour and null_reason; `value` stays the fixed mouth.
  */
 export function getValidAttachments(
   parentType: string,
@@ -154,7 +155,11 @@ export function getValidAttachments(
 
     const base = baseRmTypeName(attr.typeName);
     if (isPrimitiveRmType(base)) continue;
-    if (ehrtsIsDataValueType(base)) continue;
+    // ELEMENT.value is the fixed mouth. null_flavour and null_reason are
+    // optional DATA_VALUE attributes and must stay addable (#187).
+    if (ehrtsIsDataValueType(base) && !(parentType === "ELEMENT" && attr.name !== "value")) {
+      continue;
+    }
     if (!hasRmType(base) && !hasRmType(attr.typeName.split("<")[0]!)) {
       // Still allow known structural names even if meta uses generics
       if (!isStructuralAttachmentType(base)) continue;

@@ -13,6 +13,7 @@ import {
   isDataValueBlock,
   isRmContainerBlockType,
   rmAttributeInputName,
+  OPTIONAL_INPUT_PREFIX,
   RM_ATTR_INPUT_PREFIX,
   RM_SPECIALIZATION_INPUT,
   isEventFamilyType,
@@ -302,11 +303,11 @@ export function emitBlockForVmsTest(
 }
 
 function emitBlock(block: Block, ctx: TsEmitContext, indent: number): string {
+  if (block.type === TERM_PICK_BLOCK_TYPE) return emitTermPick(block, ctx);
   const fromExpr = emitExpressionBlock(block, ctx);
   if (fromExpr !== null) return wrapCodePhraseSlotEmit(block, fromExpr);
 
   if (block.type === "for_each_list") return emitForEachList(block, ctx, indent);
-  if (block.type === TERM_PICK_BLOCK_TYPE) return emitTermPick(block, ctx);
   if (block.type === "code_phrase") return emitCodePhrase(block, ctx, indent);
   if (block.type === "party_ref") return emitPartyRef(block, ctx, indent);
   if (block.type === "party_identified" || block.type === "party_related") {
@@ -384,8 +385,12 @@ function collectRmProps(
 
   const seen = new Set<string>();
   for (const input of block.inputList) {
-    if (!input.name.startsWith(RM_ATTR_INPUT_PREFIX)) continue;
-    const attr = input.name.slice(RM_ATTR_INPUT_PREFIX.length);
+    const attr = input.name.startsWith(RM_ATTR_INPUT_PREFIX)
+      ? input.name.slice(RM_ATTR_INPUT_PREFIX.length)
+      : input.name.startsWith(OPTIONAL_INPUT_PREFIX)
+      ? input.name.slice(OPTIONAL_INPUT_PREFIX.length)
+      : "";
+    if (!attr) continue;
     if (seen.has(attr)) continue;
     seen.add(attr);
     const code = emitAttribute(block, input.name, attr, rmType, ctx, indent);
@@ -655,7 +660,7 @@ function emitCodePhrase(block: Block, ctx: TsEmitContext, indent: number): strin
   ], indent)})`;
 }
 
-function emitTermPick(block: Block, _ctx: TsEmitContext): string {
+function emitTermPick(block: Block, ctx: TsEmitContext): string {
   const set = termSetById(block.getFieldValue("SET"));
   const rawCode = String(block.getFieldValue("CODE") ?? "");
   const code = rawCode === TERM_PICK_NONE ? "" : rawCode;
@@ -663,7 +668,8 @@ function emitTermPick(block: Block, _ctx: TsEmitContext): string {
   const terminology = set?.terminologyId ?? "openehr";
   const rubric = set?.codes.find((item) => item.code === code)?.rubric ?? code;
   if (set?.valueRmType === "DV_CODED_TEXT") {
-    return JSON.stringify(`${terminology}::${code}|${rubric}|`);
+    ctx.types.add("DV_CODED_TEXT");
+    return `new DV_CODED_TEXT(${JSON.stringify(`${terminology}::${code}|${rubric}|`)})`;
   }
   return emitCodePhraseLiteral(terminology, code);
 }

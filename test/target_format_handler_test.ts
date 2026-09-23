@@ -15,6 +15,7 @@ import {
   createEmptyModel,
 } from "@intehrgrator/core/mapping_model/mod.ts";
 import type { SkeletonNode } from "@intehrgrator/types/mod.ts";
+import { applyOptionalRmToSkeleton } from "@intehrgrator/core/skeleton/generate_skeleton.ts";
 import { runTest } from "@intehrgrator/core/test_runner/mod.ts";
 
 Deno.test("target format handlers cover structured and free-form outputs", () => {
@@ -270,6 +271,58 @@ Deno.test("openEHR preview omits scaffold nodes that have no mapped value", () =
   assertEquals(output.items?.[0]?.value?.value, "120");
 });
 
+Deno.test("repeating EVENT keeps a copy that has a per-item time and no magnitude", () => {
+  const time = (slotId: string): SkeletonNode => ({
+    slotId,
+    blockType: "dv_date_time",
+    rmType: "DV_DATE_TIME",
+    label: "time",
+    kind: "value",
+    mandatory: true,
+    rmAttribute: "time",
+    children: [],
+  });
+  const magnitude = (slotId: string): SkeletonNode => ({
+    slotId,
+    blockType: "dv_quantity",
+    rmType: "DV_QUANTITY",
+    label: "magnitude",
+    kind: "value",
+    mandatory: false,
+    rmAttribute: "value",
+    children: [],
+  });
+  const event: SkeletonNode = {
+    slotId: "event",
+    blockType: "point_event",
+    rmType: "POINT_EVENT",
+    label: "Any event",
+    kind: "container",
+    mandatory: false,
+    multiplicity: "0..*",
+    rmAttribute: "events",
+    children: [time("event/time"), magnitude("event/magnitude")],
+  };
+  const output = getTargetFormatHandler("openehr-template").render({
+    definition: {
+      format: "openehr-template",
+      filename: "t.opt",
+      targetId: "t",
+      content: "<opt/>",
+      skeleton: [event],
+    },
+    slotValues: {
+      "event/time": ["2026-07-02T08:30:00Z", "2026-07-03T07:45:00Z"],
+      "event/magnitude": [72, undefined],
+    },
+  }) as Array<{ time?: { value?: string }; value?: { magnitude?: number } }>;
+  assertEquals(output.map((item) => item.time?.value), [
+    "2026-07-02T08:30:00Z",
+    "2026-07-03T07:45:00Z",
+  ]);
+  assertEquals(output.map((item) => item.value?.magnitude), [72, undefined]);
+});
+
 Deno.test("openEHR preview keeps language only beside a clinical value", () => {
   const language = (slotId: string): SkeletonNode => ({
     slotId,
@@ -331,6 +384,92 @@ Deno.test("openEHR preview keeps language only beside a clinical value", () => {
   assertEquals(output.items?.map((item) => item.name?.value), ["Pulse"]);
   assertEquals(output.items?.[0]?.language?.value, "en");
   assertEquals(output.items?.[0]?.value?.magnitude, 72);
+});
+
+Deno.test("optional null_flavour on an element value slot attaches to the ELEMENT", () => {
+  const element: SkeletonNode = {
+    slotId: "tpl//items/at0002",
+    blockType: "element",
+    rmType: "ELEMENT",
+    label: "Problem/Diagnosis name",
+    kind: "container",
+    mandatory: true,
+    archetypeId: "tpl",
+    attachmentPoint: "//items/at0002",
+    children: [{
+      slotId: "tpl//items/at0002/value/DV_TEXT/value",
+      blockType: "dv_text",
+      rmType: "DV_TEXT",
+      label: "value",
+      kind: "value",
+      mandatory: false,
+      rmAttribute: "value",
+      children: [],
+    }],
+  };
+  const next = applyOptionalRmToSkeleton([element], [{
+    attachmentSlotId: "tpl//items/at0002/value/DV_TEXT/value",
+    attributeName: "null_flavour",
+    rmType: "DV_CODED_TEXT",
+  }]);
+  const flavour = next[0]?.children.find((child) => child.rmAttribute === "null_flavour");
+  assertEquals(flavour?.rmType, "DV_CODED_TEXT");
+  assertEquals(flavour?.slotId, "tpl//items/at0002/null_flavour/value");
+});
+
+Deno.test("ELEMENT null_flavour renders without a value", () => {
+  const output = getTargetFormatHandler("openehr-template").render({
+    definition: {
+      format: "openehr-template",
+      filename: "t.opt",
+      targetId: "t",
+      content: "<opt/>",
+      skeleton: [{
+        slotId: "name",
+        blockType: "element",
+        rmType: "ELEMENT",
+        label: "Problem/Diagnosis name",
+        archetypeNodeId: "at0002",
+        kind: "container",
+        mandatory: true,
+        children: [{
+          slotId: "name/null_flavour/value",
+          blockType: "dv_coded_text",
+          rmType: "DV_CODED_TEXT",
+          label: "null_flavour",
+          kind: "value",
+          mandatory: false,
+          rmAttribute: "null_flavour",
+          children: [],
+        }, {
+          slotId: "name/value",
+          blockType: "dv_text",
+          rmType: "DV_TEXT",
+          label: "value",
+          kind: "value",
+          mandatory: false,
+          rmAttribute: "value",
+          children: [],
+        }],
+      }],
+    },
+    slotValues: {
+      "name/null_flavour/value": {
+        value: "no information",
+        defining_code: { terminology_id: "openehr", code_string: "271" },
+      },
+    },
+  }) as {
+    value?: unknown;
+    null_flavour?: {
+      value?: string;
+      defining_code?: { code_string?: string; terminology_id?: { value?: string } };
+    };
+  };
+  assertEquals(output.value, undefined);
+  assertEquals(output.null_flavour?.value, "no information");
+  assertEquals(output.null_flavour?.defining_code?.code_string, "271");
+  assertEquals(output.null_flavour?.defining_code?.terminology_id?.value, "openehr");
 });
 
 Deno.test("openEHR preview uses the template name constraint and coded-text choice", () => {

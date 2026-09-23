@@ -12,9 +12,11 @@ import { blockToExpression } from "./expression_serialize.ts";
 import {
   isDataValueBlock,
   isRmContainerBlockType,
+  OPTIONAL_INPUT_PREFIX,
   RM_ATTR_INPUT_PREFIX,
   RM_SPECIALIZATION_INPUT,
 } from "./blocks/rm_blocks.ts";
+import { TERM_PICK_NONE, termSetById } from "../core/openehr_term_catalog.ts";
 import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target_blocks.ts";
 import { registerSchemaBlocksFromSkeleton } from "./schema_blocks.ts";
 import { DEFAULTS_BLOCK_TYPE } from "../core/defaults/extract.ts";
@@ -164,6 +166,7 @@ export function generateGoTemplateFromWorkspace(
 const RAW_TEXT_BLOCK_TYPES = new Set(["text", "text_code"]);
 
 function emitBlock(block: Block, ctx: GoEmitContext, indent: number): string[] {
+  if (block.type === "term_pick") return [emitTermPickJson(block)];
   if (!RAW_TEXT_BLOCK_TYPES.has(block.type)) {
     const fromExpr = emitExpressionBlock(block, ctx);
     if (fromExpr !== null) return fromExpr;
@@ -411,8 +414,12 @@ function emitRmAsJson(block: Block, ctx: GoEmitContext, indent: number): string[
   }
 
   for (const input of block.inputList) {
-    if (!input.name.startsWith(RM_ATTR_INPUT_PREFIX)) continue;
-    const attr = input.name.slice(RM_ATTR_INPUT_PREFIX.length);
+    const attr = input.name.startsWith(RM_ATTR_INPUT_PREFIX)
+      ? input.name.slice(RM_ATTR_INPUT_PREFIX.length)
+      : input.name.startsWith(OPTIONAL_INPUT_PREFIX)
+      ? input.name.slice(OPTIONAL_INPUT_PREFIX.length)
+      : "";
+    if (!attr) continue;
     if (input.type === STATEMENT_INPUT_TYPE) {
       const list = emitStatementList(block.getInputTargetBlock(input.name), ctx, indent);
       if (list) props.push(`"${attr}": ${list}`);
@@ -429,6 +436,31 @@ function emitRmAsJson(block: Block, ctx: GoEmitContext, indent: number): string[
   }
 
   return [`{${props.join(", ")}}`];
+}
+
+function emitTermPickJson(block: Block): string {
+  const set = termSetById(block.getFieldValue("SET"));
+  const rawCode = String(block.getFieldValue("CODE") ?? "");
+  const code = rawCode === TERM_PICK_NONE ? "" : rawCode;
+  if (!code) return "null";
+  const terminology = set?.terminologyId ?? "openehr";
+  const rubric = set?.codes.find((item) => item.code === code)?.rubric ?? code;
+  if (set?.valueRmType === "DV_CODED_TEXT") {
+    return JSON.stringify({
+      _type: "DV_CODED_TEXT",
+      value: rubric,
+      defining_code: {
+        _type: "CODE_PHRASE",
+        terminology_id: { _type: "TERMINOLOGY_ID", value: terminology },
+        code_string: code,
+      },
+    });
+  }
+  return JSON.stringify({
+    _type: "CODE_PHRASE",
+    terminology_id: { _type: "TERMINOLOGY_ID", value: terminology },
+    code_string: code,
+  });
 }
 
 function emitDvAsJson(block: Block, ctx: GoEmitContext, indent: number): string[] {

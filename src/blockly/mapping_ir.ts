@@ -26,6 +26,7 @@ import { isGenericValueBlockType, isSchemaStructureBlock } from "./blocks/target
 import { schemaSlotIdForInput } from "./schema_blocks.ts";
 import { isSchemaOptionalInput, schemaOptionalExtrasOf, schemaOptionalInputName } from "./blocks/schema_mutator.ts";
 import { blockToExpression } from "./expression_serialize.ts";
+import { isTermPickBlock } from "./blocks/term_pick.ts";
 import { SHEET_ACCESSOR_TYPES, SHEET_BLOCK_TYPE } from "./blocks/sheet_blocks.ts";
 import { DECISION_TABLE_BLOCK, DECISION_TABLE_DECL } from "./blocks/decision_table_blocks.ts";
 import { MAPS_GET } from "../core/defaults/extract.ts";
@@ -72,6 +73,16 @@ function slotsFromWorkspace(workspace: Workspace): MappingModelExtract["slots"] 
   const slots: MappingModelExtract["slots"] = [];
   const seen = new Set<string>();
   for (const block of workspace.getAllBlocks(false)) {
+    if (isTermPickBlock(block)) {
+      const slotId = block.getFieldValue("SLOT_ID");
+      const expression = blockToExpression(block);
+      const rmType = block.getFieldValue("RM_TYPE") || "DV_CODED_TEXT";
+      if (slotId && expression && !seen.has(slotId)) {
+        seen.add(slotId);
+        slots.push({ slotId, rmType, expression });
+      }
+      continue;
+    }
     if (block.type === MAPS_GET) {
       const slotId = block.getFieldValue("SLOT_ID");
       const expression = blockToExpression(block);
@@ -126,7 +137,9 @@ function slotsFromWorkspace(workspace: Workspace): MappingModelExtract["slots"] 
     const slotId = block.getFieldValue("SLOT_ID");
     const rmType = block.getFieldValue("RM_TYPE") || block.getFieldValue("TARGET_TYPE");
     const valueBlock = block.getInputTargetBlock("VALUE");
-    const exprBlock = valueBlock && isDataValueBlock(valueBlock)
+    const exprBlock = valueBlock && isTermPickBlock(valueBlock)
+      ? valueBlock
+      : valueBlock && isDataValueBlock(valueBlock)
       ? expressionBlockFromDataValueShell(valueBlock)
       : isDataValueBlock(block)
       ? expressionBlockFromDataValueShell(block)

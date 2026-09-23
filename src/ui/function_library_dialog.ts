@@ -21,6 +21,12 @@ import {
   type FunctionLibraryEntry,
 } from "../core/function_library/mod.ts";
 import type { WorkbenchController } from "../workbench/controller.ts";
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome, formatMessage } from "./chrome_i18n.ts";
+
+function ui() {
+  return chrome(detectLocale());
+}
 
 export interface FunctionLibraryDialogOptions {
   dialog: HTMLDialogElement;
@@ -92,14 +98,12 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
     const workspace = getWorkspace();
     canvasList.replaceChildren();
     if (!workspace) {
-      canvasList.append(emptyRow("No Blockly workspace"));
+      canvasList.append(emptyRow(ui().noWorkspace));
       return;
     }
     const fns = listWorkspaceFunctions(workspace);
     if (!fns.length) {
-      canvasList.append(
-        emptyRow("No Functions on the canvas. Extract to function, or load from the library."),
-      );
+      canvasList.append(emptyRow(ui().noFunctionsOnCanvas));
       return;
     }
     for (const fn of fns) {
@@ -108,14 +112,15 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
       const label = document.createElement("div");
       label.className = "function-library-row-text";
       const params = fn.parameters.join(", ");
+      const messages = ui();
       label.textContent = fn.hasReturn
-        ? `${fn.name}(${params}) → value`
+        ? formatMessage(messages.fnReturnsValue, { sig: `${fn.name}(${params})` })
         : `${fn.name}(${params})`;
       const actions = document.createElement("div");
       actions.className = "function-library-row-actions";
       actions.append(
-        actionButton("Save", () => saveNamed(fn.name)),
-        actionButton("Contribute", () => contributeNamed(fn.name)),
+        actionButton(ui().save, () => saveNamed(fn.name)),
+        actionButton(ui().contribute, () => contributeNamed(fn.name)),
       );
       row.append(label, actions);
       canvasList.append(row);
@@ -125,11 +130,11 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
   function renderLibrary(): void {
     libraryList.replaceChildren();
     if (!catalog) {
-      libraryList.append(emptyRow("Load the catalog to browse curated Functions."));
+      libraryList.append(emptyRow(ui().loadCatalogBrowse));
       return;
     }
     if (!catalog.functions.length) {
-      libraryList.append(emptyRow("Catalog has no Functions."));
+      libraryList.append(emptyRow(ui().catalogNoFunctions));
       return;
     }
     for (const entry of catalog.functions) {
@@ -145,7 +150,7 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
       text.append(title, desc);
       const actions = document.createElement("div");
       actions.className = "function-library-row-actions";
-      actions.append(actionButton("Load", () => {
+      actions.append(actionButton(ui().load, () => {
         void loadLibraryEntry(entry.id);
       }));
       row.append(text, actions);
@@ -154,13 +159,16 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
   }
 
   async function loadCatalog(url?: string): Promise<void> {
-    statusEl.textContent = "Loading Function library…";
+    statusEl.textContent = ui().loadingLibrary;
     try {
       catalog = await controller.loadFunctionLibraryCatalog(url);
       catalogInput.value = catalog.catalogUrl;
-      statusEl.textContent = `Function library: ${catalog.functions.length} Function${
-        catalog.functions.length === 1 ? "" : "s"
-      }`;
+      const count = catalog.functions.length;
+      const messages = ui();
+      statusEl.textContent = formatMessage(messages.functionLibraryCount, {
+        n: count,
+        functions: count === 1 ? messages.functionSingular : messages.functionPlural,
+      });
       renderLibrary();
     } catch (err) {
       catalog = null;
@@ -203,12 +211,16 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
       controller.replaceSheets(result.sheets);
       persistCanvas();
       controller.notifyChange();
-      const renamed = result.renamedFrom ? ` (renamed from ${result.renamedFrom})` : "";
-      statusEl.textContent = `Loaded Function ${result.name}${renamed}`;
+      const renamed = result.renamedFrom
+        ? formatMessage(ui().renamedFromParen, { name: result.renamedFrom })
+        : "";
+      statusEl.textContent = `${formatMessage(ui().loadedFunction, { name: result.name })}${renamed}`;
     } else {
       const result = controller.applyFunctionBundle(bundle, clash);
-      const renamed = result.renamedFrom ? ` (renamed from ${result.renamedFrom})` : "";
-      statusEl.textContent = `Loaded Function ${result.name}${renamed}`;
+      const renamed = result.renamedFrom
+        ? formatMessage(ui().renamedFromParen, { name: result.renamedFrom })
+        : "";
+      statusEl.textContent = `${formatMessage(ui().loadedFunction, { name: result.name })}${renamed}`;
     }
     refresh();
   }
@@ -223,12 +235,14 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
       bundle,
     );
     if (!clashes.functions.length && !clashes.sheets.length) return "rename";
+    const messages = ui();
     const bits = [
-      ...clashes.functions.map((name) => `Function "${name}"`),
-      ...clashes.sheets.map((name) => `Decision table "${name}"`),
+      ...clashes.functions.map((name) => formatMessage(messages.functionQuoted, { name })),
+      ...clashes.sheets.map((name) => formatMessage(messages.decisionQuoted, { name })),
     ];
-    clashMessage.textContent =
-      `${bits.join(" and ")} already exist. Rename keeps both (default). Replace overwrites the existing definition.`;
+    clashMessage.textContent = formatMessage(messages.clashExist, {
+      bits: bits.join(` ${messages.andWord} `),
+    });
     clashDialog.returnValue = "";
     clashDialog.showModal();
     return await new Promise((resolve) => {
@@ -247,12 +261,16 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
     const workspace = getWorkspace();
     if (!workspace) return;
     try {
-      const description = globalThis.prompt(`Description for Function "${name}" (optional):`) ?? "";
+      const description = globalThis.prompt(
+        formatMessage(ui().descriptionForFunction, { name }),
+      ) ?? "";
       const bundle = extractFunctionBundle(workspace, name, controller.getSheets(), {
         description,
       });
       controller.downloadFunctionBundle(bundle);
-      statusEl.textContent = `Saved ${functionBundleFilename(bundle.name)}`;
+      statusEl.textContent = formatMessage(ui().savedBundle, {
+        name: functionBundleFilename(bundle.name),
+      });
     } catch (err) {
       statusEl.textContent = err instanceof Error ? err.message : String(err);
     }
@@ -289,9 +307,10 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
       }
       contributeDialog.close();
       globalThis.open(result.htmlUrl, "_blank", "noopener,noreferrer");
+      const messages = ui();
       statusEl.textContent = result.via === "api"
-        ? `Opened contribution issue for ${pendingContribute.name}`
-        : `Opened GitHub new-issue form for ${pendingContribute.name}`;
+        ? formatMessage(messages.openedContributionIssue, { name: pendingContribute.name })
+        : formatMessage(messages.openedGithubForm, { name: pendingContribute.name });
     } catch (err) {
       contributeError.hidden = false;
       contributeError.textContent = err instanceof Error ? err.message : String(err);
@@ -304,7 +323,11 @@ export function mountFunctionLibraryDialog(options: FunctionLibraryDialogOptions
 function summarizeEntry(entry: FunctionLibraryEntry): string {
   const params = entry.parameters?.length ? entry.parameters.join(", ") : "—";
   const tables = entry.decisionTables?.length ? entry.decisionTables.join(", ") : "—";
-  return `${entry.description} Parameters: ${params}. Decision tables: ${tables}.`;
+  return formatMessage(ui().entrySummary, {
+    description: entry.description,
+    params,
+    tables,
+  });
 }
 
 function actionButton(label: string, onClick: () => void): HTMLButtonElement {

@@ -151,6 +151,13 @@ import {
   takeLoadOnceBlocks,
   type IntehrLocale,
 } from "../src/blockly/i18n/locale.ts";
+import {
+  applyChrome,
+  chrome,
+  formatMessage,
+  localizeStatus,
+  localizeTaskProgress,
+} from "../src/ui/chrome_i18n.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import "../src/ui/shoelace.ts";
@@ -212,6 +219,12 @@ let workbenchReadyResolve!: () => void;
 const workbenchReady = new Promise<void>((resolve) => {
   workbenchReadyResolve = resolve;
 });
+
+applyChrome(document, detectLocale());
+
+function uiChrome() {
+  return chrome(detectLocale());
+}
 
 const schemaTreeEl = document.getElementById("schema-tree")!;
 const targetSchemaTreeEl = document.getElementById("target-schema-tree")!;
@@ -643,13 +656,13 @@ async function bootBlockly(): Promise<void> {
     const selected = Blockly.getSelected?.() as { firePlusClick?: () => void } | null;
     if (selected?.firePlusClick) {
       options.push({
-        text: "Optional attributes…",
+        text: uiChrome().optionalAttributes,
         enabled: true,
         callback: () => openBlockMutator(selected as Blockly.Block),
       });
     }
     options.push({
-      text: "Open viewer window…",
+      text: uiChrome().openViewerMenu,
       enabled: workspace.getTopBlocks(false).length > 0,
       callback: () => openCanvasSnapshot(),
     });
@@ -859,9 +872,10 @@ function refreshUndoButtons(): void {
   if (!workspace || !undoBtn || !redoBtn) return;
   undoBtn.disabled = !workspaceCanUndo(workspace);
   redoBtn.disabled = !workspaceCanRedo(workspace);
-  const hint = "Tip: Open canvas (observer) for the full agent timeline and attributed history.";
-  undoBtn.title = undoBtn.disabled ? hint : `${hint} Undo last canvas edit.`;
-  redoBtn.title = redoBtn.disabled ? hint : `${hint} Redo canvas edit.`;
+  const messages = uiChrome();
+  const hint = messages.undoHistoryHint;
+  undoBtn.title = undoBtn.disabled ? hint : `${hint} ${messages.undoLastEdit}`;
+  redoBtn.title = redoBtn.disabled ? hint : `${hint} ${messages.redoLastEdit}`;
 }
 
 function pulseAgentActivity(activity: {
@@ -879,7 +893,9 @@ function pulseAgentActivity(activity: {
       }
     }
   }
-  statusMain.textContent = `${activity.displayName}: ${controller.getState().statusMessage}`;
+  statusMain.textContent = `${activity.displayName}: ${
+    localizeStatus(detectLocale(), controller.getState().statusMessage)
+  }`;
 }
 
 function restoreDocumentFromUndo(snapshot: DocumentSnapshot): void {
@@ -1275,14 +1291,14 @@ installUrlLoadUi({
         fromFile: () => void refreshSchemaFromFile(),
         fromUrl: (url) => refreshSchemaFromUrl(url),
       },
-      title: "Load schema from URL",
-      hint: "JSON, XML, XSD, or a GitHub .t.json template (archetypes are fetched from the same repo). GitHub file pages are converted to raw content.",
+      title: uiChrome().loadSchemaFromUrl,
+      hint: uiChrome().loadSchemaUrlHint,
       placeholder: "https://raw.githubusercontent.com/…/schema.json",
-      historyHeading: "Recent schema URLs",
+      historyHeading: uiChrome().recentSchemaUrls,
       github: {
-        label: "From GitHub template…",
-        title: "Load openEHR template from GitHub",
-        hint: "Paste a GitHub blob or raw URL to a Better .t.json (or .adl / .opt). Dependent archetypes are pulled from the same repository branch.",
+        label: uiChrome().fromGithubTemplate,
+        title: uiChrome().githubTemplateTitle,
+        hint: uiChrome().githubTemplateHint,
         placeholder: DEFAULT_GITHUB_TEMPLATE_URL,
       },
     },
@@ -1293,18 +1309,18 @@ installUrlLoadUi({
       fromFile: () => controller.addExample(),
       fromUrl: (url) => controller.addExampleFromUrl(url),
       fromGitHubDirectory: (url) => controller.addExamplesFromGitHubDirectory(url),
-      title: "Add example from URL",
-      hint: "JSON or XML instance. GitHub file pages are converted to raw content.",
+      title: uiChrome().addExampleFromUrl,
+      hint: uiChrome().addExampleUrlHint,
       placeholder: "https://raw.githubusercontent.com/…/example.json",
-      historyHeading: "Recent example URLs",
+      historyHeading: uiChrome().recentExampleUrls,
       bulkLocal: {
-        label: "From local folder…",
+        label: uiChrome().fromLocalFolder,
         fromDirectory: () => controller.addExamplesFromLocalDirectory(),
       },
       bulkGitHubDir: {
-        label: "From GitHub folder…",
-        title: "Add examples from GitHub folder",
-        hint: "Paste a GitHub tree URL to a folder. All JSON and XML files under that path are loaded.",
+        label: uiChrome().fromGithubFolder,
+        title: uiChrome().githubFolderTitle,
+        hint: uiChrome().githubFolderHint,
         placeholder: DEFAULT_GITHUB_EXAMPLES_URL,
       },
     },
@@ -1314,18 +1330,18 @@ installUrlLoadUi({
       menu: requireEl("menu-open-template"),
       fromFile: () => openJointLoadDialog(),
       fromUrl: (url) => withUndoableDocumentReplace(() => controller.openTemplateFromUrl(url)),
-      title: "Load target from URL",
-      hint: "OPT, Web Template, JSON Schema, or a GitHub .t.json. GitHub file pages are converted to raw content.",
+      title: uiChrome().loadTargetFromUrl,
+      hint: uiChrome().loadTargetUrlHint,
       placeholder: "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/…",
-      historyHeading: "Recent target URLs",
+      historyHeading: uiChrome().recentTargetUrls,
       refresh: {
         fromFile: () => void refreshTargetFromFile(),
         fromUrl: (url) => refreshTargetFromUrl(url),
       },
       github: {
-        label: "From GitHub template…",
-        title: "Open openEHR template from GitHub",
-        hint: "Paste a GitHub blob or raw URL to a Better .t.json (or .adl / .opt). Dependent archetypes are pulled from the same repository branch.",
+        label: uiChrome().fromGithubTemplate,
+        title: uiChrome().githubTemplateOpenTitle,
+        hint: uiChrome().githubTemplateHint,
         placeholder: DEFAULT_GITHUB_TEMPLATE_URL,
       },
     },
@@ -1363,13 +1379,16 @@ function openCanvasSnapshot(): void {
       filenameBase,
       onBlocked: (svgXml, base) => {
         if (svgXml) void host.downloadText(`${base}.svg`, svgXml, "image/svg+xml");
-        statusMain.textContent = svgXml
-          ? "Popup blocked — downloaded SVG instead."
-          : "Popup blocked and the canvas is empty.";
+        statusMain.textContent = localizeStatus(
+          detectLocale(),
+          svgXml
+            ? "Popup blocked — downloaded SVG instead."
+            : "Popup blocked and the canvas is empty.",
+        );
       },
     });
   if (popup) {
-    statusMain.textContent = "Opened agent observer / canvas snapshot.";
+    statusMain.textContent = localizeStatus(detectLocale(), "Opened agent observer / canvas snapshot.");
   }
 }
 bind("btn-run-test", () => {
@@ -1384,8 +1403,10 @@ bind("btn-export-ts", () => controller.exportTypeScript());
 bind("btn-download-test-output", () => controller.exportTestOutput());
 bind("btn-better-form", () => {
   if (!betterFormBridge?.available) {
-    statusMain.textContent =
-      "Better Form Renderer not installed. Run: deno task setup:better-forms";
+    statusMain.textContent = localizeStatus(
+      detectLocale(),
+      "Better Form Renderer not installed. Run: deno task setup:better-forms",
+    );
     return;
   }
   betterFormBridge.openViewer();
@@ -1588,9 +1609,7 @@ function installExampleSetsMenu(): void {
 
   const confirmReplace = (): boolean => {
     if (!controller.hasWorkspaceContent()) return true;
-    return confirm(
-      "Load this example set? The current workspace will be replaced. Unsaved changes may be lost.",
-    );
+    return confirm(uiChrome().confirmLoadExampleSet);
   };
 
   const loadSet = (set: ExampleSet) => {
@@ -1607,13 +1626,13 @@ function installExampleSetsMenu(): void {
   const renderMenu = () => {
     menu.replaceChildren();
     if (loading) {
-      appendItem("Loading catalog…", () => {}, "split-btn-menu-item", true);
+      appendItem(uiChrome().loadingCatalog, () => {}, "split-btn-menu-item", true);
       return;
     }
     if (catalog?.sets.length) {
       const heading = document.createElement("div");
       heading.className = "split-btn-menu-heading";
-      heading.textContent = "Example sets";
+      heading.textContent = uiChrome().exampleSetsHeading;
       menu.append(heading);
       for (const set of catalog.sets) {
         const item = appendItem(set.title, () => loadSet(set));
@@ -1621,21 +1640,21 @@ function installExampleSetsMenu(): void {
         if (set.description) item.title = set.description;
       }
     } else {
-      appendItem("No example sets in catalog", () => {}, "split-btn-menu-item", true);
+      appendItem(uiChrome().noExampleSets, () => {}, "split-btn-menu-item", true);
     }
     const catalogHeading = document.createElement("div");
     catalogHeading.className = "split-btn-menu-heading";
-    catalogHeading.textContent = "Catalog";
+    catalogHeading.textContent = uiChrome().catalog;
     menu.append(catalogHeading);
-    appendItem("Bundled dummy catalog", () => {
+    appendItem(uiChrome().bundledCatalog, () => {
       void fetchCatalog();
     });
-    appendItem("ehrtslib catalog (GitHub)…", () => {
+    appendItem(uiChrome().ehrtslibCatalog, () => {
       void fetchCatalog(EHRTSLIB_EXAMPLE_SETS_CATALOG_URL);
     });
-    appendItem("Load catalog from URL…", () => {
+    appendItem(uiChrome().loadCatalogFromUrl, () => {
       const next = prompt(
-        "Example-set catalog JSON URL",
+        uiChrome().catalogUrlPrompt,
         catalogUrl ?? EHRTSLIB_EXAMPLE_SETS_CATALOG_URL,
       );
       if (!next?.trim()) return;
@@ -2099,15 +2118,15 @@ async function openDefaultsMapDialog(): Promise<void> {
   } catch (err) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = `Defaults catalog unavailable: ${
-      err instanceof Error ? err.message : String(err)
-    }`;
+    empty.textContent = formatMessage(uiChrome().defaultsUnavailable, {
+      detail: err instanceof Error ? err.message : String(err),
+    });
     defaultsMapList.appendChild(empty);
   }
   if (!entries.length && defaultsMapList.childElementCount === 0) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "No saved default context mappings yet. Use Save as, Download, Browse file, or a URL.";
+    empty.textContent = uiChrome().noSavedMaps;
     defaultsMapList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -2116,7 +2135,7 @@ async function openDefaultsMapDialog(): Promise<void> {
     button.className = "load-project-item";
     const kind = document.createElement("span");
     kind.className = "load-project-item-kind";
-    kind.textContent = "Saved map";
+    kind.textContent = uiChrome().savedMap;
     const name = document.createElement("strong");
     name.textContent = entry.displayName;
     const when = document.createElement("span");
@@ -2143,7 +2162,7 @@ function openHardcodeDefaultsDialog(): void {
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "The default context mapping has no entries to hardcode yet.";
+    empty.textContent = uiChrome().noHardcodeEntries;
     hardcodeDefaultsList.appendChild(empty);
   }
   for (const entry of entries) {
@@ -2262,8 +2281,8 @@ function syncJointConfirmButton(): void {
   if (!confirm) return;
   confirm.disabled = !jointHasTarget();
   confirm.textContent = selectedJointMapChoice() === "new"
-    ? "Load into Target schema"
-    : "Load & scaffold";
+    ? uiChrome().loadIntoSchema
+    : uiChrome().loadAndScaffold;
 }
 
 async function openJointLoadDialog(): Promise<void> {
@@ -2280,8 +2299,8 @@ async function openJointLoadDialog(): Promise<void> {
   if (fileOption) fileOption.hidden = true;
   const state = controller.getState();
   summary.textContent = state.templateId
-    ? `Loaded: ${state.templateFilename || state.templateId}`
-    : "No target selected yet.";
+    ? formatMessage(uiChrome().loadedColon, { name: state.templateFilename || state.templateId })
+    : uiChrome().noTargetYet;
   if (useCurrent) useCurrent.hidden = !state.templateId;
   catalogEl.replaceChildren();
   try {
@@ -2293,7 +2312,9 @@ async function openJointLoadDialog(): Promise<void> {
       input.type = "radio";
       input.name = "joint-map";
       input.value = `catalog:${entry.id}`;
-      label.append(input, document.createTextNode(` Saved: ${entry.displayName}`));
+      label.append(input, document.createTextNode(
+        ` ${formatMessage(uiChrome().savedColon, { name: entry.displayName })}`,
+      ));
       catalogEl.append(label);
     }
   } catch {
@@ -2379,7 +2400,7 @@ document.getElementById("joint-target-file")?.addEventListener("click", () => {
     if (!file) return;
     jointPendingTarget = { name: file.name, text: file.text };
     const summary = document.getElementById("joint-target-summary");
-    if (summary) summary.textContent = `Selected: ${file.name}`;
+    if (summary) summary.textContent = formatMessage(uiChrome().selectedFile, { name: file.name });
     syncJointConfirmButton();
   })();
 });
@@ -2387,7 +2408,11 @@ document.getElementById("joint-target-current")?.addEventListener("click", () =>
   jointPendingTarget = null;
   const state = controller.getState();
   const summary = document.getElementById("joint-target-summary");
-  if (summary) summary.textContent = `Using loaded: ${state.templateFilename || state.templateId}`;
+  if (summary) {
+    summary.textContent = formatMessage(uiChrome().usingLoaded, {
+      name: state.templateFilename || state.templateId,
+    });
+  }
   syncJointConfirmButton();
 });
 document.getElementById("joint-target-url-load")?.addEventListener("click", () => {
@@ -2395,14 +2420,14 @@ document.getElementById("joint-target-url-load")?.addEventListener("click", () =
     const urlInput = document.getElementById("joint-target-url") as HTMLInputElement | null;
     const url = urlInput?.value.trim() ?? "";
     if (!url) {
-      alert("Paste a target URL first.");
+      alert(uiChrome().pasteTargetUrl);
       return;
     }
     try {
       const file = await host.fetchTextUrl(url);
       jointPendingTarget = { name: file.name, text: file.text };
       const summary = document.getElementById("joint-target-summary");
-      if (summary) summary.textContent = `Fetched: ${file.name}`;
+      if (summary) summary.textContent = formatMessage(uiChrome().fetchedFile, { name: file.name });
       syncJointConfirmButton();
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
@@ -2420,7 +2445,7 @@ document.getElementById("joint-map-browse")?.addEventListener("click", () => {
       const fileRadio = dialog?.querySelector<HTMLInputElement>('input[name="joint-map"][value="file"]');
       const fileLabel = document.getElementById("joint-map-file-label");
       if (fileOption) fileOption.hidden = !jointPendingMapFile;
-      if (fileLabel) fileLabel.textContent = `Browsed file: ${file.name}`;
+      if (fileLabel) fileLabel.textContent = formatMessage(uiChrome().browsedFileLabel, { name: file.name });
       if (jointPendingMapFile && fileRadio) fileRadio.checked = true;
     } catch (err) {
       alert(err instanceof Error ? err.message : String(err));
@@ -2446,9 +2471,18 @@ function showRefreshReport(): void {
   const body = document.getElementById("refresh-report-body");
   const report = controller.getState().lastRefreshReport;
   if (!dialog || !body || !report) return;
+  const messages = uiChrome();
+  const kind = localizeStatus(detectLocale(), report.kind);
+  const warningLine = report.warnings.length
+    ? formatMessage(messages.refreshWarningCount, { n: report.warnings.length })
+    : messages.noMappingConflicts;
   body.textContent = [
-    `${report.kind} ${report.previousFilename} → ${report.nextFilename}`,
-    report.warnings.length ? `${report.warnings.length} warning(s):` : "No mapping conflicts.",
+    formatMessage(messages.refreshReportLine, {
+      kind,
+      previous: report.previousFilename,
+      next: report.nextFilename,
+    }),
+    warningLine,
     ...report.warnings.map((warning) => `• ${warning.message}`),
   ].join("\n");
   dialog.showModal();
@@ -2497,12 +2531,13 @@ document.getElementById("refresh-call-ai")?.addEventListener("click", () => {
 function updateCopyAiButtonLabel(): void {
   const main = document.getElementById("btn-copy-ai") as HTMLButtonElement | null;
   if (!main) return;
+  const messages = uiChrome();
   if (hasAiCredentials(localStorage)) {
-    main.textContent = "Call AI";
-    main.title = "Call the configured AI with mapping tools (MCP / Agent API names)";
+    main.textContent = messages.callAi;
+    main.title = messages.callAiTitle;
   } else {
-    main.textContent = "Copy prompt";
-    main.title = "Copy AI prompt with files embedded";
+    main.textContent = messages.copyPrompt;
+    main.title = messages.copyPromptTitle;
   }
 }
 
@@ -2526,7 +2561,7 @@ async function desktopAiProxyUrl(): Promise<string | undefined> {
 function formatCallAiError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
   if (/Failed to fetch|NetworkError|Load failed/i.test(message)) {
-    return `${message} Browser CORS often blocks cloud providers from GitHub Pages. Use the desktop app (it forwards Call AI), enable CORS on a local server (Ollama / LM Studio), or use Copy prompt.`;
+    return `${message} ${uiChrome().corsCallAiHint}`;
   }
   return message;
 }
@@ -2710,8 +2745,8 @@ document.getElementById("dialog-ai-credentials")?.querySelector("form")?.addEven
 
 function handleNewProject(): void {
   const message = controller.hasWorkspaceContent()
-    ? "Start a new project? The current workspace will be cleared. Unsaved changes may be lost."
-    : "Start a new empty project?";
+    ? uiChrome().confirmNewProject
+    : uiChrome().confirmNewEmpty;
   if (!confirm(message)) return;
   void withUndoableDocumentReplace(() => {
     controller.newProject();
@@ -2735,7 +2770,7 @@ async function openLoadProjectDialog(): Promise<void> {
   if (!entries.length) {
     const empty = document.createElement("p");
     empty.className = "load-project-empty";
-    empty.textContent = "No saved projects yet. Use Save as or wait for autosave.";
+    empty.textContent = uiChrome().noSavedProjects;
     loadProjectList.appendChild(empty);
   } else {
     for (const entry of entries) {
@@ -2744,7 +2779,7 @@ async function openLoadProjectDialog(): Promise<void> {
       button.className = "load-project-item";
       const kind = document.createElement("span");
       kind.className = "load-project-item-kind";
-      kind.textContent = entry.kind === "autosave" ? "Last autosave" : "Saved project";
+      kind.textContent = entry.kind === "autosave" ? uiChrome().lastAutosave : uiChrome().savedProject;
       const name = document.createElement("strong");
       name.textContent = entry.displayName;
       const when = document.createElement("span");
@@ -2755,7 +2790,7 @@ async function openLoadProjectDialog(): Promise<void> {
         void (async () => {
           if (
             controller.hasWorkspaceContent() &&
-            !confirm("Load this project? The current workspace will be replaced.")
+            !confirm(uiChrome().confirmLoadProject)
           ) {
             return;
           }
@@ -2778,20 +2813,24 @@ function render(): void {
     lastActiveExampleId = activeExampleId;
   }
 
+  const messages = uiChrome();
+  const locale = detectLocale();
   statusMain.textContent = [
-    s.target ? `Target: ${s.target.targetId}` : "No target",
-    `Script: ${
-      s.settings.exportTarget === "preview"
-        ? "Mapping preview"
-        : s.settings.exportTarget.toUpperCase()
-    }`,
-    s.activeExample ? `Example: ${s.activeExample.filename}` : "No example",
-    `${s.unmappedMandatory} unmapped mandatory`,
-    s.statusMessage,
+    s.target ? formatMessage(messages.statusTarget, { id: s.target.targetId }) : messages.statusNoTarget,
+    formatMessage(messages.statusScript, {
+      name: s.settings.exportTarget === "preview"
+        ? messages.mappingPreview
+        : s.settings.exportTarget.toUpperCase(),
+    }),
+    s.activeExample
+      ? formatMessage(messages.statusExample, { name: s.activeExample.filename })
+      : messages.statusNoExample,
+    formatMessage(messages.statusUnmapped, { n: s.unmappedMandatory }),
+    localizeStatus(locale, s.statusMessage),
   ].join(" · ");
 
   const saveStatus = s.saveStatus;
-  statusSave.textContent = saveStatus.label;
+  statusSave.textContent = localizeStatus(detectLocale(), saveStatus.label);
   statusSave.className = "status-save" + (
     saveStatus.dirty ? " unsaved" : saveStatus.label ? " saved" : ""
   );
@@ -2799,7 +2838,9 @@ function render(): void {
   statusBuild.textContent = `v${APP_VERSION} · ${BUILD_ID} · ${BUILD_TIMESTAMP}`;
 
   if (s.taskProgress) {
-    taskProgressOverlay.innerHTML = taskProgressInnerHtml(s.taskProgress);
+    taskProgressOverlay.innerHTML = taskProgressInnerHtml(
+      localizeTaskProgress(detectLocale(), s.taskProgress),
+    );
     taskProgressOverlay.hidden = false;
   } else {
     taskProgressOverlay.innerHTML = "";
@@ -2826,12 +2867,14 @@ function render(): void {
     err.textContent = s.schemaError;
     schemaTreeEl.append(err);
   } else {
-    schemaTreeEl.textContent = "Load a schema file.";
+    schemaTreeEl.textContent = uiChrome().loadSchemaEmpty;
   }
 
   renderTargetSchemaTree(
     targetSchemaTreeEl,
     s.skeleton.length ? targetSchemaTreeFromSkeleton(s.skeleton) : [],
+    undefined,
+    uiChrome().loadTargetEmpty,
   );
 
   renderExampleTabs(s);
@@ -2859,8 +2902,8 @@ function render(): void {
     applyTreeHighlights(schemaTreeEl, exampleTreeEl, activeTreeHighlight(s));
   } else {
     exampleTreeEl.textContent = s.examples.length
-      ? "Select an example tab."
-      : 'Add example instance(s) to enable "Conversion Test Run(s)" in Target & Previews';
+      ? uiChrome().selectExampleTab
+      : uiChrome().addExamplesEmpty;
   }
   // Constraint warning-text events must not persist/re-render during this
   // pass — that used to stack a second canvas-swap on Click-to-Map.
@@ -2903,7 +2946,7 @@ function render(): void {
   }
   const autoplayBtn = document.getElementById("btn-autoplay") as HTMLButtonElement;
   autoplayBtn.disabled = !s.examples.length;
-  autoplayBtn.textContent = s.settings.autoplay ? "⏸ Pause" : "▶ Autoplay";
+  autoplayBtn.textContent = s.settings.autoplay ? uiChrome().pause : uiChrome().autoplay;
   refreshUndoButtons();
 }
 
@@ -3012,7 +3055,7 @@ function renderTestOutputValidation(s: ReturnType<WorkbenchController["getState"
   testOutputValidationEl.hidden = false;
   testOutputValidationEl.replaceChildren();
   const title = document.createElement("strong");
-  title.textContent = result?.error ? "Conversion failed:" : "Template validation:";
+  title.textContent = result?.error ? uiChrome().conversionFailed : uiChrome().templateValidation;
   const list = document.createElement("ul");
   for (const text of items) {
     const item = document.createElement("li");
@@ -3032,7 +3075,7 @@ function renderExampleValidation(s: ReturnType<WorkbenchController["getState"]>)
   exampleValidationEl.hidden = false;
   exampleValidationEl.replaceChildren();
   const title = document.createElement("strong");
-  title.textContent = "Schema mismatch:";
+  title.textContent = uiChrome().schemaMismatch;
   const list = document.createElement("ul");
   for (const issue of issues) {
     const item = document.createElement("li");

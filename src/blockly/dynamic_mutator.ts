@@ -4,6 +4,7 @@
  */
 import type { Block, BlockSvg, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
+import { detectLocale, msg } from "./i18n/locale.ts";
 import {
   enforceMouthCaptionLayout,
   ensureClassChromeHeader,
@@ -435,7 +436,7 @@ export class DynamicFlyoutMutatorIcon extends MutatorIcon {
     btn.setAttribute("class", "intehrgrator-bubble-close-btn");
     btn.style.cursor = "pointer";
     btn.setAttribute("role", "button");
-    btn.setAttribute("aria-label", "Close");
+    btn.setAttribute("aria-label", msg(detectLocale()).CLOSE);
 
     const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
     circle.setAttribute("cx", "0");

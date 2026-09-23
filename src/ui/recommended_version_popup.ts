@@ -12,6 +12,9 @@
  * the logic is unit-testable without a browser.
  */
 
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome, formatMessage } from "../ui/chrome_i18n.ts";
+
 export const VERSIONS_MANIFEST_FILENAME = "versions.json";
 export const RECOMMENDED_POPUP_DISMISS_STORAGE_KEY = "intehr-dismiss-recommended-version";
 
@@ -137,9 +140,12 @@ export async function maybeShowRecommendedVersionPopup(
   }
 
   const recommendedTag = manifest.recommended!;
-  els.message.textContent = recommendedPopupMessage(currentTag, recommendedTag);
+  const messages = chrome(detectLocale());
+  els.message.textContent = currentTag
+    ? formatMessage(messages.recommendedFrozen, { current: currentTag, recommended: recommendedTag })
+    : formatMessage(messages.recommendedBleeding, { recommended: recommendedTag });
   els.recommendedLink.href = recommendedUrlFromManifestUrl(manifestUrl, recommendedTag);
-  els.recommendedLink.textContent = `Go to recommended version (${recommendedTag})`;
+  els.recommendedLink.textContent = formatMessage(messages.goToRecommended, { tag: recommendedTag });
   els.bleedingEdgeLink.href = bleedingEdgeUrlFromManifestUrl(manifestUrl);
   els.tutorialLink.href = opts.tutorialUrl;
   els.readmeLink.href = opts.readmeUrl;

@@ -8,6 +8,12 @@ import {
   type WorkspaceSvgLike,
 } from "../blockly/workspace_snapshot.ts";
 import { type AgentActivityPayload, isDesktopEnvironment } from "./agent_bridge.ts";
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome, formatMessage } from "../ui/chrome_i18n.ts";
+
+function ui() {
+  return chrome(detectLocale());
+}
 
 const OBSERVER_WINDOW_NAME = "intehrgrator-agent-observer";
 
@@ -76,16 +82,17 @@ function installTimelinePanel(win: Window): void {
   panel.id = "agent-timeline-panel";
   panel.style.cssText =
     "position:fixed;top:0;left:0;bottom:0;width:300px;background:#fafafa;border-right:1px solid #ccc;padding:12px;overflow:auto;font:13px sans-serif;z-index:9998;box-shadow:2px 0 8px rgba(0,0,0,.06)";
+  const messages = ui();
   panel.innerHTML = `
-    <div style="font-weight:600;margin-bottom:8px">History timeline</div>
-    <p style="color:#555;font-size:12px;margin:0 0 10px">Scrub to preview; rollback truncates later entries. Patch undo returns <code>intehrgrator-suggestions</code> v2 JSON.</p>
-    <label style="display:block;margin-bottom:6px;font-size:12px">Seq <span id="timeline-seq-label">—</span></label>
+    <div style="font-weight:600;margin-bottom:8px">${escapeHtml(messages.historyTimeline)}</div>
+    <p style="color:#555;font-size:12px;margin:0 0 10px">${escapeHtml(messages.historyIntro)}</p>
+    <label style="display:block;margin-bottom:6px;font-size:12px">${escapeHtml(messages.seqLabel)} <span id="timeline-seq-label">—</span></label>
     <input id="timeline-scrubber" type="range" min="0" max="0" value="0" style="width:100%;margin-bottom:10px" disabled />
     <div id="timeline-detail" style="font-size:12px;color:#444;margin-bottom:10px;min-height:48px"></div>
     <div id="timeline-list" style="max-height:220px;overflow:auto;border:1px solid #ddd;border-radius:4px;margin-bottom:10px;background:#fff"></div>
-    <button id="timeline-preview-btn" type="button" style="width:100%;margin-bottom:6px;padding:6px" disabled>Preview at seq</button>
-    <button id="timeline-rollback-btn" type="button" style="width:100%;margin-bottom:6px;padding:6px" disabled>Rollback here (destructive)</button>
-    <button id="timeline-patch-btn" type="button" style="width:100%;margin-bottom:6px;padding:6px" disabled>Copy patch-undo prompt</button>
+    <button id="timeline-preview-btn" type="button" style="width:100%;margin-bottom:6px;padding:6px" disabled>${escapeHtml(messages.previewAtSeq)}</button>
+    <button id="timeline-rollback-btn" type="button" style="width:100%;margin-bottom:6px;padding:6px" disabled>${escapeHtml(messages.rollbackHere)}</button>
+    <button id="timeline-patch-btn" type="button" style="width:100%;margin-bottom:6px;padding:6px" disabled>${escapeHtml(messages.copyPatchUndo)}</button>
     <div id="timeline-status" style="font-size:11px;color:#666;margin-top:8px"></div>
   `;
   doc.body.appendChild(panel);
@@ -105,7 +112,7 @@ function installTimelinePanel(win: Window): void {
   patchBtn.addEventListener("click", () => void copyPatchPrompt(selectedSeq));
 
   if (!isDesktopEnvironment()) {
-    setTimelineStatus("Agent API timeline is only available in the desktop app.");
+    setTimelineStatus(ui().timelineDesktopOnly);
     return;
   }
 
@@ -122,7 +129,7 @@ let cachedHistory: HistoryRow[] = [];
 async function refreshTimeline(): Promise<void> {
   if (!observerWindow || observerWindow.closed) return;
   if (!isDesktopEnvironment()) {
-    setTimelineStatus("Agent API timeline is only available in the desktop app.");
+    setTimelineStatus(ui().timelineDesktopOnly);
     return;
   }
   try {
@@ -132,7 +139,7 @@ async function refreshTimeline(): Promise<void> {
         globalThis.clearInterval(timelinePollTimer);
         timelinePollTimer = undefined;
       }
-      setTimelineStatus("Agent API unavailable — timeline idle.");
+      setTimelineStatus(ui().timelineUnavailable);
       return;
     }
     if (!res.ok) return;
@@ -158,7 +165,7 @@ async function refreshTimeline(): Promise<void> {
     if (rollbackBtn) rollbackBtn.disabled = !hasSelection || selectedSeq === maxSeq;
     if (patchBtn) patchBtn.disabled = !hasSelection;
   } catch {
-    setTimelineStatus("Agent API unavailable — timeline idle.");
+    setTimelineStatus(ui().timelineUnavailable);
   }
 }
 
@@ -167,7 +174,7 @@ function renderTimelineList(entries: HistoryRow[]): void {
   const list = observerWindow.document.getElementById("timeline-list");
   if (!list) return;
   if (!entries.length) {
-    list.innerHTML = '<div style="padding:8px;color:#666">No history yet.</div>';
+    list.innerHTML = `<div style="padding:8px;color:#666">${escapeHtml(ui().noHistoryYet)}</div>`;
     return;
   }
   list.innerHTML = entries.map((e) =>
@@ -194,7 +201,7 @@ function renderTimelineDetail(seq: number): void {
   if (label) label.textContent = seq ? String(seq) : "—";
   if (!detail) return;
   if (!entry) {
-    detail.textContent = "Select a history point.";
+    detail.textContent = ui().selectHistoryPoint;
     return;
   }
   detail.innerHTML =
@@ -202,11 +209,11 @@ function renderTimelineDetail(seq: number): void {
 }
 
 async function previewAtSeq(seq: number): Promise<void> {
-  setTimelineStatus(`Previewing seq ${seq}…`);
+  setTimelineStatus(formatMessage(ui().previewingSeq, { n: seq }));
   try {
     const res = await fetch(`/api/v1/history/${seq}/preview`);
     if (!res.ok) throw new Error("Preview failed");
-    setTimelineStatus(`Preview loaded for seq ${seq} (read-only; main canvas unchanged).`);
+    setTimelineStatus(formatMessage(ui().previewLoadedSeq, { n: seq }));
   } catch (e) {
     setTimelineStatus(e instanceof Error ? e.message : String(e));
   }
@@ -216,16 +223,14 @@ async function destructiveRollback(seq: number): Promise<void> {
   const maxSeq = cachedHistory.at(-1)?.seq ?? 0;
   if (seq >= maxSeq) return;
   const discarded = cachedHistory.filter((e) => e.seq > seq);
-  const msg = [
-    `Rollback to seq ${seq}?`,
-    `${discarded.length} later entries will be discarded.`,
-    "Download the discarded branch (.intehrgrator) before continuing?",
-  ].join("\n\n");
-  const saveFirst = globalThis.confirm(msg);
+  const saveFirst = globalThis.confirm(formatMessage(ui().rollbackAsk, {
+    seq,
+    n: discarded.length,
+  }));
   if (saveFirst) {
     await downloadDiscardedBranch(discarded);
   }
-  if (!globalThis.confirm(`Confirm destructive rollback to seq ${seq}?`)) return;
+  if (!globalThis.confirm(formatMessage(ui().confirmRollback, { seq }))) return;
   try {
     const res = await fetch("/api/v1/restore-at", {
       method: "POST",
@@ -234,7 +239,7 @@ async function destructiveRollback(seq: number): Promise<void> {
     });
     const json = await res.json() as { ok?: boolean; error?: string };
     if (!res.ok || !json.ok) throw new Error(json.error ?? "Rollback failed");
-    setTimelineStatus(`Rolled back to seq ${seq}. Main canvas will sync.`);
+    setTimelineStatus(formatMessage(ui().rolledBackSeq, { n: seq }));
     await refreshTimeline();
   } catch (e) {
     setTimelineStatus(e instanceof Error ? e.message : String(e));
@@ -247,7 +252,7 @@ async function downloadDiscardedBranch(discarded: HistoryRow[]): Promise<void> {
     .filter((e) => e.afterBundle)
     .map((e) => ({ afterBundle: e.afterBundle }));
   if (!entries.length) {
-    setTimelineStatus("No bundle data to export for discarded branch.");
+    setTimelineStatus(ui().noBundleExport);
     return;
   }
   try {
@@ -265,7 +270,7 @@ async function downloadDiscardedBranch(discarded: HistoryRow[]): Promise<void> {
     a.download = "discarded-branch.intehrgrator";
     a.click();
     URL.revokeObjectURL(url);
-    setTimelineStatus("Downloaded discarded branch.");
+    setTimelineStatus(ui().downloadedDiscarded);
   } catch (e) {
     setTimelineStatus(e instanceof Error ? e.message : String(e));
   }
@@ -281,7 +286,7 @@ async function copyPatchPrompt(seq: number): Promise<void> {
     const json = await res.json() as { prompt?: string; error?: string };
     if (!res.ok || !json.prompt) throw new Error(json.error ?? "No prompt");
     await navigator.clipboard.writeText(json.prompt);
-    setTimelineStatus(`Patch prompt copied (intehrgrator-suggestions v2). Apply via import_suggestions.`);
+    setTimelineStatus(ui().patchPromptCopied);
   } catch (e) {
     setTimelineStatus(e instanceof Error ? e.message : String(e));
   }
@@ -308,8 +313,8 @@ function renderObserverLegend(): void {
     ? observerState.agents.map((a) =>
       `<div style="margin:4px 0"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${a.color};margin-right:6px"></span><strong>${escapeHtml(a.displayName)}</strong>${a.lastSummary ? `<br><span style="color:#555;font-size:12px">${escapeHtml(a.lastSummary)}</span>` : ""}</div>`
     ).join("")
-    : '<div style="color:#666">No agents connected yet.</div>';
-  panel.innerHTML = `<div style="font-weight:600;margin-bottom:6px">Agents</div>${lines}`;
+    : `<div style="color:#666">${escapeHtml(ui().noAgentsYet)}</div>`;
+  panel.innerHTML = `<div style="font-weight:600;margin-bottom:6px">${escapeHtml(ui().agentsHeading)}</div>${lines}`;
 }
 
 function escapeHtml(value: string): string {

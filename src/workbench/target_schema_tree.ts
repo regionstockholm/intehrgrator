@@ -93,11 +93,12 @@ export function renderTargetSchemaTree(
   container: HTMLElement,
   nodes: SchemaTreeNode[],
   onSelect: TargetTreeSelectHandler = () => {},
+  emptyLabel = "Load a target schema or template.",
 ): void {
   container.classList.add("target-schema-tree");
   container.innerHTML = "";
   if (!nodes.length) {
-    container.textContent = "Load a target schema or template.";
+    container.textContent = emptyLabel;
     return;
   }
   for (const node of nodes) {

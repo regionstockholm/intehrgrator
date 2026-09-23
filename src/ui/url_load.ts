@@ -8,6 +8,8 @@ import {
 } from "../host/url_history.ts";
 import { isGitHubExamplesDirectoryUrl } from "../core/source/github_examples.ts";
 import { closeAllAnchoredMenus, installAnchoredMenu } from "./anchored_menu.ts";
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome, formatMessage } from "./chrome_i18n.ts";
 
 export type { UrlHistoryKind };
 
@@ -72,7 +74,8 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   const populateMenu = (kind: UrlHistoryKind) => {
     const config = kinds[kind];
     config.menu.replaceChildren();
-    appendMenuItem(config.menu, "From file…", () => {
+    const messages = chrome(detectLocale());
+    appendMenuItem(config.menu, messages.fromFile, () => {
       closeMenus();
       void config.fromFile();
     });
@@ -94,16 +97,16 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
         openDialog(kind, "githubDir");
       });
     }
-    appendMenuItem(config.menu, "From URL…", () => {
+    appendMenuItem(config.menu, messages.fromUrl, () => {
       closeMenus();
       openDialog(kind, "url");
     });
     if (config.refresh) {
-      appendMenuItem(config.menu, "Refresh from file…", () => {
+      appendMenuItem(config.menu, messages.refreshFromFile, () => {
         closeMenus();
         void config.refresh!.fromFile();
       });
-      appendMenuItem(config.menu, "Refresh from URL…", () => {
+      appendMenuItem(config.menu, messages.refreshFromUrl, () => {
         closeMenus();
         openDialog(kind, "refresh");
       });
@@ -138,7 +141,7 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
     if (!urls.length) {
       const empty = document.createElement("p");
       empty.className = "load-project-empty";
-      empty.textContent = "No recent URLs yet.";
+      empty.textContent = chrome(detectLocale()).noRecentUrls;
       history.append(empty);
       return;
     }
@@ -157,7 +160,10 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "url-history-forget";
-      remove.setAttribute("aria-label", `Remove ${url} from history`);
+      remove.setAttribute(
+        "aria-label",
+        formatMessage(chrome(detectLocale()).removeFromHistory, { url }),
+      );
       remove.textContent = "×";
       remove.addEventListener("click", () => {
         forgetUrl(kind, url, storage);
@@ -177,11 +183,17 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
       : preset === "githubDir"
       ? config.bulkGitHubDir
       : undefined;
+    const messages = chrome(detectLocale());
+    const kindLabel = kind === "schema"
+      ? messages.kindSchema
+      : kind === "example"
+      ? messages.kindExample
+      : messages.kindTarget;
     title.textContent = preset === "refresh"
-      ? `Refresh ${kind} from URL`
+      ? formatMessage(messages.refreshKindFromUrl, { kind: kindLabel })
       : github?.title ?? config.title;
     hint.textContent = preset === "refresh"
-      ? "Reload this file from a URL without wiping canvas mappings. Warnings list slots or paths that may no longer fit."
+      ? messages.refreshUrlHint
       : github?.hint ?? config.hint;
     historyHeading.textContent = config.historyHeading;
     input.placeholder = github?.placeholder ?? config.placeholder;
@@ -203,7 +215,7 @@ export function installUrlLoadUi(options: UrlLoadUiOptions): void {
   const submitDialog = async () => {
     const url = input.value.trim();
     if (!url) {
-      showError("Enter a URL.");
+      showError(chrome(detectLocale()).enterUrl);
       return;
     }
     clearError();

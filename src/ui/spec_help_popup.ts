@@ -3,6 +3,8 @@
  */
 import { anchorFloating, stopAnchoring } from "./floating.ts";
 import type { SpecHelpContent } from "../core/spec_help.ts";
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome } from "./chrome_i18n.ts";
 
 const POPUP_ID = "intehrgrator-spec-help-popup";
 
@@ -34,7 +36,7 @@ export function showSpecHelpPopup(
   const close = document.createElement("button");
   close.type = "button";
   close.className = "spec-help-popup__close";
-  close.setAttribute("aria-label", "Close");
+  close.setAttribute("aria-label", chrome(detectLocale()).close);
   close.textContent = "×";
   close.addEventListener("click", () => dismissSpecHelpPopup());
   header.append(close);

@@ -78,6 +78,7 @@ export interface IntehrMessages {
   LANGUAGE_LABEL: string;
   UI_LANGUAGE_LABEL: string;
   MODEL_LANGUAGE_LABEL: string;
+  CLOSE: string;
 }
 
 const TABLE: Record<IntehrLocale, IntehrMessages> = {
@@ -155,6 +156,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LANGUAGE_LABEL: "Language",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Model",
+    CLOSE: "Close",
   },
   sv: {
     CAT_SEARCH: "Sök",
@@ -230,6 +232,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LANGUAGE_LABEL: "Språk",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Modell",
+    CLOSE: "Stäng",
   },
   de: {
     CAT_SEARCH: "Suche",
@@ -305,6 +308,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LANGUAGE_LABEL: "Sprache",
     UI_LANGUAGE_LABEL: "UI",
     MODEL_LANGUAGE_LABEL: "Modell",
+    CLOSE: "Schließen",
   },
   es: {
     CAT_SEARCH: "Buscar",
@@ -380,6 +384,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LANGUAGE_LABEL: "Idioma",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Modelo",
+    CLOSE: "Cerrar",
   },
   ca: {
     CAT_SEARCH: "Cerca",
@@ -455,6 +460,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LANGUAGE_LABEL: "Idioma",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Model",
+    CLOSE: "Tanca",
   },
   fr: {
     CAT_SEARCH: "Rechercher",
@@ -530,6 +536,7 @@ const TABLE: Record<IntehrLocale, IntehrMessages> = {
     LANGUAGE_LABEL: "Langue",
     UI_LANGUAGE_LABEL: "IU",
     MODEL_LANGUAGE_LABEL: "Modèle",
+    CLOSE: "Fermer",
   },
 };
 

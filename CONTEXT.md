@@ -347,7 +347,7 @@ An **Output mode** value that generates a Conversion Script (`typescript` | `jav
 _Avoid_: Export dialect, Export Target (prefer this term), Target language alone, conflating with Target instance format or Mapping preview
 
 **UI language**:
-The application locale for Blockly messages (toolbar setting; later full chrome i18n). ISO 639-1 codes (`en`, `sv`, `de`, `es`, `ca`, `fr`). Distinct from **model language** (ontology labels in **Target & Previews**) and from composition language on a **default context map** — a factory openEHR map may copy UI language into **runtime key** `language` (scaffold target `*.language`) once, when the factory instance is created, and does not rewrite it if the toolbar locale later changes.
+The application locale for Blockly messages and the rest of the Web Shell chrome (toolbar setting). ISO 639-1 codes (`en`, `sv`, `de`, `es`, `ca`, `fr`). Distinct from **model language** (ontology labels in **Target & Previews**) and from composition language on a **default context map** — a factory openEHR map may copy UI language into **runtime key** `language` (scaffold target `*.language`) once, when the factory instance is created, and does not rewrite it if the toolbar locale later changes.
 _Avoid_: Model language, conflating with default context map `language`
 
 **Handlebars Template**:

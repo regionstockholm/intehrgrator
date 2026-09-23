@@ -4,6 +4,8 @@
  */
 
 import { Blockly } from "../blockly/blockly_core.ts";
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome } from "./chrome_i18n.ts";
 
 export type PickOption = [label: string, value: string];
 
@@ -122,7 +124,7 @@ function createComboboxPick(
     if (!filtered.length) {
       const empty = document.createElement("div");
       empty.className = "searchable-pick-empty";
-      empty.textContent = "No matches";
+      empty.textContent = chrome(detectLocale()).noMatches;
       list.appendChild(empty);
     }
   };
@@ -205,8 +207,9 @@ export function attachDropdownSearch(field: {
   const input = document.createElement("input");
   input.type = "search";
   input.className = DROPDOWN_SEARCH_CLASS;
-  input.placeholder = "Search…";
-  input.setAttribute("aria-label", "Filter list");
+  const messages = chrome(detectLocale());
+  input.placeholder = messages.searchPlaceholder;
+  input.setAttribute("aria-label", messages.filterList);
   input.autocomplete = "off";
   content.insertBefore(input, content.firstChild);
 

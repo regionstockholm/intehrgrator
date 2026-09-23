@@ -10,6 +10,12 @@ import {
   schemaUrlFromFormatDoc,
 } from "../core/ai/mod.ts";
 import { locateIssueInText } from "../core/ai/json_locate.ts";
+import { detectLocale } from "../blockly/i18n/locale.ts";
+import { chrome } from "./chrome_i18n.ts";
+
+function ui() {
+  return chrome(detectLocale());
+}
 
 export interface ImportAiDialogOptions {
   dialog: HTMLDialogElement;
@@ -115,7 +121,7 @@ export function installImportAiDialog(options: ImportAiDialogOptions): void {
     copyErrors.hidden = !hasProblems;
     textarea.classList.toggle("import-ai-text--invalid", hasProblems && result.applied === 0);
     textarea.setAttribute("aria-invalid", hasProblems ? "true" : "false");
-    cancel.textContent = result.applied > 0 ? "Close" : "Cancel";
+    cancel.textContent = result.applied > 0 ? ui().close : ui().cancel;
   };
 
   const highlightIssue = (item: { path: string; message: string }) => {
@@ -136,7 +142,7 @@ export function installImportAiDialog(options: ImportAiDialogOptions): void {
 
   const open = async () => {
     clearReport();
-    cancel.textContent = "Cancel";
+    cancel.textContent = ui().cancel;
     textarea.value = "";
     dialog.showModal();
     const filled = await fillFromClipboard();
@@ -153,7 +159,7 @@ export function installImportAiDialog(options: ImportAiDialogOptions): void {
       showReport({
         applied: 0,
         skipped: 0,
-        errors: ["Paste the AI JSON (or an intehrgrator-suggestions fence) first"],
+        errors: [ui().pasteJsonFirst],
         loopsAccepted: 0,
         schemaIssues: [],
       });
@@ -172,9 +178,13 @@ export function installImportAiDialog(options: ImportAiDialogOptions): void {
       errors: lastReport.errors,
     });
     await copyToClipboard(text);
-    copyErrors.textContent = "Copied";
+    copyErrors.textContent = ui().copied;
+    copyErrors.dataset.copied = "1";
     globalThis.setTimeout(() => {
-      if (copyErrors.textContent === "Copied") copyErrors.textContent = "Copy errors for AI";
+      if (copyErrors.dataset.copied === "1") {
+        delete copyErrors.dataset.copied;
+        copyErrors.textContent = ui().copyErrorsForAi;
+      }
     }, 2000);
   };
 
@@ -186,7 +196,7 @@ export function installImportAiDialog(options: ImportAiDialogOptions): void {
         showReport({
           applied: 0,
           skipped: 0,
-          errors: ["Clipboard is empty or not readable in this browser"],
+          errors: [ui().clipboardEmpty],
           loopsAccepted: 0,
           schemaIssues: [],
         });

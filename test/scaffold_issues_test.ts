@@ -18,6 +18,8 @@ import { registerRmBlocks, rmAttributeInputName } from "@intehrgrator/blockly/bl
 import { registerMapBlocks } from "@intehrgrator/blockly/blocks/map_blocks.ts";
 import { loadSkeletonIntoWorkspace } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { relabelWorkspaceFromSkeleton } from "@intehrgrator/blockly/block_labels.ts";
+import { isSkeletonTitleField } from "@intehrgrator/blockly/field_skeleton_title.ts";
+import { setChildBlocksCollapsed } from "@intehrgrator/blockly/skeleton_loader.ts";
 import { createEmptyModel } from "@intehrgrator/core/mapping_model/mod.ts";
 import { projectBlocklyState } from "@intehrgrator/workbench/mapping_spec/mod.ts";
 
@@ -361,4 +363,49 @@ Deno.test("Better .t.json is not parsed as a Web Template", () => {
     `expected GitHub .t.json guidance, got ${err}`,
   );
   assertFalse(String(err).toLowerCase().includes("web template"));
+});
+
+Deno.test("#187 scaffolded ELEMENT stays ELEMENT and the DV shell does not take the node name", () => {
+  const { skeleton } = generateSkeletonFromOperational(diagnoseLikeOpt());
+  registerRmBlocks();
+  registerMapBlocks();
+  const workspace = new Blockly.Workspace();
+  loadSkeletonIntoWorkspace(workspace, skeleton, createEmptyModel("t"), null, "en");
+  relabelWorkspaceFromSkeleton(workspace, skeleton);
+
+  const systolic = workspace.getAllBlocks(false).find((b) =>
+    b.type === "element" && String(b.getFieldValue("NAME")) === "Systolic"
+  );
+  assert(systolic, "expected Systolic ELEMENT");
+  const title = systolic.getField("NAME");
+  assert(isSkeletonTitleField(title));
+  assertEquals(title.classNameText(), "ELEMENT");
+
+  const shells = workspace.getAllBlocks(false).filter((b) =>
+    b.type !== "element" && b.type !== "term_pick" && String(b.getFieldValue("RM_TYPE") || "").startsWith("DV_")
+  );
+  assert(shells.length > 0, "expected at least one DV shell");
+  for (const shell of shells) {
+    const shellTitle = shell.getField("NAME");
+    if (!isSkeletonTitleField(shellTitle)) continue;
+    const name = String(shellTitle.getValue() || "");
+    assertEquals(name === "Systolic" || name === "Problem/Diagnosis name", false, name);
+  }
+  workspace.dispose();
+});
+
+Deno.test("#194 collapse children folds nested blocks and leaves the parent expanded", () => {
+  registerRmBlocks();
+  const workspace = new Blockly.Workspace();
+  const parent = workspace.newBlock("cluster");
+  const child = workspace.newBlock("element");
+  const input = parent.getInput(rmAttributeInputName("items"));
+  assert(input?.connection && child.previousConnection);
+  input.connection.connect(child.previousConnection);
+  setChildBlocksCollapsed(parent, true);
+  assertEquals(parent.isCollapsed(), false);
+  assertEquals(child.isCollapsed(), true);
+  setChildBlocksCollapsed(parent, false);
+  assertEquals(child.isCollapsed(), false);
+  workspace.dispose();
 });

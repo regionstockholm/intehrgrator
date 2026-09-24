@@ -15,28 +15,33 @@
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color: var(--text); background: var(--surface-alt); }
+body { display: flex; flex-direction: column; min-height: 100%; }
 
 .toolbar {
   display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
-  padding: 8px 12px; background: var(--primary-dark); color: #fff;
+  padding: 2px 8px; background: #fff; color: #1a1a1a;
+  border-bottom: 1px solid var(--border); flex-shrink: 0;
 }
 .toolbar button {
-  background: var(--primary); color: #fff; border: 1px solid transparent;
-  border-radius: 4px; padding: 6px 10px; cursor: pointer; font-size: 13px;
+  background: transparent; color: #1a1a1a; border: 1px solid transparent;
+  border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px;
 }
-.toolbar button:hover { background: #00786b; }
+.toolbar button:hover { background: #f0f0f0; }
 .toolbar button:disabled { opacity: 0.45; cursor: not-allowed; }
-.brand { margin-right: 8px; }
+.brand { margin-right: 4px; font-size: 14px; }
+.menubar-nav { display: flex; align-items: center; gap: 2px; flex-wrap: wrap; }
+.menubar-item { position: relative; display: inline-flex; }
+.menubar-btn { font-weight: 500; }
 .toolbar-lang,
 .pane-lang {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 12px; color: rgba(255, 255, 255, 0.9); flex-shrink: 0;
+  font-size: 12px; color: #1a1a1a; flex-shrink: 0;
 }
 .toolbar-lang select,
 .pane-lang select {
   font-family: "Google Sans", "Segoe UI", sans-serif;
   font-size: 12px; padding: 4px 6px; border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.35); background: #fff; color: #202124;
+  border: 1px solid var(--border); background: #fff; color: #202124;
 }
 .toolbar-spacer { flex: 1; }
 
@@ -69,7 +74,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 }
 
 .panes {
-  padding: 8px; height: calc(100vh - 88px); min-height: 0;
+  padding: 0; flex: 1; min-height: 0; height: auto;
 }
 
 /* --- Resizable split groups (see src/ui/split_pane.ts) --- */
@@ -94,8 +99,11 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
 
 .pane {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px; display: flex; flex-direction: column; min-height: 0;
+  border-radius: 0; display: flex; flex-direction: column; min-height: 0;
   overflow: hidden;
+}
+.control-with-info {
+  display: inline-flex; align-items: center; gap: 4px; flex-wrap: nowrap; flex-shrink: 0;
 }
 .pane-body { flex: 1; min-height: 0; }
 .pane h2 { margin: 0; padding: 8px 12px; font-size: 14px; background: var(--primary); color: #fff; }
@@ -127,6 +135,7 @@ html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; color:
   display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap;
   max-width: 100%;
 }
+.pane-header .pane-lang { color: #fff; }
 .pane-select-label {
   display: inline-flex; align-items: center; gap: 5px; font-size: 11px;
   color: rgba(255, 255, 255, 0.9); white-space: nowrap;

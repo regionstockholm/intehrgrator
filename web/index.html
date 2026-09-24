@@ -16,22 +16,23 @@
   <link rel="stylesheet" href="vendor/jspreadsheet/jspreadsheet.css" />
 </head>
 <body>
-  <header class="toolbar">
+  <header class="toolbar menubar">
     <strong class="brand">intEHRgrator</strong>
-    <span class="toolbar-spacer"></span>
-    <div class="split-btn toolbar-split-btn">
-      <button id="btn-copy-ai" class="split-btn-main" type="button" title="Copy AI prompt with files embedded" data-i18n="copyPrompt" data-i18n-title="copyPromptTitle">Copy prompt</button>
-      <button
-        id="btn-copy-ai-menu"
-        class="split-btn-chevron"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded="false"
-        aria-controls="menu-copy-ai"
-        aria-label="AI prompt delivery options"
-        data-i18n-aria="aiMenuAria"
-      >▾</button>
-        <div id="menu-copy-ai" class="split-btn-menu" hidden role="menu">
+    <nav class="menubar-nav" aria-label="Main menu">
+    <div class="menubar-item">
+      <button id="btn-menu-file" class="menubar-btn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-file" data-i18n="menuFile">File</button>
+      <div id="menu-file" class="split-btn-menu" hidden role="menu">
+        <button id="btn-new-project" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="newProject">New Project</button>
+        <button id="btn-load-project" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="loadProject">Load Project</button>
+        <button id="btn-save-project" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="saveAs">Save as</button>
+        <button id="btn-export-project" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="exportProject">Export Project</button>
+        <button id="btn-import-project" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="importProject">Import Project</button>
+        <button id="btn-better-form" class="split-btn-menu-item" type="button" role="menuitem" hidden title="Requires licensed Better renderer (deno task setup:better-forms)" data-i18n="betterForm" data-i18n-title="betterFormTitle">Open Better form</button>
+      </div>
+    </div>
+    <div class="menubar-item">
+      <button id="btn-copy-ai" class="menubar-btn" type="button" title="AI prompt and credentials" data-i18n="menuAi" data-i18n-title="aiMenuAria" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-copy-ai">AI</button>
+      <div id="menu-copy-ai" class="split-btn-menu" hidden role="menu">
         <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="copy" data-i18n="menuCopyPrompt">
           Copy prompt
         </button>
@@ -50,42 +51,16 @@
         <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="uri" data-i18n="menuBrowseUris">
           Browse URIs (when available)
         </button>
+        <button id="btn-import-ai" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="importAi">Import AI suggestions</button>
       </div>
     </div>
-    <button id="btn-import-ai" type="button" data-i18n="importAi">Import AI suggestions</button>
-    <div class="split-btn toolbar-split-btn">
-      <button id="btn-example-sets" class="split-btn-main" type="button" title="Load a complete example set (source, target, optional mapping) from catalog URIs" data-i18n="exampleSets" data-i18n-title="exampleSetsTitle">Example Sets</button>
-      <button
-        id="btn-example-sets-menu"
-        class="split-btn-chevron"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded="false"
-        aria-controls="menu-example-sets"
-        aria-label="Choose example set"
-        data-i18n-aria="exampleSetsMenuAria"
-      >▾</button>
+    <div class="menubar-item">
+      <button id="btn-example-sets" class="menubar-btn" type="button" title="Load a complete example set (source, target, optional mapping) from catalog URIs" data-i18n="exampleSets" data-i18n-title="exampleSetsTitle" aria-haspopup="menu" aria-controls="menu-example-sets">Example Sets</button>
       <div id="menu-example-sets" class="split-btn-menu" hidden role="menu"></div>
     </div>
-    <button id="btn-functions" type="button" title="Save, load, or contribute Blockly Functions; browse the GitHub Function library" data-i18n="functions" data-i18n-title="functionsTitle">Functions</button>
-    <button id="btn-new-project" type="button" data-i18n="newProject">New Project</button>
-    <button id="btn-load-project" type="button" data-i18n="loadProject">Load Project</button>
-    <button id="btn-save-project" type="button" data-i18n="saveAs">Save as</button>
-    <button id="btn-export-project" type="button" data-i18n="exportProject">Export Project</button>
-    <button id="btn-import-project" type="button" data-i18n="importProject">Import Project</button>
-    <button id="btn-better-form" type="button" hidden title="Requires licensed Better renderer (deno task setup:better-forms)" data-i18n="betterForm" data-i18n-title="betterFormTitle">Open Better form</button>
-    <div class="split-btn toolbar-split-btn">
-      <button id="btn-help" class="split-btn-main" type="button" title="Tutorial and issue reporting" data-i18n="help" data-i18n-title="helpTitle">Help</button>
-      <button
-        id="btn-help-menu"
-        class="split-btn-chevron"
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded="false"
-        aria-controls="menu-help"
-        aria-label="Help menu"
-        data-i18n-aria="helpMenuAria"
-      >▾</button>
+    <button id="btn-functions" class="menubar-btn" type="button" title="Save, load, or contribute Blockly Functions; browse the GitHub Function library" data-i18n="functions" data-i18n-title="functionsTitle">Functions</button>
+    <div class="menubar-item">
+      <button id="btn-help" class="menubar-btn" type="button" title="Tutorial and issue reporting" data-i18n="help" data-i18n-title="helpTitle" aria-haspopup="menu" aria-controls="menu-help">Help</button>
       <div id="menu-help" class="split-btn-menu" hidden role="menu">
         <a
           class="split-btn-menu-item split-btn-menu-link"
@@ -113,6 +88,8 @@
         >Request a feature</a>
       </div>
     </div>
+    </nav>
+    <span class="toolbar-spacer"></span>
     <label class="toolbar-lang" for="ui-language-dropdown">
       <span id="ui-language-label">Language</span>
       <select id="ui-language-dropdown" aria-label="Application UI language" data-i18n-aria="uiLanguageAria"></select>
@@ -236,10 +213,12 @@
       <div class="pane-header">
         <h2 data-i18n="mappingEditors">Mapping Editors</h2>
         <div class="pane-header-actions">
-          <button id="btn-undo" class="pane-btn pane-btn-on-dark" type="button" title="Undo last mapping editor action" data-i18n="undo" disabled>Undo</button>
-          <button id="btn-redo" class="pane-btn pane-btn-on-dark" type="button" title="Redo last mapping editor action" data-i18n="redo" disabled>Redo</button>
-          <button id="btn-expand-all" class="pane-btn pane-btn-on-dark" type="button" title="Expand all nested blocks" data-i18n="expandAll" data-i18n-title="expandAllTitle">Expand all</button>
-          <button id="btn-collapse-all" class="pane-btn pane-btn-on-dark" type="button" title="Collapse all nested blocks" data-i18n="collapseAll" data-i18n-title="collapseAllTitle">Collapse all</button>
+          <button id="btn-undo" class="pane-btn pane-btn-on-dark pane-btn-icon" type="button" title="Undo last mapping editor action" aria-label="Undo" data-i18n-title="undo" data-i18n-aria="undo" disabled>
+            <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"></path></svg>
+          </button>
+          <button id="btn-redo" class="pane-btn pane-btn-on-dark pane-btn-icon" type="button" title="Redo last mapping editor action" aria-label="Redo" data-i18n-title="redo" data-i18n-aria="redo" disabled>
+            <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7z"></path></svg>
+          </button>
           <label class="pane-follow-agent" title="When enabled, pan the main canvas to blocks an agent just edited" data-i18n-title="followAgentTitle">
             <input id="chk-follow-agent" type="checkbox" />
             <span data-i18n="followAgent">Follow agent</span>
@@ -255,18 +234,6 @@
               <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"></path>
             </svg>
             <span data-i18n="openViewer">Open viewer window</span>
-          </button>
-          <button
-            id="btn-download-blockly"
-            class="pane-btn pane-btn-on-dark pane-btn-icon"
-            type="button"
-            title="Download full Blockly workspace JSON (includes block coordinates and layout)"
-            data-i18n-title="downloadWorkspaceTitle"
-          >
-            <svg focusable="false" aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3zm-1-4-1.41-1.41L13 12.17V4h-2v8.17L8.41 9.59 7 11l5 5z"></path>
-            </svg>
-            <span data-i18n="downloadJson">Download JSON</span>
           </button>
         </div>
       </div>
@@ -360,6 +327,7 @@
       <div class="pane-header">
         <h2 data-i18n="targetPreviews">Target &amp; Previews</h2>
         <div class="pane-header-actions">
+          <span class="control-with-info">
           <span class="info-tip info-tip--end">
             <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-open-target" aria-label="Supported target formats" data-i18n-aria="targetFormatsAria">i</button>
             <span id="tip-open-target" class="info-tip-balloon" role="tooltip" data-i18n-html="targetFormatsHtml">
@@ -381,10 +349,12 @@
             >▾</button>
             <div id="menu-open-template" class="split-btn-menu" hidden role="menu"></div>
           </div>
+          </span>
           <label class="pane-lang pane-lang--on-dark" id="model-language-wrap" hidden for="model-language-dropdown">
             <span id="model-language-label">Model</span>
             <select id="model-language-dropdown" aria-label="Target model ontology language" data-i18n-aria="modelLanguageAria"></select>
           </label>
+          <span class="control-with-info">
           <span class="info-tip info-tip--end">
             <button type="button" class="info-tip-btn" aria-expanded="false" aria-describedby="tip-output-script" aria-label="Conversion script formats" data-i18n-aria="scriptFormatsAria">i</button>
             <span id="tip-output-script" class="info-tip-balloon" role="tooltip" data-i18n-html="scriptFormatsHtml">
@@ -406,6 +376,7 @@
               <option value="go-template">Go Template</option>
             </select>
           </label>
+          </span>
           <label class="pane-select-label" id="openehr-instance-shape-wrap" hidden for="openehr-instance-shape">
             <span data-i18n="instance">Instance</span>
             <select id="openehr-instance-shape" title="Desired openEHR instance shape. XQuery export and Test Run use this serialization." data-i18n-title="instanceTitle">

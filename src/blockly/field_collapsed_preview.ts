@@ -4,6 +4,7 @@
 import type { BlockSvg } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
 import { collapsedHtmlForBlock } from "./collapsed_preview.ts";
+import { refreshParentSlotCaptions } from "./slot_label.ts";
 
 export const FIELD_COLLAPSED_PREVIEW_TYPE = "field_collapsed_preview";
 export const COLLAPSED_INPUT_NAME = "_TEMP_COLLAPSED_INPUT";
@@ -205,6 +206,7 @@ export function installCollapsedPreview(): void {
   proto.updateCollapsed = function (this: BlockSvg) {
     original.call(this);
     applyCollapsedPreviewField(this);
+    refreshParentSlotCaptions(this);
   };
 }
 

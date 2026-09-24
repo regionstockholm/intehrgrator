@@ -555,6 +555,21 @@ export function slotCaptionStandMetrics(args: {
   };
 }
 
+/**
+ * Recalculate slot captions on the parent after a child collapses or expands,
+ * so a 90° caption can lie flat again when the child is short (#194).
+ */
+export function refreshParentSlotCaptions(block: { getParent?: () => { inputList: Array<{ fieldRow: Field[] }>; render?: () => void } | null }): void {
+  const parent = block.getParent?.();
+  if (!parent) return;
+  for (const input of parent.inputList) {
+    for (const field of input.fieldRow) {
+      if (isSlotLabelField(field)) field.updateSize_?.();
+    }
+  }
+  parent.render?.();
+}
+
 function connectedChildHeightPx(field: FieldSlotLabel): number {
   const block = field.getSourceBlock?.();
   if (!block) return 0;

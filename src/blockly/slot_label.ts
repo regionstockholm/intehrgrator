@@ -556,10 +556,25 @@ export function slotCaptionStandMetrics(args: {
 }
 
 /**
+ * True while a caption refresh has already scheduled `parent.render()`.
+ * `BlockSvg.renderEfficiently` calls `updateCollapsed` before measuring, and
+ * that hook calls this function. A synchronous `parent.render()` flushes
+ * immediately and re-enters measure until the stack overflows (#194).
+ */
+let slotCaptionRenderScheduled = false;
+
+/**
  * Recalculate slot captions on the parent after a child collapses or expands,
  * so a 90° caption can lie flat again when the child is short (#194).
+ * Sizes update immediately; the parent layout is deferred so it cannot
+ * re-enter the render already in progress.
  */
-export function refreshParentSlotCaptions(block: { getParent?: () => { inputList: Array<{ fieldRow: Field[] }>; render?: () => void } | null }): void {
+export function refreshParentSlotCaptions(block: {
+  getParent?: () => {
+    inputList: Array<{ fieldRow: Field[] }>;
+    render?: () => void;
+  } | null;
+}): void {
   const parent = block.getParent?.();
   if (!parent) return;
   for (const input of parent.inputList) {
@@ -567,7 +582,16 @@ export function refreshParentSlotCaptions(block: { getParent?: () => { inputList
       if (isSlotLabelField(field)) field.updateSize_?.();
     }
   }
-  parent.render?.();
+  const render = parent.render;
+  if (typeof render !== "function" || slotCaptionRenderScheduled) return;
+  slotCaptionRenderScheduled = true;
+  queueMicrotask(() => {
+    try {
+      render.call(parent);
+    } finally {
+      slotCaptionRenderScheduled = false;
+    }
+  });
 }
 
 function connectedChildHeightPx(field: FieldSlotLabel): number {

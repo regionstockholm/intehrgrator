@@ -120,7 +120,7 @@ export interface PostChatCompletionsOptions {
 }
 
 /**
- * POST an OpenAI-compatible chat completion. The Web Shell may need a
+ * POST an OpenAI-compatible chat completion. The web app may need a
  * CORS-friendly proxy or the desktop Agent API forwarder; IDE/MCP remains
  * valid without credentials.
  */

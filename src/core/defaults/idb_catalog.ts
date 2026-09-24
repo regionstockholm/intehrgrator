@@ -8,7 +8,7 @@ const DB_NAME = "intehrgrator-defaults";
 const STORE = "maps";
 const DB_VERSION = 1;
 
-/** Host-stored named Defaults Maps (Web Shell / VS Code webview IndexedDB). */
+/** Host-stored named Defaults Maps (web app / VS Code webview IndexedDB). */
 export function createIndexedDbDefaultsCatalog(): DefaultsCatalog {
   return {
     async list() {

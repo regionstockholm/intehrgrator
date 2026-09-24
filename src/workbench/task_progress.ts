@@ -1,7 +1,7 @@
 /**
  * Multi-step task progress for long-running Workbench loads (#99 / #162).
  *
- * The controller owns `TaskProgress` on `getState()`; the Web Shell paints a
+ * The controller owns `TaskProgress` on `getState()`; the web app paints a
  * dimmed overlay from {@link taskProgressInnerHtml}. Step states are
  * waiting → running → finished (or failed).
  */

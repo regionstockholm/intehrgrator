@@ -2,7 +2,7 @@
 
 Research date: 2026-09-04. Claims below follow official docs, GitHub READMEs, and npm `package.json` files — not secondary round-ups.
 
-**Need:** embed a real 2D spreadsheet (Excel/Sheets paste, named headers, cell/row/column get/set) in the vanilla TypeScript Web Shell, then wrap that API as Blockly accessor and mutator blocks. Prefer MIT/Apache, few runtime dependencies, no React. FHIR ConceptMap import is **out of this chunk**.
+**Need:** embed a real 2D spreadsheet (Excel/Sheets paste, named headers, cell/row/column get/set) in the vanilla TypeScript web app, then wrap that API as Blockly accessor and mutator blocks. Prefer MIT/Apache, few runtime dependencies, no React. FHIR ConceptMap import is **out of this chunk**.
 
 **Constraints:** Deno-bundled static app (GitHub Pages). Current UI is vanilla TS + Blockly, not React. `vendor/` is reserved for ehrtslib.
 

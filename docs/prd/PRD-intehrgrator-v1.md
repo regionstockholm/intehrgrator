@@ -18,7 +18,7 @@ Healthcare informaticians must map heterogeneous source data (JSON/XML from hosp
 
 ## Solution
 
-**intEHRgrator** is a browser-based **Integration Workbench** (v1: is published as a GitHub Pages Web Shell static website) with a three-pane layout:
+**intEHRgrator** is a browser-based **Integration Workbench** (v1: is published as a GitHub Pages web app static website) with a three-pane layout:
 
 1. **Source Pane** — Source Schema tree (upper part of pane) plus tabbed **Example Instances** (lower part of pane) for click-to-map and Test Run
 2. **Mapping Editor** — nested Blockly (structure) (upper part of pane) + **Mapping Specification** DSL (editable expressions only); not export code (lower part of pane) 
@@ -108,7 +108,7 @@ Later versions may evolve this to also become a VS code plugin.
 ### Phasing
 
 - **Step 1 (foundation):** Deterministic Blockly block library from ehrtslib RM types; OPT → Template Skeleton generator; expression blocks; TypeScript and Java **export generators** (Java UI deferred). 
-- **Step 2 (workbench):** Web Shell UI, Source Pane, Mapping Editor sync, Test Run, persistence, copy-paste AI assist.
+- **Step 2 (workbench):** web app UI, Source Pane, Mapping Editor sync, Test Run, persistence, copy-paste AI assist.
 
 ### Major modules (deep modules preferred)
 
@@ -151,7 +151,7 @@ For **optional RM attachment** validation (`+` picker), introspect ehrtslib RM t
 - **Optional RM:** `+` filtered picker + **Block Expansion** on parent mutator.
 - **AI:** copy-paste only in v1; no in-app LLM API.
 - **Export:** TypeScript Test Run + Export TS in v1; Java generators built, UI disabled.
-- **Web Shell first;** VS Code extension later via Host Abstraction.
+- **web app first;** VS Code extension later via Host Abstraction.
 
 ### Mapping Model shape (prototype decision)
 

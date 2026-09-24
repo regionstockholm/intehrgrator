@@ -1,18 +1,18 @@
 # In-app and copy-paste AI assist
 
-**Status:** Web Shell has optional **Call AI** (OpenAI-compatible chat completions, credentials in localStorage). Copy-paste and IDE/MCP remain first-class. Call AI can drive the same mapping tools as MCP / the HTTP Agent API. Richer native assist (VS Code Language Model API) is still deferred.
+**Status:** Web app has optional **Call AI** (OpenAI-compatible chat completions, credentials in localStorage). Copy-paste and IDE/MCP remain first-class. Call AI can drive the same mapping tools as MCP / the HTTP Agent API. Richer native assist (VS Code Language Model API) is still deferred.
 
 ## Three mapping-assist paths
 
 | Path | Where it runs | How the model writes mappings |
 |------|----------------|-------------------------------|
 | **IDE + MCP** | Cursor / Claude Desktop / similar, stdio MCP (`deno task mcp`) usually proxying the desktop Agent API | The IDE agent calls `map_slot` / `import_suggestions` / `run_test` itself |
-| **Call AI (in-app)** | Web Shell or desktop toolbar, after **AI credentials…** | intEHRgrator POSTs the mapping prompt to your provider and **executes the same tool names on the live workbench** (or one-shot suggestions JSON) |
+| **Call AI (in-app)** | web app or desktop toolbar, after **AI credentials…** | intEHRgrator POSTs the mapping prompt to your provider and **executes the same tool names on the live workbench** (or one-shot suggestions JSON) |
 | **Remote Agent API** | OpenCode `serve` / cloud runner, Hugging Face jobs, or any HTTP agent that can reach the desktop | Same HTTP Agent API as MCP (`/api/v1/*`). Bind + token when not loopback |
 
 All three apply through the same Mapping Model / Blockly path. Copy prompt + **Import Suggestions** remains the fallback when no key or MCP is available.
 
-## Web Shell
+## Web app
 
 - **Copy prompt** — markdown prompt with target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`
 - **Call AI** — POST that prompt; default toolbar action when credentials exist. Default mapping mode uses OpenAI function tools named like MCP (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) against the open project. **Suggestions JSON only** is the one-shot import used before tools existed.

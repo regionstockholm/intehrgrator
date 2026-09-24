@@ -133,7 +133,7 @@ Function bodies (`procedures_defreturn`) should use a counted `for` — TypeScri
 
 `vars.put` already exists for quantifiers (`emitQuantifierJava`). Loop bind is the same map. Nested loops: put three keys per item name (`measurements_index`); outer keys remain until overwritten — same as TypeScript `__vars`.
 
-Java is not a Web Shell Test Run oracle ([ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md)). Generated scripts should still be human-readable and SMT-*shaped*; optional `javac` remains the compile check (`docs/JAVA_EXPORT.md`).
+Java is not a web app Test Run oracle ([ADR 0003](../adr/0003-mapping-preview-vs-generated-script.md)). Generated scripts should still be human-readable and SMT-*shaped*; optional `javac` remains the compile check (`docs/JAVA_EXPORT.md`).
 
 ### 3.2 Go `text/template` (WASM Test Run)
 

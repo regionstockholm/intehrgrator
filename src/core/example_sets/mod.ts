@@ -10,12 +10,12 @@
 
 import { assertHttpUrl, toFetchableUrl } from "../../host/fetch_url.ts";
 
-/** Bundled catalog shipped with the Web Shell (fallback / first instance). */
+/** Bundled catalog shipped with the web app (fallback / first instance). */
 export const BUNDLED_EXAMPLE_SETS_PATH = "examples/example-sets.json";
 
 /**
  * Optional ehrtslib catalog URL once published there.
- * Until that file exists, the Web Shell falls back to {@link BUNDLED_EXAMPLE_SETS_PATH}.
+ * Until that file exists, the web app falls back to {@link BUNDLED_EXAMPLE_SETS_PATH}.
  */
 export const EHRTSLIB_EXAMPLE_SETS_CATALOG_URL =
   "https://raw.githubusercontent.com/ErikSundvall/ehrtslib/main/examples/intehrgrator-example-sets.json";

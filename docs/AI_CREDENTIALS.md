@@ -1,6 +1,6 @@
 # Call AI credentials
 
-How to get an API key (or dummy local token) so **Call AI** can map from the Web Shell. Credentials stay in this browser’s localStorage — never in the Project Bundle.
+How to get an API key (or dummy local token) so **Call AI** can map from the web app. Credentials stay in this browser’s localStorage — never in the Project Bundle.
 
 Call AI speaks **OpenAI-compatible chat completions** (`POST …/v1/chat/completions` with `Authorization: Bearer <key>`). Default mapping mode sends the same **function tool names as MCP / the HTTP Agent API** (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) and runs them on the open workbench. **Suggestions JSON only** is the one-shot import.
 

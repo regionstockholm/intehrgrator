@@ -1,7 +1,7 @@
 /**
  * Browser UI test: minimap sits under the toolbox rail and mirrors scaffolded blocks.
  *
- * Requires a built Web Shell on UI_TEST_BASE_URL (default http://127.0.0.1:5173)
+ * Requires a built web app on UI_TEST_BASE_URL (default http://127.0.0.1:5173)
  * with `?testMode=1`. Prefer `deno task test:ui`.
  */
 

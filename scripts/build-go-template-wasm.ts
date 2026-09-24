@@ -6,7 +6,7 @@
  *   web/wasm/wasm_exec.js
  *
  * `vendor/` is gitignored (ehrtslib); these files live under `web/` so the
- * Web Shell can load them and tests can read them without a Go toolchain.
+ * web app can load them and tests can read them without a Go toolchain.
  */
 import { copy, ensureDir } from "@std/fs";
 import { dirname, fromFileUrl, join } from "@std/path";

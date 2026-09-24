@@ -1,7 +1,7 @@
 /**
  * Workbench Test API — programmatic seam for UI / E2E tests (kintegrate formTestApi pattern).
  *
- * Exposed on `window.intehrgratorTestApi` when the Web Shell is opened with `?testMode=1`.
+ * Exposed on `window.intehrgratorTestApi` when the web app is opened with `?testMode=1`.
  * Setup helpers load fixtures without file pickers; Click-to-Map and Run Test still go through
  * real DOM / Blockly so the harness proves the Mapping Editor UI path.
  */

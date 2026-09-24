@@ -1,6 +1,6 @@
 import { en, type ChromeMessages } from "./chrome_en.ts";
 
-/** Swedish Web Shell chrome. Unlisted keys stay English (product names and tokens). */
+/** Swedish web app chrome. Unlisted keys stay English (product names and tokens). */
 export const sv: ChromeMessages = {
   ...en,
   appTitle: "intEHRgrator — Integrationsverktyg",

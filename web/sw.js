@@ -1,4 +1,4 @@
-/* intEHRgrator Web Shell — installable PWA service worker.
+/* intEHRgrator web app — installable PWA service worker.
  * Network-first for navigations / HTML; cache-first for hashed bundle assets.
  * Cache name includes a build stamp so deploys pick up new assets.
  */

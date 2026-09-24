@@ -8,7 +8,7 @@ Reusable **Blockly Functions** — Mapping Specification fragments, not Conversi
 | `procedures_defnoreturn` | **Statement** Function (does something; no return) | Yes |
 | `procedures_ifreturn` | If-return *inside* a Function body | With the enclosing Function — not a Function of its own |
 
-Load with MCP / Agent API `list_function_library` then `load_function` (`clash`: `rename` default, or `replace`). Web Shell: **Functions**. Call a value Function from a Target slot; do not `put_blockly` the whole canvas.
+Load with MCP / Agent API `list_function_library` then `load_function` (`clash`: `rename` default, or `replace`). Web app: **Functions**. Call a value Function from a Target slot; do not `put_blockly` the whole canvas.
 
 | id | name | locale | params | returns | Decision tables | what |
 |----|------|--------|--------|---------|-----------------|------|

@@ -1,7 +1,7 @@
 /**
  * Browser UI: optional RM cogwheel mutator (no encircled + popup).
  *
- * Requires a built Web Shell on UI_TEST_BASE_URL with `?testMode=1`.
+ * Requires a built web app on UI_TEST_BASE_URL with `?testMode=1`.
  */
 
 import { assert, assertEquals } from "@std/assert";

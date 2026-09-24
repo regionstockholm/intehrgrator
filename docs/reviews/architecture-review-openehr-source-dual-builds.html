@@ -87,7 +87,7 @@
     <h1 class="display text-4xl md:text-5xl font-semibold mt-2 leading-tight">intEHRgrator seams for openEHR-as-source & dual builds</h1>
     <p class="mt-4 max-w-3xl text-lg text-slate-700">
       Friction surfaced with an eye on merging kintegrate-style openEHR source handling and shipping separate
-      <strong>Web Shell</strong> and <strong>VS Code / Cursor</strong> builds. Vocabulary: <em>module</em>, <em>interface</em>,
+      <strong>web app</strong> and <strong>VS Code / Cursor</strong> builds. Vocabulary: <em>module</em>, <em>interface</em>,
       <em>implementation</em>, <em>depth</em>, <em>seam</em>, <em>adapter</em>, <em>leverage</em>, <em>locality</em>
       (architecture skill); domain terms from <code>CONTEXT.md</code>.
     </p>
@@ -199,7 +199,7 @@ flowchart LR
         <pre class="mermaid">
 flowchart TB
   CORE[Shared core: Mapping Model · Blockly · Source Format Handler · codegen]
-  WEB[Web Shell adapter + pages build]
+  WEB[web app adapter + pages build]
   VSC[VS Code / Cursor adapter + extension package]
   CORE --> WEB
   CORE --> VSC
@@ -370,7 +370,7 @@ flowchart LR
       <div class="px-6 py-5 space-y-4">
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Problem</h3>
-          <p class="text-slate-700 mt-1"><code>WorkbenchController</code> is mostly host-agnostic and deep, but <code>web/main.ts</code> owns dialogs, Blockly inject, and render wiring (~500+ LOC). Fine for one Web Shell; painful when a second shell (VS Code webview HTML) must fork that glue. Workbench Test API already peeks through this seam — a good sign the interface wants formalizing.</p>
+          <p class="text-slate-700 mt-1"><code>WorkbenchController</code> is mostly host-agnostic and deep, but <code>web/main.ts</code> owns dialogs, Blockly inject, and render wiring (~500+ LOC). Fine for one web app; painful when a second shell (VS Code webview HTML) must fork that glue. Workbench Test API already peeks through this seam — a good sign the interface wants formalizing.</p>
         </div>
         <div>
           <h3 class="font-semibold text-[color:var(--teal-deep)]">Solution</h3>

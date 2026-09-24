@@ -77,7 +77,7 @@ Trigger **CRDT/sync spike** when any of:
 
 ## Open decisions (for Chunk 14 grill)
 
-1. Web shell vs desktop-only for human collab?
+1. Web app vs desktop-only for human collab?
 2. Room per `projectId` vs per `.intehrgrator` file path?
 3. Sidecar history file vs embedded in `.intehrgrator` zip?
 4. Conflict UX: auto-merge slots vs always show merge report?

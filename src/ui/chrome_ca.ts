@@ -1,6 +1,6 @@
 import { en, type ChromeMessages } from "./chrome_en.ts";
 
-/** Catalan Web Shell chrome. Unlisted keys stay English (product names and tokens). */
+/** Catalan web app chrome. Unlisted keys stay English (product names and tokens). */
 export const ca: ChromeMessages = {
   ...en,
   appTitle: "intEHRgrator — Banc de treball d'integració",
@@ -97,7 +97,7 @@ export const ca: ChromeMessages = {
   modelLanguageAria: "Idioma de l'ontologia del model de destinació",
   scriptFormatsAria: "Formats de guió de conversió",
   scriptFormatsHtml:
-    "La previsualització del mapatge interpreta el mapatge sense generar cap guió. Guions de conversió (fins ara): TypeScript, Java, Handlebars, XQuery i Go Template. TypeScript, Handlebars, Go Template i XQuery també s'executen a la prova de conversió. Java genera una classe Archie però no s'executa al Web Shell. En destinacions openEHR, la instància JSON o XML tria com XQuery serialitza la composició.<br>El botó Baixa de l'editor de guions desa el guió generat. El botó Baixa superposat a la prova de conversió desa aquella instància.",
+    "La previsualització del mapatge interpreta el mapatge sense generar cap guió. Guions de conversió (fins ara): TypeScript, Java, Handlebars, XQuery i Go Template. TypeScript, Handlebars, Go Template i XQuery també s'executen a la prova de conversió. Java genera una classe Archie però no s'executa al web app. En destinacions openEHR, la instància JSON o XML tria com XQuery serialitza la composició.<br>El botó Baixa de l'editor de guions desa el guió generat. El botó Baixa superposat a la prova de conversió desa aquella instància.",
   mappingPreview: "Previsualització del mapatge",
   instance: "Instància",
   instanceTitle: "Forma d'instància openEHR desitjada. L'exportació XQuery i la prova usen aquesta serialització.",
@@ -186,7 +186,7 @@ export const ca: ChromeMessages = {
   copyMergePrompt: "Copia la indicació de fusió",
   aiCredentialsTitle: "Credencials d'IA",
   aiCredentialsIntroHtml:
-    'Punt de xat compatible amb OpenAI, opcional, perquè <strong>Crida la IA</strong> pugui mapar des del Web Shell. Les credencials es queden només en aquest navegador, no al paquet del projecte. <strong>Crida la IA</strong> pot usar les mateixes eines de mapatge que MCP / l\'API HTTP de l\'agent (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Un IDE assistit per IA amb MCP local continua sent una via separada i plenament vàlida. Pàgines pas a pas per a les claus: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Credencials de Crida la IA</a>.',
+    'Punt de xat compatible amb OpenAI, opcional, perquè <strong>Crida la IA</strong> pugui mapar des del web app. Les credencials es queden només en aquest navegador, no al paquet del projecte. <strong>Crida la IA</strong> pot usar les mateixes eines de mapatge que MCP / l\'API HTTP de l\'agent (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Un IDE assistit per IA amb MCP local continua sent una via separada i plenament vàlida. Pàgines pas a pas per a les claus: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Credencials de Crida la IA</a>.',
   provider: "Proveïdor",
   customEndpoint: "Punt de connexió propi compatible amb OpenAI",
   getApiKey: "Obtén una clau d'API",

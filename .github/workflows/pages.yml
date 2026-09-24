@@ -1,4 +1,4 @@
-# Deploy the static Web Shell to GitHub Pages.
+# Deploy the static web app to GitHub Pages.
 # Requires: Settings → Pages → Build and deployment → Source: GitHub Actions
 
 name: Deploy GitHub Pages

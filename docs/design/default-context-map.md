@@ -38,7 +38,7 @@ Blank project: no factory dumped on the canvas (no openEHR-shaped rows before a 
 
 Folder / Save as / Browse / URL stay on the block after confirm.
 
-Example Sets `defaults` URI and Agent/MCP hydrate the new block JSON. `load_target` stays split. The joint dialog is Web Shell / desktop chrome only.
+Example Sets `defaults` URI and Agent/MCP hydrate the new block JSON. `load_target` stays split. The joint dialog is web app / desktop chrome only.
 
 ## Precursor (must land before the three-field block)
 

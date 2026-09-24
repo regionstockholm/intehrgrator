@@ -94,7 +94,7 @@ The left pane has two stacked sections: **schema** (upper) and **example instanc
 
 ### Web components (Shoelace)
 
-When changing chrome (tabs, dialogs, drawers, menus), prefer [Shoelace](https://shoelace.style/) components already used in the Web Shell (`sl-tab-group` for **Target & Previews**). Keep the Karolinska colour tokens (`--sl-color-primary-*` in `web/styles.css`). Do not rewrite working custom widgets (split panes, tree, Blockly) just to swap libraries.
+When changing chrome (tabs, dialogs, drawers, menus), prefer [Shoelace](https://shoelace.style/) components already used in the web app (`sl-tab-group` for **Target & Previews**). Keep the Karolinska colour tokens (`--sl-color-primary-*` in `web/styles.css`). Do not rewrite working custom widgets (split panes, tree, Blockly) just to swap libraries.
 
 ## Toolbar & Pane Actions
 
@@ -125,7 +125,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 | Run Test | Output → Conversion Test Run(s) | Execute mapping once against active example (when Autoplay is paused) | ✓ |
 | Autoplay / Pause | Output → Conversion Test Run(s) | Toggle debounced auto Test Run on mapping edits (ehrtslib demo pattern) | ✓ |
 
-### Deferred (not in current Web Shell UI)
+### Deferred (not in current web app UI)
 
 | Button | Notes |
 |--------|-------|
@@ -156,7 +156,7 @@ The test runner is a core informatician workflow, not a nice-to-have.
 | Tab switch (any Autoplay state) | Show cached result only; no automatic re-run |
 | Paused + **Run Test** | Runs once against active tab |
 
-**Runtime:** Bundled `ehrtslib` in the web shell; generated mapping code is executed client-side (no server).
+**Runtime:** Bundled `ehrtslib` in the web app; generated mapping code is executed client-side (no server).
 
 **Out of scope v1:** Java test execution, uploading results to a CDR.
 
@@ -234,7 +234,7 @@ The center CodeMirror panel shows the **[Mapping Specification](MAPPING_SPECIFIC
 
 ## Environment Abstraction
 
-The app runs in two environments with shared core code. **v1 ships Web Shell only** (GitHub Pages); VS Code extension is a later milestone using the same Host Abstraction interface.
+The app runs in two environments with shared core code. **v1 ships web app only** (GitHub Pages); VS Code extension is a later milestone using the same Host Abstraction interface.
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -245,7 +245,7 @@ The app runs in two environments with shared core code. **v1 ships Web Shell onl
 │  │Generators│ │ Engine   │ │ Parser       │  │
 │  └─────────┘ └──────────┘ └──────────────┘  │
 ├──────────────────────┬──────────────────────┤
-│ Web Shell (GH Pages) │ VS Code Extension    │
+│ web app (GH Pages) │ VS Code Extension    │
 │ - HTML host page     │ - Webview Panel      │
 │ - File System API    │ - VS Code FS API     │
 │ - IndexedDB storage  │ - Workspace storage  │
@@ -255,7 +255,7 @@ The app runs in two environments with shared core code. **v1 ships Web Shell onl
 
 | Milestone | Host | Storage | AI |
 |-----------|------|---------|-----|
-| **v1** | Web Shell (GitHub Pages) | IndexedDB | Copy-paste AI assist (no API) |
+| **v1** | web app (GitHub Pages) | IndexedDB | Copy-paste AI assist (no API) |
 | **Later** | VS Code extension | Workspace storage | Integrated AI (Language Model API) |
 
 ## Autosave & Status Bar

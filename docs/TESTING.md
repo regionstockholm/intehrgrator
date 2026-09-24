@@ -11,7 +11,7 @@ Tests observe behavior at a **seam** (a public boundary). Pick the highest seam 
 | Seam | Lives in | Run | Use when |
 |------|----------|-----|----------|
 | **Unit** — module public API (mapping model, Blockly generators, codegen, persistence, WorkbenchController) | `test/*_test.ts` (not `test/ui/`) | `deno task test` | Pure logic, fixtures, regressions a browser would only slow down |
-| **UI** — Web Shell chrome the user clicks | `test/ui/` (Playwright + Workbench Test API) | `deno task test:ui` | Click-to-Map, drag/drop, dialogs, toolbox, encoding dropdown, panes that can break independently of the controller |
+| **UI** — web app chrome the user clicks | `test/ui/` (Playwright + Workbench Test API) | `deno task test:ui` | Click-to-Map, drag/drop, dialogs, toolbox, encoding dropdown, panes that can break independently of the controller |
 | **Agent / MCP** — HTTP Agent API and stdio MCP | `test/agent_*`, `test/desktop_*` | `deno task test` | Headless authoring (`--headless`, `deno task mcp`) |
 | **Optional golden** — needs an extra binary | `test/xquery_engine_test.ts`, `test/java_archie_compile_test.ts` | `deno task test:xquery-engine` / same suite (skips if missing) | Engine parity (BaseX, `javac` + Archie). Must skip, not fail, when the tool is absent |
 

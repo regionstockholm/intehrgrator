@@ -30,7 +30,7 @@ Update the file after completing each sub-task, not just after completing an ent
 - [x] 2.5 Project persistence (IndexedDB + `.intehrgrator` bundle)
 - [x] 2.6 AI assist (copy prompt + import suggestions)
 - [x] 2.7 Workbench controller (template, schema, examples, mapping, autoplay)
-- [x] 2.8 Three-pane Web Shell UI (Blockly + CodeMirror + output)
+- [x] 2.8 Three-pane web app UI (Blockly + CodeMirror + output)
 - [x] 2.9 Build pipeline (`deno task build` → `dist/`)
 - [x] 2.10 GitHub Actions CI + Pages workflow
 

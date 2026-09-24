@@ -1,6 +1,6 @@
 import { en, type ChromeMessages } from "./chrome_en.ts";
 
-/** French Web Shell chrome. Unlisted keys stay English (product names and tokens). */
+/** French web app chrome. Unlisted keys stay English (product names and tokens). */
 export const fr: ChromeMessages = {
   ...en,
   appTitle: "intEHRgrator — Banc d'intégration",
@@ -97,7 +97,7 @@ export const fr: ChromeMessages = {
   modelLanguageAria: "Langue de l'ontologie du modèle cible",
   scriptFormatsAria: "Formats de script de conversion",
   scriptFormatsHtml:
-    "L'aperçu de mappage interprète le mappage sans générer de script. Scripts de conversion (pour l'instant) : TypeScript, Java, Handlebars, XQuery et Go Template. TypeScript, Handlebars, Go Template et XQuery s'exécutent aussi dans le test de conversion. Java génère une classe Archie mais ne s'exécute pas dans le Web Shell. Pour les cibles openEHR, l'instance JSON ou XML choisit comment XQuery sérialise la composition.<br>Télécharger dans l'éditeur de script enregistre le script généré. Le bouton Télécharger sur le test de conversion enregistre cette instance.",
+    "L'aperçu de mappage interprète le mappage sans générer de script. Scripts de conversion (pour l'instant) : TypeScript, Java, Handlebars, XQuery et Go Template. TypeScript, Handlebars, Go Template et XQuery s'exécutent aussi dans le test de conversion. Java génère une classe Archie mais ne s'exécute pas dans le web app. Pour les cibles openEHR, l'instance JSON ou XML choisit comment XQuery sérialise la composition.<br>Télécharger dans l'éditeur de script enregistre le script généré. Le bouton Télécharger sur le test de conversion enregistre cette instance.",
   mappingPreview: "Aperçu du mappage",
   instance: "Instance openEHR",
   instanceTitle: "Forme d'instance openEHR souhaitée. L'export XQuery et le test de conversion utilisent cette sérialisation.",
@@ -186,7 +186,7 @@ export const fr: ChromeMessages = {
   copyMergePrompt: "Copier l'invite de fusion",
   aiCredentialsTitle: "Identifiants d'IA",
   aiCredentialsIntroHtml:
-    'Point de terminaison de chat compatible OpenAI, facultatif, pour que <strong>Appeler l\'IA</strong> puisse mapper depuis le Web Shell. Les identifiants restent dans ce navigateur uniquement — pas dans le paquet du projet. <strong>Appeler l\'IA</strong> peut utiliser les mêmes outils de mappage que MCP / l\'API HTTP de l\'agent (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Un IDE assisté par IA avec MCP local reste un chemin distinct et tout aussi valable. Pages pas à pas : <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Identifiants Appeler l\'IA</a>.',
+    'Point de terminaison de chat compatible OpenAI, facultatif, pour que <strong>Appeler l\'IA</strong> puisse mapper depuis le web app. Les identifiants restent dans ce navigateur uniquement — pas dans le paquet du projet. <strong>Appeler l\'IA</strong> peut utiliser les mêmes outils de mappage que MCP / l\'API HTTP de l\'agent (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Un IDE assisté par IA avec MCP local reste un chemin distinct et tout aussi valable. Pages pas à pas : <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Identifiants Appeler l\'IA</a>.',
   provider: "Fournisseur",
   customEndpoint: "Point de terminaison compatible OpenAI personnalisé",
   getApiKey: "Obtenir une clé d'API",

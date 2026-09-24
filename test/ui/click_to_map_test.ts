@@ -1,7 +1,7 @@
 /**
  * Browser UI test: Click-to-Map in the Mapping Editor produces a sensible Test Run.
  *
- * Requires a built Web Shell on UI_TEST_BASE_URL (default http://127.0.0.1:5173)
+ * Requires a built web app on UI_TEST_BASE_URL (default http://127.0.0.1:5173)
  * with `?testMode=1`. Prefer `deno task test:ui` which builds, serves, and runs this.
  */
 

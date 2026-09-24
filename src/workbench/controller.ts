@@ -215,7 +215,7 @@ export class WorkbenchController {
 
   /**
    * Store a Blockly workspace snapshot and regenerate export previews.
-   * Does not notify listeners — the Web Shell calls this while already
+   * Does not notify listeners — the web app calls this while already
    * rendering (after applying Mapping Model expressions onto the canvas).
    */
   syncCanvasSnapshot(blocklyState: unknown): void {
@@ -628,7 +628,7 @@ export class WorkbenchController {
 
   /**
    * Merge a Function bundle onto the canvas Blockly JSON without replacing unrelated blocks.
-   * Increments the reload token so the Web Shell reloads the workspace snapshot.
+   * Increments the reload token so the web app reloads the workspace snapshot.
    */
   applyFunctionBundle(
     bundle: FunctionBundle,

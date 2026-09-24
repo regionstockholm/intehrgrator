@@ -17,7 +17,7 @@ export const PAGES_FILE_LIST = "pages-files.txt";
 export interface VersionsManifest {
   versions: string[];
   /**
-   * Tag (e.g. "v0.7.5") the Web Shell recommends end users stick to, distinct from the
+   * Tag (e.g. "v0.7.5") the web app recommends end users stick to, distinct from the
    * bleeding-edge build at the site root. Runtime code in `web/main.ts` reads this to
    * decide whether to show the "not on the recommended version" popup. See
    * `pickRecommendedVersion` for how it is derived on each Pages deploy.

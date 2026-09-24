@@ -2,7 +2,7 @@
 
 **Status:** Proposal — investigation captured 2026-09-05; **revised 2026-09-15**
 after confirming Microsoft **Z3** ships as a **WASM** package (`z3-solver`) that
-the Web Shell can load. No verification codegen or UI yet. **Verifiable Mapping
+the web app can load. No verification codegen or UI yet. **Verifiable Mapping
 Subset (VMS)** profile landed in PR #58 (closed
 [#35](https://github.com/regionstockholm/intehrgrator/issues/35) /
 [#37](https://github.com/regionstockholm/intehrgrator/issues/37)); preview vs
@@ -29,7 +29,7 @@ instances (`TemplateValidator`) and warns on unmapped mandatory slots. That is
 
 1. **Generate** pre/post conditions and invariants from the Mapping Model
    (authors do not write SMT-LIB or Dafny by hand).
-2. **Check them in the Web Shell** with **Z3 compiled to WASM**, so Verify
+2. **Check them in the web app** with **Z3 compiled to WASM**, so Verify
    mapping is an authoring action, not a CI-only afterthought.
 3. **Show counterexamples** (loadable as an Example Instance) and **highlight
    unread Source Schema** nodes when a mapping misses legal source.
@@ -180,9 +180,9 @@ invariants:
 
 | Formalism | Notes |
 |-----------|-------|
-| **Dafny** | `requires` / `ensures` on generated `convert`; still Z3-backed, but a **second** codegen for critical slices (units, doses, identifiers). Not needed for the interactive Web Shell path now that Z3 WASM is first-class. |
+| **Dafny** | `requires` / `ensures` on generated `convert`; still Z3-backed, but a **second** codegen for critical slices (units, doses, identifiers). Not needed for the interactive web app path now that Z3 WASM is first-class. |
 | **OCL / MDE postconditions** | Classic model-transformation contracts; good inspiration for Mapping Contract DSL even if OCL is not adopted literally. |
-| **Rosette / CrossHair** | Alternative bounded symbolic engines. Prefer Z3 WASM so the Web Shell, desktop app, and evidence pack share one solver. |
+| **Rosette / CrossHair** | Alternative bounded symbolic engines. Prefer Z3 WASM so the web app, desktop app, and evidence pack share one solver. |
 
 ### Tier 3 — Weaker or heavier fit
 
@@ -201,7 +201,7 @@ Do **not** add another general-purpose execution language for verification, and
 do **not** wait on Dafny for the first interactive check.
 
 Generate a **`mapping-contract`** (human-readable YAML/JSON) **and** SMT-LIB
-from the Mapping Model. **Verify mapping** in the Web Shell runs **Z3 WASM**
+from the Mapping Model. **Verify mapping** in the web app runs **Z3 WASM**
 on that SMT. Property-based tests fill gaps Z3 cannot bound. A later Dafny
 slice remains optional for nominated critical slots.
 
@@ -251,7 +251,7 @@ Mapping Model (slots[], loops, expressions, decision tables, unsupported)
 
 ### A. Interactive Verify mapping (Z3 WASM)
 
-**Verify mapping** is an authoring action in the Web Shell (and desktop app),
+**Verify mapping** is an authoring action in the web app (and desktop app),
 not an Output mode and not a Conversion script language. It compiles the VMS
 slice of the Mapping Model plus Source Schema / target signature into SMT-LIB,
 then runs [z3-solver](https://www.npmjs.com/package/z3-solver) (Z3 as WASM +
@@ -347,7 +347,7 @@ individually:
 
 Emit the suite in the **Conversion script language currently selected in Output
 mode** (TypeScript, Java, …) so downstream teams run it with their usual
-toolchain. Java stays compile-only in the Web Shell (ADR 0003); the suite is
+toolchain. Java stays compile-only in the web app (ADR 0003); the suite is
 still generated for others to run.
 
 Do **not** emit one test per cell of the full input domain.
@@ -703,7 +703,7 @@ for SMT lowering on [#41](https://github.com/regionstockholm/intehrgrator/issues
 5. **Execution oracle** — Verify mapping checks the Mapping Model / generated SMT; ADR 0003 still requires preview ≡ TypeScript on VMS. Counterexamples should be replayed on both oracles.
 6. **Robustness generators** — how complete must Source Schema be before PBT/Z3 can claim “no valid source crashes convert”?
 7. **Sensitivity vs equivalence classes** — when `switch` or a Decision table maps many codes to one target, how to declare that class so sensitivity checks do not false-fail.
-8. **GitHub Pages + SharedArrayBuffer** — `coi-serviceworker` vs “Verify mapping on desktop / local dev only” for the Pages Web Shell.
+8. **GitHub Pages + SharedArrayBuffer** — `coi-serviceworker` vs “Verify mapping on desktop / local dev only” for the Pages web app.
 9. **Evidence pack layout** — sidecar zip vs optional Project Bundle section; whether replay is `deno task verify` or checked-in SMT + CI.
 10. **Decision table no-match** — breaking change to throw vs opt-in table flag vs Verify mapping warning until a catch-all error row exists. Recommend: warn in R0, throw only when an error row / flag is set, so existing tables keep returning `null` until authors opt in.
 11. **Template SMT bound** — how deep to encode nested `#if` / `{{if}}` before

@@ -1,6 +1,6 @@
 # UI Testing (Playwright harness)
 
-Browser tests for the Web Shell Mapping Editor. Suite strategy, seams, and CI gates: [TESTING.md](TESTING.md).
+Browser tests for the web app Mapping Editor. Suite strategy, seams, and CI gates: [TESTING.md](TESTING.md).
 
 Inspired by kintegrate’s `formTestApi` + browser harness pattern ([CyEmulator / formTestApi](https://deepwiki.com/ErikSundvall/kintegrate)), adapted to Deno + Playwright.
 
@@ -78,4 +78,4 @@ Shared helpers live in `test/ui/helpers.ts` (including `html5DragDrop` for relia
 
 ## CI
 
-`deno task test:ui` is a required gate on pull requests (`ci.yml` job `ui-test`) and on release (`release.yml` after the Web Shell build). Unit `deno task test` stays the fast default locally.
+`deno task test:ui` is a required gate on pull requests (`ci.yml` job `ui-test`) and on release (`release.yml` after the web app build). Unit `deno task test` stays the fast default locally.

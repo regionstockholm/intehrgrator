@@ -1,5 +1,5 @@
 /**
- * Web Shell chrome translations for the UI language setting.
+ * web app chrome translations for the UI language setting.
  * Blockly block text stays in `src/blockly/i18n`. Model language stays separate.
  */
 import { isIntehrLocale, type IntehrLocale } from "../blockly/i18n/custom_msg.ts";

@@ -206,6 +206,7 @@ export class FieldSlotLabel extends FieldLabelBase {
   private parentRmClass_(): string {
     const block = this.getSourceBlock?.();
     if (!block) return "";
+    if (block.type === "element") return "ELEMENT";
     return String(block.getFieldValue("RM_TYPE") || "").trim();
   }
 

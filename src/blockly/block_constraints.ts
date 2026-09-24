@@ -266,14 +266,28 @@ export function isUnmappedBlockTree(block: Block): boolean {
   return !blockHasMappedExpression(block);
 }
 
+function elementNullFlavourIsSet(block: Block): boolean {
+  const child = block.getInput(`${OPTIONAL_INPUT_PREFIX}null_flavour`)?.connection?.targetBlock() ??
+    null;
+  if (!child) return false;
+  if (isTermPickBlock(child)) {
+    const code = child.getFieldValue("CODE");
+    return Boolean(code && code !== TERM_PICK_NONE);
+  }
+  if (isDataValueBlock(child)) return Boolean(expressionBlockFromDataValueShell(child));
+  return false;
+}
+
 export function isUnmappedValueBlock(block: Block): boolean {
   if (isTermPickBlock(block)) {
     const code = block.getFieldValue("CODE");
     return !code || code === TERM_PICK_NONE;
   }
+  if (block.type === "element" && elementNullFlavourIsSet(block)) return false;
   if (block.type === "element" || isGenericValueBlockType(block.type)) {
     const value = block.getInput("VALUE")?.connection?.targetBlock();
     if (!value) return true;
+    if (isTermPickBlock(value)) return isUnmappedValueBlock(value);
     if (isDataValueBlock(value)) {
       return !expressionBlockFromDataValueShell(value);
     }

@@ -277,6 +277,24 @@ Deno.test("syncRmAttributeInputs labels statement mouths with RM attribute names
   workspace.dispose();
 });
 
+Deno.test("ELEMENT stays ELEMENT and offers null_flavour even when RM_TYPE is a DV", () => {
+  ensureBlocks();
+  const workspace = new Blockly.Workspace();
+  const element = workspace.newBlock("element");
+  element.setFieldValue("DV_TEXT", "RM_TYPE");
+  assertEquals(rmTypeOfBlock(element), "ELEMENT");
+  const names = buildOptionalRmFlyoutContents(element, []).map((item) => {
+    const state = item.extraState as { attr?: string };
+    return state.attr;
+  });
+  assert(names.includes("null_flavour"), names.join(","));
+  assert(names.includes("null_reason"), names.join(","));
+  assertEquals(names.includes("value"), false);
+  assertEquals(names.includes("encoding"), false);
+  assertEquals(names.includes("language"), false);
+  workspace.dispose();
+});
+
 Deno.test("configureElementValueSlot applies typed DATA_VALUE checks", () => {
   ensureBlocks();
   const workspace = new Blockly.Workspace();
@@ -618,12 +636,15 @@ Deno.test("ZipEHR emojis sit on block output and slot connections", () => {
   const valueLabel = value?.fieldRow[0];
   assert(isSlotLabelField(valueLabel));
   // Abstract ⁇ is drawn as an underlined tspan, not part of Field.getText().
-  assertEquals(valueLabel.getText(), "value [1..1]");
+  // ELEMENT.value is RM 0..1 DATA_VALUE even after the mouth is narrowed to a leaf.
+  assertEquals(valueLabel.getText(), "value [0..1]");
   assertEquals(valueLabel.rmType(), "DATA_VALUE");
   configureElementValueSlot(element, "DV_QUANTITY");
-  assertEquals(valueLabel.getText(), `value [1..1] ${zipehrEmojiForRmType("DV_QUANTITY")}`);
+  assertEquals(valueLabel.getText(), "value [0..1]");
+  assertEquals(valueLabel.rmType(), "DATA_VALUE");
   configureElementValueSlot(element, "DV_CODED_TEXT");
-  assertEquals(valueLabel.getText(), `value [1..1] ${zipehrEmojiForRmType("DV_CODED_TEXT")}`);
+  assertEquals(valueLabel.getText(), "value [0..1]");
+  assertEquals(valueLabel.rmType(), "DATA_VALUE");
 
   const composition = workspace.newBlock("composition");
   const content = composition.getInput(rmAttributeInputName("content"));

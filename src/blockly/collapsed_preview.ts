@@ -85,8 +85,8 @@ function isOpenEhrBlock(block: Block): boolean {
 }
 
 /**
- * ELEMENT stores the DV_* of its value slot in `RM_TYPE` for Click-to-Map.
- * Collapsed preview must still treat it as an ELEMENT container (#162).
+ * Collapsed preview treats `element` as ELEMENT even when an older canvas
+ * stored the value DV_* in `RM_TYPE` (#162, #187).
  */
 function isCollapsedDataValue(block: Block): boolean {
   if (block.type === "element" || isRmContainerBlockType(block.type)) return false;

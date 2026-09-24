@@ -12,6 +12,38 @@
 import type { SkeletonNode } from "../../types/mod.ts";
 import { isArchetypeId } from "../skeleton/template_terms.ts";
 
+/** Skeleton `name` and `archetype_node_id` are identity, not a mapped clinical value. */
+export function isLocatableIdentityAttribute(name: string): boolean {
+  return name === "name" || name === "archetype_node_id";
+}
+
+/**
+ * RM attributes filled by context defaults (language, event time, …).
+ * They ride along on a node that already has a clinical value, and do not
+ * by themselves justify emitting an optional subtree.
+ */
+export function isRmBoilerplateAttribute(name: string): boolean {
+  return isLocatableIdentityAttribute(name) ||
+    name === "language" ||
+    name === "encoding" ||
+    name === "subject" ||
+    name === "time" ||
+    name === "origin" ||
+    name === "territory" ||
+    name === "category" ||
+    name === "composer";
+}
+
+/** Template name constraint when the OPT fixes LOCATABLE.name, otherwise the term label. */
+export function rmLocatableName(node: { nameConstraint?: string; label?: string }): string {
+  return node.nameConstraint?.trim() || node.label?.trim() || "";
+}
+
+/** True when every emitted field is identity or RM boilerplate. */
+export function propsLackClinicalContent(props: ReadonlyArray<[string, unknown]>): boolean {
+  return props.every(([key]) => isRmBoilerplateAttribute(key));
+}
+
 export function rmArchetypeNodeId(
   node: Pick<SkeletonNode, "archetypeNodeId" | "archetypeRef">,
   parentArchetypeRef?: string,

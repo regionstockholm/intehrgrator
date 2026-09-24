@@ -24,7 +24,11 @@ import {
 } from "./user_functions.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
-import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
+import {
+  propsLackClinicalContent,
+  rmArchetypeNodeId,
+  rmLocatableName,
+} from "../openehr/rm_archetype_node_id.ts";
 import { isListAttribute } from "./typescript.ts";
 import { emitSheetHelpers } from "./xquery_sheets.ts";
 import {
@@ -951,7 +955,7 @@ function emitSkelNode(
   if (loop) return emitSkelLoop(node, loop, ctx, parentArchetypeRef);
 
   const props = skelProps(node, ctx, parentArchetypeRef);
-  if (!props.length && !node.mandatory && node.rmType !== "COMPOSITION") return null;
+  if (node.rmType !== "COMPOSITION" && propsLackClinicalContent(props)) return null;
   return formatSkelConstruct(node, props, ctx, isRoot);
 }
 
@@ -997,12 +1001,13 @@ function skelProps(
   parentArchetypeRef?: string,
 ): Array<[string, string]> {
   const props: Array<[string, string]> = [];
-  if (node.label && shouldEmitSkelName(node)) {
+  const locatableName = rmLocatableName(node);
+  if (locatableName && shouldEmitSkelName(node)) {
     props.push([
       "name",
       ctx.shape === "xml"
-        ? `element rm:value { ${xqString(node.label)} }`
-        : `map { "_type": "DV_TEXT", "value": ${xqString(node.label)} }`,
+        ? `element rm:value { ${xqString(locatableName)} }`
+        : `map { "_type": "DV_TEXT", "value": ${xqString(locatableName)} }`,
     ]);
   }
   const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);

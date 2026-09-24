@@ -747,7 +747,35 @@ function statementCheckForAttr(
 }
 
 export function rmTypeOfBlock(block: Blockly.Block): string {
+  if (block.type === "element") return "ELEMENT";
   return (block.getFieldValue("RM_TYPE") || block.type || "").toUpperCase();
+}
+
+/** Concrete DATA_VALUE of an ELEMENT value mouth. Older canvases stored it in RM_TYPE. */
+export function elementValueDvType(block: Blockly.Block): string {
+  const stored = String(block.getFieldValue("VALUE_RM_TYPE") || "");
+  if (stored && isDataValueType(stored) && stored !== "DATA_VALUE" && stored !== "ELEMENT") {
+    return stored;
+  }
+  const legacy = String(block.getFieldValue("RM_TYPE") || "");
+  if (legacy && isDataValueType(legacy) && legacy !== "DATA_VALUE" && legacy !== "ELEMENT") {
+    return legacy;
+  }
+  const shellType = String(block.getInputTargetBlock("VALUE")?.getFieldValue("RM_TYPE") || "");
+  if (shellType && isDataValueType(shellType) && shellType !== "DATA_VALUE") return shellType;
+  return "DV_TEXT";
+}
+
+/**
+ * Element blocks keep SLOT_ID on the value leaf. Optional RM attaches to the
+ * ELEMENT container, which is this id when the field is present.
+ */
+export function elementContainerSlotId(block: Blockly.Block): string {
+  const stored = String(block.getFieldValue("ELEMENT_SLOT_ID") || "");
+  if (stored) return stored;
+  const slotId = String(block.getFieldValue("SLOT_ID") || "");
+  const cut = slotId.search(/\/value(?:\/|$)/);
+  return cut > 0 ? slotId.slice(0, cut) : slotId;
 }
 
 export function presentAttributeNames(block: Blockly.Block): string[] {
@@ -782,13 +810,17 @@ export function dvFieldInputName(attr: string): string {
   return `${DV_FIELD_PREFIX}${attr}`;
 }
 
-/** ELEMENT.value accepts a typed DATA_VALUE shell (not raw expressions). */
+/** ELEMENT.value accepts a typed DATA_VALUE shell (not raw expressions). RM existence is 0..1. */
 export function configureElementValueSlot(block: Blockly.Block, rmType: string): void {
   const input = block.getInput("VALUE");
   if (!input) return;
   const check = blocklyCheckForDv(rmType);
   input.setCheck(check);
-  appendSlotLabel(input, "value", { card: { min: 1, max: 1 }, rmType });
+  const card = rmAttributeCardinality("ELEMENT", "value") ?? { min: 0, max: 1 };
+  appendSlotLabel(input, "value", { card, rmCard: card, rmType: "DATA_VALUE" });
+  if (block.getField("VALUE_RM_TYPE") && rmType && rmType !== "DATA_VALUE") {
+    block.setFieldValue(rmType, "VALUE_RM_TYPE");
+  }
 }
 
 /** Create (or return) the DATA_VALUE shell on an ELEMENT value input. */
@@ -1223,11 +1255,15 @@ function defineValueElementBlock(): void {
       const value = this.appendValueInput("VALUE")
         .setAlign(inputAlignRight())
         .setCheck("DATA_VALUE");
+      const valueCard = rmAttributeCardinality("ELEMENT", "value") ?? { min: 0, max: 1 };
       appendSlotLabel(value, "value", {
-        card: { min: 1, max: 1 },
+        card: valueCard,
+        rmCard: valueCard,
         rmType: slotRmTypeForAttr("ELEMENT", "value"),
       });
       appendHiddenSerializable(this, "RM_TYPE", "ELEMENT");
+      appendHiddenSerializable(this, "VALUE_RM_TYPE", "");
+      appendHiddenSerializable(this, "ELEMENT_SLOT_ID", "");
       appendHiddenSerializable(this, "MANDATORY", "");
       appendHiddenSerializable(this, "SLOT_ID", "");
       appendHiddenSerializable(this, "ARCHETYPE_NODE_ID", "");
@@ -1482,6 +1518,7 @@ function rmTypeForMutatorRestore(
   savedRmType: string,
   attrs: string[],
 ): string {
+  if (block.type === "element") return "ELEMENT";
   const saved = (savedRmType || "").toUpperCase();
   if (saved) return saved;
   const current = rmTypeOfBlock(block);

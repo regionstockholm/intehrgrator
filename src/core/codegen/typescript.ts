@@ -16,7 +16,11 @@ import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonN
 import { loopIndexBinderName, loopLengthBinderName } from "../loop_binders.ts";
 import { parseExpression, type ExprAst, isQuantifyCall } from "../expression/mod.ts";
 import { isAutoFixedValueSlot, LOCATABLE_TYPES } from "../rm_mandatory.ts";
-import { rmArchetypeNodeId } from "../openehr/rm_archetype_node_id.ts";
+import {
+  propsLackClinicalContent,
+  rmArchetypeNodeId,
+  rmLocatableName,
+} from "../openehr/rm_archetype_node_id.ts";
 import { compileAuthoringPath, looksLikeOpenEhrLocator } from "../openehr/locator.ts";
 import { attributesFor } from "../rm_meta.ts";
 import { usesOpenEhrProduct } from "./product.ts";
@@ -917,9 +921,9 @@ function emitSkeletonNode(
   }
 
   const props = skeletonContainerProps(node, slots, loops, ctx, indent, parentArchetypeRef);
-  if (!props.length && !node.mandatory && node.rmType !== "COMPOSITION") {
-    return null;
-  }
+  // Name and archetype id alone are not a mapping. Drop the shell, including
+  // mandatory children of an optional subtree that has no clinical value.
+  if (node.rmType !== "COMPOSITION" && propsLackClinicalContent(props)) return null;
   return formatRmConstruct(node.rmType, props, indent, ctx);
 }
 
@@ -971,12 +975,13 @@ function skeletonContainerProps(
   parentArchetypeRef?: string,
 ): Array<[string, string]> {
   const props: Array<[string, string]> = [];
-  if (node.label && shouldEmitSkeletonName(node)) {
+  const locatableName = rmLocatableName(node);
+  if (locatableName && shouldEmitSkeletonName(node)) {
     props.push([
       "name",
       node.rmType === "COMPOSITION"
-        ? JSON.stringify(node.label)
-        : (ctx.types.add("DV_TEXT"), `new DV_TEXT(${JSON.stringify(node.label)})`),
+        ? JSON.stringify(locatableName)
+        : (ctx.types.add("DV_TEXT"), `new DV_TEXT(${JSON.stringify(locatableName)})`),
     ]);
   }
   const nodeId = rmArchetypeNodeId(node, parentArchetypeRef);
@@ -1065,10 +1070,9 @@ function emitSkeletonValue(
   }
 
   if (rmType === "DV_QUANTITY") {
-    const props: Array<[string, string]> = [];
-    if (expr) props.push(["magnitude", asNumberExpr(expr)]);
+    if (!expr) return null;
+    const props: Array<[string, string]> = [["magnitude", asNumberExpr(expr)]];
     if (fields.units) props.push(["units", JSON.stringify(fields.units)]);
-    if (!props.length) return null;
     return formatRmConstruct("DV_QUANTITY", props, indent, ctx);
   }
 

@@ -542,33 +542,36 @@
                               "type": "element",
                               "id": "V7724Pxe(EbfQv}24Bhq",
                               "extraState": {
-                                "extras": [],
+                                "extras": [
+                                  "null_flavour"
+                                ],
                                 "attrs": [],
-                                "rmType": "DV_TEXT",
+                                "rmType": "ELEMENT",
                                 "prohibited": [],
                                 "slotCards": {},
                                 "rmCards": {}
                               },
                               "fields": {
                                 "NAME": "Problem/Diagnosis name",
-                                "RM_TYPE": "DV_TEXT",
+                                "RM_TYPE": "ELEMENT",
+                                "VALUE_RM_TYPE": "DV_TEXT",
+                                "ELEMENT_SLOT_ID": "simple-diagnose-and-vitals//content[openEHR-EHR-EVALUATION.problem_diagnosis.v1]/data/at0001/items/at0002",
                                 "MANDATORY": "1",
                                 "SLOT_ID": "simple-diagnose-and-vitals//content[openEHR-EHR-EVALUATION.problem_diagnosis.v1]/data/at0001/items/at0002/value/DV_TEXT/value",
                                 "ARCHETYPE_NODE_ID": "at0002",
                                 "ARCHETYPE_CTX": "problem_diagnosis"
                               },
                               "inputs": {
-                                "VALUE": {
+                                "OPT_null_flavour": {
                                   "block": {
-                                    "type": "dv_text",
-                                    "id": "%.^;4si]Tj?i^uAb:5yn",
-                                    "extraState": {
-                                      "fields": []
-                                    },
+                                    "type": "term_pick",
+                                    "id": "nf271ProblemDiagnosisName",
                                     "fields": {
-                                      "NAME": "Text",
-                                      "SLOT_ID": "simple-diagnose-and-vitals//content[openEHR-EHR-EVALUATION.problem_diagnosis.v1]/data/at0001/items/at0002/value/DV_TEXT/value",
-                                      "RM_TYPE": "DV_TEXT",
+                                      "NAME": "DV_CODED_TEXT",
+                                      "SET": "openehr:null_flavours",
+                                      "CODE": "271",
+                                      "SLOT_ID": "simple-diagnose-and-vitals//content[openEHR-EHR-EVALUATION.problem_diagnosis.v1]/data/at0001/items/at0002/null_flavour/value",
+                                      "RM_TYPE": "DV_CODED_TEXT",
                                       "MANDATORY": ""
                                     }
                                   }

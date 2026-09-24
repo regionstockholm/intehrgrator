@@ -74,7 +74,7 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 ## Cursor Cloud specific instructions
 
 - Intended stack (per the PRD/prompt): a local-first TypeScript static web app
-  (GitHub Pages "Web Shell") using Blockly + CodeMirror, `ehrtslib` for openEHR
+  (GitHub Pages) using Blockly + CodeMirror, `ehrtslib` for openEHR
   TypeScript, and `fontoxpath` for source queries; a VS Code extension follows
   later. Per repo preference, this is a **Deno-based** project (not Node/npm).
 - `deno` (latest stable, 2.9.0 at setup time) is installed in the VM and on
@@ -87,7 +87,7 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
   dependencies. Until then it is a no-op.
 - Go 1.22+ is on PATH in this Cloud Agent image. It is only needed to rebuild
   the vendored Go `text/template` WASM (`deno task wasm:go-template` writes
-  `web/wasm/go_texttemplate.wasm` and `wasm_exec.js`). The Web Shell loads
+  `web/wasm/go_texttemplate.wasm` and `wasm_exec.js`). The web app loads
   those files at runtime; ordinary lint/test/run does not need a Go toolchain.
   Rebuild only when `go/texttemplate` changes.
 - Optional XQuery engine golden tests (`deno task test:xquery-engine`) need

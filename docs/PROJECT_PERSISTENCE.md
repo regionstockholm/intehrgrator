@@ -2,7 +2,7 @@
 
 Projects are saved as **self-contained workspaces**.
 
-The Web Shell persists projects in IndexedDB and can export/import the same data as a single `.intehrgrator` file. A saved project must be enough to resume authoring and run examples without asking the user to re-load the original template/source files.
+The web app persists projects in IndexedDB and can export/import the same data as a single `.intehrgrator` file. A saved project must be enough to resume authoring and run examples without asking the user to re-load the original template/source files.
 
 ## Project Bundle Contents
 
@@ -25,7 +25,7 @@ The bundle stores Blockly workspace JSON as the structural Mapping Specification
 
 ## Storage
 
-- **IndexedDB**: primary Web Shell persistence (`saves` store: autosave + manual snapshots).
+- **IndexedDB**: primary web app persistence (`saves` store: autosave + manual snapshots).
 - **`.intehrgrator` export**: portable JSON bundle for sharing, backup, or moving between browsers.
 - **Import**: validates bundle version and mapping model shape before loading.
 
@@ -37,6 +37,6 @@ The bundle stores Blockly workspace JSON as the structural Mapping Specification
 
 ## Related
 
-- [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) — Save Project / Web Shell
+- [UI_ARCHITECTURE.md](UI_ARCHITECTURE.md) — Save Project / web app
 - [SOURCE_FORMATS.md](SOURCE_FORMATS.md) — source and example file handling
 - [CONTEXT.md](../CONTEXT.md) — Project Bundle

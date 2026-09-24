@@ -4,7 +4,7 @@ Golden path: **IDE + intEHRgrator desktop side-by-side**. An AI agent calls the 
 
 **Headless:** the same API/MCP tools complete **load → inspect → map → Test Run → export** with no UI (`--headless`, or `deno task mcp` without `INTEHR_AGENT_URL`).
 
-Fallback when MCP/API is unavailable: read **mapping spec** (Blockly JSON) or **generated conversion script** from export — downstream only, not round-trip authoring. Copy-paste: **Copy prompt** → external chat → **Import Suggestions**. Web Shell **Call AI** is the in-app variant: saved credentials + the same mapping tool names as this API, executed on the open workbench (desktop forwards the provider HTTP call so browser CORS does not block it).
+Fallback when MCP/API is unavailable: read **mapping spec** (Blockly JSON) or **generated conversion script** from export — downstream only, not round-trip authoring. Copy-paste: **Copy prompt** → external chat → **Import Suggestions**. Web app **Call AI** is the in-app variant: saved credentials + the same mapping tool names as this API, executed on the open workbench (desktop forwards the provider HTTP call so browser CORS does not block it).
 
 ## Call AI vs IDE MCP vs remote Agent API
 

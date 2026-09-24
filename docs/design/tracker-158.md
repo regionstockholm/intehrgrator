@@ -22,7 +22,7 @@ Convert-time `defaults` argument and `maps_get("defaults", runtimeKey)` use **ru
 
 Values live; structure is discrete (joint confirm / **Apply default context map** / later #140 refresh). No dual-read of old map JSON — convert in-repo examples in this change.
 
-Agent/MCP: hydrate the new JSON; `load_target` stays split. Joint dialog is Web Shell / desktop only.
+Agent/MCP: hydrate the new JSON; `load_target` stays split. Joint dialog is web app / desktop only.
 
 ## Blocked by
 

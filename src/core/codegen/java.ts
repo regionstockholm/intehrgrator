@@ -5,7 +5,7 @@
  * `rm(new Composition(), …)` / `new DvQuantity(…)` trees. Mapping preview
  * Test Run still evaluates Mapping Model slots through the Target instance
  * format handler (ADR 0001 / ADR 0003). Java Output mode does **not** execute
- * this script in the Web Shell; run it on a JVM with Archie on the classpath.
+ * this script in the web app; run it on a JVM with Archie on the classpath.
  */
 
 import type { MappingFunction, MappingLoop, MappingModel, MappingSlot, SkeletonNode } from "../../types/mod.ts";
@@ -931,8 +931,8 @@ function wrapJavaModule(parts: JavaModuleParts): string {
     "// Mapping preview Test Run evaluates Mapping Model slots through the Target",
     "// instance format handler (ADR 0001). Java Output mode does not execute this",
     parts.archie
-      ? "// script in the Web Shell; compile and run it on a JVM with Archie."
-      : "// script in the Web Shell; compile and run it on a JVM.",
+      ? "// script in the web app; compile and run it on a JVM with Archie."
+      : "// script in the web app; compile and run it on a JVM.",
     ...(parts.archie
       ? [
         "// Built-in verification: pass an ADL2 OperationalTemplate to the constructor",

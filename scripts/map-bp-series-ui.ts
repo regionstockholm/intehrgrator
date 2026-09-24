@@ -1,5 +1,5 @@
 /**
- * Drive the Web Shell UI for bp-series → Accident report mapping.
+ * Drive the web app UI for bp-series → Accident report mapping.
  * Writes inspectable artifacts under mappings/bp-series-accident-report/.
  *
  * Usage (dev server already on :5173, dist rebuilt):

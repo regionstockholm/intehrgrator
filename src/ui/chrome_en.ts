@@ -1,4 +1,4 @@
-/** English Web Shell chrome. Other locales must provide the same keys. */
+/** English web app chrome. Other locales must provide the same keys. */
 export const en = {
   appTitle: "intEHRgrator — Integration Workbench",
   copyPrompt: "Copy prompt",
@@ -96,7 +96,7 @@ export const en = {
   modelLanguageAria: "Target model ontology language",
   scriptFormatsAria: "Conversion script formats",
   scriptFormatsHtml:
-    "Mapping preview interprets the mapping without generating a script. Conversion scripts (so far): TypeScript, Java, Handlebars, XQuery, and Go Template. TypeScript, Handlebars, Go Template, and XQuery also run in Conversion Test Run. Java generates an Archie class but does not execute in the Web Shell. For openEHR targets, JSON vs XML instance chooses how XQuery serializes the composition.<br>Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.",
+    "Mapping preview interprets the mapping without generating a script. Conversion scripts (so far): TypeScript, Java, Handlebars, XQuery, and Go Template. TypeScript, Handlebars, Go Template, and XQuery also run in Conversion Test Run. Java generates an Archie class but does not execute in the web app. For openEHR targets, JSON vs XML instance chooses how XQuery serializes the composition.<br>Download on the script editor saves the generated script. The overlay Download on Conversion Test Run saves that instance.",
   mappingPreview: "Mapping preview",
   instance: "Instance",
   instanceTitle: "Desired openEHR instance shape. XQuery export and Test Run use this serialization.",
@@ -186,7 +186,7 @@ export const en = {
   copyMergePrompt: "Copy merge prompt",
   aiCredentialsTitle: "AI credentials",
   aiCredentialsIntroHtml:
-    'Optional OpenAI-compatible chat endpoint so <strong>Call AI</strong> can map from the Web Shell. Credentials stay in this browser only — not in the Project Bundle. <strong>Call AI</strong> can use the same mapping tools as MCP / the HTTP Agent API (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). An AI-assisted IDE with local MCP remains a separate, fully valid path. Step-by-step key pages: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Call AI credentials</a>.',
+    'Optional OpenAI-compatible chat endpoint so <strong>Call AI</strong> can map from the web app. Credentials stay in this browser only — not in the Project Bundle. <strong>Call AI</strong> can use the same mapping tools as MCP / the HTTP Agent API (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). An AI-assisted IDE with local MCP remains a separate, fully valid path. Step-by-step key pages: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Call AI credentials</a>.',
   provider: "Provider",
   customEndpoint: "Custom OpenAI-compatible endpoint",
   getApiKey: "Get an API key",

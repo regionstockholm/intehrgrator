@@ -1,6 +1,6 @@
 import { en, type ChromeMessages } from "./chrome_en.ts";
 
-/** German Web Shell chrome. Unlisted keys stay English (product names and tokens). */
+/** German web app chrome. Unlisted keys stay English (product names and tokens). */
 export const de: ChromeMessages = {
   ...en,
   appTitle: "intEHRgrator — Integrationswerkbank",
@@ -97,7 +97,7 @@ export const de: ChromeMessages = {
   modelLanguageAria: "Ontologiesprache des Zielmodells",
   scriptFormatsAria: "Formate der Konvertierungsskripte",
   scriptFormatsHtml:
-    "Die Mapping-Vorschau deutet das Mapping, ohne ein Skript zu erzeugen. Konvertierungsskripte (bisher): TypeScript, Java, Handlebars, XQuery und Go Template. TypeScript, Handlebars, Go Template und XQuery laufen auch im Konvertierungstest. Java erzeugt eine Archie-Klasse, führt sie im Web-Shell aber nicht aus. Bei openEHR-Zielen wählt JSON- oder XML-Instanz, wie XQuery die Composition serialisiert.<br>Herunterladen im Skripteditor speichert das erzeugte Skript. Herunterladen über dem Konvertierungstest speichert diese Instanz.",
+    "Die Mapping-Vorschau deutet das Mapping, ohne ein Skript zu erzeugen. Konvertierungsskripte (bisher): TypeScript, Java, Handlebars, XQuery und Go Template. TypeScript, Handlebars, Go Template und XQuery laufen auch im Konvertierungstest. Java erzeugt eine Archie-Klasse, führt sie in der Web-App aber nicht aus. Bei openEHR-Zielen wählt JSON- oder XML-Instanz, wie XQuery die Composition serialisiert.<br>Herunterladen im Skripteditor speichert das erzeugte Skript. Herunterladen über dem Konvertierungstest speichert diese Instanz.",
   mappingPreview: "Mapping-Vorschau",
   instance: "Instanz",
   instanceTitle: "Gewünschte openEHR-Instanzform. XQuery-Export und Testlauf nutzen diese Serialisierung.",
@@ -186,7 +186,7 @@ export const de: ChromeMessages = {
   copyMergePrompt: "Zusammenführungs-Prompt kopieren",
   aiCredentialsTitle: "KI-Zugangsdaten",
   aiCredentialsIntroHtml:
-    'Optionaler OpenAI-kompatibler Chat-Endpunkt, damit <strong>KI aufrufen</strong> aus der Web-Shell mappen kann. Die Zugangsdaten bleiben nur in diesem Browser — nicht im Projektpaket. <strong>KI aufrufen</strong> kann dieselben Mapping-Werkzeuge nutzen wie MCP / die HTTP-Agent-API (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Eine KI-gestützte IDE mit lokalem MCP bleibt ein eigener, voll gültiger Weg. Schritt-für-Schritt-Seiten: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Zugangsdaten für KI aufrufen</a>.',
+    'Optionaler OpenAI-kompatibler Chat-Endpunkt, damit <strong>KI aufrufen</strong> aus der Web-App mappen kann. Die Zugangsdaten bleiben nur in diesem Browser — nicht im Projektpaket. <strong>KI aufrufen</strong> kann dieselben Mapping-Werkzeuge nutzen wie MCP / die HTTP-Agent-API (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Eine KI-gestützte IDE mit lokalem MCP bleibt ein eigener, voll gültiger Weg. Schritt-für-Schritt-Seiten: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Zugangsdaten für KI aufrufen</a>.',
   provider: "Anbieter",
   customEndpoint: "Eigener OpenAI-kompatibler Endpunkt",
   getApiKey: "API-Schlüssel holen",

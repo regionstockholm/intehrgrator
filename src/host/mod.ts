@@ -16,7 +16,7 @@ export interface PickedBinaryFile {
 }
 
 /**
- * Host Abstraction shared by the Web Shell and VS Code/Cursor webview.
+ * Host Abstraction shared by the web app and VS Code/Cursor webview.
  * No DOM File, IndexedDB, or editor API types cross this seam.
  */
 export interface HostAdapter {

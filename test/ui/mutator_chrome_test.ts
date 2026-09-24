@@ -2,7 +2,7 @@
  * Browser UI: mutator cogwheels sit on the far-right header, popups anchor
  * there, and Blockly's default top-left MutatorIcon is not the visible control.
  *
- * Requires a built Web Shell on UI_TEST_BASE_URL with `?testMode=1`.
+ * Requires a built web app on UI_TEST_BASE_URL with `?testMode=1`.
  */
 
 import { assert, assertEquals } from "@std/assert";

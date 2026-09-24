@@ -1,6 +1,6 @@
 import { en, type ChromeMessages } from "./chrome_en.ts";
 
-/** Spanish Web Shell chrome. Unlisted keys stay English (product names and tokens). */
+/** Spanish web app chrome. Unlisted keys stay English (product names and tokens). */
 export const es: ChromeMessages = {
   ...en,
   appTitle: "intEHRgrator — Banco de integración",
@@ -97,7 +97,7 @@ export const es: ChromeMessages = {
   modelLanguageAria: "Idioma de la ontología del modelo de destino",
   scriptFormatsAria: "Formatos de script de conversión",
   scriptFormatsHtml:
-    "La vista previa del mapeo interpreta el mapeo sin generar un script. Scripts de conversión (hasta ahora): TypeScript, Java, Handlebars, XQuery y Go Template. TypeScript, Handlebars, Go Template y XQuery también se ejecutan en la prueba de conversión. Java genera una clase Archie pero no se ejecuta en el Web Shell. En destinos openEHR, la instancia JSON o XML elige cómo XQuery serializa la composición.<br>Descargar en el editor de script guarda el script generado. Descargar sobre la prueba de conversión guarda esa instancia.",
+    "La vista previa del mapeo interpreta el mapeo sin generar un script. Scripts de conversión (hasta ahora): TypeScript, Java, Handlebars, XQuery y Go Template. TypeScript, Handlebars, Go Template y XQuery también se ejecutan en la prueba de conversión. Java genera una clase Archie pero no se ejecuta en el web app. En destinos openEHR, la instancia JSON o XML elige cómo XQuery serializa la composición.<br>Descargar en el editor de script guarda el script generado. Descargar sobre la prueba de conversión guarda esa instancia.",
   mappingPreview: "Vista previa del mapeo",
   instance: "Instancia",
   instanceTitle: "Forma de instancia openEHR deseada. La exportación XQuery y la prueba usan esta serialización.",
@@ -186,7 +186,7 @@ export const es: ChromeMessages = {
   copyMergePrompt: "Copiar prompt de fusión",
   aiCredentialsTitle: "Credenciales de IA",
   aiCredentialsIntroHtml:
-    'Punto de chat compatible con OpenAI, opcional, para que <strong>Llamar a la IA</strong> pueda mapear desde el Web Shell. Las credenciales se quedan solo en este navegador, no en el paquete del proyecto. <strong>Llamar a la IA</strong> puede usar las mismas herramientas de mapeo que MCP / la API HTTP del agente (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Un IDE asistido por IA con MCP local sigue siendo un camino aparte y válido. Páginas paso a paso: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Credenciales de Llamar a la IA</a>.',
+    'Punto de chat compatible con OpenAI, opcional, para que <strong>Llamar a la IA</strong> pueda mapear desde el web app. Las credenciales se quedan solo en este navegador, no en el paquete del proyecto. <strong>Llamar a la IA</strong> puede usar las mismas herramientas de mapeo que MCP / la API HTTP del agente (<code>map_slot</code>, <code>import_suggestions</code>, <code>run_test</code>, …). Un IDE asistido por IA con MCP local sigue siendo un camino aparte y válido. Páginas paso a paso: <a href="https://github.com/regionstockholm/intehrgrator/blob/main/docs/AI_CREDENTIALS.md" target="_blank" rel="noopener noreferrer" id="ai-credentials-guide">Credenciales de Llamar a la IA</a>.',
   provider: "Proveedor",
   customEndpoint: "Punto propio compatible con OpenAI",
   getApiKey: "Obtener una clave de API",

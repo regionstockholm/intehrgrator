@@ -53,7 +53,7 @@ jobs:
       - name: Test
         run: deno task test
 
-      - name: Build Web Shell
+      - name: Build web app
         run: deno task build
 
       - name: Install Playwright Chromium
@@ -64,7 +64,7 @@ jobs:
           UI_TEST_SKIP_BUILD: "1"
         run: deno task test:ui
 
-      # Pages first so a desktop compile failure cannot block the frozen Web Shell.
+      # Pages first so a desktop compile failure cannot block the frozen web app.
       - name: Assemble versioned GitHub Pages tree
         run: deno run -A scripts/assemble-pages.ts release "${{ steps.rel.outputs.tag }}" dist dist-pages
 
@@ -89,9 +89,9 @@ jobs:
           {
             echo "## intEHRgrator desktop ${TAG#v}"
             echo
-            echo "Local Integration Workbench as a Deno desktop app (OS webview). Same Mapping Editor as the [Web Shell for this release](${PAGES_URL}), packaged for offline use on \`127.0.0.1\`."
+            echo "Local Integration Workbench as a Deno desktop app (OS webview). Same Mapping Editor as the [web app for this release](${PAGES_URL}), packaged for offline use on \`127.0.0.1\`."
             echo
-            echo "### Web Shell (frozen for this release)"
+            echo "### Web app (frozen for this release)"
             echo
             echo "- **This version:** [${PAGES_URL}](${PAGES_URL})"
             echo "- **Bleeding edge (main):** https://regionstockholm.github.io/intehrgrator/"

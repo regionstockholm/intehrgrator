@@ -20,7 +20,7 @@ install deno, and then:
 git clone https://github.com/regionstockholm/intehrgrator.git
 cd intehrgrator
 deno task vendor   # clone/update latest ehrtslib + examples into vendor and apply local patches
-deno task build  # build web shell into /dist
+deno task build  # build web app into /dist
 deno task dev`  # start and serve on `http://localhost:5173`
 ```
 
@@ -62,9 +62,9 @@ The UI **green-path** (`test/ui/green_path_test.ts`) walks load → Click-to-Map
 
 ### GitHub Pages
 
-Every push to `main` deploys the bleeding-edge web shell. `deno task release` also publishes an immutable copy under `/vX.Y/` and updates [versions.json](https://regionstockholm.github.io/intehrgrator/versions.json).
+Every push to `main` deploys the bleeding-edge web app. `deno task release` also publishes an immutable copy under `/vX.Y/` and updates [versions.json](https://regionstockholm.github.io/intehrgrator/versions.json).
 
-`versions.json` also carries a `recommended` field naming the tag (e.g. `"v0.7.5"`) the Web Shell suggests end users stick to. It defaults to the newest published release tag on every deploy, but a still-published previous recommendation is preserved across deploys unless overridden. To pin an older release as recommended (e.g. while a new one is still shaking out), commit a `RECOMMENDED_VERSION` file at the repo root containing just the tag; `scripts/assemble-pages.ts` reads it (or the `RECOMMENDED_VERSION` env var) on the next Pages deploy. Visiting any non-recommended version of the deployed site (including the bleeding-edge root) shows a popup linking to the recommended version, the tutorial, and the README.
+`versions.json` also carries a `recommended` field naming the tag (e.g. `"v0.7.5"`) the web app suggests end users stick to. It defaults to the newest published release tag on every deploy, but a still-published previous recommendation is preserved across deploys unless overridden. To pin an older release as recommended (e.g. while a new one is still shaking out), commit a `RECOMMENDED_VERSION` file at the repo root containing just the tag; `scripts/assemble-pages.ts` reads it (or the `RECOMMENDED_VERSION` env var) on the next Pages deploy. Visiting any non-recommended version of the deployed site (including the bleeding-edge root) shows a popup linking to the recommended version, the tutorial, and the README.
 
 CI runs **`deno task vendor`** (ehrtslib `origin/main` + local patches), so upstream module changes fail tests instead of shipping stale pins.
 

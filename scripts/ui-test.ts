@@ -1,5 +1,5 @@
 /**
- * Build Web Shell, serve dist/, run Playwright UI tests, tear down.
+ * Build web app, serve dist/, run Playwright UI tests, tear down.
  *
  * Env:
  *   UI_TEST_PORT — default 5173

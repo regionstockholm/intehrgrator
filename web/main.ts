@@ -3410,7 +3410,7 @@ function installWorkbenchTestApi(): void {
 
 async function main(): Promise<void> {
   // NOTE: `testMode` is intentionally *not* used for gating here.
-  // The Web Shell bundle is tree-shaken by esbuild in a way that can cause
+  // The web app bundle is tree-shaken by esbuild in a way that can cause
   // the `?testMode=1` branch to be dropped, which breaks Playwright tests.
   // Installing this lightweight seam unconditionally keeps the E2E harness stable.
   installWorkbenchTestApi();

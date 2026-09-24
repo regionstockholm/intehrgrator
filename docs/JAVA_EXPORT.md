@@ -7,7 +7,7 @@ and emits a compilable Archie conversion class — the same IR path as TypeScrip
 text (no openEHR instance root), the class omits Archie imports and returns a
 `Map` of mapped slot values.
 
-Web Shell **Output mode Java** shows the generated source. It does **not**
+Web app **Output mode Java** shows the generated source. It does **not**
 execute the class in the browser (no bundled JVM). Compile and run it on a
 server or CI JVM. Conversion Test Run for Java remains unimplemented
 (`unimplementedTestRunMessage`); see [ADR 0003](adr/0003-mapping-preview-vs-generated-script.md).

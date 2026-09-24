@@ -11,7 +11,7 @@
 
 ## Introduction / Overview
 
-openEHR two-level (really multi-level) modelling is RM → archetype → (specialisation)* → template → operational template. The Web Shell already walks a flattened OPT into a **Template Skeleton** of typed **RM Block**s. Informaticians therefore *use* the specialized model, but the canvas does not *teach* it: Attribute mouths show a single `[min..max]` taken from the OPT (or falling back to RM), value-domain constraints are only partially copied onto DATA_VALUE Blocks, and Optional RM Insertion can still offer attributes the template prohibited.
+openEHR two-level (really multi-level) modelling is RM → archetype → (specialisation)* → template → operational template. The web app already walks a flattened OPT into a **Template Skeleton** of typed **RM Block**s. Informaticians therefore *use* the specialized model, but the canvas does not *teach* it: Attribute mouths show a single `[min..max]` taken from the OPT (or falling back to RM), value-domain constraints are only partially copied onto DATA_VALUE Blocks, and Optional RM Insertion can still offer attributes the template prohibited.
 
 This PRD defines a condensed pedagogical **Constraint Overlay** on those RM Blocks — starting with the user’s Better Archetype Designer-style cardinality delta — plus which other AM constraint kinds to show, enforce, or defer.
 

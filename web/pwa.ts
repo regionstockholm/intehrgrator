@@ -1,4 +1,4 @@
-/** Register the Web Shell service worker when running as a static site / PWA. */
+/** Register the web app service worker when running as a static site / PWA. */
 export function registerServiceWorker(): void {
   if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
   // Desktop / file / test harnesses should not pin an offline shell.

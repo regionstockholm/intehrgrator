@@ -1,7 +1,7 @@
 /**
  * Blockly / application UI locale loading for intEHRgrator.
  * Stock strings: blockly/msg/{lang}. Custom: ./custom_msg.ts
- * This setting drives Blockly messages and the rest of the Web Shell chrome.
+ * This setting drives Blockly messages and the rest of the web app chrome.
  */
 import { Blockly } from "../blockly_core.ts";
 import {

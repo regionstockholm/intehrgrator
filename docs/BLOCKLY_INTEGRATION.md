@@ -192,7 +192,7 @@ Block Definition (JSON)
 
 TypeScript **and** Java conversion scripts are generated from the **Mapping Model + Template Skeleton** (`src/core/codegen/typescript.ts`, `src/core/codegen/java.ts`). Blockly canvas walking is an extra TypeScript path when a workspace snapshot is available; Java does not need a second Blockly pass. Blockly workspace JSON is identical regardless of Conversion script language.
 
-**v1 delivery:** TypeScript export is executable in Output mode. Java export emits a compilable Archie class (see [JAVA_EXPORT.md](JAVA_EXPORT.md)) but is **not** executed in the Web Shell. Pick **Java** in Output mode to view or download the generated class.
+**v1 delivery:** TypeScript export is executable in Output mode. Java export emits a compilable Archie class (see [JAVA_EXPORT.md](JAVA_EXPORT.md)) but is **not** executed in the web app. Pick **Java** in Output mode to view or download the generated class.
 
 ## Template-Driven Skeleton Generation
 

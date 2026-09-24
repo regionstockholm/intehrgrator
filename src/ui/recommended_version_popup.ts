@@ -1,5 +1,5 @@
 /**
- * "You are not on the recommended version" popup for the GitHub Pages Web Shell.
+ * "You are not on the recommended version" popup for the GitHub Pages web app.
  *
  * The bleeding-edge build lives at the site root and every `deno task release` also
  * freezes an immutable copy under `/vX.Y(.Z)/`. `versions.json` (see

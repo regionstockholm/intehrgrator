@@ -555,6 +555,48 @@ export function slotCaptionStandMetrics(args: {
   };
 }
 
+/**
+ * True while a caption refresh has already queued the parent.
+ * `renderEfficiently` calls `updateCollapsed` on every collapsed block, and
+ * that hook calls this function. `parent.render()` flushes immediately and
+ * re-enters measure until the stack overflows; a microtask flush during
+ * project restore also persisted a one-block canvas (#194).
+ */
+let slotCaptionRenderQueued = false;
+
+/**
+ * Recalculate slot captions on the parent after a child collapses or expands,
+ * so a 90° caption can lie flat again when the child is short (#194).
+ * Sizes update immediately. The parent is only queued, so the current measure
+ * pass cannot re-enter.
+ */
+export function refreshParentSlotCaptions(block: {
+  getParent?: () => {
+    inputList: Array<{ fieldRow: Field[] }>;
+    queueRender?: () => void;
+  } | null;
+}): void {
+  const parent = block.getParent?.();
+  if (!parent) return;
+  for (const input of parent.inputList) {
+    for (const field of input.fieldRow) {
+      if (isSlotLabelField(field)) field.updateSize_?.();
+    }
+  }
+  const queueRender = parent.queueRender;
+  if (typeof queueRender !== "function" || slotCaptionRenderQueued) return;
+  slotCaptionRenderQueued = true;
+  queueRender.call(parent);
+  // queueRender schedules the next frame first. Clear the guard after that
+  // frame so the queued render's own updateCollapsed does not queue again.
+  const later = typeof globalThis.requestAnimationFrame === "function"
+    ? (fn: () => void) => globalThis.requestAnimationFrame(fn)
+    : (fn: () => void) => queueMicrotask(fn);
+  later(() => {
+    slotCaptionRenderQueued = false;
+  });
+}
+
 function connectedChildHeightPx(field: FieldSlotLabel): number {
   const block = field.getSourceBlock?.();
   if (!block) return 0;

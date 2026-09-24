@@ -17,12 +17,12 @@ Deno.test({
       const page = await browser.newPage();
       await page.goto(`${baseUrl}/?testMode=1`, { waitUntil: "networkidle" });
       await waitForTestApi(page);
-      assertEquals((await page.locator("#btn-copy-ai").innerText()).trim(), "Copy prompt");
+      assertEquals((await page.locator("#btn-copy-ai").innerText()).trim(), "AI");
       await page.click("#btn-open-template");
       await page.locator("#dialog-joint-load").waitFor({ state: "visible", timeout: 5_000 });
       assertEquals(await page.locator("#joint-load-confirm").isDisabled(), true);
       await page.click("#joint-load-cancel");
-      await page.click("#btn-copy-ai-menu");
+      await page.click("#btn-copy-ai");
       await page.locator("#menu-copy-ai").waitFor({ state: "visible", timeout: 5_000 });
       await page.locator('[data-ai-action="call"]').waitFor({ state: "visible" });
       await page.locator('[data-ai-action="credentials"]').waitFor({ state: "visible" });

@@ -49,7 +49,6 @@ import {
   loadSkeletonIntoWorkspace,
   placeSkeletonSubtreeOnWorkspace,
   lockWorkspaceRootsExpanded,
-  setAllBlocksCollapsed,
   applyModelExpressions,
   applyModelLoops,
   attachOptionalRmChild,
@@ -107,6 +106,7 @@ import {
   installExtractToFunctionOnWorkspace,
   installFunctionLibraryMenus,
 } from "../src/blockly/mod.ts";
+import { installCollapseChildrenMenu } from "../src/blockly/collapse_children_menu.ts";
 import { APP_VERSION } from "../src/core/persistence/mod.ts";
 import {
   blockOwnClientRect,
@@ -545,6 +545,10 @@ async function bootBlockly(): Promise<void> {
     renderer: registerCompactThrasosRenderer(),
   });
   installExtractToFunctionOnWorkspace(workspace);
+  installCollapseChildrenMenu(workspace, {
+    expandChildren: () => uiChrome().expandChildren,
+    collapseChildren: () => uiChrome().collapseChildren,
+  });
   installFunctionLibraryMenus(workspace, {
     save: (name) => functionLibraryUi?.saveNamed(name),
     contribute: (name) => functionLibraryUi?.contributeNamed(name),
@@ -697,6 +701,10 @@ async function bootBlockly(): Promise<void> {
   initBlocklyCanvasDrop();
   initOutputTabs();
   initSlideAway();
+  // Subscribe before the locale-reload notify. Restoring with no listener
+  // leaves the boot defaults block on the canvas, and the next save replaces
+  // the stashed project with that one block.
+  controller.subscribe(render);
   if (localeProject) {
     controller.restoreAfterLocaleChange(localeProject);
   }
@@ -1383,16 +1391,7 @@ bind("btn-redo", () => {
   workspace.undo(true);
   refreshUndoButtons();
 });
-bind("btn-expand-all", () => {
-  setAllBlocksCollapsed(workspace, false);
-  Blockly.svgResize(workspace);
-});
-bind("btn-collapse-all", () => {
-  setAllBlocksCollapsed(workspace, true);
-  Blockly.svgResize(workspace);
-});
 bind("btn-open-canvas", () => openCanvasSnapshot());
-bind("btn-download-blockly", () => controller.exportBlocklyDefinition());
 
 function openCanvasSnapshot(): void {
   const state = controller.getState();
@@ -1461,6 +1460,7 @@ installImportAiDialog({
 installCopyAiMenu();
 installExampleSetsMenu();
 installFunctionLibraryUi();
+installFileMenu();
 installHelpMenu();
 
 const HELP_TUTORIAL_URL =
@@ -1495,24 +1495,34 @@ function installRecommendedVersionPopup(): void {
   );
 }
 
+function installFileMenu(): void {
+  const trigger = document.getElementById("btn-menu-file");
+  const menu = document.getElementById("menu-file");
+  if (!(trigger instanceof HTMLButtonElement) || !menu) return;
+  const handle = installAnchoredMenu({
+    menu,
+    trigger,
+    roots: [trigger],
+    referenceEls: [trigger],
+  });
+  menu.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => handle.close());
+  });
+}
+
 function installHelpMenu(): void {
-  const chevron = document.getElementById("btn-help-menu");
   const main = document.getElementById("btn-help");
   const menu = document.getElementById("menu-help");
-  if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) {
+  if (!(main instanceof HTMLButtonElement) || !menu) {
     return;
   }
 
   const handle = installAnchoredMenu({
     menu,
-    trigger: chevron,
+    trigger: main,
     roots: [main],
-    referenceEls: [main, chevron],
-    minWidth: main.parentElement ?? chevron,
-  });
-
-  main.addEventListener("click", () => {
-    globalThis.open(HELP_TUTORIAL_URL, "_blank", "noopener,noreferrer");
+    referenceEls: [main],
+    minWidth: main,
   });
 
   menu.querySelectorAll<HTMLAnchorElement>("a.split-btn-menu-link").forEach((link) => {
@@ -1527,25 +1537,16 @@ function lastAiDelivery(): "inline" | "attach" | "uri" {
 }
 
 function installCopyAiMenu(): void {
-  const chevron = document.getElementById("btn-copy-ai-menu");
   const main = document.getElementById("btn-copy-ai");
   const menu = document.getElementById("menu-copy-ai");
-  if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) return;
+  if (!(main instanceof HTMLButtonElement) || !menu) return;
 
   const handle = installAnchoredMenu({
     menu,
-    trigger: chevron,
+    trigger: main,
     roots: [main],
-    referenceEls: [main, chevron],
-    minWidth: main.parentElement ?? chevron,
-  });
-
-  main.addEventListener("click", () => {
-    if (hasAiCredentials(localStorage)) {
-      void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
-    } else {
-      void controller.copyAiPrompt(lastAiDelivery());
-    }
+    referenceEls: [main],
+    minWidth: main,
   });
 
   menu.querySelectorAll<HTMLButtonElement>("[data-ai-action]").forEach((btn) => {
@@ -1600,10 +1601,9 @@ function installFunctionLibraryUi(): void {
 }
 
 function installExampleSetsMenu(): void {
-  const chevron = document.getElementById("btn-example-sets-menu");
   const main = document.getElementById("btn-example-sets");
   const menu = document.getElementById("menu-example-sets");
-  if (!(chevron instanceof HTMLButtonElement) || !(main instanceof HTMLButtonElement) || !menu) {
+  if (!(main instanceof HTMLButtonElement) || !menu) {
     return;
   }
 
@@ -1706,21 +1706,16 @@ function installExampleSetsMenu(): void {
 
   handle = installAnchoredMenu({
     menu,
-    trigger: chevron,
+    trigger: main,
     roots: [main],
-    referenceEls: [main, chevron],
-    minWidth: main.parentElement ?? chevron,
+    referenceEls: [main],
+    minWidth: main,
     onBeforeOpen: () => {
       renderMenu();
       if (!catalog && !loading) void fetchCatalog();
     },
   });
 
-  main.addEventListener("click", (event) => {
-    event.stopPropagation();
-    if (handle?.isOpen()) handle.close();
-    else handle?.open();
-  });
 }
 
 let betterFormBridge: BetterFormBridge | null = null;
@@ -2559,13 +2554,8 @@ function updateCopyAiButtonLabel(): void {
   const main = document.getElementById("btn-copy-ai") as HTMLButtonElement | null;
   if (!main) return;
   const messages = uiChrome();
-  if (hasAiCredentials(localStorage)) {
-    main.textContent = messages.callAi;
-    main.title = messages.callAiTitle;
-  } else {
-    main.textContent = messages.copyPrompt;
-    main.title = messages.copyPromptTitle;
-  }
+  main.textContent = messages.menuAi;
+  main.title = hasAiCredentials(localStorage) ? messages.callAiTitle : messages.copyPromptTitle;
 }
 
 function callAiAbortSignal(): AbortSignal | undefined {
@@ -3421,7 +3411,6 @@ async function main(): Promise<void> {
   });
   await bootBlockly();
   await wasmReady;
-  controller.subscribe(render);
   render();
   workbenchReadyResolve();
 }

@@ -105,6 +105,8 @@ function collapsedRmType(block: Block): string {
 
 /** Ontology NAME when present; archetype short id only on C_ARCHETYPE_ROOT. */
 function rmVisibleTitle(block: Block, rmType: string): string {
+  // Node names such as "Rate" stay on ELEMENT, not the nested DV_* (#187).
+  if (block.type !== "element" && isDataValueBlock(block)) return "";
   const nameField = block.getField("NAME");
   const name = (nameField?.getText?.() ?? String(block.getFieldValue("NAME") || "")).trim();
   const generic = new Set(

@@ -196,6 +196,25 @@ export function lockWorkspaceRootsExpanded(workspace: Blockly.Workspace): void {
 /**
  * Collapse or expand every nested block. Workspace roots are always left expanded.
  */
+/**
+ * Collapse or expand blocks nested under `root` (not `root` itself).
+ * Used by the block context menu (#194).
+ */
+export function setChildBlocksCollapsed(root: Blockly.Block, collapsed: boolean): void {
+  const grouped = typeof Blockly.Events.setGroup === "function";
+  if (grouped) Blockly.Events.setGroup(true);
+  try {
+    const visit = (block: Blockly.Block): void => {
+      if (typeof block.isShadow === "function" && block.isShadow()) return;
+      if (typeof block.setCollapsed === "function") block.setCollapsed(collapsed);
+      for (const child of block.getChildren(false)) visit(child);
+    };
+    for (const child of root.getChildren(false)) visit(child);
+  } finally {
+    if (grouped) Blockly.Events.setGroup(false);
+  }
+}
+
 export function setAllBlocksCollapsed(
   workspace: Blockly.Workspace,
   collapsed: boolean,

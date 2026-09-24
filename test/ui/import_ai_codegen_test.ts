@@ -47,6 +47,8 @@ Deno.test({
       });
 
       await page.click("#btn-copy-ai");
+      await page.locator("#menu-copy-ai").waitFor({ state: "visible", timeout: 5_000 });
+      await page.click('[data-ai-action="copy"]');
       await page.waitForFunction(() => {
         return Boolean((globalThis as unknown as { __clip?: string }).__clip);
       }, { timeout: 10_000 });
@@ -68,6 +70,8 @@ Deno.test({
         (globalThis as unknown as { __clip?: string }).__clip = text;
       }, envelope);
 
+      await page.click("#btn-copy-ai");
+      await page.locator("#menu-copy-ai").waitFor({ state: "visible", timeout: 5_000 });
       await page.click("#btn-import-ai");
       await page.waitForSelector("#dialog-import-ai[open]", { timeout: 5_000 });
       const prefilled = await page.inputValue("#import-ai-text");

@@ -18,7 +18,7 @@ Deno.test({
       await waitForTestApi(page);
       page.on("dialog", (dialog) => dialog.accept());
 
-      await page.click("#btn-example-sets-menu");
+      await page.click("#btn-example-sets");
       const item = page.locator('[data-example-set-id="dummy-json-vitals"]');
       await item.waitFor({ timeout: 10_000 });
       assertEquals(
@@ -79,7 +79,7 @@ Deno.test({
       await waitForTestApi(page);
       page.on("dialog", (dialog) => dialog.accept());
 
-      await page.click("#btn-example-sets-menu");
+      await page.click("#btn-example-sets");
       const item = page.locator('[data-example-set-id="dummy-json-vitals-mapped"]');
       await item.waitFor({ timeout: 10_000 });
       assertEquals(

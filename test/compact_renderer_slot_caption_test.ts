@@ -5,6 +5,7 @@
 import { assertEquals } from "@std/assert";
 import {
   FieldSlotLabel,
+  refreshParentSlotCaptions,
   slotCaptionBodyEndXPx,
   slotCaptionStandMetrics,
   stoodCaptionBodyLayout,
@@ -113,6 +114,27 @@ Deno.test("stood caption pivot insets only on statement C-mouths, not puzzle soc
   assertEquals(stoodCaptionPivotXPx(16, bodyPx, false), 16);
   assertEquals(stoodCaptionPivotXPx(20, bodyPx, true), 12);
   assertEquals(stoodCaptionPivotXPx(20, bodyPx, false), 20);
+});
+
+Deno.test("refreshParentSlotCaptions queues the parent once and does not render inline", async () => {
+  const label = new FieldSlotLabel("value");
+  let queued = 0;
+  const parent = {
+    inputList: [{ fieldRow: [label] }],
+    render() {
+      throw new Error("parent.render must not run during caption refresh");
+    },
+    queueRender() {
+      queued++;
+      refreshParentSlotCaptions({ getParent: () => parent });
+    },
+  };
+  refreshParentSlotCaptions({ getParent: () => parent });
+  refreshParentSlotCaptions({ getParent: () => parent });
+  assertEquals(queued, 1);
+  await Promise.resolve();
+  refreshParentSlotCaptions({ getParent: () => parent });
+  assertEquals(queued, 2);
 });
 
 Deno.test("caption body is right-aligned against the glyph (horizontal and stood)", () => {

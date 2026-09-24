@@ -26,6 +26,8 @@ Deno.test({
       await waitForTestApi(page);
       await loadBpFixtures(page);
 
+      await page.click("#btn-copy-ai");
+      await page.locator("#menu-copy-ai").waitFor({ state: "visible", timeout: 5_000 });
       await page.click("#btn-import-ai");
       await page.waitForSelector("#dialog-import-ai[open]", { timeout: 5_000 });
 

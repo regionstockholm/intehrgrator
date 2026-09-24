@@ -19,10 +19,12 @@ install deno, and then:
 ```bash
 git clone https://github.com/regionstockholm/intehrgrator.git
 cd intehrgrator
-deno task vendor   # clone/update ehrtslib + examples into vendor/
+deno task vendor   # clone/update latest ehrtslib + examples into vendor and apply local patches
 deno task build  # build web shell into /dist
 deno task dev`  # start and serve on `http://localhost:5173`
 ```
+
+NOTE: `git pull` does not refresh or re-patch `vendor/ehrtslib`. Run `deno task vendor` after clone, and re-run after pulling `main` if openEHR validation tests fail oddly (or routinely after pull so your tree matches CI). The task resets ehrtslib to upstream `origin/main`, then re-applies local TemplateValidator patches (`scripts/patch-ehrtslib-validator.ts`).
 
 ## Tests
 
@@ -41,7 +43,7 @@ The UI **green-path** (`test/ui/green_path_test.ts`) walks load → Click-to-Map
 
 | Task | Purpose |
 | ------ | --------- |
-| `deno task vendor` | Refresh `vendor/ehrtslib` and example archetypes from upstream |
+| `deno task vendor` | Refresh `vendor/ehrtslib` and example archetypes from upstream, then apply local TemplateValidator patches |
 | `deno task build` | Static site → `dist/` (includes `examples/` + `test/fixtures/`) (+ desktop www staging) |
 | `deno task dev` | Serve `dist/` on `http://localhost:5173` |
 | `deno task test` | Unit + Agent tests (`test/`, parallel, no browser) |
@@ -64,7 +66,7 @@ Every push to `main` deploys the bleeding-edge web shell. `deno task release` al
 
 `versions.json` also carries a `recommended` field naming the tag (e.g. `"v0.7.5"`) the Web Shell suggests end users stick to. It defaults to the newest published release tag on every deploy, but a still-published previous recommendation is preserved across deploys unless overridden. To pin an older release as recommended (e.g. while a new one is still shaking out), commit a `RECOMMENDED_VERSION` file at the repo root containing just the tag; `scripts/assemble-pages.ts` reads it (or the `RECOMMENDED_VERSION` env var) on the next Pages deploy. Visiting any non-recommended version of the deployed site (including the bleeding-edge root) shows a popup linking to the recommended version, the tutorial, and the README.
 
-CI checks out **ehrtslib `origin/main`** via `vendor`, so upstream module changes fail tests instead of shipping stale pins.
+CI runs **`deno task vendor`** (ehrtslib `origin/main` + local patches), so upstream module changes fail tests instead of shipping stale pins.
 
 ## Repository layout
 

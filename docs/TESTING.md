@@ -24,7 +24,7 @@ Tabbed **Target & Previews** plus pull-from-**Target schema** live in `test/ui/t
 ## How to run
 
 ```bash
-deno task vendor          # once (ehrtslib)
+deno task vendor          # clone/update latest ehrtslib + examples into vendor and apply local patches (re-run after pull if validation tests fail oddly; see README-DEVELOPERS.md)
 deno task test            # unit + agent (parallel; ignores test/ui)
 deno task test:ui         # build dist/, serve, Playwright Chromium
 deno task test:all        # unit then UI

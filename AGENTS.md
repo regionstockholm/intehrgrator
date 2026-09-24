@@ -2,6 +2,12 @@
 
 ## Documentation guidance
 
+- Human-facing docs (`README.md`, `README-DEVELOPERS.md`, `docs/TUTORIAL.md`,
+  and similar) are for people. Keep them concise and focused on what a human
+  reader needs. Do not put agent-only instructions there — those belong in
+  `AGENTS.md` or `docs/agents/`. Shared project conventions that humans and
+  agents both need (e.g. `docs/TESTING.md`, `CONTEXT.md`) stay human-written;
+  agents are pointed at them from `AGENTS.md`.
 - Always prefer reading and analyzing original documentation of latest version
   of libraries and projects rather than random search hits or training data
   that may be of lower quality or based on outdated versions.

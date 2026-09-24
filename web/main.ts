@@ -701,6 +701,10 @@ async function bootBlockly(): Promise<void> {
   initBlocklyCanvasDrop();
   initOutputTabs();
   initSlideAway();
+  // Subscribe before the locale-reload notify. Restoring with no listener
+  // leaves the boot defaults block on the canvas, and the next save replaces
+  // the stashed project with that one block.
+  controller.subscribe(render);
   if (localeProject) {
     controller.restoreAfterLocaleChange(localeProject);
   }
@@ -3407,7 +3411,6 @@ async function main(): Promise<void> {
   });
   await bootBlockly();
   await wasmReady;
-  controller.subscribe(render);
   render();
   workbenchReadyResolve();
 }

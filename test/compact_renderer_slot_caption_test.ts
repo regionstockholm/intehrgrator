@@ -116,24 +116,25 @@ Deno.test("stood caption pivot insets only on statement C-mouths, not puzzle soc
   assertEquals(stoodCaptionPivotXPx(20, bodyPx, false), 20);
 });
 
-Deno.test("refreshParentSlotCaptions defers parent.render so collapse cannot re-enter measure", async () => {
+Deno.test("refreshParentSlotCaptions queues the parent once and does not render inline", async () => {
   const label = new FieldSlotLabel("value");
-  let renders = 0;
-  let duringCaller = true;
+  let queued = 0;
   const parent = {
     inputList: [{ fieldRow: [label] }],
     render() {
-      renders++;
-      assertEquals(duringCaller, false);
+      throw new Error("parent.render must not run during caption refresh");
+    },
+    queueRender() {
+      queued++;
       refreshParentSlotCaptions({ getParent: () => parent });
     },
   };
   refreshParentSlotCaptions({ getParent: () => parent });
   refreshParentSlotCaptions({ getParent: () => parent });
-  assertEquals(renders, 0);
-  duringCaller = false;
+  assertEquals(queued, 1);
   await Promise.resolve();
-  assertEquals(renders, 1);
+  refreshParentSlotCaptions({ getParent: () => parent });
+  assertEquals(queued, 2);
 });
 
 Deno.test("caption body is right-aligned against the glyph (horizontal and stood)", () => {

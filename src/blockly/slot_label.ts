@@ -556,23 +556,24 @@ export function slotCaptionStandMetrics(args: {
 }
 
 /**
- * True while a caption refresh has already scheduled `parent.render()`.
- * `BlockSvg.renderEfficiently` calls `updateCollapsed` before measuring, and
- * that hook calls this function. A synchronous `parent.render()` flushes
- * immediately and re-enters measure until the stack overflows (#194).
+ * True while a caption refresh has already queued the parent.
+ * `renderEfficiently` calls `updateCollapsed` on every collapsed block, and
+ * that hook calls this function. `parent.render()` flushes immediately and
+ * re-enters measure until the stack overflows; a microtask flush during
+ * project restore also persisted a one-block canvas (#194).
  */
-let slotCaptionRenderScheduled = false;
+let slotCaptionRenderQueued = false;
 
 /**
  * Recalculate slot captions on the parent after a child collapses or expands,
  * so a 90° caption can lie flat again when the child is short (#194).
- * Sizes update immediately; the parent layout is deferred so it cannot
- * re-enter the render already in progress.
+ * Sizes update immediately. The parent is only queued, so the current measure
+ * pass cannot re-enter.
  */
 export function refreshParentSlotCaptions(block: {
   getParent?: () => {
     inputList: Array<{ fieldRow: Field[] }>;
-    render?: () => void;
+    queueRender?: () => void;
   } | null;
 }): void {
   const parent = block.getParent?.();
@@ -582,15 +583,17 @@ export function refreshParentSlotCaptions(block: {
       if (isSlotLabelField(field)) field.updateSize_?.();
     }
   }
-  const render = parent.render;
-  if (typeof render !== "function" || slotCaptionRenderScheduled) return;
-  slotCaptionRenderScheduled = true;
-  queueMicrotask(() => {
-    try {
-      render.call(parent);
-    } finally {
-      slotCaptionRenderScheduled = false;
-    }
+  const queueRender = parent.queueRender;
+  if (typeof queueRender !== "function" || slotCaptionRenderQueued) return;
+  slotCaptionRenderQueued = true;
+  queueRender.call(parent);
+  // queueRender schedules the next frame first. Clear the guard after that
+  // frame so the queued render's own updateCollapsed does not queue again.
+  const later = typeof globalThis.requestAnimationFrame === "function"
+    ? (fn: () => void) => globalThis.requestAnimationFrame(fn)
+    : (fn: () => void) => queueMicrotask(fn);
+  later(() => {
+    slotCaptionRenderQueued = false;
   });
 }
 

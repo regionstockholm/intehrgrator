@@ -57,6 +57,11 @@ when a contribution issue is accepted, [`function-library/AGENTS.md`](function-l
 
 **Tests.** When adding, changing, or reviewing tests, read [docs/TESTING.md](docs/TESTING.md) first: pick the existing seam (unit, WorkbenchController, Playwright UI, or Agent/MCP), keep the UI green-path covering major authoring steps, and skip cloning an assertion onto a second layer unless that layer can miss a real bug.
 
+**End-user UI.** The web UI must work on Windows in Microsoft Edge; prefer
+compatibility with other common OS/browser combinations as well. Desktop builds
+target Windows, Linux, and macOS (no Deno required on the user’s machine). See
+[docs/UI_ARCHITECTURE.md](docs/UI_ARCHITECTURE.md).
+
 For specs and design documents, use `docs/prd/` and `docs/design/`.
 Planning lives in **GitHub Issues** ([docs/agents/issue-tracker.md](docs/agents/issue-tracker.md)).
 Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
@@ -64,12 +69,8 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 ## Development tooling guidance
 
 - When working with Javascript or Typescript based projects prefer using Deno
-  for management over using Node.js and NPM. Deno is installed in the local
-  environment, but Jules and other agents running in cloud environments might
-  need to install Deno in its VM before using it.
-- The local environment is a Windows machine without admin privileges,
-  Powershell is available. It uses [Scoop](https://scoop.sh/) for package
-  installation, so base any advice on that.
+  for management over using Node.js and NPM. Developers or agents like Jules and other agents running in cloud environments might need to install Deno in its VM before using it.
+- Local environments can be any OS, e.g. Windows, mac or linux, and with or without admin privileges. Development should preferably be possible on any of these environments. Base any advice on that.
 
 ## Cursor Cloud specific instructions
 

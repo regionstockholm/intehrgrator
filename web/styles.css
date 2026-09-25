@@ -1166,7 +1166,7 @@ body.sheets-fullscreen::before {
   cursor: help;
 }
 .blockly-mount .blockly-rm-emoji-field.blockly-rm-emoji-abstract {
-  cursor: pointer;
+  cursor: help;
 }
 
 .blocklyTooltipDiv {
@@ -1191,21 +1191,6 @@ body.sheets-fullscreen::before {
   padding: 4px 6px;
   border: 1px solid #d9d9d9;
   border-radius: 3px;
-}
-
-.blockly-rm-emoji-tip {
-  position: fixed;
-  z-index: 10000;
-  max-width: min(22rem, calc(100vw - 16px));
-  overflow: auto;
-  padding: 8px 10px;
-  border-radius: 6px;
-  background: #202124;
-  color: #fff;
-  font: 12px/1.35 "Google Sans", "Segoe UI", "Segoe UI Emoji", "Apple Color Emoji", sans-serif;
-  white-space: pre-line;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
-  pointer-events: auto;
 }
 
 /* Mapping Spec: inline widgets must not inflate CodeMirror's line box. */

@@ -75,8 +75,8 @@ try {
     console.warn("playwright install warning:", err);
   }
 
-  console.log("→ deno test test/ui");
-  await run(["deno", "test", "-A", "--no-check", "test/ui"], {
+  console.log("→ deno test test/ui", ...Deno.args);
+  await run(["deno", "test", "-A", "--no-check", "test/ui", ...Deno.args], {
     env: {
       PW_DISABLE_TS_ESM: "1",
       UI_TEST_BASE_URL: baseUrl,

@@ -67,9 +67,12 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
   for management over using Node.js and NPM. Deno is installed in the local
   environment, but Jules and other agents running in cloud environments might
   need to install Deno in its VM before using it.
-- The local environment is a Windows machine without admin privileges,
-  Powershell is available. It uses [Scoop](https://scoop.sh/) for package
-  installation, so base any advice on that.
+- The local environment is usually a Windows machine often without admin 
+  privileges Powershell is available. [Scoop](https://scoop.sh/) for package
+  installation may be available, so base any advice on that if detcted. 
+  Standard terminal sandbox isolation requires administrator privileges so
+  always run `gh` and other non-destructive commands with sandbox bypass 
+  (`BypassSandbox: true`).
 
 ## Cursor Cloud specific instructions
 

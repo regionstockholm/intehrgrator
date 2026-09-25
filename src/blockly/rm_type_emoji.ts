@@ -9,7 +9,6 @@
  */
 import type { Field, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
-import { anchorFloating, stopAnchoring } from "../ui/floating.ts";
 import { zipehrEmojiForRmType } from "../core/rm_emoji.ts";
 import {
   attributesFor,
@@ -123,15 +122,12 @@ export function isRmTypeEmojiField(field: Field | null | undefined): field is Fi
 // deno-lint-ignore no-explicit-any
 const FieldLabelBase = Blockly.FieldLabel as any;
 
-let pinSeq = 0;
-
 /** Connection-point ZipEHR glyph with tight layout, scaled typeface, and class-name tooltip. */
 export class FieldRmTypeEmoji extends FieldLabelBase {
   readonly isRmTypeEmojiField = true;
   EDITABLE = false;
   SERIALIZABLE = false;
   CURSOR = "help";
-  readonly pinId = `rm-emoji-${++pinSeq}`;
 
   private rmType_ = "";
   private forSlot_ = false;
@@ -142,7 +138,7 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     this.rmType_ = rmType;
     this.forSlot_ = forSlot;
     this.setTooltip(rmTypeConnectionTooltip(rmType));
-    this.CURSOR = forSlot && isAbstractPlaceholderType(rmType) ? "pointer" : "help";
+    this.CURSOR = "help";
     installRmTypeEmojiTooltips();
   }
 
@@ -154,7 +150,7 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
     this.rmType_ = rmType;
     const glyph = connectionPointGlyph(rmType, this.forSlot_) ?? "";
     this.setClass(cssClassFor(rmType, this.forSlot_));
-    this.CURSOR = this.forSlot_ && isAbstractPlaceholderType(rmType) ? "pointer" : "help";
+    this.CURSOR = "help";
     this.syncCssClasses_?.();
     this.setTooltip(rmTypeConnectionTooltip(rmType));
     this.setValue(glyph);
@@ -245,10 +241,6 @@ export class FieldRmTypeEmoji extends FieldLabelBase {
       if (isHardToReadRmEmoji(this.rmType_)) add(text, "blockly-rm-emoji-lg");
       else remove?.(text, "blockly-rm-emoji-lg");
     }
-  }
-
-  showEditor_(): void {
-    pinRmTypeEmojiTip(this);
   }
 
   isClickableInFlyout(): boolean {
@@ -354,9 +346,10 @@ export function appendSlotTypeEmoji(input: Input, rmType: string | undefined): v
 
 let tooltipsInstalled = false;
 
-function installRmTypeEmojiTooltips(): void {
+export function installRmTypeEmojiTooltips(): void {
   const Tooltip = Blockly.Tooltip as
     | {
+      HOVER_MS?: number;
       LIMIT?: number;
       setCustomTooltip?: (fn: (div: Element, el: Element) => void) => void;
       getTooltipOfObject?: (el: Element) => string;
@@ -367,8 +360,9 @@ function installRmTypeEmojiTooltips(): void {
   tooltipsInstalled = true;
   try {
     Tooltip.LIMIT = 4000;
+    Tooltip.HOVER_MS = 250;
   } catch {
-    // Some builds export LIMIT as a const.
+    // Some builds export LIMIT / HOVER_MS as a const.
   }
   Tooltip.setCustomTooltip?.((div, el) => {
     const host = el as Element;
@@ -379,51 +373,4 @@ function installRmTypeEmojiTooltips(): void {
     box.style.whiteSpace = full.includes("\n") ? "pre-line" : "";
     box.textContent = full;
   });
-}
-
-const PIN_ID = "blockly-rm-emoji-tip";
-
-function pinRmTypeEmojiTip(field: FieldRmTypeEmoji): void {
-  if (typeof document === "undefined") return;
-  Blockly.Tooltip?.hide?.();
-  const target = (field as unknown as { getClickTarget_?: () => Element | null })
-    .getClickTarget_?.() ?? field.fieldGroup_;
-  if (!target || !("getBoundingClientRect" in target)) return;
-  const text = rmTypeConnectionTooltip(field.rmType());
-  if (!text) return;
-
-  let tip = document.getElementById(PIN_ID);
-  if (tip && tip.dataset.anchor === field.pinId) {
-    stopAnchoring(tip);
-    tip.remove();
-    return;
-  }
-  if (tip) {
-    stopAnchoring(tip);
-    tip.remove();
-  }
-  tip = document.createElement("div");
-  tip.id = PIN_ID;
-  tip.className = "blockly-rm-emoji-tip";
-  tip.dataset.anchor = field.pinId;
-  tip.textContent = text;
-  document.body.appendChild(tip);
-  anchorFloating(target as Element, tip, {
-    placement: "bottom-start",
-    offset: 6,
-    fitSize: true,
-  });
-
-  const dismiss = (event: Event) => {
-    if (event.target instanceof Node && tip?.contains(event.target)) return;
-    if (tip) stopAnchoring(tip);
-    tip?.remove();
-    document.removeEventListener("pointerdown", dismiss, true);
-    document.removeEventListener("keydown", onKey, true);
-  };
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape") dismiss(event);
-  };
-  document.addEventListener("pointerdown", dismiss, true);
-  document.addEventListener("keydown", onKey, true);
 }

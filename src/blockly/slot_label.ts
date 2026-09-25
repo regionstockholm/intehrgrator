@@ -5,7 +5,6 @@
  */
 import type { Field, Input } from "blockly/core";
 import { Blockly } from "./blockly_core.ts";
-import { anchorFloating, stopAnchoring } from "../ui/floating.ts";
 import { documentationHelp, rmAttributeHelp } from "../core/spec_help.ts";
 import { dismissSpecHelpPopup, showSpecHelpPopup } from "../ui/spec_help_popup.ts";
 import {
@@ -49,8 +48,6 @@ export function slotLabelOverlayForEditor(options: {
 // deno-lint-ignore no-explicit-any
 const FieldLabelBase = Blockly.FieldLabel as any;
 
-let pinSeq = 0;
-
 export class FieldSlotLabel extends FieldLabelBase {
   readonly isSlotLabelField = true;
   EDITABLE = false;
@@ -72,7 +69,6 @@ export class FieldSlotLabel extends FieldLabelBase {
   private attrTspan_: SVGTSpanElement | null = null;
   private glyphElement_: SVGTextElement | null = null;
   private standing_ = false;
-  readonly pinId = `slot-label-${++pinSeq}`;
 
   /** Lets block_constraints refresh unmet cardinality on this caption. */
   get isSlotCardinalityField(): boolean {
@@ -168,11 +164,10 @@ export class FieldSlotLabel extends FieldLabelBase {
   }
 
   showEditor_(): void {
-    // Abstract ⁇ and overlay Δ handle their own click/hover on those
-    // glyphs. Field-level showEditor_ used to open the abstract tip for
-    // the whole caption, so the hyperlink looked like it had moved.
+    // Abstract ⁇ and overlay Δ handle their own hover via Blockly tooltip.
+    // Field-level showEditor_ used to open the abstract tip for the whole
+    // caption, so the hyperlink looked like it had moved.
     if (!this.hasAttrHelp_()) return;
-    dismissSlotLabelTip();
     const help = this.attributeHelp_();
     if (!help) return;
     const anchor = this.attrTspan_ ??
@@ -371,7 +366,6 @@ export class FieldSlotLabel extends FieldLabelBase {
         tspan.addEventListener("mousedown", (event) => event.stopPropagation());
         tspan.addEventListener("click", (event) => {
           event.stopPropagation();
-          dismissSlotLabelTip();
           dismissSpecHelpPopup();
           const help = this.attributeHelp_();
           if (help) showSpecHelpPopup(tspan, help);
@@ -418,24 +412,10 @@ export class FieldSlotLabel extends FieldLabelBase {
     glyphEl.textContent = glyph;
     glyphEl.classList.toggle("blockly-slot-abstract-glyph", abstractGlyph);
     glyphEl.classList.toggle("blockly-slot-type-glyph", !abstractGlyph);
-    if (abstractGlyph) {
-      glyphEl.style.cursor = "pointer";
-      glyphEl.onmousedown = (event) => event.stopPropagation();
-      glyphEl.onclick = (event) => {
-        event.stopPropagation();
-        dismissSpecHelpPopup();
-        pinSlotLabelTip(this, glyphEl);
-      };
-      glyphEl.onpointerenter = () => {
-        dismissSpecHelpPopup();
-        pinSlotLabelTip(this, glyphEl, { toggle: false });
-      };
-    } else {
-      glyphEl.style.cursor = "";
-      glyphEl.onmousedown = null;
-      glyphEl.onclick = null;
-      glyphEl.onpointerenter = null;
-    }
+    glyphEl.style.cursor = abstractGlyph ? "help" : "";
+    glyphEl.onmousedown = null;
+    glyphEl.onclick = null;
+    glyphEl.onpointerenter = null;
     const width = Number(this.size_?.width ?? 0);
     const height = Number(this.size_?.height ?? 0);
     if (stand) {
@@ -676,12 +656,10 @@ function bindSlotElementTooltip(
   }
   if (!text) {
     el.removeAttribute(attr);
-    el.removeAttribute("title");
     bound.tooltip = "";
     return;
   }
   el.setAttribute(attr, text);
-  el.setAttribute("title", text);
   bound.tooltip = text;
   // Blockly Field.bindMouseEvents uses currentTarget=fieldGroup, which
   // would steal hover from the glyph/overlay. Stop bubbling so the
@@ -717,77 +695,13 @@ function appendOverlayTspans(
     );
     if (help) {
       bindSlotElementTooltip(tspan, help, "data-constraint-overlay-tip");
-      tspan.style.cursor = "pointer";
-      tspan.addEventListener("mousedown", (event) => event.stopPropagation());
-      tspan.addEventListener("click", (event) => {
-        event.stopPropagation();
-        dismissSpecHelpPopup();
-        pinOverlayHelpTip(field, tspan);
-      });
-      tspan.addEventListener("pointerenter", () => {
-        dismissSpecHelpPopup();
-        pinOverlayHelpTip(field, tspan, { toggle: false });
-      });
+      tspan.style.cursor = "help";
     }
     el.appendChild(tspan);
   };
   add("blockly-slot-overlay-delta", OVERLAY_DELTA, true);
   add("blockly-slot-overlay-effective", effective, true);
   add("blockly-slot-overlay-rm", rm, true);
-}
-
-const OVERLAY_TIP_ID = "blockly-slot-overlay-tip";
-
-function pinOverlayHelpTip(
-  field: FieldSlotLabel,
-  anchor: Element,
-  options?: { toggle?: boolean },
-): void {
-  if (typeof document === "undefined") return;
-  Blockly.Tooltip?.hide?.();
-  const text = field.overlayHelp();
-  if (!text) return;
-  let tip = document.getElementById(OVERLAY_TIP_ID);
-  if (tip && tip.dataset.anchor === field.pinId) {
-    if (options?.toggle !== false) dismissOverlayHelpTip();
-    return;
-  }
-  dismissOverlayHelpTip();
-  dismissSlotLabelTip();
-  tip = document.createElement("div");
-  tip.id = OVERLAY_TIP_ID;
-  tip.className = "blockly-rm-emoji-tip";
-  tip.dataset.anchor = field.pinId;
-  tip.textContent = text;
-  document.body.appendChild(tip);
-  anchorFloating(anchor, tip, {
-    placement: "bottom-start",
-    offset: 6,
-    fitSize: true,
-  });
-  const dismiss = (event: Event) => {
-    if (event.target instanceof Node && tip?.contains(event.target)) return;
-    dismissOverlayHelpTip();
-  };
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape") dismiss(event);
-  };
-  document.addEventListener("pointerdown", dismiss, true);
-  document.addEventListener("keydown", onKey, true);
-  (tip as HTMLElement & { _dismiss?: () => void })._dismiss = () => {
-    document.removeEventListener("pointerdown", dismiss, true);
-    document.removeEventListener("keydown", onKey, true);
-  };
-}
-
-function dismissOverlayHelpTip(): void {
-  if (typeof document === "undefined") return;
-  const tip = document.getElementById(OVERLAY_TIP_ID);
-  if (!tip) return;
-  const cleanup = (tip as HTMLElement & { _dismiss?: () => void })._dismiss;
-  cleanup?.();
-  stopAnchoring(tip);
-  tip.remove();
 }
 
 let measureCanvas: HTMLCanvasElement | null = null;
@@ -811,63 +725,4 @@ function measureCaptionWidth(text: string, fontPx: number, abstract: boolean): n
     }
   }
   return Math.ceil(fontPx * 0.55 * text.length) + 2;
-}
-
-const PIN_ID = "blockly-slot-label-tip";
-
-function dismissSlotLabelTip(): void {
-  if (typeof document === "undefined") return;
-  const tip = document.getElementById(PIN_ID);
-  if (!tip) return;
-  const cleanup = (tip as HTMLElement & { _dismiss?: () => void })._dismiss;
-  cleanup?.();
-  stopAnchoring(tip);
-  tip.remove();
-}
-
-function pinSlotLabelTip(
-  field: FieldSlotLabel,
-  anchor?: Element,
-  options?: { toggle?: boolean },
-): void {
-  if (typeof document === "undefined") return;
-  Blockly.Tooltip?.hide?.();
-  const target = anchor ??
-    (field as unknown as { getClickTarget_?: () => Element | null })
-      .getClickTarget_?.() ?? field.fieldGroup_;
-  if (!target || !("getBoundingClientRect" in target)) return;
-  const text = rmTypeConnectionTooltip(field.rmType());
-  if (!text) return;
-
-  let tip = document.getElementById(PIN_ID);
-  if (tip && tip.dataset.anchor === field.pinId) {
-    if (options?.toggle !== false) dismissSlotLabelTip();
-    return;
-  }
-  dismissSlotLabelTip();
-  tip = document.createElement("div");
-  tip.id = PIN_ID;
-  tip.className = "blockly-rm-emoji-tip";
-  tip.dataset.anchor = field.pinId;
-  tip.textContent = text;
-  document.body.appendChild(tip);
-  anchorFloating(target as Element, tip, {
-    placement: "bottom-start",
-    offset: 6,
-    fitSize: true,
-  });
-
-  const dismiss = (event: Event) => {
-    if (event.target instanceof Node && tip?.contains(event.target)) return;
-    dismissSlotLabelTip();
-  };
-  const onKey = (event: KeyboardEvent) => {
-    if (event.key === "Escape") dismiss(event);
-  };
-  document.addEventListener("pointerdown", dismiss, true);
-  document.addEventListener("keydown", onKey, true);
-  (tip as HTMLElement & { _dismiss?: () => void })._dismiss = () => {
-    document.removeEventListener("pointerdown", dismiss, true);
-    document.removeEventListener("keydown", onKey, true);
-  };
 }

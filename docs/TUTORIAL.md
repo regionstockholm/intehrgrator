@@ -10,6 +10,10 @@ A brief guide for medical informaticians mapping source data to openEHR (or othe
 
 The layout has three panes: **Source** (left, slide-away), **Mapping Editor** (centre), **Target & Previews** (right, tabbed and slide-away).
 
+One of the easiest ways to learn the tool is to load an example set (often containing source schema, source examples, target schema and a scaffolded example with some already saved mappings) and then play around with the features and clicking the (i) - encircled i symbols in the user interface to learn mora about different things. 
+
+The steps below on the other hand describe how you start from scratch with files for your own projects.
+
 ## 2. Load source data
 
 ### Source schema (upper left)
@@ -22,24 +26,27 @@ The schema tree shows field names and types for authoring mappings without an ex
 
 Click **+ Add Example** to load one or more JSON/XML instance files (or a GitHub folder). Each file opens in its own tab.
 
-- The **active tab** drives click-to-map and **Test Run**.
-- Switch tabs to compare different patients or edge cases; each tab keeps its own last test result.
+- The **active tab** drives click-to-map and also shifts corresponding **Test Run** tab (in right-hand pane).
+- Switch tabs to compare different patients or edge cases.
 
 ## 3. Load a target
 
-In **Target & Previews** (right pane), click **Load target & default context map**. Pick a target (file, URL, or the one already loaded) and a **default context map** (openEHR factory, a saved snapshot, a file, or **New**). Confirm scaffolds the **Template Skeleton** and **Default point**s. **New** loads the target into the **Target schema** tab only so you can pull chips and values, then Apply. After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to recover deleted scaffold or add optional structure. Drag a leaf onto **scaffold target** chips, or a subtree onto a map value socket, to author the map.
+In **Target & Previews** (right pane), click **Load target & default context map**. Pick a target (file, URL, or the one already loaded) and a **default context map** (openEHR factory, a saved snapshot, a file, or **New**) if you need one. Confirm scaffolds the **Template Skeleton** and **Default point**s. **New** loads the target into the **Target schema** tab only so you can pull chips and values, then Apply. After a target loads, the **Target schema** tab shows its tree — drag a leaf or subtree onto empty canvas to add optional structure (or to recreate mistakenly deleted scaffold when detected so late that you do not want to use undo). Drag a leaf onto **scaffold target** chips, or a subtree onto a map value socket, to author the map.
 
 Supported targets:
 
-- openEHR OPT / Web Template (`.opt`, `.wt.json`, `.adl`)
-- JSON Schema, XML Schema (XSD)
-- Free-form (Handlebars-driven text output)
+- openEHR "operational templates" OPT / Web Template (`.opt`, `.wt.json`, `.adl`)
+- JSON Schema
+- XML Schema (XSD)
+- Free-form text document (no schema, likely using handlebars-templating, decision tables with text snippet output and other text manipulation blockly-blocks)
 
 When an openEHR template loads, the Mapping Editor shows a **Template Skeleton**: nested Blockly blocks matching your clinical model, including silent-mandatory RM fields the template does not mention.
 
-## 4. Set defaults before mapping
+## 4. Set defaults before mapping (if wanted)
 
-A blank project has **no** factory **default context map** rows. **Load target & default context map** and pick the openEHR factory (or a clinic snapshot). Each **entry** has a **runtime key** (`language`, `facility`, …) for convert-time `maps_get("defaults", …)`, plus **scaffold targets** (chips such as `*.language`) that light **Default point**s when you confirm or click **Apply**.
+Often formats for targets contain default values that are not in the source input, but that are either hardcoded or provided via a dynamic mapping context in the enviroment where the converion code is running. This is what the **default context map** is for, and it also can help scaffolding sensible (often repeated) things.
+
+A blank project has **no** factory **default context map** rows. Use **Load target & default context map** and for example pick the openEHR factory. Each **entry** has a **runtime key** (in the openEHR example `language`, `facility`, …) for convert-time `maps_get("defaults", …)`, plus **scaffold targets** (chips such as `*.language`) that light **Default point**s when you confirm or click **Apply**.
 
 **New** loads the target into the **Target schema** tab only: pull PARTY / term pieces onto value sockets, chip paths, **Save as**, then Apply. ▾ **Refresh from file/URL** updates a target or source without wiping canvas mappings.
 

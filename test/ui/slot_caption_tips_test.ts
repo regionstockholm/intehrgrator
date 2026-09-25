@@ -53,21 +53,31 @@ Deno.test({
       assertEquals(layout.groupHasTip, false, "type tip must not sit on the whole caption group");
 
       const tips = await page.evaluate(() => {
-        const glyph = document.querySelector(".blockly-slot-abstract-glyph");
+        const glyph = document.querySelector(".blockly-slot-abstract-glyph") as (SVGTextElement & { tooltip?: string }) | null;
         glyph?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-        const afterClick = document.getElementById("blockly-slot-label-tip")?.textContent ?? "";
-        const overlay = document.querySelector("[data-constraint-overlay-tip]");
+        const overlay = document.querySelector("[data-constraint-overlay-tip]") as (SVGElement & { tooltip?: string }) | null;
         overlay?.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true }));
-        const overlayClick = document.getElementById("blockly-slot-overlay-tip")?.textContent ?? "";
-        return { afterClick, overlayClick };
+        return {
+          slotLabelTip: document.getElementById("blockly-slot-label-tip"),
+          overlayTip: document.getElementById("blockly-slot-overlay-tip"),
+          rmEmojiTip: document.querySelector(".blockly-rm-emoji-tip"),
+          glyphTooltip: glyph?.tooltip ?? "",
+          overlayTooltip: overlay?.tooltip ?? "",
+        };
       });
+      // No persistent black pinned tooltips should be created on click
+      assertEquals(tips.slotLabelTip, null, "black pinned slot label tip should no longer exist");
+      assertEquals(tips.overlayTip, null, "black pinned overlay tip should no longer exist");
+      assertEquals(tips.rmEmojiTip, null, "no .blockly-rm-emoji-tip should exist");
+
+      // Elements have their tooltips bound for Blockly's native tooltip
       assert(
-        tips.afterClick.includes("Allowed:") || tips.afterClick.includes("abstract"),
-        `?? click tip missing: ${tips.afterClick.slice(0, 120)}`,
+        tips.glyphTooltip.includes("Allowed:") || tips.glyphTooltip.includes("abstract"),
+        `?? tooltip missing: ${tips.glyphTooltip.slice(0, 120)}`,
       );
       assert(
-        tips.overlayClick.includes("narrowed") || tips.overlayClick.includes("operational template"),
-        `overlay click tip missing: ${tips.overlayClick.slice(0, 120)}`,
+        tips.overlayTooltip.includes("narrowed") || tips.overlayTooltip.includes("operational template"),
+        `overlay tooltip missing: ${tips.overlayTooltip.slice(0, 120)}`,
       );
     } finally {
       await browser.close();

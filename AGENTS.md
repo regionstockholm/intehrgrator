@@ -69,8 +69,12 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 ## Development tooling guidance
 
 - When working with Javascript or Typescript based projects prefer using Deno
-  for management over using Node.js and NPM. Developers or agents like Jules and other agents running in cloud environments might need to install Deno in its VM before using it.
-- Local environments can be any OS, e.g. Windows, mac or linux, and with or without admin privileges. Development should preferably be possible on any of these environments. Base any advice on that.
+  for management over using Node.js and NPM. Developers or agents like Jules 
+  and other agents running in cloud environments might need to install Deno in
+  its VM before using it.
+- Local environments can be any OS, e.g. Windows, mac or linux, and with or 
+  without admin privileges. Development should preferably be possible on any
+  of these environments. Base any advice on that.
 
 ## Cursor Cloud specific instructions
 

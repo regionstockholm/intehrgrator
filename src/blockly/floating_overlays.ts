@@ -8,6 +8,7 @@ import {
   stopAnchoring,
   type FloatingReference,
 } from "../ui/floating.ts";
+import { installRmTypeEmojiTooltips } from "./rm_type_emoji.ts";
 
 type FieldLike = {
   getClickTarget_?: () => Element | null;
@@ -26,6 +27,8 @@ type TooltipLike = {
   getDiv: () => HTMLDivElement | null;
   isVisible: () => boolean;
   hide: () => void;
+  HOVER_MS?: number;
+  LIMIT?: number;
 };
 
 let installed = false;
@@ -102,6 +105,13 @@ function patchDropDownDiv(): void {
 function patchTooltip(): void {
   const Tooltip = (Blockly as unknown as { Tooltip?: TooltipLike }).Tooltip;
   if (!Tooltip?.getDiv) return;
+
+  try {
+    Tooltip.HOVER_MS = 250;
+  } catch {
+    // Read-only in some builds.
+  }
+  installRmTypeEmojiTooltips();
 
   const trackPointer = (event: PointerEvent) => {
     lastPointer = { x: event.clientX, y: event.clientY };

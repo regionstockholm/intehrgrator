@@ -2,7 +2,7 @@
 
 ## Documentation guidance
 
-- Human-facing docs (`README.md`, `README-DEVELOPERS.md`, `docs/TUTORIAL.md`,
+- Human-facing docs (`README.md`, `README_DEVELOPERS.md`, `docs/TUTORIAL.md`,
   and similar) are for people. Keep them concise and focused on what a human
   reader needs. Do not put agent-only instructions there — those belong in
   `AGENTS.md` or `docs/agents/`. Shared project conventions that humans and
@@ -75,6 +75,18 @@ Archived roadmaps and superseded drafts live in `docs/historical-archive/`.
 - Local environments can be any OS, e.g. Windows, mac or linux, and with or 
   without admin privileges. Development should preferably be possible on any
   of these environments. Base any advice on that.
+
+## File name conventions
+
+No file names should include spaces.
+
+For typescript source code, follow the standard snake_case convention (e.g. `my_file.ts`).
+
+For typescript scripts, prefer kebab-case (e.g. `my-script.ts`) or snake_case.
+
+For test fixtures, i.e. test data input and expected output, prefer kebab-case (e.g. `example-input.json`) for generated synthetic test data. For imported external artifacts where the original file name might be clearer, feel free to keep the original file name, but remove any spaces from the filename.
+
+For user-facing documentation, prefer SCREAMING_SNAKE (e.g. `README.md`, `README_DEVELOPERS.md`). For repo-internal documentation under docs/adr and docs/agents, prefer kebab-case.
 
 ## Cursor Cloud specific instructions
 

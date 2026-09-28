@@ -1,6 +1,6 @@
 /**
  * Build test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mapping.blockly.json
- * from TakeCare-CasenoteWrite-edit01.xsd + Mappningsscript 1.9.1 - PROD.txt.
+ * from TakeCare-CasenoteWrite-edit01.xsd + mappningsscript-1-9-1-prod.txt.
  *
  *   deno run -A scripts/build-chemo-symptoms-blockly.ts
  */
@@ -48,7 +48,7 @@ export interface ChemoKeywordSpec {
   group: "none-reported" | "symptom" | "after" | "numeric";
 }
 
-/** Every TakeCare TermId emitted by Mappningsscript 1.9.1 - PROD.txt */
+/** Every TakeCare TermId emitted by mappningsscript-1-9-1-prod.txt */
 export const CHEMO_KEYWORDS: ChemoKeywordSpec[] = [
   {
     kind: "TextKeyWord",
@@ -576,7 +576,7 @@ if (import.meta.main) {
     join(rootDir, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const script = Deno.readTextFileSync(
-    join(rootDir, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt"),
+    join(rootDir, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mappningsscript-1-9-1-prod.txt"),
   );
   const prodIds = extractProdTermIds(script);
   const specIds = CHEMO_KEYWORDS.map((k) => k.termId);

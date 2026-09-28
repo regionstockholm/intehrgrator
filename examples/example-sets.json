@@ -134,12 +134,12 @@
       "description": "openEHR FLAT compositions from a patient symptom questionnaire targeting TakeCare ProfdocHISMessage XML. No mapping.",
       "source": {
         "instances": [
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/6. Ex.composition (Nightly).txt"
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2-ex-composition-empty.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3-ex-composition-full.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/6-ex-composition-nightly.txt"
         ]
       },
       "target": "../test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"
@@ -147,15 +147,15 @@
     {
       "id": "chemo-symptoms-flat-to-tc-xml",
       "title": "Patient-reported chemotherapy symptoms (FLAT → TakeCare XML) — mapped",
-      "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd). Rebuilds Mappningsscript 1.9.1 PROD: all TextKeyWord/NumericKeyword TermIds, the no-symptom 16183 branch, free-text helper, and Defaults Map header parameters. Select Go Template output mode to see generated Go text/template code.",
+      "description": "openEHR FLAT composition from a patient symptom questionnaire, mapped to TakeCare ProfdocHISMessage XML using schema-generated Target schema blocks (TakeCare-CasenoteWrite-edit01.xsd). Rebuilds mappningsscript-1-9-1-prod: all TextKeyWord/NumericKeyword TermIds, the no-symptom 16183 branch, free-text helper, and Defaults Map header parameters. Select Go Template output mode to see generated Go text/template code.",
       "source": {
         "instances": [
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/6. Ex.composition (Nightly).txt"
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2-ex-composition-empty.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3-ex-composition-full.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/6-ex-composition-nightly.txt"
         ]
       },
       "target": "../test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",
@@ -168,12 +168,12 @@
       "description": "#70 sibling of chemo-symptoms-flat-to-tc-xml. Same XSD, Defaults Map, FLAT instances, and PROD Go script as gold. Inner Note {{if eq}} branches become FIRST Decision tables with VMS-Mustache snippets. cleanAndQuoteFreeTextInput stays one Go define. Do not rewrite the original chemo Blockly gold.",
       "source": {
         "instances": [
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2. Ex.composition (Empty).txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3. Ex.composition (Full).txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5. Ex.composition.txt",
-          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/6. Ex.composition (Nightly).txt"
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/2-ex-composition-empty.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/3-ex-composition-full.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/4-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/5-ex-composition.txt",
+          "../test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/6-ex-composition-nightly.txt"
         ]
       },
       "target": "../test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd",

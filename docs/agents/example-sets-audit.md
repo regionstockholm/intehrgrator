@@ -42,11 +42,11 @@ Named-broken instances (`invalid`, `broken`, `fail`, `bad` in the filename) are 
 | obx-mhv1-unmapped-json-to-openehr | `1-primigravida-basprogram.json` | yes | no | valid | — |
 | obx-mhv1-unmapped-json-to-openehr | `2-ivf-multipara.json` | yes | no | valid | — |
 | obx-mhv1-unmapped-json-to-openehr | `3-komplex-mhv3.json` | yes | no | valid | — |
-| chemo-symptoms-flat-to-tc-xml | `1. Ex.composition.txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `2. Ex.composition (Empty).txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `3. Ex.composition (Full).txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `4. Ex.composition.txt` | yes | no | valid | no source schema; parsed as JSON |
-| chemo-symptoms-flat-to-tc-xml | `5. Ex.composition.txt` | yes | no | valid | no source schema; parsed as JSON |
+| chemo-symptoms-flat-to-tc-xml | `1-ex-composition.txt` | yes | no | valid | no source schema; parsed as JSON |
+| chemo-symptoms-flat-to-tc-xml | `2-ex-composition-empty.txt` | yes | no | valid | no source schema; parsed as JSON |
+| chemo-symptoms-flat-to-tc-xml | `3-ex-composition-full.txt` | yes | no | valid | no source schema; parsed as JSON |
+| chemo-symptoms-flat-to-tc-xml | `4-ex-composition.txt` | yes | no | valid | no source schema; parsed as JSON |
+| chemo-symptoms-flat-to-tc-xml | `5-ex-composition.txt` | yes | no | valid | no source schema; parsed as JSON |
 | lung-mdt-form-to-tc-xml | `(none)` | yes | no | INVALID | catalog lists zero Example Instances |
 | karda-ordinationsdata-to-openehr-flat | `ordination-example_source_used_for_mapping.json` | yes | no | valid | — |
 | karda-ordinationsdata-to-openehr-flat | `ordination-TESTFALL-A-source-example.json` | yes | no | valid | — |

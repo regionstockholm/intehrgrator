@@ -164,12 +164,12 @@ Deno.test("#70 lung-MDT sibling TermIds and Notes match gold on evaluated Handle
 Deno.test("#70 chemo sibling TermIds and Notes match PROD script (whitespace-normalized)", async () => {
   await ensureGoTemplateWasm();
   const prodScript = Deno.readTextFileSync(
-    join(fixtures, "patient-reported-chemotherapy-symptoms", "mapping", "Mappningsscript 1.9.1 - PROD.txt"),
+    join(fixtures, "patient-reported-chemotherapy-symptoms", "mapping", "mappningsscript-1-9-1-prod.txt"),
   );
   const files = [
-    "1. Ex.composition.txt",
-    "3. Ex.composition (Full).txt",
-    "6. Ex.composition (Nightly).txt",
+    "1-ex-composition.txt",
+    "3-ex-composition-full.txt",
+    "6-ex-composition-nightly.txt",
   ];
   for (const filename of files) {
     const source = Deno.readTextFileSync(

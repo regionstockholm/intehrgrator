@@ -248,7 +248,7 @@ Instead, **analyse the PROD script and add a sibling Example Set** that keeps th
 |----------------|----------------|
 | Catalog id `lung-mdt-form-to-tc-xml` | `lung-mdt-form-to-tc-xml-decision-tables` |
 | `test/fixtures/lung-MDT-form/` (all files) | `test/fixtures/lung-MDT-form-decision-tables/mapping/mapping.blockly.json` + README |
-| `Mappningsscript XML 3.2.0 (PROD).txt` (gold Handlebars) | Same file referenced as **expected** Conversion Test Run text — do not fork the script |
+| `mappningsscript-xml-3-2-0-prod.txt` (gold Handlebars) | Same file referenced as **expected** Conversion Test Run text — do not fork the script |
 | `defaults.map.json`, TakeCare XSD | Catalog URIs pointing at those existing files |
 | QA script `3.2.1` | Out of scope unless a difference is table-relevant |
 
@@ -258,7 +258,7 @@ Success criterion: on the same Active Example, keyword `TermId`s and `Note` stri
 
 ### What the PROD script is doing (analysis)
 
-Source: [`test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt`](../../test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt). Each TakeCare keyword is a `TermId` plus a `Note`. Simple keywords (participants, current situation, comorbidity, ECOG, screening, SVF) are passthrough — leave those as `source_query` / `text_code`. The tables earn their keep on the rest.
+Source: [`test/fixtures/lung-MDT-form/mapping/mappningsscript-xml-3-2-0-prod.txt`](../../test/fixtures/lung-MDT-form/mapping/mappningsscript-xml-3-2-0-prod.txt). Each TakeCare keyword is a `TermId` plus a `Note`. Simple keywords (participants, current situation, comorbidity, ECOG, screening, SVF) are passthrough — leave those as `source_query` / `text_code`. The tables earn their keep on the rest.
 
 #### 1. Imaging modality → TermId **value** + shared Note **snippet** (FIRST)
 

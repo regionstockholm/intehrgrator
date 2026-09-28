@@ -1,7 +1,7 @@
 # Patient-Reported Chemotherapy Symptoms — Mapping Example
 
 This example rebuilds the production Go template mapping script
-(`mapping/Mappningsscript 1.9.1 - PROD.txt`) that converts openEHR FLAT JSON
+(`mapping/mappningsscript-1-9-1-prod.txt`) that converts openEHR FLAT JSON
 (from *Patientrapporterade symptom inför medicinsk onkologisk behandling*)
 into TakeCare `ProfdocHISMessage` XML.
 
@@ -17,8 +17,8 @@ from `test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic
 | File | Description |
 |------|-------------|
 | `mapping/mapping.blockly.json` | Blockly workspace (TakeCare schema blocks) |
-| `mapping/Mappningsscript 1.9.1 - PROD.txt` | Original Go template production script |
-| `mapping/Mappningsscript 1.9.1 - XC.txt` | XC variant of the same script |
+| `mapping/mappningsscript-1-9-1-prod.txt` | Original Go template production script |
+| `mapping/mappningsscript-1-9-1-xc.txt` | XC variant of the same script |
 | `defaults.map.json` | Envelope parameters (`PatId`, `UserId`, `Time`, `TemplateId`, …) |
 | `source-instance/*.txt` | openEHR FLAT composition examples |
 | `../TakeCare/TakeCare-CasenoteWrite-edit01.xsd` | Canonical target schema |

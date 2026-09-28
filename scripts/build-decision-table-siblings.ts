@@ -298,12 +298,12 @@ if (import.meta.main) {
     join(rootDir, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const lungScript = Deno.readTextFileSync(
-    join(rootDir, "test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt"),
+    join(rootDir, "test/fixtures/lung-MDT-form/mapping/mappningsscript-xml-3-2-0-prod.txt"),
   );
   const chemoScript = Deno.readTextFileSync(
     join(
       rootDir,
-      "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt",
+      "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mappningsscript-1-9-1-prod.txt",
     ),
   );
 

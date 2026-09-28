@@ -167,9 +167,9 @@ Deno.test("Test Run goes through Source Format Handler", () => {
 
 Deno.test("prose-prefixed FLAT execute envelope unwraps Data keys", () => {
   const content = Deno.readTextFileSync(
-    new URL("./fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt", import.meta.url),
+    new URL("./fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt", import.meta.url),
   );
-  assertEquals(detectSourceFormat("1. Ex.composition.txt", content), "openehr-flat-json");
+  assertEquals(detectSourceFormat("1-ex-composition.txt", content), "openehr-flat-json");
   const handler = getSourceFormatHandler("openehr-flat-json");
   const ctx = handler.createContext(content);
   const data = ctx.data as Record<string, unknown>;

@@ -4,7 +4,7 @@ Maps a lung multidisciplinary-team (MDT) openEHR form into a TakeCare
 `ProfdocHISMessage` casenote-write message.
 
 The production conversion script is Handlebars
-(`mapping/Mappningsscript XML 3.2.0 (PROD).txt`). The Blockly mapping in
+(`mapping/mappningsscript-xml-3-2-0-prod.txt`). The Blockly mapping in
 `mapping/mapping.blockly.json` rebuilds that script on **schema-generated
 TakeCare blocks** (`schema_ProfdocHISMessage`, `schema_TextKeyWord`, …) from
 `test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd`, not generic `xml_element`
@@ -13,8 +13,8 @@ blocks.
 | File | Description |
 |------|-------------|
 | `mapping/mapping.blockly.json` | Blockly workspace (TakeCare schema blocks) |
-| `mapping/Mappningsscript XML 3.2.0 (PROD).txt` | Original Handlebars production script |
-| `mapping/Mappningsscript XML 3.2.1 (QA).txt` | QA variant of the same script |
+| `mapping/mappningsscript-xml-3-2-0-prod.txt` | Original Handlebars production script |
+| `mapping/mappningsscript-xml-3-2-1-qa.txt` | QA variant of the same script |
 | `defaults.map.json` | Envelope parameters (`PatId`, `UserId`, `Time`, `TemplateId`, …) |
 | `../TakeCare/TakeCare-CasenoteWrite-edit01.xsd` | Canonical target schema |
 

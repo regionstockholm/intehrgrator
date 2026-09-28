@@ -422,7 +422,7 @@ Deno.test("Go template WASM executes index/Parameters and the chemo mapping", as
     ),
   ) as Record<string, unknown>;
   const source = Deno.readTextFileSync(
-    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt"),
   );
   const result = runTest(createEmptyModel("chemo-symptoms"), source, "json", {
     outputMode: "go-template",
@@ -518,7 +518,7 @@ Deno.test("go-template JSON walker emits expression value blocks without unsuppo
 Deno.test("Go template Test Run uses instance Parameters when no defaults overlay", async () => {
   await ensureGoTemplateWasm();
   const source = Deno.readTextFileSync(
-    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt"),
   );
   const result = runTest(createEmptyModel("chemo-symptoms"), source, "json", {
     outputMode: "go-template",
@@ -608,7 +608,7 @@ Deno.test("regexReplaceAll matches Sprig/Helm (pattern, src, replacement)", asyn
 Deno.test("PROD cleanAndQuoteFreeTextInput quotes allowed free text", async () => {
   await ensureGoTemplateWasm();
   const prod = Deno.readTextFileSync(
-    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/Mappningsscript 1.9.1 - PROD.txt"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/mapping/mappningsscript-1-9-1-prod.txt"),
   );
   const defineEnd = prod.indexOf("{{- end -}}");
   assert(defineEnd > 0, "expected sanitizer define");
@@ -703,7 +703,7 @@ Deno.test("chemo generate_script go-template from live walker parses and matches
     ),
   ) as Record<string, unknown>;
   const source = Deno.readTextFileSync(
-    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1. Ex.composition.txt"),
+    join(root, "test/fixtures/patient-reported-chemotherapy-symptoms/source-instance/1-ex-composition.txt"),
   );
   const model = createEmptyModel("chemo-symptoms");
   const skeleton = takeCareSkeleton().skeleton;

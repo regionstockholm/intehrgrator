@@ -244,7 +244,7 @@ if (import.meta.main) {
     join(rootDir, "test/fixtures/TakeCare/TakeCare-CasenoteWrite-edit01.xsd"),
   );
   const script = Deno.readTextFileSync(
-    join(rootDir, "test/fixtures/lung-MDT-form/mapping/Mappningsscript XML 3.2.0 (PROD).txt"),
+    join(rootDir, "test/fixtures/lung-MDT-form/mapping/mappningsscript-xml-3-2-0-prod.txt"),
   );
   const workspace = buildLungMdtWorkspace(xsd, script);
   const state = Blockly.serialization.workspaces.save(workspace);

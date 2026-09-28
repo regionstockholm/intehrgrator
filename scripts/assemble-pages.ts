@@ -18,7 +18,7 @@ const baseUrl = Deno.env.get("PAGES_SITE_URL") ?? PAGES_SITE_URL;
 /**
  * Optional repo-committed override: a `RECOMMENDED_VERSION` file at the repo root
  * containing a release tag (e.g. `v0.7.5`) pins the recommended end-user version even
- * when a newer release has since shipped. See README-DEVELOPERS.md.
+ * when a newer release has since shipped. See README_DEVELOPERS.md.
  */
 async function readRecommendedVersionOverride(): Promise<string | undefined> {
   try {

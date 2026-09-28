@@ -34,7 +34,7 @@ We welcome bug reports and feature requests:
 | Tutorial (all features) | [docs/TUTORIAL.md](docs/TUTORIAL.md) |
 | Terminology glossary | [CONTEXT.md](CONTEXT.md) |
 | openEHR primer | [docs/OPENEHR_PRIMER.md](docs/OPENEHR_PRIMER.md) |
-| Contributing / development | [README-DEVELOPERS.md](README-DEVELOPERS.md) |
+| Contributing / development | [README_DEVELOPERS.md](README_DEVELOPERS.md) |
 
 ## Libraries
 

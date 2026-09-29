@@ -345,9 +345,11 @@ Since intEHRgrator has no external production users (only test users), we do not
 
 ## 8. Implementation Steps & GitHub Issues Plan
 
-To ensure test-driven, incremental implementation, the redesign is split into three testable phases:
+Tracked by main parent issue: **[#209](https://github.com/regionstockholm/intehrgrator/issues/209)**.
 
-### Step 1: Core Domain Model & Codegen Separation (Constants vs. Runtime Context)
+The redesign is split into three testable sub-issues:
+
+### Step 1: Core Domain Model & Codegen Separation (Constants vs. Runtime Context) — [#210](https://github.com/regionstockholm/intehrgrator/issues/210)
 - **Scope**:
   - Domain models for `MappingConstant` and `MappingContextVar`.
   - Update TypeScript codegen: emit top-level `const`, emit `context[...]` lookups, generate integration doc header.
@@ -358,7 +360,7 @@ To ensure test-driven, incremental implementation, the redesign is split into th
   - Unit tests verifying generated code has `const` / `static final` without map lookups for constants.
   - Unit tests verifying `context` parameter execution in `test_runner`.
 
-### Step 2: Block Redesign & Editable Text-Field Scaffold Targets
+### Step 2: Block Redesign & Editable Text-Field Scaffold Targets — [#211](https://github.com/regionstockholm/intehrgrator/issues/211)
 - **Scope**:
   - Replace chip widget in `FieldScaffoldTargets` with accessible, editable text field with wildcard syntax support.
   - Update definition blocks to distinguish Constants from Context Variables.
@@ -368,7 +370,7 @@ To ensure test-driven, incremental implementation, the redesign is split into th
   - Unit tests for target parsing, specificity scoring, and block serialization.
   - UI tests for typing and editing target paths.
 
-### Step 3: Toolbox Pedagogical Organization ("Variables & Constants") & Re-apply Scaffolding
+### Step 3: Toolbox Pedagogical Organization ("Variables & Constants") & Re-apply Scaffolding — [#212](https://github.com/regionstockholm/intehrgrator/issues/212)
 - **Scope**:
   - Add "Variables & Constants" category to `toolbox_demo.ts`.
   - Add `constant_get` and `context_var_get` getter blocks.

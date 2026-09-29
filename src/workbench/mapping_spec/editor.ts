@@ -20,6 +20,7 @@ import {
   editorFindExtensions,
   type EditorCopyAllHandler,
 } from "../codemirror_setup.ts";
+import { getSearchQuery, setSearchQuery } from "@codemirror/search";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
@@ -111,6 +112,30 @@ function lineIsChecked(line: SpecLine, checkedBlockIds: ReadonlySet<string>): bo
   return (line.aliasIds ?? []).some((id) => checkedBlockIds.has(id));
 }
 
+/** Whether `[from, to)` contains a match for the active CodeMirror search query. */
+export function specRangeMatchesSearch(
+  state: EditorState,
+  from: number,
+  to: number,
+): boolean {
+  if (from >= to) return false;
+  const query = getSearchQuery(state);
+  if (!query.valid) return false;
+  const cursor = query.getCursor(state, from, to);
+  return !cursor.next().done;
+}
+
+/** Active selection overlaps this range and the range has a search hit (current match). */
+export function specRangeIsCurrentSearchHit(
+  state: EditorState,
+  from: number,
+  to: number,
+): boolean {
+  if (!specRangeMatchesSearch(state, from, to)) return false;
+  const sel = state.selection.main;
+  return sel.from < to && sel.to > from;
+}
+
 function buildDecorations(state: EditorState): DecorationSet {
   const doc = state.field(jsonDocField);
   const onEdit = state.facet(editFacet);
@@ -131,6 +156,8 @@ function buildDecorations(state: EditorState): DecorationSet {
           lineIsSelected(widget.line, chrome.selectedBlockId),
           lineIsChecked(widget.line, chrome.checkedBlockIds),
           onCheck,
+          specRangeMatchesSearch(state, widget.from, widget.to),
+          specRangeIsCurrentSearchHit(state, widget.from, widget.to),
         ),
         block: widget.line.editKind === "code",
         inclusive: widget.line.editKind !== "code",
@@ -171,7 +198,12 @@ const jsonDecorations = StateField.define<DecorationSet>({
   update(value, tr) {
     if (
       tr.docChanged ||
-      tr.effects.some((effect) => effect.is(setJsonDocEffect) || effect.is(setSpecChromeEffect))
+      tr.selection ||
+      tr.effects.some((effect) =>
+        effect.is(setJsonDocEffect) ||
+        effect.is(setSpecChromeEffect) ||
+        effect.is(setSearchQuery)
+      )
     ) {
       return buildDecorations(tr.state);
     }
@@ -220,6 +252,22 @@ const specTheme = EditorView.theme({
     outline: "2px solid #F9A825",
     outlineOffset: "-1px",
     borderRadius: "2px",
+  },
+  ".spec-widget--search-hit": {
+    background: "rgba(255, 226, 0, 0.35)",
+    borderRadius: "2px",
+  },
+  ".spec-widget--search-hit-current": {
+    background: "rgba(255, 150, 50, 0.55)",
+    outline: "1px solid #ff9632",
+    outlineOffset: "-1px",
+    borderRadius: "2px",
+  },
+  ".spec-root-divider--search-hit": {
+    background: "rgba(255, 226, 0, 0.35)",
+  },
+  ".spec-root-divider--search-hit-current": {
+    background: "rgba(255, 150, 50, 0.55)",
   },
   ".spec-widget-warning": {
     flex: "0 0 auto",

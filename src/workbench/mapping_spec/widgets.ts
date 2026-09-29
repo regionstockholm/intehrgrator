@@ -33,6 +33,8 @@ export class MappingSpecWidget extends WidgetType {
     readonly selected = false,
     readonly checked = false,
     readonly onCheckToggle?: SpecBlockCheckHandler,
+    readonly searchHit = false,
+    readonly searchHitCurrent = false,
   ) {
     super();
   }
@@ -51,7 +53,9 @@ export class MappingSpecWidget extends WidgetType {
     if (this.line.kind === "header" || other.line.kind === "header") {
       return this.line.kind === other.line.kind &&
         this.line.label === other.line.label &&
-        this.line.blockId === other.line.blockId;
+        this.line.blockId === other.line.blockId &&
+        this.searchHit === other.searchHit &&
+        this.searchHitCurrent === other.searchHitCurrent;
     }
     return (
       this.line.blockId === other.line.blockId &&
@@ -67,7 +71,9 @@ export class MappingSpecWidget extends WidgetType {
       JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
       this.warning === other.warning &&
       this.selected === other.selected &&
-      this.checked === other.checked
+      this.checked === other.checked &&
+      this.searchHit === other.searchHit &&
+      this.searchHitCurrent === other.searchHitCurrent
     );
   }
 
@@ -75,6 +81,10 @@ export class MappingSpecWidget extends WidgetType {
     if (this.line.kind === "header") {
       const divider = document.createElement("div");
       divider.className = "spec-root-divider";
+      if (this.searchHit) divider.classList.add("spec-root-divider--search-hit");
+      if (this.searchHitCurrent) {
+        divider.classList.add("spec-root-divider--search-hit-current");
+      }
       const label = document.createElement("span");
       label.className = "spec-root-divider-label";
       label.textContent = this.line.label || this.line.summary || this.line.type;
@@ -92,6 +102,8 @@ export class MappingSpecWidget extends WidgetType {
     if (this.line.editKind === "code") row.classList.add("spec-widget--multiline");
     if (this.selected) row.classList.add("spec-widget--selected");
     if (this.checked) row.classList.add("spec-widget--checked");
+    if (this.searchHit) row.classList.add("spec-widget--search-hit");
+    if (this.searchHitCurrent) row.classList.add("spec-widget--search-hit-current");
     row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
     if (this.line.blockId) row.dataset.blockId = this.line.blockId;
     if (this.warning) {

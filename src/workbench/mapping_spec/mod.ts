@@ -27,6 +27,8 @@ export {
   setMappingSpecFromBlockly,
   setMappingSpecChrome,
   scrollMappingSpecToBlock,
+  specRangeMatchesSearch,
+  specRangeIsCurrentSearchHit,
   type MappingSpecEditorOptions,
   type SpecFieldEditHandler,
   type SpecBlockSelectHandler,

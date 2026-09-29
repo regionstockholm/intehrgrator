@@ -23,6 +23,15 @@ export type SpecBlockSelectHandler = (blockId: string) => void;
 
 export type SpecBlockCheckHandler = (blockId: string, checked: boolean) => void;
 
+/** Active find query to paint inside Spec replace widgets (text + form controls). */
+export type SpecSearchPaint = {
+  search: string;
+  caseSensitive: boolean;
+  regexp: boolean;
+  /** This widget holds the focused (current) match. */
+  current: boolean;
+};
+
 /** Block-level widget that replaces one projected Spec line. */
 export class MappingSpecWidget extends WidgetType {
   constructor(
@@ -35,6 +44,7 @@ export class MappingSpecWidget extends WidgetType {
     readonly onCheckToggle?: SpecBlockCheckHandler,
     readonly searchHit = false,
     readonly searchHitCurrent = false,
+    readonly searchPaint: SpecSearchPaint | null = null,
   ) {
     super();
   }
@@ -55,7 +65,8 @@ export class MappingSpecWidget extends WidgetType {
         this.line.label === other.line.label &&
         this.line.blockId === other.line.blockId &&
         this.searchHit === other.searchHit &&
-        this.searchHitCurrent === other.searchHitCurrent;
+        this.searchHitCurrent === other.searchHitCurrent &&
+        searchPaintEq(this.searchPaint, other.searchPaint);
     }
     return (
       this.line.blockId === other.line.blockId &&
@@ -73,7 +84,8 @@ export class MappingSpecWidget extends WidgetType {
       this.selected === other.selected &&
       this.checked === other.checked &&
       this.searchHit === other.searchHit &&
-      this.searchHitCurrent === other.searchHitCurrent
+      this.searchHitCurrent === other.searchHitCurrent &&
+      searchPaintEq(this.searchPaint, other.searchPaint)
     );
   }
 
@@ -95,6 +107,7 @@ export class MappingSpecWidget extends WidgetType {
         divider.classList.add("spec-root-divider--clickable");
         divider.addEventListener("click", () => this.onSelect?.(this.line.blockId!));
       }
+      applySpecSearchPaint(divider, this.searchPaint);
       return divider;
     }
     const row = document.createElement("span");
@@ -203,6 +216,7 @@ export class MappingSpecWidget extends WidgetType {
         this.onSelect?.(this.line.blockId!);
       });
     }
+    applySpecSearchPaint(row, this.searchPaint);
     return row;
   }
 
@@ -553,5 +567,107 @@ function badgeLabel(line: SpecLine): string {
       return line.type.replace(/^schema_/, "");
     default:
       return line.type;
+  }
+}
+
+function searchPaintEq(a: SpecSearchPaint | null, b: SpecSearchPaint | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.search === b.search &&
+    a.caseSensitive === b.caseSensitive &&
+    a.regexp === b.regexp &&
+    a.current === b.current;
+}
+
+function textMatchesSearch(text: string, paint: SpecSearchPaint): boolean {
+  if (!text || !paint.search) return false;
+  if (paint.regexp) {
+    try {
+      return new RegExp(paint.search, paint.caseSensitive ? "" : "i").test(text);
+    } catch {
+      return false;
+    }
+  }
+  if (paint.caseSensitive) return text.includes(paint.search);
+  return text.toLowerCase().includes(paint.search.toLowerCase());
+}
+
+/** Split plain text into text + <mark> nodes for each match. */
+export function highlightSearchInText(text: string, paint: SpecSearchPaint): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  if (!paint.search || !textMatchesSearch(text, paint)) {
+    frag.append(text);
+    return frag;
+  }
+  if (paint.regexp) {
+    let re: RegExp;
+    try {
+      re = new RegExp(paint.search, paint.caseSensitive ? "g" : "gi");
+    } catch {
+      frag.append(text);
+      return frag;
+    }
+    let last = 0;
+    for (const match of text.matchAll(re)) {
+      const start = match.index ?? 0;
+      const body = match[0] ?? "";
+      if (!body) break;
+      if (start > last) frag.append(text.slice(last, start));
+      const mark = document.createElement("mark");
+      mark.className = paint.current ? "spec-search-text-hit spec-search-text-hit--current" : "spec-search-text-hit";
+      mark.textContent = body;
+      frag.append(mark);
+      last = start + body.length;
+    }
+    if (last < text.length) frag.append(text.slice(last));
+    return frag;
+  }
+  const needle = paint.search;
+  const hay = paint.caseSensitive ? text : text.toLowerCase();
+  const needleCmp = paint.caseSensitive ? needle : needle.toLowerCase();
+  let last = 0;
+  let idx = hay.indexOf(needleCmp, last);
+  while (idx >= 0) {
+    if (idx > last) frag.append(text.slice(last, idx));
+    const mark = document.createElement("mark");
+    mark.className = paint.current ? "spec-search-text-hit spec-search-text-hit--current" : "spec-search-text-hit";
+    mark.textContent = text.slice(idx, idx + needle.length);
+    frag.append(mark);
+    last = idx + needle.length;
+    idx = hay.indexOf(needleCmp, last);
+  }
+  if (last < text.length) frag.append(text.slice(last));
+  return frag;
+}
+
+/** Paint find matches onto Spec widget DOM (text marks + control backgrounds). */
+export function applySpecSearchPaint(root: HTMLElement, paint: SpecSearchPaint | null): void {
+  if (!paint?.search) return;
+
+  for (const el of root.querySelectorAll("input, textarea, select")) {
+    if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement ||
+      el instanceof HTMLSelectElement)) continue;
+    if (el.classList.contains("spec-widget-checkbox")) continue;
+    const value = el instanceof HTMLSelectElement
+      ? (el.selectedOptions[0]?.text ?? el.value)
+      : el.value;
+    if (!textMatchesSearch(value, paint)) continue;
+    el.classList.add(paint.current ? "spec-search-control-hit-current" : "spec-search-control-hit");
+  }
+
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const textNodes: Text[] = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!(node instanceof Text) || !node.nodeValue) continue;
+    const parent = node.parentElement;
+    if (!parent) continue;
+    if (parent.closest("input, textarea, select, button, .info-tip-balloon, mark")) continue;
+    if (!textMatchesSearch(node.nodeValue, paint)) continue;
+    textNodes.push(node);
+  }
+  for (const node of textNodes) {
+    const text = node.nodeValue ?? "";
+    const frag = highlightSearchInText(text, paint);
+    node.parentNode?.replaceChild(frag, node);
   }
 }

@@ -5,6 +5,7 @@ import { blocklyJsonDocument } from "@intehrgrator/workbench/mapping_spec/projec
 import {
   specRangeIsCurrentSearchHit,
   specRangeMatchesSearch,
+  specSearchFocusField,
 } from "@intehrgrator/workbench/mapping_spec/editor.ts";
 
 Deno.test("specRangeMatchesSearch finds projected Spec line text under replace widgets", () => {
@@ -40,7 +41,7 @@ Deno.test("specRangeMatchesSearch finds projected Spec line text under replace w
   assertEquals(specRangeMatchesSearch(state, widget.from, widget.to), false);
 });
 
-Deno.test("specRangeIsCurrentSearchHit follows the selected match range", () => {
+Deno.test("specRangeIsCurrentSearchHit follows exact selected match (fallback)", () => {
   const doc = "alpha\nelement · systolic\nomega";
   let state = EditorState.create({
     doc,
@@ -56,4 +57,46 @@ Deno.test("specRangeIsCurrentSearchHit follows the selected match range", () => 
   assertEquals(specRangeMatchesSearch(state, from, to), true);
   assertEquals(specRangeIsCurrentSearchHit(state, from, to), true);
   assertEquals(specRangeIsCurrentSearchHit(state, 0, 5), false);
+});
+
+Deno.test("specRangeIsCurrentSearchHit uses select.search focus when caret is remapped away", () => {
+  const doc = "alpha\nelement · systolic\nomega";
+  const from = doc.indexOf("element");
+  const to = from + "element".length;
+  let state = EditorState.create({
+    doc,
+    extensions: [search({ top: true }), specSearchFocusField],
+  });
+  state = state.update({
+    effects: setSearchQuery.of(new SearchQuery({ search: "element" })),
+  }).state;
+  // findNext-style jump records focus via userEvent even if caret later remaps.
+  state = state.update({
+    selection: EditorSelection.range(from, to),
+    userEvent: "select.search",
+  }).state;
+  // Remap caret to a collapsed position outside the match (replace-widget behavior).
+  state = state.update({
+    selection: EditorSelection.cursor(0),
+  }).state;
+
+  assertEquals(state.field(specSearchFocusField), { from, to });
+  assertEquals(specRangeIsCurrentSearchHit(state, from, to), true);
+  assertEquals(specRangeIsCurrentSearchHit(state, 0, 5), false);
+});
+
+Deno.test("specSearchFocusField lands on first match when query is set", () => {
+  const doc = "alpha\nelement · systolic\nomega";
+  const from = doc.indexOf("element");
+  const to = from + "element".length;
+  let state = EditorState.create({
+    doc,
+    extensions: [search({ top: true }), specSearchFocusField],
+  });
+  state = state.update({
+    effects: setSearchQuery.of(new SearchQuery({ search: "element" })),
+  }).state;
+
+  assertEquals(state.field(specSearchFocusField), { from, to });
+  assertEquals(specRangeIsCurrentSearchHit(state, from, to), true);
 });

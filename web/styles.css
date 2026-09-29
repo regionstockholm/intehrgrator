@@ -500,37 +500,41 @@ body { display: flex; flex-direction: column; min-height: 100%; }
   display: inline-flex; align-items: center; gap: 4px; position: relative;
 }
 .output-tab-mark { flex-shrink: 0; font-size: 12px; line-height: 1; }
-.test-output-host {
+.test-output-host,
+.export-editor-host,
+.spec-editor-host {
   position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
 }
-.test-output-download,
-.export-download {
+.editor-action-toolbar {
   position: absolute;
   top: 6px;
   right: 6px;
   z-index: 3;
-  font-size: 11px;
-  padding: 3px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--surface-alt, #fff) 88%, var(--primary) 12%);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
-.export-editor-host {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+.editor-action-toolbar .editor-action-btn {
+  font-size: 11px;
+  padding: 3px 6px;
+  min-width: 28px;
+  justify-content: center;
 }
 
 .mapping-pane { display: flex; flex-direction: column; }
 .mapping-bottom { min-height: 0; display: flex; flex-direction: column; padding: 8px; }
 .mapping-editor-tabs { display: flex; align-items: center; gap: 4px; margin-bottom: 6px; }
 .mapping-editor-tab-group { display: flex; gap: 4px; }
-.mapping-spec-download,
-.mapping-spec-upload { margin-left: 4px; font-size: 11px; padding: 3px 8px; }
-.mapping-spec-download { margin-left: auto; }
+.mapping-spec-upload { margin-left: auto; font-size: 11px; padding: 3px 6px; }
 .mapping-spec-bulk-bar {
   display: inline-flex;
   align-items: center;

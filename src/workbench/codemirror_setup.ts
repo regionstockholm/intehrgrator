@@ -14,6 +14,7 @@ import {
   StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { vmsTemplateLintExtensions } from "./template_lint.ts";
 
 /** Languages we can highlight. `"none"` still gets folding chrome, but no parser. */
@@ -111,6 +112,32 @@ export function languageForExportTarget(target: string, code = ""): EditorLangua
   return "none";
 }
 
+/** Copy full document when Mod-c and the selection is empty. */
+export type EditorCopyAllHandler = (text: string) => void | Promise<void>;
+
+function copyAllIfEmptyKeymap(copyAll: EditorCopyAllHandler): Extension {
+  return keymap.of([{
+    key: "Mod-c",
+    run: (view) => {
+      if (!view.state.selection.main.empty) return false;
+      void copyAll(view.state.doc.toString());
+      return true;
+    },
+  }]);
+}
+
+/**
+ * In-editor search (Ctrl/Cmd+F) and optional Mod-c copy-all when selection empty.
+ * Used by readonly script/test viewers and Mapping Spec — not inline Blockly fields.
+ */
+export function editorFindExtensions(copyAll?: EditorCopyAllHandler): Extension[] {
+  return [
+    highlightSelectionMatches(),
+    keymap.of(searchKeymap),
+    ...(copyAll ? [copyAllIfEmptyKeymap(copyAll)] : []),
+  ];
+}
+
 /** Line numbers, fold gutter, foldCode keymap, highlighting. Shared by all editors. */
 export const editorChromeExtensions: Extension[] = [
   lineNumbers(),
@@ -201,10 +228,12 @@ export function createReadonlyEditor(
   parent: HTMLElement,
   placeholder = "",
   language: EditorLanguage = "javascript",
+  options: { copyAll?: EditorCopyAllHandler } = {},
 ): EditorView {
   return mountEditor(parent, placeholder, language, [
     EditorView.editable.of(false),
     EditorState.readOnly.of(true),
+    ...editorFindExtensions(options.copyAll),
   ]);
 }
 

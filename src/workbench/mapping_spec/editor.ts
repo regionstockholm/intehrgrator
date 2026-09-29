@@ -16,6 +16,10 @@ import {
 } from "./project.ts";
 import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler, type SpecBlockCheckHandler } from "./widgets.ts";
 import { specOverviewTickTopPx, specWarningMarkers } from "./overview.ts";
+import {
+  editorFindExtensions,
+  type EditorCopyAllHandler,
+} from "../codemirror_setup.ts";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
@@ -448,6 +452,7 @@ export interface MappingSpecEditorOptions {
   onFieldEdit?: SpecFieldEditHandler;
   onSelect?: SpecBlockSelectHandler;
   onCheckToggle?: SpecBlockCheckHandler;
+  copyAll?: EditorCopyAllHandler;
 }
 
 function specOverview(onSelect?: SpecBlockSelectHandler) {
@@ -544,6 +549,7 @@ export function createMappingSpecEditor(
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
         specTheme,
+        ...editorFindExtensions(options.copyAll),
       ],
     }),
   });

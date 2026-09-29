@@ -138,7 +138,7 @@ In **Target & Previews**, change **Output mode** from Mapping preview to a **con
 - Java (generated; JVM execution planned)
 - Handlebars (canvas `text_handlebars` or nested Note `text_code` LANG=handlebars in Test Run), XQuery, and Go Template (generated and executed in Conversion Test Run)
 
-**Generated conversion script(s)** shows the code. Download when ready for your integration pipeline.
+**Generated conversion script(s)** shows the code. Use the editor toolbar (search, copy, download) when ready for your integration pipeline.
 
 Generated scripts accept a **defaults** map and **sheets** bag at convert time — the same structures you authored on the canvas.
 

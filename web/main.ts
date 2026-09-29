@@ -165,6 +165,7 @@ import {
   localizeStatus,
   localizeTaskProgress,
 } from "../src/ui/chrome_i18n.ts";
+import { wireEditorActionToolbar } from "../src/ui/editor_action_toolbar.ts";
 import { BUILD_ID, BUILD_TIMESTAMP } from "./build_info.ts";
 import { initSplitPanes } from "../src/ui/split_pane.ts";
 import "../src/ui/shoelace.ts";
@@ -257,9 +258,9 @@ const validationDeserializeSelect = document.getElementById(
 const validationModeWrap = document.getElementById("validation-mode-wrap")!;
 const mappingJsonTab = document.getElementById("tab-mapping-json") as HTMLButtonElement;
 const sheetsTab = document.getElementById("tab-sheets") as HTMLButtonElement;
-const downloadSpecBtn = document.getElementById("btn-download-spec") as HTMLButtonElement;
 const uploadSpecBtn = document.getElementById("btn-upload-spec") as HTMLButtonElement;
 const mappingJsonHost = document.getElementById("spec-editor")!;
+const specEditorWrap = document.getElementById("spec-editor-wrap")!;
 const sheetsHost = document.getElementById("sheets-host")!;
 const specBulkBar = document.getElementById("mapping-spec-bulk-bar")!;
 const specMarkWarnedBtn = document.getElementById("btn-spec-mark-warned") as HTMLButtonElement;
@@ -278,6 +279,8 @@ const dialogHardcodeDefaults = document.getElementById("dialog-hardcode-defaults
 const hardcodeDefaultsList = document.getElementById("hardcode-defaults-list")!;
 const defaultsCatalog = createIndexedDbDefaultsCatalog();
 
+const copyAllToClipboard = (text: string) => host.copyToClipboard(text);
+
 const specEditor = createMappingSpecEditor(mappingJsonHost, {
   onFieldEdit: (blockId, field, value) => {
     const block = workspace?.getBlockById(blockId);
@@ -287,6 +290,7 @@ const specEditor = createMappingSpecEditor(mappingJsonHost, {
   },
   onSelect: (blockId) => applyBlockSelection(blockId, "spec"),
   onCheckToggle: (blockId, checked) => toggleSpecBlockCheck(blockId, checked),
+  copyAll: copyAllToClipboard,
 });
 let sheetsPanel: ReturnType<typeof mountSheetsPanel> | null = null;
 let specChromeUi: ReturnType<typeof mountMappingSpecChrome> | null = null;
@@ -365,12 +369,62 @@ const exportEditor = createReadonlyEditor(
   document.getElementById("export-editor")!,
   "",
   "typescript",
+  { copyAll: copyAllToClipboard },
 );
 const testOutputEditor = createReadonlyEditor(
   document.getElementById("test-output")!,
   "",
   "json",
+  { copyAll: copyAllToClipboard },
 );
+
+const exportDownloadBtn = wireEditorActionToolbar({
+  toolbar: document.getElementById("export-editor-toolbar")!,
+  view: exportEditor,
+  copyText: copyAllToClipboard,
+  onDownload: () => controller.exportTypeScript(),
+  locale: detectLocale,
+  i18n: {
+    searchTitle: "searchScriptTitle",
+    searchAria: "searchScriptAria",
+    copyTitle: "copyScriptTitle",
+    copyAria: "copyScriptAria",
+    downloadTitle: "downloadScriptTitle",
+    downloadAria: "downloadScriptAria",
+  },
+}).downloadButton;
+
+const testDownloadBtn = wireEditorActionToolbar({
+  toolbar: document.getElementById("test-output-toolbar")!,
+  view: testOutputEditor,
+  copyText: copyAllToClipboard,
+  onDownload: () => controller.exportTestOutput(),
+  locale: detectLocale,
+  i18n: {
+    searchTitle: "searchTestTitle",
+    searchAria: "searchTestAria",
+    copyTitle: "copyTestTitle",
+    copyAria: "copyTestAria",
+    downloadTitle: "downloadTestTitle",
+    downloadAria: "downloadTestAria",
+  },
+}).downloadButton;
+
+wireEditorActionToolbar({
+  toolbar: document.getElementById("spec-editor-toolbar")!,
+  view: specEditor,
+  copyText: copyAllToClipboard,
+  onDownload: () => controller.exportBlocklyDefinition(),
+  locale: detectLocale,
+  i18n: {
+    searchTitle: "searchSpecTitle",
+    searchAria: "searchSpecAria",
+    copyTitle: "copySpecTitle",
+    copyAria: "copySpecAria",
+    downloadTitle: "downloadSpecTitle",
+    downloadAria: "downloadSpecAria",
+  },
+});
 
 /** Set in boot() after locale + inject. */
 let workspace!: Blockly.WorkspaceSvg;
@@ -401,11 +455,11 @@ function flashSheetsChrome(): void {
 function showTextView(view: "mapping-json" | "sheets"): void {
   const showSheets = view === "sheets";
   mappingJsonHost.hidden = showSheets;
+  if (specEditorWrap) specEditorWrap.hidden = showSheets;
   sheetsHost.hidden = !showSheets;
   specBulkBar.hidden = showSheets;
   mappingJsonTab.classList.toggle("active", view === "mapping-json");
   sheetsTab?.classList.toggle("active", showSheets);
-  downloadSpecBtn.hidden = showSheets;
   if (uploadSpecBtn) uploadSpecBtn.hidden = showSheets;
   if (showSheets) sheetsPanel?.refresh();
 }
@@ -414,7 +468,6 @@ mappingJsonTab.addEventListener("click", () => showTextView("mapping-json"));
 sheetsTab?.addEventListener("click", () => showTextView("sheets"));
 specMarkWarnedBtn.addEventListener("click", () => markAllWarnedOptionalUnmapped());
 specDeleteMarkedBtn.addEventListener("click", () => deleteMarkedSpecBlocksFromCanvas());
-downloadSpecBtn.addEventListener("click", () => controller.exportBlocklyDefinition());
 uploadSpecBtn?.addEventListener("click", () =>
   void withUndoableDocumentReplace(() => controller.importBlocklyDefinition())
 );
@@ -1425,8 +1478,6 @@ bind("btn-run-test", () => {
   }
 });
 bind("btn-autoplay", () => controller.toggleAutoplay());
-bind("btn-export-ts", () => controller.exportTypeScript());
-bind("btn-download-test-output", () => controller.exportTestOutput());
 bind("btn-better-form", () => {
   if (!betterFormBridge?.available) {
     statusMain.textContent = localizeStatus(
@@ -2954,9 +3005,9 @@ function render(): void {
   if (instanceShapeWrap) {
     instanceShapeWrap.hidden = s.target?.format !== "openehr-template";
   }
-  const exportBtn = document.getElementById("btn-export-ts") as HTMLButtonElement | null;
+  const exportBtn = exportDownloadBtn;
   if (exportBtn) exportBtn.disabled = s.settings.exportTarget === "preview";
-  const testDownload = document.getElementById("btn-download-test-output") as HTMLButtonElement | null;
+  const testDownload = testDownloadBtn;
   if (testDownload) {
     testDownload.disabled = afterCanvas.testResult?.output === undefined &&
       !afterCanvas.testResult?.error;

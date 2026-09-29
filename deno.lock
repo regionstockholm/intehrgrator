@@ -37,6 +37,7 @@
     "npm:@codemirror/language@^6.11.3": "6.12.4",
     "npm:@codemirror/lint@^6.8.0": "6.9.7",
     "npm:@codemirror/lint@^6.8.4": "6.9.7",
+    "npm:@codemirror/search@^6.5.11": "6.7.2",
     "npm:@codemirror/state@^6.5.2": "6.7.0",
     "npm:@codemirror/view@^6.38.0": "6.43.4",
     "npm:@floating-ui/dom@^1.7.4": "1.8.0",
@@ -273,6 +274,14 @@
     },
     "@codemirror/lint@6.9.7": {
       "integrity": "sha512-28/+iWLYxKxsvGYhSYL7zaCZqLz5+FFFDq9tVsvGv9kv8RY4fFAchJ5WX9M3YrrRlTIsECjsXPqeNgnSmNP2dg==",
+      "dependencies": [
+        "@codemirror/state",
+        "@codemirror/view",
+        "crelt"
+      ]
+    },
+    "@codemirror/search@6.7.2": {
+      "integrity": "sha512-gUYkYhT2+n/+VGZ+8EzE5WFkYZUZYm1VOKDudIsNqh42uRVQJ0a6Yss9sdKT3MeOYfuL1N6AZA57oza0Oyr0LA==",
       "dependencies": [
         "@codemirror/state",
         "@codemirror/view",
@@ -1467,6 +1476,7 @@
       "npm:@codemirror/lang-xml@^6.1.0",
       "npm:@codemirror/language@^6.11.3",
       "npm:@codemirror/lint@^6.8.4",
+      "npm:@codemirror/search@^6.5.11",
       "npm:@codemirror/state@^6.5.2",
       "npm:@codemirror/view@^6.38.0",
       "npm:@floating-ui/dom@^1.7.4",

@@ -1,6 +1,8 @@
 /* intEHRgrator web app — installable PWA service worker.
- * Network-first for navigations / HTML; cache-first for hashed bundle assets.
- * Cache name includes a build stamp so deploys pick up new assets.
+ * Network-first for navigations / HTML and for app shell assets (bundle.js,
+ * styles.css) so a rebuild cannot leave new markup wired to a stale bundle.
+ * Cache-first for icons and other static assets.
+ * Cache name is stamped at build time so each deploy activates a fresh cache.
  */
 const CACHE_PREFIX = "intehrgrator-";
 const CACHE_NAME = CACHE_PREFIX + (self.registration?.scope ?? "app");
@@ -39,14 +41,30 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+function isAppShellAsset(url) {
+  const path = url.pathname;
+  return (
+    path.endsWith("/bundle.js") ||
+    path.endsWith("/bundle.js.map") ||
+    path.endsWith("/styles.css") ||
+    path.endsWith("/sw.js") ||
+    path.endsWith("/manifest.webmanifest")
+  );
+}
+
 self.addEventListener("fetch", (event) => {
   const request = event.request;
   if (request.method !== "GET") return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Navigations / HTML: network first so deploys show up promptly.
-  if (request.mode === "navigate" || request.headers.get("accept")?.includes("text/html")) {
+  // Navigations / HTML / app shell: network first so deploys show up promptly
+  // and HTML cannot race ahead of a cache-first bundle.js.
+  if (
+    request.mode === "navigate" ||
+    request.headers.get("accept")?.includes("text/html") ||
+    isAppShellAsset(url)
+  ) {
     event.respondWith(networkFirst(request));
     return;
   }

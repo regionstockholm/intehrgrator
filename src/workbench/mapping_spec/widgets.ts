@@ -23,6 +23,22 @@ export type SpecBlockSelectHandler = (blockId: string) => void;
 
 export type SpecBlockCheckHandler = (blockId: string, checked: boolean) => void;
 
+/** Active find query to paint inside Spec replace widgets (text + form controls). */
+export type SpecSearchPaint = {
+  search: string;
+  caseSensitive: boolean;
+  regexp: boolean;
+  /** This widget's row holds the focused (current) match — used for row chrome. */
+  current: boolean;
+  /** Absolute doc range of the focused match (only that substring gets orange). */
+  currentFrom: number | null;
+  currentTo: number | null;
+  /** Absolute start of this widget's projected line in the doc. */
+  lineFrom: number;
+  /** Projected line text — used to map UI strings back to doc offsets. */
+  lineText: string;
+};
+
 /** Block-level widget that replaces one projected Spec line. */
 export class MappingSpecWidget extends WidgetType {
   constructor(
@@ -33,6 +49,9 @@ export class MappingSpecWidget extends WidgetType {
     readonly selected = false,
     readonly checked = false,
     readonly onCheckToggle?: SpecBlockCheckHandler,
+    readonly searchHit = false,
+    readonly searchHitCurrent = false,
+    readonly searchPaint: SpecSearchPaint | null = null,
   ) {
     super();
   }
@@ -51,7 +70,10 @@ export class MappingSpecWidget extends WidgetType {
     if (this.line.kind === "header" || other.line.kind === "header") {
       return this.line.kind === other.line.kind &&
         this.line.label === other.line.label &&
-        this.line.blockId === other.line.blockId;
+        this.line.blockId === other.line.blockId &&
+        this.searchHit === other.searchHit &&
+        this.searchHitCurrent === other.searchHitCurrent &&
+        searchPaintEq(this.searchPaint, other.searchPaint);
     }
     return (
       this.line.blockId === other.line.blockId &&
@@ -67,7 +89,10 @@ export class MappingSpecWidget extends WidgetType {
       JSON.stringify(this.line.info) === JSON.stringify(other.line.info) &&
       this.warning === other.warning &&
       this.selected === other.selected &&
-      this.checked === other.checked
+      this.checked === other.checked &&
+      this.searchHit === other.searchHit &&
+      this.searchHitCurrent === other.searchHitCurrent &&
+      searchPaintEq(this.searchPaint, other.searchPaint)
     );
   }
 
@@ -75,6 +100,10 @@ export class MappingSpecWidget extends WidgetType {
     if (this.line.kind === "header") {
       const divider = document.createElement("div");
       divider.className = "spec-root-divider";
+      if (this.searchHit) divider.classList.add("spec-root-divider--search-hit");
+      if (this.searchHitCurrent) {
+        divider.classList.add("spec-root-divider--search-hit-current");
+      }
       const label = document.createElement("span");
       label.className = "spec-root-divider-label";
       label.textContent = this.line.label || this.line.summary || this.line.type;
@@ -85,6 +114,7 @@ export class MappingSpecWidget extends WidgetType {
         divider.classList.add("spec-root-divider--clickable");
         divider.addEventListener("click", () => this.onSelect?.(this.line.blockId!));
       }
+      applySpecSearchPaint(divider, this.searchPaint);
       return divider;
     }
     const row = document.createElement("span");
@@ -92,6 +122,8 @@ export class MappingSpecWidget extends WidgetType {
     if (this.line.editKind === "code") row.classList.add("spec-widget--multiline");
     if (this.selected) row.classList.add("spec-widget--selected");
     if (this.checked) row.classList.add("spec-widget--checked");
+    if (this.searchHit) row.classList.add("spec-widget--search-hit");
+    if (this.searchHitCurrent) row.classList.add("spec-widget--search-hit-current");
     row.style.paddingLeft = `${4 + this.line.indent * 12}px`;
     if (this.line.blockId) row.dataset.blockId = this.line.blockId;
     if (this.warning) {
@@ -191,6 +223,7 @@ export class MappingSpecWidget extends WidgetType {
         this.onSelect?.(this.line.blockId!);
       });
     }
+    applySpecSearchPaint(row, this.searchPaint);
     return row;
   }
 
@@ -542,4 +575,288 @@ function badgeLabel(line: SpecLine): string {
     default:
       return line.type;
   }
+}
+
+function searchPaintEq(a: SpecSearchPaint | null, b: SpecSearchPaint | null): boolean {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  return a.search === b.search &&
+    a.caseSensitive === b.caseSensitive &&
+    a.regexp === b.regexp &&
+    a.current === b.current &&
+    a.currentFrom === b.currentFrom &&
+    a.currentTo === b.currentTo &&
+    a.lineFrom === b.lineFrom &&
+    a.lineText === b.lineText;
+}
+
+function textMatchesSearch(text: string, paint: SpecSearchPaint): boolean {
+  if (!text || !paint.search) return false;
+  if (paint.regexp) {
+    try {
+      return new RegExp(paint.search, paint.caseSensitive ? "" : "i").test(text);
+    } catch {
+      return false;
+    }
+  }
+  if (paint.caseSensitive) return text.includes(paint.search);
+  return text.toLowerCase().includes(paint.search.toLowerCase());
+}
+
+/**
+ * Locate `displayText` in the projected line without treating it as a prefix of
+ * a longer token (so "language" does not bind to "languages").
+ */
+export function indexOfDisplayInLine(lineText: string, displayText: string, from: number): number {
+  let idx = lineText.indexOf(displayText, from);
+  while (idx >= 0) {
+    const after = lineText[idx + displayText.length];
+    const before = idx > 0 ? lineText[idx - 1] : undefined;
+    const endsWord = /[A-Za-z0-9_]$/.test(displayText);
+    const startsWord = /^[A-Za-z0-9_]/.test(displayText);
+    if (endsWord && after && /[A-Za-z0-9_]/.test(after)) {
+      idx = lineText.indexOf(displayText, idx + 1);
+      continue;
+    }
+    if (startsWord && before && /[A-Za-z0-9_]/.test(before)) {
+      idx = lineText.indexOf(displayText, idx + 1);
+      continue;
+    }
+    return idx;
+  }
+  return -1;
+}
+
+/** Claim the next unused standalone occurrence of `displayText` in the line. */
+export function claimDisplayAnchor(
+  lineText: string,
+  displayText: string,
+  usedAnchors: Set<number>,
+): number | null {
+  let from = 0;
+  while (from <= lineText.length) {
+    const anchor = indexOfDisplayInLine(lineText, displayText, from);
+    if (anchor < 0) return null;
+    if (!usedAnchors.has(anchor)) {
+      usedAnchors.add(anchor);
+      return anchor;
+    }
+    from = anchor + 1;
+  }
+  return null;
+}
+
+/**
+ * Whether a match at [start, end) inside a display string anchored at
+ * `lineAnchor` (offset in the projected line) is the focused find hit.
+ */
+export function displayMatchIsCurrent(
+  paint: SpecSearchPaint,
+  lineAnchor: number,
+  start: number,
+  end: number,
+): boolean {
+  if (paint.currentFrom == null || paint.currentTo == null || lineAnchor < 0) return false;
+  const absFrom = paint.lineFrom + lineAnchor + start;
+  const absTo = paint.lineFrom + lineAnchor + end;
+  return absFrom === paint.currentFrom && absTo === paint.currentTo;
+}
+
+/** True when any search hit inside this anchored display is the focused match. */
+export function displayOwnsCurrentMatch(
+  paint: SpecSearchPaint,
+  displayText: string,
+  lineAnchor: number,
+): boolean {
+  if (paint.currentFrom == null || paint.currentTo == null || !paint.search || lineAnchor < 0) {
+    return false;
+  }
+  if (paint.regexp) {
+    try {
+      const re = new RegExp(paint.search, paint.caseSensitive ? "g" : "gi");
+      for (const match of displayText.matchAll(re)) {
+        const start = match.index ?? 0;
+        const body = match[0] ?? "";
+        if (body && displayMatchIsCurrent(paint, lineAnchor, start, start + body.length)) {
+          return true;
+        }
+      }
+    } catch {
+      return false;
+    }
+    return false;
+  }
+  const hay = paint.caseSensitive ? displayText : displayText.toLowerCase();
+  const needle = paint.caseSensitive ? paint.search : paint.search.toLowerCase();
+  let idx = hay.indexOf(needle);
+  while (idx >= 0) {
+    if (displayMatchIsCurrent(paint, lineAnchor, idx, idx + paint.search.length)) return true;
+    idx = hay.indexOf(needle, idx + Math.max(1, paint.search.length));
+  }
+  return false;
+}
+
+function markClassName(
+  paint: SpecSearchPaint,
+  lineAnchor: number,
+  start: number,
+  end: number,
+): string {
+  return displayMatchIsCurrent(paint, lineAnchor, start, end)
+    ? "spec-search-text-hit spec-search-text-hit--current"
+    : "spec-search-text-hit";
+}
+
+/** Split plain text into text + <mark> nodes for each match. */
+export function highlightSearchInText(
+  text: string,
+  paint: SpecSearchPaint,
+  lineAnchor: number,
+): DocumentFragment {
+  const frag = document.createDocumentFragment();
+  if (!paint.search || !textMatchesSearch(text, paint)) {
+    frag.append(text);
+    return frag;
+  }
+  if (paint.regexp) {
+    let re: RegExp;
+    try {
+      re = new RegExp(paint.search, paint.caseSensitive ? "g" : "gi");
+    } catch {
+      frag.append(text);
+      return frag;
+    }
+    let last = 0;
+    for (const match of text.matchAll(re)) {
+      const start = match.index ?? 0;
+      const body = match[0] ?? "";
+      if (!body) break;
+      if (start > last) frag.append(text.slice(last, start));
+      const mark = document.createElement("mark");
+      mark.className = markClassName(paint, lineAnchor, start, start + body.length);
+      mark.textContent = body;
+      frag.append(mark);
+      last = start + body.length;
+    }
+    if (last < text.length) frag.append(text.slice(last));
+    return frag;
+  }
+  const needle = paint.search;
+  const hay = paint.caseSensitive ? text : text.toLowerCase();
+  const needleCmp = paint.caseSensitive ? needle : needle.toLowerCase();
+  let last = 0;
+  let idx = hay.indexOf(needleCmp, last);
+  while (idx >= 0) {
+    if (idx > last) frag.append(text.slice(last, idx));
+    const end = idx + needle.length;
+    const mark = document.createElement("mark");
+    mark.className = markClassName(paint, lineAnchor, idx, end);
+    mark.textContent = text.slice(idx, end);
+    frag.append(mark);
+    last = end;
+    idx = hay.indexOf(needleCmp, last);
+  }
+  if (last < text.length) frag.append(text.slice(last));
+  return frag;
+}
+
+/**
+ * Native inputs/selects cannot host &lt;mark&gt; nodes. Mirror the displayed
+ * value in an overlay so the matching substring can be highlighted like CM.
+ */
+function paintControlSubstring(
+  el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+  paint: SpecSearchPaint,
+  lineAnchor: number,
+): void {
+  const display = el instanceof HTMLSelectElement
+    ? (el.selectedOptions[0]?.text ?? el.value)
+    : el.value;
+  if (!textMatchesSearch(display, paint)) return;
+
+  let wrap = el.parentElement;
+  if (!wrap?.classList.contains("spec-search-control-wrap")) {
+    wrap = document.createElement("span");
+    wrap.className = "spec-search-control-wrap";
+    el.replaceWith(wrap);
+    wrap.appendChild(el);
+  }
+  let mirror = wrap.querySelector<HTMLElement>(":scope > .spec-search-control-mirror");
+  if (!mirror) {
+    mirror = document.createElement("span");
+    mirror.className = "spec-search-control-mirror";
+    mirror.setAttribute("aria-hidden", "true");
+    wrap.appendChild(mirror);
+  }
+  mirror.replaceChildren(highlightSearchInText(display, paint, lineAnchor));
+  el.classList.add("spec-search-control-hit");
+  if (displayOwnsCurrentMatch(paint, display, lineAnchor)) {
+    el.classList.add("spec-search-control-hit-current");
+  } else {
+    el.classList.remove("spec-search-control-hit-current");
+  }
+}
+
+function controlDisplayValue(
+  el: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+): string {
+  return el instanceof HTMLSelectElement
+    ? (el.selectedOptions[0]?.text ?? el.value)
+    : el.value;
+}
+
+/**
+ * Walk the widget in tree order so duplicate labels (e.g. attribute + map key
+ * both "language") claim distinct anchors in the projected line text.
+ */
+export function applySpecSearchPaint(root: HTMLElement, paint: SpecSearchPaint | null): void {
+  if (!paint?.search) return;
+
+  const usedAnchors = new Set<number>();
+  const claim = (display: string): number | null =>
+    claimDisplayAnchor(paint.lineText, display, usedAnchors);
+
+  const visit = (node: Node): void => {
+    if (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement ||
+      node instanceof HTMLSelectElement) {
+      if (node.classList.contains("spec-widget-checkbox")) return;
+      if (node.closest(".spec-search-control-mirror, .info-tip-balloon, mark")) return;
+      const display = controlDisplayValue(node);
+      if (!textMatchesSearch(display, paint)) return;
+      const anchor = claim(display);
+      if (anchor == null) return;
+      paintControlSubstring(node, paint, anchor);
+      return;
+    }
+    if (node instanceof HTMLElement) {
+      if (
+        node.classList.contains("spec-search-control-mirror") ||
+        node.classList.contains("info-tip-balloon") ||
+        node.tagName === "MARK"
+      ) {
+        return;
+      }
+      for (const child of Array.from(node.childNodes)) visit(child);
+      return;
+    }
+    if (node instanceof Text) {
+      const text = node.nodeValue ?? "";
+      if (!text || !textMatchesSearch(text, paint)) return;
+      const parent = node.parentElement;
+      if (!parent) return;
+      if (
+        parent.closest(
+          "input, textarea, select, button, .info-tip-balloon, mark, .spec-search-control-mirror",
+        )
+      ) {
+        return;
+      }
+      const anchor = claim(text);
+      if (anchor == null) return;
+      const frag = highlightSearchInText(text, paint, anchor);
+      node.parentNode?.replaceChild(frag, node);
+    }
+  };
+
+  visit(root);
 }

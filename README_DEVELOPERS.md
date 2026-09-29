@@ -53,7 +53,7 @@ The UI **green-path** (`test/ui/green_path_test.ts`) walks load → Click-to-Map
 | ------ | --------- |
 | `deno task vendor` | Refresh `vendor/ehrtslib` and example archetypes from upstream, then apply local TemplateValidator patches |
 | `deno task build` | Static site → `dist/` (includes `examples/` + `test/fixtures/`) (+ desktop www staging) |
-| `deno task dev` | Serve `dist/` on `http://localhost:5173` |
+| `deno task dev` | Serve `dist/` on `http://localhost:5173` (re-run `build` after source changes; if UI looks half-updated, open with `?nopwa=1` or hard-refresh to bypass a stale service worker) |
 | `deno task test` | Unit + Agent tests (`test/`, parallel, no browser) |
 | `deno task test:ui` | Playwright UI tests — see [docs/TESTING.md](docs/TESTING.md) and [docs/UI_TESTING.md](docs/UI_TESTING.md) |
 | `deno task test:all` | `test` then `test:ui` |

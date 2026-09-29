@@ -1,4 +1,4 @@
-import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
+import { EditorSelection, EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -14,8 +14,13 @@ import {
   type BlocklyJsonDocument,
   type SpecLine,
 } from "./project.ts";
-import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler, type SpecBlockCheckHandler } from "./widgets.ts";
+import { MappingSpecWidget, SPEC_LINE_HEIGHT, type SpecFieldEditHandler, type SpecBlockSelectHandler, type SpecBlockCheckHandler, type SpecSearchPaint } from "./widgets.ts";
 import { specOverviewTickTopPx, specWarningMarkers } from "./overview.ts";
+import {
+  editorFindExtensions,
+  type EditorCopyAllHandler,
+} from "../codemirror_setup.ts";
+import { getSearchQuery, setSearchQuery } from "@codemirror/search";
 
 const setJsonDocEffect = StateEffect.define<BlocklyJsonDocument>();
 
@@ -107,6 +112,106 @@ function lineIsChecked(line: SpecLine, checkedBlockIds: ReadonlySet<string>): bo
   return (line.aliasIds ?? []).some((id) => checkedBlockIds.has(id));
 }
 
+/** Whether `[from, to)` contains a match for the active CodeMirror search query. */
+export function specRangeMatchesSearch(
+  state: EditorState,
+  from: number,
+  to: number,
+): boolean {
+  if (from >= to) return false;
+  const query = getSearchQuery(state);
+  if (!query.valid) return false;
+  const cursor = query.getCursor(state, from, to);
+  return !cursor.next().done;
+}
+
+/**
+ * Match range last jumped to via find next/prev (`select.search`).
+ * Replace widgets hide CM's own selected-match marks and often remap the
+ * caret off the match, so we keep an explicit focus range for orange styling.
+ */
+export const specSearchFocusField = StateField.define<{ from: number; to: number } | null>({
+  create: () => null,
+  update(value, tr) {
+    if (tr.isUserEvent("select.search")) {
+      const sel = tr.newSelection.main;
+      return sel.empty ? null : { from: sel.from, to: sel.to };
+    }
+    if (tr.effects.some((effect) => effect.is(setSearchQuery))) {
+      const query = getSearchQuery(tr.state);
+      if (!query.valid) return null;
+      // Keep focus if it still matches; otherwise land on the first hit so the
+      // current (orange) paint is visible without requiring Next.
+      if (value) {
+        const cursor = query.getCursor(tr.state, value.from, value.to);
+        const hit = cursor.next();
+        if (!hit.done && hit.value.from === value.from && hit.value.to === value.to) {
+          return value;
+        }
+      }
+      const first = query.getCursor(tr.state, 0, tr.state.doc.length).next();
+      return first.done ? null : { from: first.value.from, to: first.value.to };
+    }
+    if (tr.docChanged) return null;
+    return value;
+  },
+});
+
+/**
+ * Keep the CM selection on the painted current match after setSearchQuery.
+ * findNext starts from selection.to — without this, the first Next after a
+ * fresh search re-selects the already-highlighted first hit.
+ */
+export const syncSelectionToSpecSearchFocus = ViewPlugin.fromClass(class {
+  constructor(readonly view: EditorView) {}
+
+  update(update: ViewUpdate) {
+    if (!update.transactions.some((tr) => tr.effects.some((effect) => effect.is(setSearchQuery)))) {
+      return;
+    }
+    const focus = update.state.field(specSearchFocusField, false);
+    if (!focus) return;
+    const sel = update.state.selection.main;
+    if (sel.from === focus.from && sel.to === focus.to) return;
+    const view = update.view;
+    const target = { from: focus.from, to: focus.to };
+    queueMicrotask(() => {
+      if (view.isDestroyed) return;
+      const current = view.state.field(specSearchFocusField, false);
+      if (!current || current.from !== target.from || current.to !== target.to) return;
+      const main = view.state.selection.main;
+      if (main.from === current.from && main.to === current.to) return;
+      view.dispatch({
+        selection: EditorSelection.single(current.from, current.to),
+        userEvent: "select.search",
+      });
+    });
+  }
+});
+
+/** Whether this Spec widget range contains the focused (current) search match. */
+export function specRangeIsCurrentSearchHit(
+  state: EditorState,
+  from: number,
+  to: number,
+): boolean {
+  const focus = state.field(specSearchFocusField, false);
+  if (focus) {
+    return focus.from < to && focus.to > from;
+  }
+  // Fallback: CM-style exact selection === match (works when selection sticks).
+  const query = getSearchQuery(state);
+  if (!query.valid) return false;
+  const cursor = query.getCursor(state, from, to);
+  for (let iter = cursor.next(); !iter.done; iter = cursor.next()) {
+    const match = iter.value;
+    if (state.selection.ranges.some((r) => r.from === match.from && r.to === match.to)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function buildDecorations(state: EditorState): DecorationSet {
   const doc = state.field(jsonDocField);
   const onEdit = state.facet(editFacet);
@@ -115,8 +220,37 @@ function buildDecorations(state: EditorState): DecorationSet {
   const chrome = state.field(specChromeField);
   if (!doc.widgets.length) return Decoration.none;
 
+  const query = getSearchQuery(state);
+  const focus = state.field(specSearchFocusField, false);
+  const basePaint: Omit<
+    SpecSearchPaint,
+    "current" | "currentFrom" | "currentTo" | "lineFrom" | "lineText"
+  > | null = query.valid
+    ? {
+      search: query.search,
+      caseSensitive: query.caseSensitive,
+      regexp: query.regexp,
+    }
+    : null;
+
   const ranges = [];
   for (const widget of doc.widgets) {
+    const searchHit = specRangeMatchesSearch(state, widget.from, widget.to);
+    const searchHitCurrent = specRangeIsCurrentSearchHit(state, widget.from, widget.to);
+    const lineText = state.doc.sliceString(widget.from, widget.to);
+    const focusedInWidget = focus && focus.from < widget.to && focus.to > widget.from
+      ? focus
+      : null;
+    const searchPaint: SpecSearchPaint | null = searchHit && basePaint
+      ? {
+        ...basePaint,
+        current: searchHitCurrent,
+        currentFrom: focusedInWidget?.from ?? null,
+        currentTo: focusedInWidget?.to ?? null,
+        lineFrom: widget.from,
+        lineText,
+      }
+      : null;
     ranges.push(
       Decoration.replace({
         widget: new MappingSpecWidget(
@@ -127,6 +261,9 @@ function buildDecorations(state: EditorState): DecorationSet {
           lineIsSelected(widget.line, chrome.selectedBlockId),
           lineIsChecked(widget.line, chrome.checkedBlockIds),
           onCheck,
+          searchHit,
+          searchHitCurrent,
+          searchPaint,
         ),
         block: widget.line.editKind === "code",
         inclusive: widget.line.editKind !== "code",
@@ -167,7 +304,13 @@ const jsonDecorations = StateField.define<DecorationSet>({
   update(value, tr) {
     if (
       tr.docChanged ||
-      tr.effects.some((effect) => effect.is(setJsonDocEffect) || effect.is(setSpecChromeEffect))
+      tr.selection ||
+      tr.isUserEvent("select.search") ||
+      tr.effects.some((effect) =>
+        effect.is(setJsonDocEffect) ||
+        effect.is(setSpecChromeEffect) ||
+        effect.is(setSearchQuery)
+      )
     ) {
       return buildDecorations(tr.state);
     }
@@ -217,6 +360,10 @@ const specTheme = EditorView.theme({
     outlineOffset: "-1px",
     borderRadius: "2px",
   },
+  ".spec-widget--search-hit": {
+    background: "rgba(255, 226, 0, 0.35)",
+    borderRadius: "2px",
+  },
   ".spec-widget-warning": {
     flex: "0 0 auto",
     color: "#E65100",
@@ -233,6 +380,84 @@ const specTheme = EditorView.theme({
   },
   ".spec-widget--checked": {
     background: "#eef7ff",
+  },
+  /* After checked/selected so the current find target stays visibly orange. */
+  ".spec-widget--search-hit-current": {
+    background: "rgba(255, 122, 0, 0.45)",
+    boxShadow: "inset 0 0 0 2px #ff6a00",
+    borderRadius: "2px",
+  },
+  ".spec-root-divider--search-hit": {
+    background: "rgba(255, 226, 0, 0.35)",
+  },
+  ".spec-root-divider--search-hit-current": {
+    background: "rgba(255, 122, 0, 0.45)",
+    boxShadow: "inset 0 0 0 2px #ff6a00",
+  },
+  /* Substring marks must contrast with both yellow and orange row washes. */
+  ".spec-search-text-hit": {
+    background: "#ffe200",
+    color: "#111",
+    borderRadius: "2px",
+    padding: "0 1px",
+  },
+  ".spec-search-text-hit--current": {
+    background: "#e65100",
+    color: "#fff",
+  },
+  ".spec-search-control-wrap": {
+    position: "relative",
+    display: "inline-flex",
+    flex: "1 1 auto",
+    minWidth: "0",
+    maxWidth: "100%",
+    alignItems: "stretch",
+  },
+  ".spec-search-control-wrap > input, .spec-search-control-wrap > textarea, .spec-search-control-wrap > select":
+    {
+      flex: "1 1 auto",
+      minWidth: "0",
+      color: "transparent !important",
+      // Deno/Chromium: color alone is not always enough for form controls.
+      WebkitTextFillColor: "transparent",
+      caretColor: "#111",
+    },
+  ".spec-search-control-wrap:focus-within > input, .spec-search-control-wrap:focus-within > textarea, .spec-search-control-wrap:focus-within > select":
+    {
+      color: "#111 !important",
+      WebkitTextFillColor: "#111",
+    },
+  ".spec-search-control-wrap:focus-within > .spec-search-control-mirror": {
+    visibility: "hidden",
+  },
+  ".spec-search-control-mirror": {
+    position: "absolute",
+    inset: "0",
+    display: "flex",
+    alignItems: "center",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+    boxSizing: "border-box",
+    font: "11px ui-monospace, monospace",
+    padding: "0 4px",
+    lineHeight: "14px",
+    color: "#111",
+    background: "#fff",
+    borderRadius: "2px",
+  },
+  /* Leave the native select arrow visible. */
+  ".spec-search-control-wrap > select + .spec-search-control-mirror": {
+    right: "1.1rem",
+    borderTopRightRadius: "0",
+    borderBottomRightRadius: "0",
+  },
+  ".spec-search-control-hit": {
+    boxShadow: "inset 0 0 0 1px #e6c200",
+  },
+  ".spec-search-control-hit-current": {
+    boxShadow: "inset 0 0 0 2px #e65100",
   },
   ".spec-widget--term_pick": {
     overflow: "visible",
@@ -448,6 +673,7 @@ export interface MappingSpecEditorOptions {
   onFieldEdit?: SpecFieldEditHandler;
   onSelect?: SpecBlockSelectHandler;
   onCheckToggle?: SpecBlockCheckHandler;
+  copyAll?: EditorCopyAllHandler;
 }
 
 function specOverview(onSelect?: SpecBlockSelectHandler) {
@@ -539,11 +765,14 @@ export function createMappingSpecEditor(
         editFacet.of(options.onFieldEdit),
         selectFacet.of(options.onSelect),
         checkFacet.of(options.onCheckToggle),
+        specSearchFocusField,
+        syncSelectionToSpecSearchFocus,
         jsonDecorations,
         specOverview(options.onSelect),
         EditorView.editable.of(false),
         EditorState.readOnly.of(true),
         specTheme,
+        ...editorFindExtensions(options.copyAll),
       ],
     }),
   });

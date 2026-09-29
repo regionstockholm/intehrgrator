@@ -4,6 +4,7 @@ import { foldable } from "@codemirror/language";
 import {
   detectEditorLanguage,
   editorChromeExtensions,
+  editorFindExtensions,
   languageForExportTarget,
   languageSupport,
 } from "@intehrgrator/workbench/codemirror_setup.ts";
@@ -37,4 +38,9 @@ Deno.test("JSON language support reports a foldable range for a nested object", 
   const range = foldable(state, firstLine.from, firstLine.to);
   assertExists(range);
   assertEquals(range.from < range.to, true);
+});
+
+Deno.test("editorFindExtensions includes search and optional copy-all", () => {
+  assertEquals(editorFindExtensions().length, 4);
+  assertEquals(editorFindExtensions(() => {}).length, 5);
 });

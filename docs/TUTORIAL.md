@@ -118,7 +118,7 @@ Your mappings are saved **on your computer** — in the browser for the web app,
 
 **Autosave** runs after a short pause when you edit (about 10 seconds). The status bar at the **bottom** of the window shows the last autosave time (for example, “autosaved at 14:32”).
 
-Both autosave and named saves **survive** closing the browser or restarting the computer. Clearing this site’s browser data (or similar “clear storage” actions) removes them — use **Export Project** for a file you can keep or move elsewhere.
+Both autosave and named saves **survive** closing the browser or desktop app or restarting the computer. Clearing this site’s browser data (or similar “clear storage” actions) removes them — use **Export Project** for a file you can keep or move elsewhere.
 
 | Action | What it does |
 |--------|--------------|

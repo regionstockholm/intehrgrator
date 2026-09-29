@@ -7,6 +7,7 @@ import {
   specRangeMatchesSearch,
   specSearchFocusField,
 } from "@intehrgrator/workbench/mapping_spec/editor.ts";
+import { displayMatchIsCurrent, claimDisplayAnchor } from "@intehrgrator/workbench/mapping_spec/widgets.ts";
 
 Deno.test("specRangeMatchesSearch finds projected Spec line text under replace widgets", () => {
   const projected = blocklyJsonDocument({
@@ -99,4 +100,35 @@ Deno.test("specSearchFocusField lands on first match when query is set", () => {
 
   assertEquals(state.field(specSearchFocusField), { from, to });
   assertEquals(specRangeIsCurrentSearchHit(state, from, to), true);
+});
+
+Deno.test("displayMatchIsCurrent uses a claimed line anchor per duplicate label", () => {
+  const lineText = "language  maps_get · defaults · language";
+  const lineFrom = 10;
+  const used = new Set<number>();
+  const first = claimDisplayAnchor(lineText, "language", used);
+  const second = claimDisplayAnchor(lineText, "language", used);
+  if (first == null || second == null) throw new Error("expected two language anchors");
+  assertEquals(first < second, true);
+
+  const paintSecond = {
+    search: "langu",
+    caseSensitive: false,
+    regexp: false,
+    current: true,
+    currentFrom: lineFrom + second,
+    currentTo: lineFrom + second + 5,
+    lineFrom,
+    lineText,
+  };
+  assertEquals(displayMatchIsCurrent(paintSecond, first, 0, 5), false);
+  assertEquals(displayMatchIsCurrent(paintSecond, second, 0, 5), true);
+
+  const paintFirst = {
+    ...paintSecond,
+    currentFrom: lineFrom + first,
+    currentTo: lineFrom + first + 5,
+  };
+  assertEquals(displayMatchIsCurrent(paintFirst, first, 0, 5), true);
+  assertEquals(displayMatchIsCurrent(paintFirst, second, 0, 5), false);
 });

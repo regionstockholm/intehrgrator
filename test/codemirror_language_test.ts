@@ -41,6 +41,6 @@ Deno.test("JSON language support reports a foldable range for a nested object", 
 });
 
 Deno.test("editorFindExtensions includes search and optional copy-all", () => {
-  assertEquals(editorFindExtensions().length, 3);
-  assertEquals(editorFindExtensions(() => {}).length, 4);
+  assertEquals(editorFindExtensions().length, 4);
+  assertEquals(editorFindExtensions(() => {}).length, 5);
 });

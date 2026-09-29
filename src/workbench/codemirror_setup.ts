@@ -1,6 +1,6 @@
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
-import { EditorView, keymap, lineNumbers } from "@codemirror/view";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { EditorView, keymap, lineNumbers, ViewPlugin, type ViewUpdate } from "@codemirror/view";
+import { Compartment, EditorSelection, EditorState, type Extension } from "@codemirror/state";
 import { javascript } from "@codemirror/lang-javascript";
 import { json } from "@codemirror/lang-json";
 import { xml } from "@codemirror/lang-xml";
@@ -14,7 +14,13 @@ import {
   StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
+import {
+  getSearchQuery,
+  highlightSelectionMatches,
+  search,
+  searchKeymap,
+  setSearchQuery,
+} from "@codemirror/search";
 import { vmsTemplateLintExtensions } from "./template_lint.ts";
 
 /** Languages we can highlight. `"none"` still gets folding chrome, but no parser. */
@@ -127,6 +133,63 @@ function copyAllIfEmptyKeymap(copyAll: EditorCopyAllHandler): Extension {
 }
 
 /**
+ * Orange “current” search mark requires the selection to sit on a match.
+ * When the query changes and the caret is not already on a hit, land on the
+ * first match so Scripts / Conversion Test Run highlight immediately (and so
+ * the first Next advances to the second hit).
+ */
+export const selectFirstSearchMatchOnQuery = ViewPlugin.fromClass(class {
+  constructor(readonly view: EditorView) {}
+
+  update(update: ViewUpdate) {
+    if (!update.transactions.some((tr) => tr.effects.some((effect) => effect.is(setSearchQuery)))) {
+      return;
+    }
+    const query = getSearchQuery(update.state);
+    if (!query.valid) return;
+    const sel = update.state.selection.main;
+    if (!sel.empty) {
+      const atSel = query.getCursor(update.state, sel.from, sel.to).next();
+      if (!atSel.done && atSel.value.from === sel.from && atSel.value.to === sel.to) {
+        return;
+      }
+    }
+    const first = query.getCursor(update.state, 0, update.state.doc.length).next();
+    if (first.done) return;
+    const view = update.view;
+    const target = { from: first.value.from, to: first.value.to };
+    queueMicrotask(() => {
+      if (view.isDestroyed) return;
+      const q = getSearchQuery(view.state);
+      if (!q.valid) return;
+      const main = view.state.selection.main;
+      if (!main.empty) {
+        const at = q.getCursor(view.state, main.from, main.to).next();
+        if (!at.done && at.value.from === main.from && at.value.to === main.to) return;
+      }
+      const still = q.getCursor(view.state, target.from, target.to).next();
+      if (
+        still.done || still.value.from !== target.from || still.value.to !== target.to
+      ) {
+        const again = q.getCursor(view.state, 0, view.state.doc.length).next();
+        if (again.done) return;
+        view.dispatch({
+          selection: EditorSelection.single(again.value.from, again.value.to),
+          effects: EditorView.scrollIntoView(again.value.from, { y: "nearest" }),
+          userEvent: "select.search",
+        });
+        return;
+      }
+      view.dispatch({
+        selection: EditorSelection.single(target.from, target.to),
+        effects: EditorView.scrollIntoView(target.from, { y: "nearest" }),
+        userEvent: "select.search",
+      });
+    });
+  }
+});
+
+/**
  * In-editor search (Ctrl/Cmd+F) and optional Mod-c copy-all when selection empty.
  * Used by readonly script/test viewers and Mapping Spec — not inline Blockly fields.
  */
@@ -134,6 +197,7 @@ export function editorFindExtensions(copyAll?: EditorCopyAllHandler): Extension[
   return [
     search({ top: true }),
     highlightSelectionMatches(),
+    selectFirstSearchMatchOnQuery,
     keymap.of(searchKeymap),
     ...(copyAll ? [copyAllIfEmptyKeymap(copyAll)] : []),
   ];

@@ -1,4 +1,4 @@
-import { EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
+import { EditorSelection, EditorState, Facet, StateEffect, StateField } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -157,6 +157,38 @@ export const specSearchFocusField = StateField.define<{ from: number; to: number
   },
 });
 
+/**
+ * Keep the CM selection on the painted current match after setSearchQuery.
+ * findNext starts from selection.to — without this, the first Next after a
+ * fresh search re-selects the already-highlighted first hit.
+ */
+export const syncSelectionToSpecSearchFocus = ViewPlugin.fromClass(class {
+  constructor(readonly view: EditorView) {}
+
+  update(update: ViewUpdate) {
+    if (!update.transactions.some((tr) => tr.effects.some((effect) => effect.is(setSearchQuery)))) {
+      return;
+    }
+    const focus = update.state.field(specSearchFocusField, false);
+    if (!focus) return;
+    const sel = update.state.selection.main;
+    if (sel.from === focus.from && sel.to === focus.to) return;
+    const view = update.view;
+    const target = { from: focus.from, to: focus.to };
+    queueMicrotask(() => {
+      if (view.isDestroyed) return;
+      const current = view.state.field(specSearchFocusField, false);
+      if (!current || current.from !== target.from || current.to !== target.to) return;
+      const main = view.state.selection.main;
+      if (main.from === current.from && main.to === current.to) return;
+      view.dispatch({
+        selection: EditorSelection.single(current.from, current.to),
+        userEvent: "select.search",
+      });
+    });
+  }
+});
+
 /** Whether this Spec widget range contains the focused (current) search match. */
 export function specRangeIsCurrentSearchHit(
   state: EditorState,
@@ -189,7 +221,11 @@ function buildDecorations(state: EditorState): DecorationSet {
   if (!doc.widgets.length) return Decoration.none;
 
   const query = getSearchQuery(state);
-  const basePaint: Omit<SpecSearchPaint, "current"> | null = query.valid
+  const focus = state.field(specSearchFocusField, false);
+  const basePaint: Omit<
+    SpecSearchPaint,
+    "current" | "currentFrom" | "currentTo" | "lineFrom" | "lineText"
+  > | null = query.valid
     ? {
       search: query.search,
       caseSensitive: query.caseSensitive,
@@ -201,8 +237,19 @@ function buildDecorations(state: EditorState): DecorationSet {
   for (const widget of doc.widgets) {
     const searchHit = specRangeMatchesSearch(state, widget.from, widget.to);
     const searchHitCurrent = specRangeIsCurrentSearchHit(state, widget.from, widget.to);
+    const lineText = state.doc.sliceString(widget.from, widget.to);
+    const focusedInWidget = focus && focus.from < widget.to && focus.to > widget.from
+      ? focus
+      : null;
     const searchPaint: SpecSearchPaint | null = searchHit && basePaint
-      ? { ...basePaint, current: searchHitCurrent }
+      ? {
+        ...basePaint,
+        current: searchHitCurrent,
+        currentFrom: focusedInWidget?.from ?? null,
+        currentTo: focusedInWidget?.to ?? null,
+        lineFrom: widget.from,
+        lineText,
+      }
       : null;
     ranges.push(
       Decoration.replace({
@@ -347,21 +394,69 @@ const specTheme = EditorView.theme({
     background: "rgba(255, 122, 0, 0.45)",
     boxShadow: "inset 0 0 0 2px #ff6a00",
   },
+  /* Substring marks must contrast with both yellow and orange row washes. */
   ".spec-search-text-hit": {
     background: "#ffe200",
-    color: "inherit",
+    color: "#111",
     borderRadius: "2px",
     padding: "0 1px",
   },
   ".spec-search-text-hit--current": {
-    background: "#ff9632",
+    background: "#e65100",
+    color: "#fff",
+  },
+  ".spec-search-control-wrap": {
+    position: "relative",
+    display: "inline-flex",
+    flex: "1 1 auto",
+    minWidth: "0",
+    maxWidth: "100%",
+    alignItems: "stretch",
+  },
+  ".spec-search-control-wrap > input, .spec-search-control-wrap > textarea, .spec-search-control-wrap > select":
+    {
+      flex: "1 1 auto",
+      minWidth: "0",
+      color: "transparent !important",
+      // Deno/Chromium: color alone is not always enough for form controls.
+      WebkitTextFillColor: "transparent",
+      caretColor: "#111",
+    },
+  ".spec-search-control-wrap:focus-within > input, .spec-search-control-wrap:focus-within > textarea, .spec-search-control-wrap:focus-within > select":
+    {
+      color: "#111 !important",
+      WebkitTextFillColor: "#111",
+    },
+  ".spec-search-control-wrap:focus-within > .spec-search-control-mirror": {
+    visibility: "hidden",
+  },
+  ".spec-search-control-mirror": {
+    position: "absolute",
+    inset: "0",
+    display: "flex",
+    alignItems: "center",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    pointerEvents: "none",
+    boxSizing: "border-box",
+    font: "11px ui-monospace, monospace",
+    padding: "0 4px",
+    lineHeight: "14px",
+    color: "#111",
+    background: "#fff",
+    borderRadius: "2px",
+  },
+  /* Leave the native select arrow visible. */
+  ".spec-search-control-wrap > select + .spec-search-control-mirror": {
+    right: "1.1rem",
+    borderTopRightRadius: "0",
+    borderBottomRightRadius: "0",
   },
   ".spec-search-control-hit": {
-    background: "#ffe200 !important",
     boxShadow: "inset 0 0 0 1px #e6c200",
   },
   ".spec-search-control-hit-current": {
-    background: "#ff9632 !important",
     boxShadow: "inset 0 0 0 2px #e65100",
   },
   ".spec-widget--term_pick": {
@@ -671,6 +766,7 @@ export function createMappingSpecEditor(
         selectFacet.of(options.onSelect),
         checkFacet.of(options.onCheckToggle),
         specSearchFocusField,
+        syncSelectionToSpecSearchFocus,
         jsonDecorations,
         specOverview(options.onSelect),
         EditorView.editable.of(false),

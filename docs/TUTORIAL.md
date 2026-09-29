@@ -114,9 +114,16 @@ Refreshing a target or source opens a report with **Copy merge prompt** / **Call
 
 ## 9. Save and share projects
 
+Work is kept **on your computer** (in the browser for the web app; the desktop app uses the same kind of local hidden storage). Nothing is uploaded to a server by Save / Autosave, nor saved as regular files that you can find in your file explorer.
+
+**Autosave** runs after a short pause when you edit (about 10 seconds). The status bar at the **bottom** of the window shows the last autosave time (for example, “autosaved at 14:32”).
+
+Both autosave and named saves **survive** closing the browser or restarting the computer. Clearing this site’s browser data removes them — use **Export Project** for a file you can keep or move elsewhere.
+
 | Action | What it does |
 |--------|--------------|
-| **Save as** | Named snapshot in browser storage (web) or local storage (desktop) |
+| **Autosave** | Automatic snapshot after edits (see status bar); reopen via **Load Project** → Last autosave |
+| **Save as** | Named snapshot in browser storage (web and desktop) |
 | **Load Project** | Reopen a saved snapshot |
 | **Export Project** | Download a `.intehrgrator` bundle (portable, self-contained) |
 | **Import Project** | Load a `.intehrgrator` file |

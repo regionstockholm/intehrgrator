@@ -20,6 +20,16 @@ The site root always tracks the latest `main` build and may change day to day. U
 2. Read the **[User tutorial](docs/TUTORIAL.md)** — a short walkthrough of every major feature.
 3. Click the **ⓘ** tips in the interface for context-sensitive help on panes and controls.
 
+## Saving your work
+
+Your mappings stay on **your computer**, in **your browser** — they are not uploaded to a server, and not saved as ordinary files that you can find in your file explorer.  
+
+- **Autosave:** After you edit, the app waits a short pause (about 10 seconds) and then saves automatically. The status bar at the **bottom** of the window shows when that happened (for example, “autosaved at 14:32”).
+- **Save as:** Use this for a named snapshot you can reopen later via **Load Project**.
+- **Survives restarts:** Both autosave and named saves remain after you close the browser or restart the computer. The desktop app keeps work the same way on your machine.
+- **Can be cleared:** Erasing this site’s data in the browser (or similar “clear storage” actions) removes those saves.
+- **Portable backup:** Use **Export Project** to download a `.intehrgrator` file you can keep, share, or **Import** on another computer or browser.
+
 ## Report issues and ideas
 
 We welcome bug reports and feature requests:

@@ -107,11 +107,14 @@ await copy(join(root, "web", "sw.js"), join(outDir, "sw.js"), { overwrite: true 
 {
   const swPath = join(outDir, "sw.js");
   const sw = await Deno.readTextFile(swPath);
+  // Stamp with git hash + build time so dirty rebuilds on the same HEAD still
+  // rotate the cache (otherwise cache-first shell assets can stick forever).
+  const cacheStamp = `${buildId}-${buildTimestamp}`;
   await Deno.writeTextFile(
     swPath,
     sw.replace(
       'const CACHE_NAME = CACHE_PREFIX + (self.registration?.scope ?? "app");',
-      `const CACHE_NAME = CACHE_PREFIX + ${JSON.stringify(buildId)};`,
+      `const CACHE_NAME = CACHE_PREFIX + ${JSON.stringify(cacheStamp)};`,
     ),
   );
 }

@@ -6,6 +6,14 @@ For terms and definitions used in this repo, including in this readme, see [CONT
 
 **End-user docs:** [README.md](README.md) · [docs/TUTORIAL.md](docs/TUTORIAL.md)
 
+## Project persistence
+
+The web app stores mapping projects in its **IndexedDB** storage.
+
+The desktop app also saves data using IndexedDB, through its embedded browser engine (OS webview).
+
+Saves are done as debounced **autosave** (~10 s after edits) plus named **Save as** snapshots. Details: [docs/PROJECT_PERSISTENCE.md](docs/PROJECT_PERSISTENCE.md) and [Autosave & Status Bar](docs/UI_ARCHITECTURE.md#autosave--status-bar) in `docs/UI_ARCHITECTURE.md`. Portable backup is the `.intehrgrator` export/import path.
+
 ## Prerequisites
 
 - **[Deno](https://docs.deno.com/runtime/getting_started/installation/)** 2.9+ — the project runtime, task runner, test runner, and desktop packager. We use Deno instead of Node/npm for installs, linting, testing, and builds.

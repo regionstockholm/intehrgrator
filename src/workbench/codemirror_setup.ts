@@ -14,7 +14,7 @@ import {
   StreamLanguage,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
+import { highlightSelectionMatches, search, searchKeymap } from "@codemirror/search";
 import { vmsTemplateLintExtensions } from "./template_lint.ts";
 
 /** Languages we can highlight. `"none"` still gets folding chrome, but no parser. */
@@ -132,6 +132,7 @@ function copyAllIfEmptyKeymap(copyAll: EditorCopyAllHandler): Extension {
  */
 export function editorFindExtensions(copyAll?: EditorCopyAllHandler): Extension[] {
   return [
+    search({ top: true }),
     highlightSelectionMatches(),
     keymap.of(searchKeymap),
     ...(copyAll ? [copyAllIfEmptyKeymap(copyAll)] : []),

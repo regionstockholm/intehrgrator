@@ -39,7 +39,7 @@ deno task test:xquery-engine             # optional BaseX golden
 | Gate | Workflow | Suites |
 |------|----------|--------|
 | Pull request and `main` / `cursor/**` push | `.github/workflows/ci.yml` | `deno task test` **and** `deno task test:ui` |
-| Release tag (`deno task release`) | `.github/workflows/release.yml` | unit then UI; UI must pass before Pages / desktop publish. `deno task release:no-test` / `--no-test` skips only the local unit suite before tagging |
+| Release tag (`deno task release`) | `.github/workflows/release.yml` | unit then UI; UI must pass before Pages / desktop publish. `deno task release:no-test` / `--no-test` skips only the local unit suite before tagging. Maintainer flow: [README_DEVELOPERS.md § Releases](../README_DEVELOPERS.md#releases) |
 | GitHub Pages (bleeding-edge `main`) | `.github/workflows/pages.yml` | unit only (UI already gated on the same push via `ci.yml`) |
 
 Optional goldens are not a CI fail when BaseX / `javac` are missing.

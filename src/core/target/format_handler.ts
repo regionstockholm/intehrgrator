@@ -109,6 +109,19 @@ export function reloadTargetLanguage(
   definition: TargetDefinition,
   language: string,
 ): TargetDefinition {
+  if (
+    definition.format === "openehr-template" &&
+    definition.content.trimStart().startsWith("<")
+  ) {
+    const generated = generateSkeleton(definition.content, { language });
+    return {
+      ...definition,
+      skeleton: generated.skeleton,
+      language: generated.language,
+      languages: generated.languages,
+      webTemplateJson: generated.webTemplateJson ?? definition.webTemplateJson,
+    };
+  }
   if (definition.webTemplateJson) {
     const generated = generateSkeletonFromWebTemplate(definition.webTemplateJson, {
       language,

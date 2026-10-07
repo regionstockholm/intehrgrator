@@ -12,13 +12,13 @@ import {
 } from "ehrtslib/parser/mod.ts";
 import { OptXmlSerializer } from "ehrtslib/generation/opt_xml_serializer.ts";
 import { buildWebTemplate } from "ehrtslib/serialization/simplified/web_template_builder.ts";
-import { generateSkeletonFromOperational } from "../skeleton/generate_skeleton.ts";
+import { generateSkeleton } from "../skeleton/generate_skeleton.ts";
+import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
 import {
   availableWebTemplateLanguages,
-  buildWebTemplateTermsIndex,
   orderLanguages,
 } from "../skeleton/template_terms.ts";
-import type { ClinicalModelFileset, SkeletonNode } from "../../types/mod.ts";
+import type { ClinicalModelFileset } from "../../types/mod.ts";
 
 const CLINICAL_MODEL_URL_SUFFIX = /\.(t\.json|adl|adls|opt|oet)$/i;
 
@@ -76,12 +76,12 @@ export async function loadGitHubClinicalModel(
   const optXml = rootFile && isOptXml(rootFile.content)
     ? rootFile.content
     : new OptXmlSerializer().serialize(opt);
-  const webTemplate = buildWebTemplate(opt, { defaultLanguage: options?.language });
-  const generated = generateSkeletonFromOperational(
-    opt,
-    optXml,
-    buildWebTemplateTermsIndex(webTemplate, options?.language),
-    { language: options?.language },
+  // Flattened .t.json with nested templates can yield a thinner in-memory OPT than the
+  // serialized XML; scaffold from OPT XML so embedded templates match Test Run.
+  const generated = generateSkeleton(optXml, { language: options?.language });
+  const webTemplate = buildWebTemplate(
+    parseTemplateInput(optXml).operationalTemplate,
+    { defaultLanguage: options?.language },
   );
   const templateId = generated.templateId !== "unknown"
     ? generated.templateId

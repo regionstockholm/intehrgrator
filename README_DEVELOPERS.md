@@ -76,6 +76,58 @@ Every push to `main` deploys the bleeding-edge web app. `deno task release` also
 
 CI runs **`deno task vendor`** (ehrtslib `origin/main` + local patches), so upstream module changes fail tests instead of shipping stale pins.
 
+### Releases
+
+Maintainers cut releases with **`deno task release`** (local bump, tag, push). GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)) publishes desktop binaries and a **frozen** GitHub Pages tree for each tag. End-user “recommended version” behaviour is controlled separately (see below).
+
+#### Happy path (new version)
+
+1. Work from a clean `main` (or agreed release branch) with `git` and `gh` authenticated (`deno task release` checks this).
+2. Run `deno task release -- --version X.Y.Z` (or `--current` to tag the version already in `deno.json`).
+   - Prefer the `--` separator so Deno does not swallow script flags: `deno task release -- --version 0.8.9`.
+3. **Locally**, the release script (`scripts/release.ts`): optionally bumps `deno.json`, `package.json`, `scripts/desktop.compile.json`, and `APP_VERSION`; runs `deno task vendor`; runs unit tests (unless `--no-test` / `release:no-test`); runs `deno task build`; commits if bumped; creates an annotated tag; pushes `HEAD` and the tag.
+4. **On tag push**, `release.yml` runs vendor → unit tests → build → UI tests → assembles the versioned Pages site → deploys Pages → compiles desktop → creates/uploads GitHub Release assets.
+5. **Outcomes:** a GitHub Release for the tag, a frozen site at `https://regionstockholm.github.io/intehrgrator/<tag>/`, and an updated root [`versions.json`](https://regionstockholm.github.io/intehrgrator/versions.json).
+
+Example: package version `0.8.8` → tag `v0.8.8` (see tag mapping below).
+
+#### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--dry-run` | Validate and build; no commit, tag, or push. May still rewrite version files locally — revert before committing if you only meant to probe. |
+| `--no-test` / `deno task release:no-test` | Skips **local** unit tests only; CI still runs unit + UI tests on the tag. |
+| `--message` | Annotated tag message (default: `intEHRgrator desktop <version>`). |
+
+#### Tag mapping (`releaseTagForVersion`)
+
+- Patch segment `0` → `vMAJOR.MINOR` (e.g. `0.8.0` → `v0.8`).
+- Otherwise → `vMAJOR.MINOR.PATCH` (e.g. `0.8.8` → `v0.8.8`).
+
+#### Immutable published tags vs recovery
+
+Frozen Pages builds for a tag are **immutable**. `assembleReleasePagesSite` refuses to republish a tag already listed in `versions.json`, and `release.yml` assembles Pages **before** desktop upload.
+
+- **Routine fix after a successful release:** ship a **new** version and tag (e.g. `0.8.9`), do not rebuild `v0.8.8`.
+- **`workflow_dispatch` with “Existing release tag”** is for **recovery** when the first Actions run failed *before* that version reached Pages — not for republishing content users already have.
+
+#### `deno task release` vs GitHub “Draft a new release”
+
+| | `deno task release` + tag → `release.yml` | GitHub **Releases → Draft a new release** |
+|--|--|--|
+| Bumps version files | Yes (unless `--current`) | No |
+| Enforces `releaseTagForVersion` | Yes | Easy to mismatch tag names |
+| Tests, frozen `/v…/` Pages, desktop via CI | Yes (on tag push) | Only if a new `v*` tag triggers `release.yml` |
+| Primary purpose | Guided maintainer release | Release notes / extra assets |
+
+GitHub’s UI is fine for notes or attachments, but it is **not** a substitute for the scripted release path. A future guided Actions UI is tracked separately ([#220](https://github.com/regionstockholm/intehrgrator/issues/220)).
+
+#### Recommended end-user version
+
+`versions.json` field `recommended` drives the “not on recommended version” popup. On assemble, precedence is: `RECOMMENDED_VERSION` env or repo-root [`RECOMMENDED_VERSION`](RECOMMENDED_VERSION) file → else keep the previous recommendation if still published → else newest tag. To promote a release while keeping an older recommendation during bake-in, set `RECOMMENDED_VERSION` to that tag (e.g. `v0.8.8`), commit, and let the next Pages deploy run.
+
+Bleeding-edge site root (`main` Pages) is not the same as the recommended stable tag.
+
 ## Repository layout
 
 | Path | Role |

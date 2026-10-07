@@ -1,5 +1,6 @@
 # Publish desktop binaries and a frozen GitHub Pages subdirectory for each release tag.
 # Triggered by `deno task release` (push annotated tag) or manual tag push.
+# Maintainer guide: README_DEVELOPERS.md § Releases.
 
 name: Release
 

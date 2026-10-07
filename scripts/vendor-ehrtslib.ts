@@ -1,5 +1,6 @@
 import { ensureDir } from "@std/fs";
 import { join } from "@std/path";
+import { patchEhrtslibArchetypeRepository } from "./patch-ehrtslib-archetype-repository.ts";
 import { patchEhrtslibValidator } from "./patch-ehrtslib-validator.ts";
 
 type VendorSpec = {
@@ -37,6 +38,7 @@ for (const spec of repos) {
 if (failed) Deno.exit(1);
 
 await patchEhrtslibValidator();
+await patchEhrtslibArchetypeRepository();
 
 async function vendorRepo(spec: VendorSpec): Promise<void> {
   const { dir, url } = spec;

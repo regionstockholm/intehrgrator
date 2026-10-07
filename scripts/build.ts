@@ -71,6 +71,8 @@ await esbuild.build({
   target: "es2022",
   platform: "browser",
   sourcemap: true,
+  // Transitive deno_dom@v0.1.43 sizzle.js: harmless CJS export in an ESM file (#186).
+  logOverride: { "commonjs-variable-in-esm": "silent" },
   define: {
     "process.env.NODE_ENV": '"production"',
     "__BUILD_ID__": JSON.stringify(buildId),
@@ -89,6 +91,7 @@ await esbuild.build({
   platform: "node",
   sourcemap: true,
   external: ["vscode"],
+  logOverride: { "commonjs-variable-in-esm": "silent" },
 });
 
 await copy(join(root, "web", "index.html"), join(outDir, "index.html"), { overwrite: true });

@@ -32,7 +32,7 @@ deno task build  # build web app into /dist
 deno task dev`  # start and serve on `http://localhost:5173`
 ```
 
-NOTE: `git pull` does not refresh or re-patch `vendor/ehrtslib`. Run `deno task vendor` after clone, and re-run after pulling `main` if openEHR validation tests fail oddly (or routinely after pull so your tree matches CI). The task resets ehrtslib to upstream `origin/main`, then re-applies local TemplateValidator patches (`scripts/patch-ehrtslib-validator.ts`).
+NOTE: `git pull` does not refresh or re-patch `vendor/ehrtslib`. Run `deno task vendor` after clone, and re-run after pulling `main` if openEHR validation tests fail oddly (or routinely after pull so your tree matches CI). The task resets ehrtslib to upstream `origin/main`, then re-applies local patches (`scripts/patch-ehrtslib-validator.ts`, `scripts/patch-ehrtslib-archetype-repository.ts`).
 
 ## Tests
 
@@ -75,6 +75,51 @@ Every push to `main` deploys the bleeding-edge web app. `deno task release` also
 `versions.json` also carries a `recommended` field naming the tag (e.g. `"v0.7.5"`) the web app suggests end users stick to. It defaults to the newest published release tag on every deploy, but a still-published previous recommendation is preserved across deploys unless overridden. To pin an older release as recommended (e.g. while a new one is still shaking out), commit a `RECOMMENDED_VERSION` file at the repo root containing just the tag; `scripts/assemble-pages.ts` reads it (or the `RECOMMENDED_VERSION` env var) on the next Pages deploy. Visiting any non-recommended version of the deployed site (including the bleeding-edge root) shows a popup linking to the recommended version, the tutorial, and the README.
 
 CI runs **`deno task vendor`** (ehrtslib `origin/main` + local patches), so upstream module changes fail tests instead of shipping stale pins.
+
+## Releases
+
+Maintainers cut releases with **`deno task release`** (not GitHub **Releases → Draft a new release** alone). The Deno script bumps version files, runs vendor/build/tests locally, commits if needed, creates an annotated tag, and pushes `HEAD` + the tag. **GitHub Actions** (`.github/workflows/release.yml`) runs on the tag: vendor → unit tests → build → UI tests → frozen GitHub Pages under `https://regionstockholm.github.io/intehrgrator/<tag>/` → desktop binaries → GitHub Release assets.
+
+### Happy path (new version)
+
+1. Work from a clean `main` (or agreed release branch). Ensure `git` and `gh` auth work (`deno task release` checks `gh` unless `--dry-run`).
+2. Run `deno task release -- --version X.Y.Z` (or `--current` to tag the version already in `deno.json`). Prefer the `--` separator so Deno does not swallow script flags.
+3. Locally the script may bump `deno.json`, `package.json`, `scripts/desktop.compile.json`, and `APP_VERSION`; run `deno task vendor` (unless skipped), unit tests (unless `--no-test`), and `deno task build`; then commit, tag, and push.
+4. The tag push triggers `release.yml` (unit + UI must pass before publish).
+
+Example: package version `0.8.8` → tag **`v0.8.8`**. Patch segment `0` is special: `0.8.0` → tag **`v0.8`** (see `releaseTagForVersion` in `scripts/release_version.ts`).
+
+### Flags
+
+| Flag | Effect |
+|------|--------|
+| `--dry-run` | Validate and build; no commit, tag, or push. Version files may still be rewritten locally — revert before committing if you only wanted a smoke run. |
+| `--no-test` / `deno task release:no-test` | Skips **local** unit tests only; CI still runs unit + UI on the tag. |
+| `--message` | Annotated tag message (default: `intEHRgrator desktop <version>`). |
+
+### Immutable published tags vs recovery
+
+Frozen Pages builds for a tag are **immutable**: `assembleReleasePagesSite` errors if that tag is already listed in `versions.json`, and `release.yml` assembles Pages **before** desktop upload.
+
+- **Routine fix after a successful release:** ship a **new** version and tag (e.g. `0.8.9` / `v0.8.9`). Do not try to rebuild `v0.8.8` in place.
+- **`workflow_dispatch` → “Existing release tag”** on `release.yml` is for **recovery** when the first Actions run failed *before* that version was published to Pages — not for republishing. Re-dispatching a tag already on Pages typically fails at assemble and does not refresh what users already have.
+
+### `deno task release` vs GitHub “Draft a new release”
+
+| | `deno task release` + tag → `release.yml` | GitHub **Draft a new release** UI |
+|--|--|--|
+| Bumps version files | Yes (unless `--current`) | No |
+| Enforces `releaseTagForVersion` | Yes | Easy to pick a mismatched tag |
+| Tests, frozen `/v…/` Pages, desktop via CI | On tag push | Only if a new `v*` tag is created/pushed; no version bump |
+| Creates GitHub Release assets | Via Actions after tag | Yes (primary UI purpose) |
+
+Use the GitHub Release UI for release notes or extra attachments, not as a substitute for the guided release path. A future Actions “make new release” UI is tracked in [#220](https://github.com/regionstockholm/intehrgrator/issues/220).
+
+### Recommended end-user version
+
+`versions.json` field **`recommended`** drives the “not on recommended version” popup. On assemble, precedence is: `RECOMMENDED_VERSION` env or repo-root [`RECOMMENDED_VERSION`](RECOMMENDED_VERSION) file → else keep the previous recommendation if still published → else newest tag. To promote a release (e.g. `v0.8.8`), commit `RECOMMENDED_VERSION` containing that tag and let the next Pages deploy (main and/or release assemble) run.
+
+Bleeding-edge site root (`main` Pages) is not the same as the recommended stable tag.
 
 ## Repository layout
 

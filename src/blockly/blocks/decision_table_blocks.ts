@@ -110,6 +110,13 @@ class FieldDecisionOutput extends DropdownBase {
     if (newValue == null || newValue === "") return null;
     return String(newValue);
   }
+
+  /** Blockly sometimes leaves the closed dropdown label on the first menu entry. */
+  getText_(): string {
+    const value = String(this.getValue?.() ?? "");
+    if (!value || isAllOutputs(value)) return "all outputs";
+    return value;
+  }
 }
 
 export function applyDecisionTableOutputType(block: Blockly.Block): void {

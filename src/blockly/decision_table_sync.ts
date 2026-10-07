@@ -6,7 +6,9 @@ import type { Block, Connection, Workspace } from "blockly/core";
 import {
   alignMapKeys,
   conditionHeaders,
+  DECISION_ALL_OUTPUTS,
   isDecisionTable,
+  outputHeaders,
   setDecisionHeader,
   type SheetDocument,
 } from "../core/sheets/mod.ts";
@@ -37,7 +39,19 @@ export function syncDecisionTableBlocksFromSheets(
       if (!sheet) continue;
       if (block.type === DECISION_TABLE_BLOCK) {
         bindLocalsMap(block, sheet);
+        const outs = outputHeaders(sheet);
+        const current = String(block.getFieldValue("OUTPUT") || "");
+        if (
+          current &&
+          current !== DECISION_ALL_OUTPUTS &&
+          outs.length &&
+          !outs.includes(current)
+        ) {
+          block.setFieldValue(outs[0]!, "OUTPUT");
+        }
         applyDecisionTableOutputType(block);
+        const outputField = block.getField("OUTPUT") as { forceRerender?: () => void } | null;
+        outputField?.forceRerender?.();
       }
     }
     refreshGridPreviewFields(workspace);

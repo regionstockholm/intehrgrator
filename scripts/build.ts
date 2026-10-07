@@ -64,6 +64,7 @@ const xmlEmbedPlugin: esbuild.Plugin = {
 await esbuild.build({
   absWorkingDir: root,
   plugins: [xmlEmbedPlugin, ...denoPlugins({ configPath })],
+  logOverride: { "commonjs-variable-in-esm": "silent" },
   entryPoints: ["web/main.ts"],
   bundle: true,
   outfile: "dist/bundle.js",
@@ -81,6 +82,7 @@ await esbuild.build({
 await esbuild.build({
   absWorkingDir: root,
   plugins: [xmlEmbedPlugin, vscodeExternal, ...denoPlugins({ configPath })],
+  logOverride: { "commonjs-variable-in-esm": "silent" },
   entryPoints: ["extension/extension.ts"],
   bundle: true,
   outfile: "dist/extension.js",

@@ -1,5 +1,5 @@
 {
-  "$comment": "intEHRgrator example-set catalog. In-repo assets use relative URIs under ../test/fixtures/ (resolved against this file's URL; build copies fixtures into dist/). External targets keep absolute GitHub blob URLs (rewritten to raw.githubusercontent.com). Canonical long-term home may move to ehrtslib. Each source schema has an unmapped set and a mapped set; #70 sibling decision-table sets sit beside lung-MDT and chemo gold (do not rewrite those directories).",
+  "$comment": "intEHRgrator example-set catalog. In-repo assets use relative URIs under ../test/fixtures/ (resolved against this file's URL; build copies fixtures into dist/). Canonical long-term home may move to ehrtslib. Each source schema has an unmapped set and a mapped set; #70 sibling decision-table sets sit beside lung-MDT and chemo gold (do not rewrite those directories).",
   "version": 1,
   "sets": [
     {
@@ -45,7 +45,7 @@
           "../test/fixtures/legacy-simulated-json/instances/bp-inst-3-invalid.json"
         ]
       },
-      "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt"
+      "target": "../test/fixtures/simple-diagnose-and-vitals.opt"
     },
     {
       "id": "Simple-vitals",
@@ -60,7 +60,7 @@
           "../test/fixtures/legacy-simulated-json/instances/bp-inst-3-invalid.json"
         ]
       },
-      "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt",
+      "target": "../test/fixtures/simple-diagnose-and-vitals.opt",
       "mapping": "../test/fixtures/legacy-simulated-json/mapping/simple-vitals.blockly.json",
       "sheets": "../test/fixtures/legacy-simulated-json/mapping/simple-vitals.sheets.json"
     },
@@ -77,7 +77,7 @@
           "../test/fixtures/legacy-simulated-json/instances-series/bp-series-inst-3-invalid.json"
         ]
       },
-      "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt"
+      "target": "../test/fixtures/simple-diagnose-and-vitals.opt"
     },
     {
       "id": "Simple-vitals-series",
@@ -92,7 +92,7 @@
           "../test/fixtures/legacy-simulated-json/instances-series/bp-series-inst-3-invalid.json"
         ]
       },
-      "target": "https://github.com/Ehrlibs/openEHR-model-examples/blob/main/local/theme-packs/simple-diagnose-and-vitals/simple-diagnose-and-vitals.opt",
+      "target": "../test/fixtures/simple-diagnose-and-vitals.opt",
       "mapping": "../test/fixtures/legacy-simulated-json/mapping/bp-series.blockly.json",
       "sheets": "../test/fixtures/legacy-simulated-json/mapping/bp-series.sheets.json"
     },
@@ -109,12 +109,12 @@
           "../test/fixtures/Obstetrix-MHV1/source-instance/4-nightly-primigravida.json"
         ]
       },
-      "target": "https://github.com/regionstockholm/CKM-mirror-via-modellbibliotek/blob/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json"
+      "target": "../test/fixtures/Obstetrix-MHV1/target/mhv1-prenatal-visit.encounter.v1.opt"
     },
     {
       "id": "obx-mhv1-mapped-json-to-openehr",
       "title": "OBX MHV1 (JSON → openEHR) — mapped",
-      "description": "Obstetrix MHV1 JSON Schema and maternity-care registration instances, targeting the MHV1 Prenatal visit openEHR template. Lifestyle codes use a Decision table. The template is a GitHub .t.json (dependencies fetched from the same branch).",
+      "description": "Obstetrix MHV1 JSON Schema and maternity-care registration instances, targeting the MHV1 Prenatal visit openEHR template (repo-local OPT). Lifestyle codes use a Decision table.",
       "source": {
         "schema": "../test/fixtures/Obstetrix-MHV1/source-schema/obx-mhv1.review-1.schema.json",
         "instances": [
@@ -124,7 +124,7 @@
           "../test/fixtures/Obstetrix-MHV1/source-instance/4-nightly-primigravida.json"
         ]
       },
-      "target": "https://github.com/regionstockholm/CKM-mirror-via-modellbibliotek/blob/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json",
+      "target": "../test/fixtures/Obstetrix-MHV1/target/mhv1-prenatal-visit.encounter.v1.opt",
       "mapping": "../test/fixtures/Obstetrix-MHV1/mapping/mapping.blockly.json",
       "sheets": "../test/fixtures/Obstetrix-MHV1/mapping/mapping.sheets.json"
     },

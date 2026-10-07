@@ -196,7 +196,7 @@ Deno.test("parseExampleSetCatalog resolves in-repo fixture URIs against the cata
   );
   assertEquals(
     obx.target,
-    "https://raw.githubusercontent.com/regionstockholm/CKM-mirror-via-modellbibliotek/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json",
+    `${localFixtures}Obstetrix-MHV1/target/mhv1-prenatal-visit.encounter.v1.opt`,
   );
   const kardaOrd = catalog.sets.find((set) => set.id === "karda-ordinationsdata-to-openehr-flat");
   if (!kardaOrd) throw new Error("expected karda ordination example set");

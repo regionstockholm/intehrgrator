@@ -11,8 +11,7 @@ MHV1 Prenatal visit openEHR template. No Blockly mapping.
 | `source-instance/2-ivf-multipara.json` | IVF, previous pregnancies, MHV3 |
 | `source-instance/3-komplex-mhv3.json` | Complex social/medical history, MHV3 |
 
-Source schema and instances live under `test/fixtures/Obstetrix-MHV1/`
-(catalog URIs load them from GitHub). The target template is loaded from
-GitHub (`.t.json` with dependent archetypes):
-
-https://github.com/regionstockholm/CKM-mirror-via-modellbibliotek/blob/Obstetrix-openEHR/MHV1-%20Prenatal%20visit.encounter.v1.t.json
+Source schema and instances live under `test/fixtures/Obstetrix-MHV1/`.
+The target operational template is the repo-local OPT under
+`target/mhv1-prenatal-visit.encounter.v1.opt` (provenance in
+`target/README.md`).

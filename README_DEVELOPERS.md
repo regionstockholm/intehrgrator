@@ -32,7 +32,7 @@ deno task build  # build web app into /dist
 deno task dev`  # start and serve on `http://localhost:5173`
 ```
 
-NOTE: `git pull` does not refresh or re-patch `vendor/ehrtslib`. Run `deno task vendor` after clone, and re-run after pulling `main` if openEHR validation tests fail oddly (or routinely after pull so your tree matches CI). The task resets ehrtslib to upstream `origin/main`, then re-applies local patches (`scripts/patch-ehrtslib-validator.ts`, `scripts/patch-ehrtslib-archetype-repository.ts`).
+NOTE: `git pull` does not refresh or re-patch `vendor/ehrtslib`. Run `deno task vendor` after clone, and re-run after pulling `main` if openEHR validation tests fail oddly (or routinely after pull so your tree matches CI). The task resets ehrtslib to upstream `origin/main`, then re-applies local TemplateValidator patches (`scripts/patch-ehrtslib-validator.ts`).
 
 ## Tests
 

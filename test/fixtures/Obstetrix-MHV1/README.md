@@ -12,5 +12,5 @@ MHV1 Prenatal visit openEHR template. No Blockly mapping.
 | `source-instance/3-komplex-mhv3.json` | Complex social/medical history, MHV3 |
 
 Source schema, instances, and the flattened target OPT live under
-`test/fixtures/Obstetrix-MHV1/`. See `target/README.md` for upstream
-provenance and how to refresh `mhv1-prenatal-visit.encounter.v1.opt`.
+`test/fixtures/Obstetrix-MHV1/`. See `target/README.md` for the upstream
+template this OPT was flattened from.

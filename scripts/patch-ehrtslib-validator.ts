@@ -3,10 +3,17 @@
  * children[0]. That checks every OBSERVATION against the first archetype
  * (pulse reported as respiration, and the same for clusters).
  *
- * `deno task vendor` hard-resets vendor/ehrtslib, so the correction is applied
- * here after each vendor refresh. Idempotent.
+ * The library itself is imported from the jsDelivr release pin. This downloads
+ * `validation/template_validator.ts` from that pin, rewrites its relative
+ * imports to absolute CDN URLs, applies the sibling-match correction, and
+ * writes `vendor/ehrtslib-overrides/validation/template_validator.ts`.
+ * deno.json scopes that one module to the local file.
  */
-import { join } from "@std/path";
+import { ensureDir } from "@std/fs";
+import { dirname, join } from "@std/path";
+import { ehrtslibCdnPrefix, fetchEhrtslibText } from "../src/core/ehrtslib_cdn.ts";
+
+const OVERRIDE_REL = join("vendor", "ehrtslib-overrides", "validation", "template_validator.ts");
 
 const MARKER = "INTEHR_SIBLING_CONSTRAINT_MATCH";
 const NAME_MARKER = "INTEHR_NAME_CONSTRAINT_MATCH";
@@ -152,9 +159,17 @@ function firstConstrainedString(nodes: unknown): string | undefined {
   return undefined;
 }`;
 
+function rewriteRelativeImports(source: string, moduleUrl: string): string {
+  return source.replace(
+    /from\s+["'](\.[^"']+)["']/g,
+    (_match, spec: string) => `from "${new URL(spec, moduleUrl).href}"`,
+  );
+}
+
 export async function patchEhrtslibValidator(root = Deno.cwd()): Promise<void> {
-  const path = join(root, "vendor/ehrtslib/validation/template_validator.ts");
-  let next = await Deno.readTextFile(path);
+  const moduleUrl = new URL("validation/template_validator.ts", ehrtslibCdnPrefix()).href;
+  const path = join(root, OVERRIDE_REL);
+  let next = rewriteRelativeImports(await fetchEhrtslibText("validation/template_validator.ts"), moduleUrl);
   let changed = false;
   if (!next.includes(MARKER)) {
     const replacements: Array<[string, string]> = [
@@ -215,7 +230,10 @@ export async function patchEhrtslibValidator(root = Deno.cwd()): Promise<void> {
     changed = true;
     console.log("Patched ehrtslib TemplateValidator absent optional attributes");
   }
-  if (changed) await Deno.writeTextFile(path, next);
+  if (changed) {
+    await ensureDir(dirname(path));
+    await Deno.writeTextFile(path, next);
+  }
 }
 
 if (import.meta.main) {

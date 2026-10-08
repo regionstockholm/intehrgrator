@@ -9,15 +9,6 @@ type VendorSpec = {
 
 const repos: VendorSpec[] = [
   {
-    dir: "ehrtslib",
-    // origin/main includes OPT code_list / assumed_value / quantity units (#73),
-    // C_ORDINAL.list + C_QUANTITY intervals / coded-text nested defining_code (#79),
-    // Veredictum-backed TemplateValidator / RM spec / OPT primitive unwrap (#81),
-    // and optional `spec/` package for BMM class/attribute documentation.
-    // Do not post-patch xml_aom_mapper — #79 superseded the local C_ORDINAL.list shim.
-    url: "https://github.com/ErikSundvall/ehrtslib.git",
-  },
-  {
     dir: "openEHR-model-examples",
     url: "https://github.com/Ehrlibs/openEHR-model-examples.git",
   },
@@ -35,6 +26,14 @@ for (const spec of repos) {
   }
 }
 if (failed) Deno.exit(1);
+
+const staleEhrtslib = join(Deno.cwd(), "vendor", "ehrtslib");
+try {
+  await Deno.remove(staleEhrtslib, { recursive: true });
+  console.log(`Removed full-repo checkout ${staleEhrtslib}`);
+} catch {
+  // no previous clone
+}
 
 await patchEhrtslibValidator();
 

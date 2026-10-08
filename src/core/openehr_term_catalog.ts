@@ -5,7 +5,7 @@
  * External code sets (ISO_639-1, ISO_3166-1, IANA_character-sets) come from
  * `openehr_external_terminologies.xml`.
  *
- * @see vendor/ehrtslib/term/terminology_service.ts
+ * @see ehrtslib/term/terminology_service.ts
  * @see openehr://guides/specs/rm-ehr
  */
 import { XMLParser } from "fast-xml-parser";

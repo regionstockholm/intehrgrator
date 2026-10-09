@@ -1609,9 +1609,7 @@ function installCopyAiMenu(): void {
     btn.addEventListener("click", () => {
       const action = btn.dataset.aiAction;
       handle.close();
-      if (action === "copy") {
-        void controller.copyAiPrompt(lastAiDelivery());
-      } else if (action === "call") {
+      if (action === "call") {
         void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
       } else if (action === "credentials") {
         openAiCredentialsDialog();

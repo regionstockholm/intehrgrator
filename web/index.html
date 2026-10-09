@@ -10,6 +10,7 @@
   <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
   <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Google+Sans:400,500" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20,400,0,0" />
   <link rel="stylesheet" href="vendor/shoelace/themes/light.css" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="vendor/jspreadsheet/jsuites.css" />
@@ -33,26 +34,29 @@
     <div class="menubar-item">
       <button id="btn-copy-ai" class="menubar-btn" type="button" title="AI assistance" data-i18n="menuAi" data-i18n-title="aiMenuAria" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-copy-ai">AI</button>
       <div id="menu-copy-ai" class="split-btn-menu" hidden role="menu">
-        <div class="split-btn-menu-heading" data-ai-section="copy" data-i18n="menuAiCopyHeading">Copy for an external chat</div>
-        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="copy" data-i18n="menuCopyPrompt">
-          Copy prompt
+        <div class="split-btn-menu-heading" data-ai-section="copy" data-i18n="menuAiCopyHeading">copy/paste for external AI chat</div>
+        <button type="button" class="split-btn-menu-item split-btn-menu-item--icon" role="menuitem" data-ai-delivery="inline">
+          <span class="material-symbols-outlined split-btn-menu-icon" aria-hidden="true">content_copy</span>
+          <span data-i18n="menuEmbedFiles">Embed files in prompt</span>
         </button>
-        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="inline" data-i18n="menuEmbedFiles">
-          Embed files in prompt
+        <button type="button" class="split-btn-menu-item split-btn-menu-item--icon" role="menuitem" data-ai-delivery="attach">
+          <span class="material-symbols-outlined split-btn-menu-icon" aria-hidden="true">content_copy</span>
+          <span data-i18n="menuAttachFiles">Attach files in chat</span>
         </button>
-        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="attach" data-i18n="menuAttachFiles">
-          Attach files in chat
+        <button type="button" class="split-btn-menu-item split-btn-menu-item--icon" role="menuitem" data-ai-delivery="uri">
+          <span class="material-symbols-outlined split-btn-menu-icon" aria-hidden="true">content_copy</span>
+          <span data-i18n="menuBrowseUris">Browse URIs (when available)</span>
         </button>
-        <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-delivery="uri" data-i18n="menuBrowseUris">
-          Browse URIs (when available)
+        <button id="btn-import-ai" class="split-btn-menu-item split-btn-menu-item--icon" type="button" role="menuitem">
+          <span class="material-symbols-outlined split-btn-menu-icon" aria-hidden="true">content_paste</span>
+          <span data-i18n="importAi">Import AI suggestions</span>
         </button>
-        <button id="btn-import-ai" class="split-btn-menu-item" type="button" role="menuitem" data-i18n="importAi">Import AI suggestions</button>
         <div class="split-btn-menu-heading" data-ai-section="own" data-i18n="menuAiOwnHeading">Your own AI</div>
         <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="call" data-i18n="menuCallAi">
           Call AI
         </button>
         <button type="button" class="split-btn-menu-item" role="menuitem" data-ai-action="credentials" data-i18n="menuAiCredentials">
-          AI credentials…
+          Configure AI credentials…
         </button>
         <div id="ai-menu-desktop" hidden>
           <div class="split-btn-menu-heading" data-ai-section="desktop" data-i18n="menuAiDesktopHeading">Desktop</div>

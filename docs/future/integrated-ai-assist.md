@@ -16,15 +16,15 @@ All three apply through the same Mapping Model / Blockly path. Copy prompt + **I
 
 The toolbar **AI** menu is three sections. The third is desktop-only.
 
-**Copy for an external chat**
+**copy/paste for external AI chat**
 
-- **Copy prompt** — markdown prompt with target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`. **Embed files**, **Attach files**, and **Browse URIs** pick how context is packed and then copy.
+- **Embed files**, **Attach files**, and **Browse URIs** — each copies a markdown prompt (target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`) and remembers the packing mode.
 - **Import AI suggestions** — parses `intehrgrator-suggestions` JSON version 2 (same path as Call AI suggestions mode)
 
 **Your own AI**
 
 - **Call AI** — POST that prompt. Default mapping mode uses OpenAI function tools named like MCP (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) against the open project. **Suggestions JSON only** is the one-shot import used before tools existed.
-- **AI credentials…** — provider preset (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner), endpoint, API key, model, mapping mode. Never stored in the Project Bundle. GitHub Pages browsers often hit CORS on cloud APIs; the **desktop app** forwards Call AI through `POST /api/v1/ai-chat-completions`. Key walkthrough: [AI_CREDENTIALS.md](../AI_CREDENTIALS.md).
+- **Configure AI credentials…** — provider preset (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner), endpoint, API key, model, mapping mode. Never stored in the Project Bundle. GitHub Pages browsers often hit CORS on cloud APIs; the **desktop app** forwards Call AI through `POST /api/v1/ai-chat-completions`. Key walkthrough: [AI_CREDENTIALS.md](../AI_CREDENTIALS.md).
 
 **Desktop**
 

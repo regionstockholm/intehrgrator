@@ -12,21 +12,19 @@ Back to the [tutorial index](../TUTORIAL.md).
 
 Use this when you paste a prompt into ChatGPT, Claude, Cursor, or another chat you already pay for.
 
-The three packing actions copy a prompt and remember the choice:
+Under **copy/paste for external AI chat**, pick how context is packed. Each choice copies a prompt and remembers that mode for next time:
 
 - **Embed files in prompt** — schema, template, and examples are inside the markdown.
 - **Attach files in chat** — the prompt tells you which files to attach yourself.
 - **Browse URIs (when available)** — the prompt points at URLs instead of embedding bytes.
 
-**Copy prompt** repeats the last packing mode you chose.
-
-Paste the model’s reply with **Import AI suggestions**. The dialog accepts raw JSON or an `intehrgrator-suggestions` fence. Validation errors stay in the dialog so you can copy them back to the chat. The format is [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
+Paste the model’s reply with **Import AI suggestions** (paste icon in the menu). The dialog accepts raw JSON or an `intehrgrator-suggestions` fence. Validation errors stay in the dialog so you can copy them back to the chat. The format is [AI_SUGGESTION_FORMAT.md](../AI_SUGGESTION_FORMAT.md).
 
 ## Your own AI
 
 Use this when intEHRgrator should call the model itself.
 
-1. **AI credentials…** — pick a provider, endpoint, API key, and model. Credentials stay in this browser. They are never stored in the Project Bundle.
+1. **Configure AI credentials…** — pick a provider, endpoint, API key, and model. Credentials stay in this browser. They are never stored in the Project Bundle.
 2. **Call AI** — sends the current prompt. The default mode uses mapping tools with the same names as MCP (`map_slot`, `import_suggestions`, `run_test`, …) and applies them on the open canvas. **Suggestions JSON only** is the older one-shot import.
 
 On GitHub Pages the browser often cannot reach a cloud API (CORS). The desktop app forwards Call AI through its own server, so Gemini, OpenAI, Anthropic, Hugging Face, and OpenCode Zen work there. Key pages: [Call AI credentials](../AI_CREDENTIALS.md).

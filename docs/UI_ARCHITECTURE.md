@@ -104,7 +104,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| AI ▾ | Three sections. **Copy for an external chat:** Copy prompt, embed / attach / URI, Import AI suggestions. **Your own AI:** Call AI, AI credentials…. **Desktop** (downloaded app only): Local MCP server… opens a panel that starts or stops agent tools and shows the IDE `mcp.json` | ✓ |
+| AI ▾ | Three sections. **copy/paste for external AI chat:** embed / attach / URI (copy icon), Import AI suggestions (paste icon). **Your own AI:** Call AI, Configure AI credentials…. **Desktop** (downloaded app only): Local MCP server… opens a panel that starts or stops agent tools and shows the IDE `mcp.json` | ✓ |
 | Example Sets | Load a complete example set (source schema + instances, target, optional mapping) from a URI catalog | ✓ |
 | New Project | Reset workspace to empty project (confirm if content present) | ✓ |
 | Load Project | Open modal listing autosave + recent manual saves | ✓ |
@@ -166,8 +166,8 @@ The test runner is a core informatician workflow, not a nice-to-have.
 ### Copy prompt / Call AI
 
 1. User optionally selects a single value slot (scopes prompt to that `slotId`) or leaves unselected (all unmapped slots)
-2. Clicks **Copy prompt** or **Call AI** (main button is Call AI when credentials exist; ▾ chooses Copy prompt, Call AI, credentials, and delivery)
-3. **AI credentials…** — pick a provider (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner). Each preset fills the OpenAI-compatible endpoint and links to that vendor’s key page. Mapping mode: **Mapping tools** (default) or **Suggestions JSON only**. Walkthrough: [AI_CREDENTIALS.md](AI_CREDENTIALS.md).
+2. Clicks **Call AI** or opens ▾ and picks a copy/paste delivery mode (embed, attach, URI) or **Import AI suggestions**
+3. **Configure AI credentials…** — pick a provider (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner). Each preset fills the OpenAI-compatible endpoint and links to that vendor’s key page. Mapping mode: **Mapping tools** (default) or **Suggestions JSON only**. Walkthrough: [AI_CREDENTIALS.md](AI_CREDENTIALS.md).
 4. App copies markdown to clipboard, or POSTs it. Call AI with tools inspects `list_slots` / `get_source_tree` and writes via `map_slot` or `import_suggestions`. One-shot mode still imports `intehrgrator-suggestions` JSON.
    - Task description (map source → loaded **Target instance format**) and scope (`slot` | `full`)
    - Target: format, `targetId`, filename, origin (file or URI), structure summary

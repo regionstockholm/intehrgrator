@@ -36,7 +36,6 @@ Deno.test({
       );
       assertEquals(order, [
         "copy",
-        "copy",
         "inline",
         "attach",
         "uri",
@@ -49,7 +48,18 @@ Deno.test({
       ]);
       assertEquals(
         (await page.locator('[data-ai-section="copy"]').textContent())?.trim(),
-        "Copy for an external chat",
+        "copy/paste for external AI chat",
+      );
+      await page.locator('[data-ai-delivery="inline"] .material-symbols-outlined').waitFor({
+        state: "visible",
+      });
+      assertEquals(
+        await page.locator('[data-ai-delivery="inline"] .material-symbols-outlined').textContent(),
+        "content_copy",
+      );
+      assertEquals(
+        await page.locator("#btn-import-ai .material-symbols-outlined").textContent(),
+        "content_paste",
       );
       assertEquals(
         (await page.locator('[data-ai-section="own"]').textContent())?.trim(),

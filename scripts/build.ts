@@ -2,6 +2,7 @@ import * as esbuild from "npm:esbuild@0.25.0";
 import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@0.11.0";
 import { copy, ensureDir } from "@std/fs";
 import { dirname, fromFileUrl, join } from "@std/path";
+import { fetchEhrtslibTerminologyXml } from "../src/core/ehrtslib_cdn.ts";
 
 const root = join(dirname(fromFileUrl(import.meta.url)), "..");
 const outDir = join(root, "dist");
@@ -44,9 +45,7 @@ const xmlEmbedPlugin: esbuild.Plugin = {
       namespace: "openehr-term-xml",
     }));
     build.onLoad({ filter: /.*/, namespace: "openehr-term-xml" }, async () => {
-      const dir = join(root, "vendor/ehrtslib/terminology_data");
-      const en = await Deno.readTextFile(join(dir, "openehr_terminology_en.xml"));
-      const ext = await Deno.readTextFile(join(dir, "openehr_external_terminologies.xml"));
+      const { en, ext } = await fetchEhrtslibTerminologyXml();
       return {
         contents:
           `export function openEhrTerminologyXml() {\n` +

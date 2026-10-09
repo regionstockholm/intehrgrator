@@ -7,6 +7,11 @@
   "imports": {
     "@std/path": "jsr:@std/path@1",
     "@std/fs": "jsr:@std/fs@1",
-    "ehrtslib/": "../vendor/ehrtslib/"
+    "ehrtslib/": "https://cdn.jsdelivr.net/gh/ErikSundvall/ehrtslib@v0.4/"
+  },
+  "scopes": {
+    "https://cdn.jsdelivr.net/gh/ErikSundvall/ehrtslib@v0.4/": {
+      "https://cdn.jsdelivr.net/gh/ErikSundvall/ehrtslib@v0.4/validation/template_validator.ts": "../vendor/ehrtslib-overrides/validation/template_validator.ts"
+    }
   }
 }

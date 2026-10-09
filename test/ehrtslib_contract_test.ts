@@ -1,15 +1,11 @@
 /**
- * Smoke-import the ehrtslib symbols intEHRgrator depends on.
- * `deno task vendor` tracks origin/main; if upstream moves these paths or
- * signatures, this file should fail first with a clear module/API error.
+ * Smoke-import the ehrtslib symbols intEHRgrator calls, and check the
+ * blood-pressure OPT behaviors scaffolding depends on. Parser regressions
+ * that do not change our skeleton or serializer output belong in ehrtslib.
  */
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import { join } from "@std/path";
-import {
-  collectTemplateJsonExternalRefsFromText,
-  parseTemplateInput,
-  parseTemplateJson,
-} from "ehrtslib/parser/mod.ts";
+import { parseTemplateInput } from "ehrtslib/parser/mod.ts";
 import {
   attributesFor,
   hasRmType,
@@ -44,28 +40,6 @@ import {
 const bpOpt = await Deno.readTextFile(
   join(import.meta.dirname!, "fixtures", "blood_pressure.opt"),
 );
-const constrainOpt = await Deno.readTextFile(
-  join(
-    import.meta.dirname!,
-    "..",
-    "vendor",
-    "ehrtslib",
-    "test_data",
-    "opt14",
-    "constrain_test.opt",
-  ),
-);
-const differentialTemplateJson = await Deno.readTextFile(
-  join(
-    import.meta.dirname!,
-    "..",
-    "vendor",
-    "ehrtslib",
-    "test_data",
-    "tjson",
-    "Care unit v2.t.json",
-  ),
-);
 
 Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof webTemplateToOpt, "function");
@@ -92,18 +66,6 @@ Deno.test("ehrtslib APIs intEHRgrator imports still resolve", () => {
   assertEquals(typeof resolveLocatableLabel, "function");
   assertEquals(TERM_ARCHETYPE_SCOPE_KEY, "term_archetype_scope");
   assertEquals(termCodeCandidates("at0004")[0], "at0004");
-});
-
-Deno.test("differential .t.json resolves overlay parent archetypes", () => {
-  const parentId = "openEHR-EHR-CLUSTER.organisation.v1";
-  const overlayId = "openEHR-EHR-CLUSTER.ovl-organisation-000.v1";
-  const refs = collectTemplateJsonExternalRefsFromText(differentialTemplateJson);
-  assert(refs.includes(parentId), `expected overlay parent in ${refs}`);
-  assert(!refs.includes(overlayId), `inlined overlay must not be fetched: ${refs}`);
-
-  const { overlays } = parseTemplateJson(differentialTemplateJson);
-  assert(overlays.length > 0, "expected an inlined differential overlay");
-  assertEquals(overlays[0]?.parent_archetype_id?.value, parentId);
 });
 
 Deno.test("OPT XML parse keeps colliding at-codes archetype-local", () => {
@@ -135,29 +97,6 @@ Deno.test("OptXmlSerializer emits C_ARCHETYPE_ROOT and per-root term_definitions
   assertStringIncludes(xml, 'xsi:type="C_ARCHETYPE_ROOT"');
   assertStringIncludes(xml, "openEHR-EHR-CLUSTER.sample_device.v1");
   assertStringIncludes(xml, "Manufacturer details");
-});
-
-/** Regression guard for ErikSundvall/ehrtslib#79 — no local vendor patch. */
-Deno.test("OPT XML parse keeps C_DV_ORDINAL.list value+symbol (upstream #79)", () => {
-  const parsed = parseTemplateInput(constrainOpt);
-  assert(parsed.operationalTemplate, "expected operational template");
-  const ordinal = findAmNode(
-    parsed.operationalTemplate.definition as AmWalkNode | undefined,
-    (n) =>
-      (n.rm_type_name === "DV_ORDINAL" || n.rm_type_name === "DV_SCALE") &&
-      Array.isArray(n.list) &&
-      n.list.length > 0,
-  );
-  assert(ordinal, "expected a C_ORDINAL / C_DV_ORDINAL with list[]");
-  const first = ordinal.list![0] as {
-    value?: number;
-    symbol?: { code_string?: string; terminology_id?: { value?: string } | string };
-  };
-  assert(typeof first.value === "number", "ordinal list item needs numeric value");
-  assert(
-    typeof first.symbol?.code_string === "string" && first.symbol.code_string.length > 0,
-    "ordinal list item needs symbol.code_string",
-  );
 });
 
 /** Regression guard for ErikSundvall/ehrtslib#73 — no local vendor patch. */

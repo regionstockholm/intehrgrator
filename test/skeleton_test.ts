@@ -408,15 +408,7 @@ Deno.test("DV_QUANTITY skeleton copies constrained units from the template", () 
 });
 
 const ordinalFixture = await Deno.readTextFile(
-  join(
-    import.meta.dirname!,
-    "..",
-    "vendor",
-    "ehrtslib",
-    "test_data",
-    "opt14",
-    "constrain_test.opt",
-  ),
+  join(import.meta.dirname!, "fixtures", "constrain_test.opt"),
 );
 
 Deno.test("DV_ORDINAL skeleton carries template ordinal value set", () => {

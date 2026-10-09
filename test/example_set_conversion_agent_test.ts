@@ -460,7 +460,7 @@ function kardaValidationLimit(message: string): string | null {
   if (text.includes("not in allowed list")) return "name-constraint";
   if (text.includes("code_string") || text.includes("defining_code")) return "code-string";
   if (text.includes("required by rm specification")) return "rm-spec";
-  if (text.includes("non-empty string")) return "empty-value";
+  if (text.includes("non-empty string") || text.includes("is_empty")) return "empty-value";
   if (text.includes("does not match template archetype")) return "archetype-sibling";
   if (text.includes("type mismatch")) return "type-mismatch";
   return null;

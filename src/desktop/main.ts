@@ -12,6 +12,7 @@
  */
 import { resolveWebRoot } from "./web_root.ts";
 import { errorPageHandler, workbenchHandler } from "./serve.ts";
+import { HttpAgentClient, runMcpStdio } from "../agent/mcp_stdio.ts";
 import { composeWorkbenchHandler, getSharedWorkbenchService } from "../agent/http.ts";
 import {
   bindRequiresTokenMessage,
@@ -31,7 +32,7 @@ async function openBrowser(url: string): Promise<void> {
 }
 
 export function shouldOpenUi(opts: DesktopCliOptions): boolean {
-  return !opts.headless;
+  return !opts.headless && !opts.mcp;
 }
 
 type BrowserWindowHandle = {
@@ -102,32 +103,43 @@ if (import.meta.main) {
   }
   if (opts.token) Deno.env.set("INTEHR_AGENT_TOKEN", opts.token);
 
-  if (opts.load) {
-    const bytes = await Deno.readFile(opts.load);
-    getSharedWorkbenchService().loadBundleFile(bytes);
-  }
-
-  const handler = workbenchOrErrorHandler(
-    import.meta.dirname,
-    import.meta.url,
-    Deno.env.get("INTEHR_AGENT_API") !== "0",
-    opts.token,
-  );
-  const desktopAddr = Deno.env.get("DENO_SERVE_ADDRESS");
-  if (desktopAddr) {
-    // Bind the port the webview already plans to open. Passing hostname/port
-    // here can desync the server from the hidden startup window.
-    Deno.serve(handler);
-    if (opts.headless) hideDesktopWindow();
+  if (opts.mcp) {
+    const base = Deno.env.get("INTEHR_AGENT_URL")?.trim();
+    if (!base) {
+      console.error(
+        "intEHRgrator --mcp requires INTEHR_AGENT_URL pointing at a running workbench",
+      );
+      Deno.exit(1);
+    }
+    await runMcpStdio(new HttpAgentClient(base.replace(/\/$/, ""), opts.token));
   } else {
-    Deno.serve({
-      hostname: opts.bind,
-      port: opts.port,
-      onListen({ hostname, port }) {
-        const url = `http://${hostname}:${port}/`;
-        console.log(`intEHRgrator ${url}${opts.headless ? " (headless)" : ""}`);
-        if (shouldOpenUi(opts)) void openBrowser(url);
-      },
-    }, handler);
+    if (opts.load) {
+      const bytes = await Deno.readFile(opts.load);
+      getSharedWorkbenchService().loadBundleFile(bytes);
+    }
+
+    const handler = workbenchOrErrorHandler(
+      import.meta.dirname,
+      import.meta.url,
+      Deno.env.get("INTEHR_AGENT_API") !== "0",
+      opts.token,
+    );
+    const desktopAddr = Deno.env.get("DENO_SERVE_ADDRESS");
+    if (desktopAddr) {
+      // Bind the port the webview already plans to open. Passing hostname/port
+      // here can desync the server from the hidden startup window.
+      Deno.serve(handler);
+      if (opts.headless) hideDesktopWindow();
+    } else {
+      Deno.serve({
+        hostname: opts.bind,
+        port: opts.port,
+        onListen({ hostname, port }) {
+          const url = `http://${hostname}:${port}/`;
+          console.log(`intEHRgrator ${url}${opts.headless ? " (headless)" : ""}`);
+          if (shouldOpenUi(opts)) void openBrowser(url);
+        },
+      }, handler);
+    }
   }
 }

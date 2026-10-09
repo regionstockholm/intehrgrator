@@ -99,6 +99,34 @@ Deno.test("workbenchHandler serves index.html with desktop marker injected", asy
   }
 });
 
+Deno.test("loopback index injects the agent token; a remote host does not", async () => {
+  const dir = await Deno.makeTempDir();
+  const prev = Deno.env.get("INTEHR_AGENT_TOKEN");
+  Deno.env.set("INTEHR_AGENT_TOKEN", "s3cret");
+  try {
+    await Deno.writeTextFile(
+      join(dir, "index.html"),
+      "<!doctype html><html><head><title>Test</title></head><body>workbench</body></html>",
+    );
+    const local = await workbenchHandler(dir)(new Request("http://127.0.0.1/"));
+    const localHtml = await local.text();
+    assertEquals(
+      localHtml.includes(
+        `<script>window.__INTEHR_DESKTOP__=true;window.__INTEHR_AGENT_TOKEN__="s3cret";</script>`,
+      ),
+      true,
+    );
+    const remote = await workbenchHandler(dir)(new Request("http://10.0.0.8/"));
+    const remoteHtml = await remote.text();
+    assertEquals(remoteHtml.includes("__INTEHR_AGENT_TOKEN__"), false);
+    assertEquals(remoteHtml.includes("window.__INTEHR_DESKTOP__=true"), true);
+  } finally {
+    if (prev === undefined) Deno.env.delete("INTEHR_AGENT_TOKEN");
+    else Deno.env.set("INTEHR_AGENT_TOKEN", prev);
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
 Deno.test("isDesktopEnvironment accurately checks desktop global", async () => {
   const { isDesktopEnvironment } = await import("../src/web/agent_bridge.ts");
   const g = globalThis as unknown as { __INTEHR_DESKTOP__?: boolean };

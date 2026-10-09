@@ -22,6 +22,17 @@ export interface AgentActivityPayload {
 
 let lastCommittedSignature = "";
 
+/**
+ * 404 means this server has no Agent API (stop polling).
+ * 503 is the local MCP switch turned off — pause sync and keep polling.
+ * Any other non-success also pauses so a blip does not drop the bridge.
+ */
+export function agentPollDisposition(status: number): "sync" | "pause" | "stop" {
+  if (status === 404) return "stop";
+  if (status >= 200 && status < 300) return "sync";
+  return "pause";
+}
+
 export function isDesktopEnvironment(): boolean {
   return Boolean(
     (globalThis as unknown as { __INTEHR_DESKTOP__?: boolean }).__INTEHR_DESKTOP__,
@@ -42,14 +53,15 @@ export function installAgentBridge(options: AgentBridgeOptions): void {
     if (syncing) return;
     try {
       const snapRes = await fetch("/api/v1/snapshot");
-      if (snapRes.status === 404) {
+      const disposition = agentPollDisposition(snapRes.status);
+      if (disposition === "stop") {
         if (pollTimer !== null) {
           globalThis.clearInterval(pollTimer);
           pollTimer = null;
         }
         return;
       }
-      if (!snapRes.ok) return;
+      if (disposition === "pause") return;
       const snap = await snapRes.json() as { revision: string; templateId?: string };
       const isFirstPoll = !lastRevision;
       const revisionChanged = !isFirstPoll && snap.revision !== lastRevision;

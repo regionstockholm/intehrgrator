@@ -1,5 +1,6 @@
 import { serveDir } from "@std/http/file-server";
 import { join } from "@std/path";
+import { isLoopbackBind } from "./cli.ts";
 
 export function workbenchHandler(webRoot: string): (req: Request) => Promise<Response> {
   return async (req) => {
@@ -21,7 +22,7 @@ async function tryIndexHtml(webRoot: string, req: Request): Promise<Response | n
   if (rel === "" || rel === "index.html") {
     try {
       const html = await Deno.readTextFile(join(webRoot, "index.html"));
-      const script = "<script>window.__INTEHR_DESKTOP__=true;</script>";
+      const script = desktopBootstrapScript(url.hostname);
       const injected = /<head[^>]*>/i.test(html)
         ? html.replace(/<head[^>]*>/i, (match) => `${match}${script}`)
         : `${script}${html}`;
@@ -31,6 +32,15 @@ async function tryIndexHtml(webRoot: string, req: Request): Promise<Response | n
     }
   }
   return null;
+}
+
+/** Loopback pages may see the token so the MCP panel can show IDE settings. */
+function desktopBootstrapScript(hostname: string): string {
+  const token = Deno.env.get("INTEHR_AGENT_TOKEN")?.trim();
+  if (token && isLoopbackBind(hostname)) {
+    return `<script>window.__INTEHR_DESKTOP__=true;window.__INTEHR_AGENT_TOKEN__=${JSON.stringify(token)};</script>`;
+  }
+  return "<script>window.__INTEHR_DESKTOP__=true;</script>";
 }
 
 /** JS is staged as `*.js.dat` so `deno desktop --include` will not execute it. */

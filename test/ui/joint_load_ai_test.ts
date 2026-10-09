@@ -24,6 +24,38 @@ Deno.test({
       await page.click("#joint-load-cancel");
       await page.click("#btn-copy-ai");
       await page.locator("#menu-copy-ai").waitFor({ state: "visible", timeout: 5_000 });
+      const order = await page.locator(
+        "#menu-copy-ai [data-ai-section], #menu-copy-ai [data-ai-action], #menu-copy-ai [data-ai-delivery], #btn-import-ai",
+      ).evaluateAll((els) =>
+        els.map((el) =>
+          el.getAttribute("data-ai-section") ??
+            el.getAttribute("data-ai-action") ??
+            el.getAttribute("data-ai-delivery") ??
+            el.id
+        )
+      );
+      assertEquals(order, [
+        "copy",
+        "copy",
+        "inline",
+        "attach",
+        "uri",
+        "btn-import-ai",
+        "own",
+        "call",
+        "credentials",
+        "desktop",
+        "local-mcp",
+      ]);
+      assertEquals(
+        (await page.locator('[data-ai-section="copy"]').textContent())?.trim(),
+        "Copy for an external chat",
+      );
+      assertEquals(
+        (await page.locator('[data-ai-section="own"]').textContent())?.trim(),
+        "Your own AI",
+      );
+      assertEquals(await page.locator("#ai-menu-desktop").isHidden(), true);
       await page.locator('[data-ai-action="call"]').waitFor({ state: "visible" });
       await page.locator('[data-ai-action="credentials"]').waitFor({ state: "visible" });
       await page.click('[data-ai-action="credentials"]');

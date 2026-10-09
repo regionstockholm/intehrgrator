@@ -12,6 +12,7 @@ Deno.test("parseDesktopArgs defaults to loopback ephemeral port", () => {
   const opts = parseDesktopArgs([]);
   assertEquals(opts.help, false);
   assertEquals(opts.headless, false);
+  assertEquals(opts.mcp, false);
   assertEquals(opts.port, 0);
   assertEquals(opts.bind, DEFAULT_BIND);
   assertEquals(opts.load, undefined);
@@ -57,9 +58,17 @@ Deno.test("isLoopbackBind and bindRequiresTokenMessage", () => {
   );
 });
 
-Deno.test("shouldOpenUi is false only when headless", () => {
+Deno.test("shouldOpenUi is false for headless and mcp proxy", () => {
   assertEquals(shouldOpenUi(parseDesktopArgs([])), true);
   assertEquals(shouldOpenUi(parseDesktopArgs(["--headless"])), false);
+  assertEquals(shouldOpenUi(parseDesktopArgs(["--mcp"])), false);
+});
+
+Deno.test("parseDesktopArgs accepts --mcp", () => {
+  const opts = parseDesktopArgs(["--mcp"]);
+  assertEquals(opts.mcp, true);
+  assertEquals(opts.headless, false);
+  assertEquals(USAGE.includes("--mcp"), true);
 });
 
 Deno.test("parseDesktopArgs rejects missing flag values", () => {

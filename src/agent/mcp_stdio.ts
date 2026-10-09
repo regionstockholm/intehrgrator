@@ -202,8 +202,8 @@ async function handleRequest(req: JsonRpcRequest, client: AgentClient): Promise<
   }
 }
 
-if (import.meta.main) {
-  const client = createMcpAgentClient();
+/** Read MCP stdio frames until stdin closes. */
+export async function runMcpStdio(client: AgentClient): Promise<void> {
   const decoder = new TextDecoder();
   let buffer = "";
   for await (const chunk of Deno.stdin.readable) {
@@ -225,4 +225,8 @@ if (import.meta.main) {
       await handleRequest(JSON.parse(body) as JsonRpcRequest, client);
     }
   }
+}
+
+if (import.meta.main) {
+  await runMcpStdio(createMcpAgentClient());
 }

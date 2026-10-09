@@ -48,7 +48,7 @@ Deno.test({
 
       await page.click("#btn-copy-ai");
       await page.locator("#menu-copy-ai").waitFor({ state: "visible", timeout: 5_000 });
-      await page.click('[data-ai-action="copy"]');
+      await page.click('[data-ai-delivery="inline"]');
       await page.waitForFunction(() => {
         return Boolean((globalThis as unknown as { __clip?: string }).__clip);
       }, { timeout: 10_000 });

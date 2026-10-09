@@ -184,6 +184,7 @@ import { installUrlLoadUi } from "../src/ui/url_load.ts";
 import {
   commitUiSemanticChange,
   installAgentBridge,
+  isDesktopEnvironment,
   resetCommittedSignature,
 } from "../src/web/agent_bridge.ts";
 import { openAgentObserver, updateAgentObserverActivity } from "../src/web/agent_observer.ts";
@@ -1509,6 +1510,7 @@ installImportAiDialog({
   importText: (text) => controller.importAiSuggestions(text),
 });
 installCopyAiMenu();
+installLocalMcpDialog();
 installExampleSetsMenu();
 installFunctionLibraryUi();
 installFileMenu();
@@ -1600,16 +1602,19 @@ function installCopyAiMenu(): void {
     minWidth: main,
   });
 
+  const desktopSection = document.getElementById("ai-menu-desktop");
+  if (desktopSection && isDesktopEnvironment()) desktopSection.hidden = false;
+
   menu.querySelectorAll<HTMLButtonElement>("[data-ai-action]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const action = btn.dataset.aiAction;
       handle.close();
-      if (action === "copy") {
-        void controller.copyAiPrompt(lastAiDelivery());
-      } else if (action === "call") {
+      if (action === "call") {
         void callAiWithPrompt(controller.buildAiPromptText(lastAiDelivery()));
       } else if (action === "credentials") {
         openAiCredentialsDialog();
+      } else if (action === "local-mcp") {
+        openLocalMcpDialog();
       }
     });
   });
@@ -2600,6 +2605,85 @@ document.getElementById("refresh-copy-prompt")?.addEventListener("click", () => 
 document.getElementById("refresh-call-ai")?.addEventListener("click", () => {
   void callAiWithPrompt(controller.buildRefreshMergePrompt());
 });
+
+interface LocalMcpStatusBody {
+  enabled: boolean;
+  agentUrl: string;
+  token: string;
+  mcpJson: unknown;
+}
+
+function localMcpAuthHeaders(): Record<string, string> {
+  const token = (globalThis as unknown as { __INTEHR_AGENT_TOKEN__?: string }).__INTEHR_AGENT_TOKEN__;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+let localMcpEnabled = true;
+let localMcpConfigText = "";
+
+function applyLocalMcpStatus(body: LocalMcpStatusBody): void {
+  const messages = uiChrome();
+  localMcpEnabled = body.enabled;
+  localMcpConfigText = JSON.stringify(body.mcpJson, null, 2);
+  const statusEl = document.getElementById("local-mcp-status");
+  const urlEl = document.getElementById("local-mcp-url");
+  const tokenEl = document.getElementById("local-mcp-token");
+  const configEl = document.getElementById("local-mcp-config");
+  const toggle = document.getElementById("local-mcp-toggle");
+  if (statusEl) statusEl.textContent = body.enabled ? messages.localMcpRunning : messages.localMcpStopped;
+  if (urlEl) urlEl.textContent = body.agentUrl;
+  if (tokenEl) tokenEl.textContent = body.token || messages.localMcpNoToken;
+  if (configEl) configEl.textContent = localMcpConfigText;
+  if (toggle instanceof HTMLButtonElement) {
+    toggle.disabled = false;
+    toggle.textContent = body.enabled ? messages.localMcpStop : messages.localMcpStart;
+  }
+}
+
+async function refreshLocalMcpDialog(): Promise<void> {
+  const statusEl = document.getElementById("local-mcp-status");
+  const toggle = document.getElementById("local-mcp-toggle");
+  try {
+    const res = await fetch("/api/v1/local-mcp", { headers: localMcpAuthHeaders() });
+    if (!res.ok) throw new Error(String(res.status));
+    applyLocalMcpStatus(await res.json() as LocalMcpStatusBody);
+  } catch {
+    if (statusEl) statusEl.textContent = uiChrome().localMcpUnavailable;
+    if (toggle instanceof HTMLButtonElement) toggle.disabled = true;
+  }
+}
+
+function openLocalMcpDialog(): void {
+  const dialog = document.getElementById("dialog-local-mcp");
+  if (!(dialog instanceof HTMLDialogElement)) return;
+  if (!dialog.open) dialog.showModal();
+  void refreshLocalMcpDialog();
+}
+
+function installLocalMcpDialog(): void {
+  document.getElementById("local-mcp-toggle")?.addEventListener("click", () => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/v1/local-mcp", {
+          method: "POST",
+          headers: { ...localMcpAuthHeaders(), "content-type": "application/json" },
+          body: JSON.stringify({ enabled: !localMcpEnabled }),
+        });
+        if (!res.ok) throw new Error(String(res.status));
+        applyLocalMcpStatus(await res.json() as LocalMcpStatusBody);
+      } catch {
+        const statusEl = document.getElementById("local-mcp-status");
+        if (statusEl) statusEl.textContent = uiChrome().localMcpUnavailable;
+      }
+    })();
+  });
+  document.getElementById("local-mcp-copy")?.addEventListener("click", () => {
+    if (!localMcpConfigText) return;
+    void host.copyToClipboard(localMcpConfigText).then(() => {
+      controller.setStatusMessage(uiChrome().localMcpCopied);
+    });
+  });
+}
 
 function updateCopyAiButtonLabel(): void {
   const main = document.getElementById("btn-copy-ai") as HTMLButtonElement | null;

@@ -7,6 +7,8 @@ export const DEFAULT_BIND = "127.0.0.1";
 export interface DesktopCliOptions {
   help: boolean;
   headless: boolean;
+  /** Stdio MCP proxy to INTEHR_AGENT_URL. Does not open a workbench. */
+  mcp: boolean;
   port: number;
   bind: string;
   load?: string;
@@ -28,6 +30,9 @@ Options:
                       requires --token or INTEHR_AGENT_TOKEN
   --load <file>       Load a Project Bundle zip (.intehrgrator) or JSON at start
   --token <secret>    Agent API shared secret (or INTEHR_AGENT_TOKEN)
+  --mcp               Speak MCP on stdin/stdout and proxy tools to
+                      INTEHR_AGENT_URL. Does not open a workbench window.
+                      An IDE launches the downloaded app this way.
 `;
 
 export function isLoopbackBind(bind: string): boolean {
@@ -53,6 +58,7 @@ export function parseDesktopArgs(
   const out: DesktopCliOptions = {
     help: false,
     headless: false,
+    mcp: false,
     port: Number(env.PORT ?? 0),
     bind: env.INTEHR_BIND?.trim() || DEFAULT_BIND,
     token: env.INTEHR_AGENT_TOKEN?.trim() || undefined,
@@ -67,6 +73,10 @@ export function parseDesktopArgs(
     }
     if (a === "--headless") {
       out.headless = true;
+      continue;
+    }
+    if (a === "--mcp") {
+      out.mcp = true;
       continue;
     }
     if (a === "--port" || a.startsWith("--port=")) {

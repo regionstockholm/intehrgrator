@@ -13,6 +13,13 @@ import {
 } from "../workbench/service.ts";
 import { agentApiUnauthorized } from "./auth.ts";
 import {
+  createLocalMcpControl,
+  LOCAL_MCP_STOPPED,
+  localMcpStatusBody,
+  localMcpStaysUp,
+  type LocalMcpControl,
+} from "./local_mcp.ts";
+import {
   callAgentTool,
   findAgentToolForHttp,
   AGENT_TOOL_HTTP,
@@ -21,8 +28,10 @@ import { forwardChatCompletionsProxy } from "../core/ai/credentials.ts";
 
 export function createAgentApiHandler(
   service: WorkbenchService,
-  options?: { token?: string },
+  options?: { token?: string; localMcp?: LocalMcpControl; execPath?: string },
 ): (req: Request) => Promise<Response> {
+  const localMcp = options?.localMcp ?? createLocalMcpControl(true);
+  const execPath = () => options?.execPath ?? Deno.execPath();
   return async (req) => {
     const denied = agentApiUnauthorized(req, options?.token);
     if (denied) return denied;
@@ -36,6 +45,26 @@ export function createAgentApiHandler(
     const revisionHeader = req.headers.get("If-Match") ?? undefined;
 
     try {
+      if (path === "/local-mcp" && (req.method === "GET" || req.method === "POST")) {
+        if (req.method === "POST") {
+          const body = await req.json().catch(() => null) as { enabled?: unknown } | null;
+          if (typeof body?.enabled !== "boolean") {
+            return json({ error: "enabled must be a boolean" }, 400);
+          }
+          localMcp.enabled = body.enabled;
+        }
+        return json(localMcpStatusBody({
+          enabled: localMcp.enabled,
+          origin: url.origin,
+          token: options?.token,
+          execPath: execPath(),
+        }));
+      }
+
+      if (!localMcp.enabled && !localMcpStaysUp(req.method, path)) {
+        return json({ error: LOCAL_MCP_STOPPED }, 503);
+      }
+
       if (req.method === "GET" && path === "/health") {
         return json({ ok: true, agent: "intehrgrator", version: 2 });
       }

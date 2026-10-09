@@ -127,6 +127,12 @@ deno task mcp
 
 Set **`INTEHR_AGENT_URL=http://127.0.0.1:<port>`** to proxy tools to a running desktop session (recommended for GUI). Set **`INTEHR_AGENT_TOKEN`** when the desktop requires a token. Without `INTEHR_AGENT_URL`, MCP embeds a headless `WorkbenchService` (filesystem host: load from path/url, write export `path`s).
 
+### Desktop panel
+
+In the downloaded app, **AI → Desktop → Local MCP server…** shows the Agent API URL, the token when one was set, and a copyable `mcp.json`. **Stop** makes agent tool routes return 503 (`Local MCP server is stopped`). **Start** allows them again. `GET /health`, `POST /ui-commit`, and `POST /ai-chat-completions` stay up, so Call AI and local edits are not tied to the switch. The bridge keeps polling through a 503 and resumes when you Start.
+
+The snippet’s command is the release binary with `--mcp` (stdio MCP proxied at `INTEHR_AGENT_URL`). A Deno dev server gets `deno run -A src/agent/mcp_stdio.ts` instead. `--mcp` does not open a second workbench window.
+
 Cursor example (`.cursor/mcp.json`):
 
 ```json

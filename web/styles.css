@@ -261,6 +261,18 @@ body { display: flex; flex-direction: column; min-height: 100%; }
   cursor: pointer;
   color: inherit;
 }
+.split-btn-menu-item--icon {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.split-btn-menu-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--text-secondary);
+  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 20;
+}
 .split-btn-menu-item:hover { background: #f4f8f7; }
 .split-btn-menu-item:disabled { opacity: 0.55; cursor: default; }
 .split-btn-menu-link {

@@ -27,6 +27,7 @@ import { orderLanguages } from "../skeleton/template_terms.ts";
 import { loadJsonSchema } from "../source/schema_loader.ts";
 import { isWebTemplateJson } from "ehrtslib/serialization/simplified/mod.ts";
 import { isTemplateJson } from "ehrtslib/parser/mod.ts";
+import { scaffoldClinicalModelFileset } from "../clinical_model/github_template.ts";
 import { isAutoFixedValueSlot } from "../rm_mandatory.ts";
 import { assignSchemaBlockTypes } from "./schema_block_ids.ts";
 
@@ -109,6 +110,16 @@ export function reloadTargetLanguage(
   definition: TargetDefinition,
   language: string,
 ): TargetDefinition {
+  if (definition.fileset?.files.some((file) => /\.t\.json$/i.test(file.path))) {
+    const loaded = scaffoldClinicalModelFileset(definition.fileset, language);
+    return {
+      ...definition,
+      skeleton: loaded.skeleton,
+      language: loaded.language,
+      languages: loaded.languages.length ? loaded.languages : definition.languages,
+      webTemplateJson: loaded.webTemplateJson,
+    };
+  }
   if (definition.webTemplateJson) {
     const generated = generateSkeletonFromWebTemplate(definition.webTemplateJson, {
       language,

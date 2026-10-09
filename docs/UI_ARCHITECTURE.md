@@ -8,8 +8,8 @@ This document details the split-screen mapping interface and its architectural c
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────┐
-│               [Copy prompt / Call AI] [Import Suggestions] [New Project] [Load Project]     │
-│               [Save as] [Export Project] [Import Project]                              │
+│               [File] [AI ▾] [Example Sets] [Functions] [Help]                          │
+│               File holds New, Load, Save as, Export, and Import                        │
 ├───────────────┬──────────────────────────────────────────┬─────────────────────────────┤
 │ LEFT PANE     │ CENTER PANE                              │ RIGHT PANE                  │
 │ Source        │ Mapping Editor                           │ Target & Previews           │
@@ -104,8 +104,7 @@ Actions are split between the **header toolbar** (project-wide) and **pane heade
 
 | Button | Action | v1 |
 |--------|--------|-----|
-| Copy prompt / Call AI | Copy markdown prompt, or Call AI with mapping tools / suggestions JSON when credentials are saved (▾: Copy prompt, Call AI, credentials, embed / attach / URI) | ✓ |
-| Import Suggestions | Parse pasted `intehrgrator-suggestions` JSON and apply mappings | ✓ |
+| AI ▾ | Three sections. **Copy for an external chat:** Copy prompt, embed / attach / URI, Import AI suggestions. **Your own AI:** Call AI, AI credentials…. **Desktop** (downloaded app only): Local MCP server… opens a panel that starts or stops agent tools and shows the IDE `mcp.json` | ✓ |
 | Example Sets | Load a complete example set (source schema + instances, target, optional mapping) from a URI catalog | ✓ |
 | New Project | Reset workspace to empty project (confirm if content present) | ✓ |
 | Load Project | Open modal listing autosave + recent manual saves | ✓ |

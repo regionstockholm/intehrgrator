@@ -14,10 +14,21 @@ All three apply through the same Mapping Model / Blockly path. Copy prompt + **I
 
 ## Web app
 
-- **Copy prompt** — markdown prompt with target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`
-- **Call AI** — POST that prompt; default toolbar action when credentials exist. Default mapping mode uses OpenAI function tools named like MCP (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) against the open project. **Suggestions JSON only** is the one-shot import used before tools existed.
+The toolbar **AI** menu is three sections. The third is desktop-only.
+
+**Copy for an external chat**
+
+- **Copy prompt** — markdown prompt with target/source origins, delivery mode, slot manifest, link to `AI_SUGGESTION_FORMAT.md`. **Embed files**, **Attach files**, and **Browse URIs** pick how context is packed and then copy.
+- **Import AI suggestions** — parses `intehrgrator-suggestions` JSON version 2 (same path as Call AI suggestions mode)
+
+**Your own AI**
+
+- **Call AI** — POST that prompt. Default mapping mode uses OpenAI function tools named like MCP (`list_slots`, `map_slot`, `import_suggestions`, `run_test`, …) against the open project. **Suggestions JSON only** is the one-shot import used before tools existed.
 - **AI credentials…** — provider preset (Gemini, OpenAI, Anthropic, Ollama local/cloud, LM Studio local/cloud, Hugging Face, OpenCode Zen / cloud runner), endpoint, API key, model, mapping mode. Never stored in the Project Bundle. GitHub Pages browsers often hit CORS on cloud APIs; the **desktop app** forwards Call AI through `POST /api/v1/ai-chat-completions`. Key walkthrough: [AI_CREDENTIALS.md](../AI_CREDENTIALS.md).
-- **Import Suggestions** — parses `intehrgrator-suggestions` JSON version 2 (same path as Call AI suggestions mode)
+
+**Desktop**
+
+- **Local MCP server…** — start/stop agent tool routes and show connection parameters (`INTEHR_AGENT_URL`, token, `mcp.json`). The IDE command is `intEHRgrator --mcp`. See [AGENT_WORKFLOW.md](../AGENT_WORKFLOW.md).
 - Target/source **refresh** reports offer Copy merge prompt / Call AI; detached Blockly stays
 
 ## When to integrate more natively

@@ -17,7 +17,7 @@ The site root always tracks the latest `main` build and may change day to day. U
 ## Get started
 
 1. Open the [web app](https://regionstockholm.github.io/intehrgrator/) or download a [desktop build](https://github.com/regionstockholm/intehrgrator/releases).
-2. Read the **[User tutorial](docs/TUTORIAL.md)** — a short walkthrough of every major feature.
+2. Read the **[tutorials](docs/TUTORIAL.md)** — a short index of focused lectures (basic mapping, loops, AI, desktop MCP, and the rest).
 3. Click the **ⓘ** tips in the interface for context-sensitive help on panes and controls.
 
 ## Saving your work
@@ -41,7 +41,7 @@ We welcome bug reports and feature requests:
 
 | Topic | Document |
 |-------|----------|
-| Tutorial (all features) | [docs/TUTORIAL.md](docs/TUTORIAL.md) |
+| Tutorial series | [docs/TUTORIAL.md](docs/TUTORIAL.md) |
 | Terminology glossary | [CONTEXT.md](CONTEXT.md) |
 | openEHR primer | [docs/OPENEHR_PRIMER.md](docs/OPENEHR_PRIMER.md) |
 | Contributing / development | [README_DEVELOPERS.md](README_DEVELOPERS.md) |

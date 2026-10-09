@@ -91,4 +91,4 @@ Any OpenAI-compatible `…/chat/completions` URL, Bearer key, and model id. Loca
 - [docs/future/integrated-ai-assist.md](future/integrated-ai-assist.md)
 - [docs/AGENT_WORKFLOW.md](AGENT_WORKFLOW.md)
 - [docs/AI_SUGGESTION_FORMAT.md](AI_SUGGESTION_FORMAT.md)
-- [docs/TUTORIAL.md](TUTORIAL.md) § AI-assisted mapping
+- [AI in the web app](tutorial/ai-in-the-web-app.md)

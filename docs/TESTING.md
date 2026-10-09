@@ -24,7 +24,7 @@ Tabbed **Target & Previews** plus pull-from-**Target schema** live in `test/ui/t
 ## How to run
 
 ```bash
-deno task vendor          # example archetypes + local ehrtslib validator override (ehrtslib itself is jsDelivr commit e5f42cab, version 0.4.1 on main; see README_DEVELOPERS.md)
+deno task vendor          # example archetypes + local ehrtslib validator override (ehrtslib itself is the v0.4.2 jsDelivr pin; see README_DEVELOPERS.md)
 deno task test            # unit + agent (parallel; ignores test/ui)
 deno task test:ui         # build dist/, serve, Playwright Chromium
 deno task test:all        # unit then UI

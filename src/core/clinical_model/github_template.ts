@@ -16,14 +16,9 @@ import { generateSkeletonFromOperational } from "../skeleton/generate_skeleton.t
 import {
   availableWebTemplateLanguages,
   buildWebTemplateTermsIndex,
-  mergeTermMaps,
   orderLanguages,
   resolveOptLanguage,
 } from "../skeleton/template_terms.ts";
-import {
-  tagTemplateIdConceptNames,
-  templateIdTermBags,
-} from "./template_id_terms.ts";
 import type { ClinicalModelFileset, SkeletonNode } from "../../types/mod.ts";
 
 const CLINICAL_MODEL_URL_SUFFIX = /\.(t\.json|adl|adls|opt|oet)$/i;
@@ -129,20 +124,11 @@ function scaffoldWorkspace(
     ? rootFile.content
     : new OptXmlSerializer().serialize(opt);
   const ontologyLanguage = resolveOptLanguage(opt, preferredLanguage);
-  const files = workspace.listFiles().map((file) => ({
-    path: file.path,
-    content: file.content,
-  }));
-  const templateTerms = templateIdTermBags(workspace.repository, files, ontologyLanguage);
-  tagTemplateIdConceptNames(opt.definition, templateTerms);
   const webTemplate = buildWebTemplate(opt, { defaultLanguage: ontologyLanguage });
   const generated = generateSkeletonFromOperational(
     opt,
     optXml,
-    mergeTermMaps(
-      buildWebTemplateTermsIndex(webTemplate, ontologyLanguage),
-      templateTerms,
-    ),
+    buildWebTemplateTermsIndex(webTemplate, ontologyLanguage),
     { language: ontologyLanguage },
   );
   const templateId = generated.templateId !== "unknown"

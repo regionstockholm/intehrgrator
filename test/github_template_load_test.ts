@@ -208,6 +208,7 @@ Deno.test("GitHub .t.json load scaffolds embedded templates referenced by templa
   const loaded = await loadGitHubClinicalModel(url, {
     fetch: mockGithubFetch(files),
   });
+  assertEquals(loaded.templateId, "ChemoForm-MBA.v8");
   assert(loaded.fetched >= 3, `expected nested template fetch, got ${loaded.fetched}`);
   const fatigueCluster = clusterByNodeId(loaded.skeleton, "at0039.1");
   const weightCluster = clusterByNodeId(loaded.skeleton, "at0039.2");

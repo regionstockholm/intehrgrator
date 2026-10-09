@@ -17,6 +17,7 @@ import {
   availableWebTemplateLanguages,
   buildWebTemplateTermsIndex,
   orderLanguages,
+  resolveOptLanguage,
 } from "../skeleton/template_terms.ts";
 import type { ClinicalModelFileset, SkeletonNode } from "../../types/mod.ts";
 
@@ -70,52 +71,85 @@ export async function loadGitHubClinicalModel(
     maxFiles: options?.maxFiles,
     onProgress: options?.onProgress,
   });
-  const resolved = workspace.resolveOperational();
-  const opt = resolved.operationalTemplate;
-  const rootFile = workspace.getFile(closure.rootPath);
-  const optXml = rootFile && isOptXml(rootFile.content)
-    ? rootFile.content
-    : new OptXmlSerializer().serialize(opt);
-  const webTemplate = buildWebTemplate(opt, { defaultLanguage: options?.language });
-  const generated = generateSkeletonFromOperational(
-    opt,
-    optXml,
-    buildWebTemplateTermsIndex(webTemplate, options?.language),
-    { language: options?.language },
-  );
-  const templateId = generated.templateId !== "unknown"
-    ? generated.templateId
-    : webTemplate.templateId || basename(closure.rootPath);
+  const files = workspace.listFiles().map((file) => ({
+    path: file.path,
+    content: file.content,
+  }));
+  const scaffolded = scaffoldWorkspace(workspace, closure.rootPath, options?.language);
   const storedName = (closure.rootPath.split("/").pop() ?? closure.rootPath);
-  const wtLanguages = availableWebTemplateLanguages(webTemplate);
-  const languages = orderLanguages(
-    options?.language ?? generated.language,
-    [...generated.languages, ...wtLanguages],
-  );
-  const language = options?.language && languages.includes(options.language)
-    ? options.language
-    : (generated.language || languages[0] || "en");
-
   return {
     sourceUrl,
     rootPath: closure.rootPath,
     filename: storedName,
+    fetched: closure.fetched,
+    fileset: {
+      sourceUrl,
+      rootPath: closure.rootPath,
+      files,
+    },
+    ...scaffolded,
+    warnings: [...closure.warnings, ...scaffolded.warnings],
+  };
+}
+
+/** Re-scaffold a stored clinical-model closure (language switch, project restore). */
+export function scaffoldClinicalModelFileset(
+  fileset: ClinicalModelFileset,
+  language?: string,
+): Pick<
+  GitHubClinicalModelLoadResult,
+  "templateId" | "optXml" | "webTemplateJson" | "skeleton" | "language" | "languages" | "warnings"
+> {
+  const workspace = new ClinicalModelWorkspace();
+  workspace.addFiles(fileset.files);
+  if (fileset.rootPath) {
+    workspace.setGenerationRootPath(fileset.rootPath);
+    workspace.setActivePath(fileset.rootPath);
+  }
+  return scaffoldWorkspace(workspace, fileset.rootPath, language);
+}
+
+function scaffoldWorkspace(
+  workspace: ClinicalModelWorkspace,
+  rootPath: string,
+  preferredLanguage?: string,
+): Pick<
+  GitHubClinicalModelLoadResult,
+  "templateId" | "optXml" | "webTemplateJson" | "skeleton" | "language" | "languages" | "warnings"
+> {
+  const resolved = workspace.resolveOperational();
+  const opt = resolved.operationalTemplate;
+  const rootFile = rootPath ? workspace.getFile(rootPath) : undefined;
+  const optXml = rootFile && isOptXml(rootFile.content)
+    ? rootFile.content
+    : new OptXmlSerializer().serialize(opt);
+  const ontologyLanguage = resolveOptLanguage(opt, preferredLanguage);
+  const webTemplate = buildWebTemplate(opt, { defaultLanguage: ontologyLanguage });
+  const generated = generateSkeletonFromOperational(
+    opt,
+    optXml,
+    buildWebTemplateTermsIndex(webTemplate, ontologyLanguage),
+    { language: ontologyLanguage },
+  );
+  const templateId = generated.templateId !== "unknown"
+    ? generated.templateId
+    : webTemplate.templateId || basename(rootPath);
+  const wtLanguages = availableWebTemplateLanguages(webTemplate);
+  const languages = orderLanguages(
+    preferredLanguage ?? generated.language,
+    [...generated.languages, ...wtLanguages],
+  );
+  const language = preferredLanguage && languages.includes(preferredLanguage)
+    ? preferredLanguage
+    : (generated.language || languages[0] || "en");
+  return {
     templateId,
     optXml,
     webTemplateJson: JSON.stringify(webTemplate),
     skeleton: generated.skeleton,
     language,
     languages,
-    warnings: [...closure.warnings, ...resolved.warnings, ...generated.warnings],
-    fetched: closure.fetched,
-    fileset: {
-      sourceUrl,
-      rootPath: closure.rootPath,
-      files: workspace.listFiles().map((file) => ({
-        path: file.path,
-        content: file.content,
-      })),
-    },
+    warnings: [...resolved.warnings, ...generated.warnings],
   };
 }
 

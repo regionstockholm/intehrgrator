@@ -16,6 +16,7 @@ import {
 } from "ehrtslib/parser/mod.ts";
 import { OptXmlSerializer } from "ehrtslib/generation/opt_xml_serializer.ts";
 import { buildWebTemplate } from "ehrtslib/serialization/simplified/mod.ts";
+import { readTemplateId } from "ehrtslib/am/util/ontology_merge.ts";
 
 const USAGE = `ehrtslib — local openEHR clinical-model tool (no network)
 
@@ -109,7 +110,8 @@ async function cmdInfo(path: string): Promise<number> {
   const text = await Deno.readTextFile(path);
   const parsed = parseTemplateInput(text);
   const opt = parsed.operationalTemplate as {
-    template_id?: { value?: string };
+    template_id?: { value?: string } | string;
+    archetype_id?: { value?: string };
     definition?: { rm_type_name?: string; attributes?: Array<{
       rm_attribute_name?: string;
       children?: Array<{ rm_type_name?: string; node_id?: string }>;
@@ -118,7 +120,7 @@ async function cmdInfo(path: string): Promise<number> {
   console.log(JSON.stringify({
     file: path,
     format: parsed.format,
-    templateId: opt?.template_id?.value ?? null,
+    templateId: readTemplateId(opt) ?? opt?.archetype_id?.value ?? null,
     rootRmType: opt?.definition?.rm_type_name ?? null,
     warnings: parsed.warnings,
     content: (opt?.definition?.attributes ?? [])

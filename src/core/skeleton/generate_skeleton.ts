@@ -8,6 +8,7 @@ import {
   applyOperationalTemplateTermScopes,
   type TermScopeMeta,
 } from "ehrtslib/generation/term_scope.ts";
+import { readTemplateId } from "ehrtslib/am/util/ontology_merge.ts";
 import type {
   AllowedOrdinal,
   AllowedValue,
@@ -152,7 +153,7 @@ export function generateSkeletonFromOperational(
     throw new Error("Could not parse operational template from input");
   }
 
-  const templateId = opt.template_id?.value ?? opt.archetype_id?.value ?? "unknown";
+  const templateId = readTemplateId(opt) ?? opt.archetype_id?.value ?? "unknown";
   const languages = availableOptLanguages(opt);
   const preferred = options?.language;
   const lang = preferred && (languages.length === 0 || languages.includes(preferred))

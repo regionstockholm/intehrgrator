@@ -34,7 +34,10 @@ import {
   productStackInspect,
   sheetSummaries,
 } from "../agent/inspect.ts";
-import { SlotLeaseRegistry, type SlotLease } from "../agent/leases.ts";
+import { leaseCovers, SlotLeaseRegistry, type SlotLease } from "../agent/leases.ts";
+import { filterSlotRows } from "../agent/inspect.ts";
+import { slotDetail } from "../agent/slot_detail.ts";
+import { buildSlotTree, resolveSlotPrefix, resolveSlotRef } from "../core/ai/slot_tree.ts";
 import { importBundle, exportBundle as zipBundle, validateBundle } from "../core/persistence/mod.ts";
 import type { ExampleSet } from "../core/example_sets/mod.ts";
 import type {
@@ -284,6 +287,9 @@ export class WorkbenchService {
     this.mutate(() => {
       this.controller.loadSchemaContent(filename, content);
     }, { ...ctx, kind: "load_bundle", summary: ctx?.summary ?? `Load schema ${filename}` });
+    // A file that could not be read is a tool error, not a silent empty Source pane (#278).
+    const error = this.controller.getState().schemaError;
+    if (error) throw new Error(error);
   }
 
   addExampleContent(filename: string, content: string, ctx?: MutationContext): void {
@@ -592,6 +598,61 @@ export class WorkbenchService {
     return listRepeatableInspect(s.skeleton);
   }
 
+  /** Every skeleton node id (value slots and containers). */
+  private nodeIds(): Set<string> {
+    return new Set(collectAllSlotIds(this.controller.getState().skeleton));
+  }
+
+  /**
+   * A slot reference from an agent (full id, compact slot-tree id, or a unique
+   * tail) as the skeleton id; unchanged when nothing matches (#277).
+   */
+  resolveSlotRef(ref: string): string {
+    return resolveSlotRef(ref, this.nodeIds()) ?? ref;
+  }
+
+  /** A lease `subtree` node path given in compact form, as the full prefix. */
+  resolveSlotPrefix(ref: string): string {
+    return resolveSlotPrefix(ref, this.nodeIds());
+  }
+
+  /** `list_slots` default view: the compact slot tree with mapping expressions (#277). */
+  listSlotTree(args: Record<string, unknown> = {}) {
+    const s = this.controller.getState();
+    const keep = new Set(filterSlotRows(listSlotsInspect(s.skeleton, s.model), args).map((r) => r.slotId));
+    // Labels in `target.lang.1` (+ `labels` in the other AI languages), whatever the panes show (#279).
+    return buildSlotTree(this.controller.getAiSkeleton(), {
+      include: (slot) => keep.has(slot.slotId),
+      model: s.model,
+      info: this.controller.getSlotInfoIndex(),
+      extraLabels: this.controller.getAiExtraLabels(),
+    });
+  }
+
+  /** `get_slot`: full details of one slot (#277 §3). */
+  getSlot(ref: string) {
+    const s = this.controller.getState();
+    const slotId = this.resolveSlotRef(ref);
+    const lease = this.leases.list().find((l) => leaseCovers(l, slotId));
+    const detail = slotDetail(
+      this.controller.getAiSkeleton(),
+      s.model,
+      slotId,
+      this.controller.getTargetSource(),
+      this.controller.getSlotInfoIndex(),
+      lease
+        ? {
+          agentId: lease.agentId,
+          displayName: lease.displayName,
+          expiresAt: new Date(lease.expiresAt).toISOString(),
+          ...(lease.subtree ? { subtree: true } : {}),
+        }
+        : undefined,
+    );
+    if (!detail) throw new Error(`Unknown slotId: ${ref}`);
+    return detail;
+  }
+
   /** Examples + Active Example tree for `list_examples` / `get_example` (shared with AI chat). */
   getExampleState() {
     const s = this.controller.getState();
@@ -601,7 +662,7 @@ export class WorkbenchService {
   getSourceTree() {
     const s = this.controller.getState();
     return {
-      schema: compactSourceTree(s.schemaTree),
+      schema: compactSourceTree(this.controller.getAiSourceTree()),
       schemaFormat: s.schemaFormat,
       schemaFilename: s.schemaFilename,
       example: compactSourceTree(s.exampleTree ?? null),

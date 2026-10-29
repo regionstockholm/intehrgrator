@@ -14,6 +14,11 @@ The desktop app also saves data using IndexedDB, through its embedded browser en
 
 Saves are done as debounced **autosave** (~10 s after edits) plus named **Save as** snapshots. Details: [docs/PROJECT_PERSISTENCE.md](docs/PROJECT_PERSISTENCE.md) and [Autosave & Status Bar](docs/UI_ARCHITECTURE.md#autosave--status-bar) in `docs/UI_ARCHITECTURE.md`. Portable backup is the `.intehrgrator` export/import path.
 
+
+## VS Code file projects
+
+In addition to the web and desktop storage above, the VS Code extension works on file projects: a Git-backed project with separate source, mapping and output files. The same files can be checked headlessly with `deno task project:run`. See [VS Code file projects](docs/VS_CODE.md) for setup, reviewable results and the CI runner.
+
 ## Prerequisites
 
 - **[Deno](https://docs.deno.com/runtime/getting_started/installation/)** 2.9+ — the project runtime, task runner, test runner, and desktop packager. We use Deno instead of Node/npm for installs, linting, testing, and builds.
